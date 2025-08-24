@@ -1,0 +1,47 @@
+name: EAS Update
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo/EAS login
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Run Expo Doctor
+        run: npx --yes expo-doctor
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test -- --passWithNoTests
+
+      # För PR: skicka till preview-channel
+      - name: EAS Update (preview for PRs)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: eas update --channel=preview --message="CI preview update" --non-interactive
+
+      # För main: skicka till production-channel
+      - name: EAS Update (production on main)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: eas update --channel=production --message="CI production update" --non-interactive

@@ -1,0 +1,14 @@
+{
+  "cli": {
+    "version": ">= 9.0.0"
+  },
+  "build": {
+    "production": {
+      "channel": "production"
+    },
+    "preview": {
+      "developmentClient": true,
+      "channel": "preview"
+    }
+  }
+}
