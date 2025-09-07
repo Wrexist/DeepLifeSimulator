@@ -56,7 +56,8 @@ describe('events engine', () => {
   });
 
   it('generates events based on state risk', () => {
-    const spy = jest.spyOn(Math, 'random').mockReturnValue(0);
+    // Mock Math.random to return 0.1 (low enough to pass base event chance)
+    const spy = jest.spyOn(Math, 'random').mockReturnValue(0.1);
     const events = rollWeeklyEvents(createState({}));
     spy.mockRestore();
     expect(events.length).toBeGreaterThan(0);
@@ -64,10 +65,29 @@ describe('events engine', () => {
   });
 
   it('limits events to at most two per week', () => {
-    const spy = jest.spyOn(Math, 'random').mockReturnValue(0);
+    // Mock Math.random to return 0.1 (low enough to pass base event chance)
+    const spy = jest.spyOn(Math, 'random').mockReturnValue(0.1);
     const events = rollWeeklyEvents(createState({}));
     spy.mockRestore();
     expect(events.length).toBeLessThanOrEqual(2);
+  });
+
+  it('respects the random frequency (approximately 1 in 4 weeks)', () => {
+    // Test multiple runs to verify the random frequency
+    let eventsGenerated = 0;
+    const testRuns = 100;
+    
+    for (let i = 0; i < testRuns; i++) {
+      const events = rollWeeklyEvents(createState({}));
+      if (events.length > 0) {
+        eventsGenerated++;
+      }
+    }
+    
+    // Should be approximately 20-30% of the time (allowing for randomness)
+    const eventRate = eventsGenerated / testRuns;
+    expect(eventRate).toBeGreaterThan(0.1); // At least 10%
+    expect(eventRate).toBeLessThan(0.4); // At most 40%
   });
 });
 

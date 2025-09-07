@@ -3,7 +3,7 @@ import { GameState } from '@/contexts/GameContext';
 
 function createState(priceIndex: number, rate: number): GameState {
   return {
-    stats: { health: 0, happiness: 0, energy: 0, fitness: 0, money: 0, reputation: 0, goldBars: 0 },
+    stats: { health: 0, happiness: 0, energy: 0, fitness: 0, money: 0, reputation: 0, gems: 0 },
     day: 0,
     week: 1,
     date: { year: 2025, month: 'January', week: 1, age: 18 },
@@ -63,6 +63,14 @@ function createState(priceIndex: number, rate: number): GameState {
     eventLog: [],
     progress: { achievements: [] },
     journal: [],
+    healthWeeks: 0,
+    dailyGifts: {
+      currentStreak: 0,
+      lastClaimDate: '',
+      weeklyGifts: [],
+      claimedToday: false,
+      showDailyGiftModal: false,
+    },
   } as GameState;
 }
 

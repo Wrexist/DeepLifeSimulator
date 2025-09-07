@@ -7,6 +7,7 @@ import { getWeeklyInflationRate } from '@/lib/economy/inflation';
 
 interface LoanSummary {
   principal?: number;
+  weeklyPayment: number;
 }
 
 export default function FinanceOverview() {

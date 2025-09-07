@@ -7,8 +7,8 @@ export default function ZeroStatPopup() {
   const { settings, zeroStatType } = gameState;
 
   const message = zeroStatType === 'happiness'
-    ? 'Your happiness is at 0! Increase it within 5 weeks or your character will die.'
-    : 'Your health is at 0! Increase it within 5 weeks or your character will die.';
+    ? 'Your happiness is at 0! Increase it within 4 weeks or your character will die.'
+    : 'Your health is at 0! Increase it within 4 weeks or your character will die.';
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => {}}>

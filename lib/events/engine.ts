@@ -160,7 +160,8 @@ const weddingEvent: EventTemplate = {
   id: 'wedding',
   category: 'relationship',
   weight: 0.2,
-  condition: state => state.relationships.some(r => r.type === 'partner'),
+  // Only allow wedding consideration after week 36 and if a partner exists
+  condition: state => (state.week ?? state.date?.week ?? 0) >= 36 && state.relationships.some(r => r.type === 'partner'),
   generate: state => {
     const partner = state.relationships.find(r => r.type === 'partner')!;
     return {
@@ -402,9 +403,24 @@ export const eventTemplates: EventTemplate[] = [
 ];
 
 const MAX_EVENTS_PER_WEEK = 2;
-const EVENT_FREQUENCY_MODIFIER = 0.2;
+const EVENT_FREQUENCY_MODIFIER = 0.25; // 25% base chance (1 in 4 weeks)
+
+/**
+ * Weekly Event System:
+ * - Events now occur randomly with approximately 1 in 4 weeks frequency (20-30% chance)
+ * - This makes events feel more natural and less predictable
+ * - Players will experience periods of calm followed by eventful weeks
+ * - The base chance varies slightly each week for more realistic randomness
+ */
 
 export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
+  // Base random chance for any event to occur (approximately 1 in 4 weeks)
+  // Add some variation: 20-30% chance to make it feel more natural
+  const baseEventChance = 0.2 + (Math.random() * 0.1); // 20-30% chance
+  if (Math.random() > baseEventChance) {
+    return []; // No events this week
+  }
+
   const economyRisk = state.stats.money < 200 ? 0.6 : 0.2;
   const healthRisk = state.stats.health < 60 ? 0.6 : 0.2;
   const avgRelation =

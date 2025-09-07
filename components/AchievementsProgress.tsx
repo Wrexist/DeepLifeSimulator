@@ -4,6 +4,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';
 import { Trophy, Gem } from 'lucide-react-native';
 import { useAchievements } from '@/hooks/useAchievements';
+import {
+  responsivePadding,
+  responsiveFontSize,
+  responsiveSpacing,
+  responsiveBorderRadius,
+  responsiveIconSize,
+  scale,
+  verticalScale,
+} from '@/utils/scaling';
 
 export default function AchievementsProgress() {
   const { gameState, claimProgressAchievement } = useGame();
@@ -22,7 +31,7 @@ export default function AchievementsProgress() {
   return (
     <View style={[styles.container, gameState.settings.darkMode && styles.containerDark]}>
       <View style={styles.header}>
-        <Trophy size={24} color={gameState.settings.darkMode ? '#FBBF24' : '#F59E0B'} />
+        <Trophy size={responsiveIconSize.lg} color={gameState.settings.darkMode ? '#FBBF24' : '#F59E0B'} />
         <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]}>Achievements in Progress</Text>
       </View>
       <View style={styles.controls}>
@@ -55,7 +64,7 @@ export default function AchievementsProgress() {
                   <Text style={styles.stackText}>{`${a.stackIndex + 1}/${a.stackSize}`}</Text>
                   {a.goldReward > 0 && (
                     <View style={styles.reward}>
-                      <Gem size={16} color="#3B82F6" />
+                      <Gem size={responsiveIconSize.sm} color="#3B82F6" />
                       <Text style={[styles.rewardText, { color: '#3B82F6' }]}>{a.goldReward}</Text>
                     </View>
                   )}
@@ -101,10 +110,10 @@ export default function AchievementsProgress() {
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
+    marginTop: verticalScale(20),
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: responsiveBorderRadius.md,
+    padding: responsiveSpacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -117,21 +126,21 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: responsiveSpacing.md,
   },
   title: {
-    fontSize: 18,
+    fontSize: responsiveFontSize.xl,
     fontWeight: '600',
     color: '#1F2937',
-    marginLeft: 8,
+    marginLeft: responsiveSpacing.sm,
   },
   titleDark: {
     color: '#F9FAFB',
   },
   card: {
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 8,
+    marginBottom: responsiveSpacing.md,
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.sm,
     backgroundColor: '#F9FAFB',
   },
   cardDark: {
@@ -148,12 +157,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   achievementIcon: {
-    width: 24,
-    height: 24,
-    marginRight: 8,
+    width: responsiveIconSize.lg,
+    height: responsiveIconSize.lg,
+    marginRight: responsiveSpacing.sm,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: responsiveFontSize.lg,
     fontWeight: '600',
     color: '#1F2937',
   },
@@ -165,38 +174,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rewardText: {
-    marginLeft: 4,
+    marginLeft: responsiveSpacing.xs,
     color: '#FBBF24',
     fontWeight: '600',
   },
   stackText: {
-    marginRight: 8,
+    marginRight: responsiveSpacing.sm,
     color: '#9CA3AF',
-    fontSize: 12,
+    fontSize: responsiveFontSize.sm,
   },
   cardDesc: {
-    fontSize: 12,
+    fontSize: responsiveFontSize.sm,
     color: '#6B7280',
-    marginBottom: 8,
+    marginBottom: responsiveSpacing.sm,
   },
   cardDescDark: {
     color: '#D1D5DB',
   },
   nextText: {
-    fontSize: 12,
+    fontSize: responsiveFontSize.sm,
     color: '#6B7280',
-    marginBottom: 4,
+    marginBottom: responsiveSpacing.xs,
   },
   empty: {
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: responsiveSpacing.sm,
     color: '#6B7280',
   },
   controls: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: responsiveSpacing.md,
   },
   controlText: {
     color: '#1F2937',
@@ -205,12 +214,12 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
   sortToggle: {
-    padding: 4,
+    padding: responsiveSpacing.xs,
   },
   progressBar: {
-    height: 8,
+    height: scale(8),
     backgroundColor: '#E5E7EB',
-    borderRadius: 4,
+    borderRadius: responsiveBorderRadius.xs,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.15,
@@ -220,7 +229,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: responsiveBorderRadius.xs,
     overflow: 'hidden',
   },
   unlocked: {
@@ -228,10 +237,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   claimButton: {
-    marginTop: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 4,
+    marginTop: responsiveSpacing.xs,
+    paddingVertical: scale(6),
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.xs,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.2,

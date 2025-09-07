@@ -1,8 +1,29 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { 
+  Smartphone, 
+  ArrowLeft,
+  Heart,
+  Users,
+  MessageCircle,
+  TrendingUp,
+  CreditCard,
+  GraduationCap,
+  Building,
+  PawPrint
+} from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { Smartphone, Heart, Users, MessageCircle, TrendingUp, CreditCard, GraduationCap, Building, PawPrint } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from '@/hooks/useTranslation';
 import HinderApp from '@/components/mobile/TinderApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
 import SocialApp from '@/components/mobile/SocialApp';
@@ -11,14 +32,36 @@ import BankApp from '@/components/mobile/BankApp';
 import EducationApp from '@/components/mobile/EducationApp';
 import CompanyApp from '@/components/mobile/CompanyApp';
 import PetApp from '@/components/mobile/PetApp';
+import {
+  responsivePadding,
+  responsiveFontSize,
+  responsiveSpacing,
+  responsiveBorderRadius,
+  responsiveIconSize,
+  isSmallDevice,
+  isLargeDevice,
+  screenDimensions
+} from '@/utils/scaling';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function MobileScreen() {
+  const { t } = useTranslation();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [contentHeight, setContentHeight] = useState(1);
   const [visibleHeight, setVisibleHeight] = useState(1);
   const [scrollY, setScrollY] = useState(0);
   const { gameState } = useGame();
   const { settings } = gameState;
+  const navigation = useNavigation<any>();
+
+  // Reset to apps grid when the Mobile tab is pressed
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('tabPress', () => {
+      setActiveApp(null);
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   if (!gameState.items.find(item => item.id === 'smartphone')?.owned) {
     return (
@@ -31,10 +74,10 @@ export default function MobileScreen() {
             <Smartphone size={80} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
           </View>
           <Text style={[styles.noPhoneTitle, settings.darkMode && styles.noPhoneTitleDark]}>
-            No Phone Available
+            {t('mobile.noPhoneAvailable')}
           </Text>
           <Text style={[styles.noPhoneMessage, settings.darkMode && styles.noPhoneMessageDark]}>
-            You need to buy a smartphone to access mobile apps. Visit the Market tab to purchase one!
+            {t('mobile.noPhoneMessage')}
           </Text>
         </View>
       </LinearGradient>
@@ -59,68 +102,49 @@ export default function MobileScreen() {
 
   const apps = [
     {
-          id: 'tinder',
-    name: 'Hinder',
-      description: 'Find love and relationships',
+      id: 'tinder',
+      name: t('mobile.dating'),
+      description: t('mobile.findLoveRelationships'),
       icon: Heart,
-      color: ['#EF4444', '#F87171'],
-      gradient: ['#FEE2E2', '#FECACA'],
+      gradient: ['#FF4757', '#FF3742'], // Red gradient to match heart icon
+      iconGradient: ['#FF4757', '#FF3742'],
+      available: true,
     },
     {
       id: 'contacts',
-      name: 'Contacts',
-      description: 'Manage your relationships',
+      name: t('mobile.contacts'),
+      description: t('mobile.manageRelationships'),
       icon: Users,
-      color: ['#3B82F6', '#60A5FA'],
-      gradient: ['#DBEAFE', '#BFDBFE'],
+      gradient: ['#00D2D3', '#54A0FF'], // Teal-blue gradient to match contacts icon
+      iconGradient: ['#00D2D3', '#54A0FF'],
+      available: true,
     },
     {
       id: 'social',
-      name: 'Social',
-      description: 'Share your life online',
+      name: t('mobile.social'),
+      description: t('mobile.shareLifeOnline'),
       icon: MessageCircle,
-      color: ['#8B5CF6', '#A78BFA'],
-      gradient: ['#EDE9FE', '#DDD6FE'],
+      gradient: ['#5F27CD', '#341F97'], // Purple gradient to match social icon
+      iconGradient: ['#5F27CD', '#341F97'],
+      available: true,
     },
     {
       id: 'stocks',
-      name: 'Stocks',
-      description: 'Trade and invest',
+      name: t('mobile.stocks'),
+      description: t('mobile.tradeInvest'),
       icon: TrendingUp,
-      color: ['#10B981', '#34D399'],
-      gradient: ['#D1FAE5', '#A7F3D0'],
+      gradient: ['#00B894', '#00CEC9'], // Green gradient to match stocks icon
+      iconGradient: ['#00B894', '#00CEC9'],
+      available: true,
     },
     {
       id: 'bank',
-      name: 'Bank',
-      description: 'Manage your finances',
+      name: t('mobile.bank'),
+      description: t('mobile.manageFinances'),
       icon: CreditCard,
-      color: ['#F59E0B', '#FBBF24'],
-      gradient: ['#FEF3C7', '#FDE68A'],
-    },
-    {
-      id: 'education',
-      name: 'Education',
-      description: 'Learn and grow',
-      icon: GraduationCap,
-      color: ['#06B6D4', '#22D3EE'],
-      gradient: ['#CFFAFE', '#A5F3FC'],
-    },
-    {
-      id: 'company',
-      name: 'Company',
-      description: 'Build your business',
-      icon: Building,
-      color: ['#7C3AED', '#A78BFA'],
-      gradient: ['#EDE9FE', '#DDD6FE'],
-    },
-    {
-      id: 'pet',
-      name: 'Pet Care',
-      description: 'Take care of your pets',
-      icon: PawPrint,
-      color: ['#EC4899', '#F472B6'],
-      gradient: ['#FCE7F3', '#FBCFE8'],
+      gradient: ['#FD79A8', '#FDCB6E'], // Pink-orange gradient to match bank icon
+      iconGradient: ['#FD79A8', '#FDCB6E'],
+      available: true,
     },
   ];
 
@@ -133,41 +157,37 @@ export default function MobileScreen() {
         <View style={styles.headerContent}>
           <Smartphone size={32} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
           <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
-            Mobile Apps
+            {t('mobile.mobileApps')}
           </Text>
         </View>
         <Text style={[styles.headerSubtitle, settings.darkMode && styles.headerSubtitleDark]}>
-          Access your digital life
+          {t('mobile.accessSmartphoneApplications')}
         </Text>
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={true}>
         <View style={styles.appsGrid}>
           {apps.map((app) => (
             <TouchableOpacity
               key={app.id}
-              style={styles.appCard}
+              style={[styles.appCard, { width: (screenWidth - responsivePadding.horizontal * 2 - responsiveSpacing.md) / 2 }]}
               onPress={() => setActiveApp(app.id)}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={app.gradient}
+                colors={app.gradient as [string, string]}
                 style={styles.appCardGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
                 <View style={styles.appIconContainer}>
                   <LinearGradient
-                    colors={app.color}
+                    colors={app.iconGradient as [string, string]}
                     style={styles.appIconGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <app.icon size={28} color="#FFFFFF" />
+                    <app.icon size={responsiveIconSize.lg} color="#FFFFFF" />
                   </LinearGradient>
                 </View>
                 <Text style={styles.appName}>{app.name}</Text>
@@ -186,28 +206,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: responsivePadding.vertical,
+    paddingBottom: responsivePadding.vertical,
+    paddingHorizontal: responsivePadding.horizontal,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: responsiveSpacing.sm,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: responsiveFontSize['3xl'],
     fontWeight: 'bold',
     color: '#111827',
-    marginLeft: 12,
+    marginLeft: responsiveSpacing.md,
   },
   headerTitleDark: {
     color: '#F9FAFB',
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: responsiveFontSize.lg,
     color: '#6B7280',
-    marginLeft: 44,
+    marginLeft: responsiveSpacing.xl + responsiveSpacing.md,
   },
   headerSubtitleDark: {
     color: '#9CA3AF',
@@ -216,39 +236,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingHorizontal: responsivePadding.horizontal,
+    paddingBottom: responsiveSpacing.xl,
   },
   appsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+    justifyContent: 'space-evenly',
+    gap: responsiveSpacing.sm,
   },
   appCard: {
-    width: '30%',
     aspectRatio: 1,
-    borderRadius: 16,
+    borderRadius: responsiveBorderRadius.lg,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 4,
+    overflow: 'hidden',
   },
   appCardGradient: {
     flex: 1,
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: responsiveBorderRadius.lg,
+    padding: responsiveSpacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   appIconContainer: {
-    marginBottom: 12,
+    marginBottom: responsiveSpacing.sm,
   },
   appIconGradient: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: responsiveIconSize['2xl'],
+    height: responsiveIconSize['2xl'],
+    borderRadius: responsiveIconSize['2xl'] / 2,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -258,48 +278,44 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   appName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 2,
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: responsiveSpacing.xs,
     textAlign: 'center',
+    textShadow: '0px 1px 2px rgba(0, 0, 0, 0.2)',
   },
   appDescription: {
-    fontSize: 10,
-    color: '#6B7280',
+    fontSize: responsiveFontSize.xs,
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: responsiveFontSize.xs * 1.4,
+    textShadow: '0px 1px 1px rgba(0, 0, 0, 0.2)',
   },
   noPhoneContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: responsivePadding.xlarge,
   },
   noPhoneIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(156, 163, 175, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: responsiveSpacing.xl,
   },
   noPhoneTitle: {
-    fontSize: 24,
+    fontSize: responsiveFontSize['2xl'],
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 12,
+    marginBottom: responsiveSpacing.md,
     textAlign: 'center',
   },
   noPhoneTitleDark: {
     color: '#F9FAFB',
   },
   noPhoneMessage: {
-    fontSize: 16,
+    fontSize: responsiveFontSize.base,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: responsiveFontSize.base * 1.4,
   },
   noPhoneMessageDark: {
     color: '#9CA3AF',

@@ -1,14 +1,25 @@
 {
   "cli": {
-    "version": ">= 9.0.0"
+    "version": ">= 9.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "ios": { "resourceClass": "m-medium" }
     },
     "preview": {
       "developmentClient": true,
       "channel": "preview"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleTeamId": "S3U8B8HH96",
+        "ascAppId": "6749675615",
+        "language": "en-US"
+      }
     }
   }
 }

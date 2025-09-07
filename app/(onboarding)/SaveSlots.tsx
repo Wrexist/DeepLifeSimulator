@@ -1,232 +1,182 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ImageBackground, Dimensions } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useGame } from '@/contexts/GameContext';
+import { useRouter } from 'expo-router';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
-import { scenarios } from '@/src/features/onboarding/scenarioData';
-import ConfirmDialog from '@/components/ConfirmDialog';
-import { ArrowLeft, Play, Plus, Trash2, Lock } from 'lucide-react-native';
+import { ArrowLeft, Save, Trash2, Play } from 'lucide-react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
-
-interface SlotData {
-  firstName?: string;
-  lastName?: string;
-  age?: number;
-  netWorth?: number;
-  scenario?: string;
-  sex?: string;
-}
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function SaveSlots() {
+  const { state, setState } = useOnboarding();
   const router = useRouter();
-  const { gameState, loadGame } = useGame();
-  const { setState } = useOnboarding();
-  const [slots, setSlots] = useState<Record<number, SlotData>>({});
-  const hasHighAchiever = gameState.progress?.achievements?.some((a: any) => a.id === 'high_achiever');
+  const [slots, setSlots] = useState<any[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
+
+  // Animations
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  // Rotating background animation
+  useEffect(() => {
+    let isMounted = true;
+    const rotateAnimation = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 30000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    
+    if (isMounted) {
+      rotateAnimation.start();
+    }
+
+    return () => {
+      isMounted = false;
+      rotateAnimation.stop();
+    };
+  }, [rotateAnim]);
+
+  // Fade in and slide up animation
+  useEffect(() => {
+    let isMounted = true;
+    const parallelAnimation = Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 1000,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+    
+    if (isMounted) {
+      parallelAnimation.start();
+    }
+
+    return () => {
+      isMounted = false;
+      parallelAnimation.stop();
+    };
+  }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const loaded: Record<number, SlotData> = {};
-        for (let i = 1; i <= 5; i++) {
-          const raw = await AsyncStorage.getItem(`save_slot_${i}`);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            loaded[i] = {
-              firstName: parsed.userProfile?.firstName,
-              lastName: parsed.userProfile?.lastName,
-              age: parsed.date?.age,
-              netWorth: parsed.stats?.money,
-              scenario: parsed.scenarioId,
-              sex: parsed.userProfile?.sex,
-            };
-          }
-        }
-        setSlots(loaded);
-      } catch (error) {
-        console.error('Error loading save slots:', error);
-      }
-    })();
+    loadSlots();
   }, []);
 
-  const startNew = (slot: number) => {
-    setState(prev => ({ ...prev, slot, scenario: undefined, perks: [], firstName: '', lastName: '' }));
-    router.push('/(onboarding)/Scenarios');
-  };
-
-  const continueSlot = async (slot: number) => {
-    await loadGame(slot);
-    router.replace('/(tabs)');
-  };
-
-  const deleteSlot = async (slot: number) => {
-    try {
-      await AsyncStorage.removeItem(`save_slot_${slot}`);
-      const last = await AsyncStorage.getItem('lastSlot');
-      if (last === String(slot)) {
-        await AsyncStorage.removeItem('lastSlot');
+  const loadSlots = async () => {
+    const slotData = [];
+    for (let i = 1; i <= 3; i++) {
+      try {
+        const data = await AsyncStorage.getItem(`save_slot_${i}`);
+        if (data) {
+          const parsed = JSON.parse(data);
+          slotData.push({
+            id: i,
+            ...parsed,
+            hasData: true,
+          });
+        } else {
+          slotData.push({
+            id: i,
+            hasData: false,
+          });
+        }
+      } catch (error) {
+        slotData.push({
+          id: i,
+          hasData: false,
+        });
       }
-      setSlots(prev => {
-        const updated = { ...prev };
-        delete updated[slot];
-        return updated;
-      });
+    }
+    setSlots(slotData);
+  };
+
+  const selectSlot = (slotId: number) => {
+    setSelectedSlot(slotId);
+    setState(prev => ({ ...prev, slot: slotId }));
+    
+    // Check if slot is empty (no save data)
+    const slot = slots.find(s => s.id === slotId);
+    if (!slot || !slot.hasData) {
+      // Navigate to Scenarios for new game
+      router.push('/(onboarding)/Scenarios');
+    }
+  };
+
+  const deleteSlot = async (slotId: number) => {
+    try {
+      await AsyncStorage.removeItem(`save_slot_${slotId}`);
+      await loadSlots();
+      if (selectedSlot === slotId) {
+        setSelectedSlot(null);
+        setState(prev => ({ ...prev, slot: 0 }));
+      }
     } catch (error) {
-      console.error('Error deleting save slot:', error);
+      console.error('Error deleting slot:', error);
     }
   };
 
-  const [slotToDelete, setSlotToDelete] = useState<number | null>(null);
-  const confirmDeleteSlot = (slot: number) => {
-    setSlotToDelete(slot);
+  const continueToGame = () => {
+    if (selectedSlot) {
+      router.push('/(tabs)');
+    }
   };
 
-  const handleBackPress = () => {
-    // Always go back to main menu to avoid navigation issues
-    router.replace('/(onboarding)/MainMenu');
+  const startNewGame = () => {
+    router.push('/(onboarding)/MainMenu');
   };
 
-  const renderSlot = (slot: number) => {
-    const data = slots[slot];
-    let locked = false;
-    let lockReason = '';
-    if (slot === 2 && !hasHighAchiever) {
-      locked = true;
-      lockReason = 'Unlock achievement: high_achiever';
-    }
-    if (slot > 2) {
-      locked = true;
-      lockReason = 'Purchase to unlock';
-    }
-    const scenarioInfo = scenarios.find(s => s.id === data?.scenario);
-    const faceIcon = data?.age && data.sex
-      ? data.age < 13
-        ? require('@/assets/images/Face/Baby.png')
-        : data.age >= 60
-          ? data.sex === 'male'
-            ? require('@/assets/images/Face/Old_Male.png')
-            : require('@/assets/images/Face/Old_Female.png')
-          : data.sex === 'male'
-            ? require('@/assets/images/Face/Male.png')
-            : require('@/assets/images/Face/Female.png')
-      : require('@/assets/images/Face/Baby.png');
-
-    if (locked) {
-      return (
-        <View key={slot} style={styles.slotContainer}>
-          <LinearGradient
-            colors={['#374151', '#1F2937']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.slotCard}
-          >
-            <View style={styles.slotHeader}>
-              <Text style={styles.slotNumber}>Slot {slot}</Text>
-              <View style={styles.lockIconContainer}>
-                <Lock size={20} color="#9CA3AF" />
-              </View>
-            </View>
-            <View style={styles.lockContent}>
-              <Text style={styles.lockText}>{lockReason}</Text>
-            </View>
-          </LinearGradient>
-        </View>
-      );
-    }
-
-    return (
-      <View key={slot} style={styles.slotContainer}>
-        <LinearGradient
-          colors={data ? ['#1F2937', '#111827'] : ['#3B82F6', '#1D4ED8']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.slotCard}
-        >
-          <View style={styles.slotHeader}>
-            <Text style={styles.slotNumber}>Slot {slot}</Text>
-            {data && (
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>Active</Text>
-              </View>
-            )}
-          </View>
-          
-          {data ? (
-            <View style={styles.slotContent}>
-              <View style={styles.avatarContainer}>
-                <Image source={faceIcon} style={styles.avatar} />
-              </View>
-              <View style={styles.infoContainer}>
-                <Text style={styles.characterName}>{data.firstName} {data.lastName}</Text>
-                <Text style={styles.characterStats}>{`${Math.floor(data.age ?? 0)} years old`}</Text>
-                <Text style={styles.characterStats}>{`$${data.netWorth?.toLocaleString()}`}</Text>
-                <Text style={styles.scenarioName}>{scenarioInfo?.title}</Text>
-              </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity onPress={() => continueSlot(slot)} style={styles.actionButton}>
-                  <LinearGradient
-                    colors={['#10B981', '#059669']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.buttonGradient}
-                  >
-                    <Play size={16} color="#FFFFFF" />
-                    <Text style={styles.buttonText}>Continue</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => startNew(slot)} style={styles.actionButton}>
-                  <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.buttonGradient}
-                  >
-                    <Plus size={16} color="#FFFFFF" />
-                    <Text style={styles.buttonText}>New Life</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => confirmDeleteSlot(slot)} style={styles.actionButton}>
-                  <LinearGradient
-                    colors={['#EF4444', '#DC2626']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.buttonGradient}
-                  >
-                    <Trash2 size={16} color="#FFFFFF" />
-                    <Text style={styles.buttonText}>Delete</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={() => startNew(slot)} style={styles.emptySlot}>
-              <View style={styles.emptyContent}>
-                <Plus size={48} color="#FFFFFF" />
-                <Text style={styles.emptyText}>Start New Life</Text>
-                <Text style={styles.emptySubtext}>Create a new character</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-        </LinearGradient>
-      </View>
-    );
-  };
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
-    <ImageBackground
-      source={require('@/assets/images/background.png')}
-      style={styles.bg}
-      resizeMode="cover"
-    >
-      <View style={styles.overlay}>
+    <View style={styles.container}>
+      {/* Animated background gradients */}
+      <Animated.View
+        style={[
+          styles.backgroundGradient1,
+          {
+            transform: [{ rotate: rotateInterpolate }],
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.backgroundGradient2,
+          {
+            transform: [{ rotate: rotateInterpolate }],
+          },
+        ]}
+      />
+
+      {/* Main content */}
+      <Animated.View 
+        style={[
+          styles.content, 
+          { 
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.push('/(onboarding)/MainMenu')} style={styles.backButton}>
             <LinearGradient
-              colors={['#374151', '#1F2937']}
+              colors={['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.3)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.backButtonGradient}
@@ -237,81 +187,214 @@ export default function SaveSlots() {
           <Text style={styles.title}>Save Slots</Text>
           <View style={styles.placeholder} />
         </View>
-        
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-          <View style={styles.slotsContainer}>
-            {[1, 2, 3, 4, 5].map(renderSlot)}
+
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          <View style={styles.scrollContent}>
+            {/* Hero section */}
+            <View style={styles.heroSection}>
+              <Text style={styles.heroTitle}>Choose Your Save Slot</Text>
+              <Text style={styles.heroSubtitle}>Select a slot to continue your journey or start fresh</Text>
+            </View>
+
+            {/* Save slots */}
+            <View style={styles.slotsContainer}>
+              {slots.map((slot) => {
+                const isSelected = selectedSlot === slot.id;
+                const isOccupied = slot.hasData;
+                
+                return (
+                  <TouchableOpacity
+                    key={slot.id}
+                    style={styles.slotContainer}
+                    onPress={() => selectSlot(slot.id)}
+                  >
+                    <BlurView intensity={20} style={styles.slotBlur}>
+                      <LinearGradient
+                        colors={isSelected ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.slotCard}
+                      >
+                        <View style={styles.slotHeader}>
+                          <View style={styles.slotIconContainer}>
+                            <LinearGradient
+                              colors={['rgba(59, 130, 246, 0.2)', 'rgba(99, 102, 241, 0.2)']}
+                              style={styles.slotIconGradient}
+                            >
+                              <Save size={32} color="#FFFFFF" />
+                            </LinearGradient>
+                          </View>
+                          <View style={styles.slotInfo}>
+                            <Text style={styles.slotTitle}>Slot {slot.id}</Text>
+                            {isOccupied ? (
+                              <Text style={styles.slotSubtitle}>
+                                {slot.userProfile?.firstName} {slot.userProfile?.lastName} - Age {Math.ceil(slot.date?.age || 0)}
+                              </Text>
+                            ) : (
+                              <Text style={styles.slotSubtitle}>Empty Slot</Text>
+                            )}
+                          </View>
+                          {isSelected && (
+                            <View style={styles.selectedIndicator}>
+                              <LinearGradient
+                                colors={['#10B981', '#059669']}
+                                style={styles.selectedGradient}
+                              >
+                                <Text style={styles.selectedText}>✓</Text>
+                              </LinearGradient>
+                            </View>
+                          )}
+                        </View>
+
+                        {isOccupied && (
+                          <View style={styles.slotStats}>
+                            <View style={styles.statItem}>
+                              <Text style={styles.statLabel}>Money</Text>
+                              <Text style={styles.statValue}>${slot.stats?.money?.toLocaleString() || 0}</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                              <Text style={styles.statLabel}>Age</Text>
+                              <Text style={styles.statValue}>{Math.ceil(slot.date?.age || 0)}</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                              <Text style={styles.statLabel}>Week</Text>
+                              <Text style={styles.statValue}>{slot.date?.week || 0}</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        <View style={styles.slotActions}>
+                          {isOccupied && (
+                            <TouchableOpacity
+                              style={styles.deleteButton}
+                              onPress={() => deleteSlot(slot.id)}
+                            >
+                              <LinearGradient
+                                colors={['rgba(239, 68, 68, 0.2)', 'rgba(220, 38, 38, 0.2)']}
+                                style={styles.deleteButtonGradient}
+                              >
+                                <Trash2 size={16} color="#EF4444" />
+                                <Text style={styles.deleteButtonText}>Delete</Text>
+                              </LinearGradient>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </LinearGradient>
+                    </BlurView>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Action buttons */}
+            <View style={styles.actionButtons}>
+              {selectedSlot && slots.find(s => s.id === selectedSlot)?.hasData ? (
+                <TouchableOpacity style={styles.continueButton} onPress={continueToGame}>
+                  <BlurView intensity={20} style={styles.continueButtonBlur}>
+                    <LinearGradient
+                      colors={['rgba(16, 185, 129, 0.7)', 'rgba(5, 150, 105, 0.7)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.continueButtonGradient}
+                    >
+                      <Play size={24} color="#FFFFFF" />
+                      <Text style={styles.continueButtonText}>Continue Game</Text>
+                    </LinearGradient>
+                  </BlurView>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.newGameButton} onPress={startNewGame}>
+                  <BlurView intensity={20} style={styles.newGameButtonBlur}>
+                    <LinearGradient
+                      colors={['rgba(59, 130, 246, 0.7)', 'rgba(99, 102, 241, 0.7)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.newGameButtonGradient}
+                    >
+                      <Text style={styles.newGameButtonText}>Start New Game</Text>
+                    </LinearGradient>
+                  </BlurView>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </ScrollView>
-      </View>
-      
-      <ConfirmDialog
-        visible={slotToDelete !== null}
-        title="Delete Save Slot"
-        message="Are you sure you want to delete this save? This action cannot be undone."
-        onCancel={() => setSlotToDelete(null)}
-        onConfirm={() => {
-          if (slotToDelete !== null) {
-            deleteSlot(slotToDelete);
-          }
-          setSlotToDelete(null);
-        }}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
-    </ImageBackground>
+
+        {/* Floating particles */}
+        <View style={styles.particlesContainer}>
+          {[...Array(8)].map((_, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.particle,
+                {
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  transform: [
+                    {
+                      rotate: rotateAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0deg', '360deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          ))}
+        </View>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bg: { 
-    flex: 1, 
-    width: '100%', 
-    height: '100%' 
-  },
-  overlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: '#0F172A',
+    overflow: 'hidden',
+    marginTop: -50, // Extend background to cover status bar
+  },
+  backgroundGradient1: {
+    position: 'absolute',
+    width: screenWidth * 2,
+    height: screenWidth * 2,
+    borderRadius: screenWidth,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    top: -screenWidth / 2,
+    left: -screenWidth / 2,
+  },
+  backgroundGradient2: {
+    position: 'absolute',
+    width: screenWidth * 1.5,
+    height: screenWidth * 1.5,
+    borderRadius: screenWidth,
+    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    bottom: -screenWidth / 3,
+    right: -screenWidth / 3,
+  },
+  content: {
+    flex: 1,
+    paddingTop: 110, // Account for status bar
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 20,
   },
-  backButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  backButtonGradient: {
-    width: 48,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
-  placeholder: {
-    width: 48,
-  },
-  container: {
-    flex: 1,
-  },
-  slotsContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  slotContainer: {
-    marginBottom: 16,
-    borderRadius: 16,
+  backButton: {
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -319,115 +402,238 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  backButtonGradient: {
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  placeholder: {
+    width: 48,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  heroSection: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    color: '#94A3B8',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  slotsContainer: {
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  slotContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  slotBlur: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
   slotCard: {
     padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   slotHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
-  slotNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  lockIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(156, 163, 175, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  lockContent: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  lockText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
-  slotContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    marginRight: 16,
-  },
-  avatar: {
+  slotIconContainer: {
     width: 60,
     height: 60,
-    borderRadius: 30,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  infoContainer: {
+  slotIconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  slotInfo: {
     flex: 1,
   },
-  characterName: {
+  slotTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 4,
   },
-  characterStats: {
+  slotSubtitle: {
     fontSize: 14,
     color: '#D1D5DB',
-    marginBottom: 2,
   },
-  scenarioName: {
+  selectedIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  selectedGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  slotStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
     fontSize: 12,
     color: '#9CA3AF',
-    fontStyle: 'italic',
+    marginBottom: 4,
   },
-  actionButtons: {
-    gap: 8,
+  statValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
-  actionButton: {
+  slotActions: {
+    alignItems: 'flex-end',
+  },
+  deleteButton: {
     borderRadius: 8,
     overflow: 'hidden',
   },
-  buttonGradient: {
+  deleteButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
-  buttonText: {
+  deleteButtonText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: 'bold',
+    color: '#EF4444',
+    marginLeft: 4,
   },
-  emptySlot: {
+  actionButtons: {
+    paddingHorizontal: 20,
+    marginBottom: 40,
+  },
+  continueButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  continueButtonBlur: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  continueButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    paddingVertical: 40,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
-  emptyContent: {
-    alignItems: 'center',
-  },
-  emptyText: {
+  continueButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginTop: 12,
-    marginBottom: 4,
+    marginLeft: 8,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#D1D5DB',
+  newGameButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  newGameButtonBlur: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  newGameButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  newGameButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  particlesContainer: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    pointerEvents: 'none',
+  },
+  particle: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    borderRadius: 2,
   },
 });
 

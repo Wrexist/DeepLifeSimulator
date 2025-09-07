@@ -41,7 +41,7 @@ export default function ProgressionScreen() {
   };
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
         <View style={styles.header}>
           <Trophy size={32} color="#F59E0B" />
           <Text style={styles.title}>Your Progress</Text>

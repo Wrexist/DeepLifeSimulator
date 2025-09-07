@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Switch, Alert, TextInput, Linking, Image } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useTutorial } from '@/contexts/UIUXContext';
 import { useRouter } from 'expo-router';
-import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, RotateCcw, Bug, Wrench } from 'lucide-react-native';
+import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, RotateCcw, Bug, Wrench, HelpCircle } from 'lucide-react-native';
 import { perks } from '@/src/features/onboarding/perksData';
+import { getTutorialSteps } from '@/utils/tutorialData';
 import LeaderboardModal from './LeaderboardModal';
+import { useTranslation } from '@/hooks/useTranslation';
+import { setSoundEnabled, setSoundVolume, isSoundEnabled, getSoundVolume } from '@/utils/soundManager';
 
 interface SettingsModalProps {
   visible: boolean;
@@ -12,9 +16,11 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ visible, onClose }: SettingsModalProps) {
-  const { gameState, updateSettings, restartGame, updateStats, nextWeek, setGameState } = useGame();
+  const { gameState, updateSettings, restartGame, nextWeek, setGameState } = useGame();
+  const { startTutorial, resetTutorial } = useTutorial();
   const { settings } = gameState;
   const router = useRouter();
+  const { t } = useTranslation();
 
   const languages = ['English', 'Svenska', 'Español', 'Français', 'Deutsch'];
 
@@ -24,36 +30,37 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
   const [showDevTools, setShowDevTools] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [featureSuggestion, setFeatureSuggestion] = useState('');
 
   const settingItems = [
     {
       id: 'darkMode',
-      title: 'Dark Mode',
-      description: 'Switch between light and dark themes',
+      title: t('settings.darkMode'),
+      description: t('settings.darkModeDescription'),
       icon: settings.darkMode ? Moon : Sun,
       type: 'toggle' as const,
       value: settings.darkMode,
     },
     {
       id: 'soundEnabled',
-      title: 'Sound Effects',
-      description: 'Enable or disable game sounds',
+      title: t('settings.hapticFeedback'),
+      description: t('settings.hapticFeedbackDescription') || 'Vibration feedback for interactions',
       icon: settings.soundEnabled ? Volume2 : VolumeX,
       type: 'toggle' as const,
       value: settings.soundEnabled,
     },
     {
       id: 'notificationsEnabled',
-      title: 'Notifications',
-      description: 'Receive game notifications',
+      title: t('settings.notifications'),
+      description: t('settings.notificationsDescription'),
       icon: settings.notificationsEnabled ? Bell : BellOff,
       type: 'toggle' as const,
       value: settings.notificationsEnabled,
     },
     {
       id: 'autoSave',
-      title: 'Auto Save',
-      description: 'Automatically save game progress',
+      title: t('settings.autoSave'),
+      description: t('settings.autoSaveDescription'),
       icon: Save,
       type: 'toggle' as const,
       value: settings.autoSave,
@@ -62,6 +69,11 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
 
   const handleToggle = (settingId: string, value: boolean) => {
     updateSettings({ [settingId]: value });
+    
+    // Handle sound-specific settings
+    if (settingId === 'soundEnabled') {
+      setSoundEnabled(value);
+    }
   };
 
   const handleLanguageChange = (language: string) => {
@@ -88,6 +100,24 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       setBugReportText('');
       setShowBugReport(false);
       Alert.alert('Thank you!', 'Your bug report has been prepared. Please send the email to help us improve the game.');
+    }).catch(() => {
+      Alert.alert('Error', 'Could not open email app. Please email deeplifesimulator@gmail.com directly.');
+    });
+  };
+
+  const handleFeatureSuggestion = () => {
+    if (!featureSuggestion.trim()) {
+      Alert.alert('Empty Suggestion', 'Please describe the feature you would like to see.');
+      return;
+    }
+
+    const subject = 'Feature Suggestion - DeepLife Simulator';
+    const body = `Feature Suggestion:\n\n${featureSuggestion.trim()}\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}`;
+    const emailUrl = `mailto:deeplifesimulator@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    Linking.openURL(emailUrl).then(() => {
+      setFeatureSuggestion('');
+      Alert.alert('Thank you!', 'Your feature suggestion has been prepared. Please send the email to help us plan future updates.');
     }).catch(() => {
       Alert.alert('Error', 'Could not open email app. Please email deeplifesimulator@gmail.com directly.');
     });
@@ -146,13 +176,13 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       <View style={overlayStyle}>
         <View style={modalStyle}>
           <View style={styles.header}>
-            <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Settings</Text>
+            <Text style={[styles.title, settings.darkMode && styles.titleDark]}>{t('settings.title')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
             <View style={styles.tabContainer}>
               <TouchableOpacity
                 style={[styles.settingsTab, activeSettingsTab === 'settings' && styles.activeSettingsTab]}
@@ -209,11 +239,11 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                     <View style={styles.settingHeader}>
                       <Globe size={20} color={settings.darkMode ? '#D1D5DB' : '#374151'} />
                       <Text style={[styles.settingTitle, settings.darkMode && styles.settingTitleDark]}>
-                        Language
+                        {t('settings.language')}
                       </Text>
                     </View>
                     <Text style={[styles.settingDescription, settings.darkMode && styles.settingDescriptionDark]}>
-                      Choose your preferred language
+                      {t('settings.languageDescription')}
                     </Text>
                   </View>
                   <View style={styles.languageButtons}>
@@ -248,7 +278,18 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                     router.push('/(onboarding)/SaveSlots');
                   }}
                 >
-                  <Text style={styles.saveSlotsButtonText}>Switch Save Slot</Text>
+                  <Text style={styles.saveSlotsButtonText}>{t('settings.switchSaveSlot')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.bugReportButton, settings.darkMode && styles.bugReportButtonDark]}
+                  onPress={() => {
+                    startTutorial(getTutorialSteps('game'));
+                    onClose();
+                  }}
+                >
+                  <HelpCircle size={20} color="#3B82F6" />
+                  <Text style={styles.bugReportButtonText}>{t('settings.showTutorial')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -256,29 +297,29 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   onPress={() => setShowLeaderboard(true)}
                 >
                   <Globe size={20} color="#3B82F6" />
-                  <Text style={styles.bugReportButtonText}>Leaderboard</Text>
+                  <Text style={styles.bugReportButtonText}>{t('settings.leaderboard')}</Text>
                 </TouchableOpacity>
 
                 <View style={[styles.dangerSection, settings.darkMode && styles.dangerSectionDark]}>
-                  <Text style={[styles.dangerTitle, settings.darkMode && styles.dangerTitleDark]}>Danger Zone</Text>
+                  <Text style={[styles.dangerTitle, settings.darkMode && styles.dangerTitleDark]}>{t('settings.dangerZone')}</Text>
                   <TouchableOpacity
                     style={[styles.bugReportButton, settings.darkMode && styles.bugReportButtonDark]}
                     onPress={() => setShowBugReport(true)}
                   >
                     <Bug size={20} color="#3B82F6" />
-                    <Text style={styles.bugReportButtonText}>Report Bug</Text>
+                    <Text style={styles.bugReportButtonText}>{t('settings.reportBug')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.restartButton, settings.darkMode && styles.restartButtonDark]}
                     onPress={() => setShowRestartConfirm(true)}
                   >
                     <RotateCcw size={20} color="#EF4444" />
-                    <Text style={styles.restartButtonText}>Restart Game</Text>
+                    <Text style={styles.restartButtonText}>{t('settings.restartGame')}</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={[styles.devSection, settings.darkMode && styles.devSectionDark]}>
-                  <Text style={[styles.devTitle, settings.darkMode && styles.devTitleDark]}>Developer Tools</Text>
+                  <Text style={[styles.devTitle, settings.darkMode && styles.devTitleDark]}>{t('settings.developerTools')}</Text>
                   <TouchableOpacity
                     style={[styles.devToolsButton, settings.darkMode && styles.devToolsButtonDark]}
                     onPress={() => setShowDevTools(true)}
@@ -349,6 +390,37 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                     </Text>
                   </View>
                 ))}
+                
+                {/* Feature Suggestion Section */}
+                <View style={[styles.featureSuggestionSection, settings.darkMode && styles.featureSuggestionSectionDark]}>
+                  <Text style={[styles.featureSuggestionTitle, settings.darkMode && styles.featureSuggestionTitleDark]}>
+                    💡 Suggest New Features
+                  </Text>
+                  <Text style={[styles.featureSuggestionDesc, settings.darkMode && styles.featureSuggestionDescDark]}>
+                    Have an idea for a new feature? Let us know what you'd like to see in future updates!
+                  </Text>
+                  
+                  <TextInput
+                    style={[styles.featureSuggestionInput, settings.darkMode && styles.featureSuggestionInputDark]}
+                    placeholder="Describe your feature idea..."
+                    placeholderTextColor={settings.darkMode ? '#9CA3AF' : '#6B7280'}
+                    value={featureSuggestion}
+                    onChangeText={setFeatureSuggestion}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                  
+                  <TouchableOpacity
+                    style={styles.featureSuggestionButton}
+                    onPress={handleFeatureSuggestion}
+                    disabled={!featureSuggestion.trim()}
+                  >
+                    <Text style={styles.featureSuggestionButtonText}>
+                      Send Suggestion
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </ScrollView>
@@ -370,11 +442,17 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               </TouchableOpacity>
             </View>
 
-            <View style={styles.devToolsContent}>
+            <ScrollView style={styles.devToolsContent} showsVerticalScrollIndicator={true}>
               <TouchableOpacity
                 style={[styles.devButton, settings.darkMode && styles.devButtonDark]}
                 onPress={() => {
-                  updateStats({ money: gameState.stats.money + 10000 });
+                  setGameState(prev => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      money: prev.stats.money + 10000
+                    }
+                  }));
                   Alert.alert('Money Added', '$10,000 added to your balance');
                 }}
               >
@@ -384,7 +462,13 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               <TouchableOpacity
                 style={[styles.devButton, settings.darkMode && styles.devButtonDark]}
                 onPress={() => {
-                  updateStats({ money: gameState.stats.money + 1000000 });
+                  setGameState(prev => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      money: prev.stats.money + 1000000
+                    }
+                  }));
                   Alert.alert('Money Added', '$1,000,000 added to your balance');
                 }}
               >
@@ -394,7 +478,61 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               <TouchableOpacity
                 style={[styles.devButton, settings.darkMode && styles.devButtonDark]}
                 onPress={() => {
-                  updateStats({ happiness: Math.min(100, gameState.stats.happiness + 20) });
+                  setGameState(prev => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      gems: prev.stats.gems + 1000
+                    }
+                  }));
+                  Alert.alert('Gems Added', '1,000 gems added to your balance');
+                }}
+              >
+                <Text style={[styles.devButtonText, settings.darkMode && styles.devButtonTextDark]}>Add 1,000 Gems</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.devButton, settings.darkMode && styles.devButtonDark]}
+                onPress={() => {
+                  setGameState(prev => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      gems: prev.stats.gems + 10000
+                    }
+                  }));
+                  Alert.alert('Gems Added', '10,000 gems added to your balance');
+                }}
+              >
+                <Text style={[styles.devButtonText, settings.darkMode && styles.devButtonTextDark]}>Add 10,000 Gems</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.devButton, settings.darkMode && styles.devButtonDark]}
+                onPress={() => {
+                  setGameState(prev => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      gems: prev.stats.gems + 100000
+                    }
+                  }));
+                  Alert.alert('Gems Added', '100,000 gems added to your balance');
+                }}
+              >
+                <Text style={[styles.devButtonText, settings.darkMode && styles.devButtonTextDark]}>Add 100,000 Gems</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.devButton, settings.darkMode && styles.devButtonDark]}
+                onPress={() => {
+                  setGameState(prev => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      happiness: Math.min(100, prev.stats.happiness + 20)
+                    }
+                  }));
                   Alert.alert('Happiness Boosted', '+20 happiness');
                 }}
               >
@@ -404,7 +542,13 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               <TouchableOpacity
                 style={[styles.devButton, settings.darkMode && styles.devButtonDark]}
                 onPress={() => {
-                  updateStats({ health: Math.min(100, gameState.stats.health + 20) });
+                  setGameState(prev => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      health: Math.min(100, prev.stats.health + 20)
+                    }
+                  }));
                   Alert.alert('Health Boosted', '+20 health');
                 }}
               >
@@ -414,7 +558,13 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               <TouchableOpacity
                 style={[styles.devButton, settings.darkMode && styles.devButtonDark]}
                 onPress={() => {
-                  updateStats({ energy: Math.min(100, gameState.stats.energy + 20) });
+                  setGameState(prev => ({
+                    ...prev,
+                    stats: {
+                      ...prev.stats,
+                      energy: Math.min(100, prev.stats.energy + 20)
+                    }
+                  }));
                   Alert.alert('Energy Boosted', '+20 energy');
                 }}
               >
@@ -427,7 +577,15 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   const enabled = !settings.maxStats;
                   updateSettings({ maxStats: enabled });
                   if (enabled) {
-                    updateStats({ health: 100, happiness: 100, energy: 100 });
+                    setGameState(prev => ({
+                      ...prev,
+                      stats: {
+                        ...prev.stats,
+                        health: 100,
+                        happiness: 100,
+                        energy: 100
+                      }
+                    }));
                   }
                   Alert.alert('Max Stats', enabled ? 'Enabled' : 'Disabled');
                 }}
@@ -474,7 +632,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               >
                 <Text style={[styles.devButtonText, settings.darkMode && styles.devButtonTextDark]}>Advance Week</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -955,6 +1113,7 @@ const styles = StyleSheet.create({
   },
   devToolsContent: {
     padding: 24,
+    maxHeight: 400,
   },
   devButton: {
     backgroundColor: '#E5E7EB',
@@ -1034,5 +1193,65 @@ const styles = StyleSheet.create({
   },
   disabledSendButtonText: {
     color: '#9CA3AF',
+  },
+  featureSuggestionSection: {
+    backgroundColor: '#F0F9FF',
+    padding: 20,
+    borderRadius: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  featureSuggestionSectionDark: {
+    backgroundColor: '#1E3A8A',
+    borderColor: '#3B82F6',
+  },
+  featureSuggestionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1E40AF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  featureSuggestionTitleDark: {
+    color: '#93C5FD',
+  },
+  featureSuggestionDesc: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 16,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  featureSuggestionDescDark: {
+    color: '#D1D5DB',
+  },
+  featureSuggestionInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 16,
+    minHeight: 100,
+  },
+  featureSuggestionInputDark: {
+    backgroundColor: '#374151',
+    borderColor: '#6B7280',
+    color: '#F9FAFB',
+  },
+  featureSuggestionButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  featureSuggestionButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

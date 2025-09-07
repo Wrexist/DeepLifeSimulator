@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, Linking } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { X } from 'lucide-react-native';
+import { X, Mail } from 'lucide-react-native';
 
 interface HelpModalProps {
   visible: boolean;
@@ -103,6 +103,15 @@ const helpContent = [
       },
     ],
   },
+  {
+    category: 'Contact & Support',
+    items: [
+      {
+        question: 'How do I contact support?',
+        answer: 'Tap the "Contact Support" button below to send us an email.',
+      },
+    ],
+  },
 ];
 
 export default function HelpModal({ visible, onClose }: HelpModalProps) {
@@ -150,7 +159,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
             onChangeText={setSearch}
           />
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
             {filtered.map((section) => (
               <View key={section.category} style={styles.section}>
                 <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
@@ -170,6 +179,24 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
               </View>
             ))}
           </ScrollView>
+
+          <TouchableOpacity
+            style={[styles.contactButton, settings.darkMode && styles.contactButtonDark]}
+            onPress={() => {
+              const subject = 'DeepLife Simulator - Support Request';
+              const body = `Hello,\n\nI need help with DeepLife Simulator.\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}\n\nPlease describe your issue here:`;
+              const emailUrl = `mailto:deeplifesimulator@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+              
+              Linking.openURL(emailUrl).then(() => {
+                Alert.alert('Email Prepared', 'Your email app will open with a pre-filled message. Please send the email to contact our support team.');
+              }).catch(() => {
+                Alert.alert('Error', 'Could not open email app. Please email deeplifesimulator@gmail.com directly.');
+              });
+            }}
+          >
+            <Mail size={20} color="#FFFFFF" />
+            <Text style={styles.contactButtonText}>Contact Support</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -258,5 +285,24 @@ const styles = StyleSheet.create({
   },
   answerDark: {
     color: '#D1D5DB',
+  },
+  contactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  contactButtonDark: {
+    backgroundColor: '#1D4ED8',
+  },
+  contactButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

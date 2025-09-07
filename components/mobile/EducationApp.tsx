@@ -22,7 +22,7 @@ const availableEducations: Education[] = [
     name: 'Police Academy',
     description: 'Law enforcement training - required for Police career',
     duration: 15,
-    cost: 2000,
+    cost: 6000,
     completed: false,
   },
   {
@@ -30,7 +30,7 @@ const availableEducations: Education[] = [
     name: 'Legal Studies',
     description: 'Basic legal education - required for Legal Assistant career',
     duration: 23,
-    cost: 3000,
+    cost: 9000,
     completed: false,
   },
   {
@@ -38,7 +38,7 @@ const availableEducations: Education[] = [
     name: 'Entrepreneurship Course',
     description: 'Learn to start and run businesses - required for starting companies',
     duration: 36,
-    cost: 5000,
+    cost: 15000,
     completed: false,
   },
   {
@@ -46,7 +46,7 @@ const availableEducations: Education[] = [
     name: 'Business Degree',
     description: 'Comprehensive business education - required for Teacher and Nurse careers',
     duration: 45,
-    cost: 8000,
+    cost: 24000,
     completed: false,
   },
   {
@@ -54,7 +54,7 @@ const availableEducations: Education[] = [
     name: 'Computer Science',
     description: 'Programming and software development - required for Software Engineer career',
     duration: 52,
-    cost: 12000,
+    cost: 36000,
     completed: false,
   },
   {
@@ -62,7 +62,7 @@ const availableEducations: Education[] = [
     name: "Master's Degree",
     description: 'Advanced specialized education - required for Software Engineer career',
     duration: 60,
-    cost: 15000,
+    cost: 45000,
     completed: false,
   },
   {
@@ -70,7 +70,7 @@ const availableEducations: Education[] = [
     name: 'MBA',
     description: 'Master of Business Administration - required for Corporate career',
     duration: 75,
-    cost: 20000,
+    cost: 60000,
     completed: false,
   },
   {
@@ -78,7 +78,7 @@ const availableEducations: Education[] = [
     name: 'Medical School',
     description: 'Medical education - required for Doctor career',
     duration: 90,
-    cost: 25000,
+    cost: 75000,
     completed: false,
   },
   {
@@ -86,7 +86,7 @@ const availableEducations: Education[] = [
     name: 'Law School',
     description: 'Legal education - required for Lawyer career',
     duration: 78,
-    cost: 22000,
+    cost: 66000,
     completed: false,
   },
   {
@@ -94,7 +94,7 @@ const availableEducations: Education[] = [
     name: 'PhD',
     description: 'Doctorate level research and expertise - required for Doctor career',
     duration: 104,
-    cost: 30000,
+    cost: 90000,
     completed: false,
   },
 ];
@@ -244,7 +244,11 @@ export default function EducationApp({ onBack }: EducationAppProps) {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={true}
+      >
         {activeTab === 'available' && (
           <View style={styles.educationsContainer}>
             {availableEducations.map((education) => {
@@ -479,14 +483,14 @@ const styles = StyleSheet.create({
     borderColor: '#23283B',
     borderWidth: 1,
     flexDirection: 'row',
-    padding: 6,
-    gap: 6,
+    padding: 10,
+    gap: 10,
     marginBottom: 16,
     marginTop: 16,
   },
   tab: {
     flex: 1,
-    height: 40,
+    height: 60,
     borderRadius: 10,
     backgroundColor: '#101426',
     alignItems: 'center',
@@ -509,7 +513,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 16,
+    paddingBottom: 40,
   },
   educationsContainer: {
     gap: 16,

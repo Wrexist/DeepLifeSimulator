@@ -2,16 +2,21 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { Activity, Utensils, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function HealthScreen() {
-  const { gameState, performHealthActivity, toggleDietPlan } = useGame();
+  const { t } = useTranslation();
+  const { gameState, performHealthActivity, toggleDietPlan, setGameState } = useGame();
   const { settings } = gameState;
   const [healthFeedback, setHealthFeedback] = useState<{ [key: string]: string }>({});
 
   const canAfford = (price: number) => gameState.stats.money >= price;
   const canPerformActivity = (activity: any) => {
     const energyCost = activity.energyCost || 0;
-    return gameState.stats.money >= activity.price && gameState.stats.energy >= energyCost;
+    // Only check energy requirement if the activity costs energy (positive value)
+    const hasEnoughEnergy = energyCost <= 0 || gameState.stats.energy >= energyCost;
+    const hasEnoughMoney = gameState.stats.money >= activity.price;
+    return hasEnoughMoney && hasEnoughEnergy;
   };
   const activeDietPlan = gameState.dietPlans.find(plan => plan.active);
 
@@ -29,9 +34,22 @@ export default function HealthScreen() {
     }
   };
 
+  // Test function to trigger sickness modal
+  const testSicknessModal = () => {
+    const testDiseases = [
+      { id: 'flu', name: 'Flu', severity: 'mild', effects: { health: -15, energy: -20, happiness: -10 }, curable: true },
+      { id: 'fever', name: 'Fever', severity: 'serious', effects: { health: -20, energy: -25, fitness: -5 }, curable: true },
+    ];
+    setGameState(prev => ({
+      ...prev,
+      diseases: testDiseases,
+      showSicknessModal: true,
+    }));
+  };
+
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
-      <ScrollView style={[styles.content, settings.darkMode && styles.contentDark]} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.content, settings.darkMode && styles.contentDark]} showsVerticalScrollIndicator={true}>
         <View style={styles.scrollContainer}>
           <View style={styles.scrollIndicator}>
             <View style={styles.scrollBar}>
@@ -42,10 +60,10 @@ export default function HealthScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Activity size={24} color="#EF4444" />
-            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Health Activities</Text>
+            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>{t('health.healthActivities')}</Text>
           </View>
           <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-            Invest in your mental and physical wellbeing with various activities!
+            {t('health.investMentalPhysical')}
           </Text>
 
           {gameState.healthActivities.map(activity => (
@@ -56,10 +74,10 @@ export default function HealthScreen() {
                 <Text style={styles.activityPrice}>${activity.price}</Text>
 
                 <View style={styles.benefitsInfo}>
-                  <Text style={[styles.benefitsTitle, settings.darkMode && styles.benefitsTitleDark]}>Benefits:</Text>
-                  <Text style={styles.benefitText}>+{activity.happinessGain} Happiness</Text>
+                  <Text style={[styles.benefitsTitle, settings.darkMode && styles.benefitsTitleDark]}>{t('health.benefits')}</Text>
+                  <Text style={styles.benefitText}>+{activity.happinessGain} {t('game.happiness')}</Text>
                   {activity.healthGain && (
-                    <Text style={styles.benefitText}>+{activity.healthGain} Health</Text>
+                    <Text style={styles.benefitText}>+{activity.healthGain} {t('game.health')}</Text>
                   )}
                   {typeof activity.energyCost === 'number' && activity.energyCost !== 0 && (
                     <Text style={activity.energyCost > 0 ? styles.costText : styles.benefitText}>
@@ -69,10 +87,10 @@ export default function HealthScreen() {
                     </Text>
                   )}
                   {activity.id === 'doctor' && (
-                    <Text style={styles.benefitText}>50% chance to cure all health issues</Text>
+                    <Text style={styles.benefitText}>{t('health.chanceToCure')}</Text>
                   )}
                   {activity.id === 'hospital' && (
-                    <Text style={styles.benefitText}>Cures all health issues except cancer</Text>
+                    <Text style={styles.benefitText}>{t('health.curesAllHealthIssues')}</Text>
                   )}
                 </View>
               </View>
@@ -92,7 +110,7 @@ export default function HealthScreen() {
                       !canPerformActivity(activity) && styles.disabledButtonText
                     ]}
                   >
-                    Do
+                    {t('health.do')}
                   </Text>
                 </TouchableOpacity>
                 {healthFeedback[activity.id] && (
@@ -108,16 +126,16 @@ export default function HealthScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Utensils size={24} color="#10B981" />
-            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Diet Plans</Text>
+            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>{t('health.dietPlans')}</Text>
           </View>
           <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-            Choose an automatic daily diet plan for passive health benefits!
+            {t('health.chooseAutomaticDaily')}
           </Text>
 
           {activeDietPlan && (
             <View style={[styles.activePlanCard, settings.darkMode && styles.activePlanCardDark]}>
-              <Text style={[styles.activePlanTitle, settings.darkMode && styles.activePlanTitleDark]}>Active Plan: {activeDietPlan.name}</Text>
-              <Text style={[styles.activePlanCost, settings.darkMode && styles.activePlanCostDark]}>Weekly Cost: ${activeDietPlan.dailyCost * 7}</Text>
+              <Text style={[styles.activePlanTitle, settings.darkMode && styles.activePlanTitleDark]}>{t('health.activePlan')} {activeDietPlan.name}</Text>
+              <Text style={[styles.activePlanCost, settings.darkMode && styles.activePlanCostDark]}>{t('health.weeklyCost')} ${activeDietPlan.dailyCost * 7}</Text>
             </View>
           )}
 
@@ -126,14 +144,14 @@ export default function HealthScreen() {
               <View style={styles.dietInfo}>
                 <Text style={[styles.dietName, settings.darkMode && styles.dietNameDark]}>{plan.name}</Text>
                 <Text style={[styles.dietDescription, settings.darkMode && styles.dietDescriptionDark]}>{plan.description}</Text>
-                <Text style={styles.dietCost}>Weekly Cost: ${plan.dailyCost * 7}</Text>
+                <Text style={styles.dietCost}>{t('health.weeklyCost')} ${plan.dailyCost * 7}</Text>
 
                 <View style={styles.benefitsInfo}>
-                  <Text style={[styles.benefitsTitle, settings.darkMode && styles.benefitsTitleDark]}>Weekly Benefits:</Text>
-                  <Text style={styles.benefitText}>+{plan.healthGain} Health</Text>
-                  <Text style={styles.benefitText}>+{plan.energyGain} Energy</Text>
+                  <Text style={[styles.benefitsTitle, settings.darkMode && styles.benefitsTitleDark]}>{t('health.weeklyBenefits')}</Text>
+                  <Text style={styles.benefitText}>+{plan.healthGain} {t('game.health')}</Text>
+                  <Text style={styles.benefitText}>+{plan.energyGain} {t('game.energy')}</Text>
                   {plan.happinessGain && (
-                    <Text style={styles.benefitText}>+{plan.happinessGain} Happiness</Text>
+                    <Text style={styles.benefitText}>+{plan.happinessGain} {t('game.happiness')}</Text>
                   )}
                 </View>
               </View>
@@ -155,11 +173,26 @@ export default function HealthScreen() {
                   plan.active && styles.activeDietButtonText,
                   !canAfford(plan.dailyCost * 7) && !plan.active && styles.disabledButtonText
                 ]}>
-                  {plan.active ? 'Active' : 'Select'}
+                  {plan.active ? t('health.active') : t('health.select')}
                 </Text>
               </TouchableOpacity>
             </View>
           ))}
+        </View>
+
+        {/* Test Button for Sickness Modal */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>🧪 Test Sickness Modal</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.testButton, settings.darkMode && styles.testButtonDark]}
+            onPress={testSicknessModal}
+          >
+            <Text style={[styles.testButtonText, settings.darkMode && styles.testButtonTextDark]}>
+              Test Sickness Popup
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -457,5 +490,24 @@ const styles = StyleSheet.create({
     height: 30,
     backgroundColor: '#9CA3AF',
     borderRadius: 2,
+  },
+  testButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  testButtonDark: {
+    backgroundColor: '#DC2626',
+  },
+  testButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  testButtonTextDark: {
+    color: '#FFFFFF',
   },
 });

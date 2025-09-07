@@ -1,27 +1,43 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import WelcomePopup from '@/components/WelcomePopup';
+import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsProgress from '@/components/AchievementsProgress';
 import WeeklyEventModal from '@/components/WeeklyEventModal';
 import IdentityCard from '@/components/IdentityCard';
-import TombstonePopup from '@/components/TombstonePopup';
+import DeathPopup from '@/components/DeathPopup';
 import ZeroStatPopup from '@/components/ZeroStatPopup';
+import { getTutorialSteps } from '@/utils/tutorialData';
+import { responsivePadding, verticalScale, responsiveFontSize, responsiveSpacing, scale, responsiveBorderRadius } from '@/utils/scaling';
 
 export default function HomeScreen() {
-  const { gameState } = useGame();
+  const { gameState, dismissWelcomePopup } = useGame();
+  const { hasCompletedTutorial, startTutorial } = useTutorial();
+
+  // Show tutorial for new users (replaces the old WelcomePopup)
+  useEffect(() => {
+    if (!hasCompletedTutorial && gameState.week === 1 && gameState.showWelcomePopup) {
+      // Small delay to ensure the screen is fully loaded
+      const timer = setTimeout(() => {
+        dismissWelcomePopup(); // Dismiss the old welcome popup
+        startTutorial(getTutorialSteps('game'));
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasCompletedTutorial, gameState.week, gameState.showWelcomePopup, startTutorial, dismissWelcomePopup]);
 
   return (
     <View style={[styles.container, gameState.settings.darkMode && styles.containerDark]}>
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={true}>
         <IdentityCard />
         <AchievementsProgress />
       </ScrollView>
 
-      {gameState.settings.notificationsEnabled && gameState.showWelcomePopup && <WelcomePopup />}
+
       {gameState.pendingEvents.length > 0 && <WeeklyEventModal />}
       {gameState.showZeroStatPopup && !gameState.dailySummary && <ZeroStatPopup />}
-      {gameState.showDeathPopup && <TombstonePopup />}
+      {gameState.showDeathPopup && <DeathPopup />}
     </View>
   );
 }
@@ -36,26 +52,26 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    paddingBottom: 100,
-    paddingTop: 20,
+    paddingBottom: scale(100),
+    paddingTop: verticalScale(20),
   },
   infoSection: {
-    padding: 20,
+    padding: responsivePadding.large,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: responsiveFontSize['2xl'],
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 15,
+    marginBottom: responsiveSpacing.lg,
   },
   sectionTitleDark: {
     color: '#F9FAFB',
   },
   statusCard: {
     backgroundColor: '#FFFFFF',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
+    padding: responsiveSpacing.lg,
+    borderRadius: responsiveBorderRadius.md,
+    marginBottom: responsiveSpacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -66,7 +82,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
   },
   statusText: {
-    fontSize: 16,
+    fontSize: responsiveFontSize.lg,
     color: '#374151',
   },
   statusTextDark: {

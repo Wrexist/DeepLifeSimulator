@@ -89,7 +89,7 @@ describe('calcWeeklyExpenses', () => {
     ];
     const state = createState({
       realEstate: properties,
-      loans: [{ weeklyPayment: 50 }],
+      loans: [{ id: 'test', principal: 1000, weeklyPayment: 50, weeksRemaining: 20, interestRate: 0.05 }],
     });
     const result = calcWeeklyExpenses(state);
     expect(result.breakdown.upkeep).toBe(120);

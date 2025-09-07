@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Lock, ShoppingCart, MessageSquare, Terminal, Bitcoin, Shield, Zap, DollarSign } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useNavigation } from '@react-navigation/native';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -11,7 +12,8 @@ interface OnionAppProps {
 }
 
 export default function OnionApp({ onBack }: OnionAppProps) {
-  const { gameState, buyDarkWebItem, buyHack, performHack } = useGame();
+  const { gameState, setGameState, buyDarkWebItem, buyHack, performHack } = useGame();
+  const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'shop' | 'forum' | 'terminal'>('shop');
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
   const [isHacking, setIsHacking] = useState(false);
@@ -26,6 +28,16 @@ export default function OnionApp({ onBack }: OnionAppProps) {
 
   const btcBalance = gameState.cryptos.find(c => c.id === 'btc')?.owned || 0;
   const isDarkMode = gameState.settings.darkMode;
+
+  // Helper function to calculate actual hack risk with item buffs
+  const calculateActualRisk = (hack: any) => {
+    const ownedItems = gameState.darkWebItems.filter(i => i.owned);
+    const totalRiskReduction = ownedItems.reduce(
+      (sum, i) => sum + (i.riskReduction || 0),
+      0
+    );
+    return Math.max(0, hack.risk - totalRiskReduction);
+  };
 
   const hackSteps: Record<string, string[]> = {
     phishing: [
@@ -118,6 +130,18 @@ export default function OnionApp({ onBack }: OnionAppProps) {
       setTerminalOutput([`> Not enough energy. ${hack.energyCost} energy required.`]);
       return;
     }
+    
+    // Deduct energy, happiness, and health immediately when hack starts
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        energy: prev.stats.energy - hack.energyCost,
+        happiness: Math.max(0, prev.stats.happiness - 2), // Small happiness drain
+        health: Math.max(0, prev.stats.health - 1) // Small health drain
+      }
+    }));
+    
     setTerminalOutput([`> Initiating ${hack.name} sequence...`]);
     setIsHacking(true);
     steps.forEach((step, idx) => {
@@ -135,6 +159,10 @@ export default function OnionApp({ onBack }: OnionAppProps) {
               if (result && result.caught) {
                 if (result.jailed) {
                   finalLine = `ARRESTED! Jailed for 4 weeks! Wanted level increased!`;
+                  // Navigate to work tab to show prison screen
+                  setTimeout(() => {
+                    navigation.navigate('work');
+                  }, 2000); // Give time for the message to be displayed
                 } else {
                   finalLine = `Trace detected! -$500 | Wanted level increased! | Risk: ${Math.round((result.risk || 0) * 100)}%`;
                 }
@@ -153,7 +181,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
             }, 400);
           } catch (error) {
             console.error('Hack error:', error);
-            setTerminalOutput(prev => [...prev, `> Error: ${error.message || 'Unknown error occurred'}`]);
+            setTerminalOutput(prev => [...prev, `> Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`]);
             setIsHacking(false);
           }
         }
@@ -162,7 +190,11 @@ export default function OnionApp({ onBack }: OnionAppProps) {
   };
 
   const renderShopTab = () => (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.content} 
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={true}
+    >
       <View style={styles.balanceContainer}>
         <LinearGradient
           colors={['#1F2937', '#111827']}
@@ -274,7 +306,11 @@ export default function OnionApp({ onBack }: OnionAppProps) {
   );
 
   const renderForumTab = () => (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.content} 
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={true}
+    >
       <View style={styles.forumContainer}>
         <View style={styles.forumCard}>
           <LinearGradient
@@ -313,6 +349,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                   {gameState.hacks.map(hack => {
                     const btc = gameState.cryptos.find(c => c.id === 'btc');
                     const canAfford = btc && btc.owned >= hack.costBtc;
+                    const actualRisk = calculateActualRisk(hack);
                     
                     return (
                       <View key={hack.id} style={styles.hackCourse}>
@@ -321,10 +358,10 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                             <Text style={styles.hackCourseName}>{hack.name}</Text>
                             <Text style={styles.hackCourseDesc}>{hack.description}</Text>
                           </View>
-                          <View style={styles.hackCourseStats}>
+                          <View>
                             <Text style={styles.hackCoursePrice}>Cost: {hack.costBtc} BTC</Text>
                             <Text style={styles.hackCourseReward}>Reward: ${hack.reward}</Text>
-                            <Text style={styles.hackCourseRisk}>Risk: {Math.round(hack.risk * 100)}%</Text>
+                            <Text style={styles.hackCourseRisk}>Risk: {Math.round(actualRisk * 100)}%</Text>
                           </View>
                         </View>
                         
@@ -372,7 +409,11 @@ export default function OnionApp({ onBack }: OnionAppProps) {
   );
 
   const renderTerminalTab = () => (
-    <View style={styles.content}>
+    <ScrollView 
+      style={styles.content} 
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={true}
+    >
       <View style={styles.terminalContainer}>
         <LinearGradient
           colors={['#0F172A', '#020617']}
@@ -428,6 +469,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                         const canUse = !isHacking && gameState.stats.energy >= hack.energyCost;
                         const btc = gameState.cryptos.find(c => c.id === 'btc');
                         const estimatedBtcReward = btc ? hack.reward / btc.price : 0;
+                        const actualRisk = calculateActualRisk(hack);
                         
                         return (
                           <TouchableOpacity
@@ -465,7 +507,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                               </View>
                               
                               <View style={styles.hackButtonRisk}>
-                                <Text style={styles.hackRiskText}>Risk: {Math.round(hack.risk * 100)}%</Text>
+                                <Text style={styles.hackRiskText}>Risk: {Math.round(actualRisk * 100)}%</Text>
                               </View>
                             </LinearGradient>
                                                      </TouchableOpacity>
@@ -479,7 +521,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
           )}
         </LinearGradient>
       </View>
-    </View>
+    </ScrollView>
   );
 
   return (
@@ -614,7 +656,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   balanceContainer: {
     marginBottom: 20,

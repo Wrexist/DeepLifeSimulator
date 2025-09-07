@@ -2,9 +2,12 @@ import { Tabs } from 'expo-router';
 import { useWindowDimensions } from 'react-native';
 import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { responsiveIconSize, touchTargets, scale } from '@/utils/scaling';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function TabLayout() {
   const { gameState } = useGame();
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
 
   // Determine which tabs to show based on device ownership
@@ -26,23 +29,23 @@ export default function TabLayout() {
           backgroundColor: gameState.settings.darkMode ? '#1F2937' : '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: gameState.settings.darkMode ? '#374151' : '#E5E7EB',
-          paddingTop: 5,
-          paddingBottom: 5,
-          height: 60,
+          paddingTop: scale(12),
+          paddingBottom: scale(12),
+          height: scale(100),
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabs.home'),
           tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="work"
         options={{
-          title: 'Work',
+          title: t('tabs.work'),
           tabBarIcon: ({ size, color }) => <Briefcase size={size} color={color} />,
         }}
       />
@@ -51,7 +54,7 @@ export default function TabLayout() {
         options={{
           // Hide until a smartphone is owned
           href: ownsSmartphone ? undefined : null,
-          title: 'Mobile',
+          title: t('tabs.mobile'),
           tabBarIcon: ({ size, color }) => <Smartphone size={size} color={color} />,
         }}
       />
@@ -60,7 +63,7 @@ export default function TabLayout() {
         options={{
           // Hide until a computer is owned
           href: ownsComputer ? undefined : null,
-          title: 'Computer',
+          title: t('tabs.computer'),
           tabBarIcon: ({ size, color }) => <Monitor size={size} color={color} />,
         }}
       />
@@ -72,14 +75,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="market"
         options={{
-          title: 'Market',
+          title: t('tabs.market'),
           tabBarIcon: ({ size, color }) => <ShoppingCart size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="health"
         options={{
-          title: 'Health',
+          title: t('tabs.health'),
           tabBarIcon: ({ size, color }) => <Heart size={size} color={color} />,
         }}
       />

@@ -12,7 +12,7 @@ export default function WeeklyResultSheet({ visible, onClose, children }: Weekly
   if (!visible) return null;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={StyleSheet.absoluteFill} style={{ pointerEvents: 'box-none' }}>
       <MotiView
         from={{ opacity: 0 }}
         animate={{ opacity: 1 }}

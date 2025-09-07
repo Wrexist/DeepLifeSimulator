@@ -217,7 +217,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
           {activeTab === 'perks' && (
               <View>
                 {loading
@@ -226,15 +226,43 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
                     ))
                   : perkItems.map((item, index) => (
                       <FadeInUp key={item.id} delay={index * 40}>
-                        <View style={[styles.shopItem, settings.darkMode && styles.shopItemDark]}>
+                        <View style={[
+                          styles.shopItem, 
+                          settings.darkMode && styles.shopItemDark,
+                          item.owned && styles.ownedItem,
+                          item.owned && settings.darkMode && styles.ownedItemDark
+                        ]}>
+                          {item.owned && (
+                            <View style={styles.ownedOverlay}>
+                              <View style={styles.ownedGradient} />
+                            </View>
+                          )}
                           <View style={styles.itemInfo}>
                             <View style={styles.itemHeader}>
-                              <item.icon size={20} color={settings.darkMode ? '#D1D5DB' : '#374151'} />
-                              <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>
+                              <item.icon size={20} color={item.owned ? '#FFFFFF' : (settings.darkMode ? '#D1D5DB' : '#374151')} />
+                              <Text style={[
+                                styles.itemName, 
+                                settings.darkMode && styles.itemNameDark,
+                                item.owned && styles.ownedItemText
+                              ]}>
                                 {item.name}
                               </Text>
+                              {item.owned && (
+                                <View style={styles.ownedBadge}>
+                                  <Text style={styles.ownedBadgeText}>✓</Text>
+                                </View>
+                              )}
+                              {item.owned && (
+                                <View style={styles.ownedLabel}>
+                                  <Text style={styles.ownedLabelText}>OWNED</Text>
+                                </View>
+                              )}
                             </View>
-                            <Text style={[styles.itemDescription, settings.darkMode && styles.itemDescriptionDark]}>
+                            <Text style={[
+                              styles.itemDescription, 
+                              settings.darkMode && styles.itemDescriptionDark,
+                              item.owned && styles.ownedItemDescription
+                            ]}>
                               {item.description}
                             </Text>
                           </View>
@@ -243,9 +271,11 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
                             onPress={() => handlePurchase(item.id, 'perk')}
                             disabled={item.owned}
                           >
-                            <Text style={[styles.purchaseButtonText, item.owned && styles.ownedButtonText]}>
-                              {item.owned ? 'Owned' : item.price}
-                            </Text>
+                            {item.owned ? (
+                              <Text style={styles.ownedButtonText}>✓ OWNED</Text>
+                            ) : (
+                              <Text style={styles.purchaseButtonText}>{item.price}</Text>
+                            )}
                           </ScaleButton>
                         </View>
                       </FadeInUp>
@@ -283,7 +313,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
             )}
 
           {activeTab === 'gold' && (
-            <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
               {loading
                 ? Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} height={60} radius={8} />
@@ -554,6 +584,83 @@ const styles = StyleSheet.create({
   ownedButtonText: {
     color: '#FFFFFF',
   },
+  ownedItem: {
+    backgroundColor: '#10B981',
+    borderColor: '#059669',
+    borderWidth: 3,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    transform: [{ scale: 1.02 }],
+  },
+  ownedItemDark: {
+    backgroundColor: '#059669',
+    borderColor: '#047857',
+    shadowColor: '#059669',
+  },
+  ownedItemText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)',
+  },
+  ownedItemDescription: {
+    color: '#D1FAE5',
+    fontWeight: '500',
+  },
+  ownedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  ownedGradient: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+  },
+  ownedBadge: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  ownedBadgeText: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  ownedLabel: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  ownedLabelText: {
+    color: '#10B981',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+
   packCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',

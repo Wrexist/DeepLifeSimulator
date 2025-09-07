@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Animated, Text } from 'react-native';
-import Svg, { G, Path } from 'react-native-svg';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
 import { useGame } from '@/contexts/GameContext';
-import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
 
-const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#8B5CF6'];
+const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
 interface PieSlice {
   label: string;
@@ -13,51 +14,52 @@ interface PieSlice {
   color: string;
 }
 
-interface PropertyUpgrade {
-  id: string;
-  cost: number;
-  rentIncrease: number;
-  purchased: boolean;
-}
-
-interface Property {
-  id: string;
-  price: number;
-  dailyIncome: number;
-  owned: boolean;
-  status: 'vacant' | 'owner' | 'rented';
-  upgrades: PropertyUpgrade[];
-}
-
 const MINER_PRICES = {
-  basic: 500,
-  advanced: 2000,
-  pro: 8000,
-  industrial: 25000,
-  quantum: 100000,
-} as const;
+  'asic_miner': 5000,
+  'gpu_miner': 2000,
+  'cpu_miner': 500,
+};
 
 const PieChart = ({ data }: { data: PieSlice[] }) => {
-  const total = data.reduce((sum, s) => sum + s.value, 0);
+  const total = data.reduce((sum, slice) => sum + slice.value, 0);
   if (total === 0) return null;
 
-  let cumulative = 0;
-  const radius = 60;
+  const centerX = 100;
+  const centerY = 100;
+  const radius = 80;
+
+  let currentAngle = 0;
+  const paths = data.map((slice, index) => {
+    const sliceAngle = (slice.value / total) * 2 * Math.PI;
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + sliceAngle;
+    currentAngle = endAngle;
+
+    const x1 = centerX + radius * Math.cos(startAngle);
+    const y1 = centerY + radius * Math.sin(startAngle);
+    const x2 = centerX + radius * Math.cos(endAngle);
+    const y2 = centerY + radius * Math.sin(endAngle);
+
+    const largeArcFlag = sliceAngle > Math.PI ? 1 : 0;
+
+    const pathData = [
+      `M ${centerX} ${centerY}`,
+      `L ${x1} ${y1}`,
+      `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+      'Z',
+    ].join(' ');
+
+    return (
+      <G key={index}>
+        <Path d={pathData} fill={slice.color} />
+      </G>
+    );
+  });
+
   return (
-    <Svg width={radius * 2} height={radius * 2} viewBox={`0 0 ${radius * 2} ${radius * 2}`}>
-      <G x={radius} y={radius}>
-        {data.map(slice => {
-          const startAngle = (cumulative / total) * Math.PI * 2;
-          const endAngle = ((cumulative + slice.value) / total) * Math.PI * 2;
-          const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
-          const x1 = Math.cos(startAngle) * radius;
-          const y1 = Math.sin(startAngle) * radius;
-          const x2 = Math.cos(endAngle) * radius;
-          const y2 = Math.sin(endAngle) * radius;
-          cumulative += slice.value;
-          const d = `M0 0 L${x1} ${y1} A${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-          return <Path key={slice.label} d={d} fill={slice.color} />;
-        })}
+    <Svg width={200} height={200}>
+      <G>
+        {paths}
       </G>
     </Svg>
   );
@@ -66,22 +68,18 @@ const PieChart = ({ data }: { data: PieSlice[] }) => {
 export default function NetWorthDisplay() {
   const { gameState } = useGame();
   const { settings } = gameState;
-  const [properties, setProperties] = useState<Property[]>([]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const previous = useRef(0);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const saved = await AsyncStorage.getItem('realEstateProperties');
-        if (saved) {
-          setProperties(JSON.parse(saved));
-        }
-      } catch (error) {
-        console.error('Failed to load real estate properties', error);
-      }
-    })();
-  }, []);
+  const formatMoney = (amount: number) => {
+    const a = Math.floor(amount || 0);
+    if (a >= 1_000_000_000_000_000) return `$${(a / 1_000_000_000_000_000).toFixed(2)}Q`;
+    if (a >= 1_000_000_000_000) return `$${(a / 1_000_000_000_000).toFixed(2)}T`;
+    if (a >= 1_000_000_000) return `$${(a / 1_000_000_000).toFixed(2)}B`;
+    if (a >= 1_000_000) return `$${(a / 1_000_000).toFixed(2)}M`;
+    if (a >= 1_000) return `$${(a / 1_000).toFixed(2)}K`;
+    return `$${a}`;
+  };
 
   const breakdown = useMemo(() => {
     const assets: Asset[] = [
@@ -115,23 +113,21 @@ export default function NetWorthDisplay() {
       });
     });
 
-    properties
+    // Use real estate from game state instead of AsyncStorage
+    gameState.realEstate
       .filter(p => p.owned)
       .forEach(p => {
-        const upgradesValue = p.upgrades
-          .filter(u => u.purchased)
-          .reduce((sum, u) => sum + u.cost, 0);
         assets.push({
           id: p.id,
           type: 'property',
-          baseValue: p.price + upgradesValue,
+          baseValue: p.price,
         });
       });
 
     const liabilities: Liability[] = [];
 
     return computeNetWorth(assets, liabilities);
-  }, [gameState, properties]);
+  }, [gameState]);
 
   const chartData: PieSlice[] = Object.entries(breakdown.byAssetType).map(
     ([label, value], idx) => ({
@@ -147,31 +143,40 @@ export default function NetWorthDisplay() {
   const legendLabelStyle = [styles.legendLabel, settings.darkMode && styles.legendLabelDark];
 
   useEffect(() => {
+    let isMounted = true;
     const prev = previous.current;
     const diff = prev === 0 ? 0 : Math.abs(breakdown.netWorth - prev) / prev;
-    if (diff > 0.05) {
-      Animated.sequence([
-        Animated.timing(scaleAnim, { toValue: 1.1, duration: 150, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-      ]).start();
+    
+    if (diff > 0.05 && isMounted) {
+      const sequenceAnimation = Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 1.1, duration: 150, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(scaleAnim, { toValue: 1, duration: 150, useNativeDriver: Platform.OS !== 'web' }),
+      ]);
+      
+      sequenceAnimation.start();
     }
+    
     previous.current = breakdown.netWorth;
+
+    return () => {
+      isMounted = false;
+    };
   }, [breakdown.netWorth, scaleAnim]);
 
   return (
     <View style={containerStyle}>
       <Text style={titleStyle}>Net Worth</Text>
       <Animated.Text style={[netWorthStyle, { transform: [{ scale: scaleAnim }] }]}>
-        ${breakdown.netWorth.toLocaleString()}
+        {formatMoney(breakdown.netWorth)}
       </Animated.Text>
       <View style={styles.chartSection}>
         <PieChart data={chartData} />
         <View style={styles.legend}>
-          {chartData.map(slice => (
-            <View key={slice.label} style={styles.legendItem}>
-              <View style={[styles.colorBox, { backgroundColor: slice.color }]} />
+          {chartData.map((slice, index) => (
+            <View key={index} style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: slice.color }]} />
               <Text style={legendLabelStyle}>
-                {slice.label}: ${Math.round(slice.value).toLocaleString()}
+                {slice.label}: {formatMoney(slice.value)}
               </Text>
             </View>
           ))}
@@ -227,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  colorBox: {
+  legendColor: {
     width: 12,
     height: 12,
     borderRadius: 2,

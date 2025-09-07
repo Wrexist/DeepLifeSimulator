@@ -18,7 +18,7 @@ export function calcWeeklyPassiveIncome(state: GameState): { total: number; brea
     const info = getStockInfo(stockId);
     if (!info) continue;
     const annualDividend = info.price * info.dividendYield * shares;
-    stocksIncome += annualDividend / 52;
+    stocksIncome += Math.round(annualDividend / 52);
   }
 
   let realEstateIncome = 0;
@@ -26,19 +26,19 @@ export function calcWeeklyPassiveIncome(state: GameState): { total: number; brea
     const rent = property.rent ?? 0;
     const upkeep = property.upkeep ?? 0;
     const tier = getUpgradeTier(property.upgradeLevel) || getUpgradeTier(0)!;
-    realEstateIncome += rent + tier.rentBonus - (upkeep + tier.upkeepBonus);
+    realEstateIncome += Math.round(rent + tier.rentBonus - (upkeep + tier.upkeepBonus));
   });
 
   let songsIncome = 0;
   const music = state.hobbies?.find(h => h.id === 'music');
   if (music && music.songs) {
-    songsIncome = music.songs.reduce((sum, song) => sum + song.weeklyIncome, 0);
+    songsIncome = Math.round(music.songs.reduce((sum, song) => sum + song.weeklyIncome, 0));
   }
 
   let artIncome = 0;
   const art = state.hobbies?.find(h => h.id === 'art');
   if (art && art.artworks) {
-    artIncome = art.artworks.reduce((sum, a) => sum + a.weeklyIncome, 0);
+    artIncome = Math.round(art.artworks.reduce((sum, a) => sum + a.weeklyIncome, 0));
   }
 
   let contractsIncome = 0;
@@ -46,17 +46,18 @@ export function calcWeeklyPassiveIncome(state: GameState): { total: number; brea
   let sponsorsIncome = 0;
   state.hobbies.forEach(h => {
     if (h.sponsors && h.sponsors.length > 0) {
-      sponsorsIncome += h.sponsors.reduce((sum, s) => sum + s.weeklyPay, 0);
+      sponsorsIncome += Math.round(h.sponsors.reduce((sum, s) => sum + s.weeklyPay, 0));
     }
   });
 
-  const total =
+  const total = Math.round(
     stocksIncome +
     realEstateIncome +
     songsIncome +
     artIncome +
     contractsIncome +
-    sponsorsIncome;
+    sponsorsIncome
+  );
   return {
     total,
     breakdown: {

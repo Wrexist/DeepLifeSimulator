@@ -19,9 +19,9 @@ export const ACHIEVEMENTS: AchievementProgress[] = [
     desc: 'Have no outstanding debts.',
   },
   {
-    id: 'top_health',
-    name: 'Peak Health',
-    desc: 'Reach 100 health.',
+    id: 'healthy_lifestyle',
+    name: 'Healthy Lifestyle',
+    desc: 'Maintain 90+ health for 10 consecutive weeks.',
   },
   {
     id: 'social_star',
@@ -66,12 +66,18 @@ export const evaluateAchievements = (state: GameState): AchievementProgress[] =>
     unlocked.push({ ...ACHIEVEMENTS.find(a => a.id === 'first_million')! });
   }
 
+  // Only trigger debt free achievement if player has been in debt before
   if (!hasAchievement(progress, 'debt_free') && (state.stats.money >= 0)) {
-    unlocked.push({ ...ACHIEVEMENTS.find(a => a.id === 'debt_free')! });
+    // Check if player has ever been in debt by looking at their progress
+    const hasBeenInDebt = state.progress?.hasBeenInDebt ?? false;
+    if (hasBeenInDebt) {
+      unlocked.push({ ...ACHIEVEMENTS.find(a => a.id === 'debt_free')! });
+    }
   }
 
-  if (!hasAchievement(progress, 'top_health') && state.stats.health >= 100) {
-    unlocked.push({ ...ACHIEVEMENTS.find(a => a.id === 'top_health')! });
+  // Check for healthy lifestyle achievement (maintain 90+ health for 10 consecutive weeks)
+  if (!hasAchievement(progress, 'healthy_lifestyle') && state.healthWeeks >= 10) {
+    unlocked.push({ ...ACHIEVEMENTS.find(a => a.id === 'healthy_lifestyle')! });
   }
 
   if (!hasAchievement(progress, 'social_star') && countHighRelations(state.relationships) >= 10) {

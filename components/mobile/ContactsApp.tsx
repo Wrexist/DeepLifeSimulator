@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Users, Heart, Phone, Gift, DollarSign, Home, Gem, X, Baby, Star } from 'lucide-react-native';
@@ -12,7 +12,8 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   const {
     gameState,
     updateRelationship,
-    updateStats,
+    setGameState,
+    updateMoney,
     breakUpWithPartner,
     proposeToPartner,
     moveInTogether,
@@ -23,6 +24,27 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   
   const [actionFeedback, setActionFeedback] = useState<{ [key: string]: string }>({});
   const [moneyFeedback, setMoneyFeedback] = useState<{ [key: string]: string }>({});
+  const timersRef = useRef<Set<NodeJS.Timeout>>(new Set());
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach(timer => {
+        if (timer) clearTimeout(timer);
+      });
+      timersRef.current.clear();
+    };
+  }, []);
+
+  // Cleanup timers when component unmounts or dependencies change
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach(timer => {
+        if (timer) clearTimeout(timer);
+      });
+      timersRef.current.clear();
+    };
+  }, []);
 
   const getRelationshipColor = (score: number) => {
     if (score >= 80) return '#10B981';
@@ -37,20 +59,22 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
     if (relationship.actions?.[action] === gameState.day) {
       setActionFeedback({ [relationshipId]: 'Action already used this week' });
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setActionFeedback(prev => {
           const newFeedback = { ...prev };
           delete newFeedback[relationshipId];
           return newFeedback;
         });
+        timersRef.current.delete(timer as any);
       }, 3000);
+      timersRef.current.add(timer as any);
       return;
     }
 
     if (cost && gameState.stats.money < cost) return;
 
     if (cost) {
-      updateStats({ money: gameState.stats.money - cost });
+      updateMoney(-cost, `${action} with ${relationship.name}`, false);
     }
 
     if (relationBonus) {
@@ -81,13 +105,15 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
     if (result) {
       setActionFeedback({ [relationshipId]: result.message });
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setActionFeedback(prev => {
           const newFeedback = { ...prev };
           delete newFeedback[relationshipId];
           return newFeedback;
         });
+        timersRef.current.delete(timer as any);
       }, 3000);
+      timersRef.current.add(timer as any);
     }
   };
 
@@ -97,26 +123,30 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
     if (relationship.relationshipScore < 35) {
       setMoneyFeedback({ [relationshipId]: 'Relationship too low. Need at least 35 points to ask for money.' });
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setMoneyFeedback(prev => {
           const newFeedback = { ...prev };
           delete newFeedback[relationshipId];
           return newFeedback;
         });
+        timersRef.current.delete(timer as any);
       }, 3000);
+      timersRef.current.add(timer as any);
       return;
     }
 
     const result = askForMoney(relationshipId);
     if (result) {
       setMoneyFeedback({ [relationshipId]: result.message });
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setMoneyFeedback(prev => {
           const newFeedback = { ...prev };
           delete newFeedback[relationshipId];
           return newFeedback;
         });
+        timersRef.current.delete(timer as any);
       }, 3000);
+      timersRef.current.add(timer as any);
     }
   };
 
@@ -132,7 +162,11 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={true}
+      >
         <View style={styles.relationshipsContainer}>
           {gameState.relationships.map((relationship, index) => (
             <View key={relationship.id} style={styles.relationshipCard}>
@@ -202,23 +236,34 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
                   </Text>
                 </TouchableOpacity>
 
-                <View style={styles.moneyButtonContainer}>
+                {relationship.type !== 'child' ? (
+                  <View style={styles.moneyButtonContainer}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, relationship.relationshipScore < 35 && styles.disabledButton]}
+                      onPress={() => handleAskMoney(relationship.id)}
+                      disabled={relationship.relationshipScore < 35}
+                    >
+                      <DollarSign size={16} color={relationship.relationshipScore < 35 ? "#6B7280" : "#F59E0B"} />
+                      <Text style={[styles.actionText, relationship.relationshipScore < 35 && styles.disabledText]}>
+                        Ask Money {relationship.relationshipScore < 35 && `(${relationship.relationshipScore}/35)`}
+                      </Text>
+                    </TouchableOpacity>
+                    {moneyFeedback[relationship.id] && (
+                      <View style={styles.feedbackPopup}>
+                        <Text style={styles.feedbackPopupText}>{moneyFeedback[relationship.id]}</Text>
+                      </View>
+                    )}
+                  </View>
+                ) : (
                   <TouchableOpacity
-                    style={[styles.actionButton, relationship.relationshipScore < 35 && styles.disabledButton]}
-                    onPress={() => handleAskMoney(relationship.id)}
-                    disabled={relationship.relationshipScore < 35}
+                    style={styles.actionButton}
+                    onPress={() => performAction(relationship.id, 'allowance', 20, 12)}
+                    disabled={gameState.stats.money < 20}
                   >
-                    <DollarSign size={16} color={relationship.relationshipScore < 35 ? "#6B7280" : "#F59E0B"} />
-                    <Text style={[styles.actionText, relationship.relationshipScore < 35 && styles.disabledText]}>
-                      Ask Money {relationship.relationshipScore < 35 && `(${relationship.relationshipScore}/35)`}
-                    </Text>
+                    <DollarSign size={16} color={gameState.stats.money < 20 ? '#6B7280' : '#F59E0B'} />
+                    <Text style={[styles.actionText, gameState.stats.money < 20 && styles.disabledText]}>Allowance ($20)</Text>
                   </TouchableOpacity>
-                  {moneyFeedback[relationship.id] && (
-                    <View style={styles.feedbackPopup}>
-                      <Text style={styles.feedbackPopupText}>{moneyFeedback[relationship.id]}</Text>
-                    </View>
-                  )}
-                </View>
+                )}
 
                 {relationship.type === 'partner' && (
                   <>
@@ -413,7 +458,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 16,
+    paddingBottom: 40,
   },
   relationshipsContainer: {
     gap: 16,

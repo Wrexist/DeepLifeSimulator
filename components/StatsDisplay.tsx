@@ -22,13 +22,13 @@ export default function StatsDisplay() {
   };
 
   const formatMoney = (amount: number) => {
-    if (amount >= 1000000) {
-      return `$${(amount / 1000000).toFixed(1)}M`;
-    }
-    if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(1)}K`;
-    }
-    return `$${amount}`;
+    const a = Math.floor(amount || 0);
+    if (a >= 1_000_000_000_000_000) return `$${(a / 1_000_000_000_000_000).toFixed(2)}Q`;
+    if (a >= 1_000_000_000_000) return `$${(a / 1_000_000_000_000).toFixed(2)}T`;
+    if (a >= 1_000_000_000) return `$${(a / 1_000_000_000).toFixed(2)}B`;
+    if (a >= 1_000_000) return `$${(a / 1_000_000).toFixed(2)}M`;
+    if (a >= 1_000) return `$${(a / 1_000).toFixed(2)}K`;
+    return `$${a}`;
   };
 
   const statItems = [

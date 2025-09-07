@@ -8,18 +8,21 @@ export default function JailActivities() {
   const { gameState, performJailActivity } = useGame();
   const { jailActivities, jailWeeks, stats } = gameState;
 
-  if (jailWeeks <= 0) return null;
+  if (jailWeeks <= 0) {
+    // No jail weeks, not rendering
+    return null;
+  }
+  
+  // Rendering jail activities
 
   const handlePress = (id: string) => {
-    console.log('Jail activity pressed:', id); // Debug log
     const result = performJailActivity(id);
-    console.log('Jail activity result:', result); // Debug log
     if (result) {
       // Enhanced popup with more details
       const title = result.success ? '✅ Success!' : '❌ Failed';
       const message = result.message;
       
-      console.log('Showing alert:', title, message); // Debug log
+      // Showing activity result alert
       Alert.alert(
         title,
         message,
@@ -27,7 +30,7 @@ export default function JailActivities() {
         { cancelable: true }
       );
     } else {
-      console.log('No result returned from performJailActivity'); // Debug log
+      // No result returned from activity
     }
   };
 
@@ -100,7 +103,7 @@ export default function JailActivities() {
             return (
               <View key={activity.id} style={styles.activityWrapper}>
                 <LinearGradient
-                  colors={canPerform ? colors : ['#E5E7EB', '#D1D5DB']}
+                  colors={canPerform ? colors : ['#E5E7EB', '#D1D5DB'] as any}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.activityCard}

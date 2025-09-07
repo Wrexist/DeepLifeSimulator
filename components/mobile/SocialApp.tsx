@@ -254,21 +254,33 @@ export default function SocialApp({ onBack }: SocialAppProps) {
 
   // Initialize posts with random selection
   useEffect(() => {
+    let isMounted = true;
     const shuffledPosts = [...randomPosts].sort(() => Math.random() - 0.5);
     const selectedPosts = shuffledPosts.slice(0, Math.min(15, shuffledPosts.length));
-    setPosts(selectedPosts);
     
-    // Initialize animations for posts
-    selectedPosts.forEach(post => {
-      if (!postAnimations.current[post.id]) {
-        postAnimations.current[post.id] = new Animated.Value(0);
-      }
-      Animated.timing(postAnimations.current[post.id], {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }).start();
-    });
+    if (isMounted) {
+      setPosts(selectedPosts);
+      
+      // Initialize animations for posts
+      selectedPosts.forEach(post => {
+        if (!postAnimations.current[post.id]) {
+          postAnimations.current[post.id] = new Animated.Value(0);
+        }
+        const animation = Animated.timing(postAnimations.current[post.id], {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        });
+        
+        if (isMounted) {
+          animation.start();
+        }
+      });
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleLike = useCallback((postId: string) => {
@@ -419,7 +431,11 @@ export default function SocialApp({ onBack }: SocialAppProps) {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={true}
+      >
         {activeTab === 'feed' && (
           <View style={styles.feedContainer}>
             {/* Create Post Button */}
@@ -770,14 +786,14 @@ const styles = StyleSheet.create({
     borderColor: '#23283B',
     borderWidth: 1,
     flexDirection: 'row',
-    padding: 6,
-    gap: 6,
+    padding: 10,
+    gap: 10,
     marginBottom: 16,
     marginTop: 16,
   },
   tab: {
     flex: 1,
-    height: 40,
+    height: 60,
     borderRadius: 10,
     backgroundColor: '#101426',
     alignItems: 'center',
@@ -800,7 +816,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 16,
+    paddingBottom: 40,
   },
   feedContainer: {
     gap: 16,

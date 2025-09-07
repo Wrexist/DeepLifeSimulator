@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView,
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, BarChart3, Plus, Minus, RefreshCw } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { SkeletonLoader, SkeletonList } from '@/components/ui/SkeletonLoader';
+import { EmptyPortfolio } from '@/components/ui/EmptyState';
 
 interface StocksAppProps {
   onBack: () => void;
@@ -137,13 +139,14 @@ const mockStocks: Stock[] = [
 
 
 export default function StocksApp({ onBack }: StocksAppProps) {
-  const { gameState, setGameState, saveGame } = useGame();
+  const { gameState, setGameState, saveGame, updateMoney } = useGame();
   const { settings } = gameState;
   const [activeTab, setActiveTab] = useState<'market' | 'portfolio' | 'watchlist'>('market');
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [shares, setShares] = useState('');
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
+  const [isLoading, setIsLoading] = useState(false);
 
   const holdings: Holding[] = gameState.stocks?.holdings || [];
   const watchlist: string[] = gameState.stocks?.watchlist || [];
@@ -201,14 +204,16 @@ export default function StocksApp({ onBack }: StocksAppProps) {
       }];
     }
 
-         setGameState(prev => ({
-       ...prev,
-       stats: { ...prev.stats, money: cash - totalCost },
-       stocks: { 
-         holdings: newHoldings,
-         watchlist: prev.stocks?.watchlist || [],
-       },
-     }));
+             // Use centralized money handling - don't update dailySummary for stock purchases
+    updateMoney(-totalCost, `Buy ${sharesToBuy} shares of ${selectedStock.symbol}`, false);
+    
+    setGameState(prev => ({
+      ...prev,
+      stocks: { 
+        holdings: newHoldings,
+        watchlist: prev.stocks?.watchlist || [],
+      },
+    }));
     saveGame();
 
     Alert.alert('Purchase Successful', `Bought ${sharesToBuy} shares of ${selectedStock.symbol} for $${totalCost.toFixed(2)}.`);
@@ -245,14 +250,16 @@ export default function StocksApp({ onBack }: StocksAppProps) {
       newHoldings = holdings.filter(h => h.symbol !== selectedStock.symbol);
     }
 
-         setGameState(prev => ({
-       ...prev,
-       stats: { ...prev.stats, money: cash + totalValue },
-       stocks: { 
-         holdings: newHoldings,
-         watchlist: prev.stocks?.watchlist || [],
-       },
-     }));
+    // Use centralized money handling - don't update dailySummary for stock sales
+    updateMoney(totalValue, `Sell ${sharesToSell} shares of ${selectedStock.symbol}`, false);
+    
+    setGameState(prev => ({
+      ...prev,
+      stocks: { 
+        holdings: newHoldings,
+        watchlist: prev.stocks?.watchlist || [],
+      },
+    }));
     saveGame();
 
     Alert.alert('Sale Successful', `Sold ${sharesToSell} shares of ${selectedStock.symbol} for $${totalValue.toFixed(2)}.`);
@@ -297,75 +304,78 @@ export default function StocksApp({ onBack }: StocksAppProps) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient colors={['#10B981', '#059669']} style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Stocks</Text>
         <View style={styles.headerSpacer} />
-      </View>
+      </LinearGradient>
 
-      {/* Portfolio Summary */}
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Portfolio Value</Text>
-              <Text style={styles.summaryValue}>${portfolioValue.toFixed(2)}</Text>
+      {/* Content */}
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={true}
+      >
+        {/* Portfolio Summary */}
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Portfolio Value</Text>
+                <Text style={styles.summaryValue}>${portfolioValue.toFixed(2)}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Total Gain</Text>
+                <Text style={[styles.summaryValue, portfolioGain >= 0 ? styles.positiveText : styles.negativeText]}>
+                  {portfolioGain >= 0 ? '+' : ''}${portfolioGain.toFixed(2)} ({portfolioGainPercent >= 0 ? '+' : ''}{portfolioGainPercent.toFixed(2)}%)
+                </Text>
+              </View>
             </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Total Gain</Text>
-              <Text style={[styles.summaryValue, portfolioGain >= 0 ? styles.positiveText : styles.negativeText]}>
-                {portfolioGain >= 0 ? '+' : ''}${portfolioGain.toFixed(2)} ({portfolioGainPercent >= 0 ? '+' : ''}{portfolioGainPercent.toFixed(2)}%)
-              </Text>
-            </View>
-          </View>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Cash</Text>
-              <Text style={styles.summaryValue}>${cash.toFixed(2)}</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Holdings</Text>
-              <Text style={styles.summaryValue}>{holdings.length}</Text>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Cash</Text>
+                <Text style={styles.summaryValue}>${cash.toFixed(2)}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Holdings</Text>
+                <Text style={styles.summaryValue}>{holdings.length}</Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'market' && styles.activeTab]}
-          onPress={() => setActiveTab('market')}
-        >
-          <BarChart3 size={20} color={activeTab === 'market' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'market' ? styles.tabTextActive : styles.tabTextInactive]}>
-            Market
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'portfolio' && styles.activeTab]}
-          onPress={() => setActiveTab('portfolio')}
-        >
-          <TrendingUp size={20} color={activeTab === 'portfolio' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'portfolio' ? styles.tabTextActive : styles.tabTextInactive]}>
-            Portfolio
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'watchlist' && styles.activeTab]}
-          onPress={() => setActiveTab('watchlist')}
-        >
-          <TrendingUp size={20} color={activeTab === 'watchlist' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'watchlist' ? styles.tabTextActive : styles.tabTextInactive]}>
-            Watchlist
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'market' && styles.activeTab]}
+            onPress={() => setActiveTab('market')}
+          >
+            <BarChart3 size={20} color={activeTab === 'market' ? '#FFFFFF' : '#6B7280'} />
+            <Text style={[styles.tabText, activeTab === 'market' ? styles.tabTextActive : styles.tabTextInactive]}>
+              Market
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'portfolio' && styles.activeTab]}
+            onPress={() => setActiveTab('portfolio')}
+          >
+            <TrendingUp size={20} color={activeTab === 'portfolio' ? '#FFFFFF' : '#6B7280'} />
+            <Text style={[styles.tabText, activeTab === 'portfolio' ? styles.tabTextActive : styles.tabTextInactive]}>
+              Portfolio
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'watchlist' && styles.activeTab]}
+            onPress={() => setActiveTab('watchlist')}
+          >
+            <TrendingUp size={20} color={activeTab === 'watchlist' ? '#FFFFFF' : '#6B7280'} />
+            <Text style={[styles.tabText, activeTab === 'watchlist' ? styles.tabTextActive : styles.tabTextInactive]}>
+              Watchlist
+            </Text>
+          </TouchableOpacity>
+        </View>
         {activeTab === 'market' && (
           <View style={styles.stockList}>
             {mockStocks.map((stock) => (
@@ -579,7 +589,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0C10',
+    backgroundColor: '#0F172A',
   },
   header: {
     flexDirection: 'row',
@@ -649,13 +659,13 @@ const styles = StyleSheet.create({
     borderColor: '#23283B',
     borderWidth: 1,
     flexDirection: 'row',
-    padding: 6,
-    gap: 6,
+    padding: 10,
+    gap: 10,
     marginBottom: 16,
   },
   tab: {
     flex: 1,
-    height: 40,
+    height: 60,
     borderRadius: 10,
     backgroundColor: '#101426',
     alignItems: 'center',
@@ -678,7 +688,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 16,
+    paddingBottom: 40,
   },
   stockList: {
     gap: 12,

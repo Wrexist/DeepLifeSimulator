@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { applyWeeklyInflation, getInflatedPrice } from '@/lib/economy/inflation';
@@ -17,8 +17,11 @@ import { rollWeeklyEvents, WeeklyEvent } from '@/lib/events/engine';
 import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { v4 as uuidv4 } from 'uuid';
 import { showAchievementToast } from '@/components/anim/AchievementToast';
-import { scheduleDailyReminder, cancelDailyReminder, notifyAchievementUnlock } from '@/utils/notifications';
+import { scheduleDailyReminder, cancelDailyReminder, notifyAchievementUnlock, scheduleDailyGiftNotification, cancelDailyGiftNotification, sendDailyGiftAvailableNotification } from '@/utils/notifications';
 import { uploadGameState, downloadGameState, uploadLeaderboardScore } from '@/lib/progress/cloud';
+import { CacheManager } from '@/utils/cacheManager';
+import PremiumLoadingScreen from '@/components/PremiumLoadingScreen';
+import { queueSave, forceSave } from '@/utils/saveQueue';
 
 /* ---------- Types ---------- */
 
@@ -125,6 +128,7 @@ export interface Career {
     fitness?: number;
     items?: string[];
     education?: string[];
+    reputation?: number;
   };
   progress: number;
   applied: boolean;
@@ -321,12 +325,22 @@ export interface CompanyUpgrade {
   maxLevel: number;
 }
 
+export interface Warehouse {
+  level: number; // Warehouse level (0 = no warehouse, 1+ = warehouse levels)
+  miners: Record<string, number>; // Miners stored in warehouse
+  selectedCrypto?: string; // Selected cryptocurrency for mining
+  autoRepairEnabled?: boolean; // Whether auto-repair is enabled
+  autoRepairWeeklyCost?: number; // Weekly cost in crypto for auto-repair
+  autoRepairCryptoId?: string; // ID of crypto used for auto-repair payments
+}
+
 export interface Company {
   id: string;
   name: string;
   type: 'factory' | 'ai' | 'restaurant' | 'realestate' | 'bank';
   weeklyIncome: number;
   baseWeeklyIncome: number;
+  money?: number; // Company cash balance
   upgrades: CompanyUpgrade[];
   employees: number;
   workerSalary: number;
@@ -334,11 +348,15 @@ export interface Company {
   marketingLevel: number;
   selectedCrypto?: string;
   miners: Record<string, number>;
+  warehouseLevel: number; // Warehouse level for crypto mining (starts at 0 = 10 slots)
   electricalBill?: {
     monthlyAmount: number;
     dueWeek: number;
     paid: boolean;
   };
+  autoRepairEnabled?: boolean;
+  autoRepairWeeklyCost?: number;
+  autoRepairCryptoId?: string;
 }
 
 export interface Crypto {
@@ -432,11 +450,46 @@ export interface JournalEntry {
 
 export interface GameProgress {
   achievements: AchievementProgress[];
+  hasBeenInDebt?: boolean;
+}
+
+export interface Loan {
+  id: string;
+  name: string;
+  principal: number;
+  remaining: number;
+  rateAPR: number;
+  termWeeks: number;
+  weeklyPayment: number;
+  startWeek: number;
+  autoPay: boolean;
+  type: 'personal' | 'business' | 'mortgage' | 'auto';
+  weeksRemaining: number;
+  interestRate: number;
 }
 
 export interface EconomyState {
   inflationRateAnnual: number;
   priceIndex: number;
+}
+
+export interface DailyGift {
+  id: string;
+  type: 'money' | 'gems' | 'energy' | 'happiness' | 'health' | 'fitness' | 'reputation' | 'youth_pill';
+  amount: number;
+  name: string;
+  description: string;
+  icon: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  specialEffect?: string;
+}
+
+export interface DailyGiftState {
+  currentStreak: number;
+  lastClaimDate: string; // ISO date string
+  weeklyGifts: DailyGift[];
+  claimedToday: boolean;
+  showDailyGiftModal: boolean;
 }
 
 export interface GameState {
@@ -462,6 +515,7 @@ export interface GameState {
   educations: Education[];
   companies: Company[];
   company?: Company;
+  warehouse?: Warehouse;
   userProfile: UserProfile;
   currentJob?: string;
   showWelcomePopup: boolean;
@@ -477,6 +531,7 @@ export interface GameState {
   jailWeeks: number;
   escapedFromJail: boolean;
   criminalXp: number;
+  weeklyJailActivities?: Record<string, number>; // Track which activities done this week
   criminalLevel: number;
   crimeSkills: Record<CrimeSkillId, CrimeSkill>;
   version: number;
@@ -484,14 +539,15 @@ export interface GameState {
   journal: JournalEntry[];
   scenarioId?: string;
   bankSavings?: number;
+  loans?: Loan[];
   stocksOwned?: { [key: string]: number };
   stocks?: {
-    holdings: Array<{
+    holdings: {
       symbol: string;
       shares: number;
       averagePrice: number;
       currentPrice: number;
-    }>;
+    }[];
     watchlist: string[];
   };
   perks?: {
@@ -500,12 +556,128 @@ export interface GameState {
     fastLearner?: boolean;
     goodCredit?: boolean;
     unlockAllPerks?: boolean;
+    astute_planner?: boolean;
   };
   dailySummary?: {
     moneyChange: number;
     statsChange: Partial<GameStats>;
     events: string[];
+    earningsBreakdown?: {
+      gaming: number;
+      streaming: number;
+      passive: number;
+      salary: number;
+      sponsors: number;
+      other: number;
+    };
   };
+  gamingStreaming?: {
+    followers: number;
+    subscribers: number;
+    totalViews: number;
+    totalEarnings: number;
+    totalDonations: number;
+    totalSubEarnings: number;
+    level: number;
+    experience: number;
+    gamesPlayed: string[];
+    streamHours: number;
+    averageViewers: number;
+    bestStream: {
+      id: string;
+      game: string;
+      duration: number;
+      viewers: number;
+      earnings: number;
+      followers: number;
+      chatMessages: number;
+      donations: number;
+    } | null;
+    currentStream: {
+      id: string;
+      game: string;
+      duration: number;
+      viewers: number;
+      earnings: number;
+      followers: number;
+      chatMessages: number;
+      donations: number;
+    } | null;
+    equipment: {
+      microphone: boolean;
+      webcam: boolean;
+      gamingChair: boolean;
+      greenScreen: boolean;
+      lighting: boolean;
+    };
+    pcComponents: {
+      cpu: boolean;
+      gpu: boolean;
+      ram: boolean;
+      ssd: boolean;
+      motherboard: boolean;
+      cooling: boolean;
+      psu: boolean;
+      case: boolean;
+    };
+    pcUpgradeLevels: {
+      cpu: number;
+      gpu: number;
+      ram: number;
+      ssd: number;
+      motherboard: number;
+      cooling: number;
+      psu: number;
+      case: number;
+    };
+    unlockedGames: string[];
+    ownedGames: string[];
+    streamHistory: {
+      id: string;
+      game: string;
+      duration: number;
+      viewers: number;
+      earnings: number;
+      followers: number;
+      subscribers: number;
+      chatMessages: number;
+      donations: number;
+    }[];
+    videoTitleCounters: Record<string, number>;
+    videos?: {
+      id: string;
+      title: string;
+      description: string;
+      game: string;
+      views: number;
+      earnings: number;
+      followers: number;
+      subscribers: number;
+      uploadDate: string;
+    }[];
+    videoRecordingState?: {
+      isRecording: boolean;
+      recordProgress: number;
+      renderProgress: number;
+      uploadProgress: number;
+      currentPhase: 'idle' | 'recording' | 'rendering' | 'uploading' | 'completed';
+      videoTitle?: string;
+      videoGame?: string;
+      isRendering?: boolean;
+      isUploading?: boolean;
+    };
+    streamingState?: {
+      isStreaming: boolean;
+      streamProgress: number;
+      totalDonations: number;
+      streamDuration?: number;
+      selectedGame?: string;
+      currentViewers?: number;
+      currentSubsGained?: number;
+    };
+      upgrades?: Record<string, number>;
+  goldUpgrades?: Record<string, boolean>;
+};
   pendingEvents: WeeklyEvent[];
   eventLog: {
     id: string;
@@ -521,16 +693,24 @@ export interface GameState {
   streetJobsCompleted: number;
   happinessZeroWeeks: number;
   healthZeroWeeks: number;
+  healthWeeks: number;
   showZeroStatPopup: boolean;
   zeroStatType?: 'happiness' | 'health';
   showDeathPopup: boolean;
   deathReason?: 'happiness' | 'health';
+  showSicknessModal: boolean;
+  showCureSuccessModal: boolean;
+  curedDiseases: string[];
+  dailyGifts: DailyGiftState;
 }
 
 interface GameContextType {
   gameState: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
-  updateStats: (newStats: Partial<GameStats>) => void;
+  updateGameState: React.Dispatch<React.SetStateAction<GameState>>;
+  updateMoney: (amount: number, reason: string, updateDailySummary?: boolean) => void;
+  batchUpdateMoney: (transactions: {amount: number, reason: string}[]) => void;
+  applyPerkEffects: (baseValue: number, perkType: string) => number;
   nextWeek: () => void;
   resolveEvent: (eventId: string, choiceId: string) => void;
   performStreetJob: (
@@ -621,18 +801,31 @@ interface GameContextType {
   buyStarterPack: (packId: string) => void;
   buyGoldPack: (packId: string) => void;
   buyGoldUpgrade: (upgradeId: string) => void;
-  buyMiner: (minerId: string, companyId?: string) => void;
+  buyMiner: (minerId: string, minerName: string, cost: number, companyId?: string) => { success: boolean; message?: string };
+  buyWarehouse: () => { success: boolean; message?: string };
+  upgradeWarehouse: () => { success: boolean; message?: string };
   selectMiningCrypto: (cryptoId: string, companyId?: string) => void;
+  selectWarehouseMiningCrypto: (cryptoId: string) => void;
   saveGame: () => Promise<void>;
   loadGame: (slot?: number) => Promise<void>;
   currentSlot: number;
   restartGame: () => Promise<void>;
   reviveCharacter: () => void;
   dismissStatWarning: () => void;
+  dismissSicknessModal: () => void;
+  dismissCureSuccessModal: () => void;
   checkAchievements: (state?: GameState) => void;
   recordRelationshipAction: (relationshipId: string, action: string) => void;
   claimProgressAchievement: (id: string, gold: number) => void;
   completeMinigame: (hobbyId: string, score: number) => void;
+  triggerCacheClear: () => Promise<void>;
+  claimDailyGift: (dayIndex: number) => void;
+  generateWeeklyGifts: () => void;
+  checkDailyGiftEligibility: () => boolean;
+  showDailyGiftModal: () => void;
+  hideDailyGiftModal: () => void;
+  scheduleDailyGiftNotifications: () => Promise<void>;
+  cancelDailyGiftNotifications: () => Promise<void>;
 }
 
 /* ---------- Context ---------- */
@@ -641,9 +834,9 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 /* ---------- Initial State ---------- */
 
-const STATE_VERSION = 8;
+const STATE_VERSION = 9;
 
-const initialGameState: GameState = {
+export const initialGameState: GameState = {
   version: STATE_VERSION,
   stats: {
     health: 100,
@@ -654,12 +847,14 @@ const initialGameState: GameState = {
     reputation: 0,
     gems: 0,
   },
+  bankSavings: 0,
   totalHappiness: 0,
   weeksLived: 0,
   wantedLevel: 0,
   jailWeeks: 0,
   escapedFromJail: false,
   criminalXp: 0,
+  weeklyJailActivities: {},
   criminalLevel: 1,
   crimeSkills: {
     stealth: { xp: 0, level: 1, upgrades: [] },
@@ -675,7 +870,7 @@ const initialGameState: GameState = {
       description: '30% chance to get money, small chance to be robbed',
       energyCost: 20,
       baseSuccessRate: 30,
-      basePayment: 25,
+      basePayment: 100,
       rank: 1,
       progress: 0,
       risks: ['robbery'],
@@ -686,7 +881,7 @@ const initialGameState: GameState = {
       description: '20% chance for money, rare chance for items',
       energyCost: 15,
       baseSuccessRate: 20,
-      basePayment: 30,
+      basePayment: 120,
       rank: 1,
       progress: 0,
     },
@@ -696,7 +891,7 @@ const initialGameState: GameState = {
       description: '70% stable income, requires guitar',
       energyCost: 25,
       baseSuccessRate: 70,
-      basePayment: 40,
+      basePayment: 160,
       rank: 1,
       progress: 0,
       requirements: ['guitar'],
@@ -707,42 +902,129 @@ const initialGameState: GameState = {
       description: '90% success rate, requires bike',
       energyCost: 30,
       baseSuccessRate: 90,
-      basePayment: 45,
+      basePayment: 180,
       rank: 1,
       progress: 0,
       requirements: ['bike'],
     },
+
+
+
+
     {
-      id: 'scam',
-      name: 'Scam Someone',
-      description: 'High risk, high reward. Better with phone/computer',
-      energyCost: 25,
-      baseSuccessRate: 40,
-      basePayment: 45,
-      rank: 1,
-      progress: 0,
-      skill: 'hacking',
-      risks: ['police'],
-      illegal: true,
-      wantedIncrease: 2,
-      jailWeeks: 2,
-    },
-    {
-      id: 'shoplift',
-      name: 'Shoplift',
-      description: 'Steal small items from stores. Requires Lockpick from Onion shop.',
-      energyCost: 20,
-      baseSuccessRate: 80,
-      basePayment: 50,
+      id: 'steal_from_cars',
+      name: 'Steal from Cars',
+      description: 'Check unlocked cars for valuables. No requirements needed.',
+      energyCost: 15,
+      baseSuccessRate: 70,
+      basePayment: 35,
       rank: 1,
       progress: 0,
       skill: 'stealth',
       illegal: true,
-      criminalLevelReq: 1,
-      darkWebRequirements: ['lockpick'],
       wantedIncrease: 1,
       jailWeeks: 1,
     },
+
+    {
+      id: 'pickpocket_basic',
+      name: 'Pickpocket (Basic)',
+      description: 'Steal wallets from unsuspecting victims. Requires Stealth Gloves.',
+      energyCost: 10,
+      baseSuccessRate: 70,
+      basePayment: 40,
+      rank: 1,
+      progress: 0,
+      skill: 'stealth',
+      illegal: true,
+      darkWebRequirements: ['gloves'],
+      wantedIncrease: 1,
+      jailWeeks: 1,
+    },
+
+    {
+      id: 'hack_public_wifi',
+      name: 'Hack Public WiFi',
+      description: 'Hack into public WiFi networks for data. Requires USB from Onion shop.',
+      energyCost: 20,
+      baseSuccessRate: 65,
+      basePayment: 60,
+      rank: 1,
+      progress: 0,
+      skill: 'hacking',
+      illegal: true,
+      darkWebRequirements: ['usb'],
+      wantedIncrease: 1,
+      jailWeeks: 1,
+    },
+
+    {
+      id: 'drug_dealing',
+      name: 'Drug Dealing',
+      description: 'Sell illegal substances on the street. Requires Drug Supply from dark web.',
+      energyCost: 35,
+      baseSuccessRate: 65,
+      basePayment: 150,
+      rank: 1,
+      progress: 0,
+      skill: 'stealth',
+      illegal: true,
+      darkWebRequirements: ['drug_supply'],
+      wantedIncrease: 3,
+      jailWeeks: 3,
+    },
+
+    {
+      id: 'steal_cars_basic',
+      name: 'Steal Cars (Basic)',
+      description: 'Steal cars for profit. Requires Lockpick and Slim Jim from Onion shop.',
+      energyCost: 35,
+      baseSuccessRate: 60,
+      basePayment: 400,
+      rank: 1,
+      progress: 0,
+      skill: 'lockpicking',
+      illegal: true,
+      criminalLevelReq: 1,
+      darkWebRequirements: ['lockpick', 'slim_jim'],
+      wantedIncrease: 3,
+      jailWeeks: 3,
+    },
+    {
+      id: 'panhandle',
+      name: 'Panhandle',
+      description: 'Ask strangers for money. Low risk but low reward.',
+      energyCost: 5,
+      baseSuccessRate: 60,
+      basePayment: 60,
+      rank: 1,
+      progress: 0,
+      skill: 'stealth',
+      illegal: false,
+    },
+    {
+      id: 'wash_cars',
+      name: 'Wash Cars',
+      description: 'Offer to wash cars for money. Honest work.',
+      energyCost: 20,
+      baseSuccessRate: 90,
+      basePayment: 140,
+      rank: 1,
+      progress: 0,
+    },
+    {
+      id: 'sell_water',
+      name: 'Sell Water',
+      description: 'Buy water bottles and sell them for profit.',
+      energyCost: 15,
+      baseSuccessRate: 75,
+      basePayment: 80,
+      rank: 1,
+      progress: 0,
+    },
+
+
+
     {
       id: 'car_theft',
       name: 'Car Theft',
@@ -765,7 +1047,7 @@ const initialGameState: GameState = {
       description: 'Attempt a major bank robbery. Requires Drill Kit and Explosives from Onion shop.',
       energyCost: 60,
       baseSuccessRate: 20,
-      basePayment: 5000,
+      basePayment: 15000,
       rank: 1,
       progress: 0,
       skill: 'stealth',
@@ -775,21 +1057,7 @@ const initialGameState: GameState = {
       wantedIncrease: 5,
       jailWeeks: 6,
     },
-    {
-      id: 'pickpocket',
-      name: 'Pickpocket',
-      description: 'Lift cash from unsuspecting pedestrians. Requires Stealth Gloves.',
-      energyCost: 15,
-      baseSuccessRate: 60,
-      basePayment: 80,
-      rank: 1,
-      progress: 0,
-      skill: 'stealth',
-      illegal: true,
-      darkWebRequirements: ['gloves'],
-      wantedIncrease: 2,
-      jailWeeks: 2,
-    },
+
     {
       id: 'burglary',
       name: 'Burglary',
@@ -823,6 +1091,7 @@ const initialGameState: GameState = {
       wantedIncrease: 3,
       jailWeeks: 4,
     },
+
     {
       id: 'identity_theft',
       name: 'Identity Theft',
@@ -840,9 +1109,25 @@ const initialGameState: GameState = {
       jailWeeks: 5,
     },
     {
+      id: 'steal_phones',
+      name: 'Steal Phones',
+      description: 'Steal smartphones from people. Requires Stealth Gloves.',
+      energyCost: 20,
+      baseSuccessRate: 70,
+      basePayment: 120,
+      rank: 1,
+      progress: 0,
+      skill: 'stealth',
+      illegal: true,
+      criminalLevelReq: 1,
+      darkWebRequirements: ['gloves'],
+      wantedIncrease: 2,
+      jailWeeks: 2,
+    },
+    {
       id: 'smuggling',
       name: 'Smuggling',
-      description: 'Transport contraband across town. Requires Bike.',
+      description: 'Transport contraband across town. Requires Bike and Night Vision Goggles.',
       energyCost: 45,
       baseSuccessRate: 40,
       basePayment: 1000,
@@ -852,8 +1137,121 @@ const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 3,
       requirements: ['bike'],
+      darkWebRequirements: ['night_vision'],
       wantedIncrease: 5,
       jailWeeks: 6,
+    },
+    {
+      id: 'steal_laptops',
+      name: 'Steal Laptops',
+      description: 'Steal laptops from cafes and libraries. Requires Stealth Gloves.',
+      energyCost: 25,
+      baseSuccessRate: 65,
+      basePayment: 200,
+      rank: 1,
+      progress: 0,
+      skill: 'stealth',
+      illegal: true,
+      criminalLevelReq: 1,
+      darkWebRequirements: ['gloves'],
+      wantedIncrease: 2,
+      jailWeeks: 2,
+    },
+    {
+      id: 'assassination',
+      name: 'Assassination',
+      description: 'Eliminate high-value targets. Requires Silencer and Night Vision Goggles.',
+      energyCost: 80,
+      baseSuccessRate: 25,
+      basePayment: 20000,
+      rank: 1,
+      progress: 0,
+      skill: 'stealth',
+      illegal: true,
+      criminalLevelReq: 5,
+      darkWebRequirements: ['silencer', 'night_vision'],
+      wantedIncrease: 8,
+      jailWeeks: 10,
+    },
+    {
+      id: 'cyber_espionage',
+      name: 'Cyber Espionage',
+      description: 'Steal corporate secrets. Requires Malware Kit, VPN, and Encryption Suite.',
+      energyCost: 50,
+      baseSuccessRate: 35,
+      basePayment: 6000,
+      rank: 1,
+      progress: 0,
+      skill: 'hacking',
+      illegal: true,
+      criminalLevelReq: 4,
+      darkWebRequirements: ['malware_kit', 'vpn', 'encryption'],
+      wantedIncrease: 6,
+      jailWeeks: 8,
+    },
+    {
+      id: 'steal_jewelry',
+      name: 'Steal Jewelry',
+      description: 'Steal jewelry from stores. Requires Lockpick and Crowbar.',
+      energyCost: 30,
+      baseSuccessRate: 55,
+      basePayment: 300,
+      rank: 1,
+      progress: 0,
+      skill: 'lockpicking',
+      illegal: true,
+      criminalLevelReq: 2,
+      darkWebRequirements: ['lockpick', 'crowbar'],
+      wantedIncrease: 3,
+      jailWeeks: 3,
+    },
+    {
+      id: 'hack_atm',
+      name: 'Hack ATM',
+      description: 'Hack ATMs for cash. Requires Wireless Hack Device.',
+      energyCost: 40,
+      baseSuccessRate: 40,
+      basePayment: 800,
+      rank: 1,
+      progress: 0,
+      skill: 'hacking',
+      illegal: true,
+      criminalLevelReq: 2,
+      darkWebRequirements: ['wireless_hack'],
+      wantedIncrease: 4,
+      jailWeeks: 4,
+    },
+    {
+      id: 'steal_safe',
+      name: 'Steal Safe',
+      description: 'Steal safes from homes. Requires Thermal Vision Goggles.',
+      energyCost: 50,
+      baseSuccessRate: 35,
+      basePayment: 1200,
+      rank: 1,
+      progress: 0,
+      skill: 'lockpicking',
+      illegal: true,
+      criminalLevelReq: 3,
+      darkWebRequirements: ['thermal_vision'],
+      wantedIncrease: 5,
+      jailWeeks: 5,
+    },
+    {
+      id: 'disable_security',
+      name: 'Disable Security',
+      description: 'Disable security systems. Requires EMP Device.',
+      energyCost: 45,
+      baseSuccessRate: 45,
+      basePayment: 1000,
+      rank: 1,
+      progress: 0,
+      skill: 'hacking',
+      illegal: true,
+      criminalLevelReq: 3,
+      darkWebRequirements: ['emp_device'],
+      wantedIncrease: 4,
+      jailWeeks: 4,
     },
   ],
   jailActivities: [
@@ -1019,9 +1417,9 @@ const initialGameState: GameState = {
     {
       id: 'software',
       levels: [
-        { name: 'Junior Developer', salary: 1000 },
-        { name: 'Software Engineer', salary: 1500 },
-        { name: 'Senior Engineer', salary: 2000 },
+        { name: 'Junior Developer', salary: 3000 },
+        { name: 'Software Engineer', salary: 4500 },
+        { name: 'Senior Engineer', salary: 6000 },
       ],
       level: 0,
       description: 'Develop software applications',
@@ -1033,9 +1431,9 @@ const initialGameState: GameState = {
     {
       id: 'doctor',
       levels: [
-        { name: 'Medical Intern', salary: 1500 },
-        { name: 'Resident Doctor', salary: 2300 },
-        { name: 'Medical Doctor', salary: 3200 },
+        { name: 'Medical Intern', salary: 4500 },
+        { name: 'Resident Doctor', salary: 6900 },
+        { name: 'Medical Doctor', salary: 9600 },
       ],
       level: 0,
       description: 'Practice medicine and heal patients',
@@ -1047,9 +1445,9 @@ const initialGameState: GameState = {
     {
       id: 'lawyer',
       levels: [
-        { name: 'Paralegal', salary: 1200 },
-        { name: 'Associate Lawyer', salary: 1800 },
-        { name: 'Senior Lawyer', salary: 2600 },
+        { name: 'Paralegal', salary: 3600 },
+        { name: 'Associate Lawyer', salary: 5400 },
+        { name: 'Senior Lawyer', salary: 7800 },
       ],
       level: 0,
       description: 'Practice law and represent clients',
@@ -1061,9 +1459,9 @@ const initialGameState: GameState = {
     {
       id: 'corporate',
       levels: [
-        { name: 'Business Intern', salary: 1500 },
-        { name: 'Manager', salary: 3000 },
-        { name: 'CEO', salary: 5000 },
+        { name: 'Business Intern', salary: 4500 },
+        { name: 'Manager', salary: 9000 },
+        { name: 'CEO', salary: 15000 },
       ],
       level: 0,
       description: 'Climb the corporate ladder',
@@ -1435,34 +1833,34 @@ const initialGameState: GameState = {
     },
   ],
   items: [
-    { id: 'guitar', name: 'Guitar', price: 200, owned: false },
-    { id: 'bike', name: 'Bike', price: 150, owned: false },
+    { id: 'guitar', name: 'Guitar', price: 600, owned: false },
+    { id: 'bike', name: 'Bike', price: 450, owned: false },
     {
       id: 'smartphone',
       name: 'Smartphone',
-      price: 300,
+      price: 900,
       description: 'Unlocks mobile apps and new ways to earn money',
       owned: false,
     },
     {
       id: 'computer',
       name: 'Computer',
-      price: 800,
+      price: 2400,
       description: 'Provides advanced tools and additional income opportunities',
       owned: false,
     },
-    { id: 'suit', name: 'Business Suit', price: 400, owned: false },
+    { id: 'suit', name: 'Business Suit', price: 1200, owned: false },
     {
       id: 'basic_bed',
       name: 'Basic Bed',
-      price: 500,
+      price: 1500,
       owned: false,
       dailyBonus: { energy: 10, happiness: 5 },
     },
     {
       id: 'gym_membership',
       name: 'Gym Membership',
-      price: 100,
+      price: 300,
       owned: false,
       dailyBonus: { fitness: 2, health: 3 },
     },
@@ -1560,6 +1958,67 @@ const initialGameState: GameState = {
       rewardBonus: 0.2,
       owned: false,
     },
+    {
+      id: 'spray_paint',
+      name: 'Spray Paint',
+      description: 'Essential for graffiti and vandalism',
+      costBtc: 0.003,
+      owned: false,
+    },
+    {
+      id: 'baseball_bat',
+      name: 'Baseball Bat',
+      description: 'Weapon for street fights and intimidation',
+      costBtc: 0.006,
+      owned: false,
+    },
+    {
+      id: 'drug_supply',
+      name: 'Drug Supply',
+      description: 'Inventory for drug dealing operations',
+      costBtc: 0.015,
+      owned: false,
+    },
+    {
+      id: 'night_vision',
+      name: 'Night Vision Goggles',
+      description: 'See in the dark for stealth operations',
+      costBtc: 0.025,
+      riskReduction: 0.15,
+      owned: false,
+    },
+    {
+      id: 'silencer',
+      name: 'Silencer',
+      description: 'Reduce noise during criminal activities',
+      costBtc: 0.018,
+      riskReduction: 0.1,
+      owned: false,
+    },
+    {
+      id: 'wireless_hack',
+      name: 'Wireless Hack Device',
+      description: 'Advanced device for wireless network hacking',
+      costBtc: 0.022,
+      rewardBonus: 0.25,
+      owned: false,
+    },
+    {
+      id: 'thermal_vision',
+      name: 'Thermal Vision Goggles',
+      description: 'See through walls and detect heat signatures',
+      costBtc: 0.035,
+      riskReduction: 0.2,
+      owned: false,
+    },
+    {
+      id: 'emp_device',
+      name: 'EMP Device',
+      description: 'Electromagnetic pulse device to disable electronics',
+      costBtc: 0.040,
+      rewardBonus: 0.3,
+      owned: false,
+    },
   ],
   hacks: [
     {
@@ -1568,7 +2027,7 @@ const initialGameState: GameState = {
       description: 'Fake emails to steal credentials',
       costBtc: 0.01,
       risk: 0.3,
-      reward: 500,
+      reward: 400,
       purchased: false,
       energyCost: 10,
     },
@@ -1578,7 +2037,7 @@ const initialGameState: GameState = {
       description: 'Encrypt files for ransom',
       costBtc: 0.02,
       risk: 0.5,
-      reward: 1500,
+      reward: 1600,
       purchased: false,
       energyCost: 20,
     },
@@ -1681,36 +2140,36 @@ const initialGameState: GameState = {
   ],
   healthActivities: [
     { id: 'walk', name: 'Walk in Park', description: 'Peaceful walk to clear your mind', price: 0, happinessGain: 5, healthGain: 3, energyCost: 10 },
-    { id: 'meditation', name: 'Meditation Session', description: 'Find inner peace and reduce stress', price: 40, happinessGain: 10, energyCost: 5 },
-    { id: 'yoga', name: 'Yoga Class', description: 'Improve flexibility and mental clarity', price: 50, happinessGain: 8, healthGain: 5, energyCost: 5 },
-    { id: 'massage', name: 'Spa Massage', description: 'Relax and rejuvenate your body', price: 150, happinessGain: 15, healthGain: 8, energyCost: 5 },
+    { id: 'meditation', name: 'Meditation Session', description: 'Find inner peace and reduce stress', price: 80, happinessGain: 10, energyCost: 5 },
+    { id: 'yoga', name: 'Yoga Class', description: 'Improve flexibility and mental clarity', price: 100, happinessGain: 8, healthGain: 5, energyCost: 5 },
+    { id: 'massage', name: 'Spa Massage', description: 'Relax and rejuvenate your body', price: 300, happinessGain: 15, healthGain: 8, energyCost: 5 },
     {
       id: 'doctor',
       name: 'Doctor Visit',
       description: 'Regular checkup (50% chance to cure health issues)',
-      price: 250,
+      price: 500,
       happinessGain: 0,
       healthGain: 25,
       energyCost: 5
     },
-    { id: 'therapy', name: 'Therapy Session', description: 'Professional mental health support', price: 200, happinessGain: 20, energyCost: 5 },
+    { id: 'therapy', name: 'Therapy Session', description: 'Professional mental health support', price: 400, happinessGain: 20, energyCost: 5 },
     {
       id: 'hospital',
       name: 'Hospital Stay',
       description: 'Cures all health issues except cancer',
-      price: 1000,
+      price: 2000,
       happinessGain: -5,
       healthGain: 40,
       energyCost: 5
     },
-    { id: 'experimental', name: 'Experimental Treatment', description: 'Cutting-edge medical procedure', price: 6000, happinessGain: 15, healthGain: 25, energyCost: 5 },
-    { id: 'vacation', name: 'Weekend Getaway', description: 'Short vacation to recharge', price: 8000, happinessGain: 35, energyCost: -15 },
-    { id: 'retreat', name: 'Wellness Retreat', description: 'Multi-day wellness experience', price: 15000, happinessGain: 40, healthGain: 20, energyCost: 5 },
+    { id: 'experimental', name: 'Experimental Treatment', description: 'Cutting-edge medical procedure', price: 12000, happinessGain: 15, healthGain: 25, energyCost: 5 },
+    { id: 'vacation', name: 'Weekend Getaway', description: 'Short vacation to recharge', price: 16000, happinessGain: 35, energyCost: -15 },
+    { id: 'retreat', name: 'Wellness Retreat', description: 'Multi-day wellness experience', price: 30000, happinessGain: 40, healthGain: 20, energyCost: 5 },
   ],
   dietPlans: [
-    { id: 'basic', name: 'Basic Diet', description: 'Simple, healthy meals', dailyCost: 75, healthGain: 3, energyGain: 2, active: false },
-    { id: 'premium', name: 'Premium Diet', description: 'Organic, high-quality ingredients', dailyCost: 175, healthGain: 8, energyGain: 5, happinessGain: 3, active: false },
-    { id: 'athlete', name: 'Athlete Diet', description: 'High-protein, performance-focused', dailyCost: 250, healthGain: 12, energyGain: 8, happinessGain: 5, active: false },
+    { id: 'basic', name: 'Basic Diet', description: 'Simple, healthy meals', dailyCost: 375, healthGain: 3, energyGain: 2, active: false },
+    { id: 'premium', name: 'Premium Diet', description: 'Organic, high-quality ingredients', dailyCost: 875, healthGain: 8, energyGain: 5, happinessGain: 3, active: false },
+    { id: 'athlete', name: 'Athlete Diet', description: 'High-protein, performance-focused', dailyCost: 1250, healthGain: 12, energyGain: 8, happinessGain: 5, active: false },
   ],
   educations: [],
   userProfile: {
@@ -1727,7 +2186,7 @@ const initialGameState: GameState = {
     sexuality: 'straight',
   },
   settings: {
-    darkMode: false,
+    darkMode: true,
     soundEnabled: true,
     notificationsEnabled: true,
     autoSave: true,
@@ -1846,13 +2305,86 @@ const initialGameState: GameState = {
   streetJobsCompleted: 0,
   happinessZeroWeeks: 0,
   healthZeroWeeks: 0,
+  healthWeeks: 0,
   showZeroStatPopup: false,
   zeroStatType: undefined,
   showDeathPopup: false,
   deathReason: undefined,
+  showSicknessModal: false,
+  showCureSuccessModal: false,
+  curedDiseases: [],
   hasPhone: false,
   day: 1,
   dailySummary: undefined,
+  gamingStreaming: {
+    followers: 0,
+    subscribers: 0,
+    totalViews: 0,
+    totalEarnings: 0,
+    totalDonations: 0,
+    totalSubEarnings: 0,
+    level: 1,
+    experience: 0,
+    gamesPlayed: [],
+    streamHours: 0,
+    averageViewers: 0,
+    bestStream: null,
+    currentStream: null,
+    equipment: {
+      microphone: false,
+      webcam: false,
+      gamingChair: false,
+      greenScreen: false,
+      lighting: false,
+    },
+    pcComponents: {
+      cpu: false,
+      gpu: false,
+      ram: false,
+      ssd: false,
+      motherboard: false,
+      cooling: false,
+      psu: false,
+      case: false,
+    },
+    pcUpgradeLevels: {
+      cpu: 0,
+      gpu: 0,
+      ram: 0,
+      ssd: 0,
+      motherboard: 0,
+      cooling: 0,
+      psu: 0,
+      case: 0,
+    },
+    unlockedGames: [],
+    ownedGames: [],
+    streamHistory: [],
+    videos: [],
+    videoTitleCounters: {},
+    videoRecordingState: {
+      isRecording: false,
+      recordProgress: 0,
+      renderProgress: 0,
+      uploadProgress: 0,
+      currentPhase: 'idle',
+      videoTitle: '',
+      videoGame: '',
+      isRendering: false,
+      isUploading: false,
+    },
+    streamingState: {
+      isStreaming: false,
+      streamProgress: 0,
+      totalDonations: 0,
+      streamDuration: 0,
+      selectedGame: '',
+      currentViewers: 0,
+      currentSubsGained: 0,
+    },
+    upgrades: {},
+    goldUpgrades: {},
+  },
   pendingEvents: [],
   eventLog: [],
   progress: { achievements: [] },
@@ -1862,6 +2394,78 @@ const initialGameState: GameState = {
     holdings: [],
     watchlist: [],
   },
+  dailyGifts: {
+    currentStreak: 0,
+    lastClaimDate: '',
+    weeklyGifts: [
+      {
+        id: 'day_1',
+        type: 'money',
+        amount: 5000,
+        name: 'Welcome Bonus',
+        description: 'Start your streak with $5,000!',
+        icon: '💰',
+        rarity: 'common',
+      },
+      {
+        id: 'day_2',
+        type: 'gems',
+        amount: 25,
+        name: 'Gem Collection',
+        description: 'Collect 25 precious gems!',
+        icon: '💎',
+        rarity: 'rare',
+      },
+      {
+        id: 'day_3',
+        type: 'energy',
+        amount: 50,
+        name: 'Energy Surge',
+        description: 'Restore 50 energy points!',
+        icon: '⚡',
+        rarity: 'epic',
+      },
+      {
+        id: 'day_4',
+        type: 'money',
+        amount: 15000,
+        name: 'Midweek Bonus',
+        description: 'Earn $15,000 for your dedication!',
+        icon: '💰',
+        rarity: 'epic',
+      },
+      {
+        id: 'day_5',
+        type: 'gems',
+        amount: 50,
+        name: 'Gem Treasure',
+        description: 'Unlock 50 valuable gems!',
+        icon: '💎',
+        rarity: 'epic',
+      },
+      {
+        id: 'day_6',
+        type: 'happiness',
+        amount: 100,
+        name: 'Pure Joy',
+        description: 'Maximum happiness boost!',
+        icon: '😊',
+        rarity: 'legendary',
+      },
+      {
+        id: 'day_7',
+        type: 'youth_pill',
+        amount: 1,
+        name: 'Youth Pill',
+        description: 'Reverse aging by 5 years!',
+        icon: '🧬',
+        rarity: 'legendary',
+        specialEffect: 'Reduces age by 5 years',
+      },
+    ],
+    claimedToday: false,
+    showDailyGiftModal: false,
+  },
 };
 
 /* ---------- Provider ---------- */
@@ -1869,11 +2473,101 @@ const initialGameState: GameState = {
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [currentSlot, setCurrentSlot] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const prevMoneyRef = useRef<number>(initialGameState.stats.money);
+  const prevTotalsRef = useRef<{ totalEarnings: number; totalDonations: number; totalSubEarnings: number }>({ totalEarnings: 0, totalDonations: 0, totalSubEarnings: 0 });
+  const [loadingProgress, setLoadingProgress] = useState<number>(0);
+  const [loadingMessage, setLoadingMessage] = useState<string>('Initializing...');
+  const [isCacheClearing, setIsCacheClearing] = useState<boolean>(false);
+  const [cacheUpdateInfo, setCacheUpdateInfo] = useState<{ oldVersion?: string; newVersion?: string }>({});
   const preDeathStateRef = useRef<GameState | null>(null);
+
+  // Centralized money handling to prevent bugs
+  const updateMoney = useCallback((amount: number, reason: string, updateDailySummary: boolean = true) => {
+    setGameState(prev => {
+      // Apply permanent money multiplier if purchased
+      let adjustedAmount = amount;
+      if (prev.goldUpgrades?.multiplier && amount > 0) {
+        adjustedAmount = Math.floor(amount * 1.5);
+      }
+      
+      const newMoney = Math.max(0, prev.stats.money + adjustedAmount);
+      // Money change logged for debugging
+      
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: newMoney },
+        dailySummary: updateDailySummary ? {
+          moneyChange: (prev.dailySummary?.moneyChange || 0) + adjustedAmount,
+          statsChange: prev.dailySummary?.statsChange || {},
+          events: prev.dailySummary?.events || [],
+        } : prev.dailySummary
+      };
+    });
+  }, []);
+
+  // Batch money updates to prevent race conditions
+  const batchUpdateMoney = useCallback((transactions: {amount: number, reason: string}[], updateDailySummary: boolean = true) => {
+    setGameState(prev => {
+      // Apply permanent money multiplier if purchased
+      let totalChange = transactions.reduce((sum, t) => sum + t.amount, 0);
+      if (prev.goldUpgrades?.multiplier && totalChange > 0) {
+        totalChange = Math.floor(totalChange * 1.5);
+      }
+      
+      const newMoney = Math.max(0, prev.stats.money + totalChange);
+      
+      // Batch money update logged for debugging
+      
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: newMoney },
+        dailySummary: updateDailySummary ? {
+          moneyChange: (prev.dailySummary?.moneyChange || 0) + totalChange,
+          statsChange: prev.dailySummary?.statsChange || {},
+          events: prev.dailySummary?.events || [],
+        } : prev.dailySummary
+      };
+    });
+  }, []);
+
+  // Perk effects application
+  const applyPerkEffects = useCallback((baseValue: number, perkType: string): number => {
+    const { perks } = gameState;
+    let multiplier = 1;
+    
+    switch (perkType) {
+      case 'income':
+        if (perks?.workBoost) multiplier *= 1.5; // +50% income
+        if (perks?.goodCredit) multiplier *= 1.1; // +10% from good credit
+        break;
+        
+      case 'promotion':
+        if (perks?.mindset) multiplier *= 1.5; // 50% faster promotions
+        break;
+        
+      case 'education':
+        if (perks?.fastLearner) multiplier *= 1.5; // 50% faster education
+        break;
+        
+      case 'bankInterest':
+        if (perks?.goodCredit) multiplier *= 1.25; // +25% bank interest
+        break;
+        
+      case 'energy':
+        if (perks?.astute_planner) multiplier *= 0.9; // -10% energy cost
+        break;
+    }
+    
+    return Math.round(baseValue * multiplier);
+  }, [gameState.perks]);
 
   const restartGame = async () => {
     try {
       await AsyncStorage.removeItem('gameState');
+      // Clear any app-specific AsyncStorage data that should be reset on new game
+      await AsyncStorage.removeItem('realEstateProperties');
     } catch (error) {
       console.error('Failed to remove saved game', error);
     }
@@ -1890,6 +2584,62 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Automated cache management and game loading on startup
+  useEffect(() => {
+    const initializeGame = async () => {
+      try {
+        setLoadingProgress(10);
+        setLoadingMessage('Checking for updates...');
+        
+        // Initialize cache manager
+        const cacheResult = await CacheManager.initialize();
+        
+        if (cacheResult.needsCacheClear) {
+          setLoadingProgress(30);
+          setLoadingMessage('Updating game data...');
+          setIsCacheClearing(true);
+          setCacheUpdateInfo({
+            oldVersion: cacheResult.oldVersion,
+            newVersion: '1.0.0'
+          });
+          
+          // Simulate cache clearing progress
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          setLoadingProgress(60);
+          setLoadingMessage('Cache updated successfully');
+        }
+        
+        setLoadingProgress(80);
+        setLoadingMessage('Loading saved game...');
+        
+        // Check if there's a saved game to load
+        const lastSlot = await AsyncStorage.getItem('lastSlot');
+        if (lastSlot) {
+          const slotNumber = parseInt(lastSlot, 10);
+          await loadGame(slotNumber);
+        }
+        
+        setLoadingProgress(100);
+        setLoadingMessage('Ready to play!');
+        
+        // Small delay to show completion
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setIsLoading(false);
+        setIsCacheClearing(false);
+        
+        // Schedule daily gift notifications after game initialization
+        scheduleDailyGiftNotifications();
+      } catch (error) {
+        console.error('Failed to initialize game:', error);
+        setLoadingMessage('Error loading game');
+        setIsLoading(false);
+      }
+    };
+
+    initializeGame();
+  }, []);
+
   const reviveCharacter = () => {
     const reviveCost = 500;
     if (gameState.stats.gems < reviveCost) {
@@ -1901,6 +2651,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
     const revivedState: GameState = {
       ...preDeathStateRef.current,
+      bankSavings: preDeathStateRef.current.bankSavings !== undefined ? preDeathStateRef.current.bankSavings : 0,
       stats: {
         ...preDeathStateRef.current.stats,
         gems: preDeathStateRef.current.stats.gems - reviveCost,
@@ -1918,7 +2669,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setGameState(revivedState);
   };
 
-  const checkAchievements = (state: GameState = gameState) => {
+  const checkAchievements = useCallback((state: GameState = gameState) => {
     if (!state.achievements) return;
 
     const newAchievements = [...state.achievements];
@@ -1931,8 +2682,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         achievement.completed = true;
         hasChanges = true;
         goldReward += achievement.reward ?? 1;
-        showAchievementToast(achievement.name);
+        showAchievementToast(achievement.name, achievement.category, achievement.reward ?? 1);
         notifyAchievementUnlock(achievement.name, achievement.reward ?? 1);
+        // Achievement unlocked
       }
     };
 
@@ -2016,7 +2768,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (state.stats.gems >= 100) completeAchievement('gold_hoarder');
 
     if (goldReward > 0) {
-              updateStats({ gems: state.stats.gems + goldReward });
+              updateStats({ gems: state.stats.gems + goldReward }, false);
     }
     if (hasChanges) {
       setGameState(prev => ({ ...prev, achievements: newAchievements }));
@@ -2043,9 +2795,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           })),
         ],
       }));
-      unlocked.forEach(a => showAchievementToast(a.name));
+      unlocked.forEach(a => showAchievementToast(a.name, a.category, a.reward ?? 1));
     }
-  };
+  }, [gameState]);
 
   useEffect(() => {
     loadGame();
@@ -2074,24 +2826,72 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
-  const updateStats = (newStats: Partial<GameStats>) => {
+  // Trigger achievement checks on relevant events
+  useEffect(() => {
+    checkAchievements();
+  }, [
+    gameState.stats.money,
+    gameState.stats.fitness,
+    gameState.currentJob,
+    gameState.streetJobsCompleted,
+    gameState.companies.length,
+    gameState.educations.filter(e => e.completed).length,
+    gameState.relationships.length,
+    gameState.items.filter(i => i.owned).length,
+    checkAchievements,
+  ]);
+
+  // Function to manually trigger cache clearing (for future updates)
+  const triggerCacheClear = useCallback(async () => {
+    try {
+      setLoadingProgress(0);
+      setLoadingMessage('Preparing update...');
+      setIsLoading(true);
+      setIsCacheClearing(true);
+      
+      await CacheManager.forceClearCache();
+      
+      setLoadingProgress(100);
+      setLoadingMessage('Update complete!');
+      
+      setTimeout(() => {
+        setIsLoading(false);
+        setIsCacheClearing(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to clear cache:', error);
+      setIsLoading(false);
+      setIsCacheClearing(false);
+    }
+  }, []);
+
+  const updateStats = useCallback((newStats: Partial<GameStats>, updateDailySummary: boolean = true) => {
     setGameState(prev => {
-      const updatedStats = {
-        ...prev.stats,
-        ...newStats,
-        health: Math.max(0, Math.min(100, newStats.health ?? prev.stats.health)),
-        happiness: Math.max(0, Math.min(100, newStats.happiness ?? prev.stats.happiness)),
-        energy: Math.max(0, Math.min(100, newStats.energy ?? prev.stats.energy)),
-        fitness: Math.max(0, newStats.fitness ?? prev.stats.fitness),
-        money: Math.max(0, newStats.money ?? prev.stats.money),
-        reputation: Math.max(0, newStats.reputation ?? prev.stats.reputation),
-        gems: Math.max(0, newStats.gems ?? prev.stats.gems),
-      };
+      const updatedStats = { ...prev.stats };
+      
+      Object.entries(newStats).forEach(([key, value]) => {
+        const statKey = key as keyof GameStats;
+        const currentValue = updatedStats[statKey];
+        
+        if (typeof value === 'number' && typeof currentValue === 'number') {
+          // Bounds checking
+          const min = 0;
+          const max = statKey === 'gems' ? Infinity : 100;
+          
+          updatedStats[statKey] = Math.max(min, Math.min(max, currentValue + value));
+          
+          // Stat change logged for debugging
+        }
+      });
+
+      // Handle max stats setting
       if (prev.settings.maxStats) {
         updatedStats.health = 100;
         updatedStats.happiness = 100;
         updatedStats.energy = 100;
       }
+
+      // Handle zero stat warnings
       let showZeroStatPopup = prev.showZeroStatPopup;
       let zeroStatType = prev.zeroStatType;
       if (updatedStats.health <= 0 && prev.stats.health > 0) {
@@ -2103,9 +2903,29 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         zeroStatType = 'happiness';
       }
 
-      return { ...prev, stats: updatedStats, showZeroStatPopup, zeroStatType };
+      // Track if player has been in debt
+      let hasBeenInDebt = prev.progress?.hasBeenInDebt ?? false;
+      if (updatedStats.money < 0 && prev.stats.money >= 0) {
+        hasBeenInDebt = true;
+      }
+      
+      return {
+        ...prev,
+        stats: updatedStats,
+        showZeroStatPopup,
+        zeroStatType,
+        progress: {
+          ...prev.progress,
+          hasBeenInDebt,
+        },
+        dailySummary: updateDailySummary ? {
+          moneyChange: prev.dailySummary?.moneyChange || 0,
+          statsChange: { ...(prev.dailySummary?.statsChange || {}), ...newStats },
+          events: prev.dailySummary?.events || [],
+        } : prev.dailySummary
+      };
     });
-  };
+  }, []);
 
   const gainCriminalXp: GameContextType['gainCriminalXp'] = amount => {
     setGameState(prev => {
@@ -2169,6 +2989,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+
   useEffect(() => {
     if (
       gameState.settings.maxStats &&
@@ -2188,7 +3009,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     gameState.stats.energy,
   ]);
 
-  const performStreetJob: GameContextType['performStreetJob'] = jobId => {
+  const performStreetJob: GameContextType['performStreetJob'] = useCallback(jobId => {
     const job = gameState.streetJobs.find(j => j.id === jobId);
     if (!job) return;
     if (gameState.jailWeeks > 0) {
@@ -2196,6 +3017,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
 
     const basePayment = job.basePayment * (1 + (job.rank - 1) * 0.2);
+    // Apply perk effects to income
+    const finalPayment = applyPerkEffects(basePayment, 'income');
     if (job.requirements) {
       for (const req of job.requirements) {
         const item = gameState.items.find(i => i.id === req);
@@ -2232,7 +3055,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     let successRate = job.baseSuccessRate + rankBonus;
     if (job.skill) {
       const skillLevel = gameState.crimeSkills[job.skill].level;
+      const skill = gameState.crimeSkills[job.skill];
+      
+      // Apply skill level bonus
       successRate += skillLevel * 2;
+      
+      // Apply talent upgrades bonus
+      if (skill.upgrades && skill.upgrades.length > 0) {
+        const talentBonus = skill.upgrades.length * 5; // +5% per talent unlocked
+        successRate += talentBonus;
+      }
     }
     successRate = Math.min(95, successRate);
     let moneyGained = 0;
@@ -2253,26 +3085,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       );
 
       let paymentBonus = 1;
-      if (job.id === 'scam') {
-        if (gameState.items.find(i => i.id === 'smartphone')?.owned) {
-          successRate += 15;
-          paymentBonus += 0.5;
-          events.push('Phone helped with online scamming');
-        }
-        if (gameState.items.find(i => i.id === 'computer')?.owned) {
-          successRate += 25;
-          paymentBonus += 1;
-          events.push('Computer enabled advanced scamming');
-        }
-      }
 
       successRate += successRate * totalRiskReduction;
       success = Math.random() * 100 < successRate;
 
       if (success) {
         const rankMultiplier = 1 + (job.rank - 1) * 0.3;
+        
+        // Apply talent bonus to payment
+        let talentPaymentBonus = 1;
+        if (job.skill) {
+          const skill = gameState.crimeSkills[job.skill];
+          if (skill.upgrades && skill.upgrades.length > 0) {
+            talentPaymentBonus += skill.upgrades.length * 0.1; // +10% payment per talent
+          }
+        }
+        
         moneyGained = Math.floor(
-          job.basePayment * rankMultiplier * (1 + totalRewardBonus) * paymentBonus
+          job.basePayment * rankMultiplier * (1 + totalRewardBonus) * paymentBonus * talentPaymentBonus
         );
         events.push(`Earned $${moneyGained} from ${job.name}`);
         
@@ -2314,24 +3144,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      if (job.id === 'scam' && !caught) {
-        if (Math.random() < 0.1) {
-          moneyGained = 0;
-          events.push('Almost got caught by police!');
-          updateStats({ reputation: gameState.stats.reputation - 5 });
-        }
-        const robberyChance = 0.1 / job.rank;
-        if (Math.random() < robberyChance) {
-          const lossPercent = 0.15 + Math.random() * 0.1;
-          moneyLost = Math.floor(gameState.stats.money * lossPercent);
-          events.push(`Got robbed while scamming! Lost $${moneyLost}`);
-        }
-      }
+
     } else {
       success = Math.random() * 100 < successRate;
       if (success) {
         const rankMultiplier = 1 + (job.rank - 1) * 0.3;
-        moneyGained = Math.floor(job.basePayment * rankMultiplier);
+        
+        // Apply talent bonus to payment for legal jobs too
+        let talentPaymentBonus = 1;
+        if (job.skill) {
+          const skill = gameState.crimeSkills[job.skill];
+          if (skill.upgrades && skill.upgrades.length > 0) {
+            talentPaymentBonus += skill.upgrades.length * 0.1; // +10% payment per talent
+          }
+        }
+        
+        moneyGained = Math.floor(job.basePayment * rankMultiplier * talentPaymentBonus);
         events.push(`Earned $${moneyGained} from ${job.name}`);
       } else {
         events.push(`${job.name} failed - no earnings`);
@@ -2376,12 +3204,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       streetJobsCompleted: prev.streetJobsCompleted + 1,
     }));
 
+    // Use centralized money handling
+    updateMoney(moneyGained - moneyLost, `Street job: ${job.name}`, false);
+    
     updateStats({
-      money: gameState.stats.money + moneyGained - moneyLost,
-      energy: gameState.stats.energy - job.energyCost,
-      happiness: Math.max(0, gameState.stats.happiness - 3),
-      health: Math.max(0, gameState.stats.health - 1),
-    });
+      energy: -job.energyCost,
+      happiness: -3,
+      health: -1,
+    }, false);
 
     if (job.illegal) {
       gainCriminalXp(10);
@@ -2414,7 +3244,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       message,
       events,
     };
-  };
+  }, [gameState.streetJobs, gameState.perks, gameState.jailWeeks, updateMoney, updateStats, applyPerkEffects]);
 
   const applyForJob = (jobId: string) => {
     // Prevent multiple job applications or working while applying
@@ -2522,10 +3352,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Not enough energy' };
     }
 
+    // Gaming activities cost money
+    const gamingActivities = ['gaming', 'esports', 'streaming'];
+    let moneyCost = 0;
+    if (gamingActivities.includes(hobbyId)) {
+      moneyCost = 25; // $25 per gaming session
+      if (gameState.stats.money < moneyCost) {
+        return { success: false, message: 'Not enough money for gaming session' };
+      }
+    }
+
     updateStats({
-      energy: gameState.stats.energy - hobby.energyCost,
-      health: gameState.stats.health - 8,
-      happiness: gameState.stats.happiness - 3,
+      energy: -hobby.energyCost,
+      health: -8,
+      happiness: -3,
+      money: -moneyCost,
     });
 
     const skillBonus = hobby.upgrades
@@ -2572,15 +3413,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const reward = Math.round(hobby.tournamentReward * (1 + rewardBonus));
     if (success) {
       updateStats({
-        money: gameState.stats.money + reward,
-        reputation: gameState.stats.reputation + 2,
+        money: reward,
+        reputation: 2,
       });
       return {
         success: true,
         message: `Won ${hobby.name} tournament! Earned $${reward}`,
       };
     } else {
-      updateStats({ happiness: gameState.stats.happiness - 5 });
+      updateStats({ happiness: -5 });
       return { success: false, message: `Lost the ${hobby.name} tournament` };
     }
   };
@@ -2830,7 +3671,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
 
     league.matchesPlayed += 1;
-    updateStats({ money: gameState.stats.money + contract.matchPay });
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money + contract.matchPay
+      }
+    }));
     contract.weeksRemaining -= 1;
     if (contract.weeksRemaining <= 0) {
       const final = [...league.standings].sort((a, b) => b.points - a.points);
@@ -2838,7 +3685,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const division = league.division;
       const prizes = [20000, 10000, 4000];
       if (position > -1 && position <= 2) {
-        updateStats({ money: gameState.stats.money + prizes[division] });
+        setGameState(prev => ({
+          ...prev,
+          stats: {
+            ...prev.stats,
+            money: prev.stats.money + prizes[division]
+          }
+        }));
       }
       const divisions = hobby.divisions!;
       if (division > 0) {
@@ -2901,7 +3754,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const upgrade = hobby.upgrades.find(u => u.id === upgradeId);
     if (!upgrade || upgrade.level >= upgrade.maxLevel || gameState.stats.money < upgrade.cost) return;
 
-    updateStats({ money: gameState.stats.money - upgrade.cost });
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - upgrade.cost
+      }
+    }));
     setGameState(prev => ({
       ...prev,
       hobbies: prev.hobbies.map(h =>
@@ -2921,7 +3780,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const buyItem = (itemId: string) => {
+  const buyItem = useCallback((itemId: string) => {
     try {
       const item = gameState.items?.find(i => i.id === itemId);
       if (!item) return;
@@ -2940,36 +3799,65 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const updatedState: GameState = {
-        ...gameState,
-        items: gameState.items.map(i => (i.id === itemId ? { ...i, owned: true } : i)),
-        hasPhone: itemId === 'smartphone' ? true : gameState.hasPhone,
-        stats: {
-          ...gameState.stats,
-          money: Math.max(0, gameState.stats.money - price),
-        },
-      };
+      // Use centralized money handling - don't update dailySummary for buying items
+      updateMoney(-price, `Buy ${item.name}`, false);
 
-      setGameState(updatedState);
-      checkAchievements(updatedState);
+      setGameState(prev => ({
+        ...prev,
+        items: prev.items.map(i => (i.id === itemId ? { ...i, owned: true } : i)),
+        hasPhone: itemId === 'smartphone' ? true : prev.hasPhone,
+      }));
+
+      // Special message for computer - data restoration confirmation
+      if (itemId === 'computer') {
+        Alert.alert(
+          'Computer Purchased!',
+          'Welcome back! All your previous data (cryptocurrencies, stocks, real estate, etc.) has been restored.',
+          [{ text: 'OK' }]
+        );
+      }
+
+      checkAchievements();
     } catch (error) {
       console.error('Error buying item:', error);
     }
-  };
+  }, [gameState.items, gameState.economy?.priceIndex, gameState.stats.money, updateMoney, checkAchievements]);
 
-  const sellItem = (itemId: string) => {
+  const sellItem = useCallback((itemId: string) => {
     const item = gameState.items.find(i => i.id === itemId);
     if (!item || !item.owned) return;
-    const price = getInflatedPrice(item.price, gameState.economy.priceIndex);
+    
+    // Special warning for computer - data persistence system
+    // When selling the computer, all data (cryptos, stocks, real estate, etc.) 
+    // is preserved in gameState and will be restored when buying the computer again
+    if (itemId === 'computer') {
+      // For now, let's just sell the computer directly without confirmation
+      // to test if the basic functionality works
+      const price = getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1);
+      const sellPrice = price * 0.5;
+      
+      // Use centralized money handling - don't update dailySummary for selling items
+      updateMoney(sellPrice, `Sell ${item.name}`, false);
+      
+      setGameState(prev => ({
+        ...prev,
+        items: prev.items.map(i => (i.id === itemId ? { ...i, owned: false } : i)),
+      }));
+      
+      return;
+    }
+    
+    const price = getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1);
     const sellPrice = price * 0.5;
+
+    // Use centralized money handling - don't update dailySummary for selling items
+    updateMoney(sellPrice, `Sell ${item.name}`, false);
 
     setGameState(prev => ({
       ...prev,
       items: prev.items.map(i => (i.id === itemId ? { ...i, owned: false } : i)),
     }));
-
-    updateStats({ money: gameState.stats.money + sellPrice });
-  };
+  }, [gameState.items, gameState.economy?.priceIndex, updateMoney]);
 
   const buyDarkWebItem = (itemId: string) => {
     const item = gameState.darkWebItems.find(i => i.id === itemId);
@@ -3031,7 +3919,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       return { caught: false, reward: 0, btcReward: 0, risk: 0 };
     }
 
-    updateStats({ energy: gameState.stats.energy - energyCost });
+    // Energy is now deducted in the UI when hack starts
 
     const ownedItems = gameState.darkWebItems.filter(i => i.owned);
     const totalRiskReduction = ownedItems.reduce(
@@ -3050,10 +3938,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const caught = Math.random() < risk;
     if (caught) {
-      updateStats({
-        money: Math.max(0, gameState.stats.money - 500),
-        reputation: Math.max(0, gameState.stats.reputation - 5),
-      });
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          money: Math.max(0, prev.stats.money - 500),
+          reputation: Math.max(0, prev.stats.reputation - 5),
+        }
+      }));
       
       // Increase wanted level for getting caught hacking
       setGameState(prev => ({
@@ -3100,6 +3992,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const activity = gameState.jailActivities.find(a => a.id === activityId);
     if (!activity) return { success: false, message: 'Invalid activity' };
 
+    // Check if activity already done this week
+    const weeklyActivities = gameState.weeklyJailActivities || {};
+    const currentWeek = gameState.date.week;
+    const lastDoneWeek = weeklyActivities[activityId];
+    
+    if (lastDoneWeek === currentWeek) {
+      return { success: false, message: `You can only do ${activity.name} once per week` };
+    }
+
     if (gameState.stats.energy < activity.energyCost)
       return { success: false, message: 'Not enough energy' };
 
@@ -3114,7 +4015,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: `Requires ${activity.requiresEducation.replace('_', ' ')} education` };
     }
 
-    updateStats({ energy: gameState.stats.energy - activity.energyCost });
+    updateStats({ energy: gameState.stats.energy - activity.energyCost }, false);
 
     let result: { success: boolean; message: string } = {
       success: false,
@@ -3124,9 +4025,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     switch (activity.id) {
       case 'prison_job':
         updateStats({
-          money: gameState.stats.money + (activity.payment || 25),
-          happiness: gameState.stats.happiness + 5,
-        });
+          money: (activity.payment || 25),
+          happiness: 5,
+        }, false);
         if (activity.sentenceReduction) {
           setGameState(prev => ({
             ...prev,
@@ -3141,10 +4042,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       case 'train_strength':
         updateStats({
-          fitness: gameState.stats.fitness + (activity.fitnessGain || 2),
-          health: gameState.stats.health + (activity.healthGain || 5),
-          happiness: gameState.stats.happiness + (activity.happinessGain || -2),
-        });
+          fitness: (activity.fitnessGain || 2),
+          health: (activity.healthGain || 5),
+          happiness: (activity.happinessGain || -2),
+        }, false);
         result = {
           success: true,
           message: '💪 You trained and feel stronger. Fitness and health improved!',
@@ -3153,9 +4054,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       case 'library_study':
         updateStats({
-          happiness: gameState.stats.happiness + (activity.happinessGain || 8),
-          reputation: gameState.stats.reputation + (activity.reputationGain || 2),
-        });
+          happiness: (activity.happinessGain || 8),
+          reputation: (activity.reputationGain || 2),
+        }, false);
         result = {
           success: true,
           message: '📚 You studied and feel more educated. Happiness and reputation improved!',
@@ -3164,10 +4065,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       case 'prison_garden':
         updateStats({
-          money: gameState.stats.money + (activity.payment || 15),
-          health: gameState.stats.health + (activity.healthGain || 3),
-          happiness: gameState.stats.happiness + (activity.happinessGain || 5),
-        });
+          money: (activity.payment || 15),
+          health: (activity.healthGain || 3),
+          happiness: (activity.happinessGain || 5),
+        }, false);
         result = {
           success: true,
           message: `🌱 You worked in the garden and earned $${activity.payment || 15}. Health and happiness improved!`,
@@ -3176,8 +4077,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       case 'prison_workshop':
         updateStats({
-          money: gameState.stats.money + (activity.payment || 40),
-        });
+          money: (activity.payment || 40),
+        }, false);
         if (activity.sentenceReduction) {
           setGameState(prev => ({
             ...prev,
@@ -3193,7 +4094,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       case 'attempt_escape':
         const escapeSuccess = Math.random() < (activity.successRate || 0.05);
         if (escapeSuccess) {
-          updateStats({ happiness: gameState.stats.happiness + 20 });
+          updateStats({ happiness: 20 });
           setGameState(prev => ({
             ...prev,
             jailWeeks: 0,
@@ -3203,8 +4104,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           result = { success: true, message: '🎉 MIRACLE! You successfully escaped! But you\'re now wanted more than ever.' };
         } else {
           updateStats({
-            happiness: gameState.stats.happiness - 25,
-            health: gameState.stats.health - 15,
+            happiness: -25,
+            health: -15,
           });
           const penalty = (activity.failurePenalty || 8) + Math.floor(Math.random() * 4);
           
@@ -3232,15 +4133,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       case 'bribe_guard':
         const bribeSuccess = Math.random() < (activity.successRate || 0.6);
         if (bribeSuccess) {
-          updateStats({ money: gameState.stats.money - (activity.cost || 1000) });
           setGameState(prev => ({
             ...prev,
             jailWeeks: 0,
             wantedLevel: prev.wantedLevel + 1,
+            stats: {
+              ...prev.stats,
+              money: prev.stats.money - (activity.cost || 1000),
+            },
           }));
           result = { success: true, message: '💰 The guard accepted your bribe. You are free! But your wanted level increased.' };
         } else {
-          updateStats({ money: gameState.stats.money - (activity.cost || 1000) });
+          setGameState(prev => ({
+            ...prev,
+            stats: {
+              ...prev.stats,
+              money: prev.stats.money - (activity.cost || 1000),
+            },
+          }));
           result = { success: false, message: 'The guard refused your bribe and kept the money.' };
         }
         break;
@@ -3248,28 +4158,36 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       case 'legal_appeal':
         const appealSuccess = Math.random() < (activity.successRate || 0.4);
         if (appealSuccess) {
-          updateStats({ money: gameState.stats.money - (activity.cost || 500) });
           setGameState(prev => ({
             ...prev,
             jailWeeks: 0,
+            stats: {
+              ...prev.stats,
+              money: prev.stats.money - (activity.cost || 500),
+            },
           }));
           result = { success: true, message: 'Your legal appeal was successful!' };
         } else {
-          updateStats({ money: gameState.stats.money - (activity.cost || 500) });
+          setGameState(prev => ({
+            ...prev,
+            stats: {
+              ...prev.stats,
+              money: prev.stats.money - (activity.cost || 500),
+            },
+          }));
           result = { success: false, message: 'Your legal appeal was denied.' };
         }
         break;
 
       case 'good_behavior':
-        updateStats({
-          happiness: gameState.stats.happiness + (activity.happinessGain || 10),
-        });
-        if (activity.sentenceReduction) {
-          setGameState(prev => ({
-            ...prev,
-            jailWeeks: Math.max(0, prev.jailWeeks - (activity.sentenceReduction || 0)),
-          }));
-        }
+        setGameState(prev => ({
+          ...prev,
+          jailWeeks: activity.sentenceReduction ? Math.max(0, prev.jailWeeks - (activity.sentenceReduction || 0)) : prev.jailWeeks,
+          stats: {
+            ...prev.stats,
+            happiness: prev.stats.happiness + (activity.happinessGain || 10),
+          },
+        }));
         result = {
           success: true,
           message: 'Your good behavior was noted by the guards.',
@@ -3279,27 +4197,29 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       case 'prison_gang':
         const gangSuccess = Math.random() < (activity.successRate || 0.7);
         if (gangSuccess) {
-          updateStats({
-            reputation: gameState.stats.reputation + (activity.reputationGain || 5),
-          });
           setGameState(prev => ({
             ...prev,
             criminalXp: prev.criminalXp + (activity.criminalXpGain || 10),
+            stats: {
+              ...prev.stats,
+              reputation: prev.stats.reputation + (activity.reputationGain || 5),
+            },
           }));
           result = { success: true, message: '👥 You successfully joined a prison gang and gained respect among inmates.' };
         } else {
-          updateStats({
-            health: gameState.stats.health - 15,
-            happiness: gameState.stats.happiness - 10,
-          });
-          
           // Small chance to get more jail time for gang violence (5% chance)
           const extraTime = Math.random() < 0.05 ? Math.floor(Math.random() * 3) + 1 : 0;
+          setGameState(prev => ({
+            ...prev,
+            jailWeeks: extraTime > 0 ? prev.jailWeeks + extraTime : prev.jailWeeks,
+            stats: {
+              ...prev.stats,
+              health: prev.stats.health - 15,
+              happiness: prev.stats.happiness - 10,
+            },
+          }));
+          
           if (extraTime > 0) {
-            setGameState(prev => ({
-              ...prev,
-              jailWeeks: prev.jailWeeks + extraTime,
-            }));
             result = { 
               success: false, 
               message: `💥 Gang initiation failed! You got into a fight and lost. The guards added ${extraTime} week(s) to your sentence for violence.` 
@@ -3314,19 +4234,54 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         break;
     }
 
+    // Mark activity as done this week if successful
+    if (result.success) {
+      setGameState(prev => ({
+        ...prev,
+        weeklyJailActivities: {
+          ...prev.weeklyJailActivities,
+          [activityId]: currentWeek
+        }
+      }));
+    }
+
     setTimeout(() => checkAchievements(), 100);
     saveGame();
     return result;
   };
 
   const payBail = () => {
+    // Pay bail debug info
+    
     if (gameState.jailWeeks === 0)
       return { success: false, message: 'Not currently jailed' };
     const cost = gameState.jailWeeks * 500;
     if (gameState.stats.money < cost)
       return { success: false, message: `Bail costs $${cost}` };
-    updateStats({ money: gameState.stats.money - cost });
-    setGameState(prev => ({ ...prev, jailWeeks: 0, wantedLevel: 0 }));
+    
+    // Update both money and jail status atomically
+    const newState = { 
+      ...gameState, 
+      jailWeeks: 0, 
+      wantedLevel: 0, 
+      escapedFromJail: false,
+      stats: {
+        ...gameState.stats,
+        money: gameState.stats.money - cost
+      }
+    };
+    // Setting jail state to cleared and updating money
+    
+    // Set state and save immediately
+    setGameState(newState);
+    
+    // Force save with the new state
+    setTimeout(() => {
+      // Saving game after bail payment
+      saveGame();
+    }, 100);
+    
+    // Bail payment completed
     return { success: true, message: `Paid $${cost} bail and released.` };
   };
 
@@ -3344,26 +4299,33 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
 
     updateStats({
-      money: gameState.stats.money - price,
-      health: Math.min(100, gameState.stats.health + food.healthRestore),
-      energy: Math.min(100, gameState.stats.energy + food.energyRestore),
-    });
+      money: -price,
+      health: food.healthRestore,
+      energy: food.energyRestore,
+    }, false);
   };
 
   const performHealthActivity: GameContextType['performHealthActivity'] = activityId => {
     const activity = gameState.healthActivities.find(a => a.id === activityId);
     if (!activity) return;
     const price = getInflatedPrice(activity.price, gameState.economy.priceIndex);
-    if (gameState.stats.money < price) return;
+    
+    // Only check money if the activity costs money
+    if (price > 0 && gameState.stats.money < price) return;
 
     const energyCost = activity.energyCost || 0;
-    if (gameState.stats.energy < energyCost) return;
+    
+    // Only check energy requirement if the activity costs energy (positive value)
+    if (energyCost > 0 && gameState.stats.energy < energyCost) return;
+
+    // Calculate energy change (negative values restore energy, positive values cost energy)
+    const energyChange = -energyCost; // Negative energyCost means energy gain
 
     updateStats({
-      money: gameState.stats.money - price,
-      happiness: Math.min(100, gameState.stats.happiness + activity.happinessGain),
-      health: Math.min(100, gameState.stats.health + (activity.healthGain || 0)),
-      energy: Math.max(0, gameState.stats.energy - energyCost - 5),
+      money: -price, // Pass negative value to subtract from current money
+      happiness: activity.happinessGain,
+      health: activity.healthGain || 0,
+      energy: energyChange,
     });
 
     let message: string | undefined;
@@ -3371,8 +4333,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (activity.id === 'doctor') {
       if (gameState.diseases.length > 0) {
         if (Math.random() < 0.5) {
+          const curableDiseases = gameState.diseases.filter(d => d.curable);
           const remaining = gameState.diseases.filter(d => !d.curable);
-          setGameState(prev => ({ ...prev, diseases: remaining }));
+          setGameState(prev => ({ 
+            ...prev, 
+            diseases: remaining,
+            showCureSuccessModal: true,
+            curedDiseases: curableDiseases.map(d => d.name)
+          }));
           message = 'The doctor cured all your treatable health issues!';
         } else {
           message = 'The doctor could not cure your conditions.';
@@ -3380,9 +4348,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
     } else if (activity.id === 'hospital') {
       if (gameState.diseases.length > 0) {
+        const curableDiseases = gameState.diseases.filter(d => d.curable);
         const remaining = gameState.diseases.filter(d => !d.curable);
         if (remaining.length < gameState.diseases.length) {
-          setGameState(prev => ({ ...prev, diseases: remaining }));
+          setGameState(prev => ({ 
+            ...prev, 
+            diseases: remaining,
+            showCureSuccessModal: true,
+            curedDiseases: curableDiseases.map(d => d.name)
+          }));
           message = 'All your treatable health issues have been cured!';
         } else {
           message = 'There were no treatable conditions to cure.';
@@ -3423,6 +4397,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const partner = gameState.relationships.find(rel => rel.id === partnerId);
     if (!partner || partner.type !== 'partner') return { success: false, message: 'Invalid partner.' };
 
+    // Cooldown: cannot get engaged in the first 36 weeks
+    if ((gameState.week ?? 0) < 36) {
+      return { success: false, message: 'You need to wait until week 36 to get engaged.' };
+    }
+
     const cost = 5000;
     if (gameState.stats.money < cost) {
       return { success: false, message: 'You need $5,000 for an engagement ring!' };
@@ -3431,7 +4410,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const successChance = partner.relationshipScore;
     const success = Math.random() * 100 < successChance;
 
-    updateStats({ money: gameState.stats.money - cost });
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - cost
+      }
+    }));
 
     if (success) {
       const spouse: Relationship = {
@@ -3489,12 +4474,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'You need to be married to have a child.' };
     }
 
+    // Cooldown: cannot have a child in the first 36 weeks
+    if ((gameState.week ?? 0) < 36) {
+      return { success: false, message: 'You need to wait until week 36 to have a child.' };
+    }
+
     const cost = 10000;
     if (gameState.stats.money < cost) {
       return { success: false, message: 'You need $10,000 for hospital costs!' };
     }
 
-    updateStats({ money: gameState.stats.money - cost });
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - cost
+      }
+    }));
 
     const success = Math.random() < 0.1;
     if (!success) {
@@ -3572,7 +4568,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const costs: Record<string, number> = { Dog: 300, Cat: 240, Bird: 150 };
     const cost = costs[type] ?? 150;
     if (gameState.stats.money < cost) return;
-    updateStats({ money: gameState.stats.money - cost });
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - cost
+      }
+    }));
     const petNames = ['Buddy', 'Max', 'Bella', 'Luna', 'Charlie'];
     const name = petNames[Math.floor(Math.random() * petNames.length)];
     const pet: Pet = {
@@ -3589,7 +4591,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const feedPet = (petId: string) => {
     if (gameState.stats.money < 20) return;
-    updateStats({ money: gameState.stats.money - 20 });
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - 20
+      }
+    }));
     setGameState(prev => ({
       ...prev,
       pets: prev.pets.map(p =>
@@ -3606,7 +4614,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const playWithPet = (petId: string) => {
     if (gameState.stats.energy < 10) return;
-    updateStats({ energy: gameState.stats.energy - 10 });
+    updateStats({ energy: -10 });
     setGameState(prev => ({
       ...prev,
       pets: prev.pets.map(p =>
@@ -3696,12 +4704,77 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       events.push(`Passive income $${passiveIncome.toFixed(2)}`);
     }
 
+    // Gaming and streaming earnings
+    let gamingEarnings = 0;
+    let streamingEarnings = 0;
+    
+    if (gameState.gamingStreaming) {
+      // Calculate gaming earnings from videos
+      const gamingData = gameState.gamingStreaming;
+      if (gamingData.videos && gamingData.videos.length > 0) {
+        gamingEarnings = gamingData.videos.reduce((sum, video) => {
+          // Calculate earnings based on views and engagement
+          const baseEarnings = video.views * 0.01; // $0.01 per view
+          return sum + baseEarnings;
+        }, 0);
+      }
+      
+      // Calculate streaming earnings from stream history
+      if (gamingData.streamHistory && gamingData.streamHistory.length > 0) {
+        streamingEarnings = gamingData.streamHistory.reduce((sum, stream) => {
+          // Calculate earnings based on viewers and duration (donations are added immediately)
+          const viewerEarnings = stream.viewers * 0.005; // $0.005 per viewer per stream (4x nerf)
+          const durationEarnings = stream.duration * 0.02; // $0.02 per minute (5x nerf)
+          // Donations are now added immediately during streaming, not in weekly calculation
+          return sum + viewerEarnings + durationEarnings;
+        }, 0);
+      }
+    }
+    
+    if (gamingEarnings > 0) {
+      moneyChange += gamingEarnings;
+      events.push(`Gaming earnings $${gamingEarnings.toFixed(2)}`);
+    }
+    
+    if (streamingEarnings > 0) {
+      moneyChange += streamingEarnings;
+      events.push(`Streaming earnings $${streamingEarnings.toFixed(2)}`);
+    }
+
     const familyExpense =
       (gameState.family.spouse?.expenses || 0) +
       gameState.family.children.reduce((sum, c) => sum + (c.expenses || 0), 0);
     if (familyExpense > 0) {
       moneyChange -= familyExpense;
       events.push(`Family expenses $${familyExpense}`);
+    }
+
+    // Automatic loan payments
+    const loans = (gameState as any).loans || [];
+    if (loans.length > 0) {
+      let totalLoanPayments = 0;
+      const updatedLoans = loans.map((loan: any) => {
+        if (loan.remaining <= 0) return loan;
+        
+        const weeklyPayment = loan.weeklyPayment || 0;
+        if (weeklyPayment > 0) {
+          totalLoanPayments += weeklyPayment;
+          const newRemaining = Math.max(0, loan.remaining - weeklyPayment);
+          return { ...loan, remaining: newRemaining };
+        }
+        return loan;
+      }).filter((loan: any) => loan.remaining > 0); // Remove fully paid loans
+      
+      if (totalLoanPayments > 0) {
+        moneyChange -= totalLoanPayments;
+        events.push(`Automatic loan payments: -$${totalLoanPayments.toFixed(2)}`);
+        
+        // Update loans in game state
+        setGameState(prev => ({
+          ...prev,
+          loans: updatedLoans,
+        }));
+      }
     }
 
     const familyHappy =
@@ -3729,13 +4802,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       return { ...p, hunger, happiness, age, health };
     });
 
-    const petBonus = pets.reduce(
+    const petHappinessBonus = pets.reduce(
       (sum, p) => (p.hunger < 50 && p.happiness >= 35 ? sum + 5 : sum),
       0
     );
-    if (petBonus > 0) {
-      statsChange.happiness = (statsChange.happiness || 0) + petBonus;
-      events.push(`Pets brought you joy (+${petBonus} happiness)`);
+    if (petHappinessBonus > 0) {
+      statsChange.happiness = (statsChange.happiness || 0) + petHappinessBonus;
+      events.push(`Pets brought you joy (+${petHappinessBonus} happiness)`);
+    }
+
+    const petHealthBonus = pets.reduce(
+      (sum, p) => (p.health >= 70 ? sum + 3 : sum),
+      0
+    );
+    if (petHealthBonus > 0) {
+      statsChange.health = (statsChange.health || 0) + petHealthBonus;
+      events.push(`Healthy pets improved your wellbeing (+${petHealthBonus} health)`);
     }
 
     const checkForDisease = () => {
@@ -3785,7 +4867,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             .join(', ');
 
           events.push(`Contracted ${randomDisease.name}! Effects: ${effectText}. Visit a doctor or hospital.`);
-          Alert.alert('Health Issue', `${randomDisease.name} contracted! Effects: ${effectText}`);
+          setGameState(prev => ({ ...prev, showSicknessModal: true }));
 
           Object.entries(randomDisease.effects).forEach(([stat, effect]) => {
             if (effect !== undefined) {
@@ -3823,7 +4905,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (gameState.diseases.length > 0) {
       const names = gameState.diseases.map(d => d.name).join(', ');
       events.push(`Still affected by ${names}. Visit a doctor or hospital.`);
-      Alert.alert('Health Reminder', `You're still suffering from ${names}. Visit a hospital.`);
+      // Only show sickness modal if it's not already showing
+      if (!gameState.showSicknessModal) {
+        setGameState(prev => ({ ...prev, showSicknessModal: true }));
+      }
     }
 
     // Advance time and age relationships
@@ -3856,10 +4941,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Salary (weekly)
+    let salaryEarnings = 0;
     if (gameState.currentJob) {
       const career = gameState.careers.find(c => c.id === gameState.currentJob);
       if (career) {
         const weeklySalary = career.levels[career.level].salary;
+        salaryEarnings = weeklySalary;
         moneyChange += weeklySalary;
         events.push(`Earned weekly salary: $${weeklySalary}`);
 
@@ -4114,10 +5201,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }));
 
     // Sponsor income
+    let sponsorEarnings = 0;
     const hobbySponsorUpdates = gameState.hobbies.map(h => {
       if (!h.sponsors || h.sponsors.length === 0) return h;
       const activeSponsors: Sponsor[] = [];
       h.sponsors.forEach(s => {
+        sponsorEarnings += s.weeklyPay;
         moneyChange += s.weeklyPay;
         events.push(`Sponsor income (${s.name}): +$${s.weeklyPay}`);
         const weeksLeft = s.weeksRemaining - 1;
@@ -4169,10 +5258,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     let happinessZeroWeeks = gameState.happinessZeroWeeks;
     let healthZeroWeeks = gameState.healthZeroWeeks;
+    let healthWeeks = gameState.healthWeeks;
     let deathReason: 'happiness' | 'health' | undefined;
     if (updatedStats.happiness <= 0) {
       happinessZeroWeeks += 1;
-      const weeksLeft = 5 - happinessZeroWeeks;
+      const weeksLeft = 4 - happinessZeroWeeks;
       if (weeksLeft > 0) {
         Alert.alert(
           'Warning',
@@ -4189,7 +5279,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     if (!deathReason && updatedStats.health <= 0) {
       healthZeroWeeks += 1;
-      const weeksLeft = 5 - healthZeroWeeks;
+      const weeksLeft = 4 - healthZeroWeeks;
       if (weeksLeft > 0) {
         Alert.alert(
           'Warning',
@@ -4202,6 +5292,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
     } else if (!deathReason) {
       healthZeroWeeks = 0;
+    }
+
+    // Track health weeks for healthy lifestyle achievement
+    if (updatedStats.health >= 90) {
+      healthWeeks += 1;
+    } else {
+      healthWeeks = 0; // Reset if health drops below 90
     }
 
     if (deathReason) {
@@ -4238,6 +5335,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
               moneyChange,
               statsChange,
               events,
+              earningsBreakdown: {
+                gaming: gamingEarnings,
+                streaming: streamingEarnings,
+                passive: passiveIncome,
+                salary: salaryEarnings,
+                sponsors: sponsorEarnings,
+                other: 0, // Will be updated for other earnings
+              },
             }
           : undefined,
         stats: updatedStats,
@@ -4245,6 +5350,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         pendingEvents: weeklyEvents,
         happinessZeroWeeks,
         healthZeroWeeks,
+        healthWeeks,
         totalHappiness: nextTotalHappiness,
         weeksLived: nextWeeksLived,
         jailWeeks,
@@ -4412,6 +5518,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setGameState(prev => ({ ...prev, showZeroStatPopup: false, zeroStatType: undefined }));
   };
 
+  const dismissSicknessModal = () => {
+    setGameState(prev => ({ ...prev, showSicknessModal: false }));
+  };
+
+  const dismissCureSuccessModal = () => {
+    setGameState(prev => ({ ...prev, showCureSuccessModal: false, curedDiseases: [] }));
+  };
+
   const askForMoney: GameContextType['askForMoney'] = relationshipId => {
     const relationship = gameState.relationships.find(r => r.id === relationshipId);
     if (!relationship) return { success: false, message: 'Contact not found' };
@@ -4512,7 +5626,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       educations: prev.educations.map(e => (e.id === educationId ? { ...e, weeksRemaining: education.duration } : e)),
     }));
 
-    updateStats({ money: gameState.stats.money - cost });
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - cost
+      }
+    }));
   };
 
 
@@ -4533,112 +5653,264 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const migrateState = (loaded: any): GameState => {
     const version = loaded.version || 1;
     let state = { ...loaded };
-    if (!state.economy) {
-      state.economy = { inflationRateAnnual: 0.03, priceIndex: 1 };
+    
+    // Ensure all required fields exist with comprehensive validation
+    if (!state.stats) state.stats = initialGameState.stats;
+    if (!state.settings) state.settings = initialGameState.settings;
+    if (!state.achievements) state.achievements = initialGameState.achievements;
+    if (!state.perks) state.perks = {};
+    if (!state.bankSavings) state.bankSavings = 0;
+    if (!state.stocks) state.stocks = { holdings: [], watchlist: [] };
+    if (!state.realEstate) state.realEstate = [];
+    if (!state.companies) state.companies = [];
+    if (!state.relationships) state.relationships = [];
+    if (!state.items) state.items = initialGameState.items;
+    if (!state.foods) state.foods = initialGameState.foods;
+    if (!state.careers) state.careers = initialGameState.careers;
+    if (!state.hobbies) state.hobbies = initialGameState.hobbies;
+    if (!state.educations) state.educations = initialGameState.educations;
+    if (!state.cryptos) state.cryptos = initialGameState.cryptos;
+    if (!state.economy) state.economy = initialGameState.economy;
+    if (!state.social) state.social = initialGameState.social;
+    if (!state.family) state.family = initialGameState.family;
+    if (!state.streetJobs) state.streetJobs = initialGameState.streetJobs;
+    if (!state.crimeSkills) state.crimeSkills = initialGameState.crimeSkills;
+    if (!state.darkWebItems) state.darkWebItems = initialGameState.darkWebItems;
+    if (!state.pendingEvents) state.pendingEvents = [];
+    if (!state.eventLog) state.eventLog = [];
+    if (!state.claimedProgressAchievements) state.claimedProgressAchievements = [];
+    if (!state.streetJobsCompleted) state.streetJobsCompleted = 0;
+    if (!state.happinessZeroWeeks) state.happinessZeroWeeks = 0;
+    if (!state.healthZeroWeeks) state.healthZeroWeeks = 0;
+    if (!state.healthWeeks) state.healthWeeks = 0;
+    if (!state.progress) state.progress = { achievements: [] };
+    if (!state.journal) state.journal = [];
+    if (!state.scenarioId) state.scenarioId = undefined;
+    if (!state.wantedLevel) state.wantedLevel = 0;
+    if (!state.jailWeeks) state.jailWeeks = 0;
+    if (!state.escapedFromJail) state.escapedFromJail = false;
+    if (!state.criminalXp) state.criminalXp = 0;
+    if (!state.criminalLevel) state.criminalLevel = 1;
+    if (!state.showWelcomePopup) state.showWelcomePopup = true;
+    if (!state.currentJob) state.currentJob = undefined;
+    if (!state.company) state.company = undefined;
+    if (!state.hasPhone) state.hasPhone = false;
+    if (!state.showZeroStatPopup) state.showZeroStatPopup = false;
+    if (!state.zeroStatType) state.zeroStatType = undefined;
+    if (!state.showDeathPopup) state.showDeathPopup = false;
+    if (!state.deathReason) state.deathReason = undefined;
+    if (!state.lastLogin) state.lastLogin = Date.now();
+    if (state.totalHappiness === undefined) state.totalHappiness = 0;
+    if (state.weeksLived === undefined) state.weeksLived = 0;
+    if (!state.updatedAt) state.updatedAt = Date.now();
+    if (!state.weeklyJailActivities) state.weeklyJailActivities = {};
+    if (!state.dailyGifts) state.dailyGifts = initialGameState.dailyGifts;
+    if (version < STATE_VERSION) state.version = STATE_VERSION;
+
+    // Ensure gamingStreaming block exists and has all required fields (keep scenarios/perks out)
+    const gs = state.gamingStreaming || {};
+    const eq = gs.equipment || {};
+    const pc = gs.pcComponents || {};
+    const lv = gs.pcUpgradeLevels || {};
+    state.gamingStreaming = {
+      followers: gs.followers ?? 0,
+      subscribers: gs.subscribers ?? 0,
+      totalViews: gs.totalViews ?? 0,
+      totalEarnings: gs.totalEarnings ?? 0,
+      totalDonations: gs.totalDonations ?? 0,
+      totalSubEarnings: gs.totalSubEarnings ?? 0,
+      level: gs.level ?? 1,
+      experience: gs.experience ?? 0,
+      gamesPlayed: gs.gamesPlayed ?? [],
+      streamHours: gs.streamHours ?? 0,
+      averageViewers: gs.averageViewers ?? 0,
+      bestStream: gs.bestStream ?? null,
+      currentStream: gs.currentStream ?? null,
+      equipment: {
+        microphone: eq.microphone ?? false,
+        webcam: eq.webcam ?? false,
+        gamingChair: eq.gamingChair ?? false,
+        greenScreen: eq.greenScreen ?? false,
+        lighting: eq.lighting ?? false,
+      },
+      pcComponents: {
+        cpu: pc.cpu ?? false,
+        gpu: pc.gpu ?? false,
+        ram: pc.ram ?? false,
+        ssd: pc.ssd ?? false,
+        motherboard: pc.motherboard ?? false,
+        cooling: pc.cooling ?? false,
+        psu: pc.psu ?? false,
+        case: pc.case ?? false,
+        network: pc.network ?? false,
+      },
+      pcUpgradeLevels: {
+        cpu: lv.cpu ?? 0,
+        gpu: lv.gpu ?? 0,
+        ram: lv.ram ?? 0,
+        ssd: lv.ssd ?? 0,
+        motherboard: lv.motherboard ?? 0,
+        cooling: lv.cooling ?? 0,
+        psu: lv.psu ?? 0,
+        case: lv.case ?? 0,
+        network: lv.network ?? 0,
+      },
+      paidMembers: gs.paidMembers ?? 0,
+      membershipRate: gs.membershipRate ?? 4,
+      unlockedGames: gs.unlockedGames ?? [],
+      ownedGames: gs.ownedGames ?? [],
+      streamHistory: gs.streamHistory ?? [],
+      videos: gs.videos ?? [],
+      videoTitleCounters: gs.videoTitleCounters ?? {},
+      videoRecordingState: gs.videoRecordingState ?? {
+        isRecording: false,
+        recordProgress: 0,
+        renderProgress: 0,
+        uploadProgress: 0,
+        currentPhase: 'idle',
+        videoTitle: '',
+        videoGame: '',
+        isRendering: false,
+        isUploading: false,
+      },
+      streamingState: gs.streamingState ?? {
+        isStreaming: false,
+        streamProgress: 0,
+        totalDonations: 0,
+        streamDuration: 0,
+        selectedGame: '',
+        currentViewers: 0,
+        currentSubsGained: 0,
+      },
+    };
+    // Integrity: clamp key numerics to avoid corrupted saves
+    const sanitize = (n: any, min = 0): number => {
+      const v = typeof n === 'number' && isFinite(n) ? n : 0;
+      return v < min ? min : v;
+    };
+    if (state.stats) {
+      state.stats.money = sanitize(state.stats.money, 0);
+      // @ts-ignore
+      state.stats.energy = sanitize(state.stats.energy, 0);
     }
-    if (!state.social) {
-      state.social = { relations: [] };
+    if (state.gamingStreaming) {
+      // @ts-ignore
+      state.gamingStreaming.totalEarnings = sanitize(state.gamingStreaming.totalEarnings, 0);
+      // @ts-ignore
+      state.gamingStreaming.totalDonations = sanitize(state.gamingStreaming.totalDonations, 0);
+      // @ts-ignore
+      state.gamingStreaming.totalSubEarnings = sanitize(state.gamingStreaming.totalSubEarnings, 0);
+      // @ts-ignore
+      state.gamingStreaming.followers = sanitize(state.gamingStreaming.followers, 0);
+      // @ts-ignore
+      state.gamingStreaming.subscribers = sanitize(state.gamingStreaming.subscribers, 0);
     }
-    if (!state.family) {
-      state.family = { children: [] };
-    } else {
-      state.family.children = state.family.children || [];
-    }
-    if (!state.pets) {
-      state.pets = [];
-    }
-    if (!state.lifeStage) {
-      state.lifeStage = getLifeStage(state.date?.age || 18);
-    }
-    if (!state.pendingEvents) {
-      state.pendingEvents = [];
-    }
-    if (!state.eventLog) {
-      state.eventLog = [];
-    }
-    if (!state.hobbies) {
-      state.hobbies = initialGameState.hobbies;
-    } else {
-      state.hobbies = state.hobbies.map(h => {
-        const def = initialGameState.hobbies.find(d => d.id === h.id)!;
-        return {
-          ...def,
-          ...h,
-          songs: h.id === 'music' ? h.songs || [] : h.songs,
-          artworks: h.id === 'art' ? h.artworks || [] : h.artworks,
-          upgrades: h.upgrades || def.upgrades,
-        };
-      });
-    }
-    if (!state.progress) {
-      state.progress = { achievements: [] };
-    }
-    if (!state.journal) {
-      state.journal = [];
-    }
-    if (!state.jailActivities) {
-      state.jailActivities = initialGameState.jailActivities;
-    }
-    if (state.escapedFromJail === undefined) {
-      state.escapedFromJail = false;
-    }
-    if (!state.claimedProgressAchievements) {
-      state.claimedProgressAchievements = [];
-    }
-    if (!state.crimeSkills) {
-      state.crimeSkills = {
-        stealth: { xp: 0, level: 1, upgrades: [] },
-        hacking: { xp: 0, level: 1, upgrades: [] },
-        lockpicking: { xp: 0, level: 1, upgrades: [] },
-      };
-    }
-    if (!state.lastLogin) {
-      state.lastLogin = Date.now();
-    }
-    if (state.totalHappiness === undefined) {
-      state.totalHappiness = 0;
-    }
-    if (state.weeksLived === undefined) {
-      state.weeksLived = 0;
-    }
-    if (!state.updatedAt) {
-      state.updatedAt = Date.now();
-    }
-    if (version < STATE_VERSION) {
-      state.version = STATE_VERSION;
-    }
+
     return state as GameState;
   };
 
-  const saveGame = useCallback(async () => {
+  const saveGame = useCallback(async (retryCount = 0) => {
     try {
       const stateToSave = {
         ...gameState,
         version: STATE_VERSION,
         updatedAt: Date.now(),
+        lastLogin: Date.now(),
       };
-      await AsyncStorage.setItem(
-        `save_slot_${currentSlot}`,
-        JSON.stringify(stateToSave)
-      );
-      await AsyncStorage.setItem('lastSlot', String(currentSlot));
-      await uploadGameState({ state: stateToSave, updatedAt: stateToSave.updatedAt });
-      const playerName = stateToSave.userProfile.name || 'Player';
-      const wealthScore = netWorth(stateToSave);
-      const topCareer = stateToSave.careers.reduce((m, c) => Math.max(m, c.level), 0);
-      const topSkill = stateToSave.hobbies.reduce((m, h) => Math.max(m, h.skill), 0);
 
-      await uploadLeaderboardScore({ category: 'wealth', name: playerName, score: wealthScore });
-      await uploadLeaderboardScore({ category: 'career', name: playerName, score: topCareer });
-      await uploadLeaderboardScore({ category: 'skills', name: playerName, score: topSkill });
+      // Validate state before saving
+      if (!stateToSave.stats || !stateToSave.settings) {
+        throw new Error('Invalid game state structure');
+      }
+
+      // Use save queue to prevent race conditions
+      await queueSave(currentSlot, stateToSave);
+
+      // Cloud save with error handling
+      try {
+        await uploadGameState({ state: stateToSave, updatedAt: stateToSave.updatedAt });
+        const playerName = stateToSave.userProfile.name || 'Player';
+        const wealthScore = netWorth(stateToSave);
+        const topCareer = stateToSave.careers.reduce((m, c) => Math.max(m, c.level), 0);
+        const topSkill = stateToSave.hobbies.reduce((m, h) => Math.max(m, h.skill), 0);
+
+        await uploadLeaderboardScore({ category: 'wealth', name: playerName, score: wealthScore });
+        await uploadLeaderboardScore({ category: 'career', name: playerName, score: topCareer });
+        await uploadLeaderboardScore({ category: 'skills', name: playerName, score: topSkill });
+        // Cloud save successful
+      } catch (cloudError) {
+        console.warn('Cloud save failed, but local save succeeded:', cloudError);
+      }
+
+      // Game saved successfully
     } catch (error) {
-      console.error('Error saving game:', error);
+      console.error('Save error:', error);
+      
+      // Fallback to force save
+      try {
+        const stateToSave = {
+          ...gameState,
+          version: STATE_VERSION,
+          updatedAt: Date.now(),
+          lastLogin: Date.now(),
+        };
+        await forceSave(currentSlot, stateToSave);
+      } catch (fallbackError) {
+        console.error('Force save also failed:', fallbackError);
+        
+        if (retryCount < 3) {
+          // Retrying save
+          setTimeout(() => saveGame(retryCount + 1), 1000);
+        } else {
+          console.error('Failed to save game after 3 retries');
+        }
+      }
     }
   }, [gameState, currentSlot]);
 
+  // Debounced autosave on state changes (prevents rapid save storms)
+  useEffect(() => {
+    if (isLoading) return;
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = null;
+    }
+    saveDebounceRef.current = setTimeout(() => {
+      saveGame();
+    }, 500) as any;
+    return () => {
+      if (saveDebounceRef.current) {
+        clearTimeout(saveDebounceRef.current);
+        saveDebounceRef.current = null;
+      }
+    };
+  }, [gameState, isLoading, saveGame]);
+
+  // Dev transaction log: money + gaming totals
+  useEffect(() => {
+    if (!__DEV__) return;
+    const prev = prevMoneyRef.current;
+    const curr = gameState.stats.money;
+    if (curr !== prev) {
+      const delta = curr - prev;
+      // Money change logged
+      prevMoneyRef.current = curr;
+    }
+    const gs: any = (gameState as any).gamingStreaming || {};
+    const p = prevTotalsRef.current;
+    const te = gs.totalEarnings || 0;
+    const td = gs.totalDonations || 0;
+    const ts = gs.totalSubEarnings || 0;
+    if (te !== p.totalEarnings || td !== p.totalDonations || ts !== p.totalSubEarnings) {
+      // Gaming streaming totals logged
+      prevTotalsRef.current = { totalEarnings: te, totalDonations: td, totalSubEarnings: ts };
+    }
+  }, [gameState.stats.money, (gameState as any).gamingStreaming?.totalEarnings, (gameState as any).gamingStreaming?.totalDonations, (gameState as any).gamingStreaming?.totalSubEarnings]);
+
   const claimProgressAchievement = (id: string, gold: number) => {
     if (gameState.claimedProgressAchievements.includes(id)) return;
-            updateStats({ gems: gameState.stats.gems + gold });
+    
+    updateStats({ gems: gold }, false);
     setGameState(prev => ({
       ...prev,
       claimedProgressAchievements: [...prev.claimedProgressAchievements, id],
@@ -4651,7 +5923,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const result = companyLogic.createCompany(
       gameState,
       setGameState,
-      updateStats,
       companyType
     );
     saveGame();
@@ -4673,9 +5944,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     saveGame();
   };
 
-  const buyMiner = (minerId: string, companyId?: string) => {
-    companyLogic.buyMiner(gameState, setGameState, updateStats, minerId, companyId);
+  const buyMiner = (minerId: string, minerName: string, cost: number, companyId?: string) => {
+    const result = companyLogic.buyMiner(gameState, setGameState, minerId, minerName, cost, companyId);
     saveGame();
+    return result;
   };
 
   const selectMiningCrypto = (cryptoId: string, companyId?: string) => {
@@ -4702,29 +5974,37 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return result;
   };
 
-  const loadGame = async (slot?: number) => {
+  const loadGame = useCallback(async (slot?: number) => {
     try {
-      let slotToLoad = slot;
-      if (!slotToLoad) {
-        const last = await AsyncStorage.getItem('lastSlot');
-        slotToLoad = last ? parseInt(last, 10) : 1;
-      }
-      const savedGame = await AsyncStorage.getItem(`save_slot_${slotToLoad}`);
-      const cloudSave = await downloadGameState();
-      let rawState: any = savedGame ? JSON.parse(savedGame) : null;
-      if (cloudSave && (!rawState || (cloudSave.updatedAt > (rawState.updatedAt ?? 0)))) {
-        rawState = cloudSave.state;
-      }
-      if (rawState) {
-        const loadedState = migrateState(rawState);
-        setCurrentSlot(slotToLoad);
+      const slotToLoad = slot || currentSlot;
+      const savedData = await AsyncStorage.getItem(`save_slot_${slotToLoad}`);
+      
+      if (savedData) {
+        const loadedState = JSON.parse(savedData);
+        
+        // Validate and migrate state
+        const validatedState = migrateState(loadedState);
+        
+        // Ensure all stats are present and valid
+        const validatedStats: GameStats = {
+          health: Math.max(0, Math.min(100, validatedState.stats?.health ?? 50)),
+          happiness: Math.max(0, Math.min(100, validatedState.stats?.happiness ?? 50)),
+          energy: Math.max(0, Math.min(100, validatedState.stats?.energy ?? 50)),
+          fitness: Math.max(0, Math.min(100, validatedState.stats?.fitness ?? 50)),
+          money: Math.max(0, validatedState.stats?.money ?? 0),
+          reputation: Math.max(0, Math.min(100, validatedState.stats?.reputation ?? 0)),
+          gems: Math.max(0, validatedState.stats?.gems ?? 0),
+        };
+        
         const now = Date.now();
         let updatedState: GameState = {
-          ...initialGameState,
-          ...loadedState,
-          settings: { ...initialGameState.settings, ...loadedState.settings },
-          userProfile: { ...initialGameState.userProfile, ...loadedState.userProfile },
+          ...validatedState,
+          stats: validatedStats,
+          version: STATE_VERSION,
+          lastLogin: now,
         };
+        
+        // Daily reward logic
         let rewardMsg: string | null = null;
         if (!loadedState.lastLogin || now - loadedState.lastLogin > 24 * 60 * 60 * 1000) {
           const worth = netWorth(updatedState);
@@ -4736,21 +6016,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
               money: updatedState.stats.money + moneyBonus,
               gems: updatedState.stats.gems + 1,
             },
-            lastLogin: now,
           };
           rewardMsg = `You received 1 gem and $${moneyBonus}`;
-        } else {
-          updatedState.lastLogin = now;
         }
+        
         setGameState(updatedState);
+        setCurrentSlot(slotToLoad);
+        
         if (rewardMsg) {
           Alert.alert('Daily Reward', rewardMsg);
         }
+        
+        // Game loaded successfully
+      } else {
+        // No save data found
       }
     } catch (error) {
-      console.error('Error loading game:', error);
+      console.error('Failed to load game:', error);
     }
-  };
+  }, [currentSlot]);
 
   useEffect(() => {
     if (gameState.settings.autoSave && gameState.scenarioId) {
@@ -4759,7 +6043,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, [gameState, saveGame]);
 
   useEffect(() => {
-    if (gameState.settings.notificationsEnabled) {
+    if (gameState.settings.notificationsEnabled && Platform.OS !== 'web') {
       scheduleDailyReminder();
     } else {
       cancelDailyReminder();
@@ -4847,7 +6131,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const amount = packs[packId as keyof typeof packs];
     if (amount) {
-      updateStats({ money: gameState.stats.money + amount });
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          money: prev.stats.money + amount
+        }
+      }));
       saveGame();
     }
   };
@@ -4861,7 +6151,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const amount = packs[packId as keyof typeof packs];
     if (amount) {
-      updateStats({ gems: gameState.stats.gems + amount });
+      updateStats({ gems: gameState.stats.gems + amount }, false);
       saveGame();
     }
   };
@@ -4871,6 +6161,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       multiplier: 10000,
       skip_week: 5000,
       youth_pill: 20000,
+      energy_boost: 15000,
+      happiness_boost: 12000,
+      fitness_boost: 18000,
+      reputation_boost: 25000,
+      skill_mastery: 30000,
+      time_machine: 50000,
+      immortality: 100000,
     } as const;
 
     const cost = costs[upgradeId as keyof typeof costs];
@@ -4881,20 +6178,96 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (upgradeId === 'multiplier') {
-      updateStats({
-        gems: gameState.stats.gems - cost,
-        money: Math.floor(gameState.stats.money * 1.5),
-      });
+      // Permanent money multiplier that transfers to all future lives
+      updateStats({ gems: gameState.stats.gems - cost }, false);
+      setGameState(prev => ({
+        ...prev,
+        goldUpgrades: {
+          ...prev.goldUpgrades,
+          multiplier: true,
+        },
+      }));
+      Alert.alert('Permanent Money Multiplier', 'Money multiplier activated! This buff will transfer to all future lives and saves.');
       saveGame();
     } else if (upgradeId === 'skip_week') {
-      updateStats({ gems: gameState.stats.gems - cost });
+      updateStats({ gems: gameState.stats.gems - cost }, false);
       nextWeek();
+      saveGame();
     } else if (upgradeId === 'youth_pill') {
-      updateStats({ gems: gameState.stats.gems - cost });
+      updateStats({ gems: gameState.stats.gems - cost }, false);
       setGameState(prev => ({
         ...prev,
         date: { ...prev.date, age: 18 },
       }));
+      saveGame();
+    } else if (upgradeId === 'energy_boost') {
+      updateStats({ gems: gameState.stats.gems - cost, energy: 100 }, false);
+      setGameState(prev => ({
+        ...prev,
+        goldUpgrades: {
+          ...prev.goldUpgrades,
+          energy_boost: true,
+        },
+      }));
+      Alert.alert('Permanent Energy Boost', 'Maximum energy increased to 100! This buff transfers to future lives.');
+      saveGame();
+    } else if (upgradeId === 'happiness_boost') {
+      updateStats({ gems: gameState.stats.gems - cost, happiness: 100 }, false);
+      setGameState(prev => ({
+        ...prev,
+        goldUpgrades: {
+          ...prev.goldUpgrades,
+          happiness_boost: true,
+        },
+      }));
+      Alert.alert('Permanent Happiness Boost', 'Maximum happiness increased to 100! This buff transfers to future lives.');
+      saveGame();
+    } else if (upgradeId === 'fitness_boost') {
+      updateStats({ gems: gameState.stats.gems - cost, fitness: 100 }, false);
+      setGameState(prev => ({
+        ...prev,
+        goldUpgrades: {
+          ...prev.goldUpgrades,
+          fitness_boost: true,
+        },
+      }));
+      Alert.alert('Permanent Fitness Boost', 'Maximum fitness increased to 100! This buff transfers to future lives.');
+      saveGame();
+    } else if (upgradeId === 'reputation_boost') {
+      updateStats({ gems: gameState.stats.gems - cost, reputation: 100 }, false);
+      saveGame();
+    } else if (upgradeId === 'skill_mastery') {
+      updateStats({ gems: gameState.stats.gems - cost }, false);
+      setGameState(prev => ({
+        ...prev,
+        goldUpgrades: {
+          ...prev.goldUpgrades,
+          skill_mastery: true,
+        },
+      }));
+      Alert.alert('Skill Mastery', 'All skills now level up 50% faster! This buff transfers to future lives.');
+      saveGame();
+    } else if (upgradeId === 'time_machine') {
+      updateStats({ gems: gameState.stats.gems - cost }, false);
+      setGameState(prev => ({
+        ...prev,
+        goldUpgrades: {
+          ...prev.goldUpgrades,
+          time_machine: true,
+        },
+      }));
+      Alert.alert('Time Machine', 'You can now travel back in time! This ability transfers to future lives.');
+      saveGame();
+    } else if (upgradeId === 'immortality') {
+      updateStats({ gems: gameState.stats.gems - cost }, false);
+      setGameState(prev => ({
+        ...prev,
+        goldUpgrades: {
+          ...prev.goldUpgrades,
+          immortality: true,
+        },
+      }));
+      Alert.alert('Immortality', 'You are now immortal! This status transfers to all future lives.');
       saveGame();
     }
   };
@@ -4911,13 +6284,390 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     saveGame();
   };
 
+  // Daily Gift System Functions
+  const generateWeeklyGifts = useCallback(() => {
+    const weeklyGifts: DailyGift[] = [];
+    
+    // Day 1: Common reward but still valuable
+    weeklyGifts.push({
+      id: 'day_1',
+      type: 'money',
+      amount: 5000,
+      name: 'Welcome Bonus',
+      description: 'Start your streak with $5,000!',
+      icon: '💰',
+      rarity: 'common',
+    });
+    
+    // Day 2: Gems reward
+    weeklyGifts.push({
+      id: 'day_2',
+      type: 'gems',
+      amount: 25,
+      name: 'Gem Collection',
+      description: 'Collect 25 precious gems!',
+      icon: '💎',
+      rarity: 'rare',
+    });
+    
+    // Day 3: Stat boost package
+    weeklyGifts.push({
+      id: 'day_3',
+      type: 'energy',
+      amount: 50,
+      name: 'Energy Surge',
+      description: 'Restore 50 energy points!',
+      icon: '⚡',
+      rarity: 'epic',
+    });
+    
+    // Day 4: Money boost
+    weeklyGifts.push({
+      id: 'day_4',
+      type: 'money',
+      amount: 15000,
+      name: 'Midweek Bonus',
+      description: 'Earn $15,000 for your dedication!',
+      icon: '💰',
+      rarity: 'epic',
+    });
+    
+    // Day 5: Gems reward
+    weeklyGifts.push({
+      id: 'day_5',
+      type: 'gems',
+      amount: 50,
+      name: 'Gem Treasure',
+      description: 'Unlock 50 valuable gems!',
+      icon: '💎',
+      rarity: 'epic',
+    });
+    
+    // Day 6: Premium stat boost
+    weeklyGifts.push({
+      id: 'day_6',
+      type: 'happiness',
+      amount: 100,
+      name: 'Pure Joy',
+      description: 'Maximum happiness boost!',
+      icon: '😊',
+      rarity: 'legendary',
+    });
+    
+    // Day 7: Special Youth Pill
+    weeklyGifts.push({
+      id: 'day_7',
+      type: 'youth_pill',
+      amount: 1,
+      name: 'Youth Pill',
+      description: 'Reverse aging by 5 years!',
+      icon: '🧬',
+      rarity: 'legendary',
+      specialEffect: 'Reduces age by 5 years',
+    });
+    
+    setGameState(prev => ({
+      ...prev,
+      dailyGifts: {
+        ...prev.dailyGifts,
+        weeklyGifts,
+      },
+    }));
+  }, []);
+
+
+
+  const checkDailyGiftEligibility = useCallback(() => {
+    if (!gameState.dailyGifts) return true;
+    
+    const today = new Date().toDateString();
+    const lastClaim = gameState.dailyGifts.lastClaimDate;
+    
+    // If never claimed or last claim was not today
+    return !lastClaim || lastClaim !== today;
+  }, [gameState.dailyGifts?.lastClaimDate]);
+
+  const claimDailyGift = useCallback((dayIndex: number) => {
+    if (dayIndex < 0 || dayIndex >= 7) return;
+    if (!gameState.dailyGifts) return;
+    
+    const gift = gameState.dailyGifts.weeklyGifts[dayIndex];
+    if (!gift) return;
+    
+    const today = new Date().toDateString();
+    const lastClaim = gameState.dailyGifts.lastClaimDate;
+    
+    // Check if already claimed today
+    if (lastClaim === today && gameState.dailyGifts.claimedToday) {
+      return;
+    }
+    
+    // Only allow claiming the gift for the current streak day
+    // currentStreak represents how many days we've claimed (0-based)
+    // So if currentStreak is 0, we can claim day 0 (first gift)
+    // If currentStreak is 1, we can claim day 1 (second gift), etc.
+    if (dayIndex !== gameState.dailyGifts.currentStreak) {
+      return;
+    }
+    
+    // Apply the gift
+    const statsUpdate: Partial<GameStats> = {};
+    let moneyUpdate = 0;
+    let gemsUpdate = 0;
+    
+    switch (gift.type) {
+      case 'money':
+        moneyUpdate = gift.amount;
+        break;
+      case 'gems':
+        gemsUpdate = gift.amount;
+        break;
+      case 'energy':
+      case 'happiness':
+      case 'health':
+      case 'fitness':
+      case 'reputation':
+        statsUpdate[gift.type] = gift.amount;
+        break;
+      case 'youth_pill':
+        // Youth pill reduces age by 5 years
+        statsUpdate.weeksLived = Math.max(0, -5 * 52); // 5 years = 5 * 52 weeks
+        break;
+    }
+    
+    // Update game state
+    setGameState(prev => {
+      // Increment streak only if this is a new day
+      const newStreak = lastClaim === today ? prev.dailyGifts.currentStreak : prev.dailyGifts.currentStreak + 1;
+      const finalStreak = newStreak > 7 ? 1 : newStreak; // Reset to 1 after 7 days
+      
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          ...statsUpdate,
+          money: prev.stats.money + moneyUpdate,
+          gems: prev.stats.gems + gemsUpdate,
+        },
+        dailyGifts: {
+          ...prev.dailyGifts,
+          currentStreak: finalStreak,
+          lastClaimDate: today,
+          claimedToday: true,
+          showDailyGiftModal: false,
+        },
+      };
+    });
+    
+    // If streak completed, generate new weekly gifts
+    if (gameState.dailyGifts && gameState.dailyGifts.currentStreak >= 6) {
+      setTimeout(() => {
+        generateWeeklyGifts();
+      }, 1000);
+    }
+    
+    saveGame();
+  }, [gameState.dailyGifts, generateWeeklyGifts, saveGame]);
+
+  const showDailyGiftModal = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      dailyGifts: {
+        ...prev.dailyGifts,
+        showDailyGiftModal: true,
+      },
+    }));
+  }, []);
+
+  const hideDailyGiftModal = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      dailyGifts: {
+        ...prev.dailyGifts,
+        showDailyGiftModal: false,
+      },
+    }));
+  }, []);
+
+  const scheduleDailyGiftNotifications = useCallback(async () => {
+    try {
+      // Schedule daily gift notification at 9 AM
+      await scheduleDailyGiftNotification(9);
+      console.log('Daily gift notifications scheduled');
+    } catch (error) {
+      console.error('Failed to schedule daily gift notifications:', error);
+    }
+  }, []);
+
+  const cancelDailyGiftNotifications = useCallback(async () => {
+    try {
+      await cancelDailyGiftNotification();
+      console.log('Daily gift notifications cancelled');
+    } catch (error) {
+      console.error('Failed to cancel daily gift notifications:', error);
+    }
+  }, []);
+
+  // Apply permanent stat boosts from gold upgrades
+  useEffect(() => {
+    if (gameState.goldUpgrades?.energy_boost) {
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          energy: Math.max(prev.stats.energy, 100),
+        },
+      }));
+    }
+    if (gameState.goldUpgrades?.happiness_boost) {
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          happiness: Math.max(prev.stats.happiness, 100),
+        },
+      }));
+    }
+    if (gameState.goldUpgrades?.fitness_boost) {
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          fitness: Math.max(prev.stats.fitness, 100),
+        },
+      }));
+    }
+  }, [gameState.goldUpgrades]);
+
+  // Schedule daily gift notifications after game initialization
+  useEffect(() => {
+    scheduleDailyGiftNotifications();
+  }, [scheduleDailyGiftNotifications]);
+
+  // Check for daily gift eligibility when app becomes active
+  useEffect(() => {
+    const checkDailyGiftEligibilityOnAppActive = () => {
+      if (!gameState.dailyGifts) return;
+      
+      const today = new Date().toDateString();
+      const lastClaim = gameState.dailyGifts.lastClaimDate;
+      
+      // If never claimed or last claim was not today, and it's been more than 24 hours
+      if (!lastClaim || lastClaim !== today) {
+        const lastClaimDate = lastClaim ? new Date(lastClaim) : new Date(0);
+        const now = new Date();
+        const hoursSinceLastClaim = (now.getTime() - lastClaimDate.getTime()) / (1000 * 60 * 60);
+        
+        // If it's been more than 20 hours since last claim, send notification
+        if (hoursSinceLastClaim >= 20) {
+          sendDailyGiftAvailableNotification();
+        }
+      }
+    };
+
+    // Check immediately when component mounts
+    checkDailyGiftEligibilityOnAppActive();
+    
+    // Set up interval to check every hour
+    const interval = setInterval(checkDailyGiftEligibilityOnAppActive, 60 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [gameState.dailyGifts?.lastClaimDate]);
+
+  // Warehouse functions
+  const buyWarehouse = (): { success: boolean; message?: string } => {
+    const warehouseCost = 25000; // Base cost for warehouse
+    
+    if (gameState.stats.money < warehouseCost) {
+      return { success: false, message: 'Not enough money to buy a warehouse' };
+    }
+    
+    if (gameState.warehouse) {
+      return { success: false, message: 'You already own a warehouse' };
+    }
+    
+    setGameState(prev => ({
+      ...prev,
+      warehouse: {
+        level: 1,
+        miners: {},
+      },
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - warehouseCost,
+      },
+    }));
+    
+    saveGame();
+    return { success: true, message: 'Successfully purchased warehouse!' };
+  };
+
+  const upgradeWarehouse = (): { success: boolean; message?: string } => {
+    if (!gameState.warehouse) {
+      return { success: false, message: 'You need to buy a warehouse first' };
+    }
+    
+    const currentLevel = gameState.warehouse.level;
+    const upgradeCost = 15000 * currentLevel; // Increasing cost per level
+    
+    if (gameState.stats.money < upgradeCost) {
+      return { success: false, message: 'Not enough money to upgrade warehouse' };
+    }
+    
+    if (currentLevel >= 10) {
+      return { success: false, message: 'Warehouse is already at maximum level' };
+    }
+    
+    setGameState(prev => ({
+      ...prev,
+      warehouse: prev.warehouse ? {
+        ...prev.warehouse,
+        level: prev.warehouse.level + 1,
+      } : undefined,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - upgradeCost,
+      },
+    }));
+    
+    saveGame();
+    return { success: true, message: `Successfully upgraded warehouse to level ${currentLevel + 1}!` };
+  };
+
+  const selectWarehouseMiningCrypto = (cryptoId: string): void => {
+    if (!gameState.warehouse) return;
+    
+    setGameState(prev => ({
+      ...prev,
+      warehouse: prev.warehouse ? {
+        ...prev.warehouse,
+        selectedCrypto: cryptoId,
+      } : undefined,
+    }));
+  };
+
+  // Show loading screen while initializing
+  if (isLoading) {
+    return (
+      <PremiumLoadingScreen
+        progress={loadingProgress}
+        message={loadingMessage}
+        isCacheClearing={isCacheClearing}
+        oldVersion={cacheUpdateInfo.oldVersion}
+        newVersion={cacheUpdateInfo.newVersion}
+      />
+    );
+  }
 
   return (
     <GameContext.Provider
       value={{
         gameState,
         setGameState,
-        updateStats,
+        updateGameState: setGameState,
+        updateMoney,
+        batchUpdateMoney,
+        applyPerkEffects,
         nextWeek,
         resolveEvent,
         performStreetJob,
@@ -4957,6 +6707,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         playWithPet,
         dismissWelcomePopup,
         dismissStatWarning,
+        dismissSicknessModal,
+        dismissCureSuccessModal,
         buyFood,
         performHealthActivity,
         toggleDietPlan,
@@ -4977,7 +6729,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         buyGoldPack,
         buyGoldUpgrade,
         buyMiner,
+        buyWarehouse,
+        upgradeWarehouse,
         selectMiningCrypto,
+        selectWarehouseMiningCrypto,
         completeMinigame,
         saveGame,
         loadGame,
@@ -4987,6 +6742,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         checkAchievements,
         recordRelationshipAction,
         claimProgressAchievement,
+        triggerCacheClear,
+        claimDailyGift,
+        generateWeeklyGifts,
+        checkDailyGiftEligibility,
+        showDailyGiftModal,
+        hideDailyGiftModal,
+        scheduleDailyGiftNotifications,
+        cancelDailyGiftNotifications,
       }}
     >
       {children}

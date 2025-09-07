@@ -33,8 +33,8 @@ export default function TombstonePopup() {
           {deathReason && (
             <Text style={[styles.message, settings.darkMode && styles.messageDark]}>
               {deathReason === 'happiness'
-                ? 'You remained unhappy for 5 weeks.'
-                : 'You remained unhealthy for 5 weeks.'}
+                ? 'You remained unhappy for 4 weeks.'
+                : 'You remained unhealthy for 4 weeks.'}
             </Text>
           )}
 

@@ -8,7 +8,7 @@ const baseStats: GameStats = {
   fitness: 10,
   money: 0,
   reputation: 0,
-  goldBars: 0,
+  gems: 0,
 };
 
 const baseDate: GameDate = { year: 2025, month: 'January', week: 1, age: 18 };
@@ -82,6 +82,14 @@ const createState = (overrides: Partial<GameState>): GameState => ({
   eventLog: [],
   progress: { achievements: [] },
   journal: [],
+  healthWeeks: 0,
+  dailyGifts: {
+    currentStreak: 0,
+    lastClaimDate: '',
+    weeklyGifts: [],
+    claimedToday: false,
+    showDailyGiftModal: false,
+  },
   ...overrides,
 });
 

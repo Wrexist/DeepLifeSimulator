@@ -1,14 +1,102 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { ShoppingBag, Dumbbell, Apple } from 'lucide-react-native';
+import OptimizedFlatList from '@/components/OptimizedFlatList';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function MarketScreen() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym'>('items');
   const { gameState, buyItem, sellItem, buyFood, updateStats } = useGame();
   const { settings } = gameState;
+
+  // Memoized data
+  const sortedItems = useMemo(() => 
+    [...gameState.items].sort((a, b) => a.price - b.price), 
+    [gameState.items]
+  );
+  
+  const sortedFoods = useMemo(() => 
+    [...gameState.foods].sort((a, b) => a.price - b.price), 
+    [gameState.foods]
+  );
+
+  // Memoized render functions
+  const renderItem = useCallback(({ item }: { item: any }) => (
+    <View key={item.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
+      <View style={styles.itemInfo}>
+        <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{item.name}</Text>
+        {item.description && (
+          <Text style={[styles.itemDescription, settings.darkMode && styles.itemDescriptionDark]}>
+            {item.description}
+          </Text>
+        )}
+        <Text style={styles.itemPrice}>${item.price}</Text>
+        
+        {item.dailyBonus && (
+          <View style={styles.bonusInfo}>
+            <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.dailyBonus')}</Text>
+            {Object.entries(item.dailyBonus).map(([stat, bonus]) => (
+              <Text key={stat} style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>
+                +{String(bonus)} {stat.charAt(0).toUpperCase() + stat.slice(1)}
+              </Text>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {item.owned ? (
+        <TouchableOpacity
+          style={styles.sellButton}
+          onPress={() => sellItem(item.id)}
+        >
+          <Text style={styles.sellButtonText}>
+            Sell (${(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5).toFixed(2)})
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity onPress={() => buyItem(item.id)} disabled={!canAfford(item.price)}>
+          <LinearGradient
+            colors={canAfford(item.price) ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.buyButton}
+          >
+            <Text style={[styles.buyButtonText, !canAfford(item.price) && styles.disabledButtonText]}>{t('market.buy')}</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+    </View>
+  ), [settings.darkMode, gameState.economy?.priceIndex, sellItem, buyItem]);
+
+  const renderFood = useCallback(({ item: food }: { item: any }) => (
+    <View key={food.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
+      <View style={styles.itemInfo}>
+        <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{food.name}</Text>
+        <Text style={styles.itemPrice}>${food.price}</Text>
+        
+        <View style={styles.bonusInfo}>
+          <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.restores')}</Text>
+          <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{food.healthRestore} {t('game.health')}</Text>
+          <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{food.energyRestore} {t('game.energy')}</Text>
+        </View>
+      </View>
+
+      <TouchableOpacity onPress={() => buyFood(food.id)} disabled={!canAfford(food.price)}>
+        <LinearGradient
+          colors={canAfford(food.price) ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.buyButton}
+        >
+          <Text style={[styles.buyButtonText, !canAfford(food.price) && styles.disabledButtonText]}>{t('market.buy')}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
+  ), [settings.darkMode, buyFood]);
 
   const handleGym = () => {
     const cost = 50;
@@ -38,7 +126,7 @@ export default function MarketScreen() {
         >
           <ShoppingBag size={18} color={activeTab === 'items' ? '#FFFFFF' : '#6B7280'} />
             <Text style={[styles.tabText, activeTab === 'items' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-            Items
+            {t('market.items')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -47,7 +135,7 @@ export default function MarketScreen() {
         >
           <Apple size={18} color={activeTab === 'food' ? '#FFFFFF' : '#6B7280'} />
             <Text style={[styles.tabText, activeTab === 'food' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-            Food
+            {t('market.food')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -56,136 +144,76 @@ export default function MarketScreen() {
         >
           <Dumbbell size={18} color={activeTab === 'gym' ? '#FFFFFF' : '#6B7280'} />
             <Text style={[styles.tabText, activeTab === 'gym' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-            Gym
+            {t('market.gym')}
           </Text>
         </TouchableOpacity>
       </View>
 
-        <ScrollView style={[styles.content, settings.darkMode && styles.contentDark]} showsVerticalScrollIndicator={false}>
-        <View style={styles.scrollIndicatorContainer}>
-          <View style={styles.scrollIndicator}>
-            <View style={styles.scrollBar}>
-              <View style={styles.scrollThumb} />
+        <View style={[styles.content, settings.darkMode && styles.contentDark]}>
+          {activeTab === 'items' ? (
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
+                {t('market.purchaseItems')}
+              </Text>
+              <OptimizedFlatList
+                data={sortedItems}
+                renderItem={renderItem}
+                itemHeight={120}
+                contentContainerStyle={{ paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={5}
+                windowSize={5}
+                initialNumToRender={3}
+              />
             </View>
-          </View>
-        </View>
-        {activeTab === 'items' ? (
-          <View>
+          ) : activeTab === 'food' ? (
+            <View style={{ flex: 1 }}>
               <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-              Purchase items to unlock new opportunities and daily bonuses!
-            </Text>
-
-            {[...gameState.items].sort((a, b) => a.price - b.price).map(item => (
-                <View key={item.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
-                  <View style={styles.itemInfo}>
-                    <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{item.name}</Text>
-                    {item.description && (
-                      <Text style={[styles.itemDescription, settings.darkMode && styles.itemDescriptionDark]}>
-                        {item.description}
-                      </Text>
-                    )}
-                  <Text style={styles.itemPrice}>${item.price}</Text>
-                  
-                  {item.dailyBonus && (
-                    <View style={styles.bonusInfo}>
-                        <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>Daily Bonus:</Text>
-                        {Object.entries(item.dailyBonus).map(([stat, bonus]) => (
-                          <Text key={stat} style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>
-                            +{bonus} {stat.charAt(0).toUpperCase() + stat.slice(1)}
-                          </Text>
-                        ))}
-                    </View>
-                  )}
-                </View>
-
-                {item.owned ? (
-                  <TouchableOpacity
-                    style={styles.sellButton}
-                    onPress={() => sellItem(item.id)}
-                  >
-                    <Text style={styles.sellButtonText}>
-                      Sell (${
-                        (getInflatedPrice(item.price, gameState.economy.priceIndex) * 0.5).toFixed(2)
-                      })
-                    </Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={() => buyItem(item.id)} disabled={!canAfford(item.price)}>
-                    <LinearGradient
-                      colors={canAfford(item.price) ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.buyButton}
-                    >
-                      <Text style={[styles.buyButtonText, !canAfford(item.price) && styles.disabledButtonText]}>Buy</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-          </View>
-        ) : activeTab === 'food' ? (
-          <View>
-              <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-              Buy food to restore your health and energy instantly!
-            </Text>
-
-            {[...gameState.foods].sort((a, b) => a.price - b.price).map(food => (
-                <View key={food.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
-                  <View style={styles.itemInfo}>
-                    <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{food.name}</Text>
-                  <Text style={styles.itemPrice}>${food.price}</Text>
-                  
-                  <View style={styles.bonusInfo}>
-                      <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>Restores:</Text>
-                      <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{food.healthRestore} Health</Text>
-                      <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{food.energyRestore} Energy</Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity onPress={() => buyFood(food.id)} disabled={!canAfford(food.price)}>
-                  <LinearGradient
-                    colors={canAfford(food.price) ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.buyButton}
-                  >
-                    <Text style={[styles.buyButtonText, !canAfford(food.price) && styles.disabledButtonText]}>Buy</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
+                {t('market.buyFood')}
+              </Text>
+              <OptimizedFlatList
+                data={sortedFoods}
+                renderItem={renderFood}
+                itemHeight={100}
+                contentContainerStyle={{ paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={5}
+                windowSize={5}
+                initialNumToRender={3}
+              />
+            </View>
         ) : (
           <View>
               <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-              Train at the gym to improve your fitness, health, and happiness!
+              {t('market.trainGym')}
             </Text>
 
               <View style={[styles.gymCard, settings.darkMode && styles.gymCardDark]}>
                 <View style={styles.gymHeader}>
                   <Dumbbell size={32} color="#3B82F6" />
-                  <Text style={[styles.gymTitle, settings.darkMode && styles.gymTitleDark]}>Gym Session</Text>
+                  <Text style={[styles.gymTitle, settings.darkMode && styles.gymTitleDark]}>{t('market.gymSession')}</Text>
                 </View>
 
                 <Text style={[styles.currentFitness, settings.darkMode && styles.currentFitnessDark]}>
-                  Current Fitness: {gameState.stats.fitness}
+                  {t('market.currentFitness')} {gameState.stats.fitness}
                 </Text>
 
                 <Text style={[styles.gymDescription, settings.darkMode && styles.gymDescriptionDark]}>
-                  A good workout session will boost your stats and make you feel great!
+                  {t('market.gymDescription')}
                 </Text>
 
                 <View style={[styles.gymBenefits, settings.darkMode && styles.gymBenefitsDark]}>
-                  <Text style={[styles.benefitsTitle, settings.darkMode && styles.benefitsTitleDark]}>Benefits per session:</Text>
-                  <Text style={[styles.benefit, settings.darkMode && styles.benefitDark]}>+5 Fitness</Text>
-                  <Text style={[styles.benefit, settings.darkMode && styles.benefitDark]}>+3 Health</Text>
-                  <Text style={[styles.benefit, settings.darkMode && styles.benefitDark]}>+2 Happiness</Text>
+                  <Text style={[styles.benefitsTitle, settings.darkMode && styles.benefitsTitleDark]}>{t('market.benefitsPerSession')}</Text>
+                  <Text style={[styles.benefit, settings.darkMode && styles.benefitDark]}>+5 {t('game.fitness')}</Text>
+                  <Text style={[styles.benefit, settings.darkMode && styles.benefitDark]}>+3 {t('game.health')}</Text>
+                  <Text style={[styles.benefit, settings.darkMode && styles.benefitDark]}>+2 {t('game.happiness')}</Text>
                 </View>
 
                 <View style={[styles.gymCost, settings.darkMode && styles.gymCostDark]}>
-                  <Text style={[styles.costTitle, settings.darkMode && styles.costTitleDark]}>Cost:</Text>
-                  <Text style={styles.cost}>$50 + 20 Energy</Text>
+                  <Text style={[styles.costTitle, settings.darkMode && styles.costTitleDark]}>{t('market.cost')}</Text>
+                  <Text style={styles.cost}>$50 + 20 {t('game.energy')}</Text>
                 </View>
 
               <TouchableOpacity
@@ -200,15 +228,15 @@ export default function MarketScreen() {
                   styles.gymButtonText,
                   !canUseGym && styles.disabledButtonText
                 ]}>
-                  {gameState.stats.money < 50 ? 'Not enough money' :
-                   gameState.stats.energy < 20 ? 'Not enough energy' :
-                   'Start Workout'}
+                  {gameState.stats.money < 50 ? t('market.notEnoughMoney') :
+                   gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
+                   t('market.startWorkout')}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
-      </ScrollView>
+      </View>
     </View>
   );
 }

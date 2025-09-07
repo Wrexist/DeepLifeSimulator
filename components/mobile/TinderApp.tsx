@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Image, Animated } from 'react-native';
+import { Platform } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Heart, X, Settings, DollarSign, Star, MapPin, MessageCircle } from 'lucide-react-native';
@@ -337,18 +338,20 @@ export default function HinderApp({ onBack }: HinderAppProps) {
     const swipeDistance = 300;
     const targetX = direction === 'right' ? swipeDistance : -swipeDistance;
     
-    Animated.parallel([
+    const parallelAnimation = Animated.parallel([
       Animated.timing(translateX, {
         toValue: targetX,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(rotate, {
         toValue: direction === 'right' ? 0.3 : -0.3,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
-    ]).start(() => {
+    ]);
+    
+    parallelAnimation.start(() => {
       if (direction === 'right') {
         handleLike();
       } else {
@@ -364,7 +367,7 @@ export default function HinderApp({ onBack }: HinderAppProps) {
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationX: translateX, translationY: translateY } }],
-    { useNativeDriver: true }
+    { useNativeDriver: Platform.OS !== 'web' }
   );
 
   const onHandlerStateChange = (event: any) => {
@@ -381,17 +384,17 @@ export default function HinderApp({ onBack }: HinderAppProps) {
           Animated.timing(translateX, {
             toValue: 0,
             duration: 200,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(translateY, {
             toValue: 0,
             duration: 200,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(rotate, {
             toValue: 0,
             duration: 200,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
         ]).start();
       }
@@ -410,9 +413,9 @@ export default function HinderApp({ onBack }: HinderAppProps) {
   };
 
   const handleConfirmMatch = useCallback(() => {
-    console.log('handleConfirmMatch called');
+    // Handle confirm match
     if (currentMatch) {
-      console.log('Current match:', currentMatch);
+      // Processing current match
       
       // Check if player already has a partner
       const existingPartner = gameState.relationships?.find(r => r.type === 'partner');
@@ -451,19 +454,18 @@ export default function HinderApp({ onBack }: HinderAppProps) {
         weeksAtZero: 0,
       };
 
-      console.log('Creating new partner:', newPartner);
+      // Creating new partner
 
       setGameState(prev => {
         const updatedState = {
           ...prev,
           relationships: [...(prev.relationships || []), newPartner],
         };
-        console.log('Adding partner:', newPartner);
-        console.log('Updated relationships:', updatedState.relationships);
+        // Adding partner to relationships
         return updatedState;
       });
       
-      console.log('Calling saveGame');
+      // Saving game after partner creation
       saveGame();
 
       // Close modal immediately
@@ -479,7 +481,7 @@ export default function HinderApp({ onBack }: HinderAppProps) {
         );
       }, 100);
     } else {
-      console.log('No current match to confirm');
+      // No current match to confirm
     }
   }, [currentMatch, setGameState, saveGame, gameState.relationships]);
 
@@ -550,6 +552,12 @@ export default function HinderApp({ onBack }: HinderAppProps) {
             >
               <View style={styles.profileImageContainer}>
                 <Image source={{ uri: currentProfile.photos[currentPhotoIndex] }} style={styles.profileImage} />
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.3)']}
+                  style={styles.imageGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                />
                 
                 {/* Photo Navigation */}
                 <View style={styles.photoNavigation}>
@@ -583,29 +591,35 @@ export default function HinderApp({ onBack }: HinderAppProps) {
               
               <View style={styles.profileInfo}>
                 <View style={styles.profileHeader}>
-                  <Text style={styles.profileName}>{currentProfile.name}, {currentProfile.age}</Text>
-                  <View style={styles.profileStats}>
-                    <MapPin size={16} color="#9FA4B3" />
-                    <Text style={styles.distanceText}>{currentProfile.distance} miles</Text>
+                  <View style={styles.profileNameContainer}>
+                    <Text style={styles.profileName}>{currentProfile.name}, {currentProfile.age}</Text>
+                    <View style={styles.profileStats}>
+                      <MapPin size={16} color="#9FA4B3" />
+                      <Text style={styles.distanceText}>{currentProfile.distance} miles away</Text>
+                    </View>
                   </View>
                 </View>
 
-                                 <View style={styles.profileDetails}>
-                   <View style={styles.detailRow}>
-                     <Text style={styles.detailLabel}>Job:</Text>
-                     <Text style={styles.detailValue}>{currentProfile.job}</Text>
-                   </View>
-                   <View style={styles.detailRow}>
-                     <Text style={styles.detailLabel}>Education:</Text>
-                     <Text style={styles.detailValue}>{currentProfile.education}</Text>
-                   </View>
-                   <View style={styles.detailRow}>
-                     <Text style={styles.detailLabel}>Income:</Text>
-                     <Text style={[styles.detailValue, { color: '#9FA4B3' }]}>
-                       Hidden
-                     </Text>
-                   </View>
-                 </View>
+                <View style={styles.profileDetails}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>💼 Job:</Text>
+                    <Text style={styles.detailValue}>{currentProfile.job}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>🎓 Education:</Text>
+                    <Text style={styles.detailValue}>{currentProfile.education}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>💰 Income:</Text>
+                    <Text style={[styles.detailValue, { color: '#9FA4B3' }]}>
+                      Hidden
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>🌟 Personality:</Text>
+                    <Text style={styles.detailValue}>{currentProfile.personality.charAt(0).toUpperCase() + currentProfile.personality.slice(1)}</Text>
+                  </View>
+                </View>
 
                 <Text style={styles.profileBio}>{currentProfile.bio}</Text>
                 
@@ -765,21 +779,21 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '600',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     backgroundColor: '#1A1D29',
     alignItems: 'center',
     justifyContent: 'center',
   },
   settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     backgroundColor: '#1A1D29',
     alignItems: 'center',
     justifyContent: 'center',
@@ -787,28 +801,36 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+    paddingBottom: 120, // Add space for floating buttons
   },
   profileCard: {
     backgroundColor: '#0F1220',
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 16,
     borderColor: '#23283B',
-    borderWidth: 1,
-    elevation: 5,
+    borderWidth: 0.5,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
   },
   profileImageContainer: {
-    height: 300,
+    height: 400,
     position: 'relative',
   },
   profileImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  imageGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
   },
   photoNavigation: {
     position: 'absolute',
@@ -822,16 +844,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   photoNavButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   photoNavText: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
   },
   photoNavTextDisabled: {
@@ -839,35 +863,40 @@ const styles = StyleSheet.create({
   },
   photoIndicators: {
     position: 'absolute',
-    top: 20,
+    top: 30,
     left: 20,
     right: 20,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
   },
   photoIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   photoIndicatorActive: {
     backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   wealthBadge: {
     position: 'absolute',
-    top: 20,
+    top: 30,
     right: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 25,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   wealthIcon: {
-    fontSize: 16,
+    fontSize: 18,
   },
   wealthText: {
     color: '#FFFFFF',
@@ -875,18 +904,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   profileInfo: {
-    padding: 20,
+    padding: 24,
+    minHeight: 280, // Ensure minimum height for content
   },
   profileHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  profileNameContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   profileName: {
     color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '600',
+    marginBottom: 4,
   },
   profileStats: {
     flexDirection: 'row',
@@ -903,50 +935,58 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 4,
   },
   detailLabel: {
     color: '#9FA4B3',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
   },
   detailValue: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 10,
   },
   profileBio: {
     color: '#9FA4B3',
-    fontSize: 16,
-    lineHeight: 22,
-    marginBottom: 16,
+    fontSize: 18,
+    lineHeight: 26,
+    marginBottom: 20,
+    marginTop: 8,
   },
   interestsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
+    marginTop: 8,
   },
   interestTag: {
     backgroundColor: '#1A1D29',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderColor: '#23283B',
     borderWidth: 1,
+    marginBottom: 4,
   },
   interestText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
   },
   floatingActionButtons: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 50,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 20,
+    gap: 30,
     paddingHorizontal: 20,
   },
   actionButtons: {
@@ -962,16 +1002,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A1D29',
     alignItems: 'center',
     justifyContent: 'center',
-    borderColor: '#EF4444',
+    borderColor: '#DC2626',
     borderWidth: 2,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   likeButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#DC2626',
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   matchesSection: {
     backgroundColor: '#0F1220',
@@ -982,8 +1032,8 @@ const styles = StyleSheet.create({
   },
   matchesTitle: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 12,
   },
   matchesList: {
@@ -1056,9 +1106,9 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 20,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
     textAlign: 'center',
   },
   matchContent: {
@@ -1110,8 +1160,8 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     backgroundColor: '#6B7280',
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 6,
     alignItems: 'center',
   },
   cancelButtonText: {
@@ -1121,11 +1171,11 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: 6,
     overflow: 'hidden',
   },
   confirmButtonGradient: {
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   confirmButtonText: {

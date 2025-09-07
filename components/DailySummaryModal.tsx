@@ -10,7 +10,7 @@ export default function DailySummaryModal() {
 
   if (!settings.notificationsEnabled || !gameState.dailySummary) return null;
 
-  const { moneyChange, statsChange, events } = gameState.dailySummary;
+  const { moneyChange, statsChange, events, earningsBreakdown } = gameState.dailySummary;
 
   const handleClose = () => {
     // Clear the daily summary
@@ -30,7 +30,7 @@ export default function DailySummaryModal() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
             {moneyChange !== 0 && (
                 <View style={styles.section}>
                   <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Financial</Text>
@@ -47,9 +47,51 @@ export default function DailySummaryModal() {
                     <TrendingDown size={16} color="#EF4444" />
                   )}
                   <Text style={[styles.changeText, moneyChange > 0 ? styles.positiveText : styles.negativeText]}>
-                    Money: {moneyChange > 0 ? '+' : ''}${moneyChange}
+                    Money: {moneyChange > 0 ? '+' : ''}${Math.round(moneyChange)}
                   </Text>
                 </View>
+                
+                {/* Earnings Breakdown */}
+                {earningsBreakdown && (
+                  <View style={[styles.earningsBreakdown, settings.darkMode && styles.earningsBreakdownDark]}>
+                    <Text style={[styles.breakdownTitle, settings.darkMode && styles.breakdownTitleDark]}>Earnings Breakdown</Text>
+                    {earningsBreakdown.gaming > 0 && (
+                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
+                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
+                          🎮 Gaming: +${Math.round(earningsBreakdown.gaming)}
+                        </Text>
+                      </View>
+                    )}
+                    {earningsBreakdown.streaming > 0 && (
+                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
+                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
+                          📺 Streaming: +${Math.round(earningsBreakdown.streaming)}
+                        </Text>
+                      </View>
+                    )}
+                    {earningsBreakdown.salary > 0 && (
+                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
+                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
+                          💼 Salary: +${Math.round(earningsBreakdown.salary)}
+                        </Text>
+                      </View>
+                    )}
+                    {earningsBreakdown.passive > 0 && (
+                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
+                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
+                          📈 Passive Income: +${Math.round(earningsBreakdown.passive)}
+                        </Text>
+                      </View>
+                    )}
+                    {earningsBreakdown.sponsors > 0 && (
+                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
+                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
+                          🤝 Sponsors: +${Math.round(earningsBreakdown.sponsors)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             )}
 
@@ -208,5 +250,37 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  earningsBreakdown: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+  },
+  earningsBreakdownDark: {
+    backgroundColor: '#374151',
+  },
+  breakdownTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  breakdownTitleDark: {
+    color: '#D1D5DB',
+  },
+  breakdownItem: {
+    padding: 4,
+    marginBottom: 2,
+  },
+  breakdownItemDark: {
+    backgroundColor: 'transparent',
+  },
+  breakdownText: {
+    fontSize: 13,
+    color: '#374151',
+  },
+  breakdownTextDark: {
+    color: '#F9FAFB',
   },
 });
