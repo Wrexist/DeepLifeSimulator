@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Text, Animated, StyleSheet, TextStyle } from 'react-native';
 
 interface AnimatedMoneyProps {
@@ -21,6 +21,7 @@ export default function AnimatedMoney({
   useNativeDriver = false,
 }: AnimatedMoneyProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
+  const [displayValue, setDisplayValue] = React.useState(0);
   const previousValue = useRef(0);
 
   useEffect(() => {
@@ -34,11 +35,20 @@ export default function AnimatedMoney({
     Animated.timing(animatedValue, {
       toValue: endValue,
       duration: duration,
-      useNativeDriver: useNativeDriver,
+      useNativeDriver: false, // Always use false for better performance
     }).start();
     
+    // Use listener for smooth updates
+    const listener = animatedValue.addListener(({ value: currentValue }) => {
+      setDisplayValue(Math.round(currentValue));
+    });
+
     previousValue.current = endValue;
-  }, [value, duration, animatedValue, useNativeDriver]);
+
+    return () => {
+      animatedValue.removeListener(listener);
+    };
+  }, [value, duration, animatedValue]);
 
   const formatNumber = (num: number) => {
     const a = Math.floor(Math.abs(num) || 0);
@@ -72,18 +82,10 @@ export default function AnimatedMoney({
     return `${sign}${formatted}`;
   };
 
-  if (useNativeDriver) {
-    return (
-      <Animated.Text style={[styles.text, style]}>
-        {prefix}{formatNumber(value)}{suffix}
-      </Animated.Text>
-    );
-  }
-
   return (
-    <Animated.Text style={[styles.text, style]}>
-      {prefix}{formatNumber(animatedValue.__getValue())}{suffix}
-    </Animated.Text>
+    <Text style={[styles.text, style]}>
+      {prefix}{formatNumber(displayValue)}{suffix}
+    </Text>
   );
 }
 

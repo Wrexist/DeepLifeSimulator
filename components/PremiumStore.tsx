@@ -37,8 +37,8 @@ interface PremiumStoreProps {
 export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
   const [iapState, setIapState] = useState<IAPState>(iapService.getState());
   const [purchasingProduct, setPurchasingProduct] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'iap' | 'gems'>('iap');
-  const { gameState, buyGoldUpgrade } = useGame();
+  const [activeTab, setActiveTab] = useState<'iap' | 'gems' | 'perks'>('iap');
+  const { gameState, buyGoldUpgrade, setGameState } = useGame();
 
   useEffect(() => {
     const unsubscribe = iapService.addListener(setIapState);
@@ -84,6 +84,72 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
     
     buyGoldUpgrade(upgradeId);
     Alert.alert('Purchase successful', 'Your upgrade has been applied!');
+  };
+
+  const handlePerkPurchase = async (productId: string) => {
+    try {
+      setPurchasingProduct(productId);
+      
+      const result = await iapService.purchaseProduct(productId);
+      
+      if (result.success) {
+        // Apply the perk to the game state
+        const config = getProductConfig(productId);
+        if (config?.workBoost) {
+          setGameState(prev => ({
+            ...prev,
+            perks: { ...prev.perks, workBoost: true }
+          }));
+        } else if (config?.mindset) {
+          setGameState(prev => ({
+            ...prev,
+            perks: { ...prev.perks, mindset: true }
+          }));
+        } else if (config?.fastLearner) {
+          setGameState(prev => ({
+            ...prev,
+            perks: { ...prev.perks, fastLearner: true }
+          }));
+        } else if (config?.goodCredit) {
+          setGameState(prev => ({
+            ...prev,
+            perks: { ...prev.perks, goodCredit: true }
+          }));
+        } else if (config?.allPerks) {
+          setGameState(prev => ({
+            ...prev,
+            perks: { 
+              ...prev.perks, 
+              workBoost: true, 
+              mindset: true, 
+              fastLearner: true, 
+              goodCredit: true 
+            }
+          }));
+        }
+        
+        Alert.alert(
+          'Purchase Successful!',
+          'Your perk has been unlocked!',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Purchase Failed',
+          result.message || 'Something went wrong with your purchase. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Perk purchase error:', error);
+      Alert.alert(
+        'Purchase Error',
+        'An unexpected error occurred. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setPurchasingProduct(null);
+    }
   };
 
   const handleRestorePurchases = async () => {
@@ -134,6 +200,11 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
             {productId.includes('remove_ads') && <Shield size={32} color="#4ECDC4" />}
             {productId.includes('double_money') && <Zap size={32} color="#FFD93D" />}
             {productId.includes('unlimited_energy') && <Star size={32} color="#6C5CE7" />}
+            {productId.includes('work_boost') && <TrendingUp size={32} color="#10B981" />}
+            {productId.includes('mindset') && <Zap size={32} color="#F59E0B" />}
+            {productId.includes('fast_learner') && <Star size={32} color="#3B82F6" />}
+            {productId.includes('good_credit') && <Shield size={32} color="#8B5CF6" />}
+            {productId.includes('unlock_all_perks') && <Crown size={32} color="#EF4444" />}
           </View>
 
           {/* Product Info */}
@@ -178,7 +249,18 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
               styles.purchaseButton,
               hasPurchased && styles.purchasedButton
             ]}
-            onPress={() => !hasPurchased && handlePurchase(productId)}
+            onPress={() => {
+              if (!hasPurchased) {
+                // Check if this is a perk
+                const isPerk = config?.workBoost || config?.mindset || config?.fastLearner || 
+                              config?.goodCredit || config?.allPerks;
+                if (isPerk) {
+                  handlePerkPurchase(productId);
+                } else {
+                  handlePurchase(productId);
+                }
+              }
+            }}
             disabled={hasPurchased || purchasingProduct === productId}
           >
             <LinearGradient
@@ -311,21 +393,42 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
               Gem Upgrades
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'perks' && styles.activeTab]}
+            onPress={() => setActiveTab('perks')}
+          >
+            <Text style={[styles.tabText, activeTab === 'perks' && styles.activeTabText]}>
+              Perks
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Products */}
         <ScrollView style={styles.productsContainer} showsVerticalScrollIndicator={false}>
           <View style={styles.productsGrid}>
             {activeTab === 'iap' ? (
-              // IAP Products
+              // IAP Products (excluding perks and gem upgrades)
               Object.values(IAP_PRODUCTS)
-                .filter(productId => !getProductConfig(productId)?.type)
+                .filter(productId => {
+                  const config = getProductConfig(productId);
+                  return !config?.type && !config?.workBoost && !config?.mindset && 
+                         !config?.fastLearner && !config?.goodCredit && !config?.allPerks;
+                })
                 .map(productId => renderProductCard(productId))
-            ) : (
+            ) : activeTab === 'gems' ? (
               // Gem Upgrades
               Object.values(IAP_PRODUCTS)
                 .filter(productId => getProductConfig(productId)?.type === 'gem_upgrade')
                 .map(productId => renderGemUpgradeCard(productId))
+            ) : (
+              // Perks IAP
+              Object.values(IAP_PRODUCTS)
+                .filter(productId => {
+                  const config = getProductConfig(productId);
+                  return config?.workBoost || config?.mindset || config?.fastLearner || 
+                         config?.goodCredit || config?.allPerks;
+                })
+                .map(productId => renderProductCard(productId))
             )}
           </View>
         </ScrollView>

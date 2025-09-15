@@ -17,7 +17,7 @@ import { rollWeeklyEvents, WeeklyEvent } from '@/lib/events/engine';
 import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { v4 as uuidv4 } from 'uuid';
 import { showAchievementToast } from '@/components/anim/AchievementToast';
-import { scheduleDailyReminder, cancelDailyReminder, notifyAchievementUnlock, scheduleDailyGiftNotification, cancelDailyGiftNotification, sendDailyGiftAvailableNotification } from '@/utils/notifications';
+import { scheduleDailyReminder, cancelDailyReminder, notifyAchievementUnlock } from '@/utils/notifications';
 import { uploadGameState, downloadGameState, uploadLeaderboardScore } from '@/lib/progress/cloud';
 import { CacheManager } from '@/utils/cacheManager';
 import PremiumLoadingScreen from '@/components/PremiumLoadingScreen';
@@ -473,24 +473,7 @@ export interface EconomyState {
   priceIndex: number;
 }
 
-export interface DailyGift {
-  id: string;
-  type: 'money' | 'gems' | 'energy' | 'happiness' | 'health' | 'fitness' | 'reputation' | 'youth_pill';
-  amount: number;
-  name: string;
-  description: string;
-  icon: string;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  specialEffect?: string;
-}
 
-export interface DailyGiftState {
-  currentStreak: number;
-  lastClaimDate: string; // ISO date string
-  weeklyGifts: DailyGift[];
-  claimedToday: boolean;
-  showDailyGiftModal: boolean;
-}
 
 export interface GameState {
   stats: GameStats;
@@ -701,7 +684,6 @@ export interface GameState {
   showSicknessModal: boolean;
   showCureSuccessModal: boolean;
   curedDiseases: string[];
-  dailyGifts: DailyGiftState;
 }
 
 interface GameContextType {
@@ -819,13 +801,6 @@ interface GameContextType {
   claimProgressAchievement: (id: string, gold: number) => void;
   completeMinigame: (hobbyId: string, score: number) => void;
   triggerCacheClear: () => Promise<void>;
-  claimDailyGift: (dayIndex: number) => void;
-  generateWeeklyGifts: () => void;
-  checkDailyGiftEligibility: () => boolean;
-  showDailyGiftModal: () => void;
-  hideDailyGiftModal: () => void;
-  scheduleDailyGiftNotifications: () => Promise<void>;
-  cancelDailyGiftNotifications: () => Promise<void>;
 }
 
 /* ---------- Context ---------- */
@@ -2394,78 +2369,6 @@ export const initialGameState: GameState = {
     holdings: [],
     watchlist: [],
   },
-  dailyGifts: {
-    currentStreak: 0,
-    lastClaimDate: '',
-    weeklyGifts: [
-      {
-        id: 'day_1',
-        type: 'money',
-        amount: 5000,
-        name: 'Welcome Bonus',
-        description: 'Start your streak with $5,000!',
-        icon: '💰',
-        rarity: 'common',
-      },
-      {
-        id: 'day_2',
-        type: 'gems',
-        amount: 25,
-        name: 'Gem Collection',
-        description: 'Collect 25 precious gems!',
-        icon: '💎',
-        rarity: 'rare',
-      },
-      {
-        id: 'day_3',
-        type: 'energy',
-        amount: 50,
-        name: 'Energy Surge',
-        description: 'Restore 50 energy points!',
-        icon: '⚡',
-        rarity: 'epic',
-      },
-      {
-        id: 'day_4',
-        type: 'money',
-        amount: 15000,
-        name: 'Midweek Bonus',
-        description: 'Earn $15,000 for your dedication!',
-        icon: '💰',
-        rarity: 'epic',
-      },
-      {
-        id: 'day_5',
-        type: 'gems',
-        amount: 50,
-        name: 'Gem Treasure',
-        description: 'Unlock 50 valuable gems!',
-        icon: '💎',
-        rarity: 'epic',
-      },
-      {
-        id: 'day_6',
-        type: 'happiness',
-        amount: 100,
-        name: 'Pure Joy',
-        description: 'Maximum happiness boost!',
-        icon: '😊',
-        rarity: 'legendary',
-      },
-      {
-        id: 'day_7',
-        type: 'youth_pill',
-        amount: 1,
-        name: 'Youth Pill',
-        description: 'Reverse aging by 5 years!',
-        icon: '🧬',
-        rarity: 'legendary',
-        specialEffect: 'Reduces age by 5 years',
-      },
-    ],
-    claimedToday: false,
-    showDailyGiftModal: false,
-  },
 };
 
 /* ---------- Provider ---------- */
@@ -2628,8 +2531,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         setIsCacheClearing(false);
         
-        // Schedule daily gift notifications after game initialization
-        scheduleDailyGiftNotifications();
       } catch (error) {
         console.error('Failed to initialize game:', error);
         setLoadingMessage('Error loading game');
@@ -2682,7 +2583,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         achievement.completed = true;
         hasChanges = true;
         goldReward += achievement.reward ?? 1;
-        showAchievementToast(achievement.name, achievement.category, achievement.reward ?? 1);
+        // Removed achievement popup for regular achievements - only show for progress achievements
         notifyAchievementUnlock(achievement.name, achievement.reward ?? 1);
         // Achievement unlocked
       }
@@ -4683,7 +4584,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         pendingEvents: [],
         totalHappiness: nextTotalHappiness,
         weeksLived: nextWeeksLived,
-        dailySummary: prev.settings.notificationsEnabled
+        dailySummary: (Platform.OS === 'web' || prev.settings.notificationsEnabled)
           ? { moneyChange: 0, statsChange: jailResult.statsChange, events: jailResult.events }
           : undefined,
       }));
@@ -5323,40 +5224,51 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     setTimeout(() => checkAchievements(), 100);
 
-    // Commit weekly summary + stats
-    setGameState(prev => {
-      const stateWithInflation = applyWeeklyInflation(prev);
-      return {
-        ...stateWithInflation,
-        day: prev.day + 1,
-        date: newDate,
-        dailySummary: stateWithInflation.settings.notificationsEnabled
-          ? {
-              moneyChange,
-              statsChange,
-              events,
-              earningsBreakdown: {
-                gaming: gamingEarnings,
-                streaming: streamingEarnings,
-                passive: passiveIncome,
-                salary: salaryEarnings,
-                sponsors: sponsorEarnings,
-                other: 0, // Will be updated for other earnings
-              },
-            }
-          : undefined,
-        stats: updatedStats,
-        pets,
-        pendingEvents: weeklyEvents,
-        happinessZeroWeeks,
-        healthZeroWeeks,
-        healthWeeks,
-        totalHappiness: nextTotalHappiness,
-        weeksLived: nextWeeksLived,
-        jailWeeks,
-        wantedLevel,
-      };
-    });
+    // Update money immediately for better UX
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money + moneyChange,
+      },
+    }));
+
+    // Commit weekly summary + stats with a slight delay to prevent UI blocking
+    setTimeout(() => {
+      setGameState(prev => {
+        const stateWithInflation = applyWeeklyInflation(prev);
+        return {
+          ...stateWithInflation,
+          day: prev.day + 1,
+          date: newDate,
+          dailySummary: (Platform.OS === 'web' || stateWithInflation.settings.notificationsEnabled)
+            ? {
+                moneyChange,
+                statsChange,
+                events,
+                earningsBreakdown: {
+                  gaming: gamingEarnings,
+                  streaming: streamingEarnings,
+                  passive: passiveIncome,
+                  salary: salaryEarnings,
+                  sponsors: sponsorEarnings,
+                  other: 0, // Will be updated for other earnings
+                },
+              }
+            : undefined,
+          stats: updatedStats,
+          pets,
+          pendingEvents: weeklyEvents,
+          happinessZeroWeeks,
+          healthZeroWeeks,
+          healthWeeks,
+          totalHappiness: nextTotalHappiness,
+          weeksLived: nextWeeksLived,
+          jailWeeks,
+          wantedLevel,
+        };
+      });
+    }, 50);
 
     saveGame();
     } catch (error) {
@@ -5910,6 +5822,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const claimProgressAchievement = (id: string, gold: number) => {
     if (gameState.claimedProgressAchievements.includes(id)) return;
     
+    // Find the achievement data to show the popup
+    const achievement = gameState.achievements?.find(a => a.id === id);
+    if (achievement) {
+      // Show achievement popup for progress achievements
+      showAchievementToast(achievement.name, achievement.category, gold);
+    }
+    
     updateStats({ gems: gold }, false);
     setGameState(prev => ({
       ...prev,
@@ -6284,230 +6203,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     saveGame();
   };
 
-  // Daily Gift System Functions
-  const generateWeeklyGifts = useCallback(() => {
-    const weeklyGifts: DailyGift[] = [];
-    
-    // Day 1: Common reward but still valuable
-    weeklyGifts.push({
-      id: 'day_1',
-      type: 'money',
-      amount: 5000,
-      name: 'Welcome Bonus',
-      description: 'Start your streak with $5,000!',
-      icon: '💰',
-      rarity: 'common',
-    });
-    
-    // Day 2: Gems reward
-    weeklyGifts.push({
-      id: 'day_2',
-      type: 'gems',
-      amount: 25,
-      name: 'Gem Collection',
-      description: 'Collect 25 precious gems!',
-      icon: '💎',
-      rarity: 'rare',
-    });
-    
-    // Day 3: Stat boost package
-    weeklyGifts.push({
-      id: 'day_3',
-      type: 'energy',
-      amount: 50,
-      name: 'Energy Surge',
-      description: 'Restore 50 energy points!',
-      icon: '⚡',
-      rarity: 'epic',
-    });
-    
-    // Day 4: Money boost
-    weeklyGifts.push({
-      id: 'day_4',
-      type: 'money',
-      amount: 15000,
-      name: 'Midweek Bonus',
-      description: 'Earn $15,000 for your dedication!',
-      icon: '💰',
-      rarity: 'epic',
-    });
-    
-    // Day 5: Gems reward
-    weeklyGifts.push({
-      id: 'day_5',
-      type: 'gems',
-      amount: 50,
-      name: 'Gem Treasure',
-      description: 'Unlock 50 valuable gems!',
-      icon: '💎',
-      rarity: 'epic',
-    });
-    
-    // Day 6: Premium stat boost
-    weeklyGifts.push({
-      id: 'day_6',
-      type: 'happiness',
-      amount: 100,
-      name: 'Pure Joy',
-      description: 'Maximum happiness boost!',
-      icon: '😊',
-      rarity: 'legendary',
-    });
-    
-    // Day 7: Special Youth Pill
-    weeklyGifts.push({
-      id: 'day_7',
-      type: 'youth_pill',
-      amount: 1,
-      name: 'Youth Pill',
-      description: 'Reverse aging by 5 years!',
-      icon: '🧬',
-      rarity: 'legendary',
-      specialEffect: 'Reduces age by 5 years',
-    });
-    
-    setGameState(prev => ({
-      ...prev,
-      dailyGifts: {
-        ...prev.dailyGifts,
-        weeklyGifts,
-      },
-    }));
-  }, []);
-
-
-
-  const checkDailyGiftEligibility = useCallback(() => {
-    if (!gameState.dailyGifts) return true;
-    
-    const today = new Date().toDateString();
-    const lastClaim = gameState.dailyGifts.lastClaimDate;
-    
-    // If never claimed or last claim was not today
-    return !lastClaim || lastClaim !== today;
-  }, [gameState.dailyGifts?.lastClaimDate]);
-
-  const claimDailyGift = useCallback((dayIndex: number) => {
-    if (dayIndex < 0 || dayIndex >= 7) return;
-    if (!gameState.dailyGifts) return;
-    
-    const gift = gameState.dailyGifts.weeklyGifts[dayIndex];
-    if (!gift) return;
-    
-    const today = new Date().toDateString();
-    const lastClaim = gameState.dailyGifts.lastClaimDate;
-    
-    // Check if already claimed today
-    if (lastClaim === today && gameState.dailyGifts.claimedToday) {
-      return;
-    }
-    
-    // Only allow claiming the gift for the current streak day
-    // currentStreak represents how many days we've claimed (0-based)
-    // So if currentStreak is 0, we can claim day 0 (first gift)
-    // If currentStreak is 1, we can claim day 1 (second gift), etc.
-    if (dayIndex !== gameState.dailyGifts.currentStreak) {
-      return;
-    }
-    
-    // Apply the gift
-    const statsUpdate: Partial<GameStats> = {};
-    let moneyUpdate = 0;
-    let gemsUpdate = 0;
-    
-    switch (gift.type) {
-      case 'money':
-        moneyUpdate = gift.amount;
-        break;
-      case 'gems':
-        gemsUpdate = gift.amount;
-        break;
-      case 'energy':
-      case 'happiness':
-      case 'health':
-      case 'fitness':
-      case 'reputation':
-        statsUpdate[gift.type] = gift.amount;
-        break;
-      case 'youth_pill':
-        // Youth pill reduces age by 5 years
-        statsUpdate.weeksLived = Math.max(0, -5 * 52); // 5 years = 5 * 52 weeks
-        break;
-    }
-    
-    // Update game state
-    setGameState(prev => {
-      // Increment streak only if this is a new day
-      const newStreak = lastClaim === today ? prev.dailyGifts.currentStreak : prev.dailyGifts.currentStreak + 1;
-      const finalStreak = newStreak > 7 ? 1 : newStreak; // Reset to 1 after 7 days
-      
-      return {
-        ...prev,
-        stats: {
-          ...prev.stats,
-          ...statsUpdate,
-          money: prev.stats.money + moneyUpdate,
-          gems: prev.stats.gems + gemsUpdate,
-        },
-        dailyGifts: {
-          ...prev.dailyGifts,
-          currentStreak: finalStreak,
-          lastClaimDate: today,
-          claimedToday: true,
-          showDailyGiftModal: false,
-        },
-      };
-    });
-    
-    // If streak completed, generate new weekly gifts
-    if (gameState.dailyGifts && gameState.dailyGifts.currentStreak >= 6) {
-      setTimeout(() => {
-        generateWeeklyGifts();
-      }, 1000);
-    }
-    
-    saveGame();
-  }, [gameState.dailyGifts, generateWeeklyGifts, saveGame]);
-
-  const showDailyGiftModal = useCallback(() => {
-    setGameState(prev => ({
-      ...prev,
-      dailyGifts: {
-        ...prev.dailyGifts,
-        showDailyGiftModal: true,
-      },
-    }));
-  }, []);
-
-  const hideDailyGiftModal = useCallback(() => {
-    setGameState(prev => ({
-      ...prev,
-      dailyGifts: {
-        ...prev.dailyGifts,
-        showDailyGiftModal: false,
-      },
-    }));
-  }, []);
-
-  const scheduleDailyGiftNotifications = useCallback(async () => {
-    try {
-      // Schedule daily gift notification at 9 AM
-      await scheduleDailyGiftNotification(9);
-      console.log('Daily gift notifications scheduled');
-    } catch (error) {
-      console.error('Failed to schedule daily gift notifications:', error);
-    }
-  }, []);
-
-  const cancelDailyGiftNotifications = useCallback(async () => {
-    try {
-      await cancelDailyGiftNotification();
-      console.log('Daily gift notifications cancelled');
-    } catch (error) {
-      console.error('Failed to cancel daily gift notifications:', error);
-    }
-  }, []);
-
   // Apply permanent stat boosts from gold upgrades
   useEffect(() => {
     if (gameState.goldUpgrades?.energy_boost) {
@@ -6538,41 +6233,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }));
     }
   }, [gameState.goldUpgrades]);
-
-  // Schedule daily gift notifications after game initialization
-  useEffect(() => {
-    scheduleDailyGiftNotifications();
-  }, [scheduleDailyGiftNotifications]);
-
-  // Check for daily gift eligibility when app becomes active
-  useEffect(() => {
-    const checkDailyGiftEligibilityOnAppActive = () => {
-      if (!gameState.dailyGifts) return;
-      
-      const today = new Date().toDateString();
-      const lastClaim = gameState.dailyGifts.lastClaimDate;
-      
-      // If never claimed or last claim was not today, and it's been more than 24 hours
-      if (!lastClaim || lastClaim !== today) {
-        const lastClaimDate = lastClaim ? new Date(lastClaim) : new Date(0);
-        const now = new Date();
-        const hoursSinceLastClaim = (now.getTime() - lastClaimDate.getTime()) / (1000 * 60 * 60);
-        
-        // If it's been more than 20 hours since last claim, send notification
-        if (hoursSinceLastClaim >= 20) {
-          sendDailyGiftAvailableNotification();
-        }
-      }
-    };
-
-    // Check immediately when component mounts
-    checkDailyGiftEligibilityOnAppActive();
-    
-    // Set up interval to check every hour
-    const interval = setInterval(checkDailyGiftEligibilityOnAppActive, 60 * 60 * 1000);
-    
-    return () => clearInterval(interval);
-  }, [gameState.dailyGifts?.lastClaimDate]);
 
   // Warehouse functions
   const buyWarehouse = (): { success: boolean; message?: string } => {
@@ -6743,13 +6403,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         recordRelationshipAction,
         claimProgressAchievement,
         triggerCacheClear,
-        claimDailyGift,
-        generateWeeklyGifts,
-        checkDailyGiftEligibility,
-        showDailyGiftModal,
-        hideDailyGiftModal,
-        scheduleDailyGiftNotifications,
-        cancelDailyGiftNotifications,
       }}
     >
       {children}

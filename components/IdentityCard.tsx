@@ -10,7 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Gift } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp } from 'lucide-react-native';
 import {
   responsivePadding,
   responsiveFontSize,
@@ -90,7 +90,7 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
 }
 
 export default function IdentityCard() {
-  const { gameState, showDailyGiftModal, checkDailyGiftEligibility } = useGame();
+  const { gameState } = useGame();
   const { t } = useTranslation();
   const scenario = scenarios.find(s => s.id === gameState.scenarioId);
 
@@ -103,8 +103,8 @@ export default function IdentityCard() {
   const partner = gameState.relationships.find(r => r.type === 'spouse' || r.type === 'partner');
   const relationshipStatus = partner
     ? partner.type === 'spouse'
-      ? `Married to ${partner.name}`
-      : `In Relationship with ${partner.name}`
+      ? 'Married'
+      : 'In Relationship'
     : 'Single';
   const currentCareer = gameState.careers.find(c => c.id === gameState.currentJob);
   const job = currentCareer
@@ -342,26 +342,6 @@ export default function IdentityCard() {
             <Text style={[styles.listLabel, gameState.settings.darkMode && styles.listLabelDark]}>
               {t('game.weeklyModifiers')}
             </Text>
-          </View>
-          <ChevronRight size={20} color={gameState.settings.darkMode ? '#9CA3AF' : '#6B7280'} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[
-            styles.listItem, 
-            checkDailyGiftEligibility() && styles.dailyGiftAvailable
-          ]} 
-          onPress={showDailyGiftModal}
-        >
-          <View style={styles.listItemContent}>
-            <Gift size={20} color={gameState.settings.darkMode ? '#F59E0B' : '#D97706'} />
-            <Text style={[styles.listLabel, gameState.settings.darkMode && styles.listLabelDark]}>
-              Daily Gifts ({gameState.dailyGifts.currentStreak}/7)
-            </Text>
-            {gameState.dailyGifts.weeklyGifts.length > 0 && (
-              <Text style={[styles.dailyGiftPreview, gameState.settings.darkMode && styles.dailyGiftPreviewDark]}>
-                Today: {gameState.dailyGifts.weeklyGifts[gameState.dailyGifts.currentStreak]?.name || 'Unknown Gift'}
-              </Text>
-            )}
           </View>
           <ChevronRight size={20} color={gameState.settings.darkMode ? '#9CA3AF' : '#6B7280'} />
         </TouchableOpacity>
@@ -855,20 +835,6 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.lg,
     color: '#FFFFFF',
     fontWeight: '600',
-  },
-  dailyGiftAvailable: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#F59E0B',
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-  },
-  dailyGiftPreview: {
-    fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
-    marginTop: responsiveSpacing.xs,
-    fontStyle: 'italic',
-  },
-  dailyGiftPreviewDark: {
-    color: '#9CA3AF',
   },
 
   // Trait bonus styles

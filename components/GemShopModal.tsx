@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star } from 'lucide-react-native';
+import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star, Zap, Shield, Crown, CheckCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface GemShopModalProps {
@@ -12,7 +12,7 @@ interface GemShopModalProps {
 export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
   const { gameState, buyGoldUpgrade } = useGame();
   const { settings } = gameState;
-  const [tab, setTab] = useState<'upgrades' | 'store' | 'history'>('upgrades');
+  const [tab, setTab] = useState<'upgrades' | 'store' | 'history' | 'perks'>('upgrades');
 
   const items = [
     {
@@ -107,11 +107,61 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     },
   ];
 
+  const perksItems = [
+    {
+      id: 'work_boost',
+      name: 'Work Pay Boost',
+      description: '+50% earnings on all jobs',
+      price: '$1.99',
+      icon: TrendingUp,
+      value: 'workBoost',
+      owned: gameState.perks?.workBoost || false,
+    },
+    {
+      id: 'mindset',
+      name: 'Mindset',
+      description: '50% faster promotions',
+      price: '$1.99',
+      icon: Zap,
+      value: 'mindset',
+      owned: gameState.perks?.mindset || false,
+    },
+    {
+      id: 'fast_learner',
+      name: 'Fast Learner',
+      description: '50% faster education',
+      price: '$1.99',
+      icon: Star,
+      value: 'fastLearner',
+      owned: gameState.perks?.fastLearner || false,
+    },
+    {
+      id: 'good_credit',
+      name: 'Good Credit Score',
+      description: 'Higher bank interest rates',
+      price: '$1.99',
+      icon: Shield,
+      value: 'goodCredit',
+      owned: gameState.perks?.goodCredit || false,
+    },
+    {
+      id: 'unlock_all_perks',
+      name: 'Unlock All Perks',
+      description: 'Includes all perks above',
+      price: '$6.99',
+      icon: Crown,
+      value: 'unlockAll',
+      originalPrice: '$7.96',
+      savings: '12%',
+      owned: gameState.perks?.workBoost && gameState.perks?.mindset && gameState.perks?.fastLearner && gameState.perks?.goodCredit,
+    },
+  ];
+
   const storeItems = [
     {
       id: 'gems_starter',
       name: 'Starter Pack',
-      description: '500 Gems + 1 Youth Pill',
+      description: '1,000 Gems + 1 Youth Pill',
       price: '$9.99',
       icon: Gem,
       value: 'starter',
@@ -121,7 +171,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'gems_premium',
       name: 'Premium Pack',
-      description: '1,500 Gems + 3 Youth Pills + Money Multiplier',
+      description: '3,500 Gems + 3 Youth Pills + Money Multiplier',
       price: '$24.99',
       icon: Gem,
       value: 'premium',
@@ -131,7 +181,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'gems_ultimate',
       name: 'Ultimate Pack',
-      description: '5,000 Gems + 10 Youth Pills + All Permanent Upgrades',
+      description: '12,000 Gems + 10 Youth Pills + All Permanent Upgrades',
       price: '$49.99',
       icon: Star,
       value: 'ultimate',
@@ -141,7 +191,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'gems_mega',
       name: 'Mega Pack',
-      description: '15,000 Gems + Unlimited Youth Pills + Everything Unlocked',
+      description: '40,000 Gems + Unlimited Youth Pills + Everything Unlocked',
       price: '$99.99',
       icon: Star,
       value: 'mega',
@@ -228,6 +278,31 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     );
   };
 
+  const handlePerkPurchase = (item: any) => {
+    const { name, price, value, originalPrice, savings } = item;
+    
+    let message = `Purchase ${name} for ${price}?`;
+    if (originalPrice && savings) {
+      message += `\n\nOriginal: ${originalPrice}`;
+      message += `\nYou save: ${savings}`;
+    }
+    
+    Alert.alert(
+      'Confirm Perk Purchase',
+      message,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Purchase',
+          onPress: () => processPerkPurchase(value, name),
+        },
+      ]
+    );
+  };
+
   const processPurchase = (value: string, name: string) => {
     // Simulate purchase processing
     Alert.alert('Processing...', 'Please wait while we process your purchase.');
@@ -251,6 +326,29 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
         );
       } else {
         Alert.alert('Purchase Failed', result.message);
+      }
+    }, 2000);
+  };
+
+  const processPerkPurchase = (value: string, name: string) => {
+    // Simulate perk purchase processing
+    Alert.alert('Processing...', 'Please wait while we process your perk purchase.');
+    
+    // Simulate network delay
+    setTimeout(() => {
+      const result = simulatePerkPurchaseResult(value);
+      if (result.success) {
+        Alert.alert(
+          'Purchase Successful!',
+          result.message,
+          [{ text: 'Awesome!', style: 'default' }]
+        );
+      } else {
+        Alert.alert(
+          'Purchase Failed',
+          result.message,
+          [{ text: 'OK', style: 'default' }]
+        );
       }
     }, 2000);
   };
@@ -310,6 +408,41 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     }
   };
 
+  const simulatePerkPurchaseResult = (value: string) => {
+    switch (value) {
+      case 'workBoost':
+        return {
+          success: true,
+          message: 'Work Pay Boost activated!\n• +50% earnings on all jobs\n• Permanent bonus\n• Transfers to all future lives',
+        };
+      case 'mindset':
+        return {
+          success: true,
+          message: 'Mindset perk activated!\n• 50% faster promotions\n• Permanent bonus\n• Transfers to all future lives',
+        };
+      case 'fastLearner':
+        return {
+          success: true,
+          message: 'Fast Learner perk activated!\n• 50% faster education\n• Permanent bonus\n• Transfers to all future lives',
+        };
+      case 'goodCredit':
+        return {
+          success: true,
+          message: 'Good Credit Score activated!\n• Higher bank interest rates\n• Permanent bonus\n• Transfers to all future lives',
+        };
+      case 'unlockAll':
+        return {
+          success: true,
+          message: 'All Perks Unlocked!\n• Work Pay Boost\n• Mindset\n• Fast Learner\n• Good Credit Score\n\nYou now have all perks!',
+        };
+      default:
+        return {
+          success: false,
+          message: 'Unknown perk type. Please try again.',
+        };
+    }
+  };
+
   const textColor = settings.darkMode ? '#F9FAFB' : '#111827';
   const backgroundColor = settings.darkMode ? '#1F2937' : '#FFFFFF';
 
@@ -340,6 +473,12 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
                onPress={() => setTab('store')}
              >
                <Text style={[styles.tabText, tab === 'store' && styles.activeTabText]}>Store</Text>
+             </TouchableOpacity>
+             <TouchableOpacity
+               style={[styles.tab, tab === 'perks' && styles.activeTab]}
+               onPress={() => setTab('perks')}
+             >
+               <Text style={[styles.tabText, tab === 'perks' && styles.activeTabText]}>Perks</Text>
              </TouchableOpacity>
              <TouchableOpacity
                style={[styles.tab, tab === 'history' && styles.activeTab]}
@@ -502,6 +641,75 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
                                                             <Text style={styles.buyButtonText}>
                                Buy Now
                              </Text>
+                             </LinearGradient>
+                           </TouchableOpacity>
+                         </View>
+                       </View>
+                     );
+                   })}
+                 </View>
+               ) : tab === 'perks' ? (
+                 <View>
+                   <Text style={[styles.sectionTitle, { color: textColor }]}>Perks</Text>
+                   <Text style={[styles.storeSubtitle, { color: settings.darkMode ? '#9CA3AF' : '#6B7280' }]}>
+                     Unlock powerful perks to enhance your gameplay
+                   </Text>
+                   {perksItems.map(item => {
+                     const Icon = item.icon;
+                     const hasSavings = item.originalPrice && item.savings;
+                     const isOwned = item.owned;
+                     
+                     return (
+                       <View key={item.id} style={[styles.storeItemRow, hasSavings && styles.featuredItem, isOwned && styles.ownedPerk]}>
+                         <View style={styles.itemInfo}>
+                           <Icon size={24} color={isOwned ? "#10B981" : "#3B82F6"} />
+                           <View style={styles.itemDetails}>
+                             <View style={styles.storeItemHeader}>
+                               <Text style={[styles.itemName, { color: textColor }]}>{item.name}</Text>
+                               {hasSavings && (
+                                 <View style={styles.savingsBadge}>
+                                   <Text style={styles.savingsText}>SAVE {item.savings}</Text>
+                                 </View>
+                               )}
+                               {isOwned && (
+                                 <View style={styles.ownedBadge}>
+                                   <Text style={styles.ownedText}>OWNED</Text>
+                                 </View>
+                               )}
+                             </View>
+                             <Text style={[styles.itemDesc, { color: settings.darkMode ? '#9CA3AF' : '#6B7280' }]}>
+                               {item.description}
+                             </Text>
+                             {hasSavings && (
+                               <View style={styles.priceComparison}>
+                                 <Text style={[styles.originalPrice, { color: settings.darkMode ? '#9CA3AF' : '#6B7280' }]}>
+                                   {item.originalPrice}
+                                 </Text>
+                                 <Text style={[styles.finalPrice, { color: '#10B981' }]}>
+                                   {item.price}
+                                 </Text>
+                               </View>
+                             )}
+                           </View>
+                         </View>
+                         <View style={styles.itemActions}>
+                           <Text style={[styles.price, { color: hasSavings ? '#10B981' : '#3B82F6' }]}>
+                             {item.price}
+                           </Text>
+                           <TouchableOpacity
+                             style={[styles.buyButton, hasSavings && styles.featuredBuyButton, isOwned && styles.ownedButton]}
+                             onPress={() => handlePerkPurchase(item)}
+                             disabled={isOwned}
+                           >
+                             <LinearGradient
+                               colors={isOwned ? ['#10B981', '#059669'] : hasSavings ? ['#F59E0B', '#D97706'] : ['#3B82F6', '#1D4ED8']}
+                               start={{ x: 0, y: 0 }}
+                               end={{ x: 1, y: 1 }}
+                               style={styles.buyButtonGradient}
+                             >
+                               <Text style={styles.buyButtonText}>
+                                 {isOwned ? 'Owned' : 'Buy Now'}
+                               </Text>
                              </LinearGradient>
                            </TouchableOpacity>
                          </View>
@@ -906,5 +1114,79 @@ const styles = StyleSheet.create({
   benefitText: {
     fontSize: 14,
     flex: 1,
+  },
+  // Perks styles
+  perksContainer: {
+    gap: 16,
+  },
+  perkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: 'rgba(59, 130, 246, 0.02)',
+  },
+  ownedPerk: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  allPerksItem: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  perkIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  perkDetails: {
+    flex: 1,
+  },
+  perkName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  perkDesc: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  perkPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  perkStatus: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 60,
+  },
+  buyText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Owned perk styles
+  ownedBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  ownedText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  ownedButton: {
+    opacity: 0.7,
   },
 });

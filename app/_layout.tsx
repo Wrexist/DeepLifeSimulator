@@ -9,7 +9,6 @@ import { UIUXProvider } from '@/contexts/UIUXContext';
 import TopStatsBar from '@/components/TopStatsBar';
 import { OnboardingProvider } from '@/src/features/onboarding/OnboardingContext';
 import DailySummaryModal from '@/components/DailySummaryModal';
-import DailyGiftManager from '@/components/DailyGiftManager';
 import AchievementToast from '@/components/anim/AchievementToast';
 import UIUXOverlay from '@/components/UIUXOverlay';
 import SicknessModal from '@/components/SicknessModal';
@@ -17,6 +16,15 @@ import CureSuccessModal from '@/components/CureSuccessModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsivePadding } from '@/utils/scaling';
 import { useEffect } from 'react';
+
+if (__DEV__) {
+  try {
+    const { installAnimatedDriverGuard } = require('@/dev/animatedDriverGuard');
+    installAnimatedDriverGuard();
+  } catch (e) {
+    console.warn('Failed to install AnimatedDriverGuard', e);
+  }
+}
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -32,50 +40,8 @@ export default function RootLayout() {
   );
   
 }
-if (__DEV__) {
-  try {
-    const { installAnimatedDriverGuard } = require('@/dev/animatedDriverGuard');
-    installAnimatedDriverGuard();
-  } catch (e) {
-    console.warn('Failed to install AnimatedDriverGuard', e);
-  }
-}
 
 function NotificationHandler() {
-  const { showDailyGiftModal } = useGame();
-
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-
-    let Notifications: any = null;
-    
-    const setupNotificationHandlers = async () => {
-      try {
-        const module = await import('expo-notifications');
-        Notifications = module.default || module;
-        
-        // Handle notification responses (when user taps notification)
-        const subscription = Notifications.addNotificationResponseReceivedListener((response: any) => {
-          const data = response.notification.request.content.data;
-          
-          if (data?.type === 'daily-gift' && data?.action === 'open-daily-gifts') {
-            showDailyGiftModal();
-          }
-        });
-
-        return () => subscription.remove();
-      } catch (error) {
-        console.warn('Failed to setup notification handlers:', error);
-        return () => {};
-      }
-    };
-
-    const cleanup = setupNotificationHandlers();
-    return () => {
-      cleanup.then(cleanupFn => cleanupFn());
-    };
-  }, [showDailyGiftModal]);
-
   return null;
 }
 
@@ -109,7 +75,6 @@ function StatusBarWrapper({ showStatsBar, insets }: { showStatsBar: boolean; ins
         <Stack.Screen name="+not-found" />
       </Stack>
       <DailySummaryModal />
-      <DailyGiftManager />
       <AchievementToast />
       <SicknessModal />
       <CureSuccessModal />

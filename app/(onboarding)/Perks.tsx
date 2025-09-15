@@ -1,5 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated, Easing, StatusBar } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Image,
+  Dimensions,
+  Animated,
+  Easing,
+  Platform,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,11 +18,23 @@ import { useRouter } from 'expo-router';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { useGame, initialGameState } from '@/contexts/GameContext';
-import { Lock, Check, Star, TrendingUp, Heart, Zap, DollarSign, Shield, Users, Trophy, Sparkles, ArrowLeft, ArrowRight } from 'lucide-react-native';
-import { responsiveFontSize, responsivePadding, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+import {
+  Lock,
+  Check,
+  Trophy,
+  ArrowLeft,
+  ArrowRight,
+} from 'lucide-react-native';
+import {
+  responsiveFontSize,
+  responsivePadding,
+  responsiveSpacing,
+  scale,
+} from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
+const NATIVE_OK = Platform.OS !== 'web';
 
 export default function Perks() {
   const { state, setState } = useOnboarding();
@@ -19,101 +42,70 @@ export default function Perks() {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>(state.perks);
 
-  // Animations
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  // Animations (transform/opacity only)
+  const rotateAnim = useRef(new Animated.Value(0)).current;  // 0..1 → rotate
+  const fadeAnim   = useRef(new Animated.Value(0)).current;  // 0..1 → opacity
+  const slideAnim  = useRef(new Animated.Value(50)).current; // px → translateY
+  const pulseAnim  = useRef(new Animated.Value(1)).current;  // 1..1.1 → scale
 
-  // Rotating background animation
+  // Rotating background
   useEffect(() => {
-    let isMounted = true;
-    const rotateAnimation = Animated.loop(
+    const rotateLoop = Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
         duration: 30000,
         easing: Easing.linear,
-        useNativeDriver: true,
+        useNativeDriver: NATIVE_OK,
       })
     );
-    
-    if (isMounted && rotateAnimation) {
-      rotateAnimation.start();
-    }
-
-    return () => {
-      isMounted = false;
-      if (rotateAnimation) {
-        rotateAnimation.stop();
-      }
-    };
+    rotateLoop.start();
+    return () => rotateLoop.stop();
   }, [rotateAnim]);
 
-  // Fade in and slide up animation
+  // Fade in + slide up
   useEffect(() => {
-    let isMounted = true;
-    const parallelAnimation = Animated.parallel([
+    const parallel = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 1000,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: NATIVE_OK,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 1000,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: NATIVE_OK,
       }),
     ]);
-    
-    if (isMounted && parallelAnimation) {
-      parallelAnimation.start();
-    }
-
-    return () => {
-      isMounted = false;
-      if (parallelAnimation) {
-        parallelAnimation.stop();
-      }
-    };
+    parallel.start();
+    return () => parallel.stop();
   }, [fadeAnim, slideAnim]);
 
-  // Pulsing animation for the trophy
+  // Pulsing trophy
   useEffect(() => {
-    const pulseAnimation = Animated.loop(
+    const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.1,
           duration: 2000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: NATIVE_OK,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
           duration: 2000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: NATIVE_OK,
         }),
       ])
     );
-    
-    if (pulseAnimation) {
-      pulseAnimation.start();
-    }
-
-    return () => {
-      if (pulseAnimation) {
-        pulseAnimation.stop();
-      }
-    };
+    pulseLoop.start();
+    return () => pulseLoop.stop();
   }, [pulseAnim]);
 
   const toggle = (id: string) => {
-    setSelected(prev => {
-      if (prev.includes(id)) return prev.filter(p => p !== id);
-      return [...prev, id];
-    });
+    setSelected(prev => (prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]));
   };
 
   const start = async () => {
@@ -124,6 +116,7 @@ export default function Perks() {
           ? 'male'
           : 'female'
         : state.sex;
+
     const seekingGender =
       state.sexuality === 'straight'
         ? sex === 'male'
@@ -134,6 +127,7 @@ export default function Perks() {
         : sex === 'male'
         ? 'female'
         : 'male';
+
     // Map scenario item ids to actual game item ids
     const itemIdMap: Record<string, string> = {
       smartphone: 'smartphone',
@@ -142,8 +136,8 @@ export default function Perks() {
       suit: 'suit',
       gym_membership: 'gym_membership',
       bike: 'bike',
-      basic_camera: 'camera', // not present in items list; will be ignored gracefully
-      driver_license: 'driver_license', // no direct item; ignored
+      basic_camera: 'camera',
+      driver_license: 'driver_license',
     };
 
     const scenarioItems = scenario.start.items || [];
@@ -157,11 +151,9 @@ export default function Perks() {
         energy: initialGameState.stats.energy + (selected.includes('astute_planner') ? 10 : 0),
       },
       date: { ...initialGameState.date, age: scenario.start.age },
-      // Apply starting education if provided
       educations: initialGameState.educations.map(e => {
         const eduFromScenario = (scenario.start as any).education;
         if (!eduFromScenario) return e;
-        // education can be a string id or array of ids
         const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
         if (wanted.includes(e.id)) {
           return { ...e, completed: true, weeksRemaining: undefined };
@@ -179,18 +171,13 @@ export default function Perks() {
       },
       perks: selected.reduce((acc, id) => ({ ...acc, [id]: true }), {}),
       scenarioId: scenario.id,
-      // Apply starting items as owned
       items: initialGameState.items.map(i => {
-        const mappedIds = scenarioItems
-          .map(sid => itemIdMap[sid] || sid)
-          .filter(Boolean);
-        if (mappedIds.includes(i.id)) {
-          return { ...i, owned: true };
-        }
-        // special-case camera/driver_license that don't exist in items list
+        const mappedIds = scenarioItems.map(sid => itemIdMap[sid] || sid).filter(Boolean);
+        if (mappedIds.includes(i.id)) return { ...i, owned: true };
         return i;
       }),
     };
+
     const slotToUse = state.slot || 1;
     await AsyncStorage.setItem(`save_slot_${slotToUse}`, JSON.stringify({ ...newState, version: 5 }));
     await AsyncStorage.setItem('lastSlot', String(slotToUse));
@@ -201,29 +188,30 @@ export default function Perks() {
 
   const getStatIcon = (stat: string) => {
     switch (stat) {
-      case 'happiness': return Heart;
-      case 'health': return Shield;
-      case 'energy': return Zap;
-      case 'fitness': return TrendingUp;
-      case 'reputation': return Users;
-      case 'money': return DollarSign;
-      case 'Starting Money': return DollarSign;
-      case 'Income Boost': return TrendingUp;
-      default: return TrendingUp;
+      case 'happiness':   return require('lucide-react-native').Heart;
+      case 'health':      return require('lucide-react-native').Shield;
+      case 'energy':      return require('lucide-react-native').Zap;
+      case 'fitness':     return require('lucide-react-native').TrendingUp;
+      case 'reputation':  return require('lucide-react-native').Users;
+      case 'money':
+      case 'Starting Money':
+        return require('lucide-react-native').DollarSign;
+      case 'Income Boost': return require('lucide-react-native').TrendingUp;
+      default:             return require('lucide-react-native').TrendingUp;
     }
   };
 
   const getStatColor = (stat: string) => {
     switch (stat) {
-      case 'happiness': return '#EF4444';
-      case 'health': return '#10B981';
-      case 'energy': return '#F59E0B';
-      case 'fitness': return '#3B82F6';
-      case 'reputation': return '#8B5CF6';
-      case 'money': return '#F7931A';
+      case 'happiness':      return '#EF4444';
+      case 'health':         return '#10B981';
+      case 'energy':         return '#F59E0B';
+      case 'fitness':        return '#3B82F6';
+      case 'reputation':     return '#8B5CF6';
+      case 'money':
       case 'Starting Money': return '#F7931A';
-      case 'Income Boost': return '#10B981';
-      default: return '#6B7280';
+      case 'Income Boost':   return '#10B981';
+      default:               return '#6B7280';
     }
   };
 
@@ -232,12 +220,9 @@ export default function Perks() {
     outputRange: ['0deg', '360deg'],
   });
 
-
-
   const renderBenefits = (perk: typeof perks[0]) => {
     const benefits: { stat: string; value: number; type: 'stat' | 'income' | 'start' }[] = [];
-    
-    // Add stat boosts
+
     if (perk.effects.statBoosts) {
       Object.entries(perk.effects.statBoosts).forEach(([stat, value]) => {
         if (stat === 'money') {
@@ -247,48 +232,28 @@ export default function Perks() {
         }
       });
     }
-    
-    // Add income multiplier
+
     if (perk.effects.incomeMultiplier && perk.effects.incomeMultiplier > 1) {
       const percentage = Math.round((perk.effects.incomeMultiplier - 1) * 100);
       benefits.push({ stat: 'Income Boost', value: percentage, type: 'income' });
     }
-    
+
     return benefits;
   };
 
   return (
     <View style={styles.container}>
-      {/* Animated background gradients */}
-      <Animated.View
-        style={[
-          styles.backgroundGradient1,
-          {
-            transform: [{ rotate: rotateInterpolate }],
-          },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.backgroundGradient2,
-          {
-            transform: [{ rotate: rotateInterpolate }],
-          },
-        ]}
-      />
+      {/* Animated background circles */}
+      <Animated.View style={[styles.backgroundGradient1, { transform: [{ rotate: rotateInterpolate }] }]} />
+      <Animated.View style={[styles.backgroundGradient2, { transform: [{ rotate: rotateInterpolate }] }]} />
 
       {/* Main content */}
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.content, 
-          { 
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
-          }
+          styles.content,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
         ]}
       >
-
-
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -302,14 +267,14 @@ export default function Perks() {
             </LinearGradient>
           </TouchableOpacity>
           <Text style={styles.title}>Choose Perks</Text>
-          <View style={styles.placeholder} />
+          <View style={styles.backPlaceholder} />
         </View>
 
         <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           <View style={styles.scrollContent}>
-            {/* Hero section */}
+            {/* Hero */}
             <View style={styles.heroSection}>
-              <View style={styles.trophyContainer}>
+              <Animated.View style={[styles.trophyContainer, { transform: [{ scale: pulseAnim }] }]}>
                 <LinearGradient
                   colors={['#FFD700', '#FFA500']}
                   style={styles.trophyGradient}
@@ -318,7 +283,7 @@ export default function Perks() {
                 >
                   <Trophy size={40} color="#FFFFFF" />
                 </LinearGradient>
-              </View>
+              </Animated.View>
               <Text style={styles.heroTitle}>Choose Your Advantages</Text>
               <Text style={styles.heroSubtitle}>Select perks that will help you succeed</Text>
               <Text style={styles.heroSubtitle}>Choose as many perks as you want to start your journey</Text>
@@ -328,28 +293,30 @@ export default function Perks() {
             <View style={styles.perksContainer}>
               {perks
                 .sort((a, b) => {
-                  // First sort by unlock status (unlocked first)
-                  const aUnlocked = !a.unlock || (gameState.achievements || []).find(ach => ach.id === a.unlock?.achievementId)?.completed;
-                  const bUnlocked = !b.unlock || (gameState.achievements || []).find(ach => ach.id === b.unlock?.achievementId)?.completed;
-                  
-                  if (aUnlocked !== bUnlocked) {
-                    return aUnlocked ? -1 : 1;
-                  }
-                  
-                  // Then sort by rarity (least rare first)
-                  const rarityOrder = { 'Uncommon': 1, 'Rare': 2, 'Epic': 3, 'Legendary': 4 };
-                  const aRarity = rarityOrder[a.rarity as keyof typeof rarityOrder] || 0;
-                  const bRarity = rarityOrder[b.rarity as keyof typeof rarityOrder] || 0;
-                  
-                  return aRarity - bRarity;
+                  const aUnlocked =
+                    !a.unlock ||
+                    (gameState.achievements || []).find(ach => ach.id === a.unlock?.achievementId)?.completed;
+                  const bUnlocked =
+                    !b.unlock ||
+                    (gameState.achievements || []).find(ach => ach.id === b.unlock?.achievementId)?.completed;
+
+                  if (aUnlocked !== bUnlocked) return aUnlocked ? -1 : 1;
+
+                  const rarityOrder = { Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4 } as const;
+                  const aR = rarityOrder[a.rarity as keyof typeof rarityOrder] || 0;
+                  const bR = rarityOrder[b.rarity as keyof typeof rarityOrder] || 0;
+                  return aR - bR;
                 })
-                .map((perk) => {
+                .map(perk => {
                   const isSelected = selected.includes(perk.id);
-                  const isLocked = perk.unlock && !(gameState.achievements || []).find(ach => ach.id === perk.unlock?.achievementId)?.completed;
+                  const isLocked =
+                    perk.unlock &&
+                    !(gameState.achievements || []).find(ach => ach.id === perk.unlock?.achievementId)?.completed;
+
                   const benefits = renderBenefits(perk);
-                                     const statKeys = Object.keys(perk.effects.statBoosts || {});
-                   const primaryStat = statKeys.length > 0 ? statKeys[0] : 'happiness';
-                  
+                  const statKeys = Object.keys(perk.effects.statBoosts || {});
+                  const primaryStat = statKeys.length > 0 ? statKeys[0] : 'happiness';
+
                   return (
                     <TouchableOpacity
                       key={perk.id}
@@ -357,13 +324,19 @@ export default function Perks() {
                       onPress={() => !isLocked && toggle(perk.id)}
                       disabled={isLocked}
                     >
-                                           <BlurView intensity={20} style={styles.perkBlur}>
-                       <LinearGradient
-                         colors={isSelected ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : isLocked ? ['rgba(75, 85, 99, 0.6)', 'rgba(55, 65, 81, 0.6)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
-                         start={{ x: 0, y: 0 }}
-                         end={{ x: 1, y: 1 }}
-                         style={[styles.perkCard, isLocked && styles.lockedPerkCard]}
-                       >
+                      <BlurView intensity={20} style={styles.perkBlur}>
+                        <LinearGradient
+                          colors={
+                            isSelected
+                              ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
+                              : isLocked
+                              ? ['rgba(75, 85, 99, 0.6)', 'rgba(55, 65, 81, 0.6)']
+                              : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                          }
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[styles.perkCard, isLocked && styles.lockedPerkCard]}
+                        >
                           <View style={styles.perkHeader}>
                             <View style={styles.iconContainer}>
                               <LinearGradient
@@ -373,22 +346,57 @@ export default function Perks() {
                                 <Image source={perk.icon} style={styles.perkIcon} />
                               </LinearGradient>
                             </View>
-                                                       <View style={styles.perkInfo}>
-                             <View style={styles.perkTitleRow}>
-                               <Text style={[styles.perkTitle, isLocked && styles.lockedPerkTitle]}>{perk.title}</Text>
-                               <View style={[styles.rarityBadge, { backgroundColor: perk.rarity === 'Legendary' ? 'rgba(245, 158, 11, 0.2)' : perk.rarity === 'Epic' ? 'rgba(139, 92, 246, 0.2)' : perk.rarity === 'Rare' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)' }]}>
-                                 <Text style={[styles.rarityText, { color: perk.rarity === 'Legendary' ? '#F59E0B' : perk.rarity === 'Epic' ? '#8B5CF6' : perk.rarity === 'Rare' ? '#3B82F6' : '#10B981' }]}>
-                                   {perk.rarity}
-                                 </Text>
-                               </View>
-                             </View>
-                             <Text style={[styles.perkDescription, isLocked && styles.lockedPerkDescription]}>{perk.description}</Text>
-                             {perk.unlock && isLocked && (
-                               <Text style={styles.requirementText}>
-                                 🔒 Requires achievement: {perk.unlock.achievementId}
-                               </Text>
-                             )}
-                           </View>
+
+                            <View style={styles.perkInfo}>
+                              <View style={styles.perkTitleRow}>
+                                <Text style={[styles.perkTitle, isLocked && styles.lockedPerkTitle]}>
+                                  {perk.title}
+                                </Text>
+                                <View
+                                  style={[
+                                    styles.rarityBadge,
+                                    {
+                                      backgroundColor:
+                                        perk.rarity === 'Legendary'
+                                          ? 'rgba(245, 158, 11, 0.2)'
+                                          : perk.rarity === 'Epic'
+                                          ? 'rgba(139, 92, 246, 0.2)'
+                                          : perk.rarity === 'Rare'
+                                          ? 'rgba(59, 130, 246, 0.2)'
+                                          : 'rgba(16, 185, 129, 0.2)',
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.rarityText,
+                                      {
+                                        color:
+                                          perk.rarity === 'Legendary'
+                                            ? '#F59E0B'
+                                            : perk.rarity === 'Epic'
+                                            ? '#8B5CF6'
+                                            : perk.rarity === 'Rare'
+                                            ? '#3B82F6'
+                                            : '#10B981',
+                                      },
+                                    ]}
+                                  >
+                                    {perk.rarity}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <Text style={[styles.perkDescription, isLocked && styles.lockedPerkDescription]}>
+                                {perk.description}
+                              </Text>
+                              {perk.unlock && isLocked && (
+                                <Text style={styles.requirementText}>
+                                  🔒 Requires achievement: {perk.unlock.achievementId}
+                                </Text>
+                              )}
+                            </View>
+
                             {isLocked ? (
                               <Lock size={20} color="#6B7280" />
                             ) : isSelected ? (
@@ -400,13 +408,20 @@ export default function Perks() {
                             <View style={styles.benefitsContainer}>
                               {benefits.map((benefit, index) => {
                                 const Icon = getStatIcon(benefit.stat);
-                                const displayValue = benefit.type === 'start' ? `+${formatMoney(benefit.value)}` : 
-                                                   benefit.type === 'income' ? `+${benefit.value}%` : 
-                                                   `+${benefit.value}`;
-                                const displayStat = benefit.stat === 'Starting Money' ? 'Starting Money' :
-                                                   benefit.stat === 'Income Boost' ? 'Income Boost' :
-                                                   benefit.stat;
-                                
+                                const displayValue =
+                                  benefit.type === 'start'
+                                    ? `+${formatMoney(benefit.value)}`
+                                    : benefit.type === 'income'
+                                    ? `+${benefit.value}%`
+                                    : `+${benefit.value}`;
+
+                                const displayStat =
+                                  benefit.stat === 'Starting Money'
+                                    ? 'Starting Money'
+                                    : benefit.stat === 'Income Boost'
+                                    ? 'Income Boost'
+                                    : benefit.stat;
+
                                 return (
                                   <View key={index} style={styles.benefitItem}>
                                     <Icon size={16} color={getStatColor(benefit.stat)} />
@@ -425,20 +440,13 @@ export default function Perks() {
                 })}
             </View>
 
-            
-
-            {/* Bottom spacing for floating button */}
             <View style={styles.bottomSpacing} />
           </View>
         </ScrollView>
 
         {/* Floating Start Button */}
         <View style={styles.floatingButtonContainer}>
-          <TouchableOpacity
-            onPress={start}
-            style={styles.floatingButton}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity onPress={start} style={styles.floatingButton} activeOpacity={0.8}>
             <LinearGradient
               colors={['#10B981', '#059669']}
               start={{ x: 0, y: 0 }}
@@ -461,14 +469,7 @@ export default function Perks() {
                 {
                   left: `${Math.random() * 100}%`,
                   top: `${Math.random() * 100}%`,
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg'],
-                      }),
-                    },
-                  ],
+                  transform: [{ rotate: rotateInterpolate }],
                 },
               ]}
             />
@@ -484,7 +485,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
     overflow: 'hidden',
-    marginTop: -50, // Extend background to cover status bar
+    marginTop: -50,
   },
   backgroundGradient1: {
     position: 'absolute',
@@ -504,15 +505,17 @@ const styles = StyleSheet.create({
     bottom: -screenWidth / 3,
     right: -screenWidth / 3,
   },
-  content: {
-    flex: 1,
-    paddingTop: 110, // Account for status bar
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
+  content: { flex: 1, paddingTop: 110 },
+  scrollContainer: { flex: 1 },
+  scrollContent: { paddingBottom: 40 },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: responsivePadding.large,
+    paddingTop: responsiveSpacing.lg,
+    paddingBottom: responsiveSpacing.lg,
   },
   backButton: {
     borderRadius: 12,
@@ -531,50 +534,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  placeholder: {
-    width: 48,
-  },
-  bottomSpacing: {
-    height: 120, // Space for floating button
-  },
-  floatingButtonContainer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
-    zIndex: 10,
-  },
-  floatingButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  floatingButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  floatingButtonText: {
-    color: '#FFFFFF',
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: responsivePadding.large,
-    paddingTop: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.lg,
-  },
+  backPlaceholder: { width: 48 },
+
   title: {
     fontSize: responsiveFontSize['3xl'],
     fontWeight: 'bold',
@@ -586,9 +547,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flex: 1,
   },
-  placeholder: {
-    width: 48,
-  },
+
   subtitle: {
     fontSize: responsiveFontSize.lg,
     color: '#E5E7EB',
@@ -597,15 +556,14 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
+
   heroSection: {
     alignItems: 'center',
     paddingHorizontal: responsivePadding.large,
     marginBottom: responsiveSpacing['2xl'],
     marginTop: responsiveSpacing.lg,
   },
-  trophyContainer: {
-    marginBottom: 20,
-  },
+  trophyContainer: { marginBottom: 20 },
   trophyGradient: {
     width: 100,
     height: 100,
@@ -634,6 +592,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
+
   perksContainer: {
     gap: responsiveSpacing.lg,
     paddingHorizontal: responsivePadding.large,
@@ -648,154 +607,58 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
   },
-  perkBlur: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  perkCard: {
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  perkHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
+  perkBlur: { borderRadius: 16, overflow: 'hidden' },
+  perkCard: { padding: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+
+  perkHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    width: 60, height: 60, borderRadius: 12, overflow: 'hidden', marginRight: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   iconGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  perkIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-  },
-  perkInfo: {
-    flex: 1,
-  },
-  perkTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  perkTitle: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    flex: 1,
-  },
+  perkIcon: { width: 40, height: 40, borderRadius: 8 },
+  perkInfo: { flex: 1 },
+  perkTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  perkTitle: { fontSize: responsiveFontSize.xl, fontWeight: 'bold', color: '#FFFFFF', flex: 1 },
   rarityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginLeft: 8,
+    borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  rarityText: {
-    fontSize: responsiveFontSize.xs,
-    fontWeight: 'bold',
-  },
-     perkDescription: {
-     fontSize: responsiveFontSize.base,
-     color: '#D1D5DB',
-     lineHeight: 20,
-     marginBottom: 8,
-   },
-   lockedPerkCard: {
-     opacity: 0.6,
-   },
-   lockedPerkTitle: {
-     color: '#9CA3AF',
-   },
-   lockedPerkDescription: {
-     color: '#9CA3AF',
-   },
-  requirementText: {
-    fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  benefitsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
+  rarityText: { fontSize: responsiveFontSize.xs, fontWeight: 'bold' },
+
+  perkDescription: { fontSize: responsiveFontSize.base, color: '#D1D5DB', lineHeight: 20, marginBottom: 8 },
+  lockedPerkCard: { opacity: 0.6 },
+  lockedPerkTitle: { color: '#9CA3AF' },
+  lockedPerkDescription: { color: '#9CA3AF' },
+
+  requirementText: { fontSize: responsiveFontSize.sm, color: '#6B7280', fontStyle: 'italic' },
+
+  benefitsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+    borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  benefitText: {
-    fontSize: responsiveFontSize.sm,
-    fontWeight: '600',
-    marginLeft: 4,
+  benefitText: { fontSize: responsiveFontSize.sm, fontWeight: '600', marginLeft: 4 },
+
+  bottomSpacing: { height: 120 },
+
+  floatingButtonContainer: { position: 'absolute', bottom: 30, left: 20, right: 20, zIndex: 10 },
+  floatingButton: {
+    borderRadius: 16, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3, shadowRadius: 16, elevation: 12,
   },
-  
-  startButton: {
-    marginHorizontal: 20,
-    marginBottom: 40,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+  floatingButtonGradient: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 18, paddingHorizontal: 24, gap: 12,
   },
-  startButtonBlur: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  startButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  startButtonText: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginLeft: 8,
-  },
-  particlesContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    pointerEvents: 'none',
-  },
-  particle: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
-    borderRadius: 2,
-  },
+  floatingButtonText: { color: '#FFFFFF', fontSize: responsiveFontSize.xl, fontWeight: '700', textAlign: 'center' },
+
+  particlesContainer: { position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none' },
+  particle: { position: 'absolute', width: 4, height: 4, backgroundColor: 'rgba(59,130,246,0.3)', borderRadius: 2 },
 });

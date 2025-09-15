@@ -4,6 +4,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsProgress from '@/components/AchievementsProgress';
 import WeeklyEventModal from '@/components/WeeklyEventModal';
+import DailySummaryModal from '@/components/DailySummaryModal';
 import IdentityCard from '@/components/IdentityCard';
 import DeathPopup from '@/components/DeathPopup';
 import ZeroStatPopup from '@/components/ZeroStatPopup';
@@ -36,6 +37,7 @@ export default function HomeScreen() {
 
 
       {gameState.pendingEvents.length > 0 && <WeeklyEventModal />}
+      <DailySummaryModal />
       {gameState.showZeroStatPopup && !gameState.dailySummary && <ZeroStatPopup />}
       {gameState.showDeathPopup && <DeathPopup />}
     </View>

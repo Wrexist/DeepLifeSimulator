@@ -14,7 +14,7 @@
       }
     },
     "owner": "isacm",
-    "version": "1.4.1",
+    "version": "1.5.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -24,7 +24,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.deeplife.simulator",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to the camera so you can upload a profile picture.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library so you can select images.",

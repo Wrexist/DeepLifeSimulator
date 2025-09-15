@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { X, TrendingUp, TrendingDown } from 'lucide-react-native';
 import WeeklyResultSheet from './WeeklyResultSheet';
@@ -8,16 +8,20 @@ export default function DailySummaryModal() {
   const { gameState, setGameState } = useGame();
   const { settings } = gameState;
 
-  if (!settings.notificationsEnabled || !gameState.dailySummary) return null;
+  // Show week summary on web regardless of notifications setting, or on mobile if notifications are enabled
+  const shouldShowModal = Platform.OS === 'web' ? true : settings.notificationsEnabled;
+  if (!shouldShowModal || !gameState.dailySummary) return null;
 
   const { moneyChange, statsChange, events, earningsBreakdown } = gameState.dailySummary;
 
   const handleClose = () => {
-    // Clear the daily summary
-    setGameState(prev => ({
-      ...prev,
-      dailySummary: undefined,
-    }));
+    // Clear the daily summary with a small delay to ensure it was visible
+    setTimeout(() => {
+      setGameState(prev => ({
+        ...prev,
+        dailySummary: undefined,
+      }));
+    }, 100);
   };
 
   return (

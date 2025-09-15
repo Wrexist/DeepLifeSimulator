@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, Text, ViewStyle } from 'react-native';
+import { View, Animated, StyleSheet, Text, ViewStyle, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const NATIVE_OK = Platform.OS !== 'web';
 
 interface ProgressIndicatorProps {
   progress: number; // 0-100
@@ -27,40 +29,33 @@ export default function ProgressIndicator({
   style,
   label,
 }: ProgressIndicatorProps) {
-  const animatedProgress = useRef(new Animated.Value(0)).current;
+  // 0..1 value; we animate transform:scaleX (native-safe)
+  const value = useRef(new Animated.Value(0)).current;
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    const clamped = Math.max(0, Math.min(100, progress)) / 100; // 0..1
     if (animated) {
-      Animated.timing(animatedProgress, {
-        toValue: progress / 100, // 0..1
+      Animated.timing(value, {
+        toValue: clamped,
         duration,
-        useNativeDriver: true, // ✅ transform → native driver OK
+        useNativeDriver: NATIVE_OK, // native on iOS/Android, JS on web
       }).start();
     } else {
-      animatedProgress.setValue(progress / 100);
+      value.setValue(clamped);
     }
-  }, [progress, animated, duration, animatedProgress]);
+  }, [progress, animated, duration, value]);
 
   useEffect(() => {
-    if (animated) {
-      const shimmerAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(shimmerAnim, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(shimmerAnim, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      shimmerAnimation.start();
-      return () => shimmerAnimation.stop();
-    }
+    if (!animated) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, { toValue: 1, duration: 1500, useNativeDriver: NATIVE_OK }),
+        Animated.timing(shimmerAnim, { toValue: 0, duration: 1500, useNativeDriver: NATIVE_OK }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
   }, [animated, shimmerAnim]);
 
   const translateX = shimmerAnim.interpolate({
@@ -68,60 +63,28 @@ export default function ProgressIndicator({
     outputRange: [-100, 100],
   });
 
-  // ✅ scaleX driver i stället för width
-  const scaleX = animatedProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
+  // scaleX 0..1 instead of width interpolation
+  const scaleX = value;
 
   return (
     <View style={[styles.container, style]}>
       {label && (
         <View style={styles.labelContainer}>
           <Text style={styles.label}>{label}</Text>
-          {showPercentage && (
-            <Text style={styles.percentage}>{Math.round(progress)}%</Text>
-          )}
+          {showPercentage && <Text style={styles.percentage}>{Math.round(progress)}%</Text>}
         </View>
       )}
 
-      <View
-        style={[
-          styles.track,
-          {
-            height,
-            width,
-            backgroundColor,
-          },
-        ]}
-      >
-        <Animated.View
-          style={[
-            styles.progress,
-            {
-              width: '100%', // basbredd
-              height,
-              transform: [{ scaleX }], // ✅ här sker animationen
-            },
-          ]}
-        >
+      <View style={[styles.track, { height, width, backgroundColor }]}>
+        <Animated.View style={[styles.progress, { width: '100%', height, transform: [{ scaleX }] }]}>
           <LinearGradient
             colors={color}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
           />
-
           {animated && (
-            <Animated.View
-              style={[
-                styles.shimmer,
-                {
-                  transform: [{ translateX }],
-                },
-              ]}
-            />
+            <Animated.View style={[styles.shimmer, { transform: [{ translateX }] }]} />
           )}
         </Animated.View>
       </View>
@@ -129,7 +92,7 @@ export default function ProgressIndicator({
   );
 }
 
-// Circular progress indicator
+/** Circular progress (simple faux ring). JS driver by design (layout-like). */
 interface CircularProgressProps {
   progress: number; // 0-100
   size?: number;
@@ -154,49 +117,48 @@ export function CircularProgress({
   style,
 }: CircularProgressProps) {
   const animatedProgress = useRef(new Animated.Value(0)).current;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
 
   useEffect(() => {
+    const clamped = Math.max(0, Math.min(100, progress));
     if (animated) {
       Animated.timing(animatedProgress, {
-        toValue: progress,
+        toValue: clamped,
         duration,
-        useNativeDriver: false, // strokeDashoffset kräver layout → false
+        useNativeDriver: false, // stroke/size-like behavior → JS driver
       }).start();
     } else {
-      animatedProgress.setValue(progress);
+      animatedProgress.setValue(clamped);
     }
   }, [progress, animated, duration, animatedProgress]);
 
-  const strokeDashoffset = animatedProgress.interpolate({
-    inputRange: [0, 100],
-    outputRange: [circumference, 0],
-    extrapolate: 'clamp',
-  });
-
   return (
     <View style={[styles.circularContainer, { width: size, height: size }, style]}>
-      <View style={styles.circularTrack}>
-        <Animated.View
-          style={[
-            styles.circularProgress,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              borderWidth: strokeWidth,
-              borderColor: color,
-              borderTopColor: color,
-              borderRightColor: color,
-              borderBottomColor: 'transparent',
-              borderLeftColor: 'transparent',
-              transform: [{ rotate: '-90deg' }],
-            },
-          ]}
-        />
-      </View>
-
+      <View
+        style={[
+          styles.circularTrack,
+          { borderWidth: strokeWidth, borderRadius: size / 2, borderColor: backgroundColor },
+        ]}
+      />
+      <View
+        style={[
+          styles.circularProgress,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: strokeWidth,
+            borderColor: color,
+            borderTopColor: color,
+            borderRightColor: color,
+            borderBottomColor: 'transparent',
+            borderLeftColor: 'transparent',
+            transform: [{ rotate: '-90deg' }],
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          },
+        ]}
+      />
       {showPercentage && (
         <View style={styles.percentageContainer}>
           <Text style={styles.circularPercentage}>{Math.round(progress)}%</Text>
@@ -206,26 +168,27 @@ export function CircularProgress({
   );
 }
 
-// Loading spinner
-export function LoadingSpinner({ size = 40, color = '#3B82F6', style }: { size?: number; color?: string; style?: ViewStyle }) {
-  const spinAnim = useRef(new Animated.Value(0)).current;
+/** Loading spinner (transform rotate). Native on device, JS on web. */
+export function LoadingSpinner({
+  size = 40,
+  color = '#3B82F6',
+  style,
+}: {
+  size?: number;
+  color?: string;
+  style?: ViewStyle;
+}) {
+  const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const spinAnimation = Animated.loop(
-      Animated.timing(spinAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      })
+    const anim = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 1000, useNativeDriver: NATIVE_OK })
     );
-    spinAnimation.start();
-    return () => spinAnimation.stop();
-  }, [spinAnim]);
+    anim.start();
+    return () => anim.stop();
+  }, [spin]);
 
-  const rotate = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
     <View style={[styles.spinnerContainer, { width: size, height: size }, style]}>
@@ -248,35 +211,17 @@ export function LoadingSpinner({ size = 40, color = '#3B82F6', style }: { size?:
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
+  container: { width: '100%' },
   labelContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  percentage: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  track: {
-    borderRadius: 4,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  progress: {
-    borderRadius: 4,
-    overflow: 'hidden',
-    position: 'relative',
-  },
+  label: { fontSize: 14, fontWeight: '500', color: '#374151' },
+  percentage: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  track: { borderRadius: 4, overflow: 'hidden', position: 'relative' },
+  progress: { borderRadius: 4, overflow: 'hidden', position: 'relative' },
   shimmer: {
     position: 'absolute',
     top: 0,
@@ -286,36 +231,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     width: '50%',
   },
-  circularContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  circularTrack: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: 50,
-    borderWidth: 8,
-    borderColor: '#E5E7EB',
-  },
-  circularProgress: {
-    position: 'absolute',
-  },
-  percentageContainer: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  circularPercentage: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  spinnerContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  spinner: {
-    borderStyle: 'solid',
-  },
+
+  circularContainer: { justifyContent: 'center', alignItems: 'center' },
+  circularTrack: { position: 'absolute', width: '100%', height: '100%' },
+  circularProgress: { position: 'absolute' },
+  percentageContainer: { position: 'absolute', justifyContent: 'center', alignItems: 'center' },
+  circularPercentage: { fontSize: 16, fontWeight: '600', color: '#374151' },
+
+  spinnerContainer: { justifyContent: 'center', alignItems: 'center' },
+  spinner: { borderStyle: 'solid' },
 });
