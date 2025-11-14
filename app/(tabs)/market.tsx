@@ -1,17 +1,93 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { ShoppingBag, Dumbbell, Apple } from 'lucide-react-native';
 import OptimizedFlatList from '@/components/OptimizedFlatList';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
+import { useToast } from '@/contexts/ToastContext';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import LoadingButton from '@/components/ui/LoadingButton';
+import InfoButton from '@/components/ui/InfoButton';
 
 export default function MarketScreen() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym'>('items');
   const { gameState, buyItem, sellItem, buyFood, updateStats } = useGame();
+  const { highlightedItem, highlightMessage, clearHighlight } = useTutorialHighlight();
   const { settings } = gameState;
+  const { showSuccess, showError, showInfo } = useToast();
+  const flatListRef = useRef<any>(null);
+  const [showSellConfirm, setShowSellConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
+  const [showPurchaseConfirm, setShowPurchaseConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
+  const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
+
+  const setLoading = (key: string, loading: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [key]: loading }));
+  };
+
+  const handlePurchase = async (itemId: string, itemName: string) => {
+    setLoading(itemId, true);
+    try {
+      // Simulate network delay for realistic feel
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if player can still afford it (in case something changed)
+      const item = gameState.items.find(i => i.id === itemId);
+      if (!item || !canAfford(item.price)) {
+        showError("Can't afford this item");
+        setLoading(itemId, false);
+        return;
+      }
+      
+      // buyItem doesn't return a value, so we check if the purchase worked by checking if item is owned after
+      buyItem(itemId);
+      
+      // Give a small delay for state to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      showSuccess(`Purchased ${itemName}!`);
+    } catch (error) {
+      showError("Purchase failed");
+    } finally {
+      setLoading(itemId, false);
+    }
+  };
+
+  const handleSell = async (itemId: string, itemName: string) => {
+    setLoading(itemId, true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const sellPrice = parseFloat((getInflatedPrice(
+        gameState.items.find(i => i.id === itemId)?.price || 0, 
+        gameState.economy?.priceIndex ?? 1
+      ) * 0.5).toFixed(2));
+      
+      sellItem(itemId);
+      showInfo(`Sold ${itemName} for $${sellPrice}`);
+    } catch (error) {
+      showError("Sale failed");
+    } finally {
+      setLoading(itemId, false);
+    }
+  };
+
+  
+
+  // Clear highlight when highlighted item is purchased
+  React.useEffect(() => {
+    if (highlightedItem && gameState.items.find(item => item.id === highlightedItem)?.owned) {
+      clearHighlight();
+    }
+  }, [gameState.items, highlightedItem, clearHighlight]);
+  
+  // Scroll indicator state
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [contentHeight, setContentHeight] = useState(0);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
   // Memoized data
   const sortedItems = useMemo(() => 
@@ -24,53 +100,106 @@ export default function MarketScreen() {
     [gameState.foods]
   );
 
+  // Auto-switch to items tab if tutorial is highlighting an item
+  React.useEffect(() => {
+    if (highlightedItem && highlightedItem !== 'stock-app') {
+      setActiveTab('items');
+      // Scroll to highlighted item after a delay
+      setTimeout(() => {
+        if (flatListRef.current && highlightedItem) {
+          const itemIndex = sortedItems.findIndex(item => item.id === highlightedItem);
+          if (itemIndex !== -1) {
+            flatListRef.current.scrollToOffset({
+              offset: itemIndex * 120, // 120 is itemHeight
+              animated: true
+            });
+          }
+        }
+      }, 300);
+    }
+  }, [highlightedItem, sortedItems]);
+
   // Memoized render functions
-  const renderItem = useCallback(({ item }: { item: any }) => (
-    <View key={item.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
-      <View style={styles.itemInfo}>
-        <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{item.name}</Text>
-        {item.description && (
-          <Text style={[styles.itemDescription, settings.darkMode && styles.itemDescriptionDark]}>
-            {item.description}
-          </Text>
-        )}
-        <Text style={styles.itemPrice}>${item.price}</Text>
-        
-        {item.dailyBonus && (
-          <View style={styles.bonusInfo}>
-            <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.dailyBonus')}</Text>
-            {Object.entries(item.dailyBonus).map(([stat, bonus]) => (
-              <Text key={stat} style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>
-                +{String(bonus)} {stat.charAt(0).toUpperCase() + stat.slice(1)}
-              </Text>
-            ))}
-          </View>
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    const isHighlighted = highlightedItem === item.id;
+    
+    return (
+      <View key={item.id} style={[
+        styles.itemCard, 
+        settings.darkMode && styles.itemCardDark,
+        isHighlighted && styles.highlightedCard
+      ]}>
+        <View style={styles.itemInfo}>
+          <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{item.name}</Text>
+          {item.description && (
+            <Text style={[styles.itemDescription, settings.darkMode && styles.itemDescriptionDark]}>
+              {item.description}
+            </Text>
+          )}
+          <Text style={styles.itemPrice}>${item.price}</Text>
+          
+          {item.dailyBonus && (
+            <View style={styles.bonusInfo}>
+              <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.dailyBonus')}</Text>
+              {Object.entries(item.dailyBonus).map(([stat, bonus]) => (
+                <Text key={stat} style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>
+                  +{String(bonus)} {stat.charAt(0).toUpperCase() + stat.slice(1)}
+                </Text>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {item.owned ? (
+          <LoadingButton
+            onPress={() => {
+              const sellPrice = parseFloat((getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5).toFixed(2));
+              const importantItems = ['computer', 'smartphone', 'suit'];
+              
+              // Show confirmation for important items or expensive items (>$500)
+              if (importantItems.includes(item.id) || sellPrice > 500) {
+                setShowSellConfirm({ itemId: item.id, itemName: item.name, price: sellPrice });
+              } else {
+                handleSell(item.id, item.name);
+              }
+            }}
+            title={`Sell ($${(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5).toFixed(2)})`}
+            loading={loadingStates[item.id] || false}
+            variant="secondary"
+            size="small"
+            style={styles.sellButton}
+            loadingText="Selling..."
+          />
+        ) : (
+          <LoadingButton
+            onPress={() => {
+              const itemPrice = getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1);
+              
+              // Check if can afford before doing anything
+              if (!canAfford(item.price)) {
+                showError("Can't afford this item");
+                return;
+              }
+              
+              // Show confirmation for expensive items (>$1000)
+              if (itemPrice > 1000) {
+                setShowPurchaseConfirm({ itemId: item.id, itemName: item.name, price: itemPrice });
+              } else {
+                handlePurchase(item.id, item.name);
+              }
+            }}
+            title={t('market.buy')}
+            loading={loadingStates[item.id] || false}
+            disabled={!canAfford(item.price)}
+            variant="success"
+            size="small"
+            style={styles.buyButton}
+            loadingText="Buying..."
+          />
         )}
       </View>
-
-      {item.owned ? (
-        <TouchableOpacity
-          style={styles.sellButton}
-          onPress={() => sellItem(item.id)}
-        >
-          <Text style={styles.sellButtonText}>
-            Sell (${(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5).toFixed(2)})
-          </Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity onPress={() => buyItem(item.id)} disabled={!canAfford(item.price)}>
-          <LinearGradient
-            colors={canAfford(item.price) ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.buyButton}
-          >
-            <Text style={[styles.buyButtonText, !canAfford(item.price) && styles.disabledButtonText]}>{t('market.buy')}</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      )}
-    </View>
-  ), [settings.darkMode, gameState.economy?.priceIndex, sellItem, buyItem]);
+    );
+  }, [settings.darkMode, gameState.economy?.priceIndex, sellItem, buyItem, highlightedItem, highlightMessage]);
 
   const renderFood = useCallback(({ item: food }: { item: any }) => (
     <View key={food.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
@@ -85,16 +214,21 @@ export default function MarketScreen() {
         </View>
       </View>
 
-      <TouchableOpacity onPress={() => buyFood(food.id)} disabled={!canAfford(food.price)}>
-        <LinearGradient
-          colors={canAfford(food.price) ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.buyButton}
-        >
-          <Text style={[styles.buyButtonText, !canAfford(food.price) && styles.disabledButtonText]}>{t('market.buy')}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+      <LoadingButton
+        onPress={() => {
+          if (canAfford(food.price)) {
+            buyFood(food.id);
+            showSuccess(`Ate ${food.name}! +${food.healthRestore} health, +${food.happinessRestore} happiness`);
+          } else {
+            showError("Can't afford this food");
+          }
+        }}
+        title={t('market.buy')}
+        disabled={!canAfford(food.price)}
+        variant="success"
+        size="small"
+        style={styles.buyButton}
+      />
     </View>
   ), [settings.darkMode, buyFood]);
 
@@ -117,36 +251,66 @@ export default function MarketScreen() {
   const canAfford = (price: number) => gameState.stats.money >= price;
   const canUseGym = gameState.stats.money >= 50 && gameState.stats.energy >= 20;
 
+  // Calculate scroll indicator position
+  const scrollIndicatorHeight = Math.max(20, (scrollViewHeight / contentHeight) * scrollViewHeight);
+  const scrollIndicatorTop = contentHeight > scrollViewHeight 
+    ? (scrollY._value / (contentHeight - scrollViewHeight)) * (scrollViewHeight - scrollIndicatorHeight)
+    : 0;
+
     return (
       <View style={[styles.container, settings.darkMode && styles.containerDark]}>
         <View style={[styles.tabContainer, settings.darkMode && styles.tabContainerDark]}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'items' && styles.activeTab]}
-          onPress={() => setActiveTab('items')}
-        >
-          <ShoppingBag size={18} color={activeTab === 'items' ? '#FFFFFF' : '#6B7280'} />
-            <Text style={[styles.tabText, activeTab === 'items' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-            {t('market.items')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'food' && styles.activeTab]}
-          onPress={() => setActiveTab('food')}
-        >
-          <Apple size={18} color={activeTab === 'food' ? '#FFFFFF' : '#6B7280'} />
-            <Text style={[styles.tabText, activeTab === 'food' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-            {t('market.food')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'gym' && styles.activeTab]}
-          onPress={() => setActiveTab('gym')}
-        >
-          <Dumbbell size={18} color={activeTab === 'gym' ? '#FFFFFF' : '#6B7280'} />
-            <Text style={[styles.tabText, activeTab === 'gym' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-            {t('market.gym')}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.tabWithInfo}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'items' && styles.activeTab]}
+            onPress={() => setActiveTab('items')}
+          >
+            <ShoppingBag size={18} color={activeTab === 'items' ? '#FFFFFF' : '#6B7280'} />
+              <Text style={[styles.tabText, activeTab === 'items' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
+              {t('market.items')}
+            </Text>
+          </TouchableOpacity>
+          <InfoButton
+            title="Market Items"
+            content="Buy essential items to improve your life! Computer unlocks mobile apps, smartphone gives you access to banking and social features, and other items provide various benefits."
+            size="small"
+            darkMode={settings.darkMode}
+          />
+        </View>
+        <View style={styles.tabWithInfo}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'food' && styles.activeTab]}
+            onPress={() => setActiveTab('food')}
+          >
+            <Apple size={18} color={activeTab === 'food' ? '#FFFFFF' : '#6B7280'} />
+              <Text style={[styles.tabText, activeTab === 'food' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
+              {t('market.food')}
+            </Text>
+          </TouchableOpacity>
+          <InfoButton
+            title="Food & Health"
+            content="Buy food to restore your health and energy! Different foods provide different amounts of health and energy restoration. Keep your character healthy to avoid penalties!"
+            size="small"
+            darkMode={settings.darkMode}
+          />
+        </View>
+        <View style={styles.tabWithInfo}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'gym' && styles.activeTab]}
+            onPress={() => setActiveTab('gym')}
+          >
+            <Dumbbell size={18} color={activeTab === 'gym' ? '#FFFFFF' : '#6B7280'} />
+              <Text style={[styles.tabText, activeTab === 'gym' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
+              {t('market.gym')}
+            </Text>
+          </TouchableOpacity>
+          <InfoButton
+            title="Gym Training"
+            content="Train at the gym to increase your fitness, health, and happiness! Each session costs $50 and provides +5 fitness, +3 health, and +2 happiness. Higher fitness unlocks better career opportunities."
+            size="small"
+            darkMode={settings.darkMode}
+          />
+        </View>
       </View>
 
         <View style={[styles.content, settings.darkMode && styles.contentDark]}>
@@ -156,6 +320,7 @@ export default function MarketScreen() {
                 {t('market.purchaseItems')}
               </Text>
               <OptimizedFlatList
+                ref={flatListRef}
                 data={sortedItems}
                 renderItem={renderItem}
                 itemHeight={120}
@@ -185,10 +350,22 @@ export default function MarketScreen() {
               />
             </View>
         ) : (
-          <View>
+          <View style={{ flex: 1, position: 'relative' }}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                { useNativeDriver: false }
+              )}
+              onContentSizeChange={(width, height) => setContentHeight(height)}
+              onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
+              scrollEventThrottle={16}
+            >
               <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-              {t('market.trainGym')}
-            </Text>
+                {t('market.trainGym')}
+              </Text>
 
               <View style={[styles.gymCard, settings.darkMode && styles.gymCardDark]}>
                 <View style={styles.gymHeader}>
@@ -216,27 +393,108 @@ export default function MarketScreen() {
                   <Text style={styles.cost}>$50 + 20 {t('game.energy')}</Text>
                 </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.gymButton,
-                  !canUseGym && styles.disabledButton
-                ]}
-                onPress={handleGym}
-                disabled={!canUseGym}
-              >
-                <Text style={[
-                  styles.gymButtonText,
-                  !canUseGym && styles.disabledButtonText
-                ]}>
-                  {gameState.stats.money < 50 ? t('market.notEnoughMoney') :
-                   gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
-                   t('market.startWorkout')}
+                <LoadingButton
+                  onPress={handleGym}
+                  disabled={!canUseGym}
+                  title={
+                    gameState.stats.money < 50 ? t('market.notEnoughMoney') :
+                    gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
+                    t('market.startWorkout')
+                  }
+                  variant="primary"
+                  size="medium"
+                  style={styles.gymButton}
+                />
+              </View>
+
+              {/* Additional gym content to make it scrollable */}
+              <View style={[styles.gymCard, settings.darkMode && styles.gymCardDark]}>
+                <Text style={[styles.gymTitle, settings.darkMode && styles.gymTitleDark]}>💪 Workout Tips</Text>
+                <Text style={[styles.gymDescription, settings.darkMode && styles.gymDescriptionDark]}>
+                  • Warm up before exercising to prevent injuries{'\n'}
+                  • Stay hydrated during your workout{'\n'}
+                  • Listen to your body and don't overexert yourself{'\n'}
+                  • Consistency is key - regular workouts are better than intense sporadic sessions{'\n'}
+                  • Mix cardio and strength training for best results{'\n'}
+                  • Get enough rest between workout sessions{'\n'}
+                  • Proper nutrition fuels your fitness journey
                 </Text>
-              </TouchableOpacity>
-            </View>
+              </View>
+
+              <View style={[styles.gymCard, settings.darkMode && styles.gymCardDark]}>
+                <Text style={[styles.gymTitle, settings.darkMode && styles.gymTitleDark]}>🏆 Fitness Goals</Text>
+                <Text style={[styles.gymDescription, settings.darkMode && styles.gymDescriptionDark]}>
+                  Set realistic fitness goals and track your progress. Remember that fitness is a journey, not a destination. Every workout session brings you closer to your goals!
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Scroll Indicator */}
+            {contentHeight > scrollViewHeight && (
+              <View style={styles.scrollIndicatorContainer}>
+                <View style={[styles.scrollBar, settings.darkMode && styles.scrollBarDark]}>
+                  <Animated.View
+                    style={[
+                      styles.scrollThumb,
+                      settings.darkMode && styles.scrollThumbDark,
+                      {
+                        height: scrollIndicatorHeight,
+                        transform: [{ translateY: scrollIndicatorTop }]
+                      }
+                    ]}
+                  />
+                </View>
+              </View>
+            )}
           </View>
         )}
       </View>
+
+      {/* Sell Confirmation Dialog */}
+      {showSellConfirm && (
+        <ConfirmDialog
+          visible={true}
+          title={`Sell ${showSellConfirm.itemName}?`}
+          message={
+            showSellConfirm.itemId === 'computer'
+              ? `Are you sure you want to sell your ${showSellConfirm.itemName} for $${showSellConfirm.price}?\n\nDon't worry - all your data (crypto, stocks, real estate, etc.) will be preserved and restored if you buy another computer later.`
+              : showSellConfirm.itemId === 'smartphone'
+              ? `Are you sure you want to sell your ${showSellConfirm.itemName} for $${showSellConfirm.price}?\n\nYou'll lose access to all mobile apps until you buy another phone.`
+              : `Are you sure you want to sell ${showSellConfirm.itemName} for $${showSellConfirm.price}?`
+          }
+          confirmText="Sell"
+          cancelText="Cancel"
+          onConfirm={async () => {
+            await handleSell(showSellConfirm.itemId, showSellConfirm.itemName);
+            setShowSellConfirm(null);
+          }}
+          onCancel={() => setShowSellConfirm(null)}
+          type="warning"
+        />
+      )}
+
+      {/* Purchase Confirmation Dialog */}
+      {showPurchaseConfirm && (
+        <ConfirmDialog
+          visible={true}
+          title={`Purchase ${showPurchaseConfirm.itemName}?`}
+          message={`This will cost $${showPurchaseConfirm.price}. You'll have $${Math.floor(gameState.stats.money - showPurchaseConfirm.price)} remaining.${
+            showPurchaseConfirm.itemId === 'computer' 
+              ? '\n\nThis will unlock computer apps including Crypto Mining, Real Estate, and Gaming!' 
+              : showPurchaseConfirm.itemId === 'smartphone'
+              ? '\n\nThis will unlock mobile apps including Banking, Dating, and Social Media!'
+              : ''
+          }`}
+          confirmText="Purchase"
+          cancelText="Cancel"
+          onConfirm={async () => {
+            await handlePurchase(showPurchaseConfirm.itemId, showPurchaseConfirm.itemName);
+            setShowPurchaseConfirm(null);
+          }}
+          onCancel={() => setShowPurchaseConfirm(null)}
+          type="info"
+        />
+      )}
     </View>
   );
 }
@@ -255,6 +513,12 @@ const styles = StyleSheet.create({
     margin: 20,
     borderRadius: 8,
     padding: 4,
+  },
+  tabWithInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabContainerDark: {
     backgroundColor: '#1F2937',
@@ -360,15 +624,10 @@ const styles = StyleSheet.create({
     color: '#93C5FD',
   },
   buyButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 6,
+    // LoadingButton handles all styling
   },
   sellButton: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 6,
+    // LoadingButton handles all styling
   },
   ownedButton: {
     backgroundColor: '#10B981',
@@ -489,15 +748,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   gymButton: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  gymButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    // LoadingButton handles all styling
   },
   scrollIndicatorContainer: {
     position: 'absolute',
@@ -517,10 +768,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     borderRadius: 2,
   },
+  scrollBarDark: {
+    backgroundColor: '#374151',
+  },
   scrollThumb: {
     width: 4,
     height: 20,
     backgroundColor: '#9CA3AF',
     borderRadius: 2,
+  },
+  scrollThumbDark: {
+    backgroundColor: '#6B7280',
+  },
+  highlightedCard: {
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    elevation: 12,
+    transform: [{ scale: 1.02 }],
   },
 });

@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap } from 'lucide-react-native';
+import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, BarChart3, Bell } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
 import ClickerGame from '@/components/hobbies/ClickerGame';
+import EnhancedAchievementScreen from '@/components/EnhancedAchievementScreen';
+import EnhancedDataVisualization from '@/components/EnhancedDataVisualization';
+import SmartNotificationCenter from '@/components/SmartNotificationCenter';
 
 export default function ProgressionScreen() {
   const { gameState, checkAchievements } = useGame();
   const [activeHobby, setActiveHobby] = useState<string | null>(null);
+  const [showEnhancedAchievements, setShowEnhancedAchievements] = useState(false);
+  const [showDataVisualization, setShowDataVisualization] = useState(false);
+  const [showSmartNotifications, setShowSmartNotifications] = useState(false);
 
   React.useEffect(() => {
     checkAchievements();
@@ -45,6 +51,36 @@ export default function ProgressionScreen() {
         <View style={styles.header}>
           <Trophy size={32} color="#F59E0B" />
           <Text style={styles.title}>Your Progress</Text>
+        </View>
+
+        {/* Enhanced Features Section */}
+        <View style={styles.enhancedFeaturesSection}>
+          <Text style={styles.sectionTitle}>Enhanced Features</Text>
+          <View style={styles.featureButtons}>
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => setShowEnhancedAchievements(true)}
+            >
+              <Trophy size={24} color="#F59E0B" />
+              <Text style={styles.featureButtonText}>Enhanced Achievements</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => setShowDataVisualization(true)}
+            >
+              <BarChart3 size={24} color="#3B82F6" />
+              <Text style={styles.featureButtonText}>Data Analytics</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => setShowSmartNotifications(true)}
+            >
+              <Bell size={24} color="#10B981" />
+              <Text style={styles.featureButtonText}>Smart Notifications</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ProgressOverview />
@@ -116,11 +152,6 @@ export default function ProgressionScreen() {
                         {achievement.description}
                       </Text>
                     </View>
-                    {achievement.completed && (
-                      <View style={styles.completedBadge}>
-                        <Text style={styles.completedText}>✓</Text>
-                      </View>
-                    )}
                   </View>
                 ))}
               </View>
@@ -160,7 +191,12 @@ export default function ProgressionScreen() {
           </View>
         </View>
       </ScrollView>
-      <ClickerGame visible={!!activeHobby} hobbyId={activeHobby ?? ''} onClose={() => setActiveHobby(null)} />
+      
+      {/* Enhanced Components */}
+        <ClickerGame visible={!!activeHobby} hobbyId={activeHobby ?? ''} onClose={() => setActiveHobby(null)} />
+        <EnhancedAchievementScreen visible={showEnhancedAchievements} onClose={() => setShowEnhancedAchievements(false)} />
+        <EnhancedDataVisualization darkMode={gameState.settings.darkMode} compact={false} />
+        <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
     </View>
   );
 }
@@ -285,19 +321,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     lineHeight: 16,
   },
-  completedBadge: {
-    backgroundColor: '#10B981',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  completedText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   statsSection: {
     marginBottom: 30,
   },
@@ -340,5 +363,42 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 10,
     alignItems: 'center',
+  },
+  enhancedFeaturesSection: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  featureButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 12,
+  },
+  featureButton: {
+    flex: 1,
+    minWidth: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 8,
+  },
+  featureButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    textAlign: 'center',
   },
 });

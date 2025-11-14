@@ -87,21 +87,32 @@ export const isAndroidXLarge = () => Platform.OS === 'android' && SCREEN_WIDTH >
 export const isAndroidTablet = () => Platform.OS === 'android' && SCREEN_WIDTH >= 600;
 export const isAndroidFoldable = () => Platform.OS === 'android' && SCREEN_WIDTH >= 600;
 
-// Core scaling functions with conservative limits
+// Web tablet heuristic (treat iPad-like viewports as tablet)
+export const isWebTablet = () => Platform.OS === 'web' && Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 768;
+
+// Unified tablet check across platforms (iPad, Android tablet, or web tablet)
+export const isTablet = () => isIPad() || isAndroidTablet() || isWebTablet();
+
+// Core scaling functions with tablet-aware limits
 export const scale = (size: number): number => {
-  const scaleFactor = Math.min(Math.max(SCREEN_WIDTH / baseWidth, 0.7), 1.3);
+  const maxClamp = isTablet() ? 1.8 : 1.3;
+  const scaleFactor = Math.min(Math.max(SCREEN_WIDTH / baseWidth, 0.7), maxClamp);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
 
 export const verticalScale = (size: number): number => {
-  const scaleFactor = Math.min(Math.max(SCREEN_HEIGHT / baseHeight, 0.7), 1.3);
+  const maxClamp = isTablet() ? 1.8 : 1.3;
+  const scaleFactor = Math.min(Math.max(SCREEN_HEIGHT / baseHeight, 0.7), maxClamp);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
 
 export const fontScale = (size: number): number => {
-  const scaleFactor = Math.min(Math.max(SCREEN_WIDTH / baseWidth, 0.75), 1.25);
+  const maxClamp = isTablet() ? 1.6 : 1.25;
+  const minClamp = 0.75;
+  const base = SCREEN_WIDTH / baseWidth;
+  const scaleFactor = Math.min(Math.max(base, minClamp), maxClamp);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
@@ -200,6 +211,7 @@ export const screenDimensions = {
   isAndroidXLarge: isAndroidXLarge(),
   isAndroidTablet: isAndroidTablet(),
   isAndroidFoldable: isAndroidFoldable(),
+  isTablet: isTablet(),
   deviceType: getDeviceType(),
   pixelDensity: PixelRatio.get(),
   baseWidth,
@@ -435,7 +447,7 @@ export const responsiveHeight = (percentage: number): number => {
 
 // Grid system for responsive layouts
 export const responsiveGrid = {
-  columns: isIPad() || isAndroidTablet() ? 4 : 3, // More columns on tablets
+  columns: isTablet() ? 4 : 3, // More columns on tablets
   gap: scale(12),
   gapSmall: isSmallDevice() ? scale(8) : scale(12),
   gapLarge: isLargeDevice() ? scale(16) : scale(12),
@@ -445,7 +457,7 @@ export const responsiveGrid = {
 
 // Responsive card sizes
 export const responsiveCard = {
-  width: (isIPad() || isAndroidTablet()) ? responsiveWidth(22) : responsiveWidth(30),
+  width: isTablet() ? responsiveWidth(22) : responsiveWidth(30),
   height: scale(120),
   padding: scale(12),
   paddingSmall: isSmallDevice() ? scale(10) : scale(12),

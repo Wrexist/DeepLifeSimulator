@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Building2, Users, TrendingUp, DollarSign, Settings, Plus, Minus, Lock, GraduationCap, X, Star, Zap } from 'lucide-react-native';
@@ -403,6 +403,16 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
   const companies: Company[] = gameState.companies || [];
   const cash = gameState.stats?.money || 0;
 
+  // Keep selectedCompany in sync with GameContext updates without mutating during provider updates
+  const selectedCompanyId = selectedCompany?.id;
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+    const updated = (gameState.companies || []).find(c => c.id === selectedCompanyId);
+    if (updated && updated !== selectedCompany) {
+      setSelectedCompany(updated);
+    }
+  }, [gameState.companies, selectedCompanyId]);
+
   // Check if user has completed Entrepreneurship Course
   const hasEntrepreneurshipEducation = gameState.educations?.find(
     e => e.id === 'entrepreneurship'
@@ -487,19 +497,8 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
 
     buyCompanyUpgrade(gameState, setGameState, upgradeId, company.id);
     saveGame();
-    
-    // Update the selected company to reflect the changes
-    // Use a small delay to ensure state has been updated
-    setTimeout(() => {
-      setGameState(prev => {
-        const updatedCompany = prev.companies.find(c => c.id === company.id);
-        if (updatedCompany) {
-          setSelectedCompany(updatedCompany);
-        }
-        return prev;
-      });
-    }, 50);
-    
+    // selectedCompany is synced via useEffect above once GameContext updates
+
     setModalData({ companyName: company.name });
     setShowUpgradeCompleteModal(true);
   }, [gameState, setGameState, saveGame]);
@@ -904,7 +903,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
       </Modal>
 
       {/* Education Required Modal */}
-      <Modal visible={showEducationRequiredModal} transparent animationType="fade">
+      <Modal visible={showEducationRequiredModal} transparent animationType="fade" onRequestClose={() => setShowEducationRequiredModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <LinearGradient

@@ -563,7 +563,7 @@ export default function SocialApp({ onBack }: SocialAppProps) {
       </ScrollView>
 
       {/* New Post Modal */}
-      <Modal visible={showNewPostModal} transparent animationType="fade">
+      <Modal visible={showNewPostModal} transparent animationType="fade" onRequestClose={() => setShowNewPostModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
@@ -581,6 +581,9 @@ export default function SocialApp({ onBack }: SocialAppProps) {
               onChangeText={setNewPostContent}
               multiline
               textAlignVertical="top"
+              maxLength={500}
+              accessibilityLabel="Post Content Input"
+              accessibilityHint="Write what you want to share with your friends"
             />
 
             {selectedPhoto && (
@@ -617,7 +620,7 @@ export default function SocialApp({ onBack }: SocialAppProps) {
       </Modal>
 
       {/* Photo Picker Modal */}
-      <Modal visible={showPhotoPicker} transparent animationType="fade">
+      <Modal visible={showPhotoPicker} transparent animationType="fade" onRequestClose={() => setShowPhotoPicker(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Choose Photo</Text>
@@ -655,7 +658,7 @@ export default function SocialApp({ onBack }: SocialAppProps) {
       </Modal>
 
       {/* Settings Modal */}
-      <Modal visible={showSettings} transparent animationType="fade">
+      <Modal visible={showSettings} transparent animationType="fade" onRequestClose={() => setShowSettings(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Settings</Text>

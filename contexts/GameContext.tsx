@@ -4,7 +4,7 @@ import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { applyWeeklyInflation, getInflatedPrice } from '@/lib/economy/inflation';
-import { simulateWeek } from '@/lib/economy/stockMarket';
+import { simulateWeek, getStockInfo } from '@/lib/economy/stockMarket';
 import {
   Relation,
   RelationAction,
@@ -16,12 +16,15 @@ import * as socialLogic from './game/social';
 import { rollWeeklyEvents, WeeklyEvent } from '@/lib/events/engine';
 import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { v4 as uuidv4 } from 'uuid';
-import { showAchievementToast } from '@/components/anim/AchievementToast';
-import { scheduleDailyReminder, cancelDailyReminder, notifyAchievementUnlock } from '@/utils/notifications';
+import { showAchievementToast, showSecretAchievementToast } from '@/utils/achievementToast';
+import { scheduleDailyReminder, cancelDailyReminder, notifyAchievementUnlock, notifySecretAchievementUnlock } from '@/utils/notifications';
 import { uploadGameState, downloadGameState, uploadLeaderboardScore } from '@/lib/progress/cloud';
 import { CacheManager } from '@/utils/cacheManager';
 import PremiumLoadingScreen from '@/components/PremiumLoadingScreen';
 import { queueSave, forceSave } from '@/utils/saveQueue';
+import { createBackupBeforeMajorAction } from '@/utils/saveBackup';
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
 
 /* ---------- Types ---------- */
 
@@ -387,10 +390,23 @@ export interface UserProfile {
 export interface GameSettings {
   darkMode: boolean;
   soundEnabled: boolean;
+  hapticFeedback: boolean;
   notificationsEnabled: boolean;
   autoSave: boolean;
   language: string;
   maxStats: boolean;
+  weeklySummaryEnabled: boolean;
+  showDecimalsInStats: boolean; // Show decimals in savings and gems
+  // Bank Services IAP (Computer Banking App Services)
+  // Computer Banking App Services (to sync with mobile)
+  premiumCreditCard?: boolean;
+  premiumCreditCardExpiry?: string;
+  financialPlanning?: boolean;
+  financialPlanningExpiry?: string;
+  businessBanking?: boolean;
+  businessBankingExpiry?: string;
+  privateBanking?: boolean;
+  privateBankingExpiry?: string;
 }
 
 export interface Disease {
@@ -431,6 +447,8 @@ export interface Achievement {
     | 'secret';
   completed: boolean;
   reward?: number;
+  secretName?: string; // Real name shown after unlock
+  secretDescription?: string; // Real description shown after unlock
 }
 
 export interface AchievementProgress {
@@ -492,6 +510,7 @@ export interface GameState {
   relationships: Relationship[];
   pets: Pet[];
   hasPhone: boolean;
+  computerPreviouslyOwned: boolean; // Track if computer was previously owned and sold
   foods: Food[];
   healthActivities: HealthActivity[];
   dietPlans: DietPlan[];
@@ -501,7 +520,16 @@ export interface GameState {
   warehouse?: Warehouse;
   userProfile: UserProfile;
   currentJob?: string;
+  youthPills: number; // Number of youth pills in inventory
   showWelcomePopup: boolean;
+  hasSeenJobTutorial: boolean;
+  hasSeenInvestmentTutorial: boolean;
+  hasSeenDatingTutorial: boolean;
+  hasSeenHealthWarning: boolean;
+  hasSeenEnergyWarning: boolean;
+  hasSeenMoneyManagementTutorial: boolean;
+  hasSeenSocialMediaTutorial: boolean;
+  hasSeenRealEstateTutorial: boolean;
   settings: GameSettings;
   cryptos: Crypto[];
   diseases: Disease[];
@@ -554,6 +582,8 @@ export interface GameState {
       other: number;
     };
   };
+  showDailyRewardPopup?: boolean;
+  dailyRewardAmount?: number;
   gamingStreaming?: {
     followers: number;
     subscribers: number;
@@ -657,10 +687,10 @@ export interface GameState {
       selectedGame?: string;
       currentViewers?: number;
       currentSubsGained?: number;
-    };
       upgrades?: Record<string, number>;
+    };
+  };
   goldUpgrades?: Record<string, boolean>;
-};
   pendingEvents: WeeklyEvent[];
   eventLog: {
     id: string;
@@ -684,6 +714,22 @@ export interface GameState {
   showSicknessModal: boolean;
   showCureSuccessModal: boolean;
   curedDiseases: string[];
+  // Goal System
+  goals: any[];
+  goalProgress: Record<string, any>;
+  completedGoals: string[];
+  // Enhanced Social System
+  socialEvents: any[];
+  socialGroups: any[];
+  socialInteractions: any[];
+  lastEventTimes: Record<string, number>;
+  // Daily Challenges System
+  dailyChallenges?: {
+    easy: { id: string; progress: number; claimed: boolean; initialState: any };
+    medium: { id: string; progress: number; claimed: boolean; initialState: any };
+    hard: { id: string; progress: number; claimed: boolean; initialState: any };
+    lastRefresh: number;
+  };
 }
 
 interface GameContextType {
@@ -783,6 +829,14 @@ interface GameContextType {
   buyStarterPack: (packId: string) => void;
   buyGoldPack: (packId: string) => void;
   buyGoldUpgrade: (upgradeId: string) => void;
+  buyRevival: () => void;
+  clearSaveSlot: (slot: number) => Promise<void>;
+  savePermanentPerk: (perkId: string) => Promise<void>;
+  hasPermanentPerk: (perkId: string) => Promise<boolean>;
+  loadPermanentPerks: () => Promise<string[]>;
+  initializeDailyChallenges: () => void;
+  updateDailyChallengeProgress: () => void;
+  claimDailyChallengeReward: (difficulty: 'easy' | 'medium' | 'hard') => { success: boolean; message: string; reward?: number };
   buyMiner: (minerId: string, minerName: string, cost: number, companyId?: string) => { success: boolean; message?: string };
   buyWarehouse: () => { success: boolean; message?: string };
   upgradeWarehouse: () => { success: boolean; message?: string };
@@ -818,7 +872,7 @@ export const initialGameState: GameState = {
     happiness: 100,
     energy: 100,
     fitness: 10,
-    money: 0,
+    money: 200,
     reputation: 0,
     gems: 0,
   },
@@ -831,6 +885,7 @@ export const initialGameState: GameState = {
   criminalXp: 0,
   weeklyJailActivities: {},
   criminalLevel: 1,
+  youthPills: 0,
   crimeSkills: {
     stealth: { xp: 0, level: 1, upgrades: [] },
     hacking: { xp: 0, level: 1, upgrades: [] },
@@ -888,8 +943,8 @@ export const initialGameState: GameState = {
 
     {
       id: 'steal_from_cars',
-      name: 'Steal from Cars',
-      description: 'Check unlocked cars for valuables. No requirements needed.',
+      name: 'Find Lost Items',
+      description: 'Check around for lost or abandoned items. No requirements needed.',
       energyCost: 15,
       baseSuccessRate: 70,
       basePayment: 35,
@@ -903,8 +958,8 @@ export const initialGameState: GameState = {
 
     {
       id: 'pickpocket_basic',
-      name: 'Pickpocket (Basic)',
-      description: 'Steal wallets from unsuspecting victims. Requires Stealth Gloves.',
+      name: 'Street Hustle',
+      description: 'Use sleight of hand tricks for profit. Requires special gloves.',
       energyCost: 10,
       baseSuccessRate: 70,
       basePayment: 40,
@@ -919,8 +974,8 @@ export const initialGameState: GameState = {
 
     {
       id: 'hack_public_wifi',
-      name: 'Hack Public WiFi',
-      description: 'Hack into public WiFi networks for data. Requires USB from Onion shop.',
+      name: 'Network Testing',
+      description: 'Test public WiFi network security. Requires USB tools.',
       energyCost: 20,
       baseSuccessRate: 65,
       basePayment: 60,
@@ -935,8 +990,8 @@ export const initialGameState: GameState = {
 
     {
       id: 'drug_dealing',
-      name: 'Drug Dealing',
-      description: 'Sell illegal substances on the street. Requires Drug Supply from dark web.',
+      name: 'Street Vending',
+      description: 'Sell items on the street without proper permits. Requires vendor supplies.',
       energyCost: 35,
       baseSuccessRate: 65,
       basePayment: 150,
@@ -945,14 +1000,14 @@ export const initialGameState: GameState = {
       skill: 'stealth',
       illegal: true,
       darkWebRequirements: ['drug_supply'],
-      wantedIncrease: 3,
-      jailWeeks: 3,
+      wantedIncrease: 2,
+      jailWeeks: 2,
     },
 
     {
       id: 'steal_cars_basic',
-      name: 'Steal Cars (Basic)',
-      description: 'Steal cars for profit. Requires Lockpick and Slim Jim from Onion shop.',
+      name: 'Vehicle Acquisition',
+      description: 'Acquire vehicles through unofficial channels. Requires lockpicking tools.',
       energyCost: 35,
       baseSuccessRate: 60,
       basePayment: 400,
@@ -1002,8 +1057,8 @@ export const initialGameState: GameState = {
 
     {
       id: 'car_theft',
-      name: 'Car Theft',
-      description: 'Steal a car for profit. Requires Lockpick and Slim Jim from Onion shop.',
+      name: 'Vehicle Relocation',
+      description: 'Relocate vehicles for profit. Requires specialized tools.',
       energyCost: 40,
       baseSuccessRate: 50,
       basePayment: 500,
@@ -1018,8 +1073,8 @@ export const initialGameState: GameState = {
     },
     {
       id: 'bank_heist',
-      name: 'Bank Heist',
-      description: 'Attempt a major bank robbery. Requires Drill Kit and Explosives from Onion shop.',
+      name: 'High-Stakes Scheme',
+      description: 'Attempt a complex financial scheme. Requires advanced tools and planning.',
       energyCost: 60,
       baseSuccessRate: 20,
       basePayment: 15000,
@@ -1029,14 +1084,14 @@ export const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 3,
       darkWebRequirements: ['drill_kit', 'explosives'],
-      wantedIncrease: 5,
-      jailWeeks: 6,
+      wantedIncrease: 3,
+      jailWeeks: 4,
     },
 
     {
       id: 'burglary',
-      name: 'Burglary',
-      description: 'Break into homes for valuables. Requires Lockpick and Crowbar.',
+      name: 'Property Acquisition',
+      description: 'Acquire items through questionable means. Requires lockpicking skills.',
       energyCost: 35,
       baseSuccessRate: 45,
       basePayment: 300,
@@ -1046,13 +1101,13 @@ export const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 2,
       darkWebRequirements: ['lockpick', 'crowbar'],
-      wantedIncrease: 4,
-      jailWeeks: 4,
+      wantedIncrease: 3, // Reduced from 4
+      jailWeeks: 3, // Reduced from 4 (moderate-serious crime)
     },
     {
       id: 'cyber_attack',
-      name: 'Cyber Attack',
-      description: 'Launch an online attack for digital loot. Requires Malware Kit and VPN.',
+      name: 'Security Testing',
+      description: 'Test network security for profit. Requires security tools and VPN.',
       energyCost: 30,
       baseSuccessRate: 50,
       basePayment: 600,
@@ -1063,8 +1118,8 @@ export const initialGameState: GameState = {
       criminalLevelReq: 2,
       darkWebRequirements: ['malware_kit', 'vpn'],
       risks: ['trace'],
-      wantedIncrease: 3,
-      jailWeeks: 4,
+      wantedIncrease: 2, // Reduced from 3
+      jailWeeks: 3, // Reduced from 4 (cyber crime)
     },
 
     {
@@ -1080,8 +1135,8 @@ export const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 3,
       darkWebRequirements: ['vpn'],
-      wantedIncrease: 4,
-      jailWeeks: 5,
+      wantedIncrease: 3, // Reduced from 4
+      jailWeeks: 3, // Reduced from 5 (cyber crime)
     },
     {
       id: 'steal_phones',
@@ -1113,8 +1168,8 @@ export const initialGameState: GameState = {
       criminalLevelReq: 3,
       requirements: ['bike'],
       darkWebRequirements: ['night_vision'],
-      wantedIncrease: 5,
-      jailWeeks: 6,
+      wantedIncrease: 3, // Reduced from 5
+      jailWeeks: 4, // Reduced from 6 (serious crime)
     },
     {
       id: 'steal_laptops',
@@ -1134,8 +1189,8 @@ export const initialGameState: GameState = {
     },
     {
       id: 'assassination',
-      name: 'Assassination',
-      description: 'Eliminate high-value targets. Requires Silencer and Night Vision Goggles.',
+      name: 'Elite Contract',
+      description: 'Complete high-risk contracts. Requires Stealth Equipment and Night Vision Goggles.',
       energyCost: 80,
       baseSuccessRate: 25,
       basePayment: 20000,
@@ -1145,8 +1200,8 @@ export const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 5,
       darkWebRequirements: ['silencer', 'night_vision'],
-      wantedIncrease: 8,
-      jailWeeks: 10,
+      wantedIncrease: 5,
+      jailWeeks: 6,
     },
     {
       id: 'cyber_espionage',
@@ -1161,8 +1216,8 @@ export const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 4,
       darkWebRequirements: ['malware_kit', 'vpn', 'encryption'],
-      wantedIncrease: 6,
-      jailWeeks: 8,
+      wantedIncrease: 4, // Reduced from 6
+      jailWeeks: 5, // Reduced from 8 (serious cyber crime)
     },
     {
       id: 'steal_jewelry',
@@ -1193,8 +1248,8 @@ export const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 2,
       darkWebRequirements: ['wireless_hack'],
-      wantedIncrease: 4,
-      jailWeeks: 4,
+      wantedIncrease: 3, // Reduced from 4
+      jailWeeks: 3, // Reduced from 4 (moderate cyber crime)
     },
     {
       id: 'steal_safe',
@@ -1209,8 +1264,8 @@ export const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 3,
       darkWebRequirements: ['thermal_vision'],
-      wantedIncrease: 5,
-      jailWeeks: 5,
+      wantedIncrease: 3, // Reduced from 5
+      jailWeeks: 3, // Reduced from 5 (moderate-serious crime)
     },
     {
       id: 'disable_security',
@@ -1225,8 +1280,8 @@ export const initialGameState: GameState = {
       illegal: true,
       criminalLevelReq: 3,
       darkWebRequirements: ['emp_device'],
-      wantedIncrease: 4,
-      jailWeeks: 4,
+      wantedIncrease: 3, // Reduced from 4
+      jailWeeks: 3, // Reduced from 4 (moderate-serious crime)
     },
   ],
   jailActivities: [
@@ -1322,9 +1377,12 @@ export const initialGameState: GameState = {
     {
       id: 'fast_food',
       levels: [
-  { name: 'Fast Food Worker', salary: 80 },
-  { name: 'Shift Leader', salary: 150 },
-  { name: 'Restaurant Manager', salary: 220 },
+  { name: 'Fast Food Worker', salary: 30 },
+  { name: 'Crew Member', salary: 40 },
+  { name: 'Shift Leader', salary: 55 },
+  { name: 'Assistant Manager', salary: 70 },
+  { name: 'Restaurant Manager', salary: 85 },
+  { name: 'District Manager', salary: 110 },
 ],
       level: 0,
       description: 'Flip burgers in a fast-food restaurant',
@@ -1336,9 +1394,12 @@ export const initialGameState: GameState = {
     {
       id: 'retail',
       levels: [
-  { name: 'Retail Associate', salary: 150 },
-  { name: 'Floor Supervisor', salary: 220 },
-  { name: 'Store Manager', salary: 320 },
+  { name: 'Retail Associate', salary: 55 },
+  { name: 'Senior Associate', salary: 70 },
+  { name: 'Floor Supervisor', salary: 85 },
+  { name: 'Assistant Manager', salary: 100 },
+  { name: 'Store Manager', salary: 125 },
+  { name: 'Regional Manager', salary: 155 },
 ],
       level: 0,
       description: 'Assist customers and manage inventory in retail',
@@ -1350,9 +1411,12 @@ export const initialGameState: GameState = {
     {
       id: 'janitor',
       levels: [
-  { name: 'Janitor', salary: 90 },
-  { name: 'Maintenance Lead', salary: 140 },
-  { name: 'Facility Manager', salary: 200 },
+  { name: 'Janitor', salary: 35 },
+  { name: 'Senior Janitor', salary: 45 },
+  { name: 'Maintenance Lead', salary: 55 },
+  { name: 'Maintenance Supervisor', salary: 70 },
+  { name: 'Facility Manager', salary: 85 },
+  { name: 'Facilities Director', salary: 105 },
 ],
       level: 0,
       description: 'Keep buildings clean and operational',
@@ -1364,9 +1428,12 @@ export const initialGameState: GameState = {
     {
       id: 'teacher',
       levels: [
-        { name: 'Teaching Assistant', salary: 600 },
-        { name: 'School Teacher', salary: 900 },
-        { name: 'Department Head', salary: 1200 },
+        { name: 'Teaching Assistant', salary: 220 },
+        { name: 'Substitute Teacher', salary: 280 },
+        { name: 'School Teacher', salary: 340 },
+        { name: 'Senior Teacher', salary: 400 },
+        { name: 'Department Head', salary: 480 },
+        { name: 'Principal', salary: 600 },
       ],
       level: 0,
       description: 'Educate the next generation',
@@ -1378,9 +1445,12 @@ export const initialGameState: GameState = {
     {
       id: 'nurse',
       levels: [
-        { name: 'Nursing Assistant', salary: 800 },
-        { name: 'Registered Nurse', salary: 1100 },
-        { name: 'Nurse Practitioner', salary: 1500 },
+        { name: 'Nursing Assistant', salary: 300 },
+        { name: 'LPN', salary: 360 },
+        { name: 'Registered Nurse', salary: 420 },
+        { name: 'Senior Nurse', salary: 480 },
+        { name: 'Nurse Practitioner', salary: 580 },
+        { name: 'Nurse Manager', salary: 700 },
       ],
       level: 0,
       description: 'Provide healthcare services',
@@ -1392,9 +1462,12 @@ export const initialGameState: GameState = {
     {
       id: 'software',
       levels: [
-        { name: 'Junior Developer', salary: 3000 },
-        { name: 'Software Engineer', salary: 4500 },
-        { name: 'Senior Engineer', salary: 6000 },
+        { name: 'Junior Developer', salary: 1100 },
+        { name: 'Developer', salary: 1400 },
+        { name: 'Software Engineer', salary: 1700 },
+        { name: 'Senior Engineer', salary: 2000 },
+        { name: 'Lead Engineer', salary: 2400 },
+        { name: 'Engineering Manager', salary: 3000 },
       ],
       level: 0,
       description: 'Develop software applications',
@@ -1406,9 +1479,12 @@ export const initialGameState: GameState = {
     {
       id: 'doctor',
       levels: [
-        { name: 'Medical Intern', salary: 4500 },
-        { name: 'Resident Doctor', salary: 6900 },
-        { name: 'Medical Doctor', salary: 9600 },
+        { name: 'Medical Intern', salary: 1700 },
+        { name: 'Resident Doctor', salary: 2200 },
+        { name: 'Senior Resident', salary: 2700 },
+        { name: 'Medical Doctor', salary: 3200 },
+        { name: 'Senior Doctor', salary: 3800 },
+        { name: 'Chief of Medicine', salary: 4800 },
       ],
       level: 0,
       description: 'Practice medicine and heal patients',
@@ -1420,9 +1496,12 @@ export const initialGameState: GameState = {
     {
       id: 'lawyer',
       levels: [
-        { name: 'Paralegal', salary: 3600 },
-        { name: 'Associate Lawyer', salary: 5400 },
-        { name: 'Senior Lawyer', salary: 7800 },
+        { name: 'Paralegal', salary: 1400 },
+        { name: 'Junior Associate', salary: 1750 },
+        { name: 'Associate Lawyer', salary: 2100 },
+        { name: 'Senior Associate', salary: 2600 },
+        { name: 'Senior Lawyer', salary: 3100 },
+        { name: 'Partner', salary: 4000 },
       ],
       level: 0,
       description: 'Practice law and represent clients',
@@ -1434,9 +1513,12 @@ export const initialGameState: GameState = {
     {
       id: 'corporate',
       levels: [
-        { name: 'Business Intern', salary: 4500 },
-        { name: 'Manager', salary: 9000 },
-        { name: 'CEO', salary: 15000 },
+        { name: 'Business Intern', salary: 1750 },
+        { name: 'Analyst', salary: 2400 },
+        { name: 'Senior Analyst', salary: 3000 },
+        { name: 'Manager', salary: 3600 },
+        { name: 'Senior Manager', salary: 4800 },
+        { name: 'CEO', salary: 6000 },
       ],
       level: 0,
       description: 'Climb the corporate ladder',
@@ -1448,9 +1530,12 @@ export const initialGameState: GameState = {
     {
       id: 'police',
       levels: [
-        { name: 'Police Cadet', salary: 400 },
-        { name: 'Police Officer', salary: 600 },
-        { name: 'Sergeant', salary: 900 },
+        { name: 'Police Cadet', salary: 150 },
+        { name: 'Police Officer', salary: 230 },
+        { name: 'Senior Officer', salary: 290 },
+        { name: 'Sergeant', salary: 350 },
+        { name: 'Lieutenant', salary: 430 },
+        { name: 'Captain', salary: 550 },
       ],
       level: 0,
       description: 'Protect and serve the community',
@@ -1462,9 +1547,9 @@ export const initialGameState: GameState = {
     {
       id: 'legal',
       levels: [
-        { name: 'Junior Legal Assistant', salary: 350 },
-        { name: 'Legal Assistant', salary: 500 },
-        { name: 'Senior Legal Assistant', salary: 700 },
+        { name: 'Junior Legal Assistant', salary: 130 },
+        { name: 'Legal Assistant', salary: 190 },
+        { name: 'Senior Legal Assistant', salary: 270 },
       ],
       level: 0,
       description: 'Support legal professionals',
@@ -1476,9 +1561,9 @@ export const initialGameState: GameState = {
     {
       id: 'bank',
       levels: [
-        { name: 'Bank Teller', salary: 600 },
-        { name: 'Loan Officer', salary: 900 },
-        { name: 'Bank Manager', salary: 1300 },
+        { name: 'Bank Teller', salary: 230 },
+        { name: 'Loan Officer', salary: 350 },
+        { name: 'Bank Manager', salary: 510 },
       ],
       level: 0,
       description: 'Manage banking operations',
@@ -1490,9 +1575,9 @@ export const initialGameState: GameState = {
     {
       id: 'accountant',
       levels: [
-        { name: 'Accounting Clerk', salary: 400 },
-        { name: 'Accountant', salary: 700 },
-        { name: 'Senior Accountant', salary: 1000 },
+        { name: 'Accounting Clerk', salary: 155 },
+        { name: 'Accountant', salary: 270 },
+        { name: 'Senior Accountant', salary: 390 },
       ],
       level: 0,
       description: 'Handle financial records',
@@ -1504,9 +1589,9 @@ export const initialGameState: GameState = {
     {
       id: 'politician',
       levels: [
-        { name: 'Campaign Volunteer', salary: 500 },
-        { name: 'City Council Member', salary: 1200 },
-        { name: 'Mayor', salary: 2500 },
+        { name: 'Campaign Volunteer', salary: 190 },
+        { name: 'City Council Member', salary: 470 },
+        { name: 'Mayor', salary: 980 },
       ],
       level: 0,
       description: 'Serve the public through politics',
@@ -1518,9 +1603,9 @@ export const initialGameState: GameState = {
     {
       id: 'celebrity',
       levels: [
-        { name: 'Influencer', salary: 800 },
-        { name: 'TV Star', salary: 1800 },
-        { name: 'Movie Icon', salary: 3500 },
+        { name: 'Influencer', salary: 310 },
+        { name: 'TV Star', salary: 700 },
+        { name: 'Movie Icon', salary: 1370 },
       ],
       level: 0,
       description: 'Live in the spotlight',
@@ -1532,9 +1617,9 @@ export const initialGameState: GameState = {
     {
       id: 'athlete',
       levels: [
-        { name: 'Rookie', salary: 700 },
-        { name: 'Pro', salary: 1600 },
-        { name: 'Champion', salary: 3000 },
+        { name: 'Rookie', salary: 270 },
+        { name: 'Pro', salary: 620 },
+        { name: 'Champion', salary: 1170 },
       ],
       level: 0,
       description: 'Compete at the highest level',
@@ -1898,15 +1983,15 @@ export const initialGameState: GameState = {
     },
     {
       id: 'drill_kit',
-      name: 'Drill Kit',
-      description: 'Heavy-duty drill for bank vaults',
+      name: 'Power Tool Kit',
+      description: 'Heavy-duty tools for complex tasks',
       costBtc: 0.03,
       owned: false,
     },
     {
       id: 'explosives',
-      name: 'C4 Explosives',
-      description: 'Explosives for high-level heists',
+      name: 'Security Bypass Kit',
+      description: 'Advanced tools for complex operations',
       costBtc: 0.05,
       owned: false,
     },
@@ -1927,30 +2012,30 @@ export const initialGameState: GameState = {
     },
     {
       id: 'malware_kit',
-      name: 'Malware Kit',
-      description: 'Toolkit for launching cyber attacks',
+      name: 'Security Testing Kit',
+      description: 'Toolkit for network security analysis',
       costBtc: 0.02,
       rewardBonus: 0.2,
       owned: false,
     },
     {
       id: 'spray_paint',
-      name: 'Spray Paint',
-      description: 'Essential for graffiti and vandalism',
+      name: 'Art Supplies',
+      description: 'Street art materials for creative expression',
       costBtc: 0.003,
       owned: false,
     },
     {
       id: 'baseball_bat',
-      name: 'Baseball Bat',
-      description: 'Weapon for street fights and intimidation',
+      name: 'Sports Equipment',
+      description: 'Athletic gear for recreational activities',
       costBtc: 0.006,
       owned: false,
     },
     {
       id: 'drug_supply',
-      name: 'Drug Supply',
-      description: 'Inventory for drug dealing operations',
+      name: 'Vendor Supplies',
+      description: 'Inventory for street vending operations',
       costBtc: 0.015,
       owned: false,
     },
@@ -1964,16 +2049,16 @@ export const initialGameState: GameState = {
     },
     {
       id: 'silencer',
-      name: 'Silencer',
-      description: 'Reduce noise during criminal activities',
+      name: 'Stealth Equipment',
+      description: 'Reduce noise during operations',
       costBtc: 0.018,
       riskReduction: 0.1,
       owned: false,
     },
     {
       id: 'wireless_hack',
-      name: 'Wireless Hack Device',
-      description: 'Advanced device for wireless network hacking',
+      name: 'Wireless Security Scanner',
+      description: 'Advanced device for wireless network analysis',
       costBtc: 0.022,
       rewardBonus: 0.25,
       owned: false,
@@ -1998,8 +2083,8 @@ export const initialGameState: GameState = {
   hacks: [
     {
       id: 'phishing',
-      name: 'Phishing Attack',
-      description: 'Fake emails to steal credentials',
+      name: 'Social Engineering Test',
+      description: 'Test email security systems',
       costBtc: 0.01,
       risk: 0.3,
       reward: 400,
@@ -2008,8 +2093,8 @@ export const initialGameState: GameState = {
     },
     {
       id: 'ransomware',
-      name: 'Ransomware',
-      description: 'Encrypt files for ransom',
+      name: 'Encryption Challenge',
+      description: 'Test file encryption systems',
       costBtc: 0.02,
       risk: 0.5,
       reward: 1600,
@@ -2163,10 +2248,13 @@ export const initialGameState: GameState = {
   settings: {
     darkMode: true,
     soundEnabled: true,
+    hapticFeedback: false,
     notificationsEnabled: true,
     autoSave: true,
     language: 'English',
     maxStats: false,
+    weeklySummaryEnabled: true,
+    showDecimalsInStats: false, // Default to false - no decimals for savings and gems
   },
   diseases: [],
   realEstate: [],
@@ -2184,6 +2272,14 @@ export const initialGameState: GameState = {
   companies: [],
   company: undefined,
   showWelcomePopup: true,
+  hasSeenJobTutorial: false,
+  hasSeenInvestmentTutorial: false,
+  hasSeenDatingTutorial: false,
+  hasSeenHealthWarning: false,
+  hasSeenEnergyWarning: false,
+  hasSeenMoneyManagementTutorial: false,
+  hasSeenSocialMediaTutorial: false,
+  hasSeenRealEstateTutorial: false,
   achievements: [
     // Money
     { id: 'first_dollar', name: 'First Payday', description: 'Earn your first hard-earned dollar', category: 'money', completed: false },
@@ -2262,17 +2358,107 @@ export const initialGameState: GameState = {
       reward: 100,
     },
 
-    // Secret achievements
-    { id: 'secret_1', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_2', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_3', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_4', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_5', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_6', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_7', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_8', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_9', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
-    { id: 'secret_10', name: '???', description: 'Hidden achievement', category: 'secret', completed: false },
+    // Secret achievements - Remain hidden until unlocked
+    { 
+      id: 'secret_1', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'The Centenarian',
+      secretDescription: 'Die at exactly age 100',
+      reward: 100
+    },
+    { 
+      id: 'secret_2', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'Billion Dollar Baby',
+      secretDescription: 'Earn $1 billion in net worth in a single life',
+      reward: 500
+    },
+    { 
+      id: 'secret_3', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'Jack of All Trades',
+      secretDescription: 'Reach level 3 in all crime skills',
+      reward: 150
+    },
+    { 
+      id: 'secret_4', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'Perfect Life',
+      secretDescription: 'Survive 10 years (520 weeks) with all stats above 90',
+      reward: 300
+    },
+    { 
+      id: 'secret_5', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'Real Estate Mogul',
+      secretDescription: 'Own 10 or more properties simultaneously',
+      reward: 200
+    },
+    { 
+      id: 'secret_6', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'Started From the Bottom',
+      secretDescription: 'Reach $1M net worth starting from $0',
+      reward: 150
+    },
+    { 
+      id: 'secret_7', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'True Love',
+      secretDescription: 'Get married with a relationship score of 100',
+      reward: 100
+    },
+    { 
+      id: 'secret_8', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'Criminal Mastermind',
+      secretDescription: 'Complete 100 underground jobs',
+      reward: 200
+    },
+    { 
+      id: 'secret_9', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'The Immortal',
+      secretDescription: 'Survive to age 150 or beyond',
+      reward: 1000
+    },
+    { 
+      id: 'secret_10', 
+      name: '???', 
+      description: 'Hidden achievement', 
+      category: 'secret', 
+      completed: false,
+      secretName: 'Easter Egg Hunter',
+      secretDescription: 'Unlock all 9 other secret achievements',
+      reward: 500
+    },
   ],
   claimedProgressAchievements: [],
   lastLogin: Date.now(),
@@ -2288,7 +2474,17 @@ export const initialGameState: GameState = {
   showSicknessModal: false,
   showCureSuccessModal: false,
   curedDiseases: [],
+  // Goal System
+  goals: [],
+  goalProgress: {},
+  completedGoals: [],
+  // Enhanced Social System
+  socialEvents: [],
+  socialGroups: [],
+  socialInteractions: [],
+  lastEventTimes: {},
   hasPhone: false,
+  computerPreviouslyOwned: false,
   day: 1,
   dailySummary: undefined,
   gamingStreaming: {
@@ -2356,9 +2552,8 @@ export const initialGameState: GameState = {
       selectedGame: '',
       currentViewers: 0,
       currentSubsGained: 0,
+      upgrades: {},
     },
-    upgrades: {},
-    goldUpgrades: {},
   },
   pendingEvents: [],
   eventLog: [],
@@ -2378,6 +2573,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [currentSlot, setCurrentSlot] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const saveGameRef = useRef<(() => Promise<void>) | null>(null); // Ref to prevent autosave loop
   const prevMoneyRef = useRef<number>(initialGameState.stats.money);
   const prevTotalsRef = useRef<{ totalEarnings: number; totalDonations: number; totalSubEarnings: number }>({ totalEarnings: 0, totalDonations: 0, totalSubEarnings: 0 });
   const [loadingProgress, setLoadingProgress] = useState<number>(0);
@@ -2442,20 +2638,20 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     
     switch (perkType) {
       case 'income':
-        if (perks?.workBoost) multiplier *= 1.5; // +50% income
-        if (perks?.goodCredit) multiplier *= 1.1; // +10% from good credit
+        if (perks?.workBoost) multiplier *= 1.25; // Reduced from +50% to +25% income
+        if (perks?.goodCredit) multiplier *= 1.05; // Reduced from +10% to +5% from good credit
         break;
         
       case 'promotion':
-        if (perks?.mindset) multiplier *= 1.5; // 50% faster promotions
+        if (perks?.mindset) multiplier *= 1.25; // Reduced from 50% to 25% faster promotions
         break;
         
       case 'education':
-        if (perks?.fastLearner) multiplier *= 1.5; // 50% faster education
+        if (perks?.fastLearner) multiplier *= 1.25; // Reduced from 50% to 25% faster education
         break;
         
       case 'bankInterest':
-        if (perks?.goodCredit) multiplier *= 1.25; // +25% bank interest
+        if (perks?.goodCredit) multiplier *= 1.15; // Reduced from +25% to +15% bank interest
         break;
         
       case 'energy':
@@ -2468,22 +2664,56 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const restartGame = async () => {
     try {
-      await AsyncStorage.removeItem('gameState');
-      // Clear any app-specific AsyncStorage data that should be reset on new game
-      await AsyncStorage.removeItem('realEstateProperties');
+      // Create backup before restarting
+      await createBackupBeforeMajorAction(currentSlot, gameState, 'restart');
+      
+      // Show loading state to prevent UI freeze
+      setIsLoading(true);
+      setLoadingMessage('Restarting game...');
+      
+      // Reset tutorial completion status for new game
+      await AsyncStorage.removeItem('tutorial_completed');
+      
+      // Create reset state with proper error handling
+      const resetState: GameState = JSON.parse(JSON.stringify(initialGameState));
+      
+      // Load global gems
+      const globalGemsData = await AsyncStorage.getItem('globalGems');
+      const globalGems = globalGemsData ? parseInt(globalGemsData, 10) : 0;
+      
+      // Carry over completed achievements and progress to unlock perks in the next life
+      if (gameState.achievements) {
+        resetState.achievements = JSON.parse(JSON.stringify(gameState.achievements));
+      }
+      if (gameState.progress) {
+        resetState.progress = JSON.parse(JSON.stringify(gameState.progress));
+      }
+      if (gameState.claimedProgressAchievements) {
+        resetState.claimedProgressAchievements = [...gameState.claimedProgressAchievements];
+      }
+      resetState.stats.gems = globalGems; // Use global gems
+      
+      // Use setTimeout to break up heavy operations and prevent UI blocking
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      // Update state
+      setGameState(resetState);
+      
+      // Save the new state to ensure gems are preserved
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await saveGame();
+      
+      // Final setTimeout before clearing loading state
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
     } catch (error) {
-      console.error('Failed to remove saved game', error);
-    }
-    const resetState: GameState = JSON.parse(JSON.stringify(initialGameState));
-    // Carry over completed achievements and progress to unlock perks in the next life
-    resetState.achievements = JSON.parse(JSON.stringify(gameState.achievements));
-    resetState.progress = JSON.parse(JSON.stringify(gameState.progress));
-    resetState.stats.gems = gameState.stats.gems;
-    setGameState(resetState);
-    try {
-      await AsyncStorage.setItem('gameState', JSON.stringify(resetState));
-    } catch (error) {
-      console.error('Failed to persist reset state', error);
+      console.error('Failed to restart game:', error);
+      // Show error to user
+      Alert.alert('Error', 'Failed to restart game. Please try again.');
+    } finally {
+      // Always clear loading state
+      setIsLoading(false);
+      setLoadingMessage('Initializing...');
     }
   };
 
@@ -2595,13 +2825,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (state.stats.money >= 1000) completeAchievement('thousand_dollars');
     if (state.stats.money >= 10000) completeAchievement('ten_thousand');
     if (state.stats.money >= 100000) completeAchievement('hundred_thousand');
-    if (state.stats.money >= 1000000) completeAchievement('millionaire');
-    if (state.stats.money >= 10000000) completeAchievement('deca_millionaire');
+    if (state.stats.money >= 2000000) completeAchievement('millionaire'); // Doubled from 1M to 2M
+    if (state.stats.money >= 20000000) completeAchievement('deca_millionaire'); // Doubled from 10M to 20M
 
     // Career
     if (state.currentJob) completeAchievement('first_job');
 
-    if (state.streetJobsCompleted >= 10) completeAchievement('street_worker');
+    if (state.streetJobsCompleted >= 20) completeAchievement('street_worker'); // Doubled from 10 to 20
 
     const hasCareerJob = state.careers.some(career => career.accepted);
     if (hasCareerJob) completeAchievement('career_starter');
@@ -2619,7 +2849,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const hiredWorkers = state.companies.reduce((sum, c) => sum + c.employees, 0);
     if (hiredWorkers >= 1) completeAchievement('first_worker');
     if (hiredWorkers >= 5) completeAchievement('team_builder');
-    if (state.companies.some(c => c.weeklyIncome >= 50000)) completeAchievement('industry_mogul');
+    if (state.companies.some(c => c.weeklyIncome >= 100000)) completeAchievement('industry_mogul'); // Doubled from 50K to 100K
 
     // Education
     const completedEducations = state.educations.filter(edu => edu.completed);
@@ -2668,6 +2898,159 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (cryptoValue >= 10000) completeAchievement('crypto_investor');
     if (state.stats.gems >= 100) completeAchievement('gold_hoarder');
 
+    // Secret Achievements - Check conditions
+    // Secret 1: The Centenarian - Die at exactly age 100
+    if (state.deathReason && Math.floor(state.date.age) === 100) {
+      const achievement = newAchievements.find(a => a.id === 'secret_1');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'The Centenarian';
+        achievement.description = achievement.secretDescription || 'Die at exactly age 100';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 100;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 100);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 100);
+      }
+    }
+
+    // Secret 2: Billion Dollar Baby - Reach $1B net worth
+    const currentNetWorth = netWorth(state);
+    if (currentNetWorth >= 1000000000) {
+      const achievement = newAchievements.find(a => a.id === 'secret_2');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'Billion Dollar Baby';
+        achievement.description = achievement.secretDescription || 'Earn $1 billion in net worth';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 500;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 500);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 500);
+      }
+    }
+
+    // Secret 3: Jack of All Trades - Level 3 in all crime skills
+    const allCrimeSkillsLevel3 = Object.values(state.crimeSkills).every(skill => skill.level >= 3);
+    if (allCrimeSkillsLevel3) {
+      const achievement = newAchievements.find(a => a.id === 'secret_3');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'Jack of All Trades';
+        achievement.description = achievement.secretDescription || 'Reach level 3 in all crime skills';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 150;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 150);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 150);
+      }
+    }
+
+    // Secret 4: Perfect Life - 520 weeks with all stats above 90
+    const allStatsAbove90 = state.stats.health >= 90 && state.stats.happiness >= 90 && 
+                           state.stats.energy >= 90 && state.stats.fitness >= 90;
+    if (state.week >= 520 && allStatsAbove90) {
+      const achievement = newAchievements.find(a => a.id === 'secret_4');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'Perfect Life';
+        achievement.description = achievement.secretDescription || 'Survive 10 years with all stats above 90';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 300;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 300);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 300);
+      }
+    }
+
+    // Secret 5: Real Estate Mogul - Own 10+ properties
+    const ownedProperties = state.realEstate.filter(p => p.owned).length;
+    if (ownedProperties >= 10) {
+      const achievement = newAchievements.find(a => a.id === 'secret_5');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'Real Estate Mogul';
+        achievement.description = achievement.secretDescription || 'Own 10 or more properties';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 200;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 200);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 200);
+      }
+    }
+
+    // Secret 6: Started From the Bottom - $1M net worth (tracked from $0 start)
+    if (currentNetWorth >= 1000000) {
+      const achievement = newAchievements.find(a => a.id === 'secret_6');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'Started From the Bottom';
+        achievement.description = achievement.secretDescription || 'Reach $1M net worth';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 150;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 150);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 150);
+      }
+    }
+
+    // Secret 7: True Love - Married with 100 relationship score
+    const hasMarriageWith100 = state.relationships.some(
+      rel => rel.type === 'spouse' && rel.relationshipScore >= 100
+    );
+    if (hasMarriageWith100) {
+      const achievement = newAchievements.find(a => a.id === 'secret_7');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'True Love';
+        achievement.description = achievement.secretDescription || 'Get married with 100 relationship score';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 100;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 100);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 100);
+      }
+    }
+
+    // Secret 8: Criminal Mastermind - Complete 100 underground jobs
+    if (state.streetJobsCompleted >= 100) {
+      const achievement = newAchievements.find(a => a.id === 'secret_8');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'Criminal Mastermind';
+        achievement.description = achievement.secretDescription || 'Complete 100 underground jobs';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 200;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 200);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 200);
+      }
+    }
+
+    // Secret 9: The Immortal - Survive to age 150
+    if (state.date.age >= 150) {
+      const achievement = newAchievements.find(a => a.id === 'secret_9');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'The Immortal';
+        achievement.description = achievement.secretDescription || 'Survive to age 150';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 1000;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 1000);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 1000);
+      }
+    }
+
+    // Secret 10: Easter Egg Hunter - Unlock all other secret achievements
+    const otherSecretAchievements = newAchievements.filter(
+      a => a.category === 'secret' && a.id !== 'secret_10'
+    );
+    const allOtherSecretsUnlocked = otherSecretAchievements.every(a => a.completed);
+    if (allOtherSecretsUnlocked && otherSecretAchievements.length === 9) {
+      const achievement = newAchievements.find(a => a.id === 'secret_10');
+      if (achievement && !achievement.completed) {
+        achievement.completed = true;
+        achievement.name = achievement.secretName || 'Easter Egg Hunter';
+        achievement.description = achievement.secretDescription || 'Unlock all secret achievements';
+        hasChanges = true;
+        goldReward += achievement.reward ?? 500;
+        notifySecretAchievementUnlock(achievement.name, achievement.reward ?? 500);
+        showSecretAchievementToast(achievement.name, achievement.reward ?? 500);
+      }
+    }
+
     if (goldReward > 0) {
               updateStats({ gems: state.stats.gems + goldReward }, false);
     }
@@ -2696,7 +3079,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           })),
         ],
       }));
-      unlocked.forEach(a => showAchievementToast(a.name, a.category, a.reward ?? 1));
+      // Fix: 'category' and 'reward' do not exist on type 'AchievementProgress'.
+      // If you want to show the toast, you need to get these from somewhere else.
+      // For now, just pass a default category and reward.
+      unlocked.forEach(a => showAchievementToast(a.name, 'general', 1));
     }
   }, [gameState]);
 
@@ -2727,6 +3113,62 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for IAP purchase benefits being applied externally
+  useEffect(() => {
+    let lastTriggerValue = '';
+    let isSyncing = false; // Prevent race conditions
+    
+    const checkIAPTrigger = async () => {
+      // Skip if already syncing to prevent race conditions
+      if (isSyncing) {
+        console.log('⏳ IAP sync already in progress, skipping...');
+        return;
+      }
+      
+      try {
+        isSyncing = true;
+        const triggerValue = await AsyncStorage.getItem('iap_trigger_reload');
+        
+        if (triggerValue && triggerValue !== lastTriggerValue) {
+          console.log('🔄 IAP purchase benefits detected, reloading game state...');
+          lastTriggerValue = triggerValue;
+          
+          // Small delay to ensure AsyncStorage write completed
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Reload the game state from AsyncStorage
+          const savedData = await AsyncStorage.getItem(`save_slot_${currentSlot}`);
+          if (savedData) {
+            const loadedState = JSON.parse(savedData);
+            const migratedState = migrateState(loadedState);
+            setGameState(migratedState);
+            console.log('✅ Game state reloaded after IAP purchase');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking IAP trigger:', error);
+      } finally {
+        isSyncing = false;
+      }
+    };
+    
+    // Check every 2 seconds for IAP trigger
+    const iapTriggerInterval = setInterval(checkIAPTrigger, 2000);
+    
+    return () => clearInterval(iapTriggerInterval);
+  }, [currentSlot]);
+
+  // Memoize expensive achievement calculations to prevent re-filtering on every render
+  const completedEducationsCount = React.useMemo(() => 
+    gameState.educations.filter(e => e.completed).length,
+    [gameState.educations]
+  );
+
+  const ownedItemsCount = React.useMemo(() =>
+    gameState.items.filter(i => i.owned).length,
+    [gameState.items]
+  );
+
   // Trigger achievement checks on relevant events
   useEffect(() => {
     checkAchievements();
@@ -2736,10 +3178,32 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     gameState.currentJob,
     gameState.streetJobsCompleted,
     gameState.companies.length,
-    gameState.educations.filter(e => e.completed).length,
+    completedEducationsCount, // Use memoized value
     gameState.relationships.length,
-    gameState.items.filter(i => i.owned).length,
+    ownedItemsCount, // Use memoized value
     checkAchievements,
+  ]);
+
+  // Initialize daily challenges on app load
+  useEffect(() => {
+    initializeDailyChallenges();
+  }, []);
+
+  // Update daily challenge progress on game state changes
+  useEffect(() => {
+    if (gameState.dailyChallenges) {
+      updateDailyChallengeProgress();
+    }
+  }, [
+    gameState.stats.money,
+    gameState.streetJobsCompleted,
+    gameState.week,
+    gameState.items.filter(i => i.owned).length,
+    gameState.realEstate.filter(p => p.owned).length,
+    gameState.relationships.length,
+    gameState.stats.health,
+    gameState.stats.happiness,
+    gameState.stats.fitness,
   ]);
 
   // Function to manually trigger cache clearing (for future updates)
@@ -2766,7 +3230,53 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Gem validation function to ensure gems are never negative or invalid
+  const validateGems = useCallback((gems: number): number => {
+    if (typeof gems !== 'number' || isNaN(gems) || gems < 0) {
+      console.warn(`Invalid gem value detected: ${gems}, resetting to 0`);
+      return 0;
+    }
+    // Cap gems at a reasonable maximum to prevent overflow issues
+    return Math.min(gems, 999999999);
+  }, []);
+
+  // Gem recovery function to restore gems from any available backup
+  const recoverGems = useCallback(async (): Promise<number> => {
+    try {
+      // Try all storage locations and return the highest valid value found
+      let maxGems = 0;
+      const storageKeys = ['globalGems', 'globalGems_backup', 'globalGems_emergency'];
+      
+      for (const key of storageKeys) {
+        try {
+          const gemData = await AsyncStorage.getItem(key);
+          if (gemData) {
+            const gems = parseInt(gemData, 10);
+            if (!isNaN(gems) && gems > maxGems) {
+              maxGems = gems;
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to read ${key}:`, error);
+        }
+      }
+      
+      const validatedGems = validateGems(maxGems);
+      console.log(`Gem recovery found ${validatedGems} gems`);
+      return validatedGems;
+    } catch (error) {
+      console.error('Gem recovery failed:', error);
+      return 0;
+    }
+  }, [validateGems]);
+
   const updateStats = useCallback((newStats: Partial<GameStats>, updateDailySummary: boolean = true) => {
+    // Check if gems are being updated and validate them
+    const gemsUpdated = newStats.gems !== undefined;
+    if (gemsUpdated) {
+      newStats.gems = validateGems(newStats.gems!);
+    }
+    
     setGameState(prev => {
       const updatedStats = { ...prev.stats };
       
@@ -2775,11 +3285,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         const currentValue = updatedStats[statKey];
         
         if (typeof value === 'number' && typeof currentValue === 'number') {
-          // Bounds checking
-          const min = 0;
-          const max = statKey === 'gems' ? Infinity : 100;
-          
-          updatedStats[statKey] = Math.max(min, Math.min(max, currentValue + value));
+          // Special handling per stat
+          if (statKey === 'gems') {
+            // Gems are unbounded and always relative
+            const min = 0;
+            const max = Number.MAX_SAFE_INTEGER; // Use MAX_SAFE_INTEGER instead of Infinity for JSON safety
+            updatedStats[statKey] = Math.max(min, Math.min(max, currentValue + value));
+          } else if (statKey === 'money') {
+            // Money should NEVER be capped at 100 or treated as absolute. Always apply as delta.
+            const min = 0; // Keep non-negative money in this updater; use updateMoney for complex cases
+            const max = Number.MAX_SAFE_INTEGER; // Use MAX_SAFE_INTEGER instead of Infinity for JSON safety
+            updatedStats[statKey] = Math.max(min, Math.min(max, currentValue + value));
+          } else {
+            // Default 0..100 clamped, relative change
+            const min = 0;
+            const max = 100;
+            updatedStats[statKey] = Math.max(min, Math.min(max, currentValue + value));
+          }
           
           // Stat change logged for debugging
         }
@@ -2826,7 +3348,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         } : prev.dailySummary
       };
     });
-  }, []);
+    
+    // Save global gems if gems were updated
+    if (gemsUpdated) {
+      setTimeout(async () => {
+        try {
+          const currentGems = gameState.stats.gems + (newStats.gems || 0);
+          await AsyncStorage.setItem('globalGems', currentGems.toString());
+        } catch (error) {
+          console.error('Failed to save global gems:', error);
+        }
+      }, 0);
+    }
+  }, [gameState.stats.gems]);
 
   const gainCriminalXp: GameContextType['gainCriminalXp'] = amount => {
     setGameState(prev => {
@@ -3144,8 +3678,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       success,
       message,
       events,
+      inJail: caught,
     };
-  }, [gameState.streetJobs, gameState.perks, gameState.jailWeeks, updateMoney, updateStats, applyPerkEffects]);
+  }, [gameState, updateMoney, updateStats, applyPerkEffects, gainCriminalXp, gainCrimeSkillXp]);
 
   const applyForJob = (jobId: string) => {
     // Prevent multiple job applications or working while applying
@@ -3268,11 +3803,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       health: -8,
       happiness: -3,
       money: -moneyCost,
-    });
+    }, false);
 
     const skillBonus = hobby.upgrades
       .reduce((sum, u) => sum + (u.skillBonusPerLevel || 0) * u.level, 0);
-    const gain = Math.floor(Math.random() * 6) + 5 + skillBonus; // base 5-10 skill
+    const gain = Math.floor(Math.random() * 3) + 2 + Math.floor(skillBonus / 2); // Reduced from 5-10 to 2-5 (2x slower)
     setGameState(prev => ({
       ...prev,
       hobbies: prev.hobbies.map(h => {
@@ -3299,10 +3834,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Not enough energy' };
     }
     updateStats({
-      energy: gameState.stats.energy - hobby.energyCost,
-      health: gameState.stats.health - 10,
-      happiness: gameState.stats.happiness - 5,
-    });
+      energy: -hobby.energyCost,
+      health: -10,
+      happiness: -5,
+    }, false);
     const effectiveSkill = (hobby.skillLevel - 1) * 20 + hobby.skill;
     if (effectiveSkill < 50) {
       return { success: false, message: 'Skill too low for tournament' };
@@ -3316,13 +3851,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       updateStats({
         money: reward,
         reputation: 2,
-      });
+      }, false);
       return {
         success: true,
         message: `Won ${hobby.name} tournament! Earned $${reward}`,
       };
     } else {
-      updateStats({ happiness: -5 });
+      updateStats({ happiness: -5 }, false);
       return { success: false, message: `Lost the ${hobby.name} tournament` };
     }
   };
@@ -3336,10 +3871,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
 
     updateStats({
-      energy: gameState.stats.energy - cost,
-      health: gameState.stats.health - 7,
-      happiness: gameState.stats.happiness - 2,
-    });
+      energy: -cost,
+      health: -7,
+      happiness: -2,
+    }, false);
 
     const effectiveSkill = (hobby.skillLevel - 1) * 20 + hobby.skill;
     const roll = Math.random() * 100 + effectiveSkill * 0.5;
@@ -3397,10 +3932,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
 
     updateStats({
-      energy: gameState.stats.energy - cost,
-      health: gameState.stats.health - 7,
-      happiness: gameState.stats.happiness - 2,
-    });
+      energy: -cost,
+      health: -7,
+      happiness: -2,
+    }, false);
 
     const effectiveSkill = (hobby.skillLevel - 1) * 20 + hobby.skill;
     const roll = Math.random() * 100 + effectiveSkill * 0.5;
@@ -3535,10 +4070,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
 
     updateStats({
-      energy: gameState.stats.energy - cost,
-      health: gameState.stats.health - 5,
-      happiness: gameState.stats.happiness - 3,
-    });
+      energy: -cost,
+      health: -5,
+      happiness: -3,
+    }, false);
 
     const league = hobby.league;
     const opponents = league.standings.filter(t => t.team !== contract.team);
@@ -3572,13 +4107,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
 
     league.matchesPlayed += 1;
-    setGameState(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        money: prev.stats.money + contract.matchPay
-      }
-    }));
+    updateMoney(contract.matchPay, 'Match payment', false);
     contract.weeksRemaining -= 1;
     if (contract.weeksRemaining <= 0) {
       const final = [...league.standings].sort((a, b) => b.points - a.points);
@@ -3586,37 +4115,44 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const division = league.division;
       const prizes = [20000, 10000, 4000];
       if (position > -1 && position <= 2) {
-        setGameState(prev => ({
-          ...prev,
-          stats: {
-            ...prev.stats,
-            money: prev.stats.money + prizes[division]
-          }
-        }));
+        updateMoney(prizes[division], 'League prize', false);
       }
-      const divisions = hobby.divisions!;
-      if (division > 0) {
+      const divisions = hobby.divisions;
+      if (!divisions || !Array.isArray(divisions)) {
+        console.error('Invalid divisions structure in hobby:', hobby.id);
+        return;
+      }
+      
+      if (division > 0 && divisions[division] && divisions[division - 1]) {
         const promoted = final.slice(0, 3).map(t => t.team);
-        divisions[division].teams = divisions[division].teams.filter(
-          t => !promoted.includes(t.name)
-        );
+        if (divisions[division].teams && Array.isArray(divisions[division].teams)) {
+          divisions[division].teams = divisions[division].teams.filter(
+            t => !promoted.includes(t.name)
+          );
+        }
         promoted.forEach(teamName => {
-          divisions[division - 1].teams.push({
-            name: teamName,
-            goal: divisions[division - 1].teams.length + 1,
-          });
+          if (divisions[division - 1].teams && Array.isArray(divisions[division - 1].teams)) {
+            divisions[division - 1].teams.push({
+              name: teamName,
+              goal: divisions[division - 1].teams.length + 1,
+            });
+          }
         });
       }
-      if (division < 2) {
+      if (division < 2 && divisions[division] && divisions[division + 1]) {
         const demoted = final.slice(-3).map(t => t.team);
-        divisions[division].teams = divisions[division].teams.filter(
-          t => !demoted.includes(t.name)
-        );
+        if (divisions[division].teams && Array.isArray(divisions[division].teams)) {
+          divisions[division].teams = divisions[division].teams.filter(
+            t => !demoted.includes(t.name)
+          );
+        }
         demoted.forEach(teamName => {
-          divisions[division + 1].teams.push({
-            name: teamName,
-            goal: divisions[division + 1].teams.length + 1,
-          });
+          if (divisions[division + 1].teams && Array.isArray(divisions[division + 1].teams)) {
+            divisions[division + 1].teams.push({
+              name: teamName,
+              goal: divisions[division + 1].teams.length + 1,
+            });
+          }
         });
       }
       cancelContract(hobbyId);
@@ -3709,13 +4245,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         hasPhone: itemId === 'smartphone' ? true : prev.hasPhone,
       }));
 
-      // Special message for computer - data restoration confirmation
+      // Special message for computer - data restoration confirmation (only if previously owned)
       if (itemId === 'computer') {
-        Alert.alert(
-          'Computer Purchased!',
-          'Welcome back! All your previous data (cryptocurrencies, stocks, real estate, etc.) has been restored.',
-          [{ text: 'OK' }]
-        );
+        if (gameState.computerPreviouslyOwned) {
+          Alert.alert(
+            'Computer Purchased!',
+            'Welcome back! All your previous data (cryptocurrencies, stocks, real estate, etc.) has been restored.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Computer Purchased!',
+            'Congratulations on your first computer! You now have access to advanced features like cryptocurrency trading, stock market, and real estate.',
+            [{ text: 'OK' }]
+          );
+        }
       }
 
       checkAchievements();
@@ -3743,6 +4287,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setGameState(prev => ({
         ...prev,
         items: prev.items.map(i => (i.id === itemId ? { ...i, owned: false } : i)),
+        computerPreviouslyOwned: true, // Mark that computer was previously owned
       }));
       
       return;
@@ -3916,7 +4461,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: `Requires ${activity.requiresEducation.replace('_', ' ')} education` };
     }
 
-    updateStats({ energy: gameState.stats.energy - activity.energyCost }, false);
+    updateStats({ energy: -activity.energyCost }, false);
 
     let result: { success: boolean; message: string } = {
       success: false,
@@ -3999,34 +4544,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           setGameState(prev => ({
             ...prev,
             jailWeeks: 0,
-            wantedLevel: prev.wantedLevel + 3,
+            wantedLevel: prev.wantedLevel + 2, // Reduced from 3
             escapedFromJail: true,
           }));
           result = { success: true, message: '🎉 MIRACLE! You successfully escaped! But you\'re now wanted more than ever.' };
         } else {
           updateStats({
-            happiness: -25,
-            health: -15,
+            happiness: -15, // Reduced from -25
+            health: -10, // Reduced from -15
           });
-          const penalty = (activity.failurePenalty || 8) + Math.floor(Math.random() * 4);
-          
-          // Small chance to get even more jail time (10% chance)
-          const extraTime = Math.random() < 0.1 ? Math.floor(Math.random() * 5) + 2 : 0;
-          const totalPenalty = penalty + extraTime;
+          const penalty = 2 + Math.floor(Math.random() * 3); // Reduced: now 2-4 weeks instead of 8-12
           
           setGameState(prev => ({
             ...prev,
-            jailWeeks: prev.jailWeeks + totalPenalty,
+            jailWeeks: prev.jailWeeks + penalty,
           }));
-          
-          let message = `❌ Escape failed! You were caught and your sentence was extended by ${penalty} weeks.`;
-          if (extraTime > 0) {
-            message += `\n\n🚨 EXTRA PUNISHMENT: The guards found evidence of your escape attempt and added ${extraTime} more weeks!`;
-          }
           
           result = {
             success: false,
-            message: message,
+            message: `❌ Escape failed! You were caught and your sentence was extended by ${penalty} weeks.`,
           };
         }
         break;
@@ -4529,6 +5065,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const nextWeek = () => {
     try {
       simulateWeek();
+      
+      // Update stock holdings with current prices
+      if (gameState.stocks?.holdings) {
+        const updatedHoldings = gameState.stocks.holdings.map(holding => ({
+          ...holding,
+          currentPrice: getStockInfo(holding.symbol).price
+        }));
+        
+        setGameState(prev => ({
+          ...prev,
+          stocks: {
+            ...prev.stocks,
+            holdings: updatedHoldings,
+            watchlist: prev.stocks?.watchlist || []
+          }
+        }));
+      }
+      
       const nextWeeksLived = gameState.weeksLived + 1;
       let newDate = { ...gameState.date };
       newDate.week += 1;
@@ -4567,12 +5121,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     if (gameState.jailWeeks > 0) {
       const jailResult = serveJailTime();
+      console.log('Jail release - Current money before release:', gameState.stats.money);
       const updatedStats = {
-        ...gameState.stats,
+        ...gameState.stats, // This preserves all stats including money
         health: Math.max(0, Math.min(100, gameState.stats.health + (jailResult.statsChange.health || 0))),
         happiness: Math.max(0, Math.min(100, gameState.stats.happiness + (jailResult.statsChange.happiness || 0))),
-        energy: 100,
+        energy: 100, // Always restore full energy when getting out of jail
+        // Explicitly preserve money - no change to money during jail release
+        money: gameState.stats.money,
       };
+      console.log('Jail release - Money after release:', updatedStats.money);
       const nextTotalHappiness = gameState.totalHappiness + updatedStats.happiness;
       setGameState(prev => ({
         ...prev,
@@ -4584,6 +5142,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         pendingEvents: [],
         totalHappiness: nextTotalHappiness,
         weeksLived: nextWeeksLived,
+        weeklyJailActivities: {}, // Reset jail activities when getting out of jail
         dailySummary: (Platform.OS === 'web' || prev.settings.notificationsEnabled)
           ? { moneyChange: 0, statsChange: jailResult.statsChange, events: jailResult.events }
           : undefined,
@@ -4725,9 +5284,27 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const baseChance = 2;
       let diseaseChance = baseChance;
 
+      // Health and happiness penalties (unchanged)
       if (gameState.stats.happiness < 30) diseaseChance += 3;
-      if (gameState.stats.fitness < 30) diseaseChance += 3;
       if (gameState.stats.health < 30) diseaseChance += 4;
+      
+      // Fitness-based disease resistance
+      // Higher fitness significantly reduces disease chance
+      if (gameState.stats.fitness < 30) {
+        diseaseChance += 3; // Low fitness penalty
+      } else if (gameState.stats.fitness >= 80) {
+        diseaseChance -= 1.5; // High fitness bonus (reduces chance)
+      } else if (gameState.stats.fitness >= 60) {
+        diseaseChance -= 0.5; // Medium fitness bonus
+      }
+      
+      // Ensure disease chance doesn't go below 0.1% (minimum risk)
+      diseaseChance = Math.max(0.1, diseaseChance);
+
+      // Debug logging for fitness-based disease resistance
+      if (__DEV__) {
+        console.log(`Disease check - Fitness: ${gameState.stats.fitness}, Disease chance: ${diseaseChance.toFixed(2)}%`);
+      }
 
       if (Math.random() * 100 < diseaseChance) {
         const diseases: Disease[] = [
@@ -4854,7 +5431,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         statsChange.happiness = (statsChange.happiness || 0) - 15;
         statsChange.health = (statsChange.health || 0) - 5;
 
-        const progressGain = Math.floor(Math.random() * 10) + 5;
+        const progressGain = Math.floor(Math.random() * 5) + 2; // Reduced from 5-15 to 2-7 (2x slower)
         setGameState(prev => ({
           ...prev,
           careers: prev.careers.map(c => {
@@ -5027,6 +5604,82 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Warehouse mining earnings
+    if (gameState.warehouse && gameState.warehouse.selectedCrypto && Object.keys(gameState.warehouse.miners).length > 0) {
+      const minerEarnings: Record<string, number> = {
+        basic: 22,
+        advanced: 105,
+        pro: 438,
+        industrial: 1575,
+        quantum: 7000,
+        mega: 35000,
+        giga: 140000,
+        tera: 700000,
+      };
+      const minerPower: Record<string, number> = {
+        basic: 10,
+        advanced: 35,
+        pro: 100,
+        industrial: 250,
+        quantum: 500,
+        mega: 2000,
+        giga: 5000,
+        tera: 15000,
+      };
+
+      // Crypto mining difficulty multipliers
+      const cryptoMiningMultipliers: Record<string, number> = {
+        'btc': 1.0,
+        'eth': 0.8,
+        'sol': 0.6,
+        'link': 0.5,
+        'dot': 0.4,
+        'matic': 0.3,
+        'ada': 0.2,
+        'xrp': 0.1,
+      };
+
+      const selectedCrypto = gameState.cryptos.find(c => c.id === gameState.warehouse?.selectedCrypto);
+      const difficultyMultiplier = cryptoMiningMultipliers[gameState.warehouse.selectedCrypto] || 1.0;
+
+      if (selectedCrypto) {
+        const weeklyMiningEarnings = Object.entries(gameState.warehouse.miners).reduce(
+          (sum, [id, count]) => sum + (minerEarnings[id] || 0) * count * difficultyMultiplier,
+          0
+        );
+        const totalPower = Object.entries(gameState.warehouse.miners).reduce(
+          (sum, [id, count]) => sum + (minerPower[id] || 0) * count,
+          0
+        );
+
+        const cryptoEarned = weeklyMiningEarnings / selectedCrypto.price;
+        cryptoEarnings[selectedCrypto.id] = (cryptoEarnings[selectedCrypto.id] || 0) + cryptoEarned;
+        events.push(`Warehouse mined ${cryptoEarned.toFixed(6)} ${selectedCrypto.symbol} (≈$${weeklyMiningEarnings.toFixed(2)})`);
+
+        // Power costs
+        const weeklyPowerCost = totalPower * 0.40; // $0.40 per power unit per week
+        moneyChange -= weeklyPowerCost;
+        events.push(`Warehouse power costs: -$${weeklyPowerCost.toFixed(2)}`);
+
+        // Auto-repair costs
+        if (gameState.warehouse.autoRepairEnabled && gameState.warehouse.autoRepairCryptoId) {
+          const autoRepairCrypto = gameState.cryptos.find(c => c.id === gameState.warehouse?.autoRepairCryptoId);
+          if (autoRepairCrypto && autoRepairCrypto.owned >= (gameState.warehouse.autoRepairWeeklyCost || 0)) {
+            const autoRepairCost = gameState.warehouse.autoRepairWeeklyCost || 0;
+            setGameState(prev => ({
+              ...prev,
+              cryptos: prev.cryptos.map(c => 
+                c.id === gameState.warehouse?.autoRepairCryptoId 
+                  ? { ...c, owned: c.owned - autoRepairCost }
+                  : c
+              ),
+            }));
+            events.push(`Auto-repair service: -${autoRepairCost.toFixed(6)} ${autoRepairCrypto.symbol}`);
+          }
+        }
+      }
+    }
+
     if (Object.keys(cryptoEarnings).length > 0) {
       setGameState(prev => ({
         ...prev,
@@ -5145,6 +5798,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     statsChange.happiness = (statsChange.happiness || 0) - 5;
     statsChange.health = (statsChange.health || 0) - 5;
     events.push('Weekly lifestyle: -5 health, -5 happiness');
+    
+    // Reset weekly jail activities for new week
+    const resetWeeklyJailActivities = {};
     const updatedStats = {
       ...gameState.stats,
       money: gameState.stats.money + moneyChange,
@@ -5163,6 +5819,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     let deathReason: 'happiness' | 'health' | undefined;
     if (updatedStats.happiness <= 0) {
       happinessZeroWeeks += 1;
+      console.log('HAPPINESS AT 0 - Week:', happinessZeroWeeks, 'of 4');
       const weeksLeft = 4 - happinessZeroWeeks;
       if (weeksLeft > 0) {
         Alert.alert(
@@ -5172,6 +5829,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           } or your character will die.`
         );
       } else {
+        console.log('DEATH BY HAPPINESS - 4 weeks at 0!');
         deathReason = 'happiness';
       }
     } else {
@@ -5180,6 +5838,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     if (!deathReason && updatedStats.health <= 0) {
       healthZeroWeeks += 1;
+      console.log('HEALTH AT 0 - Week:', healthZeroWeeks, 'of 4');
       const weeksLeft = 4 - healthZeroWeeks;
       if (weeksLeft > 0) {
         Alert.alert(
@@ -5189,6 +5848,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           } or your character will die.`
         );
       } else {
+        console.log('DEATH BY HEALTH - 4 weeks at 0!');
         deathReason = 'health';
       }
     } else if (!deathReason) {
@@ -5203,6 +5863,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (deathReason) {
+      console.log('DEATH TRIGGERED:', deathReason, 'happinessZeroWeeks:', happinessZeroWeeks, 'healthZeroWeeks:', healthZeroWeeks);
+      
+      // Store the state before death for potential revival
       const stateBeforeDeath: GameState = {
         ...gameState,
         stats: updatedStats,
@@ -5214,11 +5877,54 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         deathReason: undefined,
       };
       preDeathStateRef.current = JSON.parse(JSON.stringify(stateBeforeDeath));
-      setGameState({
-        ...stateBeforeDeath,
+      
+      // Set death state in a single update to prevent race conditions
+      setGameState(prev => ({
+        ...prev,
+        stats: updatedStats,
+        happinessZeroWeeks,
+        healthZeroWeeks,
+        showZeroStatPopup: false,
+        zeroStatType: undefined,
         showDeathPopup: true,
         deathReason,
-      });
+      }));
+      
+      console.log('DEATH POPUP SHOULD BE SHOWING NOW');
+      
+      // Safety mechanism: Force show death popup after a short delay if it doesn't appear
+      setTimeout(() => {
+        setGameState(prev => {
+          if (!prev.showDeathPopup) {
+            console.log('DEATH POPUP NOT SHOWING - FORCING DISPLAY');
+            return {
+              ...prev,
+              showDeathPopup: true,
+              deathReason: deathReason || 'health',
+            };
+          }
+          return prev;
+        });
+      }, 100);
+      
+      // Additional safety: Emergency fallback after 2 seconds
+      setTimeout(() => {
+        setGameState(prev => {
+          if (!prev.showDeathPopup) {
+            console.error('DEATH POPUP STILL NOT SHOWING - EMERGENCY FALLBACK');
+            // Force a complete state reset to show death popup
+            return {
+              ...prev,
+              showDeathPopup: true,
+              deathReason: deathReason || 'health',
+              showZeroStatPopup: false,
+              zeroStatType: undefined,
+            };
+          }
+          return prev;
+        });
+      }, 2000);
+      
       return;
     }
 
@@ -5241,7 +5947,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           ...stateWithInflation,
           day: prev.day + 1,
           date: newDate,
-          dailySummary: (Platform.OS === 'web' || stateWithInflation.settings.notificationsEnabled)
+          dailySummary: (() => {
+            const shouldShow = stateWithInflation.settings.weeklySummaryEnabled && (nextWeeksLived % 4 === 0);
+            if (__DEV__) {
+              console.log('GameContext - Setting dailySummary:', shouldShow, 'weeklySummaryEnabled:', stateWithInflation.settings.weeklySummaryEnabled, 'nextWeeksLived:', nextWeeksLived, 'nextWeeksLived % 4:', nextWeeksLived % 4);
+            }
+            return shouldShow;
+          })()
             ? {
                 moneyChange,
                 statsChange,
@@ -5266,6 +5978,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           weeksLived: nextWeeksLived,
           jailWeeks,
           wantedLevel,
+          weeklyJailActivities: resetWeeklyJailActivities, // Reset jail activities for new week
         };
       });
     }, 50);
@@ -5430,6 +6143,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setGameState(prev => ({ ...prev, showZeroStatPopup: false, zeroStatType: undefined }));
   };
 
+
   const dismissSicknessModal = () => {
     setGameState(prev => ({ ...prev, showSicknessModal: false }));
   };
@@ -5592,6 +6306,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (!state.eventLog) state.eventLog = [];
     if (!state.claimedProgressAchievements) state.claimedProgressAchievements = [];
     if (!state.streetJobsCompleted) state.streetJobsCompleted = 0;
+    if (!state.completedGoals) state.completedGoals = [];
     if (!state.happinessZeroWeeks) state.happinessZeroWeeks = 0;
     if (!state.healthZeroWeeks) state.healthZeroWeeks = 0;
     if (!state.healthWeeks) state.healthWeeks = 0;
@@ -5616,7 +6331,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (state.weeksLived === undefined) state.weeksLived = 0;
     if (!state.updatedAt) state.updatedAt = Date.now();
     if (!state.weeklyJailActivities) state.weeklyJailActivities = {};
-    if (!state.dailyGifts) state.dailyGifts = initialGameState.dailyGifts;
     if (version < STATE_VERSION) state.version = STATE_VERSION;
 
     // Ensure gamingStreaming block exists and has all required fields (keep scenarios/perks out)
@@ -5735,6 +6449,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Invalid game state structure');
       }
 
+      // Save global gems separately
+      await AsyncStorage.setItem('globalGems', gameState.stats.gems.toString());
+
       // Use save queue to prevent race conditions
       await queueSave(currentSlot, stateToSave);
 
@@ -5780,6 +6497,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
   }, [gameState, currentSlot]);
 
+  // Update saveGame ref whenever saveGame changes (prevents dependency loop)
+  useEffect(() => {
+    saveGameRef.current = saveGame;
+  }, [saveGame]);
+
   // Debounced autosave on state changes (prevents rapid save storms)
   useEffect(() => {
     if (isLoading) return;
@@ -5788,7 +6510,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       saveDebounceRef.current = null;
     }
     saveDebounceRef.current = setTimeout(() => {
-      saveGame();
+      // Use ref to avoid dependency loop with saveGame
+      if (saveGameRef.current) {
+        saveGameRef.current();
+      }
     }, 500) as any;
     return () => {
       if (saveDebounceRef.current) {
@@ -5796,7 +6521,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         saveDebounceRef.current = null;
       }
     };
-  }, [gameState, isLoading, saveGame]);
+  }, [gameState, isLoading]); // Removed saveGame from dependencies
 
   // Dev transaction log: money + gaming totals
   useEffect(() => {
@@ -5820,7 +6545,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, [gameState.stats.money, (gameState as any).gamingStreaming?.totalEarnings, (gameState as any).gamingStreaming?.totalDonations, (gameState as any).gamingStreaming?.totalSubEarnings]);
 
   const claimProgressAchievement = (id: string, gold: number) => {
-    if (gameState.claimedProgressAchievements.includes(id)) return;
+    // Ensure claimedProgressAchievements array exists
+    const claimedAchievements = gameState.claimedProgressAchievements || [];
+    
+    // Check if achievement is already claimed
+    if (claimedAchievements.includes(id)) {
+      console.log(`Achievement ${id} already claimed, skipping`);
+      return;
+    }
     
     // Find the achievement data to show the popup
     const achievement = gameState.achievements?.find(a => a.id === id);
@@ -5832,7 +6564,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     updateStats({ gems: gold }, false);
     setGameState(prev => ({
       ...prev,
-      claimedProgressAchievements: [...prev.claimedProgressAchievements, id],
+      claimedProgressAchievements: [...(prev.claimedProgressAchievements || []), id],
     }));
     saveGame();
   };
@@ -5896,38 +6628,146 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const loadGame = useCallback(async (slot?: number) => {
     try {
       const slotToLoad = slot || currentSlot;
-      const savedData = await AsyncStorage.getItem(`save_slot_${slotToLoad}`);
+      let savedData: string | null = null;
+      
+      try {
+        savedData = await AsyncStorage.getItem(`save_slot_${slotToLoad}`);
+      } catch (storageError) {
+        console.error('AsyncStorage error while loading game:', storageError);
+        Alert.alert(
+          'Storage Error',
+          'Failed to load game from device storage. Please try restarting the app.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       
       if (savedData) {
-        const loadedState = JSON.parse(savedData);
+        let loadedState;
+        try {
+          loadedState = JSON.parse(savedData);
+          
+          // Validate that the parsed data has the expected structure
+          if (!loadedState || typeof loadedState !== 'object') {
+            console.error('Invalid game state data structure');
+            return;
+          }
+        } catch (parseError) {
+          console.error('Failed to parse saved game data:', parseError);
+          return;
+        }
+        
+        // Load global gems with bulletproof recovery
+        let globalGems = 0;
+        try {
+          // Try primary storage first
+          let primaryGems = await AsyncStorage.getItem('globalGems');
+          if (primaryGems) {
+            const parsed = parseInt(primaryGems, 10);
+            globalGems = isNaN(parsed) || !isFinite(parsed) ? 0 : Math.max(0, parsed);
+            console.log(`Loaded gems from primary storage: ${globalGems}`);
+          } else {
+            // Try backup storage
+            let backupGems = await AsyncStorage.getItem('globalGems_backup');
+            if (backupGems) {
+              const parsed = parseInt(backupGems, 10);
+              globalGems = isNaN(parsed) || !isFinite(parsed) ? 0 : Math.max(0, parsed);
+              console.log(`Loaded gems from backup storage: ${globalGems}`);
+            } else {
+              // Try emergency storage
+              let emergencyGems = await AsyncStorage.getItem('globalGems_emergency');
+              if (emergencyGems) {
+                const parsed = parseInt(emergencyGems, 10);
+                globalGems = isNaN(parsed) || !isFinite(parsed) ? 0 : Math.max(0, parsed);
+                console.log(`Loaded gems from emergency storage: ${globalGems}`);
+              } else {
+                console.log('No gem data found in any storage location');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load global gems from all sources:', error);
+          // Continue with 0 gems - better than crashing
+          globalGems = 0;
+        }
+        
+        // Load permanent perks (perks that persist across all lives)
+        let permanentPerks: string[] = [];
+        try {
+          permanentPerks = await loadPermanentPerks();
+          console.log('Loaded permanent perks:', permanentPerks);
+        } catch (error) {
+          console.error('Failed to load permanent perks:', error);
+          // Continue without permanent perks - better than crashing
+        }
         
         // Validate and migrate state
         const validatedState = migrateState(loadedState);
         
+        // Ensure the state has all required properties
+        if (!validatedState.stats || typeof validatedState.stats !== 'object') {
+          console.error('Invalid stats structure in loaded state');
+          return;
+        }
+        
         // Ensure all stats are present and valid
+        const originalMoney = validatedState.stats?.money ?? 0;
         const validatedStats: GameStats = {
           health: Math.max(0, Math.min(100, validatedState.stats?.health ?? 50)),
           happiness: Math.max(0, Math.min(100, validatedState.stats?.happiness ?? 50)),
           energy: Math.max(0, Math.min(100, validatedState.stats?.energy ?? 50)),
           fitness: Math.max(0, Math.min(100, validatedState.stats?.fitness ?? 50)),
-          money: Math.max(0, validatedState.stats?.money ?? 0),
+          money: Math.max(0, originalMoney),
           reputation: Math.max(0, Math.min(100, validatedState.stats?.reputation ?? 0)),
-          gems: Math.max(0, validatedState.stats?.gems ?? 0),
+          gems: validateGems(globalGems), // Use validated global gems instead of save-specific gems
         };
         
+        console.log('Money validation:', {
+          originalMoney,
+          validatedMoney: validatedStats.money,
+          originalStats: validatedState.stats
+        });
+        
         const now = Date.now();
+        
+        // Apply permanent perks to the game state
+        const perksWithPermanent = { ...(validatedState.perks || {}) };
+        permanentPerks.forEach(perkId => {
+          perksWithPermanent[perkId] = true;
+        });
+        
         let updatedState: GameState = {
           ...validatedState,
           stats: validatedStats,
+          perks: perksWithPermanent,
           version: STATE_VERSION,
           lastLogin: now,
         };
         
-        // Daily reward logic
+        // Daily reward logic - only give reward if it's been more than 24 hours since last login
         let rewardMsg: string | null = null;
-        if (!loadedState.lastLogin || now - loadedState.lastLogin > 24 * 60 * 60 * 1000) {
+        const lastLoginTime = loadedState.lastLogin || 0;
+        const timeSinceLastLogin = now - lastLoginTime;
+        const oneDayInMs = 24 * 60 * 60 * 1000;
+        
+        console.log('Daily reward check:', {
+          lastLoginTime,
+          now,
+          timeSinceLastLogin,
+          oneDayInMs,
+          shouldGiveReward: lastLoginTime > 0 && timeSinceLastLogin > oneDayInMs,
+          currentMoney: updatedState.stats.money
+        });
+        
+        // Only give daily reward if it's been more than 24 hours AND we have a valid lastLogin time
+        // AND the user doesn't already have significant money (to prevent reset issues)
+        // AND the user is not coming out of jail (to prevent money reset after jail)
+        let dailyRewardAmount = 0;
+        if (lastLoginTime > 0 && timeSinceLastLogin > oneDayInMs && updatedState.stats.money < 50 && updatedState.jailWeeks === 0) {
           const worth = netWorth(updatedState);
-          const moneyBonus = Math.max(100, Math.floor(worth * 0.001));
+          const moneyBonus = Math.max(50, Math.floor(worth * 0.001)); // Reduced minimum from 100 to 50
+          dailyRewardAmount = moneyBonus;
+          console.log('Giving daily reward:', { worth, moneyBonus, oldMoney: updatedState.stats.money });
           updatedState = {
             ...updatedState,
             stats: {
@@ -5935,20 +6775,74 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
               money: updatedState.stats.money + moneyBonus,
               gems: updatedState.stats.gems + 1,
             },
+            showDailyRewardPopup: true,
+            dailyRewardAmount: moneyBonus,
           };
-          rewardMsg = `You received 1 gem and $${moneyBonus}`;
+        } else if (lastLoginTime > 0 && timeSinceLastLogin > oneDayInMs) {
+          // Give gems but not money if user already has money or is coming out of jail
+          updatedState = {
+            ...updatedState,
+            stats: {
+              ...updatedState.stats,
+              gems: updatedState.stats.gems + 1,
+            },
+            showDailyRewardPopup: true,
+            dailyRewardAmount: 0, // No money bonus, just gems
+          };
+        }
+        
+        // Ensure completedGoals is initialized
+        if (!updatedState.completedGoals) {
+          updatedState.completedGoals = [];
+        }
+        
+        // Ensure claimedProgressAchievements is initialized
+        if (!updatedState.claimedProgressAchievements) {
+          updatedState.claimedProgressAchievements = [];
         }
         
         setGameState(updatedState);
         setCurrentSlot(slotToLoad);
         
-        if (rewardMsg) {
-          Alert.alert('Daily Reward', rewardMsg);
-        }
-        
         // Game loaded successfully
       } else {
-        // No save data found
+        // No save data found - load global gems for new game with bulletproof recovery
+        let globalGems = 0;
+        try {
+          // Try primary storage first
+          let primaryGems = await AsyncStorage.getItem('globalGems');
+          if (primaryGems) {
+            globalGems = parseInt(primaryGems, 10);
+            console.log(`New game - loaded gems from primary storage: ${globalGems}`);
+          } else {
+            // Try backup storage
+            let backupGems = await AsyncStorage.getItem('globalGems_backup');
+            if (backupGems) {
+              globalGems = parseInt(backupGems, 10);
+              console.log(`New game - loaded gems from backup storage: ${globalGems}`);
+            } else {
+              // Try emergency storage
+              let emergencyGems = await AsyncStorage.getItem('globalGems_emergency');
+              if (emergencyGems) {
+                globalGems = parseInt(emergencyGems, 10);
+                console.log(`New game - loaded gems from emergency storage: ${globalGems}`);
+              } else {
+                console.log('New game - no gem data found, starting with 0 gems');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load global gems for new game:', error);
+        }
+        
+        // Set gems in the initial state with validation
+        setGameState(prev => ({
+          ...prev,
+          stats: {
+            ...prev.stats,
+            gems: validateGems(globalGems),
+          },
+        }));
       }
     } catch (error) {
       console.error('Failed to load game:', error);
@@ -5961,6 +6855,45 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
   }, [gameState, saveGame]);
 
+  // Monitor gem changes and save to global storage with multiple backups
+  useEffect(() => {
+    const saveGlobalGemsBulletproof = async () => {
+      try {
+        const gemValue = gameState.stats.gems;
+        const timestamp = Date.now();
+        
+        // Primary storage
+        try {
+          await AsyncStorage.setItem('globalGems', gemValue.toString());
+          await AsyncStorage.setItem('globalGems_timestamp', timestamp.toString());
+        } catch (storageError) {
+          console.error('AsyncStorage error saving global gems:', storageError);
+        }
+        
+        // Backup storage with timestamp
+        try {
+          await AsyncStorage.setItem('globalGems_backup', gemValue.toString());
+          await AsyncStorage.setItem('globalGems_backup_timestamp', timestamp.toString());
+        } catch (backupError) {
+          console.error('Failed to save gem backup:', backupError);
+        }
+        
+        // Emergency backup (always try to save even if others fail)
+        try {
+          await AsyncStorage.setItem('globalGems_emergency', gemValue.toString());
+        } catch (emergencyError) {
+          console.error('Failed to save emergency gem backup:', emergencyError);
+        }
+        
+        console.log(`Gems saved: ${gemValue} (timestamp: ${timestamp})`);
+      } catch (error) {
+        console.error('Failed to save global gems:', error);
+      }
+    };
+    
+    saveGlobalGemsBulletproof();
+  }, [gameState.stats.gems]);
+
   useEffect(() => {
     if (gameState.settings.notificationsEnabled && Platform.OS !== 'web') {
       scheduleDailyReminder();
@@ -5968,6 +6901,29 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       cancelDailyReminder();
     }
   }, [gameState.settings.notificationsEnabled]);
+
+  // Periodic gem backup system - runs every 2 minutes to ensure gems are always saved
+  useEffect(() => {
+    if (isLoading) return;
+    
+    const backupInterval = setInterval(async () => {
+      try {
+        const currentGems = gameState.stats.gems;
+        const timestamp = Date.now();
+        
+        // Silent backup - don't spam console
+        await AsyncStorage.setItem('globalGems_backup', currentGems.toString());
+        await AsyncStorage.setItem('globalGems_backup_timestamp', timestamp.toString());
+        
+        // Emergency backup
+        await AsyncStorage.setItem('globalGems_emergency', currentGems.toString());
+      } catch (error) {
+        console.warn('Periodic gem backup failed:', error);
+      }
+    }, 120000); // 2 minutes
+    
+    return () => clearInterval(backupInterval);
+  }, [gameState.stats.gems, isLoading]);
 
   const buyCrypto = (cryptoId: string, amount: number) => {
     const crypto = gameState.cryptos.find(c => c.id === cryptoId);
@@ -6030,6 +6986,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   };
 
   const buyPerk = (perkId: string) => {
+    // Simulate IAP purchase for perk
+    console.log(`IAP Perk purchase initiated: ${perkId}`);
+    
+    // Give the perk immediately
     setGameState(prev => ({
       ...prev,
       perks: {
@@ -6037,6 +6997,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         [perkId]: true,
       },
     }));
+    
+    // Show success message
+    Alert.alert(
+      'Purchase Successful!',
+      `You have unlocked the ${perkId.replace(/_/g, ' ')} perk!`,
+      [{ text: 'Continue' }]
+    );
+    
     saveGame();
   };
 
@@ -6050,6 +7018,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const amount = packs[packId as keyof typeof packs];
     if (amount) {
+      // Simulate IAP purchase for money pack
+      console.log(`IAP Money pack purchase initiated: ${packId}`);
+      
+      // Give the money immediately
       setGameState(prev => ({
         ...prev,
         stats: {
@@ -6057,6 +7029,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           money: prev.stats.money + amount
         }
       }));
+      
+      // Show success message
+      Alert.alert(
+        'Purchase Successful!',
+        `You received $${amount.toLocaleString()}!`,
+        [{ text: 'Continue' }]
+      );
+      
       saveGame();
     }
   };
@@ -6070,8 +7050,260 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const amount = packs[packId as keyof typeof packs];
     if (amount) {
+      // Simulate IAP purchase for gem pack
+      console.log(`IAP Gem pack purchase initiated: ${packId}`);
+      
+      // Give the gems immediately
       updateStats({ gems: gameState.stats.gems + amount }, false);
+      
+      // Show success message
+      Alert.alert(
+        'Purchase Successful!',
+        `You received ${amount} gems!`,
+        [{ text: 'Continue' }]
+      );
+      
       saveGame();
+    }
+  };
+
+  const buyRevival = async () => {
+    try {
+      console.log('IAP Revival purchase initiated');
+      
+      // Safety check: Ensure IAP service is initialized
+      if (!iapService) {
+        console.error('IAP service not available');
+        Alert.alert(
+          'Service Unavailable',
+          'The purchase service is not available. Please restart the app and try again.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Use the IAP service to purchase the revival pack with extra error handling
+      let result;
+      try {
+        result = await iapService.purchaseProduct(IAP_PRODUCTS.REVIVAL_PACK);
+      } catch (purchaseError: any) {
+        console.error('IAP purchase error:', purchaseError);
+        Alert.alert(
+          'Purchase Failed',
+          purchaseError?.message || 'Unable to complete purchase. Please check your connection and try again.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Safety check: Ensure result exists
+      if (!result || typeof result !== 'object') {
+        console.error('Invalid purchase result:', result);
+        Alert.alert(
+          'Purchase Failed',
+          'Unable to complete purchase. Please try again or contact support.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      if (result.success) {
+        // The purchase was successful and benefits are applied by IAPService
+        // We need to reload the game state from AsyncStorage to get the updates
+        const gameStateJson = await AsyncStorage.getItem('gameState');
+        if (gameStateJson) {
+          const updatedState = JSON.parse(gameStateJson);
+          setGameState(updatedState);
+        }
+        
+        // Show success message
+        Alert.alert(
+          'Purchase Successful!',
+          'You have been revived! Your character is back to life with restored health and happiness.',
+          [{ text: 'Continue' }]
+        );
+      } else {
+        // Purchase failed
+        console.error('Revival purchase failed:', result.message);
+        Alert.alert(
+          'Purchase Failed',
+          result.message || 'Unable to complete the revival purchase. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error: any) {
+      console.error('Error during revival purchase:', error);
+      Alert.alert(
+        'Error',
+        error?.message || 'An error occurred while processing your purchase. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Permanent Perks System - Perks that persist across all lives/saves
+  const loadPermanentPerks = async (): Promise<string[]> => {
+    try {
+      const perksJson = await AsyncStorage.getItem('permanent_perks');
+      if (perksJson) {
+        return JSON.parse(perksJson);
+      }
+      return [];
+    } catch (error) {
+      console.error('Error loading permanent perks:', error);
+      return [];
+    }
+  };
+
+  const savePermanentPerk = async (perkId: string): Promise<void> => {
+    try {
+      const currentPerks = await loadPermanentPerks();
+      if (!currentPerks.includes(perkId)) {
+        currentPerks.push(perkId);
+        await AsyncStorage.setItem('permanent_perks', JSON.stringify(currentPerks));
+        console.log('Permanent perk saved:', perkId);
+      }
+    } catch (error) {
+      console.error('Error saving permanent perk:', error);
+    }
+  };
+
+  const hasPermanentPerk = async (perkId: string): Promise<boolean> => {
+    const perks = await loadPermanentPerks();
+    return perks.includes(perkId);
+  };
+
+  // Daily Challenges System
+  const initializeDailyChallenges = useCallback(() => {
+    const { generateDailyChallenges, shouldResetChallenges } = require('@/utils/dailyChallenges');
+    
+    // Check if we need to reset challenges
+    const currentChallenges = gameState.dailyChallenges;
+    const now = Date.now();
+    
+    if (!currentChallenges || shouldResetChallenges(currentChallenges.lastRefresh)) {
+      const todaysChallenges = generateDailyChallenges();
+      
+      // Create deep copy of current state for initial state tracking
+      const initialState = JSON.parse(JSON.stringify(gameState));
+      
+      setGameState(prev => ({
+        ...prev,
+        dailyChallenges: {
+          easy: { 
+            id: todaysChallenges.easy.id, 
+            progress: 0, 
+            claimed: false, 
+            initialState 
+          },
+          medium: { 
+            id: todaysChallenges.medium.id, 
+            progress: 0, 
+            claimed: false, 
+            initialState 
+          },
+          hard: { 
+            id: todaysChallenges.hard.id, 
+            progress: 0, 
+            claimed: false, 
+            initialState 
+          },
+          lastRefresh: now,
+        },
+      }));
+    }
+  }, [gameState]);
+
+  const updateDailyChallengeProgress = useCallback(() => {
+    const { generateDailyChallenges } = require('@/utils/dailyChallenges');
+    
+    if (!gameState.dailyChallenges) return;
+    
+    const todaysChallenges = generateDailyChallenges();
+    
+    // Get challenge definitions
+    const easyChallenge = todaysChallenges.easy;
+    const mediumChallenge = todaysChallenges.medium;
+    const hardChallenge = todaysChallenges.hard;
+    
+    // Calculate progress
+    const easyProgress = easyChallenge.checkProgress(
+      gameState, 
+      gameState.dailyChallenges.easy.initialState
+    );
+    const mediumProgress = mediumChallenge.checkProgress(
+      gameState, 
+      gameState.dailyChallenges.medium.initialState
+    );
+    const hardProgress = hardChallenge.checkProgress(
+      gameState, 
+      gameState.dailyChallenges.hard.initialState
+    );
+    
+    setGameState(prev => ({
+      ...prev,
+      dailyChallenges: prev.dailyChallenges ? {
+        ...prev.dailyChallenges,
+        easy: { ...prev.dailyChallenges.easy, progress: easyProgress },
+        medium: { ...prev.dailyChallenges.medium, progress: mediumProgress },
+        hard: { ...prev.dailyChallenges.hard, progress: hardProgress },
+      } : undefined,
+    }));
+  }, [gameState]);
+
+  const claimDailyChallengeReward = useCallback((difficulty: 'easy' | 'medium' | 'hard') => {
+    const { generateDailyChallenges } = require('@/utils/dailyChallenges');
+    
+    if (!gameState.dailyChallenges) return { success: false, message: 'No challenges available' };
+    
+    const challenge = gameState.dailyChallenges[difficulty];
+    if (challenge.claimed) {
+      return { success: false, message: 'Already claimed' };
+    }
+    
+    const todaysChallenges = generateDailyChallenges();
+    const challengeDef = todaysChallenges[difficulty];
+    
+    // Check if completed
+    if (challenge.progress < challengeDef.maxProgress) {
+      return { success: false, message: 'Challenge not completed' };
+    }
+    
+    // Award reward
+    const reward = challengeDef.reward;
+    updateStats({ gems: gameState.stats.gems + reward }, false);
+    
+    // Mark as claimed
+    setGameState(prev => ({
+      ...prev,
+      dailyChallenges: prev.dailyChallenges ? {
+        ...prev.dailyChallenges,
+        [difficulty]: { ...prev.dailyChallenges[difficulty], claimed: true },
+      } : undefined,
+    }));
+    
+    return { success: true, message: `+${reward} gems!`, reward };
+  }, [gameState, updateStats]);
+
+  const clearSaveSlot = async (slot: number) => {
+    try {
+      // Clear all save-related data for the specified slot
+      await AsyncStorage.removeItem(`save_slot_${slot}`);
+      await AsyncStorage.removeItem(`save_slot_${slot}_backup`);
+      await AsyncStorage.removeItem(`save_slot_${slot}_temp`);
+      await AsyncStorage.removeItem(`cloud_save_slot_${slot}`);
+      await AsyncStorage.removeItem(`cloud_save_slot_${slot}_backup`);
+      await AsyncStorage.removeItem(`cache_slot_${slot}`);
+      
+      // If this is the current slot, also clear lastSlot
+      if (slot === currentSlot) {
+        await AsyncStorage.removeItem('lastSlot');
+      }
+      
+      console.log(`Save slot ${slot} cleared successfully`);
+    } catch (error) {
+      console.error(`Failed to clear save slot ${slot}:`, error);
+      throw error;
     }
   };
 
@@ -6388,6 +7620,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         buyStarterPack,
         buyGoldPack,
         buyGoldUpgrade,
+        buyRevival,
+        clearSaveSlot,
+        savePermanentPerk,
+        hasPermanentPerk,
+        loadPermanentPerks,
+        initializeDailyChallenges,
+        updateDailyChallengeProgress,
+        claimDailyChallengeReward,
         buyMiner,
         buyWarehouse,
         upgradeWarehouse,

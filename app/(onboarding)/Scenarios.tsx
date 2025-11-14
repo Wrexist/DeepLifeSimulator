@@ -152,25 +152,26 @@ export default function Scenarios() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <LinearGradient
-              colors={['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.3)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.backButtonGradient}
-            >
-              <ArrowLeft size={24} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={styles.glassButton}>
+              <View style={styles.glassOverlay} />
+              <View style={styles.glassIconContainer}>
+                <ArrowLeft size={24} color="#FFFFFF" />
+              </View>
+            </View>
           </TouchableOpacity>
           <Text style={styles.title}>Choose Your Scenario</Text>
           <View style={styles.placeholder} />
         </View>
 
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={true}>
           <View style={styles.scrollContent}>
             {/* Hero section */}
             <View style={styles.heroSection}>
-              <Text style={styles.heroTitle}>Select Your Life Path</Text>
-              <Text style={styles.heroSubtitle}>Choose a scenario that defines your starting point</Text>
+              <View style={styles.glassCard}>
+                <View style={styles.glassOverlay} />
+                <Text style={styles.heroTitle}>Select Your Life Path</Text>
+                <Text style={styles.heroSubtitle}>Choose a scenario that defines your starting point</Text>
+              </View>
             </View>
 
             {/* Scenarios list */}
@@ -193,40 +194,36 @@ export default function Scenarios() {
                       >
                         <View style={styles.scenarioHeader}>
                           <View style={styles.iconContainer}>
-                            <LinearGradient
-                              colors={['rgba(59, 130, 246, 0.2)', 'rgba(99, 102, 241, 0.2)']}
-                              style={styles.iconGradient}
-                            >
-                              <Image source={scenario.icon} style={styles.scenarioIcon} />
-                            </LinearGradient>
+                            <Image source={scenario.icon} style={styles.scenarioIcon} />
                           </View>
-                                                     <View style={styles.scenarioInfo}>
-                             <Text style={styles.scenarioTitle}>{scenario.title}</Text>
-                             <Text style={styles.scenarioDescription}>{scenario.description}</Text>
-                           </View>
+                          <View style={styles.scenarioInfo}>
+                            <Text style={styles.scenarioTitle}>{scenario.title}</Text>
+                            <Text style={styles.scenarioDescription}>{scenario.description}</Text>
+                          </View>
                           {isSelected && (
                             <View style={styles.selectedIndicator}>
-                              <LinearGradient
-                                colors={['#10B981', '#059669']}
-                                style={styles.selectedGradient}
-                              >
+                              <View style={styles.glassIconContainer}>
+                                <View style={styles.glassOverlay} />
                                 <Text style={styles.selectedText}>✓</Text>
-                              </LinearGradient>
+                              </View>
                             </View>
                           )}
                         </View>
 
                         <View style={styles.statsContainer}>
-                          <View style={styles.statItem}>
+                          <View style={styles.glassStatItem}>
+                            <View style={styles.glassOverlay} />
                             <Text style={styles.statLabel}>Age</Text>
                             <Text style={styles.statValue}>{scenario.start.age}</Text>
                           </View>
-                          <View style={styles.statItem}>
+                          <View style={styles.glassStatItem}>
+                            <View style={styles.glassOverlay} />
                             <Text style={styles.statLabel}>Cash</Text>
                             <Text style={styles.statValue}>${scenario.start.cash.toLocaleString()}</Text>
                           </View>
-                          <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>Education</Text>
+                          <View style={styles.glassStatItem}>
+                            <View style={styles.glassOverlay} />
+                            <Text style={styles.statLabel}>Study</Text>
                             <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
                           </View>
                         </View>
@@ -237,12 +234,14 @@ export default function Scenarios() {
                             <Text style={styles.itemsTitle}>Starting Items & Traits</Text>
                             <View style={styles.itemsList}>
                               {scenario.start.items?.map((item, index) => (
-                                <View key={index} style={styles.itemBadge}>
+                                <View key={index} style={styles.glassBadge}>
+                                  <View style={styles.glassOverlay} />
                                   <Text style={styles.itemText}>{getItemIcon(item)} {formatItemName(item)}</Text>
                                 </View>
                               ))}
                               {scenario.start.traits?.map((trait, index) => (
-                                <View key={index} style={styles.traitBadge}>
+                                <View key={index} style={styles.glassTraitBadge}>
+                                  <View style={styles.glassOverlay} />
                                   <Text style={styles.traitText}>⭐ {formatTraitName(trait)}</Text>
                                 </View>
                               ))}
@@ -269,17 +268,17 @@ export default function Scenarios() {
             disabled={!selected}
             activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={selected ? ['#10B981', '#059669'] : ['rgba(75, 85, 99, 0.5)', 'rgba(55, 65, 81, 0.5)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.floatingButtonGradient}
-            >
-              <Text style={[styles.floatingButtonText, !selected && styles.floatingButtonTextDisabled]}>
-                Continue
-              </Text>
-              <ArrowRight size={20} color={selected ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)"} />
-            </LinearGradient>
+            <View style={styles.glassButton}>
+              <View style={styles.glassOverlay} />
+              <View style={styles.buttonContent}>
+                <Text style={[styles.glassButtonTitle, !selected && styles.glassButtonTitleDisabled]}>
+                  Continue
+                </Text>
+                <View style={styles.glassIconContainer}>
+                  <ArrowRight size={20} color={selected ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)"} />
+                </View>
+              </View>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -362,18 +361,46 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  backButtonGradient: {
+  glassButton: {
     width: 48,
     height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+  },
+  glassIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   placeholder: {
     width: 48,
@@ -434,16 +461,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
+    width: 80,
+    height: 80,
+    borderRadius: 16,
     overflow: 'hidden',
     marginRight: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   iconGradient: {
     width: '100%',
@@ -454,9 +481,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   scenarioIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    resizeMode: 'cover',
   },
   scenarioInfo: {
     flex: 1,
@@ -497,7 +525,6 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -605,29 +632,64 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 12,
   },
   floatingButtonDisabled: {
     opacity: 0.5,
   },
-  floatingButtonGradient: {
+  glassButton: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+  },
+  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
     gap: 12,
   },
-  floatingButtonText: {
-    color: '#FFFFFF',
+  glassButtonTitle: {
     fontSize: responsiveFontSize.xl,
     fontWeight: '700',
+    color: '#FFFFFF',
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  floatingButtonTextDisabled: {
+  glassButtonTitleDisabled: {
     color: 'rgba(255, 255, 255, 0.5)',
+  },
+  glassIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   particlesContainer: {
     position: 'absolute',
@@ -641,5 +703,52 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: 'rgba(59, 130, 246, 0.3)',
     borderRadius: 2,
+  },
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 24,
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  glassStatItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 12,
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  glassBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glassTraitBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    position: 'relative',
+    overflow: 'hidden',
   },
 });

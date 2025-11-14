@@ -3,6 +3,31 @@ import { Platform } from 'react-native';
 // IAP Product IDs - These must match exactly with your App Store/Google Play Console
 export const IAP_PRODUCTS = {
   // Gem Shop Store Items (from GemShopModal)
+  GEMS_100: Platform.select({
+    ios: 'deeplife_gems_100',
+    android: 'deeplife_gems_100',
+  }) || 'deeplife_gems_100',
+  
+  GEMS_500: Platform.select({
+    ios: 'deeplife_gems_500',
+    android: 'deeplife_gems_500',
+  }) || 'deeplife_gems_500',
+  
+  GEMS_1000: Platform.select({
+    ios: 'deeplife_gems_1000',
+    android: 'deeplife_gems_1000',
+  }) || 'deeplife_gems_1000',
+  
+  GEMS_5000: Platform.select({
+    ios: 'deeplife_gems_5000',
+    android: 'deeplife_gems_5000',
+  }) || 'deeplife_gems_5000',
+  
+  GEMS_15000: Platform.select({
+    ios: 'deeplife_gems_15000',
+    android: 'deeplife_gems_15000',
+  }) || 'deeplife_gems_15000',
+  
   GEMS_STARTER: Platform.select({
     ios: 'deeplife_gems_starter',
     android: 'deeplife_gems_starter',
@@ -80,10 +105,85 @@ export const IAP_PRODUCTS = {
     ios: 'deeplife_remove_ads',
     android: 'deeplife_remove_ads',
   }) || 'deeplife_remove_ads',
+  
+  // Bank Services IAP (Computer Banking App Services)
+
+  // Computer Banking App Services (to sync with mobile)
+  PREMIUM_CREDIT_CARD: Platform.select({
+    ios: 'deeplife_premium_credit_card',
+    android: 'deeplife_premium_credit_card',
+  }) || 'deeplife_premium_credit_card',
+
+  FINANCIAL_PLANNING: Platform.select({
+    ios: 'deeplife_financial_planning',
+    android: 'deeplife_financial_planning',
+  }) || 'deeplife_financial_planning',
+
+  BUSINESS_BANKING: Platform.select({
+    ios: 'deeplife_business_banking',
+    android: 'deeplife_business_banking',
+  }) || 'deeplife_business_banking',
+
+  PRIVATE_BANKING: Platform.select({
+    ios: 'deeplife_private_banking',
+    android: 'deeplife_private_banking',
+  }) || 'deeplife_private_banking',
+
+  // Revival Pack (Non-Consumable)
+  REVIVAL_PACK: Platform.select({
+    ios: 'revival_pack',
+    android: 'revival_pack',
+  }) || 'revival_pack',
 };
 
 // Product configurations with descriptions and rewards
 export const PRODUCT_CONFIGS = {
+  // Individual Gem Packs
+  [IAP_PRODUCTS.GEMS_100]: {
+    name: '100 Gems',
+    description: 'Small gem pack for quick purchases',
+    gems: 100,
+    price: '$0.99',
+    popular: false,
+    bestValue: false,
+  },
+  
+  [IAP_PRODUCTS.GEMS_500]: {
+    name: '500 Gems',
+    description: 'Medium gem pack for regular players',
+    gems: 500,
+    price: '$4.99',
+    popular: false,
+    bestValue: false,
+  },
+  
+  [IAP_PRODUCTS.GEMS_1000]: {
+    name: '1,000 Gems',
+    description: 'Large gem pack for active players',
+    gems: 1000,
+    price: '$9.99',
+    popular: true,
+    bestValue: false,
+  },
+  
+  [IAP_PRODUCTS.GEMS_5000]: {
+    name: '5,000 Gems',
+    description: 'Huge gem pack for dedicated players',
+    gems: 5000,
+    price: '$19.99',
+    popular: false,
+    bestValue: true,
+  },
+  
+  [IAP_PRODUCTS.GEMS_15000]: {
+    name: '15,000 Gems',
+    description: 'Massive gem pack for power players',
+    gems: 15000,
+    price: '$49.99',
+    popular: false,
+    bestValue: false,
+  },
+  
   // Gem Shop Store Items
   [IAP_PRODUCTS.GEMS_STARTER]: {
     name: 'Starter Pack',
@@ -253,6 +353,86 @@ export const PRODUCT_CONFIGS = {
       'Better performance',
     ],
   },
+  
+  // Bank Services IAP (Computer Banking App Services)
+
+  // Computer Banking App Services (to sync with mobile)
+  [IAP_PRODUCTS.PREMIUM_CREDIT_CARD]: {
+    name: 'Premium Credit Card',
+    description: '10% cashback on all purchases',
+    premiumCreditCard: true,
+    price: '$4.99',
+    popular: true,
+    bestValue: false,
+    features: [
+      '10% cashback on all purchases',
+      'No annual fee',
+      'Travel insurance',
+      '24/7 customer support',
+    ],
+  },
+
+  [IAP_PRODUCTS.FINANCIAL_PLANNING]: {
+    name: 'Financial Planning',
+    description: '15% interest on bank savings',
+    financialPlanning: true,
+    price: '$2.99',
+    popular: false,
+    bestValue: false,
+    features: [
+      '15% interest on bank savings',
+      'Expert financial advice',
+      'Investment portfolio optimization',
+      'Monthly financial reports',
+    ],
+  },
+
+  [IAP_PRODUCTS.BUSINESS_BANKING]: {
+    name: 'Business Banking',
+    description: 'Company loans and upgrades',
+    businessBanking: true,
+    price: '$3.99',
+    popular: false,
+    bestValue: false,
+    features: [
+      'Company loans',
+      'Business account management',
+      'Company upgrade purchases',
+      'Dedicated business advisor',
+    ],
+  },
+
+  [IAP_PRODUCTS.PRIVATE_BANKING]: {
+    name: 'Private Banking',
+    description: 'VIP 3% APR loans',
+    privateBanking: true,
+    price: '$9.99',
+    popular: false,
+    bestValue: false,
+    features: [
+      '3% APR loans (vs 5.5%)',
+      'Up to $200,000 loan limit',
+      'Personal wealth manager',
+      'Priority customer support',
+    ],
+  },
+
+  // Revival Pack (Non-Consumable)
+  [IAP_PRODUCTS.REVIVAL_PACK]: {
+    name: 'Revival Pack',
+    description: 'Instantly revive your character when they die',
+    revival: true,
+    price: '$2.99',
+    popular: true,
+    bestValue: false,
+    features: [
+      'Instant revival on death',
+      'Restore health to 50',
+      'Restore happiness to 50',
+      'Restore energy to 100',
+      'Continue your progress',
+    ],
+  },
 };
 
 // Subscription products (if you want to add subscriptions later)
@@ -289,4 +469,49 @@ export const isPopularProduct = (productId: string) => {
 export const isBestValueProduct = (productId: string) => {
   const config = getProductConfig(productId);
   return config?.bestValue || false;
+};
+
+// Consumable products - These should NOT be re-granted on restore
+// (user would get unlimited currency if we restored these)
+export const CONSUMABLE_PRODUCTS = [
+  IAP_PRODUCTS.GEMS_100,
+  IAP_PRODUCTS.GEMS_500,
+  IAP_PRODUCTS.GEMS_1000,
+  IAP_PRODUCTS.GEMS_5000,
+  IAP_PRODUCTS.GEMS_15000,
+  IAP_PRODUCTS.GEMS_STARTER,
+  IAP_PRODUCTS.GEMS_PREMIUM,
+  IAP_PRODUCTS.GEMS_ULTIMATE,
+  IAP_PRODUCTS.GEMS_MEGA,
+  IAP_PRODUCTS.YOUTH_PILL_SINGLE,
+  IAP_PRODUCTS.YOUTH_PILL_PACK,
+  IAP_PRODUCTS.MONEY_BOOST,
+  IAP_PRODUCTS.SKILL_BOOST,
+  IAP_PRODUCTS.REVIVAL_PACK, // Revival is one-time use
+];
+
+// Non-consumable products - These SHOULD be restored
+// (permanent perks, ad removal, lifetime features)
+export const NON_CONSUMABLE_PRODUCTS = [
+  IAP_PRODUCTS.WORK_BOOST,
+  IAP_PRODUCTS.MINDSET,
+  IAP_PRODUCTS.FAST_LEARNER,
+  IAP_PRODUCTS.GOOD_CREDIT,
+  IAP_PRODUCTS.UNLOCK_ALL_PERKS,
+  IAP_PRODUCTS.REMOVE_ADS,
+  IAP_PRODUCTS.LIFETIME_PREMIUM,
+  IAP_PRODUCTS.PREMIUM_CREDIT_CARD,
+  IAP_PRODUCTS.FINANCIAL_PLANNING,
+  IAP_PRODUCTS.BUSINESS_BANKING,
+  IAP_PRODUCTS.PRIVATE_BANKING,
+];
+
+// Helper function to check if product is consumable
+export const isConsumableProduct = (productId: string): boolean => {
+  return CONSUMABLE_PRODUCTS.includes(productId);
+};
+
+// Helper function to check if product is non-consumable
+export const isNonConsumableProduct = (productId: string): boolean => {
+  return NON_CONSUMABLE_PRODUCTS.includes(productId);
 };

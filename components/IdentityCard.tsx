@@ -10,7 +10,8 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Sparkles } from 'lucide-react-native';
+import YouthPillModal from './YouthPillModal';
 import {
   responsivePadding,
   responsiveFontSize,
@@ -26,6 +27,7 @@ import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getCharacterImage } from '@/utils/characterImages';
 
 const MINER_PRICES = {
   basic: 500,
@@ -35,17 +37,7 @@ const MINER_PRICES = {
   quantum: 100000,
 } as const;
 
-function getAvatar(age: number, sex: string) {
-  if (age < 13) return require('@/assets/images/Face/Baby.png');
-  if (age >= 60) {
-    return sex === 'female'
-      ? require('@/assets/images/Face/Old_Female.png')
-      : require('@/assets/images/Face/Old_Male.png');
-  }
-  return sex === 'female'
-    ? require('@/assets/images/Face/Female.png')
-    : require('@/assets/images/Face/Male.png');
-}
+// Using the utility function from utils/characterImages.ts
 
 interface InfoModalProps {
   visible: boolean;
@@ -92,23 +84,24 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
 export default function IdentityCard() {
   const { gameState } = useGame();
   const { t } = useTranslation();
+  const [showYouthPillModal, setShowYouthPillModal] = useState(false);
   const scenario = scenarios.find(s => s.id === gameState.scenarioId);
 
   const sex = gameState.userProfile.sex || gameState.userProfile.gender || 'male';
   const name =
-    [gameState.userProfile.firstName, gameState.userProfile.lastName].filter(Boolean).join(' ') ||
-    gameState.userProfile.name;
-  const sexuality = (gameState.userProfile.sexuality ||
-    (gameState.userProfile.seekingGender === sex ? 'gay' : 'straight')) as string;
-  const partner = gameState.relationships.find(r => r.type === 'spouse' || r.type === 'partner');
+    [gameState.userProfile?.firstName, gameState.userProfile?.lastName].filter(Boolean).join(' ') ||
+    gameState.userProfile?.name;
+  const sexuality = (gameState.userProfile?.sexuality ||
+    (gameState.userProfile?.seekingGender === sex ? 'gay' : 'straight')) as string;
+  const partner = gameState.relationships?.find(r => r.type === 'spouse' || r.type === 'partner');
   const relationshipStatus = partner
     ? partner.type === 'spouse'
       ? 'Married'
       : 'In Relationship'
     : 'Single';
-  const currentCareer = gameState.careers.find(c => c.id === gameState.currentJob);
-  const job = currentCareer
-    ? `${currentCareer.levels[currentCareer.level].name} (${currentCareer.id})`
+  const currentCareer = gameState.careers?.find(c => c.id === gameState.currentJob);
+  const job = currentCareer && currentCareer.levels && currentCareer.levels[currentCareer.level]
+    ? currentCareer.levels[currentCareer.level].name
     : 'Unemployed';
 
   const netWorth = useMemo(() => {
@@ -117,9 +110,9 @@ export default function IdentityCard() {
       { id: 'savings', type: 'cash', baseValue: gameState.bankSavings || 0 },
     ];
     gameState.items
-      .filter(i => i.owned)
-      .forEach(item => assets.push({ id: item.id, type: 'item', baseValue: item.price }));
-    gameState.companies.forEach(company => {
+      ?.filter(i => i?.owned)
+      ?.forEach(item => assets.push({ id: item.id, type: 'item', baseValue: item.price }));
+    gameState.companies?.forEach(company => {
       assets.push({
         id: company.id,
         type: 'business',
@@ -139,8 +132,8 @@ export default function IdentityCard() {
       });
     });
     gameState.realEstate
-      .filter(p => p.owned)
-      .forEach(p => assets.push({ id: p.id, type: 'property', baseValue: p.price }));
+      ?.filter(p => p?.owned)
+      ?.forEach(p => assets.push({ id: p.id, type: 'property', baseValue: p.price }));
     const liabilities: Liability[] = [];
     return computeNetWorth(assets, liabilities).netWorth;
   }, [gameState]);
@@ -240,7 +233,7 @@ export default function IdentityCard() {
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
-  const avatar = getAvatar(gameState.date.age, sex);
+  const avatar = getCharacterImage(gameState.date.age, sex);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   return (
@@ -262,12 +255,29 @@ export default function IdentityCard() {
         
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
-            <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
-              {t('game.age')}
-            </Text>
-            <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
-              {Math.floor(gameState.date.age)}
-            </Text>
+            <View style={styles.statWithButton}>
+              <View>
+                <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
+                  {t('game.age')}
+                </Text>
+                <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+                  {Math.floor(gameState.date.age)}
+                </Text>
+              </View>
+              {gameState.youthPills > 0 && (
+                <TouchableOpacity 
+                  style={styles.youthPillButton}
+                  onPress={() => setShowYouthPillModal(true)}
+                >
+                  <Image 
+                    source={require('@/assets/images/iap/items/youth_pill_single.png')} 
+                    style={styles.youthPillIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.youthPillButtonText}>{gameState.youthPills}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
           <View style={styles.statItem}>
             <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
@@ -586,6 +596,12 @@ export default function IdentityCard() {
           </View>
         )}
       </InfoModal>
+
+      {/* Youth Pill Modal */}
+      <YouthPillModal 
+        visible={showYouthPillModal}
+        onClose={() => setShowYouthPillModal(false)}
+      />
     </View>
   );
 }
@@ -881,5 +897,29 @@ const styles = StyleSheet.create({
   negativeBonus: {
     color: '#EF4444',
     fontWeight: '500',
+  },
+  statWithButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  youthPillButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    paddingHorizontal: responsiveSpacing.xs,
+    paddingVertical: 4,
+    borderRadius: responsiveBorderRadius.sm,
+    gap: 4,
+  },
+  youthPillIcon: {
+    width: 20,
+    height: 20,
+  },
+  youthPillButtonText: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '700',
+    color: '#8B5CF6',
   },
 });

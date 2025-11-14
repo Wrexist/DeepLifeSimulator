@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, Image } from 'react-native';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useGame } from '@/contexts/GameContext';
-import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Gamepad2, Unlock, Gem } from 'lucide-react-native';
+import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Gamepad2, Unlock, Gem, RefreshCw } from 'lucide-react-native';
 import usePressableScale from '@/hooks/usePressableScale';
 import Skeleton from '@/components/anim/Skeleton';
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 
 interface ScaleButtonProps {
   onPress: () => void;
@@ -39,10 +41,11 @@ interface ShopModalProps {
 }
 
 export default function ShopModal({ visible, onClose }: ShopModalProps) {
-  const { gameState, buyPerk, buyStarterPack, buyGoldPack } = useGame();
+  const { gameState, setGameState, saveGame, savePermanentPerk, hasPermanentPerk } = useGame();
   const { settings, perks } = gameState;
   const [activeTab, setActiveTab] = useState<'perks' | 'packs' | 'special' | 'gold'>('perks');
   const [loading, setLoading] = useState(true);
+  const [iapLoading, setIapLoading] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -54,42 +57,42 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
 
   const perkItems = [
     {
-      id: 'work_boost',
+      id: IAP_PRODUCTS.WORK_BOOST,
       name: 'Work Pay Boost',
       description: '+50% earnings on all jobs',
-      price: '$1',
+      price: '$1.99',
       icon: Zap,
       owned: perks?.workBoost || false,
     },
     {
-      id: 'mindset',
+      id: IAP_PRODUCTS.MINDSET,
       name: 'Mindset',
       description: '50% faster promotions',
-      price: '$1',
+      price: '$1.99',
       icon: TrendingUp,
       owned: perks?.mindset || false,
     },
     {
-      id: 'fast_learner',
+      id: IAP_PRODUCTS.FAST_LEARNER,
       name: 'Fast Learner',
       description: '50% faster education',
-      price: '$1',
+      price: '$1.99',
       icon: GraduationCap,
       owned: perks?.fastLearner || false,
     },
     {
-      id: 'good_credit',
+      id: IAP_PRODUCTS.GOOD_CREDIT,
       name: 'Good Credit Score',
       description: 'Higher bank interest rates',
-      price: '$1',
+      price: '$1.99',
       icon: Banknote,
       owned: perks?.goodCredit || false,
     },
     {
-      id: 'unlock_all_perks',
+      id: IAP_PRODUCTS.UNLOCK_ALL_PERKS,
       name: 'Unlock All Perks',
       description: 'Includes all perks above',
-      price: '$4',
+      price: '$6.99',
       icon: Gift,
       owned: perks?.unlockAllPerks || false,
     },
@@ -103,57 +106,193 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
   ];
 
   const goldPacks = [
-    { id: 'small', name: 'Small Gold Pack', amount: 10, price: '$1' },
-    { id: 'medium', name: 'Medium Gold Pack', amount: 55, price: '$5' },
-    { id: 'large', name: 'Large Gold Pack', amount: 120, price: '$10' },
+    { id: IAP_PRODUCTS.GEMS_100, name: '100 Gems', amount: 100, price: '$0.99' },
+    { id: IAP_PRODUCTS.GEMS_500, name: '500 Gems', amount: 500, price: '$4.99' },
+    { id: IAP_PRODUCTS.GEMS_1000, name: '1,000 Gems', amount: 1000, price: '$9.99' },
+    { id: IAP_PRODUCTS.GEMS_5000, name: '5,000 Gems', amount: 5000, price: '$19.99' },
   ];
 
   const specialItems = [
     {
-      id: 'youth_pill',
+      id: IAP_PRODUCTS.YOUTH_PILL_SINGLE,
       name: 'Youth Pill',
       description: 'Resets your age to 18',
-      price: '$10',
+      price: '$4.99',
       icon: Gift,
+      image: require('@/assets/images/iap/items/youth_pill_single.png'),
     },
     {
-      id: 'sandbox_mode',
-      name: 'Unlock Sandbox Mode',
-      description: 'Free unlimited mode',
-      price: '$15',
-      icon: Gamepad2,
+      id: IAP_PRODUCTS.MONEY_BOOST,
+      name: 'Money Boost',
+      description: 'Instant $1,000,000 cash injection',
+      price: '$7.99',
+      icon: Banknote,
     },
     {
-      id: 'unlock_all',
-      name: 'Unlock All Features',
-      description: 'Instantly unlock everything',
-      price: '$25',
+      id: IAP_PRODUCTS.LIFETIME_PREMIUM,
+      name: 'Lifetime Premium',
+      description: 'All future updates + exclusive content + no ads',
+      price: '$79.99',
       icon: Unlock,
     },
   ];
 
-  const handlePurchase = (itemId: string, type: 'perk' | 'pack' | 'special' | 'gold') => {
-    // In a real app, this would trigger the platform's in-app purchase system
-    Alert.alert(
-      'Purchase',
-      'This would trigger the in-app purchase system in a real app.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Simulate Purchase', 
-          onPress: () => {
-            if (type === 'perk') {
-              buyPerk(itemId);
-            } else if (type === 'pack') {
-              buyStarterPack(itemId);
-            } else if (type === 'gold') {
-              buyGoldPack(itemId);
-            }
-            Alert.alert('Success', 'Purchase completed!');
-          }
+  const handlePurchase = async (itemId: string, type: 'perk' | 'pack' | 'special' | 'gold') => {
+    if (iapLoading) return;
+    
+    setIapLoading(true);
+    
+    try {
+      console.log(`Attempting to purchase: ${itemId} (${type})`);
+      
+      // Use IAP service for purchase
+      const result = await iapService.purchaseProduct(itemId);
+      
+      if (result.success) {
+        // Apply the purchase benefits locally for immediate feedback
+        await applyPurchaseBenefits(itemId, type);
+        
+        Alert.alert('Success', 'Purchase completed! Your items have been added to your account.');
+      } else {
+        Alert.alert('Purchase Failed', result.message || 'Unable to complete purchase. Please try again.');
+      }
+    } catch (error) {
+      console.error('Purchase error:', error);
+      Alert.alert('Error', 'An error occurred during purchase. Please try again.');
+    } finally {
+      setIapLoading(false);
+    }
+  };
+
+  const applyPurchaseBenefits = async (itemId: string, type: 'perk' | 'pack' | 'special' | 'gold') => {
+    const config = getProductConfig(itemId);
+    if (!config) return;
+
+    // Apply benefits based on product type
+    if (config.gems) {
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          gems: prev.stats.gems + config.gems
         }
-      ]
-    );
+      }));
+    }
+
+    if (config.money) {
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          money: prev.stats.money + config.money
+        }
+      }));
+    }
+
+    // Handle special products - Save as permanent perks
+    if (config.workBoost) {
+      await savePermanentPerk('workBoost');
+      setGameState(prev => ({
+        ...prev,
+        perks: { ...prev.perks, workBoost: true }
+      }));
+    }
+
+    if (config.mindset) {
+      await savePermanentPerk('mindset');
+      setGameState(prev => ({
+        ...prev,
+        perks: { ...prev.perks, mindset: true }
+      }));
+    }
+
+    if (config.fastLearner) {
+      await savePermanentPerk('fastLearner');
+      setGameState(prev => ({
+        ...prev,
+        perks: { ...prev.perks, fastLearner: true }
+      }));
+    }
+
+    if (config.goodCredit) {
+      await savePermanentPerk('goodCredit');
+      setGameState(prev => ({
+        ...prev,
+        perks: { ...prev.perks, goodCredit: true }
+      }));
+    }
+
+    if (config.allPerks) {
+      await Promise.all([
+        savePermanentPerk('workBoost'),
+        savePermanentPerk('mindset'),
+        savePermanentPerk('fastLearner'),
+        savePermanentPerk('goodCredit')
+      ]);
+      setGameState(prev => ({
+        ...prev,
+        perks: {
+          ...prev.perks,
+          workBoost: true,
+          mindset: true,
+          fastLearner: true,
+          goodCredit: true,
+          unlockAllPerks: true
+        }
+      }));
+    }
+
+    if (config.removeAds) {
+      setGameState(prev => ({
+        ...prev,
+        settings: { ...prev.settings, adsRemoved: true }
+      }));
+    }
+
+    if (config.lifetimePremium) {
+      setGameState(prev => ({
+        ...prev,
+        settings: { ...prev.settings, lifetimePremium: true }
+      }));
+    }
+
+    // Save the game state
+    await saveGame();
+  };
+
+  const handleRestorePurchases = async () => {
+    if (iapLoading) {
+      Alert.alert('Please Wait', 'A purchase operation is already in progress.');
+      return;
+    }
+
+    setIapLoading(true);
+    
+    try {
+      console.log('Starting purchase restoration...');
+      const success = await iapService.restorePurchases();
+      
+      if (success) {
+        // Reload IAP state to refresh purchases
+        await iapService.loadPurchases();
+        
+        // Show success message
+        Alert.alert(
+          'Purchases Restored',
+          'Your previous purchases have been restored successfully!',
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      console.error('Restore purchases error:', error);
+      Alert.alert(
+        'Restore Failed',
+        'Unable to restore purchases. Please try again or contact support.',
+        [{ text: 'OK', style: 'default' }]
+      );
+    } finally {
+      setIapLoading(false);
+    }
   };
 
   const overlayStyle = [
@@ -349,7 +488,11 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
                         <View style={[styles.shopItem, settings.darkMode && styles.shopItemDark]}>
                           <View style={styles.itemInfo}>
                             <View style={styles.itemHeader}>
-                              <item.icon size={20} color={settings.darkMode ? '#D1D5DB' : '#374151'} />
+                              {item.image ? (
+                                <Image source={item.image} style={styles.itemImage} />
+                              ) : (
+                                <item.icon size={20} color={settings.darkMode ? '#D1D5DB' : '#374151'} />
+                              )}
                               <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>
                                 {item.name}
                               </Text>
@@ -370,6 +513,20 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
               </View>
             )}
           </ScrollView>
+
+          {/* Footer with Restore Purchases Button */}
+          <View style={[styles.footer, settings.darkMode && styles.footerDark]}>
+            <TouchableOpacity
+              style={styles.restoreButton}
+              onPress={handleRestorePurchases}
+              disabled={iapLoading}
+            >
+              <RefreshCw size={18} color={iapLoading ? '#9CA3AF' : '#6B7280'} />
+              <Text style={[styles.restoreButtonText, iapLoading && styles.restoreButtonTextDisabled]}>
+                {iapLoading ? 'Restoring...' : 'Restore Purchases'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -550,6 +707,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  itemImage: {
+    width: 20,
+    height: 20,
+  },
   itemName: {
     fontSize: 16,
     fontWeight: '600',
@@ -698,5 +859,34 @@ const styles = StyleSheet.create({
   packButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  
+  // Footer and Restore Button
+  footer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  footerDark: {
+    borderTopColor: '#374151',
+    backgroundColor: '#1F2937',
+  },
+  restoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 8,
+  },
+  restoreButtonText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  restoreButtonTextDisabled: {
+    color: '#9CA3AF',
   },
 });

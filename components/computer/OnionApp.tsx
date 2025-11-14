@@ -161,7 +161,11 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                   finalLine = `ARRESTED! Jailed for 4 weeks! Wanted level increased!`;
                   // Navigate to work tab to show prison screen
                   setTimeout(() => {
-                    navigation.navigate('work');
+                    if (navigation && typeof navigation.navigate === 'function') {
+                      navigation.navigate('work');
+                    } else {
+                      console.warn('Navigation not available - user is now in jail');
+                    }
                   }, 2000); // Give time for the message to be displayed
                 } else {
                   finalLine = `Trace detected! -$500 | Wanted level increased! | Risk: ${Math.round((result.risk || 0) * 100)}%`;
@@ -632,6 +636,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    height: 60,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -659,7 +664,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 40,
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   balanceContainer: {
     marginBottom: 20,

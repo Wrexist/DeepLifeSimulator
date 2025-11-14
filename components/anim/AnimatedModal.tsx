@@ -91,25 +91,27 @@ export default function AnimatedModal({
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        {/* Backdrop */}
+        {/* Backdrop (clickable) */}
         {backdrop && (
-          <MotiView
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ type: 'timing', duration: 200 }}
-            style={styles.backdrop}
-          >
-            {blur ? (
-              <BlurView
-                intensity={isDarkMode ? 20 : 30}
-                tint={isDarkMode ? 'dark' : 'light'}
-                style={styles.blurBackdrop}
-              />
-            ) : (
-              <View style={[styles.solidBackdrop, isDarkMode && styles.solidBackdropDark]} />
-            )}
-          </MotiView>
+          <TouchableWithoutFeedback onPress={onClose}>
+            <MotiView
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: 'timing', duration: 200 }}
+              style={styles.backdrop}
+            >
+              {blur ? (
+                <BlurView
+                  intensity={isDarkMode ? 20 : 30}
+                  tint={isDarkMode ? 'dark' : 'light'}
+                  style={styles.blurBackdrop}
+                />
+              ) : (
+                <View style={[styles.solidBackdrop, isDarkMode && styles.solidBackdropDark]} />
+              )}
+            </MotiView>
+          </TouchableWithoutFeedback>
         )}
 
         {/* Content */}
@@ -124,13 +126,6 @@ export default function AnimatedModal({
         >
           {children}
         </MotiView>
-
-        {/* Backdrop Touch Handler */}
-        {backdrop && (
-          <TouchableWithoutFeedback onPress={onClose}>
-            <View style={styles.touchableBackdrop} />
-          </TouchableWithoutFeedback>
-        )}
       </View>
     </Modal>
   );

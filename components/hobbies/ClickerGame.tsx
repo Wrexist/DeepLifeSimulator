@@ -19,12 +19,12 @@ export default function ClickerGame({ visible, hobbyId, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent={false}>
       <View style={styles.container}>
         <Text style={styles.title}>Tap as fast as you can!</Text>
         <Text style={styles.score}>Score: {score}</Text>
         <TouchableOpacity style={styles.tap} onPress={() => setScore(s => s + 1)}>
-          <Text>Tap</Text>
+          <Text style={styles.tapText}>Tap</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.end} onPress={endGame}>
           <Text style={styles.endText}>Finish</Text>
@@ -35,10 +35,54 @@ export default function ClickerGame({ visible, hobbyId, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 20, marginBottom: 20 },
-  score: { fontSize: 18, marginBottom: 20 },
-  tap: { padding: 20, backgroundColor: '#E5E7EB', borderRadius: 8, marginBottom: 20 },
-  end: { padding: 10, backgroundColor: '#10B981', borderRadius: 8 },
-  endText: { color: '#fff', fontWeight: '600' },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 30,
+    color: '#1F2937',
+  },
+  score: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 40,
+    color: '#3B82F6',
+  },
+  tap: {
+    padding: 40,
+    backgroundColor: '#3B82F6',
+    borderRadius: 16,
+    marginBottom: 30,
+    minWidth: 200,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  tapText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  end: {
+    padding: 16,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    minWidth: 150,
+    alignItems: 'center',
+  },
+  endText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
 });

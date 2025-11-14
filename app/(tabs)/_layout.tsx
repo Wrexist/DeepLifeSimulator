@@ -29,9 +29,9 @@ export default function TabLayout() {
           backgroundColor: gameState.settings.darkMode ? '#1F2937' : '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: gameState.settings.darkMode ? '#374151' : '#E5E7EB',
-          paddingTop: scale(12),
-          paddingBottom: scale(12),
-          height: scale(100),
+          paddingTop: scale(8),
+          paddingBottom: scale(8),
+          height: scale(60),
         },
       }}
     >

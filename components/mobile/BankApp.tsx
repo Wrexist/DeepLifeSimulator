@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Image,
   Keyboard,
   Modal,
   ScrollView,
@@ -20,7 +21,11 @@ import {
   verticalScale,
 } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
-import { PiggyBank, Wallet, ArrowLeft, Info } from 'lucide-react-native';
+import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle, Building } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { useFeedback } from '@/utils/feedbackSystem';
 
 // Prefer expo-router for navigation; gracefully fall back if unavailable.
 let useRouterHook:
@@ -38,6 +43,7 @@ try {
    CONFIG
    ========================= */
 const SAVINGS_APR = 0.15;                 // 15% APR on savings
+const PREMIUM_SAVINGS_APR = 0.1875;       // 18.75% APR with premium banking (25% boost)
 const MISSED_PAYMENT_PENALTY = 0.01;      // +1% on remaining if a weekly payment is missed
 const EARLY_FULL_PAY_DISCOUNT = 0.03;     // 3% discount when fully repaying a loan
 const MAX_DEBT_TO_FUNDS = 5;              // Total debt cap = 5 × (cash + savings)
@@ -52,7 +58,7 @@ const HOME_FALLBACK = '/(tabs)/home';
    TYPES
    ========================= */
 type Numberish = number | string;
-type TabKey = 'savings';
+type TabKey = 'savings' | 'loans' | 'services';
 type RepaySource = 'cash' | 'bank'; // manual repayment source
 
 type Loan = {
@@ -169,10 +175,61 @@ export default function BankApp({ onBack }: BankAppProps) {
   const [loanAmount, setLoanAmount] = useState<string>('10000');
   const [selectedTerm, setSelectedTerm] = useState<typeof TERM_OPTIONS[number]>(TERM_OPTIONS[0]);
   const [repaySource, setRepaySource] = useState<RepaySource>('cash'); // NEW: switch pay-from source
+  
+  // IAP state
+  const [iapState, setIapState] = useState(iapService.getState());
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [selectedService, setSelectedService] = useState<string | null>(null);
+  
+  // Feedback system
+  const { buttonPress, haptic, success } = useFeedback(settings.hapticFeedback);
 
   useEffect(() => {
     setSavings(initialSavings);
   }, [initialSavings]);
+
+  // Initialize IAP service
+  useEffect(() => {
+    const unsubscribe = iapService.addListener(setIapState);
+    iapService.initialize();
+    return unsubscribe;
+  }, []);
+
+  // Helper functions for IAP services
+  const hasService = (serviceId: string) => {
+    return iapService.hasPurchased(serviceId);
+  };
+
+  const getServiceConfig = (serviceId: string) => {
+    return getProductConfig(serviceId);
+  };
+
+  const handleServicePurchase = async (serviceId: string) => {
+    buttonPress();
+    haptic('light');
+    
+    try {
+      const result = await iapService.purchaseProduct(serviceId);
+      if (result.success) {
+        success('Service activated successfully!');
+        setShowPurchaseModal(false);
+        setSelectedService(null);
+        // Refresh IAP state to get updated purchases
+        setIapState(iapService.getState());
+      } else {
+        Alert.alert('Purchase Failed', result.message);
+      }
+    } catch (error) {
+      Alert.alert('Purchase Error', 'Failed to purchase service. Please try again.');
+    }
+  };
+
+  const openServiceModal = (serviceId: string) => {
+    buttonPress();
+    haptic('light');
+    setSelectedService(serviceId);
+    setShowPurchaseModal(true);
+  };
 
   /* ---------- Net worth & caps ---------- */
   const totalDebt = useMemo(() => loans.reduce((sum, l) => sum + (l.remaining || 0), 0), [loans]);
@@ -263,7 +320,10 @@ export default function BankApp({ onBack }: BankAppProps) {
 
   /* ---------- Weekly interest: Savings ---------- */
   const lastSavingsWeek = useRef<number>(gameState.week);
-  const weeklySavingsInterest = useMemo(() => (savings * SAVINGS_APR) / 52, [savings]);
+  const currentSavingsAPR = useMemo(() => {
+    return hasService(IAP_PRODUCTS.PREMIUM_BANKING) ? PREMIUM_SAVINGS_APR : SAVINGS_APR;
+  }, [hasService]);
+  const weeklySavingsInterest = useMemo(() => (savings * currentSavingsAPR) / 52, [savings, currentSavingsAPR]);
 
   /* ---------- Weekly accrual for Loans ---------- */
 
@@ -288,23 +348,39 @@ export default function BankApp({ onBack }: BankAppProps) {
 
   /* ---------- Take Loan (with caps & market APR) ---------- */
   const takeLoan = useCallback(() => {
+    buttonPress();
+    haptic('light');
+    
     const amt = Math.floor(toNumberSafe(loanAmount));
-    if (amt <= 0) return Alert.alert('Invalid amount', 'Loan amount must be > 0.');
-
-    if (amt > singleLoanCap) {
-      return Alert.alert(
-        'Loan declined',
-        `Amount exceeds your single-loan cap (${formatMoney(singleLoanCap)} kr).`
-      );
-    }
-    if (totalDebt + amt > maxTotalDebt) {
-      return Alert.alert(
-        'Loan declined',
-        `Total debt would exceed your limit (${formatMoney(maxTotalDebt)} kr).`
-      );
+    if (amt <= 0) {
+      Alert.alert('Invalid amount', 'Loan amount must be > 0.');
+      return;
     }
 
-    const apr = getMarketAPR(gameState.week);
+    // Apply credit boost benefits
+    const creditBoostMultiplier = hasService(IAP_PRODUCTS.CREDIT_BOOST) ? 1.5 : 1;
+    const adjustedLoanCap = Math.floor(singleLoanCap * creditBoostMultiplier);
+    const adjustedMaxDebt = Math.floor(maxTotalDebt * creditBoostMultiplier);
+    
+    if (amt > adjustedLoanCap) {
+      Alert.alert(
+        'Loan declined',
+        `Amount exceeds your single-loan cap (${formatMoney(adjustedLoanCap)} $).`
+      );
+      return;
+    }
+    if (totalDebt + amt > adjustedMaxDebt) {
+      Alert.alert(
+        'Loan declined',
+        `Total debt would exceed your limit (${formatMoney(adjustedMaxDebt)} $).`
+      );
+      return;
+    }
+
+    // Apply credit boost to interest rate
+    const baseAPR = getMarketAPR(gameState.week);
+    const creditBoostDiscount = hasService(IAP_PRODUCTS.CREDIT_BOOST) ? 0.02 : 0; // 2% discount
+    const apr = Math.max(0.01, baseAPR - creditBoostDiscount); // Minimum 1% APR
     const weeklyRate = apr / 52;
     const termW = selectedTerm;
     const installment = amortizedInstallment(amt, weeklyRate, termW);
@@ -331,20 +407,26 @@ export default function BankApp({ onBack }: BankAppProps) {
     }));
     saveGame();
 
+    success('Loan approved and funds transferred!');
+
     // reset only amount
     setLoanAmount('10000');
     Keyboard.dismiss();
   }, [
     loanAmount,
     singleLoanCap,
-    totalDebt,
     maxTotalDebt,
+    totalDebt,
     selectedTerm,
     loans,
     cash,
     gameState.week,
     setGameState,
     saveGame,
+    hasService,
+    buttonPress,
+    haptic,
+    success,
   ]);
 
   /* ---------- Manual Repay (Pay 15%, 50%, or Full w/ discount) ---------- */
@@ -418,7 +500,7 @@ export default function BankApp({ onBack }: BankAppProps) {
       if (paid < discounted) {
         Alert.alert(
           'Not enough funds',
-          `You need ${formatMoney(discounted)} kr in ${repaySource === 'cash' ? 'cash' : 'bank savings'} to fully repay after discount.`
+          `You need ${formatMoney(discounted)} $ in ${repaySource === 'cash' ? 'cash' : 'bank savings'} to fully repay after discount.`
         );
         return;
       }
@@ -470,59 +552,84 @@ export default function BankApp({ onBack }: BankAppProps) {
   /* ---------- RENDER ---------- */
   return (
     <View style={[styles.container, settings?.darkMode && styles.containerDark]}>
-      <View style={[styles.header, settings?.darkMode && styles.headerDark]}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <ArrowLeft size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bank</Text>
-        <TouchableOpacity onPress={() => setInfoOpen(true)} style={styles.infoButton}>
-          <Info size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.balanceRow}>
-        <View style={[styles.balanceCard, settings?.darkMode && styles.balanceCardDark]}>
-          <View style={styles.balanceIconWrap}>
-            <Wallet size={18} color="#FFFFFF" />
-          </View>
-          <Text style={styles.balanceLabel}>Cash</Text>
-          <Text style={styles.balanceValue}>{formattedCash} kr</Text>
-        </View>
-
-        <View style={[styles.balanceCard, settings?.darkMode && styles.balanceCardDark]}>
-          <View style={[styles.balanceIconWrap, styles.purpleBg]}>
-            <PiggyBank size={18} color="#FFFFFF" />
-          </View>
-          <Text style={styles.balanceLabel}>Savings</Text>
-          <Text style={styles.balanceValue}>{formattedSavings} kr</Text>
-          <View style={styles.smallRow}>
-            <PiggyBank size={14} color="#34D399" />
-            <Text style={styles.smallGreen}>{weeklySavingsText}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Tabs */}
-      <View style={[styles.tabContainer, settings?.darkMode && styles.tabContainerDark]}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'savings' && styles.activeTab]}
-          onPress={() => setActiveTab('savings')}
-        >
-          <PiggyBank size={20} color={activeTab === 'savings' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'savings' ? styles.tabTextActive : styles.tabTextInactive]}>
-            Savings
-          </Text>
-        </TouchableOpacity>
-
-
-
-      </View>
-
       <ScrollView 
         contentContainerStyle={styles.scrollContent} 
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={true}
       >
+        <View style={[styles.header, settings?.darkMode && styles.headerDark]}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <ArrowLeft size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Bank</Text>
+          <TouchableOpacity onPress={() => setInfoOpen(true)} style={styles.infoButton}>
+            <Info size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.balanceRow}>
+          <View style={[styles.balanceCard, settings?.darkMode && styles.balanceCardDark]}>
+            <View style={styles.balanceIconWrap}>
+              <Wallet size={18} color="#FFFFFF" />
+            </View>
+            <Text style={styles.balanceLabel}>Cash</Text>
+            <Text style={styles.balanceValue}>{formattedCash} $</Text>
+          </View>
+
+          <View style={[styles.balanceCard, settings?.darkMode && styles.balanceCardDark]}>
+            <View style={[styles.balanceIconWrap, styles.purpleBg]}>
+              <PiggyBank size={18} color="#FFFFFF" />
+            </View>
+            <Text style={styles.balanceLabel}>Savings</Text>
+            <Text style={styles.balanceValue}>{formattedSavings} $</Text>
+            <View style={styles.smallRow}>
+              <PiggyBank size={14} color="#34D399" />
+              <Text style={styles.smallGreen}>{weeklySavingsText}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Tabs */}
+        <View style={[styles.tabContainer, settings?.darkMode && styles.tabContainerDark]}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'savings' && styles.activeTab]}
+            onPress={() => {
+              buttonPress();
+              setActiveTab('savings');
+            }}
+          >
+            <PiggyBank size={20} color={activeTab === 'savings' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+            <Text style={[styles.tabText, activeTab === 'savings' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
+              Savings
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'loans' && styles.activeTab]}
+            onPress={() => {
+              buttonPress();
+              setActiveTab('loans');
+            }}
+          >
+            <CreditCard size={20} color={activeTab === 'loans' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+            <Text style={[styles.tabText, activeTab === 'loans' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
+              Loans
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'services' && styles.activeTab]}
+            onPress={() => {
+              buttonPress();
+              setActiveTab('services');
+            }}
+          >
+            <Crown size={20} color={activeTab === 'services' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+            <Text style={[styles.tabText, activeTab === 'services' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
+              Services
+            </Text>
+          </TouchableOpacity>
+        </View>
         {/* Savings */}
         {activeTab === 'savings' && (
           <>
@@ -547,6 +654,304 @@ export default function BankApp({ onBack }: BankAppProps) {
               </View>
             </View>
 
+            {/* Premium Banking Benefits */}
+            {hasService(IAP_PRODUCTS.PREMIUM_BANKING) && (
+              <View style={[styles.card, styles.premiumCard, settings?.darkMode && styles.cardDark]}>
+                <View style={styles.premiumHeader}>
+                  <Crown size={20} color="#FFD700" />
+                  <Text style={styles.premiumTitle}>Premium Banking Active</Text>
+                </View>
+                <Text style={styles.premiumText}>
+                  You're earning {Math.round(currentSavingsAPR * 100)}% APR on savings (25% boost!)
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Loans */}
+        {activeTab === 'loans' && (
+          <>
+            {/* Apply for New Loan */}
+            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
+              <Text style={styles.section}>Apply for New Loan</Text>
+              
+              <TextInput
+                value={loanAmount}
+                onChangeText={setLoanAmount}
+                placeholder="Loan amount"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+                style={styles.input}
+                returnKeyType="done"
+              />
+              
+              <View style={styles.termSelector}>
+                <Text style={styles.termLabel}>Term:</Text>
+                {TERM_OPTIONS.map((term) => (
+                  <TouchableOpacity
+                    key={term}
+                    style={[
+                      styles.termButton,
+                      selectedTerm === term && styles.termButtonActive
+                    ]}
+                    onPress={() => {
+                      buttonPress();
+                      setSelectedTerm(term);
+                    }}
+                  >
+                    <Text style={[
+                      styles.termButtonText,
+                      selectedTerm === term && styles.termButtonTextActive
+                    ]}>
+                      {term} weeks
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.loanInfo}>
+                <Text style={styles.loanInfoText}>
+                  Max loan: {formatMoney(singleLoanCap * (hasService(IAP_PRODUCTS.CREDIT_BOOST) ? 1.5 : 1))} $
+                </Text>
+                <Text style={styles.loanInfoText}>
+                  APR: {((getMarketAPR(gameState.week) - (hasService(IAP_PRODUCTS.CREDIT_BOOST) ? 0.02 : 0)) * 100).toFixed(2)}%
+                </Text>
+                <Text style={styles.loanInfoText}>
+                  Weekly payment: ~{formatMoney(approxCost32)} $
+                </Text>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.btnPrimary, styles.loanButton]} 
+                onPress={takeLoan}
+              >
+                <Text style={styles.btnText}>Apply for Loan</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Current Loans */}
+            {loans.length > 0 && (
+              <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
+                <Text style={styles.section}>Current Loans</Text>
+                {loans.map((loan) => (
+                  <View key={loan.id} style={styles.loanItem}>
+                    <View style={styles.loanHeader}>
+                      <Text style={styles.loanName}>{loan.name}</Text>
+                      <Text style={styles.loanRemaining}>{formatMoney(loan.remaining)} $</Text>
+                    </View>
+                    <View style={styles.loanMetaRow}>
+                      <Text style={styles.metaText}>APR: {(loan.rateAPR * 100).toFixed(2)}%</Text>
+                      <Text style={styles.metaText}>Weekly: {formatMoney(loan.installment)} $</Text>
+                      <Text style={styles.metaText}>Term: {loan.termWeeks} weeks</Text>
+                    </View>
+                    <View style={styles.loanActions}>
+                      <TouchableOpacity 
+                        style={styles.loanActionButton}
+                        onPress={() => {
+                          buttonPress();
+                          repayPercent(loan.id, 0.15);
+                        }}
+                      >
+                        <Text style={styles.loanActionText}>Pay 15%</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.loanActionButton}
+                        onPress={() => {
+                          buttonPress();
+                          repayPercent(loan.id, 0.5);
+                        }}
+                      >
+                        <Text style={styles.loanActionText}>Pay 50%</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.loanActionButton, styles.loanActionButtonPrimary]}
+                        onPress={() => {
+                          buttonPress();
+                          repayFull(loan.id);
+                        }}
+                      >
+                        <Text style={[styles.loanActionText, styles.loanActionTextPrimary]}>Pay Full</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Services */}
+        {activeTab === 'services' && (
+          <>
+            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
+              <Text style={styles.section}>Premium Banking Services</Text>
+              <Text style={styles.servicesDescription}>
+                Unlock exclusive banking features and benefits
+              </Text>
+            </View>
+
+            {/* IAP Error Display */}
+            {iapState.error && (
+              <View style={[styles.card, styles.errorCard, settings?.darkMode && styles.cardDark]}>
+                <View style={styles.errorHeader}>
+                  <Info size={20} color="#F59E0B" />
+                  <Text style={[styles.errorTitle, settings?.darkMode && styles.errorTitleDark]}>
+                    In-App Purchases
+                  </Text>
+                </View>
+                <Text style={[styles.errorMessage, settings?.darkMode && styles.errorMessageDark]}>
+                  {iapState.error}
+                </Text>
+                <Text style={[styles.errorSubtext, settings?.darkMode && styles.errorSubtextDark]}>
+                  To test purchases, create a development build instead of using Expo Go.
+                </Text>
+              </View>
+            )}
+
+            {/* Premium Banking Services */}
+            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
+              <Text style={styles.section}>Premium Banking Services</Text>
+              <Text style={styles.servicesDescription}>
+                Exclusive services available on both mobile and computer banking apps
+              </Text>
+            </View>
+
+            {/* Premium Credit Card Service */}
+            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
+              <View style={styles.serviceHeader}>
+                <View style={styles.serviceIconContainer}>
+                  <Image 
+                    source={require('@/assets/images/iap/banking/premium_credit_card.png')} 
+                    style={styles.serviceImage} 
+                  />
+                </View>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>Premium Credit Card</Text>
+                  <Text style={[styles.servicePrice, settings?.darkMode && styles.servicePriceDark]}>$4.99</Text>
+                </View>
+                <View style={styles.serviceStatus}>
+                  {hasService(IAP_PRODUCTS.PREMIUM_CREDIT_CARD) ? (
+                    <View style={styles.activeBadge}>
+                      <CheckCircle size={16} color="#10B981" />
+                      <Text style={styles.activeText}>Active</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.purchaseButton}
+                      onPress={() => openServiceModal(IAP_PRODUCTS.PREMIUM_CREDIT_CARD)}
+                    >
+                      <Text style={styles.purchaseButtonText}>Purchase</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              <Text style={styles.serviceDescription}>
+                10% cashback on all purchases, no annual fee
+              </Text>
+            </View>
+
+            {/* Financial Planning Service */}
+            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
+              <View style={styles.serviceHeader}>
+                <View style={styles.serviceIconContainer}>
+                  <Image 
+                    source={require('@/assets/images/iap/banking/financial_planning.png')} 
+                    style={styles.serviceImage} 
+                  />
+                </View>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>Financial Planning</Text>
+                  <Text style={[styles.servicePrice, settings?.darkMode && styles.servicePriceDark]}>$2.99</Text>
+                </View>
+                <View style={styles.serviceStatus}>
+                  {hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) ? (
+                    <View style={styles.activeBadge}>
+                      <CheckCircle size={16} color="#10B981" />
+                      <Text style={styles.activeText}>Active</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.purchaseButton}
+                      onPress={() => openServiceModal(IAP_PRODUCTS.FINANCIAL_PLANNING)}
+                    >
+                      <Text style={styles.purchaseButtonText}>Purchase</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              <Text style={styles.serviceDescription}>
+                15% interest on bank savings, expert financial advice
+              </Text>
+            </View>
+
+            {/* Business Banking Service */}
+            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
+              <View style={styles.serviceHeader}>
+                <View style={styles.serviceIconContainer}>
+                  <Image 
+                    source={require('@/assets/images/iap/banking/business_banking.png')} 
+                    style={styles.serviceImage} 
+                  />
+                </View>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>Business Banking</Text>
+                  <Text style={[styles.servicePrice, settings?.darkMode && styles.servicePriceDark]}>$3.99</Text>
+                </View>
+                <View style={styles.serviceStatus}>
+                  {hasService(IAP_PRODUCTS.BUSINESS_BANKING) ? (
+                    <View style={styles.activeBadge}>
+                      <CheckCircle size={16} color="#10B981" />
+                      <Text style={styles.activeText}>Active</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.purchaseButton}
+                      onPress={() => openServiceModal(IAP_PRODUCTS.BUSINESS_BANKING)}
+                    >
+                      <Text style={styles.purchaseButtonText}>Purchase</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              <Text style={styles.serviceDescription}>
+                Company loans, business account management, upgrades
+              </Text>
+            </View>
+
+            {/* Private Banking Service */}
+            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
+              <View style={styles.serviceHeader}>
+                <View style={styles.serviceIconContainer}>
+                  <Image 
+                    source={require('@/assets/images/iap/banking/private_banking.png')} 
+                    style={styles.serviceImage} 
+                  />
+                </View>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>Private Banking</Text>
+                  <Text style={[styles.servicePrice, settings?.darkMode && styles.servicePriceDark]}>$9.99</Text>
+                </View>
+                <View style={styles.serviceStatus}>
+                  {hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? (
+                    <View style={styles.activeBadge}>
+                      <CheckCircle size={16} color="#10B981" />
+                      <Text style={styles.activeText}>Active</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.purchaseButton}
+                      onPress={() => openServiceModal(IAP_PRODUCTS.PRIVATE_BANKING)}
+                    >
+                      <Text style={styles.purchaseButtonText}>Purchase</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              <Text style={styles.serviceDescription}>
+                VIP 3% APR loans, personal wealth manager, priority support
+              </Text>
+            </View>
           </>
         )}
 
@@ -571,6 +976,50 @@ export default function BankApp({ onBack }: BankAppProps) {
             <TouchableOpacity style={styles.modalBtn} onPress={() => setInfoOpen(false)}>
               <Text style={styles.modalBtnText}>Close</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Service Purchase Modal */}
+      <Modal visible={showPurchaseModal} transparent animationType="fade" onRequestClose={() => setShowPurchaseModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, settings?.darkMode && styles.modalCardDark]}>
+            {selectedService && (
+              <>
+                <Text style={styles.modalTitle}>
+                  {getServiceConfig(selectedService)?.name}
+                </Text>
+                <Text style={styles.modalText}>
+                  {getServiceConfig(selectedService)?.description}
+                </Text>
+                
+                <View style={styles.featuresList}>
+                  {getServiceConfig(selectedService)?.features?.map((feature, index) => (
+                    <View key={index} style={styles.featureItem}>
+                      <CheckCircle size={16} color="#10B981" />
+                      <Text style={styles.featureText}>{feature}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={styles.modalBtnSecondary} 
+                    onPress={() => setShowPurchaseModal(false)}
+                  >
+                    <Text style={styles.modalBtnSecondaryText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.modalBtn} 
+                    onPress={() => handleServicePurchase(selectedService)}
+                  >
+                    <Text style={styles.modalBtnText}>
+                      Purchase - {getServiceConfig(selectedService)?.price}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -629,6 +1078,7 @@ const styles = StyleSheet.create({
   tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   tabTextActive: { color: '#FFFFFF' },
   tabTextInactive: { color: '#6B7280' },
+  tabTextInactiveDark: { color: '#FFFFFF' },
 
   scrollContent: { padding: responsiveSpacing.lg, paddingBottom: responsiveSpacing['2xl'] },
   card: { backgroundColor: '#0F1220', borderRadius: responsiveBorderRadius.md, padding: responsiveSpacing.md, marginBottom: responsiveSpacing.sm, borderWidth: 0.5, borderColor: '#23283B' },
@@ -680,6 +1130,52 @@ const styles = StyleSheet.create({
   metaText: { color: '#9FA4B3', fontSize: responsiveFontSize.sm },
   summaryRow: { marginTop: responsiveSpacing.sm },
 
+  // New loan styles
+  termSelector: { flexDirection: 'row', alignItems: 'center', marginVertical: responsiveSpacing.md, gap: responsiveSpacing.sm },
+  termLabel: { color: '#E7EAF2', fontSize: responsiveFontSize.base, fontWeight: '500', marginRight: responsiveSpacing.sm },
+  termButton: { paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151' },
+  termButtonActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
+  termButtonText: { color: '#9CA3AF', fontSize: responsiveFontSize.sm },
+  termButtonTextActive: { color: '#FFFFFF' },
+  loanInfo: { backgroundColor: '#1F2937', padding: responsiveSpacing.md, borderRadius: responsiveBorderRadius.md, marginVertical: responsiveSpacing.md },
+  loanInfoText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm, marginBottom: responsiveSpacing.xs },
+  loanButton: { marginTop: responsiveSpacing.md },
+  loanActions: { flexDirection: 'row', gap: responsiveSpacing.sm, marginTop: responsiveSpacing.sm },
+  loanActionButton: { flex: 1, paddingVertical: responsiveSpacing.sm, paddingHorizontal: responsiveSpacing.md, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151', alignItems: 'center' },
+  loanActionButtonPrimary: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  loanActionText: { color: '#9CA3AF', fontSize: responsiveFontSize.sm, fontWeight: '500' },
+  loanActionTextPrimary: { color: '#FFFFFF' },
+
+  // Premium banking styles
+  premiumCard: { backgroundColor: '#1F2937', borderColor: '#FFD700', borderWidth: 1 },
+  premiumHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.sm, gap: responsiveSpacing.sm },
+  premiumTitle: { color: '#FFD700', fontSize: responsiveFontSize.base, fontWeight: '600' },
+  premiumText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm },
+
+  // Services styles
+  servicesDescription: { color: '#9CA3AF', fontSize: responsiveFontSize.sm, marginTop: responsiveSpacing.sm },
+  serviceHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.md },
+  serviceIconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1F2937', alignItems: 'center', justifyContent: 'center', marginRight: responsiveSpacing.md },
+  serviceImage: { width: 32, height: 32, resizeMode: 'contain' },
+  serviceInfo: { flex: 1 },
+  serviceName: { color: '#FFFFFF', fontSize: responsiveFontSize.base, fontWeight: '600', marginBottom: responsiveSpacing.xs },
+  servicePrice: { color: '#10B981', fontSize: responsiveFontSize.base, fontWeight: '600' },
+  servicePriceDark: { color: '#FFFFFF', fontSize: responsiveFontSize.base, fontWeight: '600' },
+  serviceStatus: { alignItems: 'flex-end' },
+  activeBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#10B981', paddingHorizontal: responsiveSpacing.sm, paddingVertical: responsiveSpacing.xs, borderRadius: responsiveBorderRadius.md, gap: responsiveSpacing.xs },
+  activeText: { color: '#FFFFFF', fontSize: responsiveFontSize.sm, fontWeight: '500' },
+  purchaseButton: { backgroundColor: '#3B82F6', paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.md },
+  purchaseButtonText: { color: '#FFFFFF', fontSize: responsiveFontSize.sm, fontWeight: '500' },
+  serviceDescription: { color: '#9CA3AF', fontSize: responsiveFontSize.sm, lineHeight: 20 },
+
+  // Modal styles
+  modalActions: { flexDirection: 'row', gap: responsiveSpacing.md, marginTop: responsiveSpacing.lg },
+  modalBtnSecondary: { flex: 1, paddingVertical: responsiveSpacing.md, paddingHorizontal: responsiveSpacing.lg, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151', alignItems: 'center' },
+  modalBtnSecondaryText: { color: '#9CA3AF', fontSize: responsiveFontSize.base, fontWeight: '500' },
+  featuresList: { marginVertical: responsiveSpacing.md },
+  featureItem: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.sm, gap: responsiveSpacing.sm },
+  featureText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm, flex: 1 },
+
   modalBackdrop: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: responsiveSpacing.lg,
   },
@@ -692,4 +1188,42 @@ const styles = StyleSheet.create({
   modalText: { color: '#C7CBDA', fontSize: responsiveFontSize.base, lineHeight: 20, marginBottom: responsiveSpacing.lg },
   modalBtn: { alignSelf: 'flex-end', backgroundColor: '#2563EB', borderRadius: responsiveBorderRadius.sm, paddingVertical: responsiveSpacing.sm, paddingHorizontal: responsiveSpacing.md },
   modalBtnText: { color: '#FFFFFF', fontWeight: '600' },
+
+  // IAP Error Styles
+  errorCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: responsiveSpacing.sm,
+    gap: responsiveSpacing.sm,
+  },
+  errorTitle: {
+    fontSize: responsiveFontSize.base,
+    fontWeight: '600',
+    color: '#F59E0B',
+  },
+  errorTitleDark: {
+    color: '#F59E0B',
+  },
+  errorMessage: {
+    fontSize: responsiveFontSize.sm,
+    color: '#374151',
+    lineHeight: 20,
+    marginBottom: responsiveSpacing.sm,
+  },
+  errorMessageDark: {
+    color: '#D1D5DB',
+  },
+  errorSubtext: {
+    fontSize: responsiveFontSize.xs,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  errorSubtextDark: {
+    color: '#9CA3AF',
+  },
 });

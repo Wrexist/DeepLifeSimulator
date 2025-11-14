@@ -14,7 +14,7 @@
       }
     },
     "owner": "isacm",
-    "version": "1.5.0",
+    "version": "1.9.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -24,12 +24,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.deeplife.simulator",
-      "buildNumber": "12",
+      "buildNumber": "22",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app needs access to the camera so you can upload a profile picture.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library so you can select images.",
-        "NSMicrophoneUsageDescription": "This app needs access to the microphone so you can record audio.",
-        "ITSAppUsesNonExemptEncryption": false
+        "NSUserTrackingUsageDescription": "This app would like to track your activity to provide personalized ads and improve your experience.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "GADApplicationIdentifier": "ca-app-pub-2286247955186424~3290819490"
+      },
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-2286247955186424~3290819490"
       }
     },
     "android": {
@@ -38,6 +40,9 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#FFFFFF"
+      },
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-2286247955186424~3290819490"
       }
     },
     "web": {
@@ -48,7 +53,13 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This app would like to track your activity to provide personalized ads and improve your experience."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

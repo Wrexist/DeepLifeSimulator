@@ -1,289 +1,230 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView } from 'moti';
-import { ChevronLeft, ChevronRight, X, HelpCircle, Play, XCircle } from 'lucide-react-native';
-import { TutorialStep } from '@/types/tutorial';
+import { X, ArrowRight, Lightbulb } from 'lucide-react-native';
+import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { useGame } from '@/contexts/GameContext';
+import { getTutorialSteps } from '@/utils/tutorialData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const TUTORIAL_COMPLETED_KEY = 'tutorial_completed';
 
 interface TutorialOverlayProps {
   visible: boolean;
-  steps: TutorialStep[];
-  onComplete: () => void;
-  onSkip: () => void;
-  currentStep?: number;
+  onClose: () => void;
 }
 
-export default function TutorialOverlay({
-  visible,
-  steps,
-  onComplete,
-  onSkip,
-  currentStep = 0,
-}: TutorialOverlayProps) {
-  const [currentStepIndex, setCurrentStepIndex] = useState(currentStep);
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  if (!visible || steps.length === 0) return null;
-
-  const currentStepData = steps[currentStepIndex];
-  const isFirstStep = currentStepIndex === 0;
-  const isLastStep = currentStepIndex === steps.length - 1;
+export default function TutorialOverlay({ visible, onClose }: TutorialOverlayProps) {
+  const { gameState } = useGame();
+  const { settings } = gameState;
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const steps = getTutorialSteps('game');
+  const currentStep = steps[currentStepIndex];
 
   const handleNext = () => {
-    if (isLastStep) {
-      onComplete();
-    } else {
+    if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
+    } else {
+      handleComplete();
     }
   };
 
-  const handlePrevious = () => {
-    if (!isFirstStep) {
-      setCurrentStepIndex(currentStepIndex - 1);
+  const handleComplete = async () => {
+    try {
+      await AsyncStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
+      setCurrentStepIndex(0);
+      onClose();
+    } catch (error) {
+      console.error('Error saving tutorial completion:', error);
     }
   };
 
-  const handleSkip = () => {
-    onSkip();
+  const handleSkip = async () => {
+    try {
+      await AsyncStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
+      setCurrentStepIndex(0);
+      onClose();
+    } catch (error) {
+      console.error('Error saving tutorial completion:', error);
+    }
   };
 
-  const getProgressPercentage = () => {
-    return ((currentStepIndex + 1) / steps.length) * 100;
-  };
+  if (!visible || !currentStep) {
+    return null;
+  }
 
   return (
-    <View style={styles.overlay}>
-      <LinearGradient
-        colors={['rgba(0,0,0,0.8)', 'rgba(0,0,0,0.6)'] as [string, string]}
-        style={styles.background}
-      >
-        {/* Skip button */}
-        <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-          <XCircle size={20} color="#fff" />
-          <Text style={styles.skipText}>Skip Tutorial</Text>
-        </TouchableOpacity>
-
-        {/* Main content */}
-        <View style={styles.content}>
-          <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300 }}
-            style={styles.card}
-          >
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.iconContainer}>
-                <HelpCircle size={24} color="#3B82F6" />
-              </View>
-              <View style={styles.headerText}>
-                <Text style={styles.stepIndicator}>
-                  Step {currentStepIndex + 1} of {steps.length}
-                </Text>
-                <Text style={styles.title}>{currentStepData.title}</Text>
-              </View>
-            </View>
-
-            {/* Progress bar */}
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.overlay}>
+        <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
+          {/* Header */}
+          <View style={styles.header}>
             <View style={styles.progressContainer}>
+              <Text style={[styles.stepCounter, settings.darkMode && styles.textDark]}>
+                {currentStepIndex + 1} of {steps.length}
+              </Text>
               <View style={styles.progressBar}>
-                <View
-                  style={[styles.progressFill, { width: `${getProgressPercentage()}%` }]}
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${((currentStepIndex + 1) / steps.length) * 100}%` }
+                  ]} 
                 />
               </View>
             </View>
+            <TouchableOpacity onPress={handleComplete} style={styles.closeButton}>
+              <X size={24} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
+            </TouchableOpacity>
+          </View>
 
-            {/* Description */}
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.descriptionContainer}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.description}>{currentStepData.description}</Text>
-            </ScrollView>
-
-            {/* Navigation */}
-            <View style={styles.navigation}>
-              <TouchableOpacity
-                onPress={handlePrevious}
-                disabled={isFirstStep}
-                style={[styles.navButton, isFirstStep && styles.navButtonDisabled]}
-              >
-                <ChevronLeft size={20} color={isFirstStep ? '#9CA3AF' : '#3B82F6'} />
-                <Text style={[styles.navText, isFirstStep && styles.navTextDisabled]}>
-                  Previous
-                </Text>
-              </TouchableOpacity>
-
-                             <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
-                 <LinearGradient
-                   colors={['#3B82F6', '#1D4ED8'] as [string, string]}
-                   start={{ x: 0, y: 0 }}
-                   end={{ x: 1, y: 1 }}
-                   style={styles.nextButtonGradient}
-                 >
-                  {isLastStep ? (
-                    <>
-                      <Play size={20} color="#fff" />
-                      <Text style={styles.nextButtonText}>Start Playing</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Text style={styles.nextButtonText}>Next</Text>
-                      <ChevronRight size={20} color="#fff" />
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
+          {/* Content */}
+          <View style={styles.content}>
+            <View style={styles.iconContainer}>
+              <Lightbulb size={32} color="#F59E0B" />
             </View>
-          </MotiView>
+            <Text style={[styles.title, settings.darkMode && styles.textDark]}>
+              {currentStep.title}
+            </Text>
+            <Text style={[styles.message, settings.darkMode && styles.messageDark]}>
+              {currentStep.description}
+            </Text>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
+              <Text style={[styles.skipText, settings.darkMode && styles.skipTextDark]}>
+                Skip Tour
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                style={styles.nextButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.nextText}>
+                  {currentStepIndex < steps.length - 1 ? 'Next' : 'Finish'}
+                </Text>
+                <ArrowRight size={16} color="#FFFFFF" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
-      </LinearGradient>
-    </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 2000,
-  },
-  background: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: responsiveSpacing.lg,
   },
-  skipButton: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  skipText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  content: {
-    width: '90%',
-    maxWidth: 400,
+  modal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: responsiveBorderRadius.xl,
+    width: '100%',
+    maxWidth: scale(400),
     maxHeight: '80%',
   },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
-    elevation: 12,
+  modalDark: {
+    backgroundColor: '#1F2937',
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  headerText: {
-    flex: 1,
-  },
-  stepIndicator: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    padding: responsiveSpacing.lg,
+    paddingBottom: responsiveSpacing.md,
   },
   progressContainer: {
-    marginBottom: 20,
+    flex: 1,
+  },
+  stepCounter: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: responsiveSpacing.xs,
   },
   progressBar: {
-    height: 4,
+    height: scale(4),
     backgroundColor: '#E5E7EB',
-    borderRadius: 2,
+    borderRadius: scale(2),
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#3B82F6',
-    borderRadius: 2,
+    borderRadius: scale(2),
   },
-  descriptionContainer: {
-    maxHeight: 200,
-    marginBottom: 24,
+  closeButton: {
+    padding: responsiveSpacing.sm,
+    marginLeft: responsiveSpacing.md,
   },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#4B5563',
+  content: {
+    padding: responsiveSpacing.lg,
+    alignItems: 'center',
   },
-  navigation: {
+  iconContainer: {
+    marginBottom: responsiveSpacing.lg,
+  },
+  title: {
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: responsiveSpacing.md,
+  },
+  message: {
+    fontSize: responsiveFontSize.base,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: responsiveFontSize.base * 1.5,
+  },
+  textDark: {
+    color: '#FFFFFF',
+  },
+  messageDark: {
+    color: '#D1D5DB',
+  },
+  footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: responsiveSpacing.lg,
+    paddingTop: responsiveSpacing.md,
   },
-  navButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  skipButton: {
+    padding: responsiveSpacing.md,
   },
-  navButtonDisabled: {
-    opacity: 0.5,
+  skipText: {
+    fontSize: responsiveFontSize.base,
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  navText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3B82F6',
-    marginLeft: 4,
-  },
-  navTextDisabled: {
+  skipTextDark: {
     color: '#9CA3AF',
   },
   nextButton: {
-    borderRadius: 8,
+    borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
-    shadowColor: '#3B82F6',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 6,
   },
   nextButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: responsiveSpacing.xl,
+    paddingVertical: responsiveSpacing.md,
+    gap: responsiveSpacing.sm,
   },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginHorizontal: 8,
+  nextText: {
+    fontSize: responsiveFontSize.base,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

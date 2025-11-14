@@ -1,40 +1,43 @@
-import {
+// AdMob functionality temporarily disabled - deprecated package removed
+// Note: Can be re-implemented with react-native-google-mobile-ads if needed
+/* import {
   AdMobBanner,
   AdMobInterstitial,
   AdMobRewarded,
   setTestDeviceIDAsync,
   BannerAdSize,
   TestIds,
-} from 'expo-ads-admob';
+} from 'expo-ads-admob'; */
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { iapService } from './IAPService';
+import { requestTrackingPermission } from '@/utils/trackingTransparency';
 
 // AdMob Configuration
 const ADMOB_CONFIG = {
-  // Test IDs for development
+  // Test IDs for development (placeholders since AdMob is disabled)
   TEST_IDS: {
-    BANNER: TestIds.BANNER,
-    INTERSTITIAL: TestIds.INTERSTITIAL,
-    REWARDED: TestIds.REWARDED,
+    BANNER: 'test-banner-id',
+    INTERSTITIAL: 'test-interstitial-id',
+    REWARDED: 'test-rewarded-id',
   },
   
-  // Production IDs - Replace with your actual AdMob IDs
+  // Production IDs - Your actual AdMob IDs
   PRODUCTION_IDS: {
     BANNER: Platform.select({
-      ios: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-      android: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-    }) || 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
+      ios: 'ca-app-pub-2286247955186424/2580373056',
+      android: 'ca-app-pub-2286247955186424/2580373056',
+    }) || 'ca-app-pub-2286247955186424/2580373056',
     
     INTERSTITIAL: Platform.select({
-      ios: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-      android: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-    }) || 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
+      ios: 'ca-app-pub-2286247955186424/6768822080',
+      android: 'ca-app-pub-2286247955186424/6768822080',
+    }) || 'ca-app-pub-2286247955186424/6768822080',
     
     REWARDED: Platform.select({
-      ios: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-      android: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-    }) || 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
+      ios: 'ca-app-pub-2286247955186424/5504358791',
+      android: 'ca-app-pub-2286247955186424/5504358791',
+    }) || 'ca-app-pub-2286247955186424/5504358791',
   },
 };
 
@@ -68,35 +71,15 @@ class AdMobService {
 
   private listeners: ((state: AdState) => void)[] = [];
   private isProduction = __DEV__ ? false : true; // Set to true for production
-  private interstitialAd: AdMobInterstitial | null = null;
-  private rewardedAd: AdMobRewarded | null = null;
+  private interstitialAd: any | null = null;
+  private rewardedAd: any | null = null;
 
   // Initialize AdMob service
   async initialize(): Promise<void> {
-    try {
-      this.setState({ isLoading: true, error: null });
-      
-      // Set test device ID for development
-      if (!this.isProduction) {
-        await setTestDeviceIDAsync('EMULATOR');
-      }
-      
-      // Load ads
-      await this.loadInterstitialAd();
-      await this.loadRewardedAd();
-      
-      // Load ad count from storage
-      await this.loadAdCount();
-      
-      this.setState({ isLoading: false });
-      console.log('AdMob service initialized successfully');
-    } catch (error) {
-      console.error('AdMob initialization error:', error);
-      this.setState({ 
-        isLoading: false, 
-        error: `AdMob initialization failed: ${error}` 
-      });
-    }
+    // AdMob functionality temporarily disabled
+    console.log('AdMob service disabled - deprecated package removed');
+    this.setState({ isLoading: false, error: null });
+    return Promise.resolve();
   }
 
   // Get ad unit ID based on environment
@@ -110,138 +93,26 @@ class AdMobService {
 
   // Load interstitial ad
   async loadInterstitialAd(): Promise<void> {
-    try {
-      if (this.interstitialAd) {
-        await this.interstitialAd.dismissAsync();
-      }
-
-      this.interstitialAd = new AdMobInterstitial(this.getAdUnitId('interstitial'));
-      
-      await this.interstitialAd.loadAsync();
-      this.setState({ isInterstitialLoaded: true });
-      
-      console.log('Interstitial ad loaded successfully');
-    } catch (error) {
-      console.error('Failed to load interstitial ad:', error);
-      this.setState({ 
-        isInterstitialLoaded: false,
-        error: `Failed to load interstitial ad: ${error}` 
-      });
-    }
+    // AdMob functionality temporarily disabled
+    return Promise.resolve();
   }
 
   // Show interstitial ad
   async showInterstitialAd(): Promise<boolean> {
-    try {
-      // Check if ads are removed
-      if (iapService.isAdsRemoved()) {
-        console.log('Ads removed - skipping interstitial');
-        return false;
-      }
-
-      // Check if ad is loaded
-      if (!this.state.isInterstitialLoaded || !this.interstitialAd) {
-        console.log('Interstitial ad not loaded');
-        await this.loadInterstitialAd();
-        return false;
-      }
-
-      // Check ad frequency (don't show too often)
-      if (this.state.lastAdShown) {
-        const timeSinceLastAd = Date.now() - this.state.lastAdShown.getTime();
-        if (timeSinceLastAd < 60000) { // 1 minute minimum between ads
-          console.log('Ad shown too recently, skipping');
-          return false;
-        }
-      }
-
-      await this.interstitialAd.showAsync();
-      
-      this.setState({ 
-        lastAdShown: new Date(),
-        adCount: this.state.adCount + 1 
-      });
-      
-      await this.saveAdCount();
-      
-      // Load next ad
-      setTimeout(() => {
-        this.loadInterstitialAd();
-      }, 1000);
-      
-      console.log('Interstitial ad shown successfully');
-      return true;
-    } catch (error) {
-      console.error('Failed to show interstitial ad:', error);
-      this.setState({ error: `Failed to show interstitial ad: ${error}` });
-      return false;
-    }
+    // AdMob functionality temporarily disabled
+    return Promise.resolve(false);
   }
 
   // Load rewarded ad
   async loadRewardedAd(): Promise<void> {
-    try {
-      if (this.rewardedAd) {
-        await this.rewardedAd.dismissAsync();
-      }
-
-      this.rewardedAd = new AdMobRewarded(this.getAdUnitId('rewarded'));
-      
-      // Set up event listeners
-      this.rewardedAd.addEventListener('rewardedVideoUserDidEarnReward', this.handleReward);
-      this.rewardedAd.addEventListener('rewardedVideoDidLoad', () => {
-        this.setState({ isRewardedLoaded: true });
-      });
-      this.rewardedAd.addEventListener('rewardedVideoDidFailToLoad', (error) => {
-        this.setState({ 
-          isRewardedLoaded: false,
-          error: `Rewarded ad failed to load: ${error}` 
-        });
-      });
-      
-      await this.rewardedAd.loadAsync();
-      console.log('Rewarded ad loaded successfully');
-    } catch (error) {
-      console.error('Failed to load rewarded ad:', error);
-      this.setState({ 
-        isRewardedLoaded: false,
-        error: `Failed to load rewarded ad: ${error}` 
-      });
-    }
+    // AdMob functionality temporarily disabled
+    return Promise.resolve();
   }
 
   // Show rewarded ad
   async showRewardedAd(): Promise<boolean> {
-    try {
-      // Check if ads are removed
-      if (iapService.isAdsRemoved()) {
-        console.log('Ads removed - skipping rewarded ad');
-        return false;
-      }
-
-      // Check if ad is loaded
-      if (!this.state.isRewardedLoaded || !this.rewardedAd) {
-        console.log('Rewarded ad not loaded');
-        await this.loadRewardedAd();
-        return false;
-      }
-
-      await this.rewardedAd.showAsync();
-      
-      this.setState({ 
-        lastAdShown: new Date(),
-        adCount: this.state.adCount + 1 
-      });
-      
-      await this.saveAdCount();
-      
-      console.log('Rewarded ad shown successfully');
-      return true;
-    } catch (error) {
-      console.error('Failed to show rewarded ad:', error);
-      this.setState({ error: `Failed to show rewarded ad: ${error}` });
-      return false;
-    }
+    // AdMob functionality temporarily disabled
+    return Promise.resolve(false);
   }
 
   // Handle reward from rewarded ad
@@ -269,9 +140,19 @@ class AdMobService {
       const gameStateJson = await AsyncStorage.getItem('gameState');
       if (!gameStateJson) return;
 
-      const gameState = JSON.parse(gameStateJson);
+      let gameState;
+      try {
+        gameState = JSON.parse(gameStateJson);
+        if (!gameState || typeof gameState !== 'object') {
+          console.error('Invalid game state structure in AdMobService');
+          return;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse game state in AdMobService:', parseError);
+        return;
+      }
 
-      // Apply reward based on type
+      // Apply reward based on type (local cache used by this service only)
       switch (reward.type) {
         case 'gems':
           gameState.stats.gems = (gameState.stats.gems || 0) + reward.amount;
@@ -292,6 +173,34 @@ class AdMobService {
 
       // Save updated game state
       await AsyncStorage.setItem('gameState', JSON.stringify(gameState));
+      
+      // Persist rewards to the actual save system so they survive restarts
+      try {
+        if (reward.type === 'gems') {
+          // Update global gems used by the real save/load flow
+          const newGems = gameState.stats.gems || 0;
+          await AsyncStorage.setItem('globalGems', String(newGems));
+
+          // Also patch the last used save slot if present
+          const lastSlotStr = await AsyncStorage.getItem('lastSlot');
+          const lastSlot = lastSlotStr ? parseInt(lastSlotStr, 10) : NaN;
+          if (!isNaN(lastSlot)) {
+            const slotKey = `save_slot_${lastSlot}`;
+            const slotData = await AsyncStorage.getItem(slotKey);
+            if (slotData) {
+              try {
+                const parsed = JSON.parse(slotData);
+                if (parsed && parsed.stats && typeof parsed.stats === 'object') {
+                  parsed.stats.gems = Math.max(0, (parsed.stats.gems || 0) + reward.amount);
+                  await AsyncStorage.setItem(slotKey, JSON.stringify(parsed));
+                }
+              } catch {}
+            }
+          }
+        }
+      } catch (persistError) {
+        console.warn('Ad reward persistence warning:', persistError);
+      }
       
       console.log('Reward applied successfully:', reward);
     } catch (error) {
@@ -322,13 +231,13 @@ class AdMobService {
 
   // Get banner ad component props
   getBannerAdProps() {
+    // AdMob functionality temporarily disabled
     return {
-      bannerSize: BannerAdSize.BANNER,
-      adUnitID: this.getAdUnitId('banner'),
-      servePersonalizedAds: true,
+      bannerSize: 'BANNER',
+      adUnitID: '',
+      servePersonalizedAds: false,
       onDidFailToReceiveAdWithError: (error: any) => {
-        console.error('Banner ad failed to load:', error);
-        this.setState({ error: `Banner ad failed: ${error}` });
+        console.log('AdMob disabled');
       },
     };
   }

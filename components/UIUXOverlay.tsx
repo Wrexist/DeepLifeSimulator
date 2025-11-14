@@ -4,6 +4,7 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import TutorialOverlay from './TutorialOverlay';
+import ImmersiveTutorial from './ImmersiveTutorial';
 
 export default function UIUXOverlay() {
   const {
@@ -55,14 +56,25 @@ export default function UIUXOverlay() {
         />
       ))}
 
-      {/* Tutorial Overlay */}
-      <TutorialOverlay
+      {/* Tutorial Overlay - Use Immersive Tutorial for enhanced experience */}
+      <ImmersiveTutorial
         visible={showTutorial}
         steps={tutorialSteps}
         onComplete={completeTutorial}
         onSkip={skipTutorial}
         currentStep={currentTutorialStep}
       />
+      
+      {/* Fallback to basic tutorial if needed */}
+      {!showTutorial && (
+        <TutorialOverlay
+          visible={false}
+          steps={[]}
+          onComplete={completeTutorial}
+          onSkip={skipTutorial}
+          currentStep={currentTutorialStep}
+        />
+      )}
     </View>
   );
 }

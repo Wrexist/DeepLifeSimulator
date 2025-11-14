@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
+import { useGame } from '@/contexts/GameContext';
 
 interface UsePressableScaleOptions {
   scale?: number;
@@ -27,6 +28,7 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
     glow = false
   } = options;
 
+  const { gameState } = useGame();
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
   const isMounted = useRef(true);
@@ -93,7 +95,7 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
   };
 
   const onHaptic = async () => {
-    if (!haptic) return;
+    if (!haptic || !gameState.settings.hapticFeedback) return;
     
     try {
       if (Platform.OS === 'ios' || Platform.OS === 'android') {

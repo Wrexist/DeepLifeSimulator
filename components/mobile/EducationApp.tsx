@@ -13,7 +13,7 @@ const availableEducations: Education[] = [
     id: 'high_school',
     name: 'High School Diploma',
     description: 'Complete your basic education - required for most jobs',
-    duration: 52,
+    duration: 104, // Doubled from 52 to 104 weeks (2 years)
     cost: 0,
     completed: false,
   },
@@ -21,80 +21,80 @@ const availableEducations: Education[] = [
     id: 'police_academy',
     name: 'Police Academy',
     description: 'Law enforcement training - required for Police career',
-    duration: 15,
-    cost: 6000,
+    duration: 30, // Doubled from 15 to 30 weeks
+    cost: 12000, // Doubled from 6000 to 12000
     completed: false,
   },
   {
     id: 'legal_studies',
     name: 'Legal Studies',
     description: 'Basic legal education - required for Legal Assistant career',
-    duration: 23,
-    cost: 9000,
+    duration: 46, // Doubled from 23 to 46 weeks
+    cost: 18000, // Doubled from 9000 to 18000
     completed: false,
   },
   {
     id: 'entrepreneurship',
     name: 'Entrepreneurship Course',
     description: 'Learn to start and run businesses - required for starting companies',
-    duration: 36,
-    cost: 15000,
+    duration: 72, // Doubled from 36 to 72 weeks
+    cost: 30000, // Doubled from 15000 to 30000
     completed: false,
   },
   {
     id: 'business_degree',
     name: 'Business Degree',
     description: 'Comprehensive business education - required for Teacher and Nurse careers',
-    duration: 45,
-    cost: 24000,
+    duration: 90, // Doubled from 45 to 90 weeks
+    cost: 48000, // Doubled from 24000 to 48000
     completed: false,
   },
   {
     id: 'computer_science',
     name: 'Computer Science',
     description: 'Programming and software development - required for Software Engineer career',
-    duration: 52,
-    cost: 36000,
+    duration: 104, // Doubled from 52 to 104 weeks
+    cost: 72000, // Doubled from 36000 to 72000
     completed: false,
   },
   {
     id: 'masters_degree',
     name: "Master's Degree",
     description: 'Advanced specialized education - required for Software Engineer career',
-    duration: 60,
-    cost: 45000,
+    duration: 120, // Doubled from 60 to 120 weeks
+    cost: 90000, // Doubled from 45000 to 90000
     completed: false,
   },
   {
     id: 'mba',
     name: 'MBA',
     description: 'Master of Business Administration - required for Corporate career',
-    duration: 75,
-    cost: 60000,
+    duration: 150, // Doubled from 75 to 150 weeks
+    cost: 120000, // Doubled from 60000 to 120000
     completed: false,
   },
   {
     id: 'medical_school',
     name: 'Medical School',
     description: 'Medical education - required for Doctor career',
-    duration: 90,
-    cost: 75000,
+    duration: 180, // Doubled from 90 to 180 weeks
+    cost: 150000, // Doubled from 75000 to 150000
     completed: false,
   },
   {
     id: 'law_school',
     name: 'Law School',
     description: 'Legal education - required for Lawyer career',
-    duration: 78,
-    cost: 66000,
+    duration: 156, // Doubled from 78 to 156 weeks
+    cost: 132000, // Doubled from 66000 to 132000
     completed: false,
   },
   {
     id: 'phd',
     name: 'PhD',
     description: 'Doctorate level research and expertise - required for Doctor career',
-    duration: 104,
-    cost: 90000,
+    duration: 208, // Doubled from 104 to 208 weeks
+    cost: 180000, // Doubled from 90000 to 180000
     completed: false,
   },
 ];

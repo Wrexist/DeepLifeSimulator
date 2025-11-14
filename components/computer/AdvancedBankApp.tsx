@@ -8,6 +8,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -37,13 +38,16 @@ import {
   responsiveBorderRadius,
   responsiveIconSize 
 } from '@/utils/scaling';
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 
 interface AdvancedBankAppProps {
   onBack: () => void;
 }
 
 export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, buyGoldUpgrade } = useGame();
+  const { settings } = gameState;
   const [activeTab, setActiveTab] = useState('overview');
   const [showSettings, setShowSettings] = useState(false);
   const [showCreditCardModal, setShowCreditCardModal] = useState(false);
@@ -52,7 +56,6 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
   const [showPrivateBankingModal, setShowPrivateBankingModal] = useState(false);
   const [showIAPModal, setShowIAPModal] = useState(false);
   const [currentIAP, setCurrentIAP] = useState('');
-  const [showLoanManagerModal, setShowLoanManagerModal] = useState(false);
   const [showNewLoanModal, setShowNewLoanModal] = useState(false);
   const [showLoanDetailsModal, setShowLoanDetailsModal] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
@@ -64,8 +67,6 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
   
   // Savings state
   const [savingsAmount, setSavingsAmount] = useState('');
-  const [showSavingsModal, setShowSavingsModal] = useState(false);
-  const [savingsAction, setSavingsAction] = useState<'deposit' | 'withdraw'>('deposit');
 
   const money = gameState.stats.money || 0;
   const bankSavings = (gameState.bankSavings !== undefined && gameState.bankSavings !== null) ? gameState.bankSavings : 0;
@@ -73,11 +74,13 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
   const monthlyIncome = 5000; // Simulated monthly income
 
   // Banking state - these would be saved in game state in real implementation
-  const [hasCreditCard, setHasCreditCard] = useState(false);
-  const [hasFinancialPlanning, setHasFinancialPlanning] = useState(false);
-  const [hasBusinessAccount, setHasBusinessAccount] = useState(false);
-  const [hasPrivateBanking, setHasPrivateBanking] = useState(false);
   const [cashbackEarned, setCashbackEarned] = useState(0);
+  
+  // Use IAP service to check service status
+  const hasCreditCard = iapService.hasPurchased(IAP_PRODUCTS.PREMIUM_CREDIT_CARD);
+  const hasFinancialPlanning = iapService.hasPurchased(IAP_PRODUCTS.FINANCIAL_PLANNING);
+  const hasBusinessAccount = iapService.hasPurchased(IAP_PRODUCTS.BUSINESS_BANKING);
+  const hasPrivateBanking = iapService.hasPurchased(IAP_PRODUCTS.PRIVATE_BANKING);
 
   // Check if user owns companies
   const hasCompanies = gameState.companies && gameState.companies.length > 0;
@@ -115,40 +118,26 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     }
     
     setSavingsAmount('');
-    setShowSavingsModal(false);
   };
 
-  const handleIAP = (service: string) => {
-    setCurrentIAP(service);
-    setShowIAPModal(true);
-  };
-
-  const confirmIAP = () => {
-    switch (currentIAP) {
-      case 'creditCard':
-        setHasCreditCard(true);
-        Alert.alert('Premium Credit Card Purchased!', 'You now have 10% cashback on all purchases!');
-        break;
-      case 'financialPlanning':
-        setHasFinancialPlanning(true);
-        Alert.alert('Financial Planning Purchased!', 'Your bank savings now earn 15% interest!');
-        break;
-      case 'privateBanking':
-        setHasPrivateBanking(true);
-        Alert.alert('Private Banking Purchased!', 'You now have access to VIP loans with 3% APR!');
-        break;
-      case 'businessBanking':
-        setHasBusinessAccount(true);
-        Alert.alert('Business Banking Purchased!', 'You can now get loans for your companies!');
-        break;
+  const handleIAP = async (serviceId: string) => {
+    try {
+      const result = await iapService.purchaseProduct(serviceId);
+      if (result.success) {
+        const config = getProductConfig(serviceId);
+        Alert.alert('Purchase Successful!', `${config?.name || 'Service'} has been activated!`);
+      } else {
+        Alert.alert('Purchase Failed', result.message);
+      }
+    } catch (error) {
+      Alert.alert('Purchase Error', 'Failed to complete purchase. Please try again.');
     }
-    setShowIAPModal(false);
   };
 
 
   const handleCreditCard = () => {
     if (!hasCreditCard) {
-      handleIAP('creditCard');
+      handleIAP(IAP_PRODUCTS.PREMIUM_CREDIT_CARD);
     } else {
       Alert.alert('Premium Credit Card', `You have 10% cashback! Total earned: ${formatMoney(cashbackEarned)}`);
     }
@@ -156,7 +145,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
 
   const handleFinancialPlanning = () => {
     if (!hasFinancialPlanning) {
-      handleIAP('financialPlanning');
+      handleIAP(IAP_PRODUCTS.FINANCIAL_PLANNING);
     } else {
       Alert.alert('Financial Planning', 'Your bank savings earn 15% interest! Expert advice included.');
     }
@@ -164,7 +153,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
 
   const handleBusinessBanking = () => {
     if (!hasBusinessAccount) {
-      handleIAP('businessBanking');
+      handleIAP(IAP_PRODUCTS.BUSINESS_BANKING);
     } else if (!hasCompanies) {
       Alert.alert('No Companies', 'You need to own companies to use Business Banking services.');
     } else {
@@ -174,10 +163,33 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
 
   const handlePrivateBanking = () => {
     if (!hasPrivateBanking) {
-      handleIAP('privateBanking');
+      handleIAP(IAP_PRODUCTS.PRIVATE_BANKING);
     } else {
       Alert.alert('Private Banking', 'VIP services active! You have access to 3% APR loans up to $200,000.');
     }
+  };
+
+  const confirmIAP = () => {
+    let serviceId = '';
+    switch (currentIAP) {
+      case 'creditCard':
+        serviceId = IAP_PRODUCTS.PREMIUM_CREDIT_CARD;
+        break;
+      case 'financialPlanning':
+        serviceId = IAP_PRODUCTS.FINANCIAL_PLANNING;
+        break;
+      case 'privateBanking':
+        serviceId = IAP_PRODUCTS.PRIVATE_BANKING;
+        break;
+      case 'businessBanking':
+        serviceId = IAP_PRODUCTS.BUSINESS_BANKING;
+        break;
+      default:
+        Alert.alert('Error', 'Invalid service selected');
+        return;
+    }
+    handleIAP(serviceId);
+    setShowIAPModal(false);
   };
 
   const handleCompanyLoan = (companyId: string, amount: number) => {
@@ -528,23 +540,117 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         </View>
       </View>
 
-      {/* Loan Management Section */}
+      {/* Loan Application Section */}
       <View style={styles.loanManagementSection}>
-        <Text style={styles.loanManagementTitle}>Loan Management</Text>
+        <Text style={styles.loanManagementTitle}>Apply for New Loan</Text>
         <View style={styles.loanManagementCard}>
           <View style={styles.loanManagementHeader}>
             <CreditCard size={24} color="#3B82F6" />
-            <Text style={styles.loanManagementSubtitle}>Quick Loan Access</Text>
+            <Text style={styles.loanManagementSubtitle}>Quick Loan Application</Text>
           </View>
-          <Text style={styles.loanManagementDesc}>
-            Access your loans, apply for new ones, and manage payments directly from your banking overview.
-          </Text>
+          
+          {/* Loan Type Selection */}
+          <View style={styles.loanTypeSelection}>
+            <Text style={styles.inputLabel}>Loan Type</Text>
+            <View style={styles.loanTypeGrid}>
+              {[
+                { id: 'personal', name: 'Personal', icon: CreditCard, color: '#3B82F6' },
+                { id: 'business', name: 'Business', icon: TrendingUp, color: '#10B981' },
+              ].map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  style={[
+                    styles.loanTypeCard,
+                    newLoanType === type.id && styles.loanTypeCardSelected,
+                  ]}
+                  onPress={() => setNewLoanType(type.id)}
+                >
+                  <type.icon size={20} color={newLoanType === type.id ? '#FFFFFF' : type.color} />
+                  <Text style={[
+                    styles.loanTypeName,
+                    newLoanType === type.id && styles.loanTypeNameSelected,
+                  ]}>
+                    {type.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Loan Amount */}
+          <View style={styles.loanAmountSection}>
+            <Text style={styles.inputLabel}>Loan Amount</Text>
+            <TextInput
+              style={styles.loanAmountInput}
+              value={newLoanAmount}
+              onChangeText={setNewLoanAmount}
+              placeholder="Enter amount"
+              placeholderTextColor="#6B7280"
+              keyboardType="numeric"
+            />
+            <Text style={styles.loanAmountHint}>
+              Max: {(() => {
+                const maxAmount = Math.min(100000, (money + bankSavings) * 2);
+                return formatMoney(Math.round(maxAmount));
+              })()}
+            </Text>
+          </View>
+
+          {/* Term Selection */}
+          <View style={styles.termSelection}>
+            <Text style={styles.inputLabel}>Term Length</Text>
+            <View style={styles.termGrid}>
+              {[32, 64, 104, 156, 260, 520].map((term) => (
+                <TouchableOpacity
+                  key={term}
+                  style={[
+                    styles.termButton,
+                    newLoanTerm === term && styles.termButtonSelected,
+                  ]}
+                  onPress={() => setNewLoanTerm(term)}
+                >
+                  <Text style={[
+                    styles.termText,
+                    newLoanTerm === term && styles.termTextSelected,
+                  ]}>
+                    {term}w
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Loan Details Preview */}
+          {newLoanAmount && parseFloat(newLoanAmount) > 0 && (() => {
+            const amount = parseFloat(newLoanAmount);
+            const details = calculateLoanDetails(amount, newLoanTerm, newLoanType);
+            return (
+              <View style={styles.loanDetailsPreview}>
+                <Text style={styles.loanDetailsTitle}>Loan Preview</Text>
+                <View style={styles.loanDetailsRow}>
+                  <Text style={styles.loanDetailsLabel}>Weekly Payment:</Text>
+                  <Text style={styles.loanDetailsValue}>{formatMoney(details.weeklyPayment)}</Text>
+                </View>
+                <View style={styles.loanDetailsRow}>
+                  <Text style={styles.loanDetailsLabel}>Total Interest:</Text>
+                  <Text style={styles.loanDetailsValue}>{formatMoney(details.totalInterest)}</Text>
+                </View>
+                <View style={styles.loanDetailsRow}>
+                  <Text style={styles.loanDetailsLabel}>Total Cost:</Text>
+                  <Text style={styles.loanDetailsValue}>{formatMoney(details.totalCost)}</Text>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* Apply Button */}
           <TouchableOpacity 
             style={styles.loanManagementButton}
-            onPress={() => setShowLoanManagerModal(true)}
+            onPress={takeNewLoan}
+            disabled={!newLoanAmount || parseFloat(newLoanAmount) <= 0}
           >
             <LinearGradient colors={['#3B82F6', '#1D4ED8']} style={styles.loanManagementButtonGradient}>
-              <Text style={styles.loanManagementButtonText}>Open Loan Manager</Text>
+              <Text style={styles.loanManagementButtonText}>Apply for Loan</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -555,7 +661,10 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         <View style={styles.serviceStatusGrid}>
           <View style={[styles.serviceStatusCard, hasCreditCard && styles.serviceActiveCard]}>
             <View style={[styles.serviceIconContainer, hasCreditCard && styles.serviceActiveIcon]}>
-              <CreditCard size={20} color={hasCreditCard ? "#FFFFFF" : "#6B7280"} />
+              <Image 
+                source={require('@/assets/images/iap/banking/premium_credit_card.png')} 
+                style={styles.serviceImage} 
+              />
             </View>
             <View style={styles.serviceInfo}>
               <Text style={[styles.serviceStatusText, hasCreditCard && styles.serviceActiveText]}>
@@ -564,7 +673,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               {hasCreditCard ? (
                 <Text style={styles.serviceBenefit}>10% Cashback Active</Text>
               ) : (
-                <Text style={styles.serviceInactive}>$4.99 to unlock</Text>
+                <Text style={[styles.serviceInactive, settings?.darkMode && styles.serviceInactiveDark]}>$4.99 to unlock</Text>
               )}
             </View>
             {hasCreditCard && <View style={styles.activeIndicator} />}
@@ -572,7 +681,10 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
           
           <View style={[styles.serviceStatusCard, hasFinancialPlanning && styles.serviceActiveCard]}>
             <View style={[styles.serviceIconContainer, hasFinancialPlanning && styles.serviceActiveIcon]}>
-              <Calculator size={20} color={hasFinancialPlanning ? "#FFFFFF" : "#6B7280"} />
+              <Image 
+                source={require('@/assets/images/iap/banking/financial_planning.png')} 
+                style={styles.serviceImage} 
+              />
             </View>
             <View style={styles.serviceInfo}>
               <Text style={[styles.serviceStatusText, hasFinancialPlanning && styles.serviceActiveText]}>
@@ -581,7 +693,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               {hasFinancialPlanning ? (
                 <Text style={styles.serviceBenefit}>15% Interest Active</Text>
               ) : (
-                <Text style={styles.serviceInactive}>$2.99 to unlock</Text>
+                <Text style={[styles.serviceInactive, settings?.darkMode && styles.serviceInactiveDark]}>$2.99 to unlock</Text>
               )}
             </View>
             {hasFinancialPlanning && <View style={styles.activeIndicator} />}
@@ -589,7 +701,10 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
           
           <View style={[styles.serviceStatusCard, hasPrivateBanking && styles.serviceActiveCard]}>
             <View style={[styles.serviceIconContainer, hasPrivateBanking && styles.serviceActiveIcon]}>
-              <Crown size={20} color={hasPrivateBanking ? "#FFFFFF" : "#6B7280"} />
+              <Image 
+                source={require('@/assets/images/iap/banking/private_banking.png')} 
+                style={styles.serviceImage} 
+              />
             </View>
             <View style={styles.serviceInfo}>
               <Text style={[styles.serviceStatusText, hasPrivateBanking && styles.serviceActiveText]}>
@@ -598,7 +713,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               {hasPrivateBanking ? (
                 <Text style={styles.serviceBenefit}>3% APR Active</Text>
               ) : (
-                <Text style={styles.serviceInactive}>$9.99 to unlock</Text>
+                <Text style={[styles.serviceInactive, settings?.darkMode && styles.serviceInactiveDark]}>$9.99 to unlock</Text>
               )}
             </View>
             {hasPrivateBanking && <View style={styles.activeIndicator} />}
@@ -606,7 +721,10 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
           
           <View style={[styles.serviceStatusCard, hasBusinessAccount && styles.serviceActiveCard]}>
             <View style={[styles.serviceIconContainer, hasBusinessAccount && styles.serviceActiveIcon]}>
-              <Building size={20} color={hasBusinessAccount ? "#FFFFFF" : "#6B7280"} />
+              <Image 
+                source={require('@/assets/images/iap/banking/business_banking.png')} 
+                style={styles.serviceImage} 
+              />
             </View>
             <View style={styles.serviceInfo}>
               <Text style={[styles.serviceStatusText, hasBusinessAccount && styles.serviceActiveText]}>
@@ -615,7 +733,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               {hasBusinessAccount ? (
                 <Text style={styles.serviceBenefit}>Company Loans Active</Text>
               ) : (
-                <Text style={styles.serviceInactive}>$3.99 to unlock</Text>
+                <Text style={[styles.serviceInactive, settings?.darkMode && styles.serviceInactiveDark]}>$3.99 to unlock</Text>
               )}
             </View>
             {hasBusinessAccount && <View style={styles.activeIndicator} />}
@@ -631,39 +749,59 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
 
         <TouchableOpacity style={styles.serviceCard} onPress={handleCreditCard}>
           <LinearGradient colors={['#8B5CF6', '#A78BFA']} style={styles.serviceGradient}>
-            <CreditCard size={32} color="#FFFFFF" />
+            <View style={styles.serviceIconContainer}>
+              <Image 
+                source={require('@/assets/images/iap/banking/premium_credit_card.png')} 
+                style={styles.serviceImage} 
+              />
+            </View>
             <Text style={styles.serviceTitle}>Premium Credit Card</Text>
             <Text style={styles.serviceDesc}>10% cashback rewards</Text>
-            <Text style={styles.serviceStatus}>{hasCreditCard ? 'Active' : '$4.99'}</Text>
+            <Text style={[styles.serviceStatus, !hasCreditCard && settings?.darkMode && styles.serviceStatusDark]}>{hasCreditCard ? 'Active' : '$4.99'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.serviceCard} onPress={handleFinancialPlanning}>
           <LinearGradient colors={['#F59E0B', '#FBBF24']} style={styles.serviceGradient}>
-            <Calculator size={32} color="#FFFFFF" />
+            <View style={styles.serviceIconContainer}>
+              <Image 
+                source={require('@/assets/images/iap/banking/financial_planning.png')} 
+                style={styles.serviceImage} 
+              />
+            </View>
             <Text style={styles.serviceTitle}>Financial Planning</Text>
             <Text style={styles.serviceDesc}>15% interest on savings</Text>
-            <Text style={styles.serviceStatus}>{hasFinancialPlanning ? 'Active' : '$2.99'}</Text>
+            <Text style={[styles.serviceStatus, !hasFinancialPlanning && settings?.darkMode && styles.serviceStatusDark]}>{hasFinancialPlanning ? 'Active' : '$2.99'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.serviceCard} onPress={handleBusinessBanking}>
           <LinearGradient colors={['#EF4444', '#F87171']} style={styles.serviceGradient}>
-            <Building size={32} color="#FFFFFF" />
+            <View style={styles.serviceIconContainer}>
+              <Image 
+                source={require('@/assets/images/iap/banking/business_banking.png')} 
+                style={styles.serviceImage} 
+              />
+            </View>
             <Text style={styles.serviceTitle}>Business Banking</Text>
             <Text style={styles.serviceDesc}>
               {hasCompanies ? 'Company loans & upgrades' : 'Need companies first'}
             </Text>
-            <Text style={styles.serviceStatus}>{hasBusinessAccount ? 'Active' : '$3.99'}</Text>
+            <Text style={[styles.serviceStatus, !hasBusinessAccount && settings?.darkMode && styles.serviceStatusDark]}>{hasBusinessAccount ? 'Active' : '$3.99'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.serviceCard} onPress={handlePrivateBanking}>
           <LinearGradient colors={['#06B6D4', '#22D3EE']} style={styles.serviceGradient}>
-            <Crown size={32} color="#FFFFFF" />
+            <View style={styles.serviceIconContainer}>
+              <Image 
+                source={require('@/assets/images/iap/banking/private_banking.png')} 
+                style={styles.serviceImage} 
+              />
+            </View>
             <Text style={styles.serviceTitle}>Private Banking</Text>
             <Text style={styles.serviceDesc}>VIP 3% APR loans</Text>
-            <Text style={styles.serviceStatus}>{hasPrivateBanking ? 'Active' : '$9.99'}</Text>
+            <Text style={[styles.serviceStatus, !hasPrivateBanking && settings?.darkMode && styles.serviceStatusDark]}>{hasPrivateBanking ? 'Active' : '$9.99'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -760,30 +898,74 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         </View>
       </View>
 
-      <View style={styles.savingsActions}>
-        <TouchableOpacity 
-          style={styles.savingsButton} 
-          onPress={() => {
-            setSavingsAction('deposit');
-            setShowSavingsModal(true);
-          }}
-        >
-          <LinearGradient colors={['#2563EB', '#1D4ED8']} style={styles.savingsButtonGradient}>
-            <PiggyBank size={20} color="#FFFFFF" />
-            <Text style={styles.savingsButtonText}>Deposit</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+      {/* Deposit Section */}
+      <View style={styles.savingsActionCard}>
+        <View style={styles.savingsActionHeader}>
+          <PiggyBank size={24} color="#2563EB" />
+          <Text style={styles.savingsActionTitle}>Deposit to Savings</Text>
+        </View>
+        <Text style={styles.savingsActionDesc}>
+          Transfer money from your cash to savings account
+        </Text>
+        
+        <View style={styles.savingsInputGroup}>
+          <Text style={styles.inputLabel}>Amount</Text>
+          <TextInput
+            style={styles.savingsInput}
+            value={savingsAmount}
+            onChangeText={setSavingsAmount}
+            placeholder="Enter amount"
+            placeholderTextColor="#6B7280"
+            keyboardType="numeric"
+          />
+          <Text style={styles.savingsInputHint}>
+            Available Cash: {formatMoney(money)}
+          </Text>
+        </View>
 
         <TouchableOpacity 
-          style={styles.savingsButton} 
-          onPress={() => {
-            setSavingsAction('withdraw');
-            setShowSavingsModal(true);
-          }}
+          style={styles.savingsActionButton}
+          onPress={() => handleSavingsAction('deposit')}
+          disabled={!savingsAmount || parseFloat(savingsAmount) <= 0}
         >
-          <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.savingsButtonGradient}>
-            <Wallet size={20} color="#FFFFFF" />
-            <Text style={styles.savingsButtonText}>Withdraw</Text>
+          <LinearGradient colors={['#2563EB', '#1D4ED8']} style={styles.savingsActionButtonGradient}>
+            <Text style={styles.savingsActionButtonText}>Deposit</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      {/* Withdraw Section */}
+      <View style={styles.savingsActionCard}>
+        <View style={styles.savingsActionHeader}>
+          <Wallet size={24} color="#F59E0B" />
+          <Text style={styles.savingsActionTitle}>Withdraw from Savings</Text>
+        </View>
+        <Text style={styles.savingsActionDesc}>
+          Transfer money from your savings to cash account
+        </Text>
+        
+        <View style={styles.savingsInputGroup}>
+          <Text style={styles.inputLabel}>Amount</Text>
+          <TextInput
+            style={styles.savingsInput}
+            value={savingsAmount}
+            onChangeText={setSavingsAmount}
+            placeholder="Enter amount"
+            placeholderTextColor="#6B7280"
+            keyboardType="numeric"
+          />
+          <Text style={styles.savingsInputHint}>
+            Available Savings: {formatMoney(bankSavings)}
+          </Text>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.savingsActionButton}
+          onPress={() => handleSavingsAction('withdraw')}
+          disabled={!savingsAmount || parseFloat(savingsAmount) <= 0}
+        >
+          <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.savingsActionButtonGradient}>
+            <Text style={styles.savingsActionButtonText}>Withdraw</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -876,29 +1058,29 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
           style={[styles.tab, activeTab === 'overview' && styles.activeTab]} 
           onPress={() => setActiveTab('overview')}
         >
-          <Wallet size={20} color={activeTab === 'overview' ? '#4F46E5' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'overview' && styles.activeTabText]}>Overview</Text>
+          <Wallet size={20} color={activeTab === 'overview' ? '#4F46E5' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+          <Text style={[styles.tabText, activeTab === 'overview' ? styles.activeTabText : (settings?.darkMode ? styles.tabTextDark : null)]}>Overview</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'services' && styles.activeTab]} 
           onPress={() => setActiveTab('services')}
         >
-          <CreditCard size={20} color={activeTab === 'services' ? '#4F46E5' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'services' && styles.activeTabText]}>Services</Text>
+          <CreditCard size={20} color={activeTab === 'services' ? '#4F46E5' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+          <Text style={[styles.tabText, activeTab === 'services' ? styles.activeTabText : (settings?.darkMode ? styles.tabTextDark : null)]}>Services</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'analytics' && styles.activeTab]} 
           onPress={() => setActiveTab('analytics')}
         >
-          <BarChart3 size={20} color={activeTab === 'analytics' ? '#4F46E5' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'analytics' && styles.activeTabText]}>Analytics</Text>
+          <BarChart3 size={20} color={activeTab === 'analytics' ? '#4F46E5' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+          <Text style={[styles.tabText, activeTab === 'analytics' ? styles.activeTabText : (settings?.darkMode ? styles.tabTextDark : null)]}>Analytics</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === 'savings' && styles.activeTab]} 
           onPress={() => setActiveTab('savings')}
         >
-          <PiggyBank size={20} color={activeTab === 'savings' ? '#4F46E5' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'savings' && styles.activeTabText]}>Savings</Text>
+          <PiggyBank size={20} color={activeTab === 'savings' ? '#4F46E5' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+          <Text style={[styles.tabText, activeTab === 'savings' ? styles.activeTabText : (settings?.darkMode ? styles.tabTextDark : null)]}>Savings</Text>
         </TouchableOpacity>
       </View>
 
@@ -915,7 +1097,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
       </ScrollView>
 
       {/* Settings Modal */}
-      <Modal visible={showSettings} animationType="slide" transparent={true}>
+      <Modal visible={showSettings} animationType="slide" transparent={true} onRequestClose={() => setShowSettings(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -930,7 +1112,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
       </Modal>
 
       {/* IAP Modal */}
-      <Modal visible={showIAPModal} animationType="slide" transparent={true}>
+      <Modal visible={showIAPModal} animationType="slide" transparent={true} onRequestClose={() => setShowIAPModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -994,7 +1176,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
 
 
       {/* Business Banking Modal */}
-      <Modal visible={showBusinessBankingModal} animationType="slide" transparent={true}>
+      <Modal visible={showBusinessBankingModal} animationType="slide" transparent={true} onRequestClose={() => setShowBusinessBankingModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -1044,121 +1226,9 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         </View>
       </Modal>
 
-      {/* Loan Manager Modal */}
-      <Modal visible={showLoanManagerModal} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.loanManagerModalContent}>
-            <View style={styles.loanManagerHeader}>
-              <View style={styles.loanManagerHeaderLeft}>
-                <CreditCard size={24} color="#FFFFFF" />
-                <Text style={styles.loanManagerTitle}>Loan Manager</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowLoanManagerModal(false)}>
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.loanManagerBody} showsVerticalScrollIndicator={false}>
-              {/* Loan Summary */}
-              <View style={styles.loanSummaryCard}>
-                <View style={styles.loanSummaryRow}>
-                  <View style={styles.loanSummaryItem}>
-                    <Text style={styles.loanSummaryLabel}>Total Debt</Text>
-                    <Text style={styles.loanSummaryValue}>
-                      {formatMoney(loans.reduce((sum: number, loan: any) => sum + (loan.remaining || 0), 0))}
-                    </Text>
-                  </View>
-                  <View style={styles.loanSummaryItem}>
-                    <Text style={styles.loanSummaryLabel}>Active Loans</Text>
-                    <Text style={styles.loanSummaryValue}>{loans.length}</Text>
-                  </View>
-                  <View style={styles.loanSummaryItem}>
-                    <Text style={styles.loanSummaryLabel}>Market APR</Text>
-                    <Text style={styles.loanSummaryValue}>{marketAPR.toFixed(1)}%</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* New Loan Button */}
-              <TouchableOpacity 
-                style={styles.newLoanButton}
-                onPress={() => setShowNewLoanModal(true)}
-              >
-                <LinearGradient colors={['#10B981', '#34D399']} style={styles.newLoanButtonGradient}>
-                  <CreditCard size={20} color="#FFFFFF" />
-                  <Text style={styles.newLoanButtonText}>Apply for New Loan</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Active Loans */}
-              {loans.length > 0 ? (
-                <View style={styles.activeLoansSection}>
-                  <Text style={styles.activeLoansTitle}>Active Loans ({loans.length})</Text>
-                  {loans.map((loan: any) => {
-                    const typeInfo = getLoanTypeInfo(loan.type);
-                    const progress = 1 - (loan.remaining / loan.principal);
-                    
-                    return (
-                      <TouchableOpacity
-                        key={loan.id}
-                        style={styles.loanCard}
-                        onPress={() => {
-                          setSelectedLoan(loan);
-                          setShowLoanDetailsModal(true);
-                        }}
-                      >
-                        <View style={styles.loanCardHeader}>
-                          <View style={styles.loanTypeInfo}>
-                            <View style={[styles.loanTypeIcon, { backgroundColor: typeInfo.color }]}>
-                              <CreditCard size={16} color="#FFFFFF" />
-                            </View>
-                            <View>
-                              <Text style={styles.loanName}>{loan.name}</Text>
-                              <Text style={styles.loanMeta}>
-                                {loan.rateAPR.toFixed(1)}% APR • {loan.termWeeks}w term
-                              </Text>
-                            </View>
-                          </View>
-                          <Text style={styles.loanAmount}>{formatMoney(loan.remaining)}</Text>
-                        </View>
-                        
-                        <View style={styles.loanProgress}>
-                          <View style={styles.progressBar}>
-                            <View 
-                              style={[
-                                styles.progressFill, 
-                                { width: `${progress * 100}%`, backgroundColor: typeInfo.color }
-                              ]} 
-                            />
-                          </View>
-                          <Text style={styles.progressText}>{Math.round(progress * 100)}% paid</Text>
-                        </View>
-                        
-                        <View style={styles.loanPayment}>
-                          <Text style={styles.paymentLabel}>
-                            Weekly Payment: {formatMoney(loan.weeklyPayment)}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : (
-                <View style={styles.emptyLoansState}>
-                  <CreditCard size={48} color="#6B7280" />
-                  <Text style={styles.emptyLoansTitle}>No Active Loans</Text>
-                  <Text style={styles.emptyLoansText}>
-                    Apply for a loan to access funds for investments, purchases, or emergencies.
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
       {/* New Loan Modal */}
-      <Modal visible={showNewLoanModal} animationType="slide" transparent={true}>
+      <Modal visible={showNewLoanModal} animationType="slide" transparent={true} onRequestClose={() => setShowNewLoanModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.loanManagerModalContent}>
             <View style={styles.loanManagerHeader}>
@@ -1351,7 +1421,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
       </Modal>
 
       {/* Loan Details Modal */}
-      <Modal visible={showLoanDetailsModal} animationType="slide" transparent={true}>
+      <Modal visible={showLoanDetailsModal} animationType="slide" transparent={true} onRequestClose={() => setShowLoanDetailsModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.loanManagerModalContent}>
             <View style={styles.loanManagerHeader}>
@@ -1473,79 +1543,6 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         </View>
       </Modal>
 
-      {/* Savings Modal */}
-      <Modal visible={showSavingsModal} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.loanManagerModalContent}>
-            <View style={styles.loanManagerHeader}>
-              <Text style={styles.loanManagerTitle}>
-                {savingsAction === 'deposit' ? 'Deposit to Savings' : 'Withdraw from Savings'}
-              </Text>
-              <TouchableOpacity onPress={() => setShowSavingsModal(false)}>
-                <X size={24} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.loanManagerBody}>
-              <Text style={styles.loanManagerSubtitle}>
-                {savingsAction === 'deposit' 
-                  ? 'Transfer money from your cash to savings account' 
-                  : 'Transfer money from your savings to cash account'
-                }
-              </Text>
-
-              <View style={styles.loanManagerInputGroup}>
-                <Text style={styles.loanManagerLabel}>Amount</Text>
-                <TextInput
-                  style={styles.loanManagerInput}
-                  value={savingsAmount}
-                  onChangeText={setSavingsAmount}
-                  placeholder="Enter amount"
-                  placeholderTextColor="#6B7280"
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.savingsInfo}>
-                <Text style={styles.savingsInfoTitle}>Account Balances</Text>
-                <View style={styles.balanceInfo}>
-                  <View style={styles.balanceRow}>
-                    <Wallet size={16} color="#F59E0B" />
-                    <Text style={styles.balanceLabel}>Cash: ${money.toLocaleString()}</Text>
-                  </View>
-                  <View style={styles.balanceRow}>
-                    <PiggyBank size={16} color="#059669" />
-                    <Text style={styles.balanceLabel}>Savings: ${bankSavings.toLocaleString()}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.loanManagerActions}>
-              <TouchableOpacity
-                style={[styles.loanManagerButton, styles.loanManagerButtonSecondary]}
-                onPress={() => setShowSavingsModal(false)}
-              >
-                <Text style={styles.loanManagerButtonTextSecondary}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.loanManagerButton, styles.loanManagerButtonPrimary]}
-                onPress={() => handleSavingsAction(savingsAction)}
-                disabled={!savingsAmount || parseFloat(savingsAmount) <= 0}
-              >
-                <LinearGradient
-                  colors={savingsAction === 'deposit' ? ['#2563EB', '#1D4ED8'] : ['#F59E0B', '#D97706']}
-                  style={styles.loanManagerButtonGradient}
-                >
-                  <Text style={styles.loanManagerButtonTextPrimary}>
-                    {savingsAction === 'deposit' ? 'Deposit' : 'Withdraw'}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1593,6 +1590,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1612,12 +1610,21 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#4F46E5',
   },
+  tabTextDark: {
+    marginLeft: responsiveSpacing.xs,
+    fontSize: responsiveFontSize.sm,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
   content: {
     flex: 1,
   },
   contentContainer: {
     paddingHorizontal: responsivePadding.horizontal,
+    paddingTop: 20,
     paddingBottom: 40,
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   tabContent: {
     paddingVertical: responsiveSpacing.lg,
@@ -1699,9 +1706,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   serviceIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#374151',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1709,6 +1716,11 @@ const styles = StyleSheet.create({
   },
   serviceActiveIcon: {
     backgroundColor: '#10B981',
+  },
+  serviceImage: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
   },
   serviceInfo: {
     flex: 1,
@@ -1730,6 +1742,11 @@ const styles = StyleSheet.create({
   serviceInactive: {
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  serviceInactiveDark: {
+    fontSize: responsiveFontSize.sm,
+    color: '#FFFFFF',
     fontStyle: 'italic',
   },
   activeIndicator: {
@@ -1774,6 +1791,11 @@ const styles = StyleSheet.create({
   serviceStatus: {
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
+    marginTop: responsiveSpacing.sm,
+  },
+  serviceStatusDark: {
+    fontSize: responsiveFontSize.sm,
+    color: '#FFFFFF',
     marginTop: responsiveSpacing.sm,
   },
   analyticsCard: {
@@ -2375,6 +2397,94 @@ const styles = StyleSheet.create({
   },
   loanDetailsValue: {
     fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // New Loan Application Styles
+  loanTypeSelection: {
+    marginBottom: 20,
+  },
+  loanAmountSection: {
+    marginBottom: 20,
+  },
+  loanAmountInput: {
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  loanAmountHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  termSelection: {
+    marginBottom: 20,
+  },
+  loanDetailsPreview: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+
+  // Savings Action Styles
+  savingsActionCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  savingsActionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 12,
+  },
+  savingsActionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  savingsActionDesc: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  savingsInputGroup: {
+    marginBottom: 16,
+  },
+  savingsInput: {
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  savingsInputHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  savingsActionButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  savingsActionButtonGradient: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  savingsActionButtonText: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
   },

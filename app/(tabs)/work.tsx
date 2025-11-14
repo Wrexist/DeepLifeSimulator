@@ -8,9 +8,22 @@ import {
   Modal,
   Alert,
   Animated,
+  Image,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Platform } from 'react-native';
+import AnimatedModal from '@/components/anim/AnimatedModal';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { useGame, Contract, CrimeSkillId, StreetJob } from '@/contexts/GameContext';
+import { useToast } from '@/contexts/ToastContext';
+
+// Hobby Images
+const FootballIcon = require('@/assets/images/Hobby/Football.png');
+const BasketballIcon = require('@/assets/images/Hobby/Basketball.png');
+const TennisIcon = require('@/assets/images/Hobby/Tennis.png');
+const ArtIcon = require('@/assets/images/Hobby/Art.png');
+const MusicIcon = require('@/assets/images/Hobby/Music.png');
 import {
   Briefcase,
   Zap,
@@ -81,6 +94,7 @@ export default function WorkScreen() {
   const [showArt, setShowArt] = useState(false);
   const [showContracts, setShowContracts] = useState<string | null>(null);
   const [showSponsors, setShowSponsors] = useState<string | null>(null);
+  const [showPlayPopup, setShowPlayPopup] = useState<string | null>(null);
   const [contractOffers, setContractOffers] = useState<{ hobbyId: string; offers: Contract[] } | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<Contract | null>(null);
   const [showLeague, setShowLeague] = useState<string | null>(null);
@@ -89,9 +103,17 @@ export default function WorkScreen() {
   const [feedbackOpacity] = useState(new Animated.Value(0));
   const [showJailReleaseMessage, setShowJailReleaseMessage] = useState(false);
   const [previousJailWeeks, setPreviousJailWeeks] = useState(0);
+  const [showIncomePopup, setShowIncomePopup] = useState(false);
+  const [selectedHobbyIncome, setSelectedHobbyIncome] = useState<any>(null);
+  const [showTabbedPopup, setShowTabbedPopup] = useState(false);
+  const [tabbedPopupActiveTab, setTabbedPopupActiveTab] = useState<'contracts' | 'leagues'>('contracts');
+  const [selectedHobbyForPopup, setSelectedHobbyForPopup] = useState<string | null>(null);
+  const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   const {
     gameState,
+    setGameState,
     performStreetJob, // fix: behåll endast denna
     payBail,
     applyForJob,
@@ -132,6 +154,15 @@ export default function WorkScreen() {
   const legalStreetJobs = gameState.streetJobs.filter(job => !job.illegal);
   const criminalStreetJobs = gameState.streetJobs.filter(job => job.illegal === true);
 
+  // Auto-switch to career tab if player doesn't have a job or is coming from tutorial
+  useEffect(() => {
+    if (!gameState.currentJob && gameState.stats.money < 1000 && !gameState.hasSeenJobTutorial) {
+      setActiveTab('career');
+      // Mark that we've shown the job tutorial to prevent repeated switching
+      setGameState(prev => ({ ...prev, hasSeenJobTutorial: true }));
+    }
+  }, [gameState.currentJob, gameState.stats.money, gameState.hasSeenJobTutorial, setGameState]);
+
   useEffect(() => {
     let animationRef: Animated.CompositeAnimation | null = null;
     let isMounted = true;
@@ -169,6 +200,15 @@ export default function WorkScreen() {
   const handleStreetJob = (jobId: string) => {
     const result = performStreetJob(jobId);
     if (result) {
+      // Show toast notification
+      if (result.success) {
+        showSuccess(result.message);
+      } else if (result.inJail) {
+        showError(result.message || 'You were caught!');
+      } else {
+        showWarning(result.message);
+      }
+      
       setWorkFeedback({ [jobId]: result.message });
       const timeoutId = setTimeout(() => {
         setWorkFeedback(prev => {
@@ -199,6 +239,7 @@ export default function WorkScreen() {
           return newFeedback;
         });
       }, 3000);
+      
       return () => clearTimeout(timeoutId);
     }
   };
@@ -215,6 +256,52 @@ export default function WorkScreen() {
         });
       }, 3000);
       return () => clearTimeout(timeoutId);
+    }
+  };
+
+  const handleIncomePopup = (hobby: any) => {
+    console.log('Opening income popup for hobby:', hobby?.name || hobby?.id);
+    setSelectedHobbyIncome(hobby);
+    setShowIncomePopup(true);
+  };
+
+  const getHobbyIncomeData = (hobby: any) => {
+    console.log('Getting income data for hobby:', hobby?.name || hobby?.id);
+    
+    if (hobby.id === 'music') {
+      const songs = hobby.songs || [];
+      const totalIncome = songs.reduce((sum: number, song: any) => sum + song.weeklyIncome, 0);
+      return {
+        type: 'music',
+        totalIncome,
+        items: songs.map((song: any) => ({
+          name: `${song.grade} Song`,
+          income: song.weeklyIncome,
+          grade: song.grade
+        }))
+      };
+    } else if (hobby.id === 'art') {
+      const artworks = hobby.artworks || [];
+      const totalIncome = artworks.reduce((sum: number, artwork: any) => sum + artwork.weeklyIncome, 0);
+      return {
+        type: 'art',
+        totalIncome,
+        items: artworks.map((artwork: any) => ({
+          name: `${artwork.grade} Artwork`,
+          income: artwork.weeklyIncome,
+          grade: artwork.grade
+        }))
+      };
+    } else {
+      return {
+        type: 'tournament',
+        totalIncome: hobby.tournamentReward,
+        items: [{
+          name: 'Tournament Reward',
+          income: hobby.tournamentReward,
+          grade: 'Tournament'
+        }]
+      };
     }
   };
 
@@ -264,8 +351,45 @@ export default function WorkScreen() {
 
   const handlePlayMatch = (hobbyId: string) => {
     const hobby = gameState.hobbies.find(h => h.id === hobbyId);
-    if (!hobby || !hobby.contracts || hobby.contracts.length === 0) return;
-    const contract = hobby.contracts[0];
+    if (!hobby) {
+      return;
+    }
+    
+    // Ensure a minimal league/contract exists so we can play immediately
+    let contract = hobby.contracts && hobby.contracts[0];
+    let created = false;
+    if (!contract) {
+      const teamName = hobby.team || `${hobby.name} FC`;
+      contract = {
+        id: `auto_${Date.now()}`,
+        team: teamName,
+        salary: 100,
+        totalWeeks: 6,
+        division: 0,
+        goal: 3,
+        matchPay: 25,
+        weeksRemaining: 6,
+      } as any;
+      // Attach minimal contract and league to allow play
+      setGameState(prev => ({
+        ...prev,
+        hobbies: prev.hobbies.map(h => h.id === hobbyId ? {
+          ...h,
+          team: teamName,
+          contracts: [contract!],
+          league: h.league || {
+            division: 0,
+            standings: [
+              { team: teamName, points: 0, played: 0 },
+              { team: 'Rivals', points: 0, played: 0 },
+            ]
+          }
+        } : h)
+      }));
+      created = true;
+    }
+    
+    const contractRef = contract;
     if (contract.weeksRemaining === 3) {
       Alert.alert('Contract Ending', '3 weeks remaining on contract', [
         {
@@ -285,41 +409,29 @@ export default function WorkScreen() {
             }
           },
         },
-        {
-          text: 'Cancel',
-          onPress: () => cancelContract(hobbyId),
-          style: 'destructive',
-        },
-        {
-          text: 'Wait',
-          onPress: () => {
-            const res = playMatch(hobbyId);
-            if (res) {
-              setWorkFeedback({ [hobbyId]: res.message });
-              setTimeout(() => {
-                setWorkFeedback(prev => {
-                  const nf = { ...prev };
-                  delete nf[hobbyId];
-                  return nf;
-                });
-              }, 3000);
-            }
-          },
-        },
+        { text: 'Skip', style: 'cancel' },
       ]);
       return;
     }
-    const result = playMatch(hobbyId);
-    if (result) {
-      setWorkFeedback({ [hobbyId]: result.message });
-      setTimeout(() => {
-        setWorkFeedback(prev => {
-          const newFeedback = { ...prev };
-          delete newFeedback[hobbyId];
-          return newFeedback;
-        });
-      }, 3000);
+    
+    const doPlay = () => {
+      const res = playMatch(hobbyId);
+      if (res) {
+        setWorkFeedback({ [hobbyId]: res.message });
+        setTimeout(() => {
+          setWorkFeedback(prev => {
+            const nf = { ...prev };
+            delete nf[hobbyId];
+            return nf;
+          });
+        }, 3000);
+      }
+    };
+    if (created || !hobby.league || !hobby.league.standings || hobby.league.standings.length < 2) {
+      setTimeout(doPlay, 0);
+      return;
     }
+    doPlay();
   };
 
   const handleCancelContract = (hobbyId: string) => {
@@ -359,7 +471,11 @@ export default function WorkScreen() {
     if (gameState.jailWeeks > 0) {
       return false;
     }
-    if (gameState.stats.energy < job.energyCost) return false;
+    
+    // Energy check - use current energy value
+    const hasEnoughEnergy = gameState.stats.energy >= job.energyCost;
+
+    if (!hasEnoughEnergy) return false;
 
     const hasItems =
       !job.requirements ||
@@ -403,6 +519,7 @@ export default function WorkScreen() {
 
     return Math.max(baseRisk - levelReduction - rankReduction - requirementBonus, 5);
   };
+
 
   const availableCrimeJobs = criminalStreetJobs.filter(job => canPerformJob(job));
 
@@ -495,17 +612,17 @@ export default function WorkScreen() {
           <View style={styles.crimeJobActionContainer}>
             <TouchableOpacity
               onPress={() => handleStreetJob(job.id)}
-              disabled={!canPerformJob(job)}
+              disabled={gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0}
               style={styles.crimeJobButtonWrapper}
             >
               <LinearGradient
-                colors={canPerformJob(job) ? ['#DC2626', '#B91C1C', '#991B1B'] : ['#374151', '#374151']}
+                colors={gameState.stats.energy >= job.energyCost && gameState.jailWeeks === 0 ? ['#DC2626', '#B91C1C', '#991B1B'] : ['#374151', '#374151']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.crimeJobButton}
               >
-                <Text style={[styles.crimeJobButtonText, !canPerformJob(job) && styles.crimeJobButtonTextDisabled]}>
-                  {canPerformJob(job) ? 'EXECUTE' : 'LOCKED'}
+                <Text style={[styles.crimeJobButtonText, (gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0) && styles.crimeJobButtonTextDisabled]}>
+                  {gameState.stats.energy >= job.energyCost && gameState.jailWeeks === 0 ? 'EXECUTE' : 'LOCKED'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -536,14 +653,17 @@ export default function WorkScreen() {
             </View>
           </View>
           <View style={styles.workButtonContainer}>
-            <TouchableOpacity onPress={() => handleStreetJob(job.id)} disabled={!canPerformJob(job)}>
+            <TouchableOpacity 
+              onPress={() => handleStreetJob(job.id)} 
+              disabled={gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0}
+            >
               <LinearGradient
-                colors={canPerformJob(job) ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
+                colors={gameState.stats.energy >= job.energyCost && gameState.jailWeeks === 0 ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.actionButton}
               >
-                <Text style={[styles.workButtonText, !canPerformJob(job) && styles.disabledButtonText]}>
+                <Text style={[styles.workButtonText, (gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0) && styles.disabledButtonText]}>
                   {t('work.work')}
                 </Text>
               </LinearGradient>
@@ -764,20 +884,7 @@ export default function WorkScreen() {
                   {t('work.career')}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, activeTab === 'hobby' && styles.activeTab]}
-                onPress={() => setActiveTab('hobby')}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === 'hobby' && styles.activeTabText,
-                    settings.darkMode && styles.tabTextDark,
-                  ]}
-                >
-                  {t('work.hobby')}
-                </Text>
-              </TouchableOpacity>
+              {/* Hobby tab hidden for release */}
               <TouchableOpacity
                 style={[styles.tab, activeTab === 'skills' && styles.activeTab]}
                 onPress={() => setActiveTab('skills')}
@@ -857,7 +964,7 @@ export default function WorkScreen() {
                           {gameState.currentJob === career.id ? (
                             <TouchableOpacity
                               style={[styles.workButton, styles.quitButton]}
-                              onPress={quitJob}
+                              onPress={() => setShowQuitJobConfirm(true)}
                             >
                               <Text style={[styles.workButtonText, styles.quitButtonText]}>{t('work.quit')}</Text>
                             </TouchableOpacity>
@@ -986,297 +1093,784 @@ export default function WorkScreen() {
                 </View>
               )}
 
-              {activeTab === 'hobby' && (
+              {/* Hobby tab content hidden for release */}
+              {false && (
                 <View>
-                  <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-                    Practice hobbies to improve skills and compete in tournaments.
-                  </Text>
-                  {gameState.hobbies.map(hobby => {
-                    const hobbySkill = (hobby.skillLevel - 1) * 20 + hobby.skill;
-                    const locked =
-                      ['football', 'basketball', 'tennis'].includes(hobby.id) &&
-                      activeSport &&
-                      activeSport !== hobby.id;
-                    if (locked) {
-                      return (
-                        <View
-                          key={hobby.id}
-                          style={[
-                            styles.jobCard,
-                            styles.lockedCard,
-                            settings.darkMode && styles.lockedCardDark,
-                          ]}
-                        >
-                          <Text style={[styles.jobName, settings.darkMode && styles.jobNameDark]}>
-                            {hobby.name}
-                          </Text>
-                          <Text style={styles.lockedText}>Locked - cancel current contract to switch</Text>
-                        </View>
-                      );
-                    }
-                    return (
-                      <LinearGradient
-                        key={hobby.id}
-                        colors={settings.darkMode ? ['#374151', '#1F2937'] : ['#FFFFFF', '#E5E7EB']}
-                        style={styles.jobCard}
-                      >
-                        <View style={styles.jobHeader}>
-                          <View style={styles.jobInfo}>
-                            <Text style={[styles.jobName, settings.darkMode && styles.jobNameDark]}>
-                              {hobby.name}
-                            </Text>
-                          </View>
-                          <View style={styles.iconRow}>
-                            {(hobby.id === 'music' || hobby.id === 'art' || hobby.contracts) && (
-                              <TouchableOpacity
-                                style={[styles.listButton, settings.darkMode && styles.listButtonDark]}
-                                onPress={() =>
-                                  hobby.id === 'music'
-                                    ? setShowSongs(true)
-                                    : hobby.id === 'art'
-                                    ? setShowArt(true)
-                                    : setShowContracts(hobby.id)
-                                }
+                  {/* Liquid Glass Header */}
+                  <View style={styles.liquidGlassHeader}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.25)', 'rgba(255,255,255,0.1)']}
+                      style={styles.headerGlass}
+                    >
+                      <Text style={styles.liquidGlassTitle}>Creative Pursuits</Text>
+                      <Text style={styles.liquidGlassSubtitle}>
+                        Develop skills, create art, and build passive income streams
+                      </Text>
+                    </LinearGradient>
+                  </View>
+
+                  {gameState.hobbies && gameState.hobbies.length > 0 ? (
+                    <View style={styles.hobbiesContainer}>
+                      {gameState.hobbies.map(hobby => {
+                        const hobbySkill = (hobby.skillLevel - 1) * 20 + hobby.skill;
+                        const locked =
+                          ['football', 'basketball', 'tennis'].includes(hobby.id) &&
+                          activeSport &&
+                          activeSport !== hobby.id;
+                        
+                        if (locked) {
+                          return (
+                            <View key={hobby.id} style={styles.lockedGlassCard}>
+                              <LinearGradient
+                                colors={['rgba(107, 114, 128, 0.3)', 'rgba(75, 85, 99, 0.1)']}
+                                style={styles.lockedGlass}
                               >
-                                {hobby.id === 'music' ? (
-                                  <Music color={iconColor} size={16} />
-                                ) : hobby.id === 'art' ? (
-                                  <Palette color={iconColor} size={16} />
-                                ) : (
-                                  <Briefcase color={iconColor} size={16} />
-                                )}
-                              </TouchableOpacity>
-                            )}
-                            {hobby.sponsors && (
-                              <TouchableOpacity
-                                style={[styles.listButton, settings.darkMode && styles.listButtonDark]}
-                                onPress={() => setShowSponsors(hobby.id)}
-                              >
-                                <Handshake color={iconColor} size={16} />
-                              </TouchableOpacity>
-                            )}
-                            {hobby.contracts && hobby.contracts.length > 0 && (
-                              <TouchableOpacity
-                                style={[styles.listButton, settings.darkMode && styles.listButtonDark]}
-                                onPress={() => {
-                                  setLeagueDivision(0);
-                                  setShowLeague(hobby.id);
-                                }}
-                              >
-                                <BarChart2 color={iconColor} size={16} />
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                          {['football', 'basketball', 'tennis'].includes(hobby.id) ? (
-                            hobby.contracts && hobby.contracts.length > 0 ? (
-                              <>
-                                <TouchableOpacity
-                                  style={[
-                                    styles.workButton,
-                                    gameState.stats.energy < hobby.energyCost && styles.disabledButton,
-                                  ]}
-                                  onPress={() => handleTrainHobby(hobby.id)}
-                                  disabled={gameState.stats.energy < hobby.energyCost}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.workButtonText,
-                                      gameState.stats.energy < hobby.energyCost && styles.disabledButtonText,
-                                    ]}
-                                  >
-                                    Train
-                                  </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  style={[
-                                    styles.workButton,
-                                    styles.acceptedButton,
-                                    gameState.stats.energy < hobby.energyCost + 5 && styles.disabledButton,
-                                  ]}
-                                  onPress={() => handlePlayMatch(hobby.id)}
-                                  disabled={gameState.stats.energy < hobby.energyCost + 5}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.workButtonText,
-                                      gameState.stats.energy < hobby.energyCost + 5 && styles.disabledButtonText,
-                                    ]}
-                                  >
-                                    Play Next Match
-                                  </Text>
-                                </TouchableOpacity>
-                                {workFeedback[hobby.id] && (
-                                  <Animated.View style={[styles.feedbackPopup, { opacity: feedbackOpacity }]}>
-                                    <Text style={styles.feedbackPopupText}>{workFeedback[hobby.id]}</Text>
-                                  </Animated.View>
-                                )}
-                              </>
-                            ) : (
-                              <TouchableOpacity
-                                style={[styles.workButton, styles.acceptedButton]}
-                                onPress={() => openContractOffers(hobby.id)}
-                              >
-                                <Text style={styles.workButtonText}>Play</Text>
-                              </TouchableOpacity>
-                            )
-                          ) : (
-                            <>
-                              <TouchableOpacity
-                                style={[
-                                  styles.workButton,
-                                  gameState.stats.energy < hobby.energyCost && styles.disabledButton,
-                                ]}
-                                onPress={() => handleTrainHobby(hobby.id)}
-                                disabled={gameState.stats.energy < hobby.energyCost}
-                              >
-                                <Text
-                                  style={[
-                                    styles.workButtonText,
-                                    gameState.stats.energy < hobby.energyCost && styles.disabledButtonText,
-                                  ]}
-                                >
-                                  Train
-                                </Text>
-                              </TouchableOpacity>
-                              {hobby.id === 'music' || hobby.id === 'art' ? (
-                                <TouchableOpacity
-                                  style={[
-                                    styles.workButton,
-                                    styles.acceptedButton,
-                                    gameState.stats.energy < hobby.energyCost + 10 && styles.disabledButton,
-                                  ]}
-                                  onPress={() =>
-                                    hobby.id === 'music'
-                                      ? handleUploadSong(hobby.id)
-                                      : handleUploadArtwork(hobby.id)
-                                  }
-                                  disabled={gameState.stats.energy < hobby.energyCost + 10}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.workButtonText,
-                                      gameState.stats.energy < hobby.energyCost + 10 && styles.disabledButtonText,
-                                    ]}
-                                  >
-                                    {hobby.id === 'music' ? 'Upload Song' : 'Upload Art'}
-                                  </Text>
-                                </TouchableOpacity>
-                              ) : (
-                                <>
-                                  <TouchableOpacity
-                                    style={[
-                                      styles.workButton,
-                                      styles.acceptedButton,
-                                      hobbySkill < 50 && styles.disabledButton,
-                                    ]}
-                                    onPress={() => handleHobbyTournament(hobby.id)}
-                                    disabled={hobbySkill < 50}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.workButtonText,
-                                        hobbySkill < 50 && styles.disabledButtonText,
-                                      ]}
+                                <Text style={styles.lockedHobbyName}>{hobby.name}</Text>
+                                <Text style={styles.lockedText}>Locked - cancel current contract to switch</Text>
+                              </LinearGradient>
+                            </View>
+                          );
+                        }
+                        
+                        const isMusic = hobby.id === 'music';
+                        const isArt = hobby.id === 'art';
+                        const isFootball = hobby.id === 'football';
+                        const isBasketball = hobby.id === 'basketball';
+                        const isTennis = hobby.id === 'tennis';
+                        
+                        return (
+                          <View key={hobby.id} style={styles.liquidGlassCard}>
+                            <LinearGradient
+                              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+                              style={styles.cardGlass}
+                            >
+                              {/* Card Header */}
+                              <View style={styles.cardHeader}>
+                                <View style={styles.iconContainer}>
+                                  {isMusic && <Image source={MusicIcon} style={styles.hobbyImage} />}
+                                  {isArt && <Image source={ArtIcon} style={styles.hobbyImage} />}
+                                  {isFootball && <Image source={FootballIcon} style={styles.hobbyImage} />}
+                                  {isBasketball && <Image source={BasketballIcon} style={styles.hobbyImage} />}
+                                  {isTennis && <Image source={TennisIcon} style={styles.hobbyImage} />}
+                                  {!isMusic && !isArt && !isFootball && !isBasketball && !isTennis && (
+                                    <LinearGradient
+                                      colors={['#F59E0B', '#D97706']}
+                                      style={styles.iconGradient}
                                     >
-                                      Tournament
-                                    </Text>
-                                  </TouchableOpacity>
-                                </>
-                              )}
-                              {workFeedback[hobby.id] && (
-                                <Animated.View style={[styles.feedbackPopup, { opacity: feedbackOpacity }]}>
-                                  <Text style={styles.feedbackPopupText}>{workFeedback[hobby.id]}</Text>
-                                </Animated.View>
-                              )}
-                            </>
-                          )}
-                        </View>
-
-                        <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
-                          {hobby.description}
-                        </Text>
-
-                        <View style={styles.jobStats}>
-                          <View style={styles.statItem}>
-                            <Zap size={16} color="#EF4444" />
-                            <Text style={[styles.statText, settings.darkMode && styles.statTextDark]}>
-                              -{hobby.energyCost} Energy
-                            </Text>
-                          </View>
-                          <View style={styles.statItem}>
-                            <Star size={16} color="#F59E0B" />
-                            <Text style={[styles.statText, settings.darkMode && styles.statTextDark]}>
-                              Lvl {hobby.skillLevel}
-                            </Text>
-                          </View>
-                          {hobby.id === 'music' || hobby.id === 'art' ? (
-                            <View style={styles.statItem}>
-                              <Trophy size={16} color="#10B981" />
-                              <Text style={[styles.statText, settings.darkMode && styles.statTextDark]}>
-                                $
-                                {hobby.id === 'music'
-                                  ? hobby.songs?.reduce((s, song) => s + song.weeklyIncome, 0) || 0
-                                  : hobby.artworks?.reduce((s, art) => s + art.weeklyIncome, 0) || 0}
-                                /week
-                              </Text>
-                            </View>
-                          ) : (
-                            <View style={styles.statItem}>
-                              <Trophy size={16} color="#10B981" />
-                              <Text style={[styles.statText, settings.darkMode && styles.statTextDark]}>
-                                ${hobby.tournamentReward}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <View style={styles.progressContainer}>
-                          <View style={styles.progressBarBg}>
-                            <View style={[styles.progressBarFill, { width: `${hobby.skill}%` }]} />
-                          </View>
-                        </View>
-
-                        {hobby.upgrades && hobby.upgrades.length > 0 && (
-                          <View style={styles.upgradesSection}>
-                            {hobby.upgrades.map(up => (
-                              <View key={up.id} style={[styles.upgradeRow, settings.darkMode && styles.upgradeRowDark]}>
-                                <View style={styles.upgradeInfo}>
-                                  <Text style={[styles.upgradeName, settings.darkMode && styles.upgradeNameDark]}>
-                                    {up.name} ({up.level}/{up.maxLevel})
-                                  </Text>
-                                  <Text
-                                    style={[styles.upgradeDesc, settings.darkMode && styles.upgradeDescDark]}
-                                    numberOfLines={2}
-                                  >
-                                    {up.description}
-                                  </Text>
+                                      <Star size={32} color="#FFFFFF" />
+                                    </LinearGradient>
+                                  )}
                                 </View>
-                                <TouchableOpacity
-                                  style={[
-                                    styles.upgradeButton,
-                                    (up.level >= up.maxLevel || gameState.stats.money < up.cost) && styles.disabledButton,
-                                  ]}
-                                  onPress={() => handleBuyHobbyUpgrade(hobby.id, up.id)}
-                                  disabled={up.level >= up.maxLevel || gameState.stats.money < up.cost}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.upgradeButtonText,
-                                      (up.level >= up.maxLevel || gameState.stats.money < up.cost) && styles.disabledButtonText,
-                                    ]}
+                                
+                                <View style={styles.hobbyInfo}>
+                                  <Text style={styles.hobbyName}>{hobby.name}</Text>
+                                  <View style={styles.levelBadge}>
+                                    <Text style={styles.levelText}>Level {hobby.skillLevel}</Text>
+                                  </View>
+                                </View>
+
+                                {/* Action Buttons - Top Right */}
+                                <View style={styles.topActionButtons}>
+                                  {['football', 'basketball', 'tennis'].includes(hobby.id) ? (
+                                    <>
+                                      {/* Always-visible Play button (no contract required) */}
+                                      <TouchableOpacity
+                                        style={styles.compactButton}
+                                        onPress={() => handlePlayMatch(hobby.id)}
+                                      >
+                                        <LinearGradient
+                                          colors={['rgba(59, 130, 246, 0.8)', 'rgba(37, 99, 235, 0.6)']}
+                                          style={styles.compactButtonGradient}
+                                        >
+                                          <Text style={styles.compactButtonText}>Play</Text>
+                                        </LinearGradient>
+                                      </TouchableOpacity>
+
+                                      {hobby.contracts && hobby.contracts.length > 0 ? (
+                                        <>
+                                        <TouchableOpacity
+                                          style={[styles.compactButton, gameState.stats.energy < hobby.energyCost && styles.disabledGlassButton]}
+                                          onPress={() => handleTrainHobby(hobby.id)}
+                                          disabled={gameState.stats.energy < hobby.energyCost}
+                                        >
+                                          <LinearGradient
+                                            colors={gameState.stats.energy < hobby.energyCost ? ['rgba(107, 114, 128, 0.5)', 'rgba(75, 85, 99, 0.3)'] : ['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.6)']}
+                                            style={styles.compactButtonGradient}
+                                          >
+                                            <Text style={[styles.compactButtonText, gameState.stats.energy < hobby.energyCost && styles.disabledGlassButtonText]}>
+                                              Train
+                                            </Text>
+                                          </LinearGradient>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                          style={[styles.compactButton, gameState.stats.energy < hobby.energyCost + 5 && styles.disabledGlassButton]}
+                                          onPress={() => handlePlayMatch(hobby.id)}
+                                          disabled={gameState.stats.energy < hobby.energyCost + 5}
+                                        >
+                                          <LinearGradient
+                                            colors={gameState.stats.energy < hobby.energyCost + 5 ? ['rgba(107, 114, 128, 0.5)', 'rgba(75, 85, 99, 0.3)'] : ['rgba(59, 130, 246, 0.8)', 'rgba(37, 99, 235, 0.6)']}
+                                            style={styles.compactButtonGradient}
+                                          >
+                                            <Text style={[styles.compactButtonText, gameState.stats.energy < hobby.energyCost + 5 && styles.disabledGlassButtonText]}>
+                                              Play
+                                            </Text>
+                                          </LinearGradient>
+                                        </TouchableOpacity>
+                                        </>
+                                      ) : null}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <TouchableOpacity
+                                        style={[styles.compactButton, gameState.stats.energy < hobby.energyCost && styles.disabledGlassButton]}
+                                        onPress={() => handleTrainHobby(hobby.id)}
+                                        disabled={gameState.stats.energy < hobby.energyCost}
+                                      >
+                                        <LinearGradient
+                                          colors={gameState.stats.energy < hobby.energyCost ? ['rgba(107, 114, 128, 0.5)', 'rgba(75, 85, 99, 0.3)'] : ['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.6)']}
+                                          style={styles.compactButtonGradient}
+                                        >
+                                          <Text style={[styles.compactButtonText, gameState.stats.energy < hobby.energyCost && styles.disabledGlassButtonText]}>
+                                            Train
+                                          </Text>
+                                        </LinearGradient>
+                                      </TouchableOpacity>
+                                      {hobby.id === 'music' || hobby.id === 'art' ? (
+                                        <TouchableOpacity
+                                          style={[styles.compactButton, gameState.stats.energy < hobby.energyCost + 10 && styles.disabledGlassButton]}
+                                          onPress={() =>
+                                            hobby.id === 'music'
+                                              ? handleUploadSong(hobby.id)
+                                              : handleUploadArtwork(hobby.id)
+                                          }
+                                          disabled={gameState.stats.energy < hobby.energyCost + 10}
+                                        >
+                                          <LinearGradient
+                                            colors={gameState.stats.energy < hobby.energyCost + 10 ? ['rgba(107, 114, 128, 0.5)', 'rgba(75, 85, 99, 0.3)'] : ['rgba(59, 130, 246, 0.8)', 'rgba(37, 99, 235, 0.6)']}
+                                            style={styles.compactButtonGradient}
+                                          >
+                                            <Text style={[styles.compactButtonText, gameState.stats.energy < hobby.energyCost + 10 && styles.disabledGlassButtonText]}>
+                                              Upload
+                                            </Text>
+                                          </LinearGradient>
+                                        </TouchableOpacity>
+                                      ) : (
+                                        <TouchableOpacity
+                                          style={[styles.compactButton, hobbySkill < 50 && styles.disabledGlassButton]}
+                                          onPress={() => handleHobbyTournament(hobby.id)}
+                                          disabled={hobbySkill < 50}
+                                        >
+                                          <LinearGradient
+                                            colors={hobbySkill < 50 ? ['rgba(107, 114, 128, 0.5)', 'rgba(75, 85, 99, 0.3)'] : ['rgba(168, 85, 247, 0.8)', 'rgba(147, 51, 234, 0.6)']}
+                                            style={styles.compactButtonGradient}
+                                          >
+                                            <Text style={[styles.compactButtonText, hobbySkill < 50 && styles.disabledGlassButtonText]}>
+                                              Tournament
+                                            </Text>
+                                          </LinearGradient>
+                                        </TouchableOpacity>
+                                      )}
+                                    </>
+                                  )}
+                                </View>
+                              </View>
+
+
+
+                              {/* Description */}
+                              <Text style={styles.glassDescription}>{hobby.description}</Text>
+
+                              {/* Stats Grid */}
+                              <View style={styles.statsGrid}>
+                                <View style={styles.statCard}>
+                                  <LinearGradient
+                                    colors={['rgba(239, 68, 68, 0.2)', 'rgba(220, 38, 38, 0.1)']}
+                                    style={styles.statGlass}
                                   >
-                                    {up.level >= up.maxLevel ? 'Max' : `$${up.cost}`}
-                                  </Text>
+                                    <Zap size={16} color="#EF4444" />
+                                    <Text style={styles.statLabel}>Energy Cost</Text>
+                                    <Text style={styles.statValue}>{hobby.energyCost}</Text>
+                                  </LinearGradient>
+                                </View>
+                                
+                                <View style={styles.statCard}>
+                                  <LinearGradient
+                                    colors={['rgba(245, 158, 11, 0.2)', 'rgba(217, 119, 6, 0.1)']}
+                                    style={styles.statGlass}
+                                  >
+                                    <Star size={16} color="#F59E0B" />
+                                    <Text style={styles.statLabel}>Skill Level</Text>
+                                    <Text style={styles.statValue}>{hobby.skillLevel}</Text>
+                                  </LinearGradient>
+                                </View>
+                                
+                                <TouchableOpacity 
+                                  style={styles.statCard}
+                                  onPress={() => handleIncomePopup(hobby)}
+                                >
+                                  <LinearGradient
+                                    colors={['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.1)']}
+                                    style={styles.statGlass}
+                                  >
+                                    <Trophy size={16} color="#10B981" />
+                                    <Text style={styles.statLabel}>Weekly Income</Text>
+                                    <Text style={styles.statValue}>
+                                      $
+                                      {hobby.id === 'music'
+                                        ? hobby.songs?.reduce((s, song) => s + song.weeklyIncome, 0) || 0
+                                        : hobby.id === 'art'
+                                        ? hobby.artworks?.reduce((s, art) => s + art.weeklyIncome, 0) || 0
+                                        : hobby.tournamentReward}
+                                    </Text>
+                                  </LinearGradient>
                                 </TouchableOpacity>
                               </View>
-                            ))}
+
+                              {/* Progress Bar */}
+                              <View style={styles.progressSection}>
+                                <Text style={styles.progressLabel}>Skill Progress</Text>
+                                <View style={styles.glassProgressBar}>
+                                  <LinearGradient
+                                    colors={['#3B82F6', '#1D4ED8']}
+                                    style={[styles.glassProgressFill, { width: `${hobby.skill}%` }]}
+                                  />
+                                </View>
+                                <Text style={styles.progressText}>{hobby.skill}/100</Text>
+                              </View>
+
+                              {/* Circle Action Buttons - Positioned under progress bar and over upgrades */}
+                              <View style={styles.hobbyActionButtons}>
+                                {(hobby.id === 'music' || hobby.id === 'art') && (
+                                  <TouchableOpacity
+                                    style={styles.hobbyActionButton}
+                                    onPress={() =>
+                                      hobby.id === 'music'
+                                        ? setShowSongs(true)
+                                        : setShowArt(true)
+                                    }
+                                  >
+                                    <LinearGradient
+                                      colors={['rgba(59, 130, 246, 0.8)', 'rgba(37, 99, 235, 0.6)']}
+                                      style={styles.hobbyActionButtonGradient}
+                                    >
+                                      {hobby.id === 'music' ? (
+                                        <Music size={18} color="#FFFFFF" />
+                                      ) : (
+                                        <Palette size={18} color="#FFFFFF" />
+                                      )}
+                                    </LinearGradient>
+                                  </TouchableOpacity>
+                                )}
+                                {hobby.sponsors && (
+                                  <TouchableOpacity
+                                    style={styles.hobbyActionButton}
+                                    onPress={() => setShowSponsors(hobby.id)}
+                                  >
+                                    <LinearGradient
+                                      colors={['rgba(168, 85, 247, 0.8)', 'rgba(147, 51, 234, 0.6)']}
+                                      style={styles.hobbyActionButtonGradient}
+                                    >
+                                      <Handshake size={18} color="#FFFFFF" />
+                                    </LinearGradient>
+                                  </TouchableOpacity>
+                                )}
+                                {['football', 'basketball', 'tennis'].includes(hobby.id) && (
+                                  <TouchableOpacity
+                                    style={styles.hobbyActionButton}
+                                    onPress={() => {
+                                      setSelectedHobbyForPopup(hobby.id);
+                                      setTabbedPopupActiveTab('contracts');
+                                      setShowTabbedPopup(true);
+                                    }}
+                                  >
+                                    <LinearGradient
+                                      colors={['rgba(59, 130, 246, 0.8)', 'rgba(37, 99, 235, 0.6)']}
+                                      style={styles.hobbyActionButtonGradient}
+                                    >
+                                      <Text style={styles.compactButtonText}>Play</Text>
+                                    </LinearGradient>
+                                  </TouchableOpacity>
+                                )}
+                                {['football', 'basketball', 'tennis'].includes(hobby.id) && hobby.contracts && hobby.contracts.length > 0 && (
+                                  <TouchableOpacity
+                                    style={styles.hobbyActionButton}
+                                    onPress={() => {
+                                      setSelectedHobbyForPopup(hobby.id);
+                                      setTabbedPopupActiveTab('leagues');
+                                      setShowTabbedPopup(true);
+                                    }}
+                                  >
+                                    <LinearGradient
+                                      colors={['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.6)']}
+                                      style={styles.hobbyActionButtonGradient}
+                                    >
+                                      <BarChart2 size={18} color="#FFFFFF" />
+                                    </LinearGradient>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+
+                              {/* Upgrades Section */}
+                              {hobby.upgrades && hobby.upgrades.length > 0 && (
+                                <View style={styles.upgradesSection}>
+                                  <Text style={styles.upgradesTitle}>Upgrades</Text>
+                                  {hobby.upgrades.map(up => (
+                                    <TouchableOpacity
+                                      key={up.id}
+                                      style={[
+                                        styles.upgradeButtonFull,
+                                        (up.level >= up.maxLevel || gameState.stats.money < up.cost) && styles.disabledUpgradeButtonFull,
+                                      ]}
+                                      onPress={() => handleBuyHobbyUpgrade(hobby.id, up.id)}
+                                      disabled={up.level >= up.maxLevel || gameState.stats.money < up.cost}
+                                    >
+                                      <LinearGradient
+                                        colors={
+                                          (up.level >= up.maxLevel || gameState.stats.money < up.cost)
+                                            ? ['rgba(107, 114, 128, 0.5)', 'rgba(75, 85, 99, 0.3)']
+                                            : ['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.6)']
+                                        }
+                                        style={styles.upgradeButtonFullGradient}
+                                      >
+                                        <View style={styles.upgradeButtonContent}>
+                                          <View style={styles.upgradeButtonInfo}>
+                                            <Text style={[
+                                              styles.upgradeButtonName,
+                                              (up.level >= up.maxLevel || gameState.stats.money < up.cost) && styles.disabledUpgradeButtonText
+                                            ]}>
+                                              {up.name} ({up.level}/{up.maxLevel})
+                                            </Text>
+                                            <Text style={[
+                                              styles.upgradeButtonDesc,
+                                              (up.level >= up.maxLevel || gameState.stats.money < up.cost) && styles.disabledUpgradeButtonText
+                                            ]} numberOfLines={1}>
+                                              {up.description}
+                                            </Text>
+                                          </View>
+                                          <Text style={[
+                                            styles.upgradeButtonCost,
+                                            (up.level >= up.maxLevel || gameState.stats.money < up.cost) && styles.disabledUpgradeButtonText
+                                          ]}>
+                                            {up.level >= up.maxLevel ? 'MAX' : `$${up.cost}`}
+                                          </Text>
+                                        </View>
+                                      </LinearGradient>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              )}
+
+                              {/* Feedback */}
+                              {workFeedback[hobby.id] && (
+                                <Animated.View style={[styles.feedbackBubble, { opacity: feedbackOpacity }]}>
+                                  <Text style={styles.feedbackText}>{workFeedback[hobby.id]}</Text>
+                                </Animated.View>
+                              )}
+                            </LinearGradient>
                           </View>
-                        )}
-                      </LinearGradient>
-                    );
-                  })}
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateText}>No hobbies available yet</Text>
+                    </View>
+                  )}
                 </View>
               )}
+
+              {/* Income Details Popup */}
+              <Modal 
+                visible={showIncomePopup} 
+                transparent 
+                animationType="fade"
+                onRequestClose={() => setShowIncomePopup(false)}
+              >
+                <View style={styles.incomeModalOverlay}>
+                  <TouchableOpacity 
+                    style={styles.incomeModalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowIncomePopup(false)}
+                  >
+                    <TouchableOpacity 
+                      style={styles.incomeModalContainer}
+                      activeOpacity={1}
+                      onPress={(e) => e.stopPropagation()}
+                    >
+                      <LinearGradient
+                        colors={['rgba(30, 30, 30, 0.6)', 'rgba(20, 20, 20, 0.4)']}
+                        style={styles.incomeModalGlass}
+                      >
+                        {/* Header */}
+                        <View style={styles.incomeModalHeader}>
+                          <View style={styles.incomeModalIconContainer}>
+                            {selectedHobbyIncome?.id === 'music' ? (
+                              <Image source={MusicIcon} style={styles.incomeModalHobbyImage} />
+                            ) : selectedHobbyIncome?.id === 'art' ? (
+                              <Image source={ArtIcon} style={styles.incomeModalHobbyImage} />
+                            ) : selectedHobbyIncome?.id === 'football' ? (
+                              <Image source={FootballIcon} style={styles.incomeModalHobbyImage} />
+                            ) : selectedHobbyIncome?.id === 'basketball' ? (
+                              <Image source={BasketballIcon} style={styles.incomeModalHobbyImage} />
+                            ) : selectedHobbyIncome?.id === 'tennis' ? (
+                              <Image source={TennisIcon} style={styles.incomeModalHobbyImage} />
+                            ) : (
+                              <LinearGradient
+                                colors={['#F59E0B', '#D97706']}
+                                style={styles.incomeModalIconGradient}
+                              >
+                                <Trophy size={32} color="#FFFFFF" />
+                              </LinearGradient>
+                            )}
+                          </View>
+                          <View style={styles.incomeModalTitleContainer}>
+                            <Text style={styles.incomeModalTitle}>{selectedHobbyIncome?.name || 'Hobby'} Income</Text>
+                            <Text style={styles.incomeModalSubtitle}>Weekly Earnings Breakdown</Text>
+                          </View>
+                          <TouchableOpacity 
+                            style={styles.incomeModalCloseButton}
+                            onPress={() => setShowIncomePopup(false)}
+                          >
+                            <LinearGradient
+                              colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                              style={styles.incomeModalCloseGradient}
+                            >
+                              <X size={24} color="#FFFFFF" />
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Total Income Display */}
+                        <View style={styles.incomeModalTotalContainer}>
+                          <LinearGradient
+                            colors={['rgba(16, 185, 129, 0.6)', 'rgba(5, 150, 105, 0.4)']}
+                            style={styles.incomeModalTotalGlass}
+                          >
+                            <Text style={styles.incomeModalTotalLabel}>Total Weekly Income</Text>
+                            <Text style={styles.incomeModalTotalAmount}>
+                              ${selectedHobbyIncome ? getHobbyIncomeData(selectedHobbyIncome).totalIncome : 0}
+                            </Text>
+                          </LinearGradient>
+                        </View>
+
+                        {/* Income Items */}
+                        <ScrollView 
+                          style={styles.incomeModalItemsContainer} 
+                          showsVerticalScrollIndicator={true}
+                          contentContainerStyle={{ paddingBottom: 10 }}
+                          indicatorStyle="white"
+                        >
+                          {selectedHobbyIncome && getHobbyIncomeData(selectedHobbyIncome).items.length > 0 ? (
+                            getHobbyIncomeData(selectedHobbyIncome).items.map((item: any, index: number) => (
+                              <View key={index} style={styles.incomeModalItem}>
+                                <LinearGradient
+                                  colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']}
+                                  style={styles.incomeModalItemGlass}
+                                >
+                                  <View style={styles.incomeModalItemInfo}>
+                                    <Text style={styles.incomeModalItemName}>{item.name}</Text>
+                                    <Text style={styles.incomeModalItemGrade}>{item.grade}</Text>
+                                  </View>
+                                  <View style={styles.incomeModalItemAmountContainer}>
+                                    <Text style={styles.incomeModalItemAmount}>${item.income}</Text>
+                                    <Text style={styles.incomeModalItemPeriod}>/week</Text>
+                                  </View>
+                                </LinearGradient>
+                              </View>
+                            ))
+                          ) : (
+                            <View style={styles.incomeModalItem}>
+                              <LinearGradient
+                                colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']}
+                                style={styles.incomeModalItemGlass}
+                              >
+                                <View style={styles.incomeModalItemInfo}>
+                                  <Text style={styles.incomeModalItemName}>No income sources yet</Text>
+                                  <Text style={styles.incomeModalItemGrade}>Start creating content!</Text>
+                                </View>
+                                <View style={styles.incomeModalItemAmountContainer}>
+                                  <Text style={styles.incomeModalItemAmount}>$0</Text>
+                                  <Text style={styles.incomeModalItemPeriod}>/week</Text>
+                                </View>
+                              </LinearGradient>
+                            </View>
+                          )}
+                        </ScrollView>
+
+                        {/* Footer */}
+                        <View style={styles.incomeModalFooter}>
+                          <LinearGradient
+                            colors={['rgba(59, 130, 246, 0.3)', 'rgba(37, 99, 235, 0.2)']}
+                            style={styles.incomeModalFooterGlass}
+                          >
+                            <Text style={styles.incomeModalFooterText}>
+                              💡 Tip: Higher skill levels unlock better rewards!
+                            </Text>
+                          </LinearGradient>
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
+              </Modal>
+
+              {/* Contracts & Leagues - Modal (inline like Weekly Income) */}
+              <Modal 
+                visible={!!selectedHobbyForPopup} 
+                transparent 
+                animationType="fade"
+                onRequestClose={() => { setSelectedHobbyForPopup(null); setShowTabbedPopup(false); }}
+              >
+                <View style={styles.tabbedModalOverlay}>
+                  <TouchableOpacity 
+                    style={styles.tabbedModalOverlay}
+                    activeOpacity={1}
+                    onPress={() => { setSelectedHobbyForPopup(null); setShowTabbedPopup(false); }}
+                  >
+                    <TouchableOpacity 
+                      style={styles.tabbedModalContainer}
+                      activeOpacity={1}
+                      onPress={(e) => e.stopPropagation()}
+                    >
+                      <LinearGradient
+                        colors={['rgba(30, 30, 30, 0.6)', 'rgba(20, 20, 20, 0.4)']}
+                        style={styles.tabbedModalGlass}
+                      >
+                      {/* Header */}
+                      <View style={styles.tabbedModalHeader}>
+                        <View style={styles.tabbedModalIconContainer}>
+                          <LinearGradient
+                            colors={['#F59E0B', '#D97706']}
+                            style={styles.tabbedModalIconGradient}
+                          >
+                            <Trophy size={24} color="#FFFFFF" />
+                          </LinearGradient>
+                        </View>
+                        <View style={styles.tabbedModalTitleContainer}>
+                          <Text style={styles.tabbedModalTitle}>
+                            {selectedHobbyForPopup ? gameState.hobbies.find(h => h.id === selectedHobbyForPopup)?.name : 'Sport'}
+                          </Text>
+                          <Text style={styles.tabbedModalSubtitle}>Contracts & Leagues</Text>
+                        </View>
+                        <TouchableOpacity 
+                          style={styles.tabbedModalCloseButton}
+                          onPress={() => { setSelectedHobbyForPopup(null); setShowTabbedPopup(false); }}
+                        >
+                          <LinearGradient
+                            colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                            style={styles.tabbedModalCloseGradient}
+                          >
+                            <X size={20} color="#FFFFFF" />
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Tab Navigation */}
+                      <View style={styles.tabbedModalTabs}>
+                        <TouchableOpacity
+                          style={[styles.tabbedModalTab, styles.tabbedModalTabActive]}
+                          onPress={() => setTabbedPopupActiveTab('leagues')}
+                        >
+                          <LinearGradient
+                            colors={['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.6)']}
+                            style={styles.tabbedModalTabGradient}
+                          >
+                            <BarChart2 size={16} color={'#FFFFFF'} />
+                            <Text style={[styles.tabbedModalTabText, styles.tabbedModalTabTextActive]}>
+                              Leagues
+                            </Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Tab Content */}
+                      <ScrollView 
+                        style={styles.tabbedModalContent} 
+                        showsVerticalScrollIndicator={true}
+                        indicatorStyle="white"
+                      >
+                        {tabbedPopupActiveTab === 'leagues' && (
+                          <View style={styles.tabbedModalTabContent}>
+                            <Text style={styles.tabbedModalContentTitle}>League Standings</Text>
+                            {/* Team rename input */}
+                            {selectedHobbyForPopup && (
+                              <View style={{ marginBottom: 10 }}>
+                                <Text style={{ color: '#FFFFFF', marginBottom: 6 }}>Rename Your Team</Text>
+                                <TextInput
+                                  style={{ backgroundColor: '#FFFFFF', borderRadius: 8, padding: 8 }}
+                                  defaultValue={gameState.hobbies.find(h => h.id === selectedHobbyForPopup)?.team || `${gameState.hobbies.find(h => h.id === selectedHobbyForPopup)?.name} FC`}
+                                  onSubmitEditing={(e) => {
+                                    const name = e.nativeEvent.text.trim();
+                                    if (!name) return;
+                                    setGameState(prev => ({
+                                      ...prev,
+                                      hobbies: prev.hobbies.map(h => h.id === selectedHobbyForPopup ? { ...h, team: name } : h)
+                                    }));
+                                  }}
+                                  returnKeyType="done"
+                                />
+                              </View>
+                            )}
+                            {selectedHobbyForPopup && gameState.hobbies.find(h => h.id === selectedHobbyForPopup)?.contracts && gameState.hobbies.find(h => h.id === selectedHobbyForPopup)!.contracts!.length > 0 ? (
+                              <View style={styles.tabbedModalLeagueInfo}>
+                                <Text style={styles.tabbedModalLeagueText}>
+                                  You are currently playing in the league. Check your standings and compete for the championship!
+                                </Text>
+                                <TouchableOpacity
+                                  style={styles.tabbedModalLeagueButton}
+                                  onPress={() => {
+                                    setLeagueDivision(0);
+                                    setShowLeague(selectedHobbyForPopup!);
+                                    setShowTabbedPopup(false);
+                                  }}
+                                >
+                                  <LinearGradient
+                                    colors={['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.6)']}
+                                    style={styles.tabbedModalLeagueButtonGradient}
+                                  >
+                                    <Text style={styles.tabbedModalLeagueButtonText}>View League</Text>
+                                  </LinearGradient>
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
+                              <View style={styles.tabbedModalEmptyState}>
+                                <Text style={styles.tabbedModalEmptyText}>Sign a contract first to join leagues</Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </ScrollView>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
+            </Modal>
+
+              {/* Sponsors Popup */}
+              <Modal 
+                visible={!!showSponsors} 
+                transparent 
+                animationType="fade"
+                onRequestClose={() => setShowSponsors(null)}
+              >
+                <View style={styles.sponsorsModalOverlay}>
+                  <TouchableOpacity 
+                    style={styles.sponsorsModalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowSponsors(null)}
+                  >
+                    <TouchableOpacity 
+                      style={styles.sponsorsModalContainer}
+                      activeOpacity={1}
+                      onPress={(e) => e.stopPropagation()}
+                    >
+                      <LinearGradient
+                        colors={['rgba(30, 30, 30, 0.6)', 'rgba(20, 20, 20, 0.4)']}
+                        style={styles.sponsorsModalGlass}
+                      >
+                        {/* Header */}
+                        <View style={styles.sponsorsModalHeader}>
+                          <View style={styles.sponsorsModalIconContainer}>
+                            {showSponsors && gameState.hobbies.find(h => h.id === showSponsors)?.id === 'music' ? (
+                              <Image source={MusicIcon} style={styles.sponsorsModalHobbyImage} />
+                            ) : showSponsors && gameState.hobbies.find(h => h.id === showSponsors)?.id === 'art' ? (
+                              <Image source={ArtIcon} style={styles.sponsorsModalHobbyImage} />
+                            ) : showSponsors && gameState.hobbies.find(h => h.id === showSponsors)?.id === 'football' ? (
+                              <Image source={FootballIcon} style={styles.sponsorsModalHobbyImage} />
+                            ) : showSponsors && gameState.hobbies.find(h => h.id === showSponsors)?.id === 'basketball' ? (
+                              <Image source={BasketballIcon} style={styles.sponsorsModalHobbyImage} />
+                            ) : showSponsors && gameState.hobbies.find(h => h.id === showSponsors)?.id === 'tennis' ? (
+                              <Image source={TennisIcon} style={styles.sponsorsModalHobbyImage} />
+                            ) : (
+                              <LinearGradient
+                                colors={['#F59E0B', '#D97706']}
+                                style={styles.sponsorsModalIconGradient}
+                              >
+                                <Trophy size={32} color="#FFFFFF" />
+                              </LinearGradient>
+                            )}
+                          </View>
+                          <View style={styles.sponsorsModalTitleContainer}>
+                            <Text style={styles.sponsorsModalTitle}>
+                              {showSponsors ? gameState.hobbies.find(h => h.id === showSponsors)?.name || 'Hobby' : 'Hobby'} Sponsors
+                            </Text>
+                            <Text style={styles.sponsorsModalSubtitle}>Sponsorship Opportunities</Text>
+                          </View>
+                          <TouchableOpacity 
+                            style={styles.sponsorsModalCloseButton}
+                            onPress={() => setShowSponsors(null)}
+                          >
+                            <LinearGradient
+                              colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                              style={styles.sponsorsModalCloseGradient}
+                            >
+                              <X size={24} color="#FFFFFF" />
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Sponsors Content */}
+                        <ScrollView 
+                          style={styles.sponsorsModalContent} 
+                          showsVerticalScrollIndicator={true}
+                          indicatorStyle="white"
+                        >
+                          {showSponsors && gameState.hobbies.find(h => h.id === showSponsors)?.sponsors && gameState.hobbies.find(h => h.id === showSponsors)!.sponsors!.length > 0 ? (
+                            <View style={styles.sponsorsModalSponsorsList}>
+                              {gameState.hobbies.find(h => h.id === showSponsors)!.sponsors!.map((sponsor: any, index: number) => (
+                                <View key={index} style={styles.sponsorsModalSponsorItem}>
+                                  <LinearGradient
+                                    colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']}
+                                    style={styles.sponsorsModalSponsorGlass}
+                                  >
+                                    <View style={styles.sponsorsModalSponsorInfo}>
+                                      <Text style={styles.sponsorsModalSponsorName}>{sponsor.name}</Text>
+                                      <Text style={styles.sponsorsModalSponsorDetails}>
+                                        ${sponsor.weeklyPayment}/week • {sponsor.duration} weeks
+                                      </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                      style={styles.sponsorsModalSponsorButton}
+                                      onPress={() => {
+                                        // Handle sponsor acceptance
+                                        setShowSponsors(null);
+                                      }}
+                                    >
+                                      <LinearGradient
+                                        colors={['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.6)']}
+                                        style={styles.sponsorsModalSponsorButtonGradient}
+                                      >
+                                        <Text style={styles.sponsorsModalSponsorButtonText}>Accept</Text>
+                                      </LinearGradient>
+                                    </TouchableOpacity>
+                                  </LinearGradient>
+                                </View>
+                              ))}
+                            </View>
+                          ) : (
+                            <View style={styles.sponsorsModalEmptyState}>
+                              <Text style={styles.sponsorsModalEmptyText}>No sponsors available yet</Text>
+                              <Text style={styles.sponsorsModalEmptySubtext}>Build your reputation to attract sponsors!</Text>
+                            </View>
+                          )}
+                        </ScrollView>
+
+                        {/* Footer */}
+                        <View style={styles.sponsorsModalFooter}>
+                          <LinearGradient
+                            colors={['rgba(59, 130, 246, 0.3)', 'rgba(37, 99, 235, 0.2)']}
+                            style={styles.sponsorsModalFooterGlass}
+                          >
+                            <Text style={styles.sponsorsModalFooterText}>
+                              💡 Tip: Higher skill levels attract better sponsors!
+                            </Text>
+                          </LinearGradient>
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
+              </Modal>
 
               {activeTab === 'skills' && (
                 <View>
@@ -1367,63 +1961,205 @@ export default function WorkScreen() {
                 />
               )}
 
-              <Modal visible={showSongs} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                  <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
-                    <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>Songs</Text>
-                    {(() => {
-                      const songs = gameState.hobbies.find(h => h.id === 'music')?.songs || [];
-                      if (!songs.length)
-                        return (
-                          <Text style={[styles.modalItem, settings.darkMode && styles.modalItemDark]}>
-                            No songs uploaded yet
-                          </Text>
-                        );
-                      const sorted = [...songs].sort((a, b) => b.weeklyIncome - a.weeklyIncome);
-                      return (
-                        <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
-                          {sorted.map(song => (
-                            <Text key={song.id} style={[styles.modalItem, settings.darkMode && styles.modalItemDark]}>
-                              {song.grade} - ${song.weeklyIncome}/week
-                            </Text>
-                          ))}
+              {/* Songs Popup - Liquid Glass */}
+              <Modal 
+                visible={showSongs} 
+                transparent 
+                animationType="fade"
+                onRequestClose={() => setShowSongs(false)}
+              >
+                <View style={styles.songsModalOverlay}>
+                  <TouchableOpacity 
+                    style={styles.songsModalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowSongs(false)}
+                  >
+                    <TouchableOpacity 
+                      style={styles.songsModalContainer}
+                      activeOpacity={1}
+                      onPress={(e) => e.stopPropagation()}
+                    >
+                      <LinearGradient
+                        colors={['rgba(30, 30, 30, 0.6)', 'rgba(20, 20, 20, 0.4)']}
+                        style={styles.songsModalGlass}
+                      >
+                        {/* Header */}
+                        <View style={styles.songsModalHeader}>
+                          <View style={styles.songsModalIconContainer}>
+                            <Image source={MusicIcon} style={styles.songsModalHobbyImage} />
+                          </View>
+                          <View style={styles.songsModalTitleContainer}>
+                            <Text style={styles.songsModalTitle}>Music Library</Text>
+                            <Text style={styles.songsModalSubtitle}>Your Uploaded Songs Collection</Text>
+                          </View>
+                          <TouchableOpacity 
+                            style={styles.songsModalCloseButton}
+                            onPress={() => setShowSongs(false)}
+                          >
+                            <LinearGradient
+                              colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                              style={styles.songsModalCloseGradient}
+                            >
+                              <X size={24} color="#FFFFFF" />
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Songs Content */}
+                        <ScrollView 
+                          style={styles.songsModalContent} 
+                          showsVerticalScrollIndicator={true}
+                          indicatorStyle="white"
+                        >
+                          {(() => {
+                            const songs = gameState.hobbies.find(h => h.id === 'music')?.songs || [];
+                            if (!songs.length) {
+                              return (
+                                <View style={styles.songsModalEmptyState}>
+                                  <Text style={styles.songsModalEmptyText}>No songs uploaded yet</Text>
+                                  <Text style={styles.songsModalEmptySubtext}>Upload your first song to start earning!</Text>
+                                </View>
+                              );
+                            }
+                            const sorted = [...songs].sort((a, b) => b.weeklyIncome - a.weeklyIncome);
+                            return (
+                              <View style={styles.songsModalSongsList}>
+                                {sorted.map((song, index) => (
+                                  <View key={song.id} style={styles.songsModalSongItem}>
+                                    <LinearGradient
+                                      colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']}
+                                      style={styles.songsModalSongGlass}
+                                    >
+                                      <View style={styles.songsModalSongInfo}>
+                                        <Text style={styles.songsModalSongGrade}>{song.grade}</Text>
+                                        <Text style={styles.songsModalSongIncome}>${song.weeklyIncome}/week</Text>
+                                      </View>
+                                      <View style={styles.songsModalSongRank}>
+                                        <Text style={styles.songsModalSongRankText}>#{index + 1}</Text>
+                                      </View>
+                                    </LinearGradient>
+                                  </View>
+                                ))}
+                              </View>
+                            );
+                          })()}
                         </ScrollView>
-                      );
-                    })()}
-                    <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowSongs(false)}>
-                      <Text style={styles.modalCloseText}>Close</Text>
+
+                        {/* Footer */}
+                        <View style={styles.songsModalFooter}>
+                          <LinearGradient
+                            colors={['rgba(239, 68, 68, 0.3)', 'rgba(220, 38, 38, 0.2)']}
+                            style={styles.songsModalFooterGlass}
+                          >
+                            <Text style={styles.songsModalFooterText}>
+                              💡 Tip: Higher grade songs earn more weekly income!
+                            </Text>
+                          </LinearGradient>
+                        </View>
+                      </LinearGradient>
                     </TouchableOpacity>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </Modal>
 
-              <Modal visible={showArt} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                  <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
-                    <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>Artworks</Text>
-                    {(() => {
-                      const artworks = gameState.hobbies.find(h => h.id === 'art')?.artworks || [];
-                      if (!artworks.length)
-                        return (
-                          <Text style={[styles.modalItem, settings.darkMode && styles.modalItemDark]}>
-                            No art uploaded yet
-                          </Text>
-                        );
-                      const sorted = [...artworks].sort((a, b) => b.weeklyIncome - a.weeklyIncome);
-                      return (
-                        <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
-                          {sorted.map(art => (
-                            <Text key={art.id} style={[styles.modalItem, settings.darkMode && styles.modalItemDark]}>
-                              {art.grade} - ${art.weeklyIncome}/week
-                            </Text>
-                          ))}
+              {/* Artworks Popup - Liquid Glass */}
+              <Modal 
+                visible={showArt} 
+                transparent 
+                animationType="fade"
+                onRequestClose={() => setShowArt(false)}
+              >
+                <View style={styles.artworksModalOverlay}>
+                  <TouchableOpacity 
+                    style={styles.artworksModalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowArt(false)}
+                  >
+                    <TouchableOpacity 
+                      style={styles.artworksModalContainer}
+                      activeOpacity={1}
+                      onPress={(e) => e.stopPropagation()}
+                    >
+                      <LinearGradient
+                        colors={['rgba(30, 30, 30, 0.6)', 'rgba(20, 20, 20, 0.4)']}
+                        style={styles.artworksModalGlass}
+                      >
+                        {/* Header */}
+                        <View style={styles.artworksModalHeader}>
+                          <View style={styles.artworksModalIconContainer}>
+                            <Image source={ArtIcon} style={styles.artworksModalHobbyImage} />
+                          </View>
+                          <View style={styles.artworksModalTitleContainer}>
+                            <Text style={styles.artworksModalTitle}>Artworks Gallery</Text>
+                            <Text style={styles.artworksModalSubtitle}>Your Uploaded Art Collection</Text>
+                          </View>
+                          <TouchableOpacity 
+                            style={styles.artworksModalCloseButton}
+                            onPress={() => setShowArt(false)}
+                          >
+                            <LinearGradient
+                              colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                              style={styles.artworksModalCloseGradient}
+                            >
+                              <X size={24} color="#FFFFFF" />
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Artworks Content */}
+                        <ScrollView 
+                          style={styles.artworksModalContent} 
+                          showsVerticalScrollIndicator={true}
+                          indicatorStyle="white"
+                        >
+                          {(() => {
+                            const artworks = gameState.hobbies.find(h => h.id === 'art')?.artworks || [];
+                            if (!artworks.length) {
+                              return (
+                                <View style={styles.artworksModalEmptyState}>
+                                  <Text style={styles.artworksModalEmptyText}>No art uploaded yet</Text>
+                                  <Text style={styles.artworksModalEmptySubtext}>Upload your first artwork to start earning!</Text>
+                                </View>
+                              );
+                            }
+                            const sorted = [...artworks].sort((a, b) => b.weeklyIncome - a.weeklyIncome);
+                            return (
+                              <View style={styles.artworksModalArtworksList}>
+                                {sorted.map((art, index) => (
+                                  <View key={art.id} style={styles.artworksModalArtworkItem}>
+                                    <LinearGradient
+                                      colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']}
+                                      style={styles.artworksModalArtworkGlass}
+                                    >
+                                      <View style={styles.artworksModalArtworkInfo}>
+                                        <Text style={styles.artworksModalArtworkGrade}>{art.grade}</Text>
+                                        <Text style={styles.artworksModalArtworkIncome}>${art.weeklyIncome}/week</Text>
+                                      </View>
+                                      <View style={styles.artworksModalArtworkRank}>
+                                        <Text style={styles.artworksModalArtworkRankText}>#{index + 1}</Text>
+                                      </View>
+                                    </LinearGradient>
+                                  </View>
+                                ))}
+                              </View>
+                            );
+                          })()}
                         </ScrollView>
-                      );
-                    })()}
-                    <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowArt(false)}>
-                      <Text style={styles.modalCloseText}>Close</Text>
+
+                        {/* Footer */}
+                        <View style={styles.artworksModalFooter}>
+                          <LinearGradient
+                            colors={['rgba(139, 92, 246, 0.3)', 'rgba(124, 58, 237, 0.2)']}
+                            style={styles.artworksModalFooterGlass}
+                          >
+                            <Text style={styles.artworksModalFooterText}>
+                              💡 Tip: Higher grade artworks earn more weekly income!
+                            </Text>
+                          </LinearGradient>
+                        </View>
+                      </LinearGradient>
                     </TouchableOpacity>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </Modal>
 
@@ -1457,153 +2193,320 @@ export default function WorkScreen() {
                 </View>
               </Modal>
 
+              {/* Play Popup removed: directly open Contracts modal inline */}
+
               <Modal visible={!!showContracts} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                  <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
-                    {(() => {
-                      const hobby = gameState.hobbies.find(h => h.id === showContracts);
-                      const contract = hobby?.contracts?.[0];
-                      return contract ? (
-                        <View style={styles.contractPaper}>
-                          <Text style={styles.contractTitle}>{contract.team}</Text>
-                          <Text style={styles.contractLine}>Division: {hobby!.divisions![contract.division].name}</Text>
-                          <Text style={styles.contractLine}>Goal: #{contract.goal}</Text>
-                          <Text style={styles.contractLine}>Match Pay: ${contract.matchPay}</Text>
-                          <Text style={styles.contractLine}>Weeks Remaining: {contract.weeksRemaining}</Text>
-                          <TouchableOpacity
-                            style={styles.modalCloseButton}
-                            onPress={() => handleCancelContract(showContracts!)}
-                          >
-                            <Text style={styles.modalCloseText}>Cancel Contract</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowContracts(null)}>
-                            <X size={16} color="#FFFFFF" />
-                            <Text style={styles.modalCloseText}>Close</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <View style={styles.contractPaper}>
-                          <Text style={[styles.modalItem, settings.darkMode && styles.modalItemDark]}>No contracts yet</Text>
-                          <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowContracts(null)}>
-                            <X size={16} color="#FFFFFF" />
-                            <Text style={styles.modalCloseText}>Close</Text>
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })()}
+                <View style={styles.contractModalOverlay}>
+                  <View style={styles.contractModalContainer}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
+                      style={styles.contractModalGlass}
+                    >
+                      {(() => {
+                        const hobby = gameState.hobbies.find(h => h.id === showContracts);
+                        const contract = hobby?.contracts?.[0];
+                        return contract ? (
+                          <View style={styles.contractModalContent}>
+                            <View style={styles.contractModalHeader}>
+                              <Text style={styles.contractModalTitle}>{contract.team}</Text>
+                              <TouchableOpacity 
+                                style={styles.contractModalCloseButton}
+                                onPress={() => setShowContracts(null)}
+                              >
+                                <LinearGradient
+                                  colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                                  style={styles.contractModalCloseGradient}
+                                >
+                                  <X size={20} color="#FFFFFF" />
+                                </LinearGradient>
+                              </TouchableOpacity>
+                            </View>
+                            
+                            <View style={styles.contractModalBody}>
+                              <View style={styles.contractModalInfo}>
+                                <Text style={styles.contractModalLabel}>Division</Text>
+                                <Text style={styles.contractModalValue}>{hobby!.divisions![contract.division].name}</Text>
+                              </View>
+                              <View style={styles.contractModalInfo}>
+                                <Text style={styles.contractModalLabel}>Goal</Text>
+                                <Text style={styles.contractModalValue}>#{contract.goal}</Text>
+                              </View>
+                              <View style={styles.contractModalInfo}>
+                                <Text style={styles.contractModalLabel}>Match Pay</Text>
+                                <Text style={styles.contractModalValue}>${contract.matchPay}</Text>
+                              </View>
+                              <View style={styles.contractModalInfo}>
+                                <Text style={styles.contractModalLabel}>Weeks Remaining</Text>
+                                <Text style={styles.contractModalValue}>{contract.weeksRemaining}</Text>
+                              </View>
+                            </View>
+                            
+                            <TouchableOpacity
+                              style={styles.contractModalActionButton}
+                              onPress={() => handleCancelContract(showContracts!)}
+                            >
+                              <LinearGradient
+                                colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                                style={styles.contractModalActionGradient}
+                              >
+                                <Text style={styles.contractModalActionText}>Cancel Contract</Text>
+                              </LinearGradient>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View style={styles.contractModalContent}>
+                            <View style={styles.contractModalHeader}>
+                              <Text style={styles.contractModalTitle}>No Contracts</Text>
+                              <TouchableOpacity 
+                                style={styles.contractModalCloseButton}
+                                onPress={() => setShowContracts(null)}
+                              >
+                                <LinearGradient
+                                  colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                                  style={styles.contractModalCloseGradient}
+                                >
+                                  <X size={20} color="#FFFFFF" />
+                                </LinearGradient>
+                              </TouchableOpacity>
+                            </View>
+                            <View style={styles.contractModalBody}>
+                              <Text style={styles.contractModalEmptyText}>No contracts available yet</Text>
+                            </View>
+                          </View>
+                        );
+                      })()}
+                    </LinearGradient>
                   </View>
                 </View>
               </Modal>
 
               <Modal visible={!!contractOffers} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                  <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
-                    {selectedOffer && contractOffers ? (
-                      (() => {
-                        const hobby = gameState.hobbies.find(h => h.id === contractOffers.hobbyId)!;
-                        return (
-                          <View style={styles.contractPaper}>
-                            <Text style={styles.contractTitle}>{selectedOffer.team}</Text>
-                            <Text style={styles.contractLine}>Division: {hobby.divisions![selectedOffer.division].name}</Text>
-                            <Text style={styles.contractLine}>Goal: #{selectedOffer.goal}</Text>
-                            <Text style={styles.contractLine}>Duration: {selectedOffer.totalWeeks} weeks</Text>
-                            <Text style={styles.contractLine}>Pay: ${selectedOffer.matchPay} per match</Text>
-                            <TouchableOpacity
-                              style={styles.signButton}
-                              onPress={() => handleAcceptContract(contractOffers.hobbyId, selectedOffer)}
-                            >
-                              <Text style={styles.signButtonText}>Sign Contract</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSelectedOffer(null)}>
-                              <Text style={styles.modalCloseText}>Back</Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })()
-                    ) : contractOffers ? (
-                      (() => {
-                        const hobby = gameState.hobbies.find(h => h.id === contractOffers.hobbyId)!;
-                        return (
-                          <>
-                            <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>Choose Contract</Text>
-                            {contractOffers.offers.map(offer => (
-                              <View key={offer.id} style={styles.offerRow}>
-                                <Text style={[styles.modalItem, settings.darkMode && styles.modalItemDark]}>
-                                  {offer.team} ({hobby.divisions![offer.division].name}) - Goal #{offer.goal}
-                                </Text>
-                                <TouchableOpacity style={styles.signButton} onPress={() => setSelectedOffer(offer)}>
-                                  <Text style={styles.signButtonText}>Sign</Text>
+                <View style={styles.contractModalOverlay}>
+                  <View style={styles.contractModalContainer}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
+                      style={styles.contractModalGlass}
+                    >
+                      {selectedOffer && contractOffers ? (
+                        (() => {
+                          const hobby = gameState.hobbies.find(h => h.id === contractOffers.hobbyId)!;
+                          return (
+                            <View style={styles.contractModalContent}>
+                              <View style={styles.contractModalHeader}>
+                                <Text style={styles.contractModalTitle}>{selectedOffer.team}</Text>
+                                <TouchableOpacity 
+                                  style={styles.contractModalCloseButton}
+                                  onPress={() => setSelectedOffer(null)}
+                                >
+                                  <LinearGradient
+                                    colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                                    style={styles.contractModalCloseGradient}
+                                  >
+                                    <X size={20} color="#FFFFFF" />
+                                  </LinearGradient>
                                 </TouchableOpacity>
                               </View>
-                            ))}
-                            <TouchableOpacity
-                              style={styles.modalCloseButton}
-                              onPress={() => {
-                                setSelectedOffer(null);
-                                setContractOffers(null);
-                              }}
-                            >
-                              <Text style={styles.modalCloseText}>Close</Text>
-                            </TouchableOpacity>
-                          </>
-                        );
-                      })()
-                    ) : null}
+                              
+                              <View style={styles.contractModalBody}>
+                                <View style={styles.contractModalInfo}>
+                                  <Text style={styles.contractModalLabel}>Division</Text>
+                                  <Text style={styles.contractModalValue}>{hobby.divisions![selectedOffer.division].name}</Text>
+                                </View>
+                                <View style={styles.contractModalInfo}>
+                                  <Text style={styles.contractModalLabel}>Goal</Text>
+                                  <Text style={styles.contractModalValue}>#{selectedOffer.goal}</Text>
+                                </View>
+                                <View style={styles.contractModalInfo}>
+                                  <Text style={styles.contractModalLabel}>Duration</Text>
+                                  <Text style={styles.contractModalValue}>{selectedOffer.totalWeeks} weeks</Text>
+                                </View>
+                                <View style={styles.contractModalInfo}>
+                                  <Text style={styles.contractModalLabel}>Pay per Match</Text>
+                                  <Text style={styles.contractModalValue}>${selectedOffer.matchPay}</Text>
+                                </View>
+                              </View>
+                              
+                              <TouchableOpacity
+                                style={styles.contractModalActionButton}
+                                onPress={() => handleAcceptContract(contractOffers.hobbyId, selectedOffer)}
+                              >
+                                <LinearGradient
+                                  colors={['rgba(16, 185, 129, 0.8)', 'rgba(5, 150, 105, 0.6)']}
+                                  style={styles.contractModalActionGradient}
+                                >
+                                  <Text style={styles.contractModalActionText}>Sign Contract</Text>
+                                </LinearGradient>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        })()
+                      ) : contractOffers ? (
+                        (() => {
+                          const hobby = gameState.hobbies.find(h => h.id === contractOffers.hobbyId)!;
+                          return (
+                            <View style={styles.contractModalContent}>
+                              <View style={styles.contractModalHeader}>
+                                <Text style={styles.contractModalTitle}>Choose Contract</Text>
+                                <TouchableOpacity 
+                                  style={styles.contractModalCloseButton}
+                                  onPress={() => {
+                                    setSelectedOffer(null);
+                                    setContractOffers(null);
+                                  }}
+                                >
+                                  <LinearGradient
+                                    colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                                    style={styles.contractModalCloseGradient}
+                                  >
+                                    <X size={20} color="#FFFFFF" />
+                                  </LinearGradient>
+                                </TouchableOpacity>
+                              </View>
+                              
+                              <ScrollView style={styles.contractModalBody}>
+                                {contractOffers.offers.map(offer => (
+                                  <View key={offer.id} style={styles.contractModalOfferItem}>
+                                    <LinearGradient
+                                      colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']}
+                                      style={styles.contractModalOfferGlass}
+                                    >
+                                      <View style={styles.contractModalOfferInfo}>
+                                        <Text style={styles.contractModalOfferTeam}>{offer.team}</Text>
+                                        <Text style={styles.contractModalOfferDetails}>
+                                          {hobby.divisions![offer.division].name} - Goal #{offer.goal}
+                                        </Text>
+                                        <Text style={styles.contractModalOfferPay}>${offer.matchPay}/match</Text>
+                                      </View>
+                                      <TouchableOpacity 
+                                        style={styles.contractModalOfferButton}
+                                        onPress={() => setSelectedOffer(offer)}
+                                      >
+                                        <LinearGradient
+                                          colors={['rgba(59, 130, 246, 0.8)', 'rgba(37, 99, 235, 0.6)']}
+                                          style={styles.contractModalOfferButtonGradient}
+                                        >
+                                          <Text style={styles.contractModalOfferButtonText}>Sign</Text>
+                                        </LinearGradient>
+                                      </TouchableOpacity>
+                                    </LinearGradient>
+                                  </View>
+                                ))}
+                              </ScrollView>
+                            </View>
+                          );
+                        })()
+                      ) : null}
+                    </LinearGradient>
                   </View>
                 </View>
               </Modal>
 
               <Modal visible={!!showLeague} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                  <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
-                    {showLeague && (() => {
-                      const hobby = gameState.hobbies.find(h => h.id === showLeague)!;
-                      const divisions = hobby.divisions || [];
-                      const data =
-                        hobby.league && leagueDivision === hobby.league.division
-                          ? hobby.league.standings
-                          : divisions[leagueDivision].teams.map(t => ({ team: t.name, points: 0, played: 0 }));
-                      return (
-                        <>
-                          <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>League Standings</Text>
-                          <View style={styles.divisionTabs}>
-                            {divisions.map((d, idx) => (
-                              <TouchableOpacity
-                                key={d.name}
-                                style={[styles.divisionTab, leagueDivision === idx && styles.activeDivisionTab]}
-                                onPress={() => setLeagueDivision(idx)}
+                <View style={styles.leagueModalOverlay}>
+                  <View style={styles.leagueModalContainer}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
+                      style={styles.leagueModalGlass}
+                    >
+                      {showLeague && (() => {
+                        const hobby = gameState.hobbies.find(h => h.id === showLeague)!;
+                        const divisions = hobby.divisions || [];
+                        const data =
+                          hobby.league && leagueDivision === hobby.league.division
+                            ? hobby.league.standings
+                            : divisions[leagueDivision].teams.map(t => ({ team: t.name, points: 0, played: 0 }));
+                        return (
+                          <View style={styles.leagueModalContent}>
+                            <View style={styles.leagueModalHeader}>
+                              <Text style={styles.leagueModalTitle}>League Standings</Text>
+                              <TouchableOpacity 
+                                style={styles.leagueModalCloseButton}
+                                onPress={() => setShowLeague(null)}
                               >
-                                <Text
-                                  style={[styles.divisionTabText, leagueDivision === idx && styles.activeDivisionTabText]}
+                                <LinearGradient
+                                  colors={['rgba(239, 68, 68, 0.8)', 'rgba(220, 38, 38, 0.6)']}
+                                  style={styles.leagueModalCloseGradient}
                                 >
-                                  {d.name}
-                                </Text>
+                                  <X size={20} color="#FFFFFF" />
+                                </LinearGradient>
                               </TouchableOpacity>
-                            ))}
-                          </View>
-                          {data
-                            .sort((a, b) => b.points - a.points)
-                            .map((t, i) => {
-                              const isTeam = t.team === hobby.team;
-                              return (
-                                <Text
-                                  key={t.team}
-                                  style={[
-                                    styles.modalItem,
-                                    settings.darkMode && styles.modalItemDark,
-                                    isTeam && styles.highlightedTeam,
-                                  ]}
+                            </View>
+
+                            <View style={styles.leagueModalDivisionTabs}>
+                              {divisions.map((d, idx) => (
+                                <TouchableOpacity
+                                  key={d.name}
+                                  style={styles.leagueModalDivisionTab}
+                                  onPress={() => setLeagueDivision(idx)}
                                 >
-                                  {i + 1}. {t.team} - {t.points} pts ({t.played})
-                                </Text>
-                              );
-                            })}
-                          <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowLeague(null)}>
-                            <Text style={styles.modalCloseText}>Close</Text>
-                          </TouchableOpacity>
-                        </>
-                      );
-                    })()}
+                                  <LinearGradient
+                                    colors={leagueDivision === idx 
+                                      ? ['rgba(59, 130, 246, 0.8)', 'rgba(37, 99, 235, 0.6)']
+                                      : ['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']
+                                    }
+                                    style={styles.leagueModalDivisionTabGradient}
+                                  >
+                                    <Text style={[
+                                      styles.leagueModalDivisionTabText,
+                                      leagueDivision === idx && styles.leagueModalDivisionTabTextActive
+                                    ]}>
+                                      {d.name}
+                                    </Text>
+                                  </LinearGradient>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+
+                            <ScrollView style={styles.leagueModalStandings} showsVerticalScrollIndicator={false}>
+                              {data
+                                .sort((a, b) => b.points - a.points)
+                                .map((t, i) => {
+                                  const isTeam = t.team === hobby.team;
+                                  return (
+                                    <View key={t.team} style={styles.leagueModalStandingItem}>
+                                      <LinearGradient
+                                        colors={isTeam 
+                                          ? ['rgba(16, 185, 129, 0.6)', 'rgba(5, 150, 105, 0.4)']
+                                          : ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']
+                                        }
+                                        style={styles.leagueModalStandingGlass}
+                                      >
+                                        <View style={styles.leagueModalStandingPosition}>
+                                          <Text style={[
+                                            styles.leagueModalStandingPositionText,
+                                            isTeam && styles.leagueModalStandingPositionTextActive
+                                          ]}>
+                                            {i + 1}
+                                          </Text>
+                                        </View>
+                                        <View style={styles.leagueModalStandingInfo}>
+                                          <Text style={[
+                                            styles.leagueModalStandingTeam,
+                                            isTeam && styles.leagueModalStandingTeamActive
+                                          ]}>
+                                            {t.team}
+                                          </Text>
+                                          <Text style={[
+                                            styles.leagueModalStandingStats,
+                                            isTeam && styles.leagueModalStandingStatsActive
+                                          ]}>
+                                            {t.points} pts • {t.played} played
+                                          </Text>
+                                        </View>
+                                        {isTeam && (
+                                          <View style={styles.leagueModalStandingBadge}>
+                                            <Text style={styles.leagueModalStandingBadgeText}>YOU</Text>
+                                          </View>
+                                        )}
+                                      </LinearGradient>
+                                    </View>
+                                  );
+                                })}
+                            </ScrollView>
+                          </View>
+                        );
+                      })()}
+                    </LinearGradient>
                   </View>
                 </View>
               </Modal>
@@ -1611,6 +2514,21 @@ export default function WorkScreen() {
           </View>
         </>
       )}
+
+      {/* Quit Job Confirmation Dialog */}
+      <ConfirmDialog
+        visible={showQuitJobConfirm}
+        title="Quit Job?"
+        message="Are you sure you want to quit your current job? You'll lose your salary and will need to reapply if you want to work here again."
+        confirmText="Quit Job"
+        cancelText="Cancel"
+        onConfirm={() => {
+          quitJob();
+          setShowQuitJobConfirm(false);
+        }}
+        onCancel={() => setShowQuitJobConfirm(false)}
+        type="warning"
+      />
     </LinearGradient>
   );
 }
@@ -1695,23 +2613,23 @@ const styles = StyleSheet.create({
   },
   // Crime styles
   crimeJobContainer: {
-    marginBottom: getResponsiveValue(16, 20, 24, 28),
-    borderRadius: getResponsiveValue(12, 16, 20, 24),
+    marginBottom: 8,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#000000',
     borderWidth: 2,
     borderColor: '#DC2626',
     shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   crimeJobHeader: {
-    padding: getResponsiveValue(16, 20, 24, 28),
+    padding: 12,
   },
   crimeJobHeaderContent: {
-    gap: getResponsiveValue(8, 12, 16, 20),
+    gap: 6,
   },
   crimeJobTitleRow: {
     flexDirection: 'row',
@@ -1720,76 +2638,76 @@ const styles = StyleSheet.create({
   },
   crimeJobTitleContainer: {
     flex: 1,
-    gap: getResponsiveValue(4, 6, 8, 10),
+    gap: 4,
   },
   crimeJobName: {
-    fontSize: getResponsiveValue(18, 20, 22, 24),
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFFFFF',
     textShadowColor: '#DC2626',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   crimeJobBadge: {
     backgroundColor: '#DC2626',
-    paddingHorizontal: getResponsiveValue(8, 10, 12, 14),
-    paddingVertical: getResponsiveValue(2, 4, 6, 8),
-    borderRadius: getResponsiveValue(4, 6, 8, 10),
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
     alignSelf: 'flex-start',
   },
   crimeJobBadgeText: {
-    fontSize: getResponsiveValue(10, 12, 14, 16),
-    fontWeight: '900',
+    fontSize: 10,
+    fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   crimeJobRankContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: getResponsiveValue(4, 6, 8, 10),
+    gap: 4,
     backgroundColor: 'rgba(220, 38, 38, 0.2)',
-    paddingHorizontal: getResponsiveValue(8, 10, 12, 14),
-    paddingVertical: getResponsiveValue(4, 6, 8, 10),
-    borderRadius: getResponsiveValue(6, 8, 10, 12),
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#DC2626',
   },
   crimeJobRank: {
-    fontSize: getResponsiveValue(12, 14, 16, 18),
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
     color: '#FF6B6B',
   },
   crimeJobDescription: {
-    fontSize: getResponsiveValue(12, 14, 16, 18),
+    fontSize: 12,
     color: '#B0B0B0',
-    lineHeight: getResponsiveValue(16, 18, 20, 22),
-    fontWeight: '500',
+    lineHeight: 16,
+    fontWeight: '400',
   },
   crimeJobStatsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     backgroundColor: '#111111',
-    padding: getResponsiveValue(12, 16, 20, 24),
-    gap: getResponsiveValue(8, 12, 16, 20),
+    padding: 8,
+    gap: 6,
   },
   crimeStatCard: {
     flex: 1,
     minWidth: '45%',
     backgroundColor: '#1A1A1A',
-    borderRadius: getResponsiveValue(8, 10, 12, 14),
-    padding: getResponsiveValue(8, 12, 16, 20),
+    borderRadius: 6,
+    padding: 6,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#333333',
   },
   crimeStatIcon: {
-    width: getResponsiveValue(24, 28, 32, 36),
-    height: getResponsiveValue(24, 28, 32, 36),
-    borderRadius: getResponsiveValue(12, 14, 16, 18),
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: getResponsiveValue(4, 6, 8, 10),
+    marginBottom: 2,
   },
   crimeStatLabel: {
     fontSize: getResponsiveValue(10, 12, 14, 16),
@@ -2509,5 +3427,1636 @@ const styles = StyleSheet.create({
   },
   skillCardXPDark: {
     color: '#9CA3AF',
+  },
+  
+  // Liquid Glass Hobby Styles - Compact Design
+  liquidGlassHeader: {
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  headerGlass: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backdropFilter: 'blur(20px)',
+  },
+  liquidGlassTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  liquidGlassSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  hobbiesContainer: {
+    gap: 8,
+  },
+  liquidGlassCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backdropFilter: 'blur(20px)',
+  },
+  cardGlass: {
+    padding: 12,
+    borderRadius: 12,
+  },
+  lockedGlassCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(107, 114, 128, 0.3)',
+    backdropFilter: 'blur(20px)',
+  },
+  lockedGlass: {
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  lockedHobbyName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginBottom: 4,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  iconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 12,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  hobbyInfo: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  hobbyName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  levelBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  levelText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#60A5FA',
+    textAlign: 'center',
+  },
+  hobbyActionButtons: {
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    marginBottom: 4,
+    alignItems: 'center',
+  },
+  hobbyActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  hobbyActionButtonGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  hobbyImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  topActionButtons: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
+  compactButton: {
+    borderRadius: 6,
+    overflow: 'hidden',
+    minWidth: 60,
+    minHeight: 28,
+  },
+  compactButtonGradient: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 28,
+  },
+  compactButtonText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  glassButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    width: 90,
+    minHeight: 36,
+  },
+  disabledGlassButton: {
+    opacity: 0.5,
+  },
+  buttonGradient: {
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backdropFilter: 'blur(10px)',
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  glassButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  disabledGlassButtonText: {
+    color: 'rgba(255,255,255,0.5)',
+  },
+  glassDescription: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 8,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  statGlass: {
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backdropFilter: 'blur(10px)',
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  statValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  progressSection: {
+    marginBottom: 4,
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  glassProgressBar: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  glassProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  upgradesSection: {
+    marginTop: 4,
+  },
+  upgradesTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  // New Full-Width Upgrade Buttons
+  upgradeButtonFull: {
+    marginBottom: 6,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  disabledUpgradeButtonFull: {
+    opacity: 0.5,
+  },
+  upgradeButtonFullGradient: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backdropFilter: 'blur(10px)',
+  },
+  upgradeButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  upgradeButtonInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  upgradeButtonName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  upgradeButtonDesc: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 12,
+  },
+  upgradeButtonCost: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  disabledUpgradeButtonText: {
+    color: 'rgba(255,255,255,0.5)',
+  },
+  feedbackBubble: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    padding: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    marginTop: 6,
+  },
+  feedbackText: {
+    fontSize: 11,
+    color: '#10B981',
+    textAlign: 'center',
+  },
+  emptyState: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+  },
+
+  // Income Modal Styles - Liquid Glass Design
+  incomeModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+  },
+  incomeModalContainer: {
+    width: '92%',
+    height: '80%',
+    maxWidth: 450,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+  },
+  incomeModalGlass: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    padding: 24,
+    minHeight: 400,
+  },
+  incomeModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  incomeModalIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 20,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  incomeModalHobbyImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  incomeModalIconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 25,
+  },
+  incomeModalTitleContainer: {
+    flex: 1,
+  },
+  incomeModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  incomeModalSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  incomeModalCloseButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  incomeModalCloseGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  incomeModalTotalContainer: {
+    marginBottom: 25,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  incomeModalTotalGlass: {
+    padding: 25,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+  },
+  incomeModalTotalLabel: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  incomeModalTotalAmount: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#10B981',
+    textAlign: 'center',
+    textShadowColor: 'rgba(16, 185, 129, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  incomeModalItemsContainer: {
+    flex: 1,
+    marginBottom: 20,
+    maxHeight: 300,
+  },
+  incomeModalItem: {
+    marginBottom: 15,
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  incomeModalItemGlass: {
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  incomeModalItemInfo: {
+    flex: 1,
+  },
+  incomeModalItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 5,
+  },
+  incomeModalItemGrade: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  incomeModalItemAmountContainer: {
+    alignItems: 'flex-end',
+  },
+  incomeModalItemAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+  incomeModalItemPeriod: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  incomeModalFooter: {
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  incomeModalFooterGlass: {
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+  },
+  incomeModalFooterText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+
+  // Tabbed Modal Styles - Liquid Glass Design
+  tabbedModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+  },
+  tabbedModalContainer: {
+    width: '96%',
+    height: '96%',
+    maxWidth: 560,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+  },
+  tabbedModalGlass: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    padding: 24,
+    minHeight: 560,
+  },
+  tabbedModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  tabbedModalIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 15,
+    overflow: 'hidden',
+  },
+  tabbedModalIconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 25,
+  },
+  tabbedModalTitleContainer: {
+    flex: 1,
+  },
+  tabbedModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  tabbedModalSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  tabbedModalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  tabbedModalCloseGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  tabbedModalTabs: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  tabbedModalTab: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  tabbedModalTabActive: {
+    // Active state handled by gradient colors
+  },
+  tabbedModalTabGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  tabbedModalTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+  },
+  tabbedModalTabTextActive: {
+    color: '#FFFFFF',
+  },
+  tabbedModalContent: {
+    flex: 1,
+  },
+  tabbedModalTabContent: {
+    paddingBottom: 10,
+  },
+  tabbedModalContentTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  tabbedModalItem: {
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  tabbedModalItemGlass: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tabbedModalItemInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  tabbedModalItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  tabbedModalItemDetails: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  tabbedModalItemButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  tabbedModalItemButtonGradient: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  tabbedModalItemButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  tabbedModalEmptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  tabbedModalEmptyText: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+  },
+  tabbedModalLeagueInfo: {
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    alignItems: 'center',
+  },
+  tabbedModalLeagueText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  tabbedModalLeagueButton: {
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  tabbedModalLeagueButtonGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  tabbedModalLeagueButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+
+  // Contract Modal Styles - Liquid Glass Design
+  contractModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  contractModalContainer: {
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  contractModalGlass: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    padding: 20,
+  },
+  contractModalContent: {
+    flex: 1,
+  },
+  contractModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  contractModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  contractModalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  contractModalCloseGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  contractModalBody: {
+    flex: 1,
+    marginBottom: 20,
+  },
+  contractModalInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  contractModalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
+  },
+  contractModalValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  contractModalActionButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 10,
+  },
+  contractModalActionGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  contractModalActionText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  contractModalEmptyText: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  contractModalOfferItem: {
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  contractModalOfferGlass: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  contractModalOfferInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  contractModalOfferTeam: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  contractModalOfferDetails: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 4,
+  },
+  contractModalOfferPay: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  contractModalOfferButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    minWidth: 60,
+  },
+  contractModalOfferButtonGradient: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  contractModalOfferButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // League Modal Styles - Liquid Glass Design
+  leagueModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  leagueModalContainer: {
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  leagueModalGlass: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    padding: 20,
+  },
+  leagueModalContent: {
+    flex: 1,
+  },
+  leagueModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  leagueModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  leagueModalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  leagueModalCloseGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  leagueModalDivisionTabs: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  leagueModalDivisionTab: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  leagueModalDivisionTabGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  leagueModalDivisionTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+  },
+  leagueModalDivisionTabTextActive: {
+    color: '#FFFFFF',
+  },
+  leagueModalStandings: {
+    flex: 1,
+  },
+  leagueModalStandingItem: {
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  leagueModalStandingGlass: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  leagueModalStandingPosition: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  leagueModalStandingPositionText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  leagueModalStandingPositionTextActive: {
+    color: '#10B981',
+  },
+  leagueModalStandingInfo: {
+    flex: 1,
+  },
+  leagueModalStandingTeam: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  leagueModalStandingTeamActive: {
+    color: '#10B981',
+  },
+  leagueModalStandingStats: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  leagueModalStandingStatsActive: {
+    color: 'rgba(16, 185, 129, 0.9)',
+  },
+  leagueModalStandingBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.6)',
+  },
+  leagueModalStandingBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Sponsors Modal Styles - Liquid Glass Design
+  sponsorsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+  },
+  sponsorsModalContainer: {
+    width: '92%',
+    height: '80%',
+    maxWidth: 450,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+  },
+  sponsorsModalGlass: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    padding: 24,
+    minHeight: 400,
+  },
+  sponsorsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  sponsorsModalIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 20,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sponsorsModalHobbyImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  sponsorsModalIconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 35,
+  },
+  sponsorsModalTitleContainer: {
+    flex: 1,
+  },
+  sponsorsModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  sponsorsModalSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  sponsorsModalCloseButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  sponsorsModalCloseGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  sponsorsModalContent: {
+    flex: 1,
+    marginBottom: 20,
+    maxHeight: 300,
+  },
+  sponsorsModalSponsorsList: {
+    gap: 15,
+  },
+  sponsorsModalSponsorItem: {
+    marginBottom: 15,
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  sponsorsModalSponsorGlass: {
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sponsorsModalSponsorInfo: {
+    flex: 1,
+  },
+  sponsorsModalSponsorName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 5,
+  },
+  sponsorsModalSponsorDetails: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  sponsorsModalSponsorButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  sponsorsModalSponsorButtonGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+  },
+  sponsorsModalSponsorButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  sponsorsModalEmptyState: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  sponsorsModalEmptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  sponsorsModalEmptySubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  sponsorsModalFooter: {
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  sponsorsModalFooterGlass: {
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+  },
+  sponsorsModalFooterText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+
+  // Artworks Modal Styles - Liquid Glass Design
+  artworksModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+  },
+  artworksModalContainer: {
+    width: '92%',
+    height: '80%',
+    maxWidth: 450,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+  },
+  artworksModalGlass: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    padding: 24,
+    minHeight: 400,
+  },
+  artworksModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  artworksModalIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 20,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  artworksModalHobbyImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  artworksModalTitleContainer: {
+    flex: 1,
+  },
+  artworksModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  artworksModalSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  artworksModalCloseButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  artworksModalCloseGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  artworksModalContent: {
+    flex: 1,
+    marginBottom: 20,
+    maxHeight: 300,
+  },
+  artworksModalArtworksList: {
+    gap: 15,
+  },
+  artworksModalArtworkItem: {
+    marginBottom: 15,
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  artworksModalArtworkGlass: {
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  artworksModalArtworkInfo: {
+    flex: 1,
+  },
+  artworksModalArtworkGrade: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 5,
+  },
+  artworksModalArtworkIncome: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  artworksModalArtworkRank: {
+    backgroundColor: 'rgba(139, 92, 246, 0.3)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.5)',
+  },
+  artworksModalArtworkRankText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  artworksModalEmptyState: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  artworksModalEmptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  artworksModalEmptySubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  artworksModalFooter: {
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  artworksModalFooterGlass: {
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+  },
+  artworksModalFooterText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+
+  // Songs Modal Styles - Liquid Glass Design
+  songsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+  },
+  songsModalContainer: {
+    width: '92%',
+    height: '80%',
+    maxWidth: 450,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+  },
+  songsModalGlass: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    padding: 24,
+    minHeight: 400,
+  },
+  songsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  songsModalIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 20,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  songsModalHobbyImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  songsModalTitleContainer: {
+    flex: 1,
+  },
+  songsModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  songsModalSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  songsModalCloseButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  songsModalCloseGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  songsModalContent: {
+    flex: 1,
+    marginBottom: 20,
+    maxHeight: 300,
+  },
+  songsModalSongsList: {
+    gap: 15,
+  },
+  songsModalSongItem: {
+    marginBottom: 15,
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  songsModalSongGlass: {
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  songsModalSongInfo: {
+    flex: 1,
+  },
+  songsModalSongGrade: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 5,
+  },
+  songsModalSongIncome: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  songsModalSongRank: {
+    backgroundColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+  },
+  songsModalSongRankText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  songsModalEmptyState: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  songsModalEmptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  songsModalEmptySubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  songsModalFooter: {
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  songsModalFooterGlass: {
+    padding: 18,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+  },
+  songsModalFooterText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+
+  // Play Modal Styles - Simple & Reliable
+  playModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  playModalContainer: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
+    height: '92%',
+    minHeight: 560,
+  },
+  playModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  playModalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  playModalHobbyImage: {
+    width: 70,
+    height: 70,
+    resizeMode: 'contain',
+  },
+  playModalIconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+  },
+  playModalTitleSection: {
+    marginBottom: 32,
+  },
+  playModalTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  playModalSubtitle: {
+    fontSize: 18,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  playModalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playModalContent: {
+    flex: 1,
+  },
+  playModalInfoBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  playModalInfoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  playModalInfoSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  playModalActions: {
+    gap: 12,
+  },
+  playModalActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    gap: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  playModalActionButtonSecondary: {
+    backgroundColor: '#3B82F6',
+  },
+  playModalActionButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  playModalFooter: {
+    marginTop: 24,
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  playModalFooterText: {
+    fontSize: 14,
+    color: '#1E40AF',
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });

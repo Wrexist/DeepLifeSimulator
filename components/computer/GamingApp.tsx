@@ -5,7 +5,7 @@
  * Includes energy costs, realistic view simulation, and subscriber growth
  */
 import React, { useState, useEffect, useRef } from 'react';
-import {
+import { 
   View,
   Text,
   StyleSheet,
@@ -16,6 +16,7 @@ import {
   TextInput,
   Animated,
   Modal,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -41,19 +42,25 @@ import { useGame } from '@/contexts/GameContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-// Simple scaling functions
-const scale = (size: number): number => {
-  const width = screenWidth;
-  const baseWidth = 390;
-  const scaleFactor = Math.min(Math.max(width / baseWidth, 0.8), 1.2);
-  return Math.round(size * scaleFactor);
-};
+// Use shared scaling utils so tablet/web-tablet scale up correctly
+import { scale, fontScale } from '@/utils/scaling';
 
-const fontScale = (size: number): number => {
-  const width = screenWidth;
-  const baseWidth = 390;
-  const scaleFactor = Math.min(Math.max(width / baseWidth, 0.9), 1.1);
-  return Math.round(size * scaleFactor);
+// YouVideo Upgrade Images
+const UPGRADE_IMAGES = {
+  gpu: require('@/assets/images/YouVideo/Upgrades/gpu.png'),
+  cpu: require('@/assets/images/YouVideo/Upgrades/cpu.png'),
+  ram: require('@/assets/images/YouVideo/Upgrades/ram.png'),
+  storage: require('@/assets/images/YouVideo/Upgrades/storage.png'),
+  microphone: require('@/assets/images/YouVideo/Upgrades/microphone.png'),
+  webcam: require('@/assets/images/YouVideo/Upgrades/webcam.png'),
+  captureCard: require('@/assets/images/YouVideo/Upgrades/capture_card.png'),
+  lighting: require('@/assets/images/YouVideo/Upgrades/lightning.png'),
+  videoEditing: require('@/assets/images/YouVideo/Upgrades/video_editing.png'),
+  thumbnails: require('@/assets/images/YouVideo/Upgrades/thumbnails.png'),
+  seo: require('@/assets/images/YouVideo/Upgrades/seo.png'),
+  verifiedBadge: require('@/assets/images/YouVideo/Upgrades/verified_badge.png'),
+  customEmotes: require('@/assets/images/YouVideo/Upgrades/custom_emotes.png'),
+  memberships: require('@/assets/images/YouVideo/Upgrades/membership.png'),
 };
 
 // Available video types with reduced energy costs
@@ -642,8 +649,27 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     setActiveTab('studio');
   };
 
+  // Store interval refs for cleanup
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const renderingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const uploadingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+      if (renderingIntervalRef.current) clearInterval(renderingIntervalRef.current);
+      if (uploadingIntervalRef.current) clearInterval(uploadingIntervalRef.current);
+    };
+  }, []);
+
   const startRecording = () => {
     if (!selectedVideo || !videoTitle.trim()) return;
+    
+    // Clear any existing interval
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+    }
     
     setIsRecording(true);
     setCurrentPhase('recording');
@@ -657,10 +683,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     }).start();
     
     // Simulate recording progress with real-time energy drain
-    const interval = setInterval(() => {
+    recordingIntervalRef.current = setInterval(() => {
       setRecordingProgress(prev => {
         if (prev >= 100) {
-          clearInterval(interval);
+          if (recordingIntervalRef.current) {
+            clearInterval(recordingIntervalRef.current);
+            recordingIntervalRef.current = null;
+          }
           finishRecording();
           return 100;
         }
@@ -695,6 +724,11 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     setIsRendering(true);
     setRenderingProgress(0);
     
+    // Clear any existing interval
+    if (renderingIntervalRef.current) {
+      clearInterval(renderingIntervalRef.current);
+    }
+    
     // Animate rendering progress with upgrade time reduction
     const modifiers = calculateUpgradeModifiers();
     const renderDuration = 8000 * (1 - modifiers.renderTimeReduction - modifiers.processingTimeReduction);
@@ -706,10 +740,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     }).start();
     
     // Simulate rendering progress with real-time energy drain
-    const interval = setInterval(() => {
+    renderingIntervalRef.current = setInterval(() => {
       setRenderingProgress(prev => {
         if (prev >= 100) {
-          clearInterval(interval);
+          if (renderingIntervalRef.current) {
+            clearInterval(renderingIntervalRef.current);
+            renderingIntervalRef.current = null;
+          }
           finishRendering();
           return 100;
         }
@@ -750,6 +787,11 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     setIsUploading(true);
     setUploadingProgress(0);
     
+    // Clear any existing interval
+    if (uploadingIntervalRef.current) {
+      clearInterval(uploadingIntervalRef.current);
+    }
+    
     // Animate uploading progress with upgrade upload speed
     const modifiers = calculateUpgradeModifiers();
     const uploadDuration = 6000 * (1 - modifiers.uploadSpeed);
@@ -761,10 +803,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     }).start();
     
     // Simulate uploading progress with real-time energy drain
-    const interval = setInterval(() => {
+    uploadingIntervalRef.current = setInterval(() => {
       setUploadingProgress(prev => {
         if (prev >= 100) {
-          clearInterval(interval);
+          if (uploadingIntervalRef.current) {
+            clearInterval(uploadingIntervalRef.current);
+            uploadingIntervalRef.current = null;
+          }
           finishUpload();
           return 100;
         }
@@ -896,7 +941,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   };
 
   const renderVideosTab = () => (
-    <ScrollView style={styles.tabContent}>
+    <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
       <Text style={styles.sectionTitle}>Available Video Types</Text>
       {AVAILABLE_VIDEOS.map((video) => {
         const isOwned = videoData.ownedGames.includes(video.id);
@@ -953,7 +998,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   );
 
   const renderStatsTab = () => (
-    <ScrollView style={styles.tabContent}>
+    <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
       <Text style={styles.sectionTitle}>Channel Statistics</Text>
       
       <View style={styles.statsGrid}>
@@ -1032,7 +1077,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   );
 
   const renderStudioTab = () => (
-    <ScrollView style={styles.tabContent}>
+    <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
       <Text style={styles.sectionTitle}>Video Studio</Text>
       
       {selectedVideo ? (
@@ -1142,12 +1187,29 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => {
+              // Clean up all intervals
+              if (recordingIntervalRef.current) {
+                clearInterval(recordingIntervalRef.current);
+                recordingIntervalRef.current = null;
+              }
+              if (renderingIntervalRef.current) {
+                clearInterval(renderingIntervalRef.current);
+                renderingIntervalRef.current = null;
+              }
+              if (uploadingIntervalRef.current) {
+                clearInterval(uploadingIntervalRef.current);
+                uploadingIntervalRef.current = null;
+              }
+              
               setSelectedVideo(null);
               setVideoTitle('');
               setCurrentPhase('idle');
               setIsRecording(false);
               setIsRendering(false);
               setIsUploading(false);
+              setRecordingProgress(0);
+              setRenderingProgress(0);
+              setUploadingProgress(0);
             }}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -1223,23 +1285,41 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       const cost = canUpgrade ? upgrade.baseCost * nextLevel : 0;
       const hasFunds = gameState.stats.money >= cost;
       
+      const upgradeImage = UPGRADE_IMAGES[upgradeId as keyof typeof UPGRADE_IMAGES];
+      
       return (
         <View key={upgradeId} style={styles.upgradeCard}>
-          <View style={styles.upgradeHeader}>
-            <Text style={styles.upgradeName}>{upgrade.name}</Text>
-            <View style={styles.upgradeLevelContainer}>
-              <Text style={styles.upgradeLevel}>
-                Level {currentLevel}/{upgrade.maxLevel}
-              </Text>
-              {!canUpgrade && (
-                <View style={styles.maxLevelIndicator}>
-                  <Text style={styles.maxLevelIndicatorText}>MAX</Text>
+          <View style={styles.upgradeCardContent}>
+            {/* Upgrade Image */}
+            {upgradeImage && (
+              <View style={styles.upgradeImageContainer}>
+                <Image 
+                  source={upgradeImage} 
+                  style={styles.upgradeImage}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+            
+            {/* Upgrade Info */}
+            <View style={styles.upgradeInfo}>
+              <View style={styles.upgradeHeader}>
+                <Text style={styles.upgradeName}>{upgrade.name}</Text>
+                <View style={styles.upgradeLevelContainer}>
+                  <Text style={styles.upgradeLevel}>
+                    Level {currentLevel}/{upgrade.maxLevel}
+                  </Text>
+                  {!canUpgrade && (
+                    <View style={styles.maxLevelIndicator}>
+                      <Text style={styles.maxLevelIndicatorText}>MAX</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </View>
+              
+              <Text style={styles.upgradeDescription}>{upgrade.description}</Text>
             </View>
           </View>
-          
-          <Text style={styles.upgradeDescription}>{upgrade.description}</Text>
           
           <View style={styles.upgradeEffects}>
             {Object.entries(upgrade.effects).map(([effectKey, effectValues]) => {
@@ -1389,7 +1469,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     };
 
     return (
-      <ScrollView style={styles.tabContent}>
+      <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
         <Text style={styles.sectionTitle}>Upgrade Store</Text>
         <Text style={styles.storeDescription}>
           Upgrade your equipment and skills to improve video quality, reduce energy costs, and increase views!
@@ -1474,8 +1554,10 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     },
     tab: {
       flex: 1,
+      height: 60,
       paddingVertical: scale(12),
       alignItems: 'center',
+      justifyContent: 'center',
       borderBottomWidth: 2,
       borderBottomColor: 'transparent',
     },
@@ -1494,6 +1576,11 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     tabContent: {
       flex: 1,
       paddingHorizontal: scale(16),
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
+    tabContentContainer: {
+      flexGrow: 1,
     },
     sectionTitle: {
       fontSize: fontScale(20),
@@ -1780,6 +1867,30 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       shadowRadius: isDarkMode ? 0 : 4,
       elevation: isDarkMode ? 0 : 2,
     },
+    upgradeCardContent: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: scale(12),
+    },
+    upgradeImageContainer: {
+      width: scale(80),
+      height: scale(80),
+      marginRight: scale(12),
+      backgroundColor: isDarkMode ? '#1F2937' : '#F9FAFB',
+      borderRadius: scale(12),
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: scale(8),
+      borderWidth: isDarkMode ? 0 : 1,
+      borderColor: isDarkMode ? 'transparent' : '#E5E7EB',
+    },
+    upgradeImage: {
+      width: '100%',
+      height: '100%',
+    },
+    upgradeInfo: {
+      flex: 1,
+    },
     upgradeHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -1790,6 +1901,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       fontSize: fontScale(18),
       fontWeight: 'bold',
       color: isDarkMode ? 'white' : '#1F2937',
+      flex: 1,
     },
     upgradeLevel: {
       fontSize: fontScale(14),
@@ -1988,12 +2100,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       backgroundColor: 'rgba(0, 0, 0, 0.7)',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 20,
+      padding: scale(16),
     },
     richModalContainer: {
       width: '100%',
-      maxWidth: 420,
-      borderRadius: 20,
+      maxWidth: scale(420),
+      maxHeight: '90%',
+      borderRadius: scale(20),
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.4,
@@ -2001,13 +2114,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       elevation: 12,
     },
     richModalGradient: {
-      padding: 32,
-      borderRadius: 20,
+      padding: scale(24),
+      borderRadius: scale(20),
       alignItems: 'center',
     },
     successAnimationContainer: {
       alignItems: 'center',
-      marginBottom: 24,
+      marginBottom: scale(20),
     },
     successIconContainer: {
       position: 'relative',
@@ -2015,9 +2128,9 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       justifyContent: 'center',
     },
     successIcon: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
+      width: scale(64),
+      height: scale(64),
+      borderRadius: scale(32),
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: '#10B981',
@@ -2028,26 +2141,26 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     },
     successRipple: {
       position: 'absolute',
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: scale(80),
+      height: scale(80),
+      borderRadius: scale(40),
       borderWidth: 2,
       borderColor: '#10B981',
       opacity: 0.3,
     },
     richModalHeader: {
       alignItems: 'center',
-      marginBottom: 24,
+      marginBottom: scale(20),
     },
     richModalTitle: {
-      fontSize: 24,
+      fontSize: fontScale(22),
       fontWeight: 'bold',
       color: '#FFFFFF',
       textAlign: 'center',
-      marginBottom: 8,
+      marginBottom: scale(8),
     },
     richModalSubtitle: {
-      fontSize: 16,
+      fontSize: fontScale(14),
       color: '#94A3B8',
       textAlign: 'center',
     },
@@ -2105,7 +2218,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       width: '100%',
     },
     richModalButton: {
-      borderRadius: 12,
+      borderRadius: scale(12),
       overflow: 'hidden',
       shadowColor: '#10B981',
       shadowOffset: { width: 0, height: 4 },
@@ -2117,12 +2230,12 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 24,
-      gap: 8,
+      paddingVertical: scale(14),
+      paddingHorizontal: scale(20),
+      gap: scale(8),
     },
     richModalButtonText: {
-      fontSize: 18,
+      fontSize: fontScale(16),
       fontWeight: '700',
       color: '#FFFFFF',
     },
@@ -2262,35 +2375,35 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'space-between',
-      marginBottom: 24,
-      gap: 12,
+      marginBottom: scale(20),
+      gap: scale(10),
     },
     statCard: {
       backgroundColor: 'rgba(30, 41, 59, 0.6)',
-      borderRadius: 12,
-      padding: 16,
+      borderRadius: scale(12),
+      padding: scale(14),
       alignItems: 'center',
       width: '48%',
       borderWidth: 1,
       borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     statIconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: scale(36),
+      height: scale(36),
+      borderRadius: scale(18),
       backgroundColor: 'rgba(255, 255, 255, 0.1)',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 8,
+      marginBottom: scale(6),
     },
     statValue: {
-      fontSize: 18,
+      fontSize: fontScale(16),
       fontWeight: '700',
       color: '#FFFFFF',
-      marginBottom: 4,
+      marginBottom: scale(4),
     },
     statLabel: {
-      fontSize: 12,
+      fontSize: fontScale(11),
       color: '#94A3B8',
       fontWeight: '500',
       textAlign: 'center',
@@ -2384,7 +2497,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       {activeTab === 'store' && renderStoreTab()}
 
       {/* Video Not Owned Modal */}
-      <Modal visible={showVideoNotOwnedModal} transparent animationType="fade">
+      <Modal visible={showVideoNotOwnedModal} transparent animationType="fade" onRequestClose={() => setShowVideoNotOwnedModal(false)}>
         <View style={allStyles.modalOverlay}>
           <View style={[allStyles.modalContainer, isDarkMode && allStyles.modalContainerDark]}>
             <LinearGradient
@@ -2426,7 +2539,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       </Modal>
 
       {/* Not Enough Energy Modal */}
-      <Modal visible={showNotEnoughEnergyModal} transparent animationType="fade">
+      <Modal visible={showNotEnoughEnergyModal} transparent animationType="fade" onRequestClose={() => setShowNotEnoughEnergyModal(false)}>
         <View style={allStyles.modalOverlay}>
           <View style={[styles.modalContainer, isDarkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -2468,19 +2581,20 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       </Modal>
 
       {/* Video Uploaded Modal - Rich & Smooth */}
-      <Modal visible={showVideoUploadedModal} transparent animationType="slide">
+      <Modal visible={showVideoUploadedModal} transparent animationType="fade" onRequestClose={() => setShowVideoUploadedModal(false)}>
         <View style={allStyles.richModalOverlay}>
-          <Animated.View style={[allStyles.richModalContainer, { 
-            transform: [{ 
-              scale: showVideoUploadedModal ? 1 : 0.9 
-            }] 
-          }]}>
-            <LinearGradient
-              colors={['#0F172A', '#1E293B', '#334155']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={allStyles.richModalGradient}
+          <View style={allStyles.richModalContainer}>
+            <ScrollView 
+              contentContainerStyle={{ flexGrow: 1 }}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
             >
+              <LinearGradient
+                colors={['#0F172A', '#1E293B', '#334155']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={allStyles.richModalGradient}
+              >
               {/* Success Animation Container */}
               <View style={allStyles.successAnimationContainer}>
                 <View style={allStyles.successIconContainer}>
@@ -2532,7 +2646,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                   <View style={allStyles.statIconContainer}>
                     <DollarSign size={20} color="#10B981" />
                   </View>
-                  <Text style={allStyles.statValue}>${modalData.earnings?.toFixed(2) || '0.00'}</Text>
+                  <Text style={allStyles.statValue}>${modalData.earnings?.toFixed(2) || '0.00'}/week</Text>
                   <Text style={allStyles.statLabel}>Earnings</Text>
                 </View>
 
@@ -2582,25 +2696,27 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
-            </LinearGradient>
-          </Animated.View>
+              </LinearGradient>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
 
       {/* Video Purchased Modal - Rich & Smooth */}
-      <Modal visible={showVideoPurchasedModal} transparent animationType="slide">
+      <Modal visible={showVideoPurchasedModal} transparent animationType="fade" onRequestClose={() => setShowVideoPurchasedModal(false)}>
         <View style={allStyles.richModalOverlay}>
-          <Animated.View style={[allStyles.richModalContainer, { 
-            transform: [{ 
-              scale: showVideoPurchasedModal ? 1 : 0.9 
-            }] 
-          }]}>
-            <LinearGradient
-              colors={['#0F172A', '#1E293B', '#334155']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={allStyles.richModalGradient}
+          <View style={allStyles.richModalContainer}>
+            <ScrollView 
+              contentContainerStyle={{ flexGrow: 1 }}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
             >
+              <LinearGradient
+                colors={['#0F172A', '#1E293B', '#334155']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={allStyles.richModalGradient}
+              >
               {/* Success Animation Container */}
               <View style={allStyles.successAnimationContainer}>
                 <View style={allStyles.successIconContainer}>
@@ -2676,13 +2792,14 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
-            </LinearGradient>
-          </Animated.View>
+              </LinearGradient>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
 
       {/* Insufficient Funds Modal */}
-      <Modal visible={showInsufficientFundsModal} transparent animationType="fade">
+      <Modal visible={showInsufficientFundsModal} transparent animationType="fade" onRequestClose={() => setShowInsufficientFundsModal(false)}>
         <View style={allStyles.modalOverlay}>
           <View style={[styles.modalContainer, isDarkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -2727,7 +2844,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       </Modal>
 
       {/* Max Level Modal */}
-      <Modal visible={showMaxLevelModal} transparent animationType="fade">
+      <Modal visible={showMaxLevelModal} transparent animationType="fade" onRequestClose={() => setShowMaxLevelModal(false)}>
         <View style={allStyles.modalOverlay}>
           <View style={[styles.modalContainer, isDarkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -2769,19 +2886,20 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       </Modal>
 
       {/* Upgrade Purchased Modal - Rich & Smooth */}
-      <Modal visible={showUpgradePurchasedModal} transparent animationType="slide">
+      <Modal visible={showUpgradePurchasedModal} transparent animationType="fade" onRequestClose={() => setShowUpgradePurchasedModal(false)}>
         <View style={allStyles.richModalOverlay}>
-          <Animated.View style={[allStyles.richModalContainer, { 
-            transform: [{ 
-              scale: showUpgradePurchasedModal ? 1 : 0.9 
-            }] 
-          }]}>
-            <LinearGradient
-              colors={['#0F172A', '#1E293B', '#334155']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={allStyles.richModalGradient}
+          <View style={allStyles.richModalContainer}>
+            <ScrollView 
+              contentContainerStyle={{ flexGrow: 1 }}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
             >
+              <LinearGradient
+                colors={['#0F172A', '#1E293B', '#334155']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={allStyles.richModalGradient}
+              >
               {/* Success Animation Container */}
               <View style={allStyles.successAnimationContainer}>
                 <View style={allStyles.successIconContainer}>
@@ -2881,8 +2999,9 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
-            </LinearGradient>
-          </Animated.View>
+              </LinearGradient>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
     </LinearGradient>

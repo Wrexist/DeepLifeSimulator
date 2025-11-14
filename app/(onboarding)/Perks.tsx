@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,6 @@ import { useGame, initialGameState } from '@/contexts/GameContext';
 import {
   Lock,
   Check,
-  Trophy,
   ArrowLeft,
   ArrowRight,
 } from 'lucide-react-native';
@@ -42,11 +41,31 @@ export default function Perks() {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>(state.perks);
 
+  // Stable sorted perks list - unlocked perks first, then by rarity
+  const sortedPerks = useMemo(() => {
+    return perks.sort((a, b) => {
+      const aUnlocked =
+        !a.unlock ||
+        (gameState.achievements || []).find(ach => ach.id === a.unlock?.achievementId)?.completed;
+      const bUnlocked =
+        !b.unlock ||
+        (gameState.achievements || []).find(ach => ach.id === b.unlock?.achievementId)?.completed;
+
+      // Unlocked perks first
+      if (aUnlocked !== bUnlocked) return aUnlocked ? -1 : 1;
+
+      // Then sort by rarity (Uncommon, Rare, Epic, Legendary)
+      const rarityOrder = { Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4 } as const;
+      const aR = rarityOrder[a.rarity as keyof typeof rarityOrder] || 0;
+      const bR = rarityOrder[b.rarity as keyof typeof rarityOrder] || 0;
+      return aR - bR;
+    });
+  }, [gameState.achievements]);
+
   // Animations (transform/opacity only)
   const rotateAnim = useRef(new Animated.Value(0)).current;  // 0..1 → rotate
   const fadeAnim   = useRef(new Animated.Value(0)).current;  // 0..1 → opacity
   const slideAnim  = useRef(new Animated.Value(50)).current; // px → translateY
-  const pulseAnim  = useRef(new Animated.Value(1)).current;  // 1..1.1 → scale
 
   // Rotating background
   useEffect(() => {
@@ -82,27 +101,6 @@ export default function Perks() {
     return () => parallel.stop();
   }, [fadeAnim, slideAnim]);
 
-  // Pulsing trophy
-  useEffect(() => {
-    const pulseLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 2000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: NATIVE_OK,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 2000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: NATIVE_OK,
-        }),
-      ])
-    );
-    pulseLoop.start();
-    return () => pulseLoop.stop();
-  }, [pulseAnim]);
 
   const toggle = (id: string) => {
     setSelected(prev => (prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]));
@@ -257,57 +255,32 @@ export default function Perks() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <LinearGradient
-              colors={['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.3)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.backButtonGradient}
-            >
-              <ArrowLeft size={24} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={styles.glassButton}>
+              <View style={styles.glassOverlay} />
+              <View style={styles.glassIconContainer}>
+                <ArrowLeft size={24} color="#FFFFFF" />
+              </View>
+            </View>
           </TouchableOpacity>
           <Text style={styles.title}>Choose Perks</Text>
           <View style={styles.backPlaceholder} />
         </View>
 
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={true}>
           <View style={styles.scrollContent}>
             {/* Hero */}
             <View style={styles.heroSection}>
-              <Animated.View style={[styles.trophyContainer, { transform: [{ scale: pulseAnim }] }]}>
-                <LinearGradient
-                  colors={['#FFD700', '#FFA500']}
-                  style={styles.trophyGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Trophy size={40} color="#FFFFFF" />
-                </LinearGradient>
-              </Animated.View>
-              <Text style={styles.heroTitle}>Choose Your Advantages</Text>
-              <Text style={styles.heroSubtitle}>Select perks that will help you succeed</Text>
-              <Text style={styles.heroSubtitle}>Choose as many perks as you want to start your journey</Text>
+              <View style={styles.glassCard}>
+                <View style={styles.glassOverlay} />
+                <Text style={styles.heroTitle}>Choose Your Advantages</Text>
+                <Text style={styles.heroSubtitle}>Select perks that will help you succeed</Text>
+                <Text style={styles.heroSubtitle}>Choose as many perks as you want to start your journey</Text>
+              </View>
             </View>
 
             {/* Perks list */}
             <View style={styles.perksContainer}>
-              {perks
-                .sort((a, b) => {
-                  const aUnlocked =
-                    !a.unlock ||
-                    (gameState.achievements || []).find(ach => ach.id === a.unlock?.achievementId)?.completed;
-                  const bUnlocked =
-                    !b.unlock ||
-                    (gameState.achievements || []).find(ach => ach.id === b.unlock?.achievementId)?.completed;
-
-                  if (aUnlocked !== bUnlocked) return aUnlocked ? -1 : 1;
-
-                  const rarityOrder = { Uncommon: 1, Rare: 2, Epic: 3, Legendary: 4 } as const;
-                  const aR = rarityOrder[a.rarity as keyof typeof rarityOrder] || 0;
-                  const bR = rarityOrder[b.rarity as keyof typeof rarityOrder] || 0;
-                  return aR - bR;
-                })
-                .map(perk => {
+              {sortedPerks.map(perk => {
                   const isSelected = selected.includes(perk.id);
                   const isLocked =
                     perk.unlock &&
@@ -338,13 +311,19 @@ export default function Perks() {
                           style={[styles.perkCard, isLocked && styles.lockedPerkCard]}
                         >
                           <View style={styles.perkHeader}>
-                            <View style={styles.iconContainer}>
-                              <LinearGradient
-                                colors={[`${getStatColor(primaryStat)}20`, `${getStatColor(primaryStat)}10`]}
-                                style={styles.iconGradient}
-                              >
+                            <View style={styles.iconSection}>
+                              <View style={styles.iconContainer}>
                                 <Image source={perk.icon} style={styles.perkIcon} />
-                              </LinearGradient>
+                              </View>
+                              {isLocked ? (
+                                <View style={styles.statusIconContainer}>
+                                  <Lock size={32} color="#6B7280" />
+                                </View>
+                              ) : isSelected ? (
+                                <View style={styles.statusIconContainer}>
+                                  <Check size={32} color="#10B981" />
+                                </View>
+                              ) : null}
                             </View>
 
                             <View style={styles.perkInfo}>
@@ -352,21 +331,8 @@ export default function Perks() {
                                 <Text style={[styles.perkTitle, isLocked && styles.lockedPerkTitle]}>
                                   {perk.title}
                                 </Text>
-                                <View
-                                  style={[
-                                    styles.rarityBadge,
-                                    {
-                                      backgroundColor:
-                                        perk.rarity === 'Legendary'
-                                          ? 'rgba(245, 158, 11, 0.2)'
-                                          : perk.rarity === 'Epic'
-                                          ? 'rgba(139, 92, 246, 0.2)'
-                                          : perk.rarity === 'Rare'
-                                          ? 'rgba(59, 130, 246, 0.2)'
-                                          : 'rgba(16, 185, 129, 0.2)',
-                                    },
-                                  ]}
-                                >
+                                <View style={styles.glassRarityBadge}>
+                                  <View style={styles.glassOverlay} />
                                   <Text
                                     style={[
                                       styles.rarityText,
@@ -396,12 +362,6 @@ export default function Perks() {
                                 </Text>
                               )}
                             </View>
-
-                            {isLocked ? (
-                              <Lock size={20} color="#6B7280" />
-                            ) : isSelected ? (
-                              <Check size={20} color="#10B981" />
-                            ) : null}
                           </View>
 
                           {benefits.length > 0 && (
@@ -423,7 +383,8 @@ export default function Perks() {
                                     : benefit.stat;
 
                                 return (
-                                  <View key={index} style={styles.benefitItem}>
+                                  <View key={index} style={styles.glassBenefitItem}>
+                                    <View style={styles.glassOverlay} />
                                     <Icon size={16} color={getStatColor(benefit.stat)} />
                                     <Text style={[styles.benefitText, { color: getStatColor(benefit.stat) }]}>
                                       {displayValue} {displayStat}
@@ -447,15 +408,15 @@ export default function Perks() {
         {/* Floating Start Button */}
         <View style={styles.floatingButtonContainer}>
           <TouchableOpacity onPress={start} style={styles.floatingButton} activeOpacity={0.8}>
-            <LinearGradient
-              colors={['#10B981', '#059669']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.floatingButtonGradient}
-            >
-              <Text style={styles.floatingButtonText}>Start your life</Text>
-              <ArrowRight size={20} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={styles.glassButton}>
+              <View style={styles.glassOverlay} />
+              <View style={styles.buttonContent}>
+                <Text style={styles.glassButtonTitle}>Start your life</Text>
+                <View style={styles.glassIconContainer}>
+                  <ArrowRight size={20} color="#FFFFFF" />
+                </View>
+              </View>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -563,19 +524,6 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing['2xl'],
     marginTop: responsiveSpacing.lg,
   },
-  trophyContainer: { marginBottom: 20 },
-  trophyGradient: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
   heroTitle: {
     fontSize: responsiveFontSize['2xl'],
     fontWeight: 'bold',
@@ -611,15 +559,27 @@ const styles = StyleSheet.create({
   perkCard: { padding: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
 
   perkHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
+  iconSection: {
+    alignItems: 'center',
+    marginRight: 16,
+  },
   iconContainer: {
-    width: 60, height: 60, borderRadius: 12, overflow: 'hidden', marginRight: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    width: 80, height: 80, borderRadius: 16, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 6,
+  },
+  statusIconContainer: {
+    marginTop: 8,
+    padding: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   iconGradient: {
     width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  perkIcon: { width: 40, height: 40, borderRadius: 8 },
+  perkIcon: { width: 80, height: 80, borderRadius: 16, resizeMode: 'cover' },
   perkInfo: { flex: 1 },
   perkTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   perkTitle: { fontSize: responsiveFontSize.xl, fontWeight: 'bold', color: '#FFFFFF', flex: 1 },
@@ -649,16 +609,131 @@ const styles = StyleSheet.create({
 
   floatingButtonContainer: { position: 'absolute', bottom: 30, left: 20, right: 20, zIndex: 10 },
   floatingButton: {
-    borderRadius: 16, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3, shadowRadius: 16, elevation: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  floatingButtonGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 18, paddingHorizontal: 24, gap: 12,
-  },
-  floatingButtonText: { color: '#FFFFFF', fontSize: responsiveFontSize.xl, fontWeight: '700', textAlign: 'center' },
 
   particlesContainer: { position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none' },
   particle: { position: 'absolute', width: 4, height: 4, backgroundColor: 'rgba(59,130,246,0.3)', borderRadius: 2 },
+  glassButton: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glassButtonTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  glassIconContainer: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+  },
+  glassIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 24,
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  glassRarityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glassBenefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  glassButtonTitle: {
+    color: '#FFFFFF',
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '700',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
 });

@@ -17,7 +17,12 @@ if (Platform.OS !== 'web') {
   import('expo-notifications').then(module => {
     Notifications = module.default || module;
   }).catch(error => {
-    console.warn('expo-notifications not available:', error);
+    // Suppress warning in development with Expo Go
+    if (__DEV__ && error.message?.includes('expo-notifications')) {
+      console.log('expo-notifications not available in Expo Go (expected)');
+    } else {
+      console.warn('expo-notifications not available:', error);
+    }
   });
 }
 
@@ -31,7 +36,12 @@ export async function initializeNotifications(): Promise<boolean> {
         const module = await import('expo-notifications');
         Notifications = module.default || module;
       } catch (error) {
-        console.warn('expo-notifications not available:', error);
+        // Suppress warning in development with Expo Go
+        if (__DEV__ && error.message?.includes('expo-notifications')) {
+          console.log('expo-notifications not available in Expo Go (expected)');
+        } else {
+          console.warn('expo-notifications not available:', error);
+        }
         return false;
       }
     }
@@ -137,6 +147,25 @@ export async function notifyAchievementUnlock(title: string, gold: number) {
     });
   } catch (error) {
     console.warn('Failed to send achievement notification', error);
+  }
+}
+
+export async function notifySecretAchievementUnlock(title: string, gems: number) {
+  if (Platform.OS === 'web') return;
+  const hasPermission = await initializeNotifications();
+  if (!hasPermission) return;
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '🎉 Secret Achievement Unlocked!',
+        body: `${title} (+${gems} gems)`,
+        sound: 'default',
+        priority: Notifications?.AndroidNotificationPriority?.HIGH,
+      },
+      trigger: null,
+    });
+  } catch (error) {
+    console.warn('Failed to send secret achievement notification', error);
   }
 }
 

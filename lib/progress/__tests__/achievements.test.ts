@@ -83,13 +83,6 @@ const createState = (overrides: Partial<GameState>): GameState => ({
   progress: { achievements: [] },
   journal: [],
   healthWeeks: 0,
-  dailyGifts: {
-    currentStreak: 0,
-    lastClaimDate: '',
-    weeklyGifts: [],
-    claimedToday: false,
-    showDailyGiftModal: false,
-  },
   ...overrides,
 });
 

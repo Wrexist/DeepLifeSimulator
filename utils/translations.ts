@@ -8,6 +8,8 @@ export interface TranslationKeys {
     darkModeDescription: string;
     soundEffects: string;
     soundEffectsDescription: string;
+    hapticFeedback: string;
+    hapticFeedbackDescription: string;
     notifications: string;
     notificationsDescription: string;
     autoSave: string;
@@ -269,6 +271,8 @@ const translations: Record<Language, TranslationKeys> = {
       darkModeDescription: 'Switch between light and dark themes',
       soundEffects: 'Sound Effects',
       soundEffectsDescription: 'Enable or disable game sounds',
+      hapticFeedback: 'Vibration Feedback',
+      hapticFeedbackDescription: 'Enable or disable vibration feedback for interactions',
       notifications: 'Notifications',
       notificationsDescription: 'Receive game notifications',
       autoSave: 'Auto Save',
@@ -314,7 +318,7 @@ const translations: Record<Language, TranslationKeys> = {
       relationshipStatus: 'Relationship Status',
       job: 'Job',
       netWorth: 'Net Worth',
-      weeklyCashFlow: 'Weekly Cash Flow',
+      weeklyCashFlow: 'Cash Flow',
       perks: 'Perks',
       noPerks: 'No perks',
       traits: 'Traits',
@@ -393,7 +397,7 @@ const translations: Record<Language, TranslationKeys> = {
       noComputerAvailable: 'No Computer Available',
       noComputerMessage: 'You need to buy a computer to access desktop applications. Visit the Market tab to purchase one!',
       darkWeb: 'Dark Web',
-      hinder: 'Hinder',
+      hinder: 'Dating',
       contacts: 'Contacts',
       social: 'Social',
       bank: 'Bank',
@@ -507,6 +511,8 @@ const translations: Record<Language, TranslationKeys> = {
       darkModeDescription: 'Växla mellan ljust och mörkt tema',
       soundEffects: 'Ljudeffekter',
       soundEffectsDescription: 'Aktivera eller inaktivera spellyd',
+      hapticFeedback: 'Vibrationsfeedback',
+      hapticFeedbackDescription: 'Aktivera eller inaktivera vibrationsfeedback för interaktioner',
       notifications: 'Aviseringar',
       notificationsDescription: 'Ta emot spelaviseringar',
       autoSave: 'Auto-spara',
@@ -552,7 +558,7 @@ const translations: Record<Language, TranslationKeys> = {
       relationshipStatus: 'Relationsstatus',
       job: 'Jobb',
       netWorth: 'Nettoförmögenhet',
-      weeklyCashFlow: 'Veckans kassaflöde',
+      weeklyCashFlow: 'Kassaflöde',
       perks: 'Fördelar',
       noPerks: 'Inga fördelar',
       traits: 'Egenskaper',
@@ -631,7 +637,7 @@ const translations: Record<Language, TranslationKeys> = {
       noComputerAvailable: 'Ingen dator tillgänglig',
       noComputerMessage: 'Du behöver köpa en dator för att komma åt skrivbordsapplikationer. Besök Marknad-fliken för att köpa en!',
       darkWeb: 'Dark Web',
-      hinder: 'Hinder',
+      hinder: 'Dating',
       contacts: 'Kontakter',
       social: 'Social',
       bank: 'Bank',
@@ -745,6 +751,8 @@ const translations: Record<Language, TranslationKeys> = {
       darkModeDescription: 'Cambiar entre temas claro y oscuro',
       soundEffects: 'Efectos de sonido',
       soundEffectsDescription: 'Activar o desactivar sonidos del juego',
+      hapticFeedback: 'Retroalimentación Háptica',
+      hapticFeedbackDescription: 'Activar o desactivar retroalimentación háptica para interacciones',
       notifications: 'Notificaciones',
       notificationsDescription: 'Recibir notificaciones del juego',
       autoSave: 'Auto-guardado',
@@ -790,7 +798,7 @@ const translations: Record<Language, TranslationKeys> = {
       relationshipStatus: 'Estado civil',
       job: 'Trabajo',
       netWorth: 'Patrimonio neto',
-      weeklyCashFlow: 'Flujo de caja semanal',
+      weeklyCashFlow: 'Flujo de caja',
       perks: 'Ventajas',
       noPerks: 'Sin ventajas',
       traits: 'Rasgos',
@@ -869,7 +877,7 @@ const translations: Record<Language, TranslationKeys> = {
       noComputerAvailable: 'No hay computadora disponible',
       noComputerMessage: '¡Necesitas comprar una computadora para acceder a aplicaciones de escritorio. ¡Visita la pestaña Mercado para comprar una!',
       darkWeb: 'Dark Web',
-      hinder: 'Hinder',
+      hinder: 'Dating',
       contacts: 'Contactos',
       social: 'Social',
       bank: 'Banco',
@@ -983,6 +991,8 @@ const translations: Record<Language, TranslationKeys> = {
       darkModeDescription: 'Basculer entre les thèmes clair et sombre',
       soundEffects: 'Effets sonores',
       soundEffectsDescription: 'Activer ou désactiver les sons du jeu',
+      hapticFeedback: 'Retour Haptique',
+      hapticFeedbackDescription: 'Activer ou désactiver le retour haptique pour les interactions',
       notifications: 'Notifications',
       notificationsDescription: 'Recevoir les notifications du jeu',
       autoSave: 'Sauvegarde automatique',
@@ -1028,7 +1038,7 @@ const translations: Record<Language, TranslationKeys> = {
       relationshipStatus: 'Statut relationnel',
       job: 'Emploi',
       netWorth: 'Valeur nette',
-      weeklyCashFlow: 'Flux de trésorerie hebdomadaire',
+      weeklyCashFlow: 'Flux de trésorerie',
       perks: 'Avantages',
       noPerks: 'Aucun avantage',
       traits: 'Traits',
@@ -1107,7 +1117,7 @@ const translations: Record<Language, TranslationKeys> = {
       noComputerAvailable: 'Aucun ordinateur disponible',
       noComputerMessage: 'Vous devez acheter un ordinateur pour accéder aux applications de bureau. Visitez l\'onglet Marché pour en acheter un !',
       darkWeb: 'Dark Web',
-      hinder: 'Hinder',
+      hinder: 'Dating',
       contacts: 'Contacts',
       social: 'Social',
       bank: 'Banque',
@@ -1221,6 +1231,8 @@ const translations: Record<Language, TranslationKeys> = {
       darkModeDescription: 'Zwischen hellem und dunklem Thema wechseln',
       soundEffects: 'Soundeffekte',
       soundEffectsDescription: 'Spielsounds aktivieren oder deaktivieren',
+      hapticFeedback: 'Haptisches Feedback',
+      hapticFeedbackDescription: 'Haptisches Feedback für Interaktionen aktivieren oder deaktivieren',
       notifications: 'Benachrichtigungen',
       notificationsDescription: 'Spielbenachrichtigungen erhalten',
       autoSave: 'Auto-Speichern',
@@ -1266,7 +1278,7 @@ const translations: Record<Language, TranslationKeys> = {
       relationshipStatus: 'Beziehungsstatus',
       job: 'Beruf',
       netWorth: 'Nettovermögen',
-      weeklyCashFlow: 'Wöchentlicher Cashflow',
+      weeklyCashFlow: 'Cashflow',
       perks: 'Vorteile',
       noPerks: 'Keine Vorteile',
       traits: 'Eigenschaften',
@@ -1345,7 +1357,7 @@ const translations: Record<Language, TranslationKeys> = {
       noComputerAvailable: 'Kein Computer verfügbar',
       noComputerMessage: 'Sie müssen einen Computer kaufen, um auf Desktop-Anwendungen zuzugreifen. Besuchen Sie die Markt-Registerkarte, um einen zu kaufen!',
       darkWeb: 'Dark Web',
-      hinder: 'Hinder',
+      hinder: 'Dating',
       contacts: 'Kontakte',
       social: 'Social',
       bank: 'Bank',
@@ -1466,9 +1478,20 @@ export function t(language: Language, key: string): string {
     if (value && typeof value === 'object' && k in value) {
       value = value[k];
     } else {
+      // Debug logging for missing translations
+      if (__DEV__) {
+        console.warn('Translation not found:', { language, key, missingKey: k, availableKeys: value ? Object.keys(value) : 'undefined' });
+      }
       return key; // Return key if translation not found
     }
   }
   
-  return typeof value === 'string' ? value : key;
+  const result = typeof value === 'string' ? value : key;
+  
+  // Debug logging to catch any potential prefix issues
+  if (__DEV__ && typeof result === 'string' && (result.includes('computer.') || result.includes('mobile.') || result.includes('work.') || result.includes('market.') || result.includes('health.'))) {
+    console.warn('Translation result contains potential prefix issue:', { language, key, result });
+  }
+  
+  return result;
 }

@@ -3,74 +3,44 @@ import { TutorialStep } from '@/types/tutorial';
 export const GAME_TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to DeepLife Simulator!',
-    description: 'Welcome to your new life! This comprehensive tutorial will guide you through every aspect of the game. You\'ll learn how to manage your character, make life-changing decisions, and build your virtual destiny.',
+    title: '🎮 Welcome!',
+    description: 'Welcome to DeepLife Simulator! This quick tutorial will show you the basics. Let\'s get started!',
     position: 'center',
   },
   {
     id: 'character-stats',
-    title: 'Your Character Stats',
-    description: 'These are your character\'s vital statistics. Health, Happiness, Energy, and Fitness affect your daily activities and life expectancy. Money and Reputation determine your success and social standing. Monitor these carefully as they change based on your choices!',
+    title: '📊 Your Stats',
+    description: 'Keep an eye on the bars at the top: Health ❤️, Happiness 😊, and Energy ⚡. Try to keep them high!',
     position: 'top',
   },
   {
-    id: 'age-progression',
-    title: 'Age & Time Progression',
-    description: 'Time passes in weeks, and your age increases over time. Each week you\'ll make decisions that shape your life path. Different life stages unlock new opportunities and challenges. Plan wisely for long-term success!',
+    id: 'time',
+    title: '⏰ Time & Age',
+    description: 'Press "Next Week" to advance time. Each week, your stats will change based on your activities.',
     position: 'center',
   },
   {
-    id: 'main-activities',
-    title: 'Core Life Activities',
-    description: 'These are your primary activities that drive your life forward. Work to earn money and advance your career, exercise to stay fit and healthy, socialize to build relationships, and rest to recover energy. Balance is the key to a successful life!',
+    id: 'getting-started',
+    title: '💼 First Steps',
+    description: 'Start by getting a job in the Work tab. Then buy items in the Market tab to boost your stats!',
     position: 'bottom',
   },
   {
     id: 'mobile-phone',
-    title: 'Your Digital Life - Mobile Phone',
-    description: 'Your phone is your digital lifeline! Access apps for banking, social media, dating, education, and more. Different apps unlock as you progress and can significantly impact your life path. Use it wisely to enhance your opportunities!',
+    title: '📱 Your Phone',
+    description: 'Buy a phone from the Market to unlock apps: Banking, Social Media, Dating, and more!',
     position: 'left',
   },
   {
-    id: 'computer-activities',
-    title: 'Advanced Opportunities - Computer',
-    description: 'Your computer opens up advanced opportunities like stock trading, real estate investment, cryptocurrency trading, and even dark web activities. These can be high-risk, high-reward paths to wealth, but choose your path carefully!',
+    id: 'computer',
+    title: '💻 Your Computer',
+    description: 'Buy a computer to access stocks, real estate, crypto, and other money-making opportunities.',
     position: 'right',
   },
   {
-    id: 'market-investments',
-    title: 'Market & Investment Hub',
-    description: 'Visit the market to buy items, invest in stocks, purchase real estate, or start businesses. Smart investments can lead to passive income and financial freedom. Study market trends and make informed decisions!',
-    position: 'center',
-  },
-  {
-    id: 'health-wellness',
-    title: 'Health & Wellness Management',
-    description: 'Monitor and improve your health through medical care, fitness activities, and lifestyle choices. Good health is essential for a long and prosperous life. Neglect it at your own risk!',
-    position: 'center',
-  },
-  {
-    id: 'social-relationships',
-    title: 'Social Relationships & Networking',
-    description: 'Build meaningful relationships with family, friends, and romantic partners. Strong social connections provide happiness, support, and opportunities throughout your life journey. Invest time in your relationships!',
-    position: 'center',
-  },
-  {
-    id: 'achievements-goals',
-    title: 'Achievements & Life Goals',
-    description: 'Track your progress through achievements and life goals. Complete challenges to unlock rewards, perks, and see how your life choices shape your legacy. Set ambitious goals and work towards them!',
-    position: 'center',
-  },
-  {
-    id: 'settings-customization',
-    title: 'Settings & Game Customization',
-    description: 'Access game settings, save your progress, and get help when needed. Customize your experience, manage save slots, and access the tutorial anytime. Don\'t hesitate to explore all options!',
-    position: 'center',
-  },
-  {
     id: 'ready-to-play',
-    title: 'Ready to Begin Your Life Journey!',
-    description: 'You\'re now ready to start your life simulation! Remember, every choice matters and shapes your destiny. Will you become a successful entrepreneur, a fitness guru, a social influencer, a tech mogul, or something entirely different? The choice is yours - make it count!',
+    title: '🎉 You\'re Ready!',
+    description: 'That\'s it! Start small, work your way up, and have fun building your virtual life. Good luck!',
     position: 'center',
   },
 ];
@@ -136,7 +106,7 @@ export const ADVANCED_TUTORIAL_STEPS: TutorialStep[] = [
 ];
 
 // Helper function to get tutorial steps based on context
-export function getTutorialSteps(context: 'game' | 'onboarding' | 'advanced'): TutorialStep[] {
+export function getTutorialSteps(context: 'game' | 'onboarding' | 'advanced' = 'game'): TutorialStep[] {
   switch (context) {
     case 'onboarding':
       return ONBOARDING_TUTORIAL_STEPS;

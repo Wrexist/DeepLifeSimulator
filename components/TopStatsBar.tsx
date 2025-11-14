@@ -1,5 +1,5 @@
 // components/TopStatsBar.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Animated,
   useWindowDimensions,
   Alert,
+  Easing,
 } from 'react-native';
 import {
   responsivePadding,
@@ -18,11 +19,11 @@ import {
   scale,
   isSmallDevice,
   isLargeDevice,
+  isIPad,
 } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import {
   Heart,
   Smile,
@@ -42,14 +43,19 @@ import SettingsModal from './SettingsModal';
 import GemShopModal from './GemShopModal';
 import HelpModal from './HelpModal';
 import usePressableScale from '@/hooks/usePressableScale';
+import { useFeedback } from '@/utils/feedbackSystem';
+import { DesignSystem } from '@/utils/designSystem';
+import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 
 export default function TopStatsBar() {
   const { gameState, nextWeek } = useGame();
-  const { triggerButtonPress } = useHapticFeedback();
+  const { success, buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
+  const { logRender } = usePerformanceMonitor();
   
-  if (!gameState?.stats) return null;
+  // Don't render if no game state or if we're in onboarding
+  if (!gameState?.stats || !gameState?.userProfile) return null;
 
-  const { stats, settings, bankSavings = 0 } = gameState;
+  const { stats, settings, bankSavings = 0, stocks } = gameState;
   const [showSettings, setShowSettings] = useState(false);
   const [showGemShop, setShowGemShop] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -87,26 +93,32 @@ export default function TopStatsBar() {
 
   const shouldGlow = (value: number) => value >= 90 || value <= 20;
 
-  const handleQuickAction = (action: string) => {
-    triggerButtonPress();
+  const handleQuickAction = useCallback((action: string) => {
+    buttonPress();
     setShowQuickActions(null);
+    
     switch (action) {
       case 'eat':
-        Alert.alert('🍎 Quick Eat', 'You feel refreshed after eating something healthy!');
+        haptic('success');
+        success('🍎 You feel refreshed after eating something healthy!');
         break;
       case 'rest':
-        Alert.alert('😴 Quick Rest', 'You feel more energized after taking a break!');
+        haptic('success');
+        success('😴 You feel more energized after taking a break!');
         break;
       case 'social':
-        Alert.alert('👥 Socialize', 'Spending time with others lifts your mood!');
+        haptic('success');
+        success('👥 Spending time with others lifts your mood!');
         break;
       case 'exercise':
-        Alert.alert('💪 Exercise', 'You feel stronger and happier after working out!');
+        haptic('success');
+        success('💪 You feel stronger and happier after working out!');
         break;
     }
-  };
+  }, [buttonPress, haptic, success]);
 
-  const statColors = React.useMemo(
+  // Optimized stat colors with better memoization
+  const statColors = useMemo(
     () => ({
       health: getStatColor('health', stats.health),
       happiness: getStatColor('happiness', stats.happiness),
@@ -115,7 +127,7 @@ export default function TopStatsBar() {
     [stats.health, stats.happiness, stats.energy]
   );
 
-  const glowColors = React.useMemo(
+  const glowColors = useMemo(
     () => ({
       health: getGlowColor('health', stats.health),
       happiness: getGlowColor('happiness', stats.happiness),
@@ -124,43 +136,111 @@ export default function TopStatsBar() {
     [stats.health, stats.happiness, stats.energy]
   );
 
+  // Memoized stat values for better performance
+  const statValues = useMemo(
+    () => ({
+      health: Math.max(0, Math.min(100, stats.health ?? 0)),
+      happiness: Math.max(0, Math.min(100, stats.happiness ?? 0)),
+      energy: Math.max(0, Math.min(100, stats.energy ?? 0)),
+    }),
+    [stats.health, stats.happiness, stats.energy]
+  );
+
+  // Optimized animation effect with better performance
   useEffect(() => {
+    logRender('TopStatsBar');
+    
     const to = (v: number) => Math.max(0, Math.min(100, v ?? 0));
 
-    Animated.timing(animatedStats.health, {
-      toValue: to(stats.health),
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    // Use requestAnimationFrame for smoother animations
+    const animateStats = () => {
+      // Stop any existing animations first to prevent conflicts
+      animatedStats.health.stopAnimation();
+      animatedStats.happiness.stopAnimation();
+      animatedStats.energy.stopAnimation();
 
-    Animated.timing(animatedStats.happiness, {
-      toValue: to(stats.happiness),
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+      // Use timing animations with native driver for better performance
+      const healthAnimation = Animated.timing(animatedStats.health, {
+        toValue: to(stats.health),
+        duration: 300, // Reduced duration for snappier feel
+        useNativeDriver: false, // Keep false for width animations
+        easing: Easing.out(Easing.quad), // Smoother easing
+      });
 
-    Animated.timing(animatedStats.energy, {
-      toValue: to(stats.energy),
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+      const happinessAnimation = Animated.timing(animatedStats.happiness, {
+        toValue: to(stats.happiness),
+        duration: 300,
+        useNativeDriver: false,
+        easing: Easing.out(Easing.quad),
+      });
+
+      const energyAnimation = Animated.timing(animatedStats.energy, {
+        toValue: to(stats.energy),
+        duration: 300,
+        useNativeDriver: false,
+        easing: Easing.out(Easing.quad),
+      });
+
+      // Start all animations simultaneously to prevent stuttering
+      Animated.parallel([
+        healthAnimation,
+        happinessAnimation,
+        energyAnimation,
+      ]).start();
+    };
+
+    // Use requestAnimationFrame for smoother updates
+    const rafId = requestAnimationFrame(animateStats);
+    
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
 
     const runGlow = (key: 'health' | 'happiness' | 'energy', value: number) => {
       if (shouldGlow(value)) {
-        Animated.loop(
+        const glowLoop = Animated.loop(
           Animated.sequence([
-            Animated.timing(glowAnimations[key], { toValue: 1, duration: 1000, useNativeDriver: false }),
-            Animated.timing(glowAnimations[key], { toValue: 0, duration: 1000, useNativeDriver: false }),
+            Animated.timing(glowAnimations[key], { 
+              toValue: 1, 
+              duration: 1200, 
+              useNativeDriver: false,
+              easing: Easing.inOut(Easing.ease)
+            }),
+            Animated.timing(glowAnimations[key], { 
+              toValue: 0, 
+              duration: 1200, 
+              useNativeDriver: false,
+              easing: Easing.inOut(Easing.ease)
+            }),
           ])
-        ).start();
+        );
+        glowLoop.start();
+        return glowLoop;
       } else {
-        Animated.timing(glowAnimations[key], { toValue: 0, duration: 500, useNativeDriver: false }).start();
+        const glowStop = Animated.timing(glowAnimations[key], { 
+          toValue: 0, 
+          duration: 300, 
+          useNativeDriver: false,
+          easing: Easing.out(Easing.ease)
+        });
+        glowStop.start();
+        return glowStop;
       }
     };
 
-    runGlow('health', stats.health);
-    runGlow('happiness', stats.happiness);
-    runGlow('energy', stats.energy);
+    const activeGlowAnimations = [
+      runGlow('health', stats.health),
+      runGlow('happiness', stats.happiness),
+      runGlow('energy', stats.energy)
+    ].filter(Boolean);
+
+    // Cleanup function
+    return () => {
+      healthAnimation.stop();
+      happinessAnimation.stop();
+      energyAnimation.stop();
+      activeGlowAnimations.forEach(anim => anim?.stop());
+    };
   }, [stats.health, stats.happiness, stats.energy, animatedStats, glowAnimations]);
 
   const progressStats = React.useMemo(
@@ -222,6 +302,7 @@ export default function TopStatsBar() {
 
   const { width } = useWindowDimensions();
   const getProgressBarWidth = () => {
+    if (isIPad()) return Math.min(360, Math.max(240, width * 0.48));
     if (isSmallDevice()) return Math.min(150, Math.max(110, width * 0.42));
     if (isLargeDevice()) return Math.min(200, Math.max(150, width * 0.46));
     return Math.min(180, Math.max(130, width * 0.44));
@@ -240,11 +321,56 @@ export default function TopStatsBar() {
 
   const formatGems = (amount: number) => {
     const a = Math.floor(amount || 0);
-    if (a >= 1_000_000_000_000_000) return `${(a / 1_000_000_000_000_000).toFixed(2)}Q`;
-    if (a >= 1_000_000_000_000) return `${(a / 1_000_000_000_000).toFixed(2)}T`;
-    if (a >= 1_000_000_000) return `${(a / 1_000_000_000).toFixed(2)}B`;
-    if (a >= 1_000_000) return `${(a / 1_000_000).toFixed(2)}M`;
-    if (a >= 1_000) return `${(a / 1_000).toFixed(2)}K`;
+    const showDecimals = settings.showDecimalsInStats;
+    
+    if (a >= 1_000_000_000_000_000) {
+      return showDecimals ? `${(a / 1_000_000_000_000_000).toFixed(2)}Q` : `${Math.floor(a / 1_000_000_000_000_000)}Q`;
+    }
+    if (a >= 1_000_000_000_000) {
+      return showDecimals ? `${(a / 1_000_000_000_000).toFixed(2)}T` : `${Math.floor(a / 1_000_000_000_000)}T`;
+    }
+    if (a >= 1_000_000_000) {
+      return showDecimals ? `${(a / 1_000_000_000).toFixed(2)}B` : `${Math.floor(a / 1_000_000_000)}B`;
+    }
+    if (a >= 1_000_000) {
+      return showDecimals ? `${(a / 1_000_000).toFixed(2)}M` : `${Math.floor(a / 1_000_000)}M`;
+    }
+    if (a >= 1_000) {
+      return showDecimals ? `${(a / 1_000).toFixed(2)}K` : `${Math.floor(a / 1_000)}K`;
+    }
+    return `${a}`;
+  };
+
+  // Calculate total stock value
+  const calculateStockValue = () => {
+    if (!stocks?.holdings) return 0;
+    return stocks.holdings.reduce((total, holding) => {
+      return total + (holding.shares * holding.currentPrice);
+    }, 0);
+  };
+
+  // Calculate total savings including stock investments
+  const totalSavings = bankSavings + calculateStockValue();
+
+  const formatSavings = (amount: number) => {
+    const a = Math.floor(amount || 0);
+    const showDecimals = settings.showDecimalsInStats;
+    
+    if (a >= 1_000_000_000_000_000) {
+      return showDecimals ? `${(a / 1_000_000_000_000_000).toFixed(2)}Q` : `${Math.floor(a / 1_000_000_000_000_000)}Q`;
+    }
+    if (a >= 1_000_000_000_000) {
+      return showDecimals ? `${(a / 1_000_000_000_000).toFixed(2)}T` : `${Math.floor(a / 1_000_000_000_000)}T`;
+    }
+    if (a >= 1_000_000_000) {
+      return showDecimals ? `${(a / 1_000_000_000).toFixed(2)}B` : `${Math.floor(a / 1_000_000_000)}B`;
+    }
+    if (a >= 1_000_000) {
+      return showDecimals ? `${(a / 1_000_000).toFixed(2)}M` : `${Math.floor(a / 1_000_000)}M`;
+    }
+    if (a >= 1_000) {
+      return showDecimals ? `${(a / 1_000).toFixed(2)}K` : `${Math.floor(a / 1_000)}K`;
+    }
     return `${a}`;
   };
 
@@ -253,17 +379,17 @@ export default function TopStatsBar() {
       {/* Left: controls + stats */}
       <View style={styles.leftSection}>
         <View style={styles.leftIconRow}>
-          <TouchableOpacity onPress={() => { triggerButtonPress(); setShowGemShop(true); }} style={[styles.iconButton, darkMode && styles.iconButtonDark]} activeOpacity={0.85}>
+          <TouchableOpacity onPress={() => { buttonPress(); setShowGemShop(true); }} style={[styles.iconButton, darkMode && styles.iconButtonDark]} activeOpacity={0.85} accessibilityLabel="Open Gem Shop" accessibilityRole="button">
             <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               <ShoppingCart size={22} color={iconColor} />
             </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { triggerButtonPress(); setShowHelp(true); }} style={[styles.iconButton, darkMode && styles.iconButtonDark]} activeOpacity={0.85}>
+          <TouchableOpacity onPress={() => { buttonPress(); setShowHelp(true); }} style={[styles.iconButton, darkMode && styles.iconButtonDark]} activeOpacity={0.85} accessibilityLabel="Open Help Menu" accessibilityRole="button">
             <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               <HelpCircle size={22} color={iconColor} />
             </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { triggerButtonPress(); setShowSettings(true); }} style={[styles.iconButton, darkMode && styles.iconButtonDark]} activeOpacity={0.85}>
+          <TouchableOpacity onPress={() => { buttonPress(); setShowSettings(true); }} style={[styles.iconButton, darkMode && styles.iconButtonDark]} activeOpacity={0.85} accessibilityLabel="Open Settings" accessibilityRole="button">
             <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               <Settings size={22} color={iconColor} />
             </LinearGradient>
@@ -276,6 +402,7 @@ export default function TopStatsBar() {
             inputRange: [0, max],
             outputRange: ['0%', '100%'],
             extrapolate: 'clamp',
+            // Remove easing from interpolation as it can cause conflicts with the main animation
           });
 
           return (
@@ -283,7 +410,7 @@ export default function TopStatsBar() {
               <TouchableOpacity
                 style={styles.statTouchable}
                 onLongPress={() => setShowQuickActions(showQuickActions === key ? null : key)}
-                onPress={() => triggerButtonPress()}
+                onPress={() => buttonPress()}
                 activeOpacity={0.7}
               >
                 <View style={styles.statRowContent}>
@@ -353,13 +480,15 @@ export default function TopStatsBar() {
 
             <LinearGradient colors={['#F59E0B', '#FBBF24']} style={styles.moneyChip} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               <PiggyBank size={14} color="#FFFFFF" style={styles.chipIcon} />
-              <AnimatedMoney value={bankSavings} style={styles.chipText} duration={300} />
+              <Text style={styles.chipText}>{formatSavings(totalSavings)}</Text>
             </LinearGradient>
 
-            <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.moneyChip} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Gem size={14} color="#FFFFFF" style={styles.chipIcon} />
-              <Text style={styles.chipText}>{formatGems(stats.gems)}</Text>
-            </LinearGradient>
+            <View>
+              <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.moneyChip} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Gem size={14} color="#FFFFFF" style={styles.chipIcon} />
+                <Text style={styles.chipText}>{formatGems(stats.gems)}</Text>
+              </LinearGradient>
+            </View>
           </View>
         </View>
       </View>
@@ -377,7 +506,9 @@ export default function TopStatsBar() {
 function RightSide() {
   const { gameState, nextWeek } = useGame();
   const { AnimatedView, animatedStyle, onPressIn, onPressOut, onHaptic } = usePressableScale();
+  const { buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
   const [isAdvancingWeek, setIsAdvancingWeek] = useState(false);
+  const spinValue = useRef(new Animated.Value(0)).current;
 
   const weekAnimations = useRef([
     new Animated.Value(1),
@@ -393,6 +524,22 @@ function RightSide() {
       Animated.timing(weekAnimations[idx], { toValue: 1, duration: 180, useNativeDriver: false }),
     ]).start();
   }, [gameState?.date?.week, weekAnimations]);
+
+  // Spinner animation for loading state
+  useEffect(() => {
+    if (isAdvancingWeek) {
+      spinValue.setValue(0);
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      spinValue.setValue(0);
+    }
+  }, [isAdvancingWeek, spinValue]);
 
   return (
     <View style={styles.rightSection}>
@@ -414,7 +561,8 @@ function RightSide() {
           <TouchableOpacity
             onPress={() => {
               if (isAdvancingWeek) return;
-              onHaptic();
+              buttonPress();
+              haptic('medium');
               setIsAdvancingWeek(true);
               nextWeek();
               // Reset loading state after a short delay
@@ -424,10 +572,29 @@ function RightSide() {
             onPressOut={onPressOut}
             activeOpacity={0.7}
             disabled={isAdvancingWeek}
+            accessibilityLabel={isAdvancingWeek ? "Advancing to next week" : "Advance to next week"}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isAdvancingWeek }}
           >
             <LinearGradient colors={isAdvancingWeek ? ['#6B7280', '#9CA3AF'] : ['#16A34A', '#22C55E']} style={styles.nextWeekButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <ArrowRightCircle size={16} color="#FFFFFF" />
-              <Text style={styles.nextWeekText}>{isAdvancingWeek ? 'Processing...' : 'Next Week'}</Text>
+              {isAdvancingWeek ? (
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        rotate: spinValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  }}
+                >
+                  <ArrowRightCircle size={20} color="#FFFFFF" />
+                </Animated.View>
+              ) : (
+                <ArrowRightCircle size={20} color="#FFFFFF" />
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </AnimatedView>
@@ -441,7 +608,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: responsivePadding.horizontal,
+    paddingHorizontal: responsivePadding.horizontal * 1.2,
     paddingVertical: responsiveSpacing.xs,
     backgroundColor: '#0F172A', // matches your dark screenshot background
   },
@@ -451,10 +618,10 @@ const styles = StyleSheet.create({
   leftIconRow: { flexDirection: 'row', marginBottom: responsiveSpacing.xs },
 
   iconButton: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
+    width: isIPad() ? touchTargets.large : touchTargets.minimum,
+    height: isIPad() ? touchTargets.large : touchTargets.minimum,
     marginRight: responsiveSpacing.md,
-    borderRadius: touchTargets.minimum / 2,
+    borderRadius: (isIPad() ? touchTargets.large : touchTargets.minimum) / 2,
     overflow: 'hidden',
     backgroundColor: 'transparent',
   },
@@ -465,15 +632,28 @@ const styles = StyleSheet.create({
 
   // Progress bars
   progressBarWrapper: {
-    height: scale(16),
+    height: isIPad() ? scale(24) : scale(16),
     backgroundColor: '#334155',
     borderRadius: responsiveBorderRadius.lg,
     marginLeft: responsiveSpacing.sm,
     overflow: 'hidden',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   progressBarWrapperDark: { backgroundColor: '#334155' },
-  progressFill: { height: '100%', borderRadius: responsiveBorderRadius.lg },
+  progressFill: { 
+    height: '100%', 
+    borderRadius: responsiveBorderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
   progressFillDark: {},
 
   // --- NEW CHIP STYLES ---
@@ -492,21 +672,21 @@ const styles = StyleSheet.create({
   moneyChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: scale(12),
-    height: scale(28),
+    paddingHorizontal: isIPad() ? scale(18) : scale(12),
+    height: isIPad() ? scale(36) : scale(28),
     borderRadius: 999,          // true pill
   },
   chipIcon: { marginRight: 6 },
   chipText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: responsiveFontSize.sm,
-    lineHeight: scale(18),
+    fontSize: isIPad() ? responsiveFontSize.lg : responsiveFontSize.sm,
+    lineHeight: isIPad() ? scale(22) : scale(18),
   },
 
   // Right side
-  rightSection: { alignItems: 'flex-end', flexShrink: 0, marginLeft: responsiveSpacing.lg, marginTop: 0 },
-  dateOuter: { padding: 2, borderRadius: responsiveBorderRadius.lg, marginBottom: responsiveSpacing.xs, height: scale(90), width: scale(110) },
+  rightSection: { alignItems: 'flex-end', flexShrink: 0, marginLeft: responsiveSpacing.lg, marginTop: responsiveSpacing.md },
+  dateOuter: { padding: 2, borderRadius: responsiveBorderRadius.lg, marginBottom: responsiveSpacing.xs, height: isIPad() ? scale(130) : scale(90), width: isIPad() ? scale(160) : scale(110) },
   dateInner: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -517,23 +697,26 @@ const styles = StyleSheet.create({
     height: '100%',
   },
 
-  yearText: { fontSize: responsiveFontSize.xl, fontWeight: '800', color: '#FFFFFF' },
-  monthText: { fontSize: responsiveFontSize.lg, fontWeight: '700', color: '#FFFFFF' },
-  ageText: { fontSize: responsiveFontSize.lg, fontWeight: '700', color: '#FFFFFF' },
+  yearText: { fontSize: isIPad() ? responsiveFontSize['2xl'] : responsiveFontSize.xl, fontWeight: '800', color: '#FFFFFF' },
+  monthText: { fontSize: isIPad() ? responsiveFontSize.xl : responsiveFontSize.lg, fontWeight: '700', color: '#FFFFFF' },
+  ageText: { fontSize: isIPad() ? responsiveFontSize.xl : responsiveFontSize.lg, fontWeight: '700', color: '#FFFFFF' },
 
   weekDots: { flexDirection: 'row', marginTop: responsiveSpacing.xs, marginBottom: 2 },
-  weekDot: { width: scale(8), height: scale(8), borderRadius: scale(4), marginHorizontal: 2, backgroundColor: 'rgba(255,255,255,0.9)' },
+  weekDot: { width: isIPad() ? scale(10) : scale(8), height: isIPad() ? scale(10) : scale(8), borderRadius: isIPad() ? scale(5) : scale(4), marginHorizontal: 2, backgroundColor: 'rgba(255,255,255,0.9)' },
 
   nextWeekContainer: { alignItems: 'center', marginTop: responsiveSpacing.sm },
   nextWeekButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: scale(16),
-    paddingVertical: responsiveSpacing.sm,
+    justifyContent: 'center',
     borderRadius: responsiveBorderRadius.lg,
-    minWidth: isSmallDevice() ? scale(100) : scale(110),
+    width: isIPad() ? scale(70) : scale(50), // Square button
+    height: isIPad() ? scale(70) : scale(50), // Square button
+    shadowColor: '#16A34A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  nextWeekText: { color: '#FFFFFF', marginLeft: 3, fontWeight: '600', fontSize: responsiveFontSize.sm },
 
   statTouchable: { width: '100%' },
   statRowContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' },

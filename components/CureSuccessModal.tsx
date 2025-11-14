@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,31 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, CheckCircle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useFeedback } from '@/utils/feedbackSystem';
 
 export default function CureSuccessModal() {
   const { gameState, dismissCureSuccessModal } = useGame();
   const { showCureSuccessModal, curedDiseases, settings } = gameState;
   const darkMode = settings.darkMode;
+  const { buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
+
+  // Auto-dismiss the modal after 2 seconds
+  useEffect(() => {
+    if (showCureSuccessModal && curedDiseases.length > 0) {
+      const timer = setTimeout(() => {
+        dismissCureSuccessModal();
+      }, 2000); // 2 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [showCureSuccessModal, curedDiseases.length, dismissCureSuccessModal]);
 
   if (!showCureSuccessModal || curedDiseases.length === 0) {
     return null;
   }
 
   return (
-    <Modal visible={showCureSuccessModal} transparent animationType="fade">
+    <Modal visible={showCureSuccessModal} transparent animationType="fade" onRequestClose={dismissCureSuccessModal}>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContainer, darkMode && styles.modalContainerDark]}>
           <LinearGradient
@@ -41,7 +54,15 @@ export default function CureSuccessModal() {
                   Your health conditions have been cured
                 </Text>
               </View>
-              <TouchableOpacity onPress={dismissCureSuccessModal} style={styles.closeButton}>
+              <TouchableOpacity 
+                onPress={() => {
+                  buttonPress();
+                  haptic('light');
+                  dismissCureSuccessModal();
+                }} 
+                style={styles.closeButton}
+                activeOpacity={0.7}
+              >
                 <X size={24} color={darkMode ? '#FFFFFF' : '#374151'} />
               </TouchableOpacity>
             </View>
@@ -112,7 +133,12 @@ export default function CureSuccessModal() {
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.modalButton}
-                onPress={dismissCureSuccessModal}
+                onPress={() => {
+                  buttonPress();
+                  haptic('success');
+                  dismissCureSuccessModal();
+                }}
+                activeOpacity={0.8}
               >
                 <LinearGradient
                   colors={['#10B981', '#059669']}

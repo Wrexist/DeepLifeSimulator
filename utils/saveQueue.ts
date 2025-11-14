@@ -8,11 +8,30 @@ interface SaveOperation {
   retryCount: number;
 }
 
+type ToastCallback = (message: string, type: 'success' | 'error') => void;
+
 class SaveQueue {
   private queue: SaveOperation[] = [];
   private isProcessing = false;
   private maxRetries = 3;
   private retryDelay = 1000; // 1 second
+  private toastCallback: ToastCallback | null = null;
+  private lastToastTime = 0;
+  private toastCooldown = 2000; // 2 seconds cooldown between toasts
+
+  // Register toast callback
+  setToastCallback(callback: ToastCallback) {
+    this.toastCallback = callback;
+  }
+
+  private shouldShowToast(): boolean {
+    const now = Date.now();
+    if (now - this.lastToastTime < this.toastCooldown) {
+      return false;
+    }
+    this.lastToastTime = now;
+    return true;
+  }
 
   async addToQueue(slot: number, data: any): Promise<void> {
     const operation: SaveOperation = {
@@ -44,6 +63,8 @@ class SaveQueue {
       try {
         await this.performSave(operation);
         console.log(`Save successful for slot ${operation.slot}`);
+        
+        // Don't show success toast - silent saves
       } catch (error) {
         console.error(`Save failed for slot ${operation.slot}:`, error);
         
@@ -60,7 +81,11 @@ class SaveQueue {
           }, this.retryDelay * operation.retryCount);
         } else {
           console.error(`Save operation failed permanently for slot ${operation.slot} after ${this.maxRetries} retries`);
-          // You could implement user notification here
+          
+          // Show error toast (always show errors)
+          if (this.toastCallback) {
+            this.toastCallback('Save Failed! Please try again.', 'error');
+          }
         }
       }
     }
@@ -69,13 +94,18 @@ class SaveQueue {
   }
 
   private async performSave(operation: SaveOperation): Promise<void> {
-    const key = `save_slot_${operation.slot}`;
-    const serializedData = JSON.stringify(operation.data);
-    
-    await AsyncStorage.setItem(key, serializedData);
-    
-    // Also save the last slot reference
-    await AsyncStorage.setItem('lastSlot', operation.slot.toString());
+    try {
+      const key = `save_slot_${operation.slot}`;
+      const serializedData = JSON.stringify(operation.data);
+      
+      await AsyncStorage.setItem(key, serializedData);
+      
+      // Also save the last slot reference
+      await AsyncStorage.setItem('lastSlot', operation.slot.toString());
+    } catch (error) {
+      console.error('AsyncStorage save error:', error);
+      throw error;
+    }
   }
 
   // Force save a specific slot immediately (bypasses queue)
@@ -88,8 +118,16 @@ class SaveQueue {
       await AsyncStorage.setItem('lastSlot', slot.toString());
       
       console.log(`Force save successful for slot ${slot}`);
+      
+      // Don't show success toast - silent saves
     } catch (error) {
       console.error(`Force save failed for slot ${slot}:`, error);
+      
+      // Show error toast (always show errors)
+      if (this.toastCallback) {
+        this.toastCallback('Save Failed! Please try again.', 'error');
+      }
+      
       throw error;
     }
   }

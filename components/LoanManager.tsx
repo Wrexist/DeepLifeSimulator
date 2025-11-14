@@ -21,6 +21,7 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+import { useFeedback } from '@/utils/feedbackSystem';
 import {
   CreditCard,
   TrendingUp,
@@ -50,6 +51,7 @@ const EARLY_PAYOFF_DISCOUNT = 0.05; // 5% discount for early payoff
 
 export default function LoanManager() {
   const { gameState, setGameState } = useGame();
+  const { buttonPress, haptic, success } = useFeedback(gameState.settings.hapticFeedback);
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showLoanDetails, setShowLoanDetails] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
@@ -119,26 +121,32 @@ export default function LoanManager() {
     const totalPayments = selectedTerm;
     
     // Calculate weekly payment using loan formula
-    const weeklyPayment = amount > 0 ? 
-      (amount * weeklyRate * Math.pow(1 + weeklyRate, totalPayments)) / 
-      (Math.pow(1 + weeklyRate, totalPayments) - 1) : 0;
+    // Protect against division by zero
+    const denominator = Math.pow(1 + weeklyRate, totalPayments) - 1;
+    const weeklyPayment = amount > 0 && denominator > 0 ? 
+      (amount * weeklyRate * Math.pow(1 + weeklyRate, totalPayments)) / denominator
+      : 0;
     
     const totalCost = weeklyPayment * totalPayments;
     const totalInterest = totalCost - amount;
     
     return {
-      weeklyPayment,
-      totalCost,
-      totalInterest,
+      weeklyPayment: isFinite(weeklyPayment) ? weeklyPayment : 0,
+      totalCost: isFinite(totalCost) ? totalCost : 0,
+      totalInterest: isFinite(totalInterest) ? totalInterest : 0,
       interestRate: marketAPR * 100,
     };
   }, [loanAmount, selectedTerm, marketAPR]);
 
   const takeLoan = useCallback(() => {
+    buttonPress();
+    haptic('light');
+    
     const amount = parseFloat(loanAmount);
     
-    if (!amount || amount < 1000) {
-      Alert.alert('Invalid Amount', 'Minimum loan amount is $1,000.');
+    // Validate amount is a valid number
+    if (!amount || isNaN(amount) || !isFinite(amount) || amount < 1000) {
+      Alert.alert('Invalid Amount', 'Please enter a valid loan amount of at least $1,000.');
       return;
     }
     
@@ -170,10 +178,14 @@ export default function LoanManager() {
     
     setShowLoanModal(false);
     setLoanAmount('');
+    success('Loan approved and funds transferred!');
     Alert.alert('Loan Approved!', `You received ${formatMoney(amount)} at ${loanDetails.interestRate.toFixed(2)}% APR.`);
   }, [loanAmount, loanEligibility.maxLoanAmount, selectedType, selectedTerm, marketAPR, loanDetails, gameState.week, setGameState]);
 
   const repayLoan = useCallback((loanId: string, amount: number) => {
+    buttonPress();
+    haptic('light');
+    
     const loan = loans.find(l => l.id === loanId);
     if (!loan) return;
     
@@ -210,6 +222,7 @@ export default function LoanManager() {
     });
     
     setRepayAmount('');
+    success('Payment processed successfully!');
     Alert.alert('Payment Successful', `Paid ${formatMoney(finalAmount)}${discount > 0 ? ` (${(discount * 100).toFixed(1)}% early payoff discount)` : ''}.`);
   }, [loans, repaySource, cash, savings, setGameState]);
 
@@ -260,10 +273,13 @@ export default function LoanManager() {
         </View>
         <TouchableOpacity
           style={[styles.newLoanButton, gameState.settings.darkMode && styles.newLoanButtonDark]}
-          onPress={() => setShowLoanModal(true)}
+          onPress={() => {
+            buttonPress();
+            setShowLoanModal(!showLoanModal);
+          }}
         >
           <Text style={[styles.newLoanButtonText, gameState.settings.darkMode && styles.newLoanButtonTextDark]}>
-            New Loan
+            {showLoanModal ? 'Cancel' : 'New Loan'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -298,6 +314,144 @@ export default function LoanManager() {
         </View>
       </View>
 
+      {/* New Loan Form - Inline */}
+      {showLoanModal && (
+        <View style={cardStyle}>
+          <Text style={[styles.sectionTitle, gameState.settings.darkMode && styles.sectionTitleDark]}>
+            Apply for New Loan
+          </Text>
+
+          {/* Loan Type Selection */}
+          <Text style={[styles.inputLabel, gameState.settings.darkMode && styles.inputLabelDark]}>
+            Loan Type
+          </Text>
+          <View style={styles.loanTypeGrid}>
+            {LOAN_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type.id}
+                style={[
+                  styles.loanTypeCard,
+                  selectedType === type.id && styles.loanTypeCardSelected,
+                  gameState.settings.darkMode && styles.loanTypeCardDark,
+                ]}
+                onPress={() => {
+                  buttonPress();
+                  setSelectedType(type.id as any);
+                }}
+              >
+                <type.icon size={20} color={selectedType === type.id ? '#FFFFFF' : type.color} />
+                <Text style={[
+                  styles.loanTypeName,
+                  selectedType === type.id && styles.loanTypeNameSelected,
+                  gameState.settings.darkMode && styles.loanTypeNameDark,
+                ]}>
+                  {type.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Loan Amount */}
+          <Text style={[styles.inputLabel, gameState.settings.darkMode && styles.inputLabelDark]}>
+            Loan Amount
+          </Text>
+          <TextInput
+            style={[styles.input, gameState.settings.darkMode && styles.inputDark]}
+            value={loanAmount}
+            onChangeText={setLoanAmount}
+            placeholder={`Max: ${formatMoney(loanEligibility.maxLoanAmount)}`}
+            placeholderTextColor="#9CA3AF"
+            keyboardType="numeric"
+          />
+
+          {/* Term Selection */}
+          <Text style={[styles.inputLabel, gameState.settings.darkMode && styles.inputLabelDark]}>
+            Term Length
+          </Text>
+          <View style={styles.termGrid}>
+            {TERM_OPTIONS.map((term) => (
+              <TouchableOpacity
+                key={term}
+                style={[
+                  styles.termButton,
+                  selectedTerm === term && styles.termButtonSelected,
+                  gameState.settings.darkMode && styles.termButtonDark,
+                ]}
+                onPress={() => {
+                  buttonPress();
+                  setSelectedTerm(term);
+                }}
+              >
+                <Text style={[
+                  styles.termText,
+                  selectedTerm === term && styles.termTextSelected,
+                  gameState.settings.darkMode && styles.termTextDark,
+                ]}>
+                  {term}w
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Loan Details */}
+          {loanDetails.weeklyPayment > 0 && (
+            <View style={[styles.loanDetails, gameState.settings.darkMode && styles.loanDetailsDark]}>
+              <Text style={[styles.detailsTitle, gameState.settings.darkMode && styles.detailsTitleDark]}>
+                Loan Details
+              </Text>
+              <View style={styles.detailsRow}>
+                <Text style={[styles.detailsLabel, gameState.settings.darkMode && styles.detailsLabelDark]}>
+                  Weekly Payment:
+                </Text>
+                <Text style={[styles.detailsValue, gameState.settings.darkMode && styles.detailsValueDark]}>
+                  {formatMoney(loanDetails.weeklyPayment)}
+                </Text>
+              </View>
+              <View style={styles.detailsRow}>
+                <Text style={[styles.detailsLabel, gameState.settings.darkMode && styles.detailsLabelDark]}>
+                  Total Interest:
+                </Text>
+                <Text style={[styles.detailsValue, gameState.settings.darkMode && styles.detailsValueDark]}>
+                  {formatMoney(loanDetails.totalInterest)}
+                </Text>
+              </View>
+              <View style={styles.detailsRow}>
+                <Text style={[styles.detailsLabel, gameState.settings.darkMode && styles.detailsLabelDark]}>
+                  Total Cost:
+                </Text>
+                <Text style={[styles.detailsValue, gameState.settings.darkMode && styles.detailsValueDark]}>
+                  {formatMoney(loanDetails.totalCost)}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Eligibility Warning */}
+          {!loanEligibility.canBorrow && (
+            <View style={styles.warningBox}>
+              <AlertCircle size={20} color="#EF4444" />
+              <Text style={styles.warningText}>
+                You may not qualify for additional loans. Consider paying down existing debt first.
+              </Text>
+            </View>
+          )}
+
+          {/* Apply Button */}
+          <TouchableOpacity
+            style={[styles.modalButton, styles.modalButtonPrimary]}
+            onPress={takeLoan}
+            disabled={!loanEligibility.canBorrow || !loanAmount}
+          >
+            <LinearGradient
+              colors={['#3B82F6', '#1D4ED8']}
+              style={styles.modalButtonGradient}
+            >
+              <Text style={styles.modalButtonTextPrimary}>Apply for Loan</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Active Loans */}
       {loans.length > 0 ? (
         <View style={cardStyle}>
@@ -313,6 +467,7 @@ export default function LoanManager() {
                 key={loan.id}
                 style={[styles.loanItem, gameState.settings.darkMode && styles.loanItemDark]}
                 onPress={() => {
+                  buttonPress();
                   setSelectedLoan(loan);
                   setShowLoanDetails(true);
                 }}
@@ -373,156 +528,9 @@ export default function LoanManager() {
         </View>
       )}
 
-      {/* New Loan Modal */}
-      <Modal visible={showLoanModal} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContent, gameState.settings.darkMode && styles.modalContentDark]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, gameState.settings.darkMode && styles.modalTitleDark]}>
-                Apply for Loan
-              </Text>
-              <TouchableOpacity onPress={() => setShowLoanModal(false)}>
-                <X size={24} color={gameState.settings.darkMode ? '#F9FAFB' : '#1F2937'} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              {/* Loan Type Selection */}
-              <Text style={[styles.inputLabel, gameState.settings.darkMode && styles.inputLabelDark]}>
-                Loan Type
-              </Text>
-              <View style={styles.loanTypeGrid}>
-                {LOAN_TYPES.map((type) => (
-                  <TouchableOpacity
-                    key={type.id}
-                    style={[
-                      styles.loanTypeCard,
-                      selectedType === type.id && styles.loanTypeCardSelected,
-                      gameState.settings.darkMode && styles.loanTypeCardDark,
-                    ]}
-                    onPress={() => setSelectedType(type.id as any)}
-                  >
-                    <type.icon size={20} color={selectedType === type.id ? '#FFFFFF' : type.color} />
-                    <Text style={[
-                      styles.loanTypeName,
-                      selectedType === type.id && styles.loanTypeNameSelected,
-                      gameState.settings.darkMode && styles.loanTypeNameDark,
-                    ]}>
-                      {type.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Loan Amount */}
-              <Text style={[styles.inputLabel, gameState.settings.darkMode && styles.inputLabelDark]}>
-                Loan Amount
-              </Text>
-              <TextInput
-                style={[styles.input, gameState.settings.darkMode && styles.inputDark]}
-                value={loanAmount}
-                onChangeText={setLoanAmount}
-                placeholder={`Max: ${formatMoney(loanEligibility.maxLoanAmount)}`}
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-              />
-
-              {/* Term Selection */}
-              <Text style={[styles.inputLabel, gameState.settings.darkMode && styles.inputLabelDark]}>
-                Term Length
-              </Text>
-              <View style={styles.termGrid}>
-                {TERM_OPTIONS.map((term) => (
-                  <TouchableOpacity
-                    key={term}
-                    style={[
-                      styles.termButton,
-                      selectedTerm === term && styles.termButtonSelected,
-                      gameState.settings.darkMode && styles.termButtonDark,
-                    ]}
-                    onPress={() => setSelectedTerm(term)}
-                  >
-                    <Text style={[
-                      styles.termText,
-                      selectedTerm === term && styles.termTextSelected,
-                      gameState.settings.darkMode && styles.termTextDark,
-                    ]}>
-                      {term}w
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Loan Details */}
-              {loanDetails.weeklyPayment > 0 && (
-                <View style={[styles.loanDetails, gameState.settings.darkMode && styles.loanDetailsDark]}>
-                  <Text style={[styles.detailsTitle, gameState.settings.darkMode && styles.detailsTitleDark]}>
-                    Loan Details
-                  </Text>
-                  <View style={styles.detailsRow}>
-                    <Text style={[styles.detailsLabel, gameState.settings.darkMode && styles.detailsLabelDark]}>
-                      Weekly Payment:
-                    </Text>
-                    <Text style={[styles.detailsValue, gameState.settings.darkMode && styles.detailsValueDark]}>
-                      {formatMoney(loanDetails.weeklyPayment)}
-                    </Text>
-                  </View>
-                  <View style={styles.detailsRow}>
-                    <Text style={[styles.detailsLabel, gameState.settings.darkMode && styles.detailsLabelDark]}>
-                      Total Interest:
-                    </Text>
-                    <Text style={[styles.detailsValue, gameState.settings.darkMode && styles.detailsValueDark]}>
-                      {formatMoney(loanDetails.totalInterest)}
-                    </Text>
-                  </View>
-                  <View style={styles.detailsRow}>
-                    <Text style={[styles.detailsLabel, gameState.settings.darkMode && styles.detailsLabelDark]}>
-                      Total Cost:
-                    </Text>
-                    <Text style={[styles.detailsValue, gameState.settings.darkMode && styles.detailsValueDark]}>
-                      {formatMoney(loanDetails.totalCost)}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Eligibility Warning */}
-              {!loanEligibility.canBorrow && (
-                <View style={styles.warningBox}>
-                  <AlertCircle size={20} color="#EF4444" />
-                  <Text style={styles.warningText}>
-                    You may not qualify for additional loans. Consider paying down existing debt first.
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setShowLoanModal(false)}
-              >
-                <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
-                onPress={takeLoan}
-                disabled={!loanEligibility.canBorrow || !loanAmount}
-              >
-                <LinearGradient
-                  colors={['#3B82F6', '#1D4ED8']}
-                  style={styles.modalButtonGradient}
-                >
-                  <Text style={styles.modalButtonTextPrimary}>Apply for Loan</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Loan Details Modal */}
-      <Modal visible={showLoanDetails} transparent animationType="slide">
+      <Modal visible={showLoanDetails} transparent animationType="slide" onRequestClose={() => setShowLoanDetails(false)}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalContent, gameState.settings.darkMode && styles.modalContentDark]}>
             <View style={styles.modalHeader}>
@@ -583,7 +591,10 @@ export default function LoanManager() {
                       repaySource === 'cash' && styles.repaySourceButtonSelected,
                       gameState.settings.darkMode && styles.repaySourceButtonDark,
                     ]}
-                    onPress={() => setRepaySource('cash')}
+                    onPress={() => {
+                      buttonPress();
+                      setRepaySource('cash');
+                    }}
                   >
                     <Text style={[
                       styles.repaySourceText,
@@ -599,7 +610,10 @@ export default function LoanManager() {
                       repaySource === 'savings' && styles.repaySourceButtonSelected,
                       gameState.settings.darkMode && styles.repaySourceButtonDark,
                     ]}
-                    onPress={() => setRepaySource('savings')}
+                    onPress={() => {
+                      buttonPress();
+                      setRepaySource('savings');
+                    }}
                   >
                     <Text style={[
                       styles.repaySourceText,
@@ -623,7 +637,10 @@ export default function LoanManager() {
                 <View style={styles.quickPayButtons}>
                   <TouchableOpacity
                     style={[styles.quickPayButton, gameState.settings.darkMode && styles.quickPayButtonDark]}
-                    onPress={() => setRepayAmount((selectedLoan.weeklyPayment).toString())}
+                    onPress={() => {
+                      buttonPress();
+                      setRepayAmount((selectedLoan.weeklyPayment).toString());
+                    }}
                   >
                     <Text style={[styles.quickPayText, gameState.settings.darkMode && styles.quickPayTextDark]}>
                       Weekly Payment
@@ -631,7 +648,10 @@ export default function LoanManager() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.quickPayButton, gameState.settings.darkMode && styles.quickPayButtonDark]}
-                    onPress={() => setRepayAmount((selectedLoan.remaining * 0.25).toString())}
+                    onPress={() => {
+                      buttonPress();
+                      setRepayAmount((selectedLoan.remaining * 0.25).toString());
+                    }}
                   >
                     <Text style={[styles.quickPayText, gameState.settings.darkMode && styles.quickPayTextDark]}>
                       25%
@@ -639,7 +659,10 @@ export default function LoanManager() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.quickPayButton, gameState.settings.darkMode && styles.quickPayButtonDark]}
-                    onPress={() => setRepayAmount(selectedLoan.remaining.toString())}
+                    onPress={() => {
+                      buttonPress();
+                      setRepayAmount(selectedLoan.remaining.toString());
+                    }}
                   >
                     <Text style={[styles.quickPayText, gameState.settings.darkMode && styles.quickPayTextDark]}>
                       Pay Off
@@ -660,12 +683,14 @@ export default function LoanManager() {
                 style={[styles.modalButton, styles.modalButtonPrimary]}
                 onPress={() => {
                   const amount = parseFloat(repayAmount);
-                  if (amount > 0) {
+                  if (amount > 0 && !isNaN(amount) && isFinite(amount)) {
                     repayLoan(selectedLoan!.id, amount);
                     setShowLoanDetails(false);
+                  } else {
+                    Alert.alert('Invalid Amount', 'Please enter a valid repayment amount.');
                   }
                 }}
-                disabled={!repayAmount || parseFloat(repayAmount) <= 0}
+                disabled={!repayAmount || parseFloat(repayAmount) <= 0 || isNaN(parseFloat(repayAmount))}
               >
                 <LinearGradient
                   colors={['#10B981', '#059669']}

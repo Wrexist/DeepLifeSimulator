@@ -64,13 +64,6 @@ function createState(priceIndex: number, rate: number): GameState {
     progress: { achievements: [] },
     journal: [],
     healthWeeks: 0,
-    dailyGifts: {
-      currentStreak: 0,
-      lastClaimDate: '',
-      weeklyGifts: [],
-      claimedToday: false,
-      showDailyGiftModal: false,
-    },
   } as GameState;
 }
 

@@ -1,19 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Animated, Easing } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { useGame } from '@/contexts/GameContext';
 import { ArrowLeft, Save, Trash2, Play } from 'lucide-react-native';
+import { responsiveFontSize, responsivePadding, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { createBackupBeforeMajorAction } from '@/utils/saveBackup';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function SaveSlots() {
   const { state, setState } = useOnboarding();
   const router = useRouter();
+  const { loadGame } = useGame();
   const [slots, setSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
 
   // Animations
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -78,14 +83,34 @@ export default function SaveSlots() {
     const slotData = [];
     for (let i = 1; i <= 3; i++) {
       try {
-        const data = await AsyncStorage.getItem(`save_slot_${i}`);
+        let data: string | null = null;
+        
+        try {
+          data = await AsyncStorage.getItem(`save_slot_${i}`);
+        } catch (storageError) {
+          console.error(`AsyncStorage error loading slot ${i}:`, storageError);
+          slotData.push({ slot: i, data: null, error: true });
+          continue;
+        }
+        
         if (data) {
-          const parsed = JSON.parse(data);
-          slotData.push({
-            id: i,
-            ...parsed,
-            hasData: true,
-          });
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed && typeof parsed === 'object') {
+              slotData.push({
+                id: i,
+                ...parsed,
+                hasData: true,
+              });
+            }
+          } catch (parseError) {
+            console.error(`Failed to parse save slot ${i}:`, parseError);
+            // Add empty slot if parsing fails
+            slotData.push({
+              id: i,
+              hasData: false,
+            });
+          }
         } else {
           slotData.push({
             id: i,
@@ -102,7 +127,7 @@ export default function SaveSlots() {
     setSlots(slotData);
   };
 
-  const selectSlot = (slotId: number) => {
+  const selectSlot = async (slotId: number) => {
     setSelectedSlot(slotId);
     setState(prev => ({ ...prev, slot: slotId }));
     
@@ -111,17 +136,34 @@ export default function SaveSlots() {
     if (!slot || !slot.hasData) {
       // Navigate to Scenarios for new game
       router.push('/(onboarding)/Scenarios');
+    } else {
+      // Load the existing save and navigate to game
+      await loadGame(slotId);
+      router.push('/(tabs)');
     }
   };
 
   const deleteSlot = async (slotId: number) => {
     try {
+      // Get the save data to back it up before deletion
+      const saveData = await AsyncStorage.getItem(`save_slot_${slotId}`);
+      if (saveData) {
+        try {
+          const gameState = JSON.parse(saveData);
+          // Create backup before deleting
+          await createBackupBeforeMajorAction(slotId, gameState, 'delete_save');
+        } catch (error) {
+          console.error('Failed to backup save before deletion:', error);
+        }
+      }
+      
       await AsyncStorage.removeItem(`save_slot_${slotId}`);
       await loadSlots();
       if (selectedSlot === slotId) {
         setSelectedSlot(null);
         setState(prev => ({ ...prev, slot: 0 }));
       }
+      setShowDeleteConfirm(null);
     } catch (error) {
       console.error('Error deleting slot:', error);
     }
@@ -175,14 +217,12 @@ export default function SaveSlots() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.push('/(onboarding)/MainMenu')} style={styles.backButton}>
-            <LinearGradient
-              colors={['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.3)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.backButtonGradient}
-            >
-              <ArrowLeft size={24} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={styles.glassButton}>
+              <View style={styles.glassOverlay} />
+              <View style={styles.glassIconContainer}>
+                <ArrowLeft size={24} color="#FFFFFF" />
+              </View>
+            </View>
           </TouchableOpacity>
           <Text style={styles.title}>Save Slots</Text>
           <View style={styles.placeholder} />
@@ -192,8 +232,11 @@ export default function SaveSlots() {
           <View style={styles.scrollContent}>
             {/* Hero section */}
             <View style={styles.heroSection}>
-              <Text style={styles.heroTitle}>Choose Your Save Slot</Text>
-              <Text style={styles.heroSubtitle}>Select a slot to continue your journey or start fresh</Text>
+              <View style={styles.glassCard}>
+                <View style={styles.glassOverlay} />
+                <Text style={styles.heroTitle}>Choose Your Save Slot</Text>
+                <Text style={styles.heroSubtitle}>Select a slot to continue your journey or start fresh</Text>
+              </View>
             </View>
 
             {/* Save slots */}
@@ -208,21 +251,12 @@ export default function SaveSlots() {
                     style={styles.slotContainer}
                     onPress={() => selectSlot(slot.id)}
                   >
-                    <BlurView intensity={20} style={styles.slotBlur}>
-                      <LinearGradient
-                        colors={isSelected ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.slotCard}
-                      >
+                    <View style={[styles.glassSlotCard, isSelected && styles.glassSlotCardSelected]}>
+                      <View style={styles.glassOverlay} />
                         <View style={styles.slotHeader}>
-                          <View style={styles.slotIconContainer}>
-                            <LinearGradient
-                              colors={['rgba(59, 130, 246, 0.2)', 'rgba(99, 102, 241, 0.2)']}
-                              style={styles.slotIconGradient}
-                            >
-                              <Save size={32} color="#FFFFFF" />
-                            </LinearGradient>
+                          <View style={styles.glassIconContainer}>
+                            <View style={styles.glassOverlay} />
+                            <Save size={32} color="#FFFFFF" />
                           </View>
                           <View style={styles.slotInfo}>
                             <Text style={styles.slotTitle}>Slot {slot.id}</Text>
@@ -235,28 +269,27 @@ export default function SaveSlots() {
                             )}
                           </View>
                           {isSelected && (
-                            <View style={styles.selectedIndicator}>
-                              <LinearGradient
-                                colors={['#10B981', '#059669']}
-                                style={styles.selectedGradient}
-                              >
-                                <Text style={styles.selectedText}>✓</Text>
-                              </LinearGradient>
+                            <View style={styles.glassSelectedIndicator}>
+                              <View style={styles.glassOverlay} />
+                              <Text style={styles.selectedText}>✓</Text>
                             </View>
                           )}
                         </View>
 
                         {isOccupied && (
                           <View style={styles.slotStats}>
-                            <View style={styles.statItem}>
+                            <View style={styles.glassStatItem}>
+                              <View style={styles.glassOverlay} />
                               <Text style={styles.statLabel}>Money</Text>
-                              <Text style={styles.statValue}>${slot.stats?.money?.toLocaleString() || 0}</Text>
+                              <Text style={styles.statValue}>{formatMoney(slot.stats?.money || 0)}</Text>
                             </View>
-                            <View style={styles.statItem}>
+                            <View style={styles.glassStatItem}>
+                              <View style={styles.glassOverlay} />
                               <Text style={styles.statLabel}>Age</Text>
                               <Text style={styles.statValue}>{Math.ceil(slot.date?.age || 0)}</Text>
                             </View>
-                            <View style={styles.statItem}>
+                            <View style={styles.glassStatItem}>
+                              <View style={styles.glassOverlay} />
                               <Text style={styles.statLabel}>Week</Text>
                               <Text style={styles.statValue}>{slot.date?.week || 0}</Text>
                             </View>
@@ -266,59 +299,58 @@ export default function SaveSlots() {
                         <View style={styles.slotActions}>
                           {isOccupied && (
                             <TouchableOpacity
-                              style={styles.deleteButton}
-                              onPress={() => deleteSlot(slot.id)}
+                              style={styles.glassDeleteButton}
+                              onPress={() => setShowDeleteConfirm(slot.id)}
+                              accessibilityLabel="Delete save slot"
+                              accessibilityRole="button"
                             >
-                              <LinearGradient
-                                colors={['rgba(239, 68, 68, 0.2)', 'rgba(220, 38, 38, 0.2)']}
-                                style={styles.deleteButtonGradient}
-                              >
-                                <Trash2 size={16} color="#EF4444" />
-                                <Text style={styles.deleteButtonText}>Delete</Text>
-                              </LinearGradient>
+                              <View style={styles.glassOverlay} />
+                              <Trash2 size={16} color="#EF4444" />
+                              <Text style={styles.deleteButtonText}>Delete</Text>
                             </TouchableOpacity>
                           )}
                         </View>
-                      </LinearGradient>
-                    </BlurView>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            {/* Action buttons */}
-            <View style={styles.actionButtons}>
-              {selectedSlot && slots.find(s => s.id === selectedSlot)?.hasData ? (
-                <TouchableOpacity style={styles.continueButton} onPress={continueToGame}>
-                  <BlurView intensity={20} style={styles.continueButtonBlur}>
-                    <LinearGradient
-                      colors={['rgba(16, 185, 129, 0.7)', 'rgba(5, 150, 105, 0.7)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.continueButtonGradient}
-                    >
-                      <Play size={24} color="#FFFFFF" />
-                      <Text style={styles.continueButtonText}>Continue Game</Text>
-                    </LinearGradient>
-                  </BlurView>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.newGameButton} onPress={startNewGame}>
-                  <BlurView intensity={20} style={styles.newGameButtonBlur}>
-                    <LinearGradient
-                      colors={['rgba(59, 130, 246, 0.7)', 'rgba(99, 102, 241, 0.7)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.newGameButtonGradient}
-                    >
-                      <Text style={styles.newGameButtonText}>Start New Game</Text>
-                    </LinearGradient>
-                  </BlurView>
-                </TouchableOpacity>
-              )}
-            </View>
+            {/* Bottom spacing for floating button */}
+            <View style={styles.bottomSpacing} />
           </View>
         </ScrollView>
+
+        {/* Floating Action Button */}
+        {selectedSlot && (
+          <View style={styles.floatingButtonContainer}>
+            {slots.find(s => s.id === selectedSlot)?.hasData ? (
+              <TouchableOpacity style={styles.floatingButton} onPress={continueToGame} activeOpacity={0.8}>
+                <View style={styles.glassButton}>
+                  <View style={styles.glassOverlay} />
+                  <View style={styles.buttonContent}>
+                    <Text style={styles.glassButtonTitle}>Continue Game</Text>
+                    <View style={styles.glassIconContainer}>
+                      <Play size={20} color="#FFFFFF" />
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.floatingButton} onPress={startNewGame} activeOpacity={0.8}>
+                <View style={styles.glassButton}>
+                  <View style={styles.glassOverlay} />
+                  <View style={styles.buttonContent}>
+                    <Text style={styles.glassButtonTitle}>Start New Game</Text>
+                    <View style={styles.glassIconContainer}>
+                      <Play size={20} color="#FFFFFF" />
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Floating particles */}
         <View style={styles.particlesContainer}>
@@ -344,6 +376,22 @@ export default function SaveSlots() {
           ))}
         </View>
       </Animated.View>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        visible={showDeleteConfirm !== null}
+        title="Delete Save?"
+        message="Are you sure you want to delete this save? This action cannot be undone, but a backup will be created."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={() => {
+          if (showDeleteConfirm !== null) {
+            deleteSlot(showDeleteConfirm);
+          }
+        }}
+        onCancel={() => setShowDeleteConfirm(null)}
+        type="error"
+      />
     </View>
   );
 }
@@ -402,13 +450,58 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  backButtonGradient: {
+  glassButton: {
     width: 48,
     height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+  },
+  glassIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 24,
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
   placeholder: {
     width: 48,
@@ -454,39 +547,23 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
   },
-  slotBlur: {
+  glassSlotCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 20,
+    position: 'relative',
     overflow: 'hidden',
   },
-  slotCard: {
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  glassSlotCardSelected: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
   },
   slotHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 16,
-  },
-  slotIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  slotIconGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   slotInfo: {
     flex: 1,
@@ -501,10 +578,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#D1D5DB',
   },
-  selectedIndicator: {
+  glassSelectedIndicator: {
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
     overflow: 'hidden',
     shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 4 },
@@ -512,11 +595,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  selectedGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
+  glassStatItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 12,
     alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    flex: 1,
+    marginHorizontal: 4,
   },
   selectedText: {
     color: '#FFFFFF',
@@ -543,21 +632,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   slotActions: {
     alignItems: 'flex-end',
   },
-  deleteButton: {
+  glassDeleteButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderRadius: 8,
-    overflow: 'hidden',
-  },
-  deleteButtonGradient: {
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    position: 'relative',
+    overflow: 'hidden',
   },
   deleteButtonText: {
     fontSize: 12,
@@ -565,62 +656,49 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     marginLeft: 4,
   },
-  actionButtons: {
-    paddingHorizontal: 20,
-    marginBottom: 40,
+  bottomSpacing: {
+    height: 120, // Space for floating button
   },
-  continueButton: {
-    borderRadius: 12,
+  floatingButtonContainer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+    right: 20,
+    zIndex: 10,
+  },
+  floatingButton: {
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 12,
   },
-  continueButtonBlur: {
-    borderRadius: 12,
+  glassButton: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
     overflow: 'hidden',
   },
-  continueButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
+  glassButtonTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  buttonContent: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  continueButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginLeft: 8,
-  },
-  newGameButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  newGameButtonBlur: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  newGameButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  newGameButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    justifyContent: 'center',
+    gap: 12,
   },
   particlesContainer: {
     position: 'absolute',

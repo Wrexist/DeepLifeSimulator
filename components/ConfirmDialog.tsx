@@ -1,7 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView } from 'moti';
 import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react-native';
 
 interface ConfirmDialogProps {
@@ -68,13 +67,7 @@ export default function ConfirmDialog({
       onRequestClose={onCancel}
     >
       <View style={styles.overlay}>
-        <MotiView
-          from={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ type: 'spring', damping: 15 }}
-          style={styles.container}
-        >
+        <View style={styles.container}>
           {icon && <View style={styles.iconContainer}>{icon}</View>}
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
@@ -102,7 +95,7 @@ export default function ConfirmDialog({
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </MotiView>
+        </View>
       </View>
     </Modal>
   );

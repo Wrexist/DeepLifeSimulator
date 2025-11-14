@@ -34,18 +34,6 @@ export default function HealthScreen() {
     }
   };
 
-  // Test function to trigger sickness modal
-  const testSicknessModal = () => {
-    const testDiseases = [
-      { id: 'flu', name: 'Flu', severity: 'mild', effects: { health: -15, energy: -20, happiness: -10 }, curable: true },
-      { id: 'fever', name: 'Fever', severity: 'serious', effects: { health: -20, energy: -25, fitness: -5 }, curable: true },
-    ];
-    setGameState(prev => ({
-      ...prev,
-      diseases: testDiseases,
-      showSicknessModal: true,
-    }));
-  };
 
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
@@ -180,20 +168,6 @@ export default function HealthScreen() {
           ))}
         </View>
 
-        {/* Test Button for Sickness Modal */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>🧪 Test Sickness Modal</Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.testButton, settings.darkMode && styles.testButtonDark]}
-            onPress={testSicknessModal}
-          >
-            <Text style={[styles.testButtonText, settings.darkMode && styles.testButtonTextDark]}>
-              Test Sickness Popup
-            </Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );

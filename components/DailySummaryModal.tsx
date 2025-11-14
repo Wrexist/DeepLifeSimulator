@@ -1,290 +1,546 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Platform } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { X, TrendingUp, TrendingDown } from 'lucide-react-native';
-import WeeklyResultSheet from './WeeklyResultSheet';
+import { X, TrendingUp, TrendingDown, Calendar, DollarSign, Activity, Heart } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
 
 export default function DailySummaryModal() {
   const { gameState, setGameState } = useGame();
   const { settings } = gameState;
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  // Show week summary on web regardless of notifications setting, or on mobile if notifications are enabled
-  const shouldShowModal = Platform.OS === 'web' ? true : settings.notificationsEnabled;
-  if (!shouldShowModal || !gameState.dailySummary) return null;
+  // Check if we should show the modal
+  const shouldShow = gameState.dailySummary && settings.weeklySummaryEnabled;
+  const isMonthly = (gameState.weeksLived || 0) % 4 === 0;
 
-  const { moneyChange, statsChange, events, earningsBreakdown } = gameState.dailySummary;
+  useEffect(() => {
+    if (shouldShow && !isClosing) {
+      setIsVisible(true);
+    } else {
+      setIsVisible(false);
+    }
+  }, [shouldShow, isClosing]);
+
+  // Cleanup effect to reset state when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clear any pending timeout to prevent setState on unmounted component
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+      setIsClosing(false);
+      setIsVisible(false);
+    };
+  }, []);
 
   const handleClose = () => {
-    // Clear the daily summary with a small delay to ensure it was visible
-    setTimeout(() => {
-      setGameState(prev => ({
-        ...prev,
-        dailySummary: undefined,
-      }));
-    }, 100);
+    if (isClosing) return; // Prevent multiple close calls
+    
+    setIsClosing(true);
+    setIsVisible(false);
+    
+    // Clear the daily summary immediately to prevent race conditions
+    setGameState(prev => ({
+      ...prev,
+      dailySummary: undefined,
+    }));
+    
+    // Clear any existing timeout
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    
+    // Reset closing state after animation (tracked with ref)
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsClosing(false);
+      closeTimeoutRef.current = null;
+    }, 300);
   };
 
+  if (!shouldShow || !isVisible) return null;
+
+  const { moneyChange, statsChange, events, earningsBreakdown } = gameState.dailySummary || {};
+
+
   return (
-    <WeeklyResultSheet visible onClose={handleClose}>
-        <View style={[styles.popup, settings.darkMode && styles.popupDark]}>
-          <View style={styles.header}>
-            <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Week {gameState.week} Summary</Text>
+    <Modal
+      visible={isVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={handleClose}
+    >
+      <View style={styles.overlay}>
+        <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
+          {/* Header */}
+          <View style={[styles.header, settings.darkMode && styles.headerDark]}>
+            <View style={styles.headerLeft}>
+              <Calendar size={24} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+              <Text style={[styles.title, settings.darkMode && styles.titleDark]}>
+                {isMonthly ? 'Monthly Summary' : 'Weekly Summary'}
+              </Text>
+            </View>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
-            {moneyChange !== 0 && (
-                <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Financial</Text>
-                <View
-                  style={[
-                    styles.changeItem,
-                    moneyChange > 0
-                      ? settings.darkMode ? styles.positiveDark : styles.positive
-                      : settings.darkMode ? styles.negativeDark : styles.negative,
-                  ]}>
-                  {moneyChange > 0 ? (
-                    <TrendingUp size={16} color="#10B981" />
+          {/* Content */}
+          <View style={styles.content}>
+            <ScrollView 
+              style={styles.scrollView}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={styles.scrollContent}
+            >
+            {/* Financial Summary */}
+            <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
+              <View style={styles.sectionHeader}>
+                <DollarSign size={20} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+                <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                  Financial Changes
+                </Text>
+              </View>
+              
+              <View style={[styles.changeCard, settings.darkMode && styles.changeCardDark]}>
+                <View style={styles.changeRow}>
+                  {(moneyChange || 0) > 0 ? (
+                    <TrendingUp size={20} color="#10B981" />
+                  ) : (moneyChange || 0) < 0 ? (
+                    <TrendingDown size={20} color="#EF4444" />
                   ) : (
-                    <TrendingDown size={16} color="#EF4444" />
+                    <DollarSign size={20} color="#6B7280" />
                   )}
-                  <Text style={[styles.changeText, moneyChange > 0 ? styles.positiveText : styles.negativeText]}>
-                    Money: {moneyChange > 0 ? '+' : ''}${Math.round(moneyChange)}
+                  <Text style={[
+                    styles.changeText,
+                    (moneyChange || 0) > 0 ? styles.positiveText :
+                    (moneyChange || 0) < 0 ? styles.negativeText :
+                    settings.darkMode ? styles.neutralTextDark : styles.neutralText
+                  ]}>
+                    {(moneyChange || 0) !== 0 
+                      ? `$${Math.round(moneyChange || 0).toLocaleString()}`
+                      : 'No financial changes'
+                    }
                   </Text>
                 </View>
-                
-                {/* Earnings Breakdown */}
-                {earningsBreakdown && (
-                  <View style={[styles.earningsBreakdown, settings.darkMode && styles.earningsBreakdownDark]}>
-                    <Text style={[styles.breakdownTitle, settings.darkMode && styles.breakdownTitleDark]}>Earnings Breakdown</Text>
-                    {earningsBreakdown.gaming > 0 && (
-                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
-                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
-                          🎮 Gaming: +${Math.round(earningsBreakdown.gaming)}
-                        </Text>
-                      </View>
-                    )}
-                    {earningsBreakdown.streaming > 0 && (
-                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
-                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
-                          📺 Streaming: +${Math.round(earningsBreakdown.streaming)}
-                        </Text>
-                      </View>
-                    )}
-                    {earningsBreakdown.salary > 0 && (
-                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
-                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
-                          💼 Salary: +${Math.round(earningsBreakdown.salary)}
-                        </Text>
-                      </View>
-                    )}
-                    {earningsBreakdown.passive > 0 && (
-                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
-                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
-                          📈 Passive Income: +${Math.round(earningsBreakdown.passive)}
-                        </Text>
-                      </View>
-                    )}
-                    {earningsBreakdown.sponsors > 0 && (
-                      <View style={[styles.breakdownItem, settings.darkMode && styles.breakdownItemDark]}>
-                        <Text style={[styles.breakdownText, settings.darkMode && styles.breakdownTextDark]}>
-                          🤝 Sponsors: +${Math.round(earningsBreakdown.sponsors)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
               </View>
-            )}
 
-            {Object.keys(statsChange).length > 0 && (
-                <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Stats Changes</Text>
-                {Object.entries(statsChange).map(([stat, change]) => {
-                  if (change === 0) return null;
-                  return (
-                    <View
-                      key={stat}
-                      style={[
-                        styles.changeItem,
-                        change! > 0
-                          ? settings.darkMode ? styles.positiveDark : styles.positive
-                          : settings.darkMode ? styles.negativeDark : styles.negative,
-                      ]}>
-                      {change! > 0 ? (
-                        <TrendingUp size={16} color="#10B981" />
-                      ) : (
-                        <TrendingDown size={16} color="#EF4444" />
-                      )}
-                      <Text style={[styles.changeText, change! > 0 ? styles.positiveText : styles.negativeText]}>
-                        {stat.charAt(0).toUpperCase() + stat.slice(1)}: {change! > 0 ? '+' : ''}{change}
+              {/* Earnings Breakdown */}
+              {earningsBreakdown && (
+                <View style={[styles.breakdown, settings.darkMode && styles.breakdownDark]}>
+                  <Text style={[styles.breakdownTitle, settings.darkMode && styles.breakdownTitleDark]}>
+                    Earnings Breakdown
+                  </Text>
+                  {earningsBreakdown.salary > 0 && (
+                    <View style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Salary:</Text>
+                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        +${Math.round(earningsBreakdown.salary).toLocaleString()}
                       </Text>
                     </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {events.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Events</Text>
-                  {events.map(event => (
-                    <View key={event} style={[styles.eventItem, settings.darkMode && styles.eventItemDark]}>
-                      <Text style={[styles.eventText, settings.darkMode && styles.eventTextDark]}>• {event}</Text>
+                  )}
+                  {earningsBreakdown.gaming > 0 && (
+                    <View style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Gaming:</Text>
+                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        +${Math.round(earningsBreakdown.gaming).toLocaleString()}
+                      </Text>
                     </View>
-                  ))}
+                  )}
+                  {earningsBreakdown.streaming > 0 && (
+                    <View style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Streaming:</Text>
+                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        +${Math.round(earningsBreakdown.streaming).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                  {earningsBreakdown.passive > 0 && (
+                    <View style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Passive Income:</Text>
+                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        +${Math.round(earningsBreakdown.passive).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                  {earningsBreakdown.sponsors > 0 && (
+                    <View style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Sponsors:</Text>
+                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        +${Math.round(earningsBreakdown.sponsors).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-            )}
-          </ScrollView>
+              )}
+            </View>
 
-          <TouchableOpacity style={styles.continueButton} onPress={handleClose}>
-            <Text style={styles.continueButtonText}>Continue</Text>
-          </TouchableOpacity>
+            {/* Stats Changes */}
+            <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
+              <View style={styles.sectionHeader}>
+                <Activity size={20} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+                <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                  Stats Changes
+                </Text>
+              </View>
+              
+              {statsChange && Object.keys(statsChange).length > 0 && Object.values(statsChange).some(change => change !== 0) ? (
+                Object.entries(statsChange).map(([stat, change]) => {
+                  if (change === 0) return null;
+                  return (
+                    <View key={stat} style={[styles.changeCard, settings.darkMode && styles.changeCardDark]}>
+                      <View style={styles.changeRow}>
+                        {change! > 0 ? (
+                          <TrendingUp size={20} color="#10B981" />
+                        ) : (
+                          <TrendingDown size={20} color="#EF4444" />
+                        )}
+                        <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>
+                          {stat.charAt(0).toUpperCase() + stat.slice(1)}:
+                        </Text>
+                        <Text style={[
+                          styles.changeText,
+                          change! > 0 ? styles.positiveText : styles.negativeText
+                        ]}>
+                          {change! > 0 ? '+' : ''}{change}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={[styles.changeCard, settings.darkMode && styles.changeCardDark]}>
+                  <Text style={[styles.noChangesText, settings.darkMode && styles.noChangesTextDark]}>
+                    No stat changes this period
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Events */}
+            <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
+              <View style={styles.sectionHeader}>
+                <Calendar size={20} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+                <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                  Events
+                </Text>
+              </View>
+              
+              {events && events.length > 0 ? (
+                events.map((event, index) => (
+                  <View key={index} style={[styles.eventCard, settings.darkMode && styles.eventCardDark]}>
+                    <Text style={[styles.eventText, settings.darkMode && styles.eventTextDark]}>
+                      • {event}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <View style={[styles.eventCard, settings.darkMode && styles.eventCardDark]}>
+                  <Text style={[styles.noChangesText, settings.darkMode && styles.noChangesTextDark]}>
+                    No special events this period
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Current Status */}
+            <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
+              <View style={styles.sectionHeader}>
+                <Heart size={20} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+                <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                  Current Status
+                </Text>
+              </View>
+              
+              <View style={[styles.statusCard, settings.darkMode && styles.statusCardDark]}>
+                <View style={styles.statusRow}>
+                  <Text style={[styles.statusLabel, settings.darkMode && styles.statusLabelDark]}>Money:</Text>
+                  <Text style={[styles.statusValue, settings.darkMode && styles.statusValueDark]}>
+                    ${Math.round(gameState.stats.money).toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.statusRow}>
+                  <Text style={[styles.statusLabel, settings.darkMode && styles.statusLabelDark]}>Age:</Text>
+                  <Text style={[styles.statusValue, settings.darkMode && styles.statusValueDark]}>
+                    {Math.floor(gameState.date.age)} years old
+                  </Text>
+                </View>
+                <View style={styles.statusRow}>
+                  <Text style={[styles.statusLabel, settings.darkMode && styles.statusLabelDark]}>Week:</Text>
+                  <Text style={[styles.statusValue, settings.darkMode && styles.statusValueDark]}>
+                    {gameState.date.week} of {gameState.date.month} {gameState.date.year}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            </ScrollView>
+          </View>
+
+          {/* Footer */}
+          <View style={[styles.footer, settings.darkMode && styles.footerDark]}>
+            <TouchableOpacity onPress={handleClose} style={styles.continueButton}>
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>Continue</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
-    </WeeklyResultSheet>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  popup: {
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: responsivePadding.horizontal,
+  },
+  modal: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    maxWidth: 400,
-    width: '100%',
-    maxHeight: '80%',
+    borderRadius: responsiveBorderRadius.lg,
+    width: '95%',
+    height: '85%',
+    maxHeight: '90%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,
   },
-  popupDark: {
+  modalDark: {
     backgroundColor: '#1F2937',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingBottom: 0,
+    padding: responsiveSpacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  headerDark: {
+    borderBottomColor: '#374151',
   },
-  titleDark: {
-    color: '#F9FAFB',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  sectionTitleDark: {
-    color: '#D1D5DB',
-  },
-  changeItem: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 4,
   },
-  positive: {
-    backgroundColor: '#F0FDF4',
+  title: {
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginLeft: responsiveSpacing.sm,
   },
-  positiveDark: {
-    backgroundColor: '#064E3B',
+  titleDark: {
+    color: '#FFFFFF',
   },
-  negative: {
-    backgroundColor: '#FEF2F2',
+  closeButton: {
+    padding: responsiveSpacing.sm,
   },
-  negativeDark: {
-    backgroundColor: '#7F1D1D',
+  content: {
+    flex: 1,
+    minHeight: 400,
   },
-  changeText: {
-    fontSize: 14,
-    marginLeft: 8,
+  scrollView: {
+    flex: 1,
   },
-  positiveText: {
-    color: '#059669',
+  scrollContent: {
+    padding: responsiveSpacing.lg,
+    flexGrow: 1,
   },
-  negativeText: {
-    color: '#DC2626',
+  section: {
+    marginBottom: responsiveSpacing.lg,
+    backgroundColor: '#F9FAFB',
+    borderRadius: responsiveBorderRadius.md,
+    padding: responsiveSpacing.md,
   },
-  eventItem: {
-    padding: 8,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  eventItemDark: {
+  sectionDark: {
     backgroundColor: '#374151',
   },
-  eventText: {
-    fontSize: 14,
-    color: '#374151',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: responsiveSpacing.md,
   },
-  eventTextDark: {
-    color: '#F9FAFB',
+  sectionTitle: {
+    fontSize: responsiveFontSize.lg,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginLeft: responsiveSpacing.sm,
   },
-  continueButton: {
-    backgroundColor: '#3B82F6',
-    padding: 16,
-    margin: 20,
-    marginTop: 0,
-    borderRadius: 8,
+  sectionTitleDark: {
+    color: '#FFFFFF',
+  },
+  changeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: responsiveBorderRadius.sm,
+    padding: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  changeCardDark: {
+    backgroundColor: '#4B5563',
+    borderColor: '#6B7280',
+  },
+  changeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  continueButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  changeText: {
+    fontSize: responsiveFontSize.base,
     fontWeight: '600',
+    marginLeft: responsiveSpacing.sm,
   },
-  earningsBreakdown: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
+  positiveText: {
+    color: '#10B981',
   },
-  earningsBreakdownDark: {
-    backgroundColor: '#374151',
+  negativeText: {
+    color: '#EF4444',
+  },
+  neutralText: {
+    color: '#6B7280',
+  },
+  neutralTextDark: {
+    color: '#9CA3AF',
+  },
+  statLabel: {
+    fontSize: responsiveFontSize.base,
+    color: '#374151',
+    marginLeft: responsiveSpacing.sm,
+    flex: 1,
+  },
+  statLabelDark: {
+    color: '#D1D5DB',
+  },
+  breakdown: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: responsiveBorderRadius.sm,
+    padding: responsiveSpacing.md,
+    marginTop: responsiveSpacing.sm,
+  },
+  breakdownDark: {
+    backgroundColor: '#4B5563',
   },
   breakdownTitle: {
-    fontSize: 14,
+    fontSize: responsiveFontSize.base,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: responsiveSpacing.sm,
   },
   breakdownTitleDark: {
     color: '#D1D5DB',
   },
-  breakdownItem: {
-    padding: 4,
-    marginBottom: 2,
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: responsiveSpacing.xs,
   },
-  breakdownItemDark: {
-    backgroundColor: 'transparent',
+  breakdownLabel: {
+    fontSize: responsiveFontSize.sm,
+    color: '#6B7280',
   },
-  breakdownText: {
-    fontSize: 13,
+  breakdownLabelDark: {
+    color: '#9CA3AF',
+  },
+  breakdownValue: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  breakdownValueDark: {
+    color: '#10B981',
+  },
+  eventCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: responsiveBorderRadius.sm,
+    padding: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  eventCardDark: {
+    backgroundColor: '#4B5563',
+    borderColor: '#6B7280',
+  },
+  eventText: {
+    fontSize: responsiveFontSize.sm,
     color: '#374151',
+    lineHeight: responsiveFontSize.sm * 1.4,
   },
-  breakdownTextDark: {
-    color: '#F9FAFB',
+  eventTextDark: {
+    color: '#D1D5DB',
+  },
+  statusCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: responsiveBorderRadius.sm,
+    padding: responsiveSpacing.md,
+  },
+  statusCardDark: {
+    backgroundColor: '#4B5563',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: responsiveSpacing.xs,
+  },
+  statusLabel: {
+    fontSize: responsiveFontSize.sm,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  statusLabelDark: {
+    color: '#9CA3AF',
+  },
+  statusValue: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  statusValueDark: {
+    color: '#FFFFFF',
+  },
+  noChangesText: {
+    fontSize: responsiveFontSize.sm,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  noChangesTextDark: {
+    color: '#9CA3AF',
+  },
+  footer: {
+    padding: responsiveSpacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  footerDark: {
+    borderTopColor: '#374151',
+  },
+  continueButton: {
+    borderRadius: responsiveBorderRadius.md,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    padding: responsiveSpacing.md,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: responsiveFontSize.lg,
+    fontWeight: '600',
+  },
+  debugTest: {
+    borderRadius: 8,
   },
 });

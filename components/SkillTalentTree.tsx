@@ -518,7 +518,7 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <BlurView intensity={20} style={styles.modalOverlay}>
         <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
           {/* Enhanced header with gradient background */}

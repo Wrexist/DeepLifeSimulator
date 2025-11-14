@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Dimensions, Animated, Easing, ImageBackground } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGame } from '@/contexts/GameContext';
@@ -33,17 +32,55 @@ export default function MainMenu() {
   // Simple animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // Random background selection
+  const backgroundImages = [
+    require('@/assets/images/Main_Menu.png'),
+    require('@/assets/images/Main_Menu_2.png'),
+    require('@/assets/images/Main_Menu_3.png'),
+  ];
+  
+  const [selectedBackground, setSelectedBackground] = useState(() => 
+    backgroundImages[Math.floor(Math.random() * backgroundImages.length)]
+  );
+
   useEffect(() => {
     let isMounted = true;
     
     (async () => {
       try {
-        const last = await AsyncStorage.getItem('lastSlot');
-        if (isMounted && last) {
-          setHasSave(true);
+        // Check if there's actual game data, not just a save slot
+        const gameState = await AsyncStorage.getItem('gameState');
+        const lastSlot = await AsyncStorage.getItem('lastSlot');
+        
+        if (isMounted && gameState && lastSlot) {
+          try {
+            // Parse the game state to check if it has meaningful progress
+            const parsedGameState = JSON.parse(gameState);
+            
+            // Validate that the parsed data has the expected structure
+            if (!parsedGameState || typeof parsedGameState !== 'object') {
+              setHasSave(false);
+              return;
+            }
+            
+            // Check if the game has meaningful progress (not just initial state)
+            const hasProgress = (parsedGameState.weeksLived > 0) || 
+                               (parsedGameState.stats?.money > 0) || 
+                               (parsedGameState.achievements?.some((a: any) => a?.completed)) ||
+                               (parsedGameState.relationships?.length > 0) ||
+                               (parsedGameState.items?.some((item: any) => item?.owned));
+            
+            setHasSave(hasProgress);
+          } catch (parseError) {
+            console.error('Failed to parse game state:', parseError);
+            setHasSave(false);
+          }
+        } else {
+          setHasSave(false);
         }
       } catch (error) {
-        console.error('Error checking last save slot:', error);
+        console.error('Error checking save data:', error);
+        setHasSave(false);
       }
     })();
 
@@ -78,20 +115,46 @@ export default function MainMenu() {
 
   const continueGame = async () => {
     try {
-      router.replace('/(tabs)');
+      // Ensure we have valid game data before continuing
+      const gameState = await AsyncStorage.getItem('gameState');
+      if (!gameState) {
+        console.error('No game state found when trying to continue');
+        return;
+      }
+      
+      // Load the game data properly
+      await loadGame();
+      
+      // Navigate to the main game with error handling
+      if (router && typeof router.replace === 'function') {
+        router.replace('/(tabs)');
+      } else {
+        console.error('Router not available for navigation');
+        startNew();
+      }
     } catch (error) {
       console.error('Navigation error:', error);
+      // If there's an error, fall back to new game
+      startNew();
     }
   };
 
   const startNew = () => {
-    setState(prev => ({ ...prev, slot: 1, scenario: undefined, perks: [], firstName: '', lastName: '' }));
-    router.push('/(onboarding)/Scenarios');
+    try {
+      setState(prev => ({ ...prev, slot: 1, scenario: undefined, perks: [], firstName: '', lastName: '' }));
+      if (router && typeof router.push === 'function') {
+        router.push('/(onboarding)/Scenarios');
+      } else {
+        console.error('Router not available for navigation');
+      }
+    } catch (error) {
+      console.error('Error starting new game:', error);
+    }
   };
 
   return (
     <ImageBackground
-      source={require('@/assets/images/Main_Menu.png')}
+      source={selectedBackground}
       style={styles.container}
       resizeMode="cover"
     >
@@ -109,80 +172,64 @@ export default function MainMenu() {
           <View style={styles.menuSection}>
             {hasSave && (
               <TouchableOpacity style={styles.buttonContainer} onPress={continueGame}>
-                <LinearGradient
-                  colors={['rgba(59, 130, 246, 0.7)', 'rgba(99, 102, 241, 0.7)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.button}
-                >
+                <View style={styles.glassButton}>
+                  <View style={styles.glassOverlay} />
                   <View style={styles.buttonContent}>
-                    <View style={styles.iconContainer}>
-                      <Play size={responsiveIconSize.lg} color="#3B82F6" />
+                    <View style={styles.glassIconContainer}>
+                      <Play size={responsiveIconSize.lg} color="#FFFFFF" />
                     </View>
                     <View style={styles.textContainer}>
-                      <Text style={styles.buttonTitle}>{t('mainMenu.continue')}</Text>
-                      <Text style={styles.buttonSubtitle}>{t('mainMenu.continueSubtitle')}</Text>
+                      <Text style={styles.glassButtonTitle}>{t('mainMenu.continue')}</Text>
+                      <Text style={styles.glassButtonSubtitle}>{t('mainMenu.continueSubtitle')}</Text>
                     </View>
                   </View>
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             )}
             
             <TouchableOpacity style={styles.buttonContainer} onPress={startNew}>
-              <LinearGradient
-                colors={['rgba(16, 185, 129, 0.7)', 'rgba(5, 150, 105, 0.7)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.button}
-              >
+              <View style={styles.glassButton}>
+                <View style={styles.glassOverlay} />
                 <View style={styles.buttonContent}>
-                                      <View style={styles.iconContainer}>
-                      <Plus size={responsiveIconSize.lg} color="#10B981" />
-                    </View>
+                  <View style={styles.glassIconContainer}>
+                    <Plus size={responsiveIconSize.lg} color="#FFFFFF" />
+                  </View>
                   <View style={styles.textContainer}>
-                    <Text style={styles.buttonTitle}>{t('mainMenu.newGame')}</Text>
-                    <Text style={styles.buttonSubtitle}>{t('mainMenu.newGameSubtitle')}</Text>
+                    <Text style={styles.glassButtonTitle}>{t('mainMenu.newGame')}</Text>
+                    <Text style={styles.glassButtonSubtitle}>{t('mainMenu.newGameSubtitle')}</Text>
                   </View>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.buttonContainer} onPress={() => router.push('/(onboarding)/SaveSlots')}>
-              <LinearGradient
-                colors={['rgba(245, 158, 11, 0.7)', 'rgba(217, 119, 6, 0.7)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.button}
-              >
+              <View style={styles.glassButton}>
+                <View style={styles.glassOverlay} />
                 <View style={styles.buttonContent}>
-                  <View style={styles.iconContainer}>
-                    <Save size={responsiveIconSize.lg} color="#F59E0B" />
+                  <View style={styles.glassIconContainer}>
+                    <Save size={responsiveIconSize.lg} color="#FFFFFF" />
                   </View>
                   <View style={styles.textContainer}>
-                    <Text style={styles.buttonTitle}>{t('mainMenu.saveSlots')}</Text>
-                    <Text style={styles.buttonSubtitle}>{t('mainMenu.saveSlotsSubtitle')}</Text>
+                    <Text style={styles.glassButtonTitle}>{t('mainMenu.saveSlots')}</Text>
+                    <Text style={styles.glassButtonSubtitle}>{t('mainMenu.saveSlotsSubtitle')}</Text>
                   </View>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.buttonContainer} onPress={() => setShowSettings(true)}>
-              <LinearGradient
-                colors={['rgba(107, 114, 128, 0.7)', 'rgba(75, 85, 99, 0.7)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.button}
-              >
+              <View style={styles.glassButton}>
+                <View style={styles.glassOverlay} />
                 <View style={styles.buttonContent}>
-                                      <View style={styles.iconContainer}>
-                      <Settings size={responsiveIconSize.lg} color="#6B7280" />
-                    </View>
+                  <View style={styles.glassIconContainer}>
+                    <Settings size={responsiveIconSize.lg} color="#FFFFFF" />
+                  </View>
                   <View style={styles.textContainer}>
-                    <Text style={styles.buttonTitle}>{t('mainMenu.settings')}</Text>
-                    <Text style={styles.buttonSubtitle}>{t('mainMenu.settingsSubtitle')}</Text>
+                    <Text style={styles.glassButtonTitle}>{t('mainMenu.settings')}</Text>
+                    <Text style={styles.glassButtonSubtitle}>{t('mainMenu.settingsSubtitle')}</Text>
                   </View>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -201,9 +248,6 @@ export default function MainMenu() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: '100%',
-    height: '100%',
-    marginTop: -50, // Extend background to cover status bar
   },
   overlay: {
     flex: 1,
@@ -231,16 +275,29 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.xl,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 15,
   },
-  button: {
-    paddingVertical: verticalScale(16), // Reduced from 20
-    paddingHorizontal: responsiveSpacing.xl, // Reduced from 2xl
+  glassButton: {
+    paddingVertical: verticalScale(18),
+    paddingHorizontal: responsiveSpacing.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: responsiveBorderRadius.xl,
   },
   buttonContent: {
     flexDirection: 'row',
@@ -257,6 +314,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
+  glassIconContainer: {
+    width: scale(52),
+    height: scale(52),
+    borderRadius: scale(26),
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: responsiveSpacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   textContainer: {
     flex: 1,
   },
@@ -269,6 +342,23 @@ const styles = StyleSheet.create({
   buttonSubtitle: {
     fontSize: responsiveFontSize.sm, // Reduced from base
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  glassButtonTitle: {
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: responsiveSpacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  glassButtonSubtitle: {
+    fontSize: responsiveFontSize.sm,
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontWeight: '400',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   versionContainer: {
     position: 'absolute',

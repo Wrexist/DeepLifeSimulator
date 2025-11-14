@@ -6,7 +6,7 @@ import { perks } from '@/src/features/onboarding/perksData';
 import { useGame } from '@/contexts/GameContext';
 
 export default function TombstonePopup() {
-  const { gameState, restartGame, reviveCharacter, currentSlot } = useGame();
+  const { gameState, setGameState, restartGame, reviveCharacter, currentSlot } = useGame();
   const router = useRouter();
   const { settings, deathReason, stats, date } = gameState;
   const completed = gameState.achievements?.filter(a => a.completed) || [];
@@ -15,14 +15,37 @@ export default function TombstonePopup() {
   );
 
   const handleNewLife = async () => {
-    await AsyncStorage.removeItem(`save_slot_${currentSlot}`);
-    await AsyncStorage.removeItem('lastSlot');
-    await restartGame();
-    router.replace('/(onboarding)/SaveSlots');
+    try {
+      // Close the death popup first
+      setGameState(prev => ({
+        ...prev,
+        showDeathPopup: false,
+        deathReason: undefined,
+      }));
+      
+      // Clear the current save slot
+      await AsyncStorage.removeItem(`save_slot_${currentSlot}`);
+      await AsyncStorage.removeItem('lastSlot');
+      
+      // Restart the game with preserved achievements and gems
+      await restartGame();
+      
+      // Navigate to main menu
+      router.replace('/(onboarding)/MainMenu');
+    } catch (error) {
+      console.error('Failed to start new life:', error);
+      // Re-show the death popup if there was an error
+      setGameState(prev => ({
+        ...prev,
+        showDeathPopup: true,
+      }));
+    }
   };
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
+    <Modal visible transparent animationType="fade" onRequestClose={() => {
+      // Prevent dismissal - user must choose an action (revive or new life)
+    }}>
       <View style={styles.overlay}>
         <View style={[styles.popup, settings.darkMode && styles.popupDark]}>
           <Image

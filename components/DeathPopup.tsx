@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Image, Animated, Dimensions, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
@@ -12,11 +13,21 @@ import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function DeathPopup() {
-  const { gameState, restartGame, reviveCharacter } = useGame();
+  const { gameState, setGameState, restartGame, reviveCharacter, currentSlot, buyRevival, clearSaveSlot } = useGame();
   const { settings, deathReason, stats, date, week } = gameState;
   const router = useRouter();
+  
+  // Safe data extraction with fallbacks
   const completed = gameState.achievements?.filter(a => a.completed) || [];
-  const unlockedPerks = gameState.perks ? Object.keys(gameState.perks).filter(key => gameState.perks?.[key]) : [];
+  const unlockedPerks = gameState.perks ? Object.keys(gameState.perks).filter(key => 
+    gameState.perks && typeof gameState.perks === 'object' && key in gameState.perks && gameState.perks[key as keyof typeof gameState.perks]
+  ) : [];
+  
+  // Safety check - if critical data is missing, don't render
+  if (!gameState || !stats || !date || !settings) {
+    console.error('DeathPopup: Missing critical game state data');
+    return null;
+  }
 
   // Calculate net worth
   const netWorthBreakdown = useMemo(() => {
@@ -122,8 +133,8 @@ export default function DeathPopup() {
       }),
     ]).start();
 
-    // Glow animation
-    Animated.loop(
+    // Glow animation loop
+    const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
           toValue: 1,
@@ -136,33 +147,82 @@ export default function DeathPopup() {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    glowLoop.start();
 
-    // Sparkle animation
-    Animated.loop(
+    // Sparkle animation loop
+    const sparkleLoop = Animated.loop(
       Animated.timing(sparkleAnim, {
         toValue: 1,
         duration: 3000,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    sparkleLoop.start();
+
+    // CRITICAL: Stop all animations on unmount to prevent memory leak
+    return () => {
+      glowLoop.stop();
+      sparkleLoop.stop();
+      fadeAnim.stopAnimation();
+      scaleAnim.stopAnimation();
+      slideAnim.stopAnimation();
+    };
   }, []);
 
-  const handleNewLife = () => {
-    router.push('/Scenarios');
+  const handleNewLife = async () => {
+    try {
+      console.log('Starting new life...');
+      
+      // Close the death popup first
+      setGameState(prev => ({
+        ...prev,
+        showDeathPopup: false,
+        deathReason: undefined,
+      }));
+      
+      // Add a small delay to ensure state update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Clear the current save slot completely using the dedicated function
+      await clearSaveSlot(currentSlot);
+      
+      // Restart the game with preserved achievements and gems
+      await restartGame();
+      
+      // Navigate to main menu
+      router.replace('/(onboarding)/MainMenu');
+    } catch (error) {
+      console.error('Failed to start new life:', error);
+      // Re-show the death popup if there was an error
+      setGameState(prev => ({
+        ...prev,
+        showDeathPopup: true,
+        deathReason: deathReason || 'health',
+      }));
+    }
   };
 
   const handleRevive = () => {
-    if (gameState.stats.gems >= 500) {
+    const reviveCost = 500;
+    if (gameState.stats.gems >= reviveCost) {
       reviveCharacter();
     }
   };
 
+  const getReviveCost = () => {
+    return 500; // Base cost for revival
+  };
+
+  const getGemsNeeded = () => {
+    const cost = getReviveCost();
+    const current = gameState.stats.gems;
+    return Math.max(0, cost - current);
+  };
+
   const handleIAPRevive = () => {
-    // TODO: Implement IAP purchase for revival
-    // For now, we'll simulate a successful purchase
-    console.log('IAP Revival purchase initiated');
-    // You can integrate with your IAP system here
+    // Use the IAP system to purchase revival
+    buyRevival();
   };
 
   const getDeathMessage = () => {
@@ -193,7 +253,9 @@ export default function DeathPopup() {
   const DeathIcon = deathInfo.icon;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
+    <Modal visible transparent animationType="fade" onRequestClose={() => {
+      // Prevent dismissal - user must choose an action (revive or new life)
+    }}>
       <View style={styles.overlay}>
         {/* Animated background blur */}
         <BlurView intensity={20} style={styles.blurBackground} />
@@ -254,7 +316,7 @@ export default function DeathPopup() {
                   ]}
                 />
                 <LinearGradient
-                  colors={deathInfo.gradient}
+                  colors={deathInfo.gradient as [string, string, ...string[]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.header}
@@ -296,7 +358,7 @@ export default function DeathPopup() {
                       <Gem size={scale(20)} color="#FFFFFF" />
                       <View style={styles.iapButtonContent}>
                         <Text style={styles.iapReviveButtonText}>Revive with Purchase</Text>
-                        <Text style={styles.iapReviveButtonSubtext}>Continue your journey</Text>
+                        <Text style={styles.iapReviveButtonSubtext}>$2.99 • Instant Revival</Text>
                       </View>
                       <Star size={scale(16)} color="#FFFFFF" />
                     </LinearGradient>
@@ -305,15 +367,22 @@ export default function DeathPopup() {
                   {/* Gem Revival Button */}
                   <TouchableOpacity style={styles.reviveButton} onPress={handleRevive} activeOpacity={0.8}>
                     <LinearGradient
-                      colors={gameState.stats.gems >= 500 ? ['#10B981', '#34D399'] : ['#6B7280', '#9CA3AF']}
+                      colors={gameState.stats.gems >= getReviveCost() ? ['#10B981', '#34D399'] : ['#6B7280', '#9CA3AF']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.reviveButtonGradient}
                     >
                       <Zap size={scale(18)} color="#FFFFFF" />
-                      <Text style={styles.reviveButtonText}>
-                        {gameState.stats.gems >= 500 ? 'Revive (500 gems)' : 'Not enough gems'}
-                      </Text>
+                      <View style={styles.reviveButtonContent}>
+                        <Text style={styles.reviveButtonText}>
+                          {gameState.stats.gems >= getReviveCost() 
+                            ? `Revive (${getReviveCost()} gems)` 
+                            : `Need ${getGemsNeeded()} more gems`}
+                        </Text>
+                        <Text style={styles.reviveButtonSubtext}>
+                          Current: {gameState.stats.gems} gems
+                        </Text>
+                      </View>
                     </LinearGradient>
                   </TouchableOpacity>
 
@@ -599,10 +668,10 @@ const styles = StyleSheet.create({
     paddingBottom: screenWidth * 0.03,
   },
   description: {
-    fontSize: responsiveFontSize.md,
+    fontSize: responsiveFontSize.base,
     color: '#4B5563',
     textAlign: 'center',
-    lineHeight: responsiveFontSize.md * 1.4,
+    lineHeight: responsiveFontSize.base * 1.4,
     marginBottom: screenHeight * 0.015,
     fontStyle: 'italic',
   },
@@ -672,7 +741,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   statValue: {
-    fontSize: responsiveFontSize.md,
+    fontSize: responsiveFontSize.base,
     fontWeight: 'bold',
     color: '#1F2937',
   },
@@ -697,9 +766,9 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
   achievementsList: {
-    fontSize: responsiveFontSize.md,
+    fontSize: responsiveFontSize.base,
     color: '#6B7280',
-    lineHeight: responsiveFontSize.md * 1.5,
+    lineHeight: responsiveFontSize.base * 1.5,
   },
   achievementsListDark: {
     color: '#9CA3AF',
@@ -819,10 +888,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: screenWidth * 0.04,
     gap: screenWidth * 0.015,
   },
+  reviveButtonContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
   reviveButtonText: {
     color: '#FFFFFF',
     fontSize: responsiveFontSize.lg,
     fontWeight: 'bold',
+  },
+  reviveButtonSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: responsiveFontSize.sm,
+    marginTop: 2,
   },
   newLifeButton: {
     borderRadius: responsiveBorderRadius.lg,

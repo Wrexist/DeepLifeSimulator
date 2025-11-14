@@ -2810,7 +2810,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       )}
 
       {/* Game Not Owned Modal */}
-      <Modal visible={showGameNotOwnedModal} transparent animationType="fade">
+      <Modal visible={showGameNotOwnedModal} transparent animationType="fade" onRequestClose={() => setShowGameNotOwnedModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -2852,7 +2852,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Not Enough Energy Modal */}
-      <Modal visible={showNotEnoughEnergyModal} transparent animationType="fade">
+      <Modal visible={showNotEnoughEnergyModal} transparent animationType="fade" onRequestClose={() => setShowNotEnoughEnergyModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -2894,7 +2894,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Select Game Modal */}
-      <Modal visible={showSelectGameModal} transparent animationType="fade">
+      <Modal visible={showSelectGameModal} transparent animationType="fade" onRequestClose={() => setShowSelectGameModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -2936,7 +2936,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Already Streaming Modal */}
-      <Modal visible={showAlreadyStreamingModal} transparent animationType="fade">
+      <Modal visible={showAlreadyStreamingModal} transparent animationType="fade" onRequestClose={() => setShowAlreadyStreamingModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -2978,7 +2978,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Followers Required Modal */}
-      <Modal visible={showFollowersRequiredModal} transparent animationType="fade">
+      <Modal visible={showFollowersRequiredModal} transparent animationType="fade" onRequestClose={() => setShowFollowersRequiredModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -3020,7 +3020,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Stream Ended Modal */}
-      <Modal visible={showStreamEndedModal} transparent animationType="fade">
+      <Modal visible={showStreamEndedModal} transparent animationType="fade" onRequestClose={() => setShowStreamEndedModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -3069,7 +3069,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Game Purchased Modal */}
-      <Modal visible={showGamePurchasedModal} transparent animationType="fade">
+      <Modal visible={showGamePurchasedModal} transparent animationType="fade" onRequestClose={() => setShowGamePurchasedModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -3111,7 +3111,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Already Owned Modal */}
-      <Modal visible={showAlreadyOwnedModal} transparent animationType="fade">
+      <Modal visible={showAlreadyOwnedModal} transparent animationType="fade" onRequestClose={() => setShowAlreadyOwnedModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -3153,7 +3153,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Insufficient Funds Modal */}
-      <Modal visible={showInsufficientFundsModal} transparent animationType="fade">
+      <Modal visible={showInsufficientFundsModal} transparent animationType="fade" onRequestClose={() => setShowInsufficientFundsModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -3198,7 +3198,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Recording in Progress Modal */}
-      <Modal visible={showRecordingInProgressModal} transparent animationType="fade">
+      <Modal visible={showRecordingInProgressModal} transparent animationType="fade" onRequestClose={() => setShowRecordingInProgressModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -3259,7 +3259,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       </Modal>
 
       {/* Resuming Modal */}
-      <Modal visible={showResumingModal} transparent animationType="fade">
+      <Modal visible={showResumingModal} transparent animationType="fade" onRequestClose={() => setShowResumingModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, settings.darkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -3352,6 +3352,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -3376,6 +3377,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: simpleScale(12),
+    paddingTop: 20,
+    paddingBottom: 40,
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   statsGrid: {
     flexDirection: 'row',

@@ -11,7 +11,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { 
-  Trophy, 
   Zap, 
   Star, 
   TrendingUp, 
@@ -44,33 +43,9 @@ export default function PremiumLoadingScreen({
   oldVersion,
   newVersion,
 }: PremiumLoadingScreenProps) {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-
-  // Pulsing animation for the trophy
-  useEffect(() => {
-    const pulseAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-      ])
-    );
-    pulseAnimation.start();
-
-    return () => pulseAnimation.stop();
-  }, [pulseAnim]);
 
   // Rotating animation for the background elements
   useEffect(() => {
@@ -143,26 +118,8 @@ export default function PremiumLoadingScreen({
 
       {/* Main content */}
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        {/* Hero section with trophy */}
+        {/* Hero section */}
         <View style={styles.heroSection}>
-          <Animated.View
-            style={[
-              styles.trophyContainer,
-              {
-                transform: [{ scale: pulseAnim }],
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={['#FFD700', '#FFA500']}
-              style={styles.trophyGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Trophy size={80} color="#FFFFFF" />
-            </LinearGradient>
-          </Animated.View>
-          
           <Text style={styles.title}>DeepLife Simulator</Text>
           <Text style={styles.subtitle}>Your Ultimate Life Simulation Experience</Text>
         </View>
@@ -306,21 +263,6 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: 'center',
     marginBottom: 60,
-  },
-  trophyContainer: {
-    marginBottom: 20,
-  },
-  trophyGradient: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
   },
   title: {
     fontSize: 32,

@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Users, Heart, Phone, Gift, DollarSign, Home, Gem, X, Baby, Star } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { getRelationshipImage } from '@/utils/characterImages';
 
 interface ContactsAppProps {
   onBack: () => void;
@@ -26,17 +27,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   const [moneyFeedback, setMoneyFeedback] = useState<{ [key: string]: string }>({});
   const timersRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      timersRef.current.forEach(timer => {
-        if (timer) clearTimeout(timer);
-      });
-      timersRef.current.clear();
-    };
-  }, []);
-
-  // Cleanup timers when component unmounts or dependencies change
+  // Cleanup timers when component unmounts
   useEffect(() => {
     return () => {
       timersRef.current.forEach(timer => {
@@ -171,6 +162,12 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           {gameState.relationships.map((relationship, index) => (
             <View key={relationship.id} style={styles.relationshipCard}>
               <View style={styles.relationshipHeader}>
+                <View style={styles.relationshipImageContainer}>
+                  <Image 
+                    source={getRelationshipImage(relationship.age || 25, relationship.gender || 'male', relationship.type)} 
+                    style={styles.relationshipImage} 
+                  />
+                </View>
                 <View style={styles.relationshipInfo}>
                   <Text style={styles.relationshipName}>{relationship.name}</Text>
                   <Text style={styles.relationshipType}>
@@ -414,7 +411,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
               <Users size={64} color="#9CA3AF" />
               <Text style={styles.emptyTitle}>No Relationships Yet</Text>
               <Text style={styles.emptyMessage}>
-                Use the Hinder app to find matches or meet people through social media!
+                Use the Dating app to find matches or meet people through social media!
               </Text>
             </View>
           )}
@@ -480,6 +477,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 15,
+  },
+  relationshipImageContainer: {
+    marginRight: 12,
+  },
+  relationshipImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#23283B',
   },
   relationshipInfo: {
     flex: 1,

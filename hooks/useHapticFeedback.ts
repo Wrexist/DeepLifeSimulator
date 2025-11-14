@@ -1,10 +1,18 @@
 import { useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
+import { useGame } from '@/contexts/GameContext';
 
 export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
 
 export function useHapticFeedback() {
+  const { gameState } = useGame();
+  
   const triggerHaptic = useCallback((type: HapticType) => {
+    // Check if haptic feedback is enabled in settings
+    if (!gameState.settings.hapticFeedback) {
+      return;
+    }
+    
     try {
       switch (type) {
         case 'light':
@@ -35,7 +43,7 @@ export function useHapticFeedback() {
       // Haptics not available on this device
       console.log('Haptic feedback not available:', error);
     }
-  }, []);
+  }, [gameState.settings.hapticFeedback]);
 
   const triggerButtonPress = useCallback(() => {
     triggerHaptic('light');

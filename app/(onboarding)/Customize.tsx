@@ -141,25 +141,26 @@ export default function Customize() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <LinearGradient
-              colors={['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.3)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.backButtonGradient}
-            >
-              <ArrowLeft size={24} color="#FFFFFF" />
-            </LinearGradient>
+            <View style={styles.glassButton}>
+              <View style={styles.glassOverlay} />
+              <View style={styles.glassIconContainer}>
+                <ArrowLeft size={24} color="#FFFFFF" />
+              </View>
+            </View>
           </TouchableOpacity>
           <Text style={styles.title}>Customize Character</Text>
           <View style={styles.placeholder} />
         </View>
 
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={true}>
           <View style={styles.scrollContent}>
             {/* Hero section */}
             <View style={styles.heroSection}>
-              <Text style={styles.heroTitle}>Define Your Identity</Text>
-              <Text style={styles.heroSubtitle}>Choose your character's traits and preferences</Text>
+              <View style={styles.glassCard}>
+                <View style={styles.glassOverlay} />
+                <Text style={styles.heroTitle}>Define Your Identity</Text>
+                <Text style={styles.heroSubtitle}>Choose your character's traits and preferences</Text>
+              </View>
             </View>
 
             {/* Name selection */}
@@ -167,57 +168,39 @@ export default function Customize() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Name</Text>
                 <TouchableOpacity style={styles.randomNameButton} onPress={generateRandomNameHandler}>
-                  <BlurView intensity={20} style={styles.randomNameButtonBlur}>
-                    <LinearGradient
-                      colors={['rgba(16, 185, 129, 0.3)', 'rgba(5, 150, 105, 0.3)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.randomNameButtonGradient}
-                    >
-                      <Shuffle size={16} color="#10B981" />
-                      <Text style={styles.randomNameButtonText}>Random</Text>
-                    </LinearGradient>
-                  </BlurView>
+                  <View style={styles.glassButton}>
+                    <View style={styles.glassOverlay} />
+                    <Shuffle size={16} color="#10B981" />
+                    <Text style={styles.randomNameButtonText}>Random</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
               <View style={styles.nameContainer}>
                 <View style={styles.nameInputContainer}>
                   <Text style={styles.inputLabel}>First Name</Text>
-                  <BlurView intensity={20} style={styles.inputBlur}>
-                    <LinearGradient
-                      colors={['rgba(31, 41, 55, 0.9)', 'rgba(17, 24, 39, 0.9)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.inputGradient}
-                    >
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Enter first name"
-                        placeholderTextColor="#6B7280"
-                        value={firstName}
-                        onChangeText={setFirstName}
-                      />
-                    </LinearGradient>
-                  </BlurView>
+                  <View style={styles.glassInput}>
+                    <View style={styles.glassOverlay} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Enter first name"
+                      placeholderTextColor="#6B7280"
+                      value={firstName}
+                      onChangeText={setFirstName}
+                    />
+                  </View>
                 </View>
                 <View style={styles.nameInputContainer}>
                   <Text style={styles.inputLabel}>Last Name</Text>
-                  <BlurView intensity={20} style={styles.inputBlur}>
-                    <LinearGradient
-                      colors={['rgba(31, 41, 55, 0.9)', 'rgba(17, 24, 39, 0.9)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.inputGradient}
-                    >
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Enter last name"
-                        placeholderTextColor="#6B7280"
-                        value={lastName}
-                        onChangeText={setLastName}
-                      />
-                    </LinearGradient>
-                  </BlurView>
+                  <View style={styles.glassInput}>
+                    <View style={styles.glassOverlay} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Enter last name"
+                      placeholderTextColor="#6B7280"
+                      value={lastName}
+                      onChangeText={setLastName}
+                    />
+                  </View>
                 </View>
               </View>
             </View>
@@ -225,56 +208,38 @@ export default function Customize() {
             {/* Sex selection */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Sex</Text>
-              <View style={styles.optionsContainer}>
+              <View style={styles.sexOptionsContainer}>
                 <TouchableOpacity
-                  style={styles.optionContainer}
+                  style={styles.sexOptionContainer}
                   onPress={() => setSex('male')}
                 >
-                  <BlurView intensity={20} style={styles.optionBlur}>
-                    <LinearGradient
-                      colors={sex === 'male' ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.optionCard}
-                    >
-                      <Image source={require('@/assets/images/Sex/Male.png')} style={styles.optionIcon} />
-                      <Text style={styles.optionText}>Male</Text>
-                    </LinearGradient>
-                  </BlurView>
+                  <View style={[styles.glassOptionCard, sex === 'male' && styles.glassOptionCardSelected]}>
+                    <View style={styles.glassOverlay} />
+                    <Image source={require('@/assets/images/Sex/Male.png')} style={styles.optionIcon} />
+                    <Text style={styles.sexOptionText}>Male</Text>
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.optionContainer}
+                  style={styles.sexOptionContainer}
                   onPress={() => setSex('female')}
                 >
-                  <BlurView intensity={20} style={styles.optionBlur}>
-                    <LinearGradient
-                      colors={sex === 'female' ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.optionCard}
-                    >
-                      <Image source={require('@/assets/images/Sex/Female.png')} style={styles.optionIcon} />
-                      <Text style={styles.optionText}>Female</Text>
-                    </LinearGradient>
-                  </BlurView>
+                  <View style={[styles.glassOptionCard, sex === 'female' && styles.glassOptionCardSelected]}>
+                    <View style={styles.glassOverlay} />
+                    <Image source={require('@/assets/images/Sex/Female.png')} style={styles.optionIcon} />
+                    <Text style={styles.sexOptionText}>Female</Text>
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.optionContainer}
+                  style={styles.sexOptionContainer}
                   onPress={() => setSex('random')}
                 >
-                  <BlurView intensity={20} style={styles.optionBlur}>
-                    <LinearGradient
-                      colors={sex === 'random' ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.optionCard}
-                    >
-                      <Image source={require('@/assets/images/Sex/Dice.png')} style={styles.optionIcon} />
-                      <Text style={styles.optionText}>Random</Text>
-                    </LinearGradient>
-                  </BlurView>
+                  <View style={[styles.glassOptionCard, sex === 'random' && styles.glassOptionCardSelected]}>
+                    <View style={styles.glassOverlay} />
+                    <Image source={require('@/assets/images/Sex/Dice.png')} style={styles.optionIcon} />
+                    <Text style={styles.sexOptionTextRandom}>Random</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>
@@ -282,69 +247,45 @@ export default function Customize() {
             {/* Sexuality selection */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Sexuality</Text>
-              <View style={styles.optionsContainer}>
+              <View style={styles.sexualityOptionsContainer}>
                 <TouchableOpacity
-                  style={styles.optionContainer}
+                  style={styles.sexualityOptionContainer}
                   onPress={() => setSexuality('straight')}
                 >
-                  <BlurView intensity={20} style={styles.optionBlur}>
-                    <LinearGradient
-                      colors={sexuality === 'straight' ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.optionCard}
-                    >
-                      <Text style={styles.optionText}>Straight</Text>
-                    </LinearGradient>
-                  </BlurView>
+                  <View style={[styles.glassOptionCard, sexuality === 'straight' && styles.glassOptionCardSelected]}>
+                    <View style={styles.glassOverlay} />
+                    <Text style={styles.sexualityOptionText}>Straight</Text>
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.optionContainer}
+                  style={styles.sexualityOptionContainer}
                   onPress={() => setSexuality('gay')}
                 >
-                  <BlurView intensity={20} style={styles.optionBlur}>
-                    <LinearGradient
-                      colors={sexuality === 'gay' ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.optionCard}
-                    >
-                      <Text style={styles.optionText}>Gay</Text>
-                    </LinearGradient>
-                  </BlurView>
+                  <View style={[styles.glassOptionCard, sexuality === 'gay' && styles.glassOptionCardSelected]}>
+                    <View style={styles.glassOverlay} />
+                    <Text style={styles.sexualityOptionText}>Gay</Text>
+                  </View>
                 </TouchableOpacity>
 
-                                 <TouchableOpacity
-                   style={styles.optionContainer}
-                   onPress={() => setSexuality('bi')}
-                 >
-                   <BlurView intensity={20} style={styles.optionBlur}>
-                     <LinearGradient
-                       colors={sexuality === 'bi' ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
-                       start={{ x: 0, y: 0 }}
-                       end={{ x: 1, y: 1 }}
-                       style={styles.optionCard}
-                     >
-                       <Text style={styles.optionText}>Bisexual</Text>
-                     </LinearGradient>
-                   </BlurView>
-                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.sexualityOptionContainer}
+                  onPress={() => setSexuality('bi')}
+                >
+                  <View style={[styles.glassOptionCard, sexuality === 'bi' && styles.glassOptionCardSelected]}>
+                    <View style={styles.glassOverlay} />
+                    <Text style={styles.sexualityOptionText}>Bisexual</Text>
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
 
             {/* Next button */}
             <TouchableOpacity style={styles.nextButton} onPress={next}>
-              <BlurView intensity={20} style={styles.nextButtonBlur}>
-                <LinearGradient
-                  colors={['rgba(16, 185, 129, 0.7)', 'rgba(5, 150, 105, 0.7)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.nextButtonGradient}
-                >
-                  <Text style={styles.nextButtonText}>Continue</Text>
-                </LinearGradient>
-              </BlurView>
+              <View style={styles.glassButton}>
+                <View style={styles.glassOverlay} />
+                <Text style={styles.glassButtonTitle}>Continue</Text>
+              </View>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -430,18 +371,46 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  backButtonGradient: {
+  glassButton: {
     width: 48,
     height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+  },
+  glassIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   placeholder: {
     width: 48,
@@ -474,8 +443,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   section: {
-    marginBottom: responsiveSpacing['2xl'],
-    paddingHorizontal: responsivePadding.large,
+    marginBottom: responsiveSpacing.xl,
+    paddingHorizontal: responsivePadding.medium,
   },
   nameContainer: {
     flexDirection: 'row',
@@ -526,6 +495,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
+    marginBottom: responsiveSpacing.sm,
   },
   randomNameButton: {
     borderRadius: 12,
@@ -559,6 +529,7 @@ const styles = StyleSheet.create({
   },
   optionContainer: {
     flex: 1,
+    minHeight: 100, // Ensure consistent height
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -574,8 +545,10 @@ const styles = StyleSheet.create({
   optionCard: {
     padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    minHeight: 100, // Match container height
   },
   optionIcon: {
     width: 48,
@@ -584,15 +557,23 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   optionText: {
-    fontSize: responsiveFontSize.lg,
+    fontSize: responsiveFontSize.base, // Reduced from lg to base for better fit
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
+    lineHeight: responsiveFontSize.base * 1.2, // Better line height for readability
+    flexWrap: 'wrap', // Allow text wrapping if needed
   },
-  nextButton: {
-    marginHorizontal: 20,
-    marginBottom: 40,
-    borderRadius: 12,
+  // Sex-specific styles for consistent sizing
+  sexOptionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  sexOptionContainer: {
+    flex: 1,
+    minHeight: 120, // Slightly taller for sex options with icons
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -600,21 +581,103 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
   },
-  nextButtonBlur: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  nextButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+  sexOptionCard: {
+    padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    minHeight: 120, // Match container height
   },
-  nextButtonText: {
-    fontSize: responsiveFontSize.xl,
+  sexOptionText: {
+    fontSize: responsiveFontSize.base,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: responsiveFontSize.base * 1.2,
+  },
+  sexOptionTextRandom: {
+    fontSize: responsiveFontSize.sm, // Smaller font for "Random"
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: responsiveFontSize.sm * 1.2,
+  },
+  // Sexuality-specific styles for better text handling
+  sexualityOptionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  sexualityOptionContainer: {
+    flex: 1,
+    minHeight: 80, // Reduced height to match card
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  sexualityOptionCard: {
+    padding: responsivePadding.small, // Reduced padding for better text fit
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    minHeight: 80, // Reduced height for less padding
+  },
+  sexualityOptionText: {
+    fontSize: Math.min(responsiveFontSize.base, 14), // Smaller font for sexuality options
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: Math.min(responsiveFontSize.base, 14) * 1.2, // Reduced line height for less padding
+    flexWrap: 'wrap',
+    maxWidth: '100%', // Ensure text doesn't overflow
+    paddingVertical: responsivePadding.small, // Add small vertical padding for text
+  },
+  nextButton: {
+    marginHorizontal: 20,
+    marginBottom: 40,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  glassButton: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+  },
+  glassButtonTitle: {
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   particlesContainer: {
     position: 'absolute',
@@ -628,5 +691,56 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: 'rgba(59, 130, 246, 0.3)',
     borderRadius: 2,
+  },
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 24,
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  glassInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  glassOptionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+    minHeight: 80,
+  },
+  glassOptionCardSelected: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
   },
 });

@@ -5,7 +5,7 @@ import { ArrowLeft, Bitcoin, Zap, DollarSign, TrendingUp, TrendingDown, Cpu, Act
 import { useGame } from '@/contexts/GameContext';
 import { MotiView } from 'moti';
 import { CoinEffect } from '@/components/ui/ParticleEffects';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useFeedback } from '@/utils/feedbackSystem';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -37,7 +37,7 @@ interface Crypto {
 
 export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
   const { gameState, buyCrypto, sellCrypto, swapCrypto, buyMiner, buyWarehouse, upgradeWarehouse, selectMiningCrypto, selectWarehouseMiningCrypto, setGameState, saveGame } = useGame();
-  const { triggerSuccess, triggerButtonPress } = useHapticFeedback();
+  const { success, buttonPress } = useFeedback(gameState.settings.hapticFeedback);
   const [activeTab, setActiveTab] = useState<'miners' | 'crypto'>('miners');
 
   const formatMoney = (amount: number) => {
@@ -94,7 +94,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
   useEffect(() => {
     if (showPurchaseSuccessModal) {
       setShowCoinEffect(true);
-      triggerSuccess();
+      success();
       Animated.spring(modalScaleAnim, {
         toValue: 1,
         tension: 100,
@@ -105,7 +105,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
       modalScaleAnim.setValue(0);
       setShowCoinEffect(false);
     }
-  }, [showPurchaseSuccessModal, modalScaleAnim, triggerSuccess]);
+  }, [showPurchaseSuccessModal, modalScaleAnim, success]);
 
   // Crypto mining difficulty multipliers (based on real-world mining difficulty)
   const cryptoMiningMultipliers = {
@@ -131,7 +131,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
   ];
 
   const handleBuyMiner = (miner: Miner) => {
-    triggerButtonPress();
+    buttonPress();
     
     const result = buyMiner(miner.id, miner.name, miner.price);
     
@@ -1088,7 +1088,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
       </ScrollView>
 
       {/* Investment Modal */}
-      <Modal visible={showInvestModal} transparent animationType="fade">
+      <Modal visible={showInvestModal} transparent animationType="fade" onRequestClose={() => setShowInvestModal(false)}>
         <View style={styles.modalOverlay}>
           <LinearGradient
             colors={['#1F2937', '#111827']}
@@ -1151,7 +1151,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
       </Modal>
 
       {/* Sell Modal */}
-      <Modal visible={showSellModal} transparent animationType="fade">
+      <Modal visible={showSellModal} transparent animationType="fade" onRequestClose={() => setShowSellModal(false)}>
         <View style={styles.modalOverlay}>
           <LinearGradient
             colors={['#1F2937', '#111827']}
@@ -1201,7 +1201,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
       </Modal>
 
       {/* Auto-Repair Modal */}
-      <Modal visible={showAutoRepairModal} transparent animationType="fade">
+      <Modal visible={showAutoRepairModal} transparent animationType="fade" onRequestClose={() => setShowAutoRepairModal(false)}>
         <View style={styles.modalOverlay}>
           <LinearGradient
             colors={['#1F2937', '#111827']}
@@ -1272,7 +1272,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
       </Modal>
 
       {/* Swap Modal */}
-      <Modal visible={showSwapModal} transparent animationType="fade">
+      <Modal visible={showSwapModal} transparent animationType="fade" onRequestClose={() => setShowSwapModal(false)}>
         <View style={styles.modalOverlay}>
           <LinearGradient
             colors={['#1F2937', '#111827']}
@@ -1520,7 +1520,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
                 <TouchableOpacity
                   style={styles.enhancedModalButton}
                   onPress={() => {
-                    triggerSuccess();
+                    success();
                     setShowCoinEffect(false);
                     Animated.timing(modalScaleAnim, {
                       toValue: 0,
@@ -1555,7 +1555,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
       </Modal>
 
       {/* Warehouse Full Modal */}
-      <Modal visible={showWarehouseFullModal} transparent animationType="fade">
+      <Modal visible={showWarehouseFullModal} transparent animationType="fade" onRequestClose={() => setShowWarehouseFullModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, isDarkMode && styles.modalContainerDark]}>
             <LinearGradient
@@ -1679,6 +1679,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    height: 60,
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -1711,7 +1712,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 40,
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   itemsContainer: {
     gap: 16,

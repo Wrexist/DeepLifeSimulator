@@ -62,7 +62,8 @@ export default function ResponsiveLayout({
   const containerStyle = [
     styles.container,
     {
-      padding: getPadding(),
+      // Increase padding on tablets to use dead space better
+      padding: isIPad() ? getPadding() * 1.5 : getPadding(),
       gap: getSpacing(),
       flexDirection: direction,
       justifyContent: justify,

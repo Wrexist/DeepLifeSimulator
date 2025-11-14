@@ -38,7 +38,7 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
   const [iapState, setIapState] = useState<IAPState>(iapService.getState());
   const [purchasingProduct, setPurchasingProduct] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'iap' | 'gems' | 'perks'>('iap');
-  const { gameState, buyGoldUpgrade, setGameState } = useGame();
+  const { gameState, buyGoldUpgrade, setGameState, savePermanentPerk, hasPermanentPerk } = useGame();
 
   useEffect(() => {
     const unsubscribe = iapService.addListener(setIapState);
@@ -88,34 +88,64 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
 
   const handlePerkPurchase = async (productId: string) => {
     try {
+      // Check if perk is already owned (permanent perks)
+      const config = getProductConfig(productId);
+      const perkIds: string[] = [];
+      
+      if (config?.workBoost) perkIds.push('workBoost');
+      if (config?.mindset) perkIds.push('mindset');
+      if (config?.fastLearner) perkIds.push('fastLearner');
+      if (config?.goodCredit) perkIds.push('goodCredit');
+      if (config?.allPerks) perkIds.push('workBoost', 'mindset', 'fastLearner', 'goodCredit');
+      
+      // Check if any of these perks are already owned
+      const alreadyOwned = await Promise.all(perkIds.map(id => hasPermanentPerk(id)));
+      if (alreadyOwned.some(owned => owned)) {
+        Alert.alert(
+          'Already Owned',
+          'You already own this perk! It will carry over to all your lives automatically.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
       setPurchasingProduct(productId);
       
       const result = await iapService.purchaseProduct(productId);
       
       if (result.success) {
-        // Apply the perk to the game state
-        const config = getProductConfig(productId);
+        // Apply the perk to the game state AND save as permanent
         if (config?.workBoost) {
+          await savePermanentPerk('workBoost');
           setGameState(prev => ({
             ...prev,
             perks: { ...prev.perks, workBoost: true }
           }));
         } else if (config?.mindset) {
+          await savePermanentPerk('mindset');
           setGameState(prev => ({
             ...prev,
             perks: { ...prev.perks, mindset: true }
           }));
         } else if (config?.fastLearner) {
+          await savePermanentPerk('fastLearner');
           setGameState(prev => ({
             ...prev,
             perks: { ...prev.perks, fastLearner: true }
           }));
         } else if (config?.goodCredit) {
+          await savePermanentPerk('goodCredit');
           setGameState(prev => ({
             ...prev,
             perks: { ...prev.perks, goodCredit: true }
           }));
         } else if (config?.allPerks) {
+          await Promise.all([
+            savePermanentPerk('workBoost'),
+            savePermanentPerk('mindset'),
+            savePermanentPerk('fastLearner'),
+            savePermanentPerk('goodCredit')
+          ]);
           setGameState(prev => ({
             ...prev,
             perks: { 
@@ -130,7 +160,7 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
         
         Alert.alert(
           'Purchase Successful!',
-          'Your perk has been unlocked!',
+          'Your perk has been unlocked permanently! It will carry over to all future lives.',
           [{ text: 'OK' }]
         );
       } else {

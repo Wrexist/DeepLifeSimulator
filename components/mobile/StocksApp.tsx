@@ -3,8 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView,
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, BarChart3, Plus, Minus, RefreshCw } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import LoadingButton from '@/components/ui/LoadingButton';
+import InfoButton from '@/components/ui/InfoButton';
 import { SkeletonLoader, SkeletonList } from '@/components/ui/SkeletonLoader';
 import { EmptyPortfolio } from '@/components/ui/EmptyState';
+import { getStockInfo, getAllStockSymbols } from '@/lib/economy/stockMarket';
 
 interface StocksAppProps {
   onBack: () => void;
@@ -136,7 +139,80 @@ const mockStocks: Stock[] = [
   },
 ];
 
+// Generate real stock data from game state
+const generateRealStockData = (): Stock[] => {
+  const stockSymbols = getAllStockSymbols();
+  
+  return stockSymbols.map(symbol => {
+    const stockInfo = getStockInfo(symbol);
+    const previousPrice = stockInfo.price * (1 + (Math.random() - 0.5) * 0.02); // Small variation for change calculation
+    
+    return {
+      symbol,
+      name: getStockName(symbol),
+      currentPrice: stockInfo.price,
+      change: stockInfo.price - previousPrice,
+      changePercent: ((stockInfo.price - previousPrice) / previousPrice) * 100,
+      volume: Math.floor(Math.random() * 10000000) + 1000000, // Random volume
+      marketCap: stockInfo.price * (Math.floor(Math.random() * 1000000000) + 1000000000), // Random market cap
+      candlesticks: generateCandlesticks(stockInfo.price),
+    };
+  });
+};
 
+// Helper function to get stock names
+const getStockName = (symbol: string): string => {
+  const names: Record<string, string> = {
+    AAPL: 'Apple Inc.',
+    GOOGL: 'Alphabet Inc.',
+    MSFT: 'Microsoft Corp.',
+    TSLA: 'Tesla Inc.',
+    AMZN: 'Amazon.com Inc.',
+    META: 'Meta Platforms Inc.',
+    NVDA: 'NVIDIA Corp.',
+    NFLX: 'Netflix Inc.',
+    WMT: 'Walmart Inc.',
+    JPM: 'JPMorgan Chase & Co.',
+    JNJ: 'Johnson & Johnson',
+    PG: 'Procter & Gamble Co.',
+    KO: 'The Coca-Cola Co.',
+    DIS: 'The Walt Disney Co.',
+    V: 'Visa Inc.',
+    MA: 'Mastercard Inc.',
+    HD: 'The Home Depot Inc.',
+    BA: 'The Boeing Co.',
+    CAT: 'Caterpillar Inc.',
+    IBM: 'International Business Machines Corp.',
+  };
+  return names[symbol] || `${symbol} Corp.`;
+};
+
+// Generate candlestick data
+const generateCandlesticks = (currentPrice: number): Candlestick[] => {
+  const candlesticks: Candlestick[] = [];
+  let price = currentPrice;
+  
+  for (let i = 4; i >= 0; i--) {
+    const open = price;
+    const change = (Math.random() - 0.5) * 0.05; // 5% max change
+    const close = open * (1 + change);
+    const high = Math.max(open, close) * (1 + Math.random() * 0.02);
+    const low = Math.min(open, close) * (1 - Math.random() * 0.02);
+    
+    candlesticks.push({
+      open: Math.round(open * 100) / 100,
+      high: Math.round(high * 100) / 100,
+      low: Math.round(low * 100) / 100,
+      close: Math.round(close * 100) / 100,
+      volume: Math.floor(Math.random() * 50000000) + 10000000,
+      date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    });
+    
+    price = close;
+  }
+  
+  return candlesticks.reverse();
+};
 
 export default function StocksApp({ onBack }: StocksAppProps) {
   const { gameState, setGameState, saveGame, updateMoney } = useGame();
@@ -147,17 +223,22 @@ export default function StocksApp({ onBack }: StocksAppProps) {
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [isLoading, setIsLoading] = useState(false);
+  const [inputMode, setInputMode] = useState<'shares' | 'money'>('shares');
+  const [tradingLoading, setTradingLoading] = useState(false);
 
   const holdings: Holding[] = gameState.stocks?.holdings || [];
   const watchlist: string[] = gameState.stocks?.watchlist || [];
   const cash = gameState.stats?.money || 0;
 
+  // Generate real stock data
+  const stocks = useMemo(() => generateRealStockData(), [gameState.week]); // Re-generate when week changes
+  
   const portfolioValue = useMemo(() => {
     return holdings.reduce((total, holding) => {
-      const stock = mockStocks.find(s => s.symbol === holding.symbol);
+      const stock = stocks.find(s => s.symbol === holding.symbol);
       return total + (holding.shares * (stock?.currentPrice || holding.currentPrice));
     }, 0);
-  }, [holdings]);
+  }, [holdings, stocks]);
 
   const totalInvested = useMemo(() => {
     return holdings.reduce((total, holding) => total + (holding.shares * holding.averagePrice), 0);
@@ -166,14 +247,35 @@ export default function StocksApp({ onBack }: StocksAppProps) {
   const portfolioGain = portfolioValue - totalInvested;
   const portfolioGainPercent = totalInvested > 0 ? (portfolioGain / totalInvested) * 100 : 0;
 
-  const handleBuy = useCallback(() => {
+  const handleBuy = useCallback(async () => {
     if (!selectedStock || !shares || isNaN(Number(shares)) || Number(shares) <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid number of shares.');
+      Alert.alert('Invalid Input', `Please enter a valid ${inputMode === 'shares' ? 'number of shares' : 'amount of money'}.`);
       return;
     }
 
-    const sharesToBuy = Number(shares);
-    const totalCost = sharesToBuy * selectedStock.currentPrice;
+    setTradingLoading(true);
+    try {
+      // Simulate trading delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+    let sharesToBuy: number;
+    let totalCost: number;
+
+    if (inputMode === 'shares') {
+      sharesToBuy = Number(shares);
+      totalCost = sharesToBuy * selectedStock.currentPrice;
+    } else {
+      totalCost = Number(shares);
+      sharesToBuy = Math.floor(totalCost / selectedStock.currentPrice);
+      
+      if (sharesToBuy === 0) {
+        Alert.alert('Invalid Amount', `You need at least $${selectedStock.currentPrice.toFixed(2)} to buy 1 share.`);
+        return;
+      }
+      
+      // Recalculate total cost based on actual shares
+      totalCost = sharesToBuy * selectedStock.currentPrice;
+    }
 
     if (totalCost > cash) {
       Alert.alert('Insufficient Funds', `You need $${totalCost.toFixed(2)} but only have $${cash.toFixed(2)}.`);
@@ -192,7 +294,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
       newHoldings = holdings.map(h => 
         h.symbol === selectedStock.symbol 
           ? { ...h, shares: totalShares, averagePrice: newAveragePrice, currentPrice: selectedStock.currentPrice }
-          : h
+          : { ...h, currentPrice: stocks.find(s => s.symbol === h.symbol)?.currentPrice || h.currentPrice }
       );
     } else {
       // Add new holding
@@ -216,27 +318,56 @@ export default function StocksApp({ onBack }: StocksAppProps) {
     }));
     saveGame();
 
-    Alert.alert('Purchase Successful', `Bought ${sharesToBuy} shares of ${selectedStock.symbol} for $${totalCost.toFixed(2)}.`);
-    setShowTradeModal(false);
-    setShares('');
-    setSelectedStock(null);
-  }, [selectedStock, shares, cash, holdings, setGameState, saveGame]);
+      Alert.alert('Purchase Successful', `Bought ${sharesToBuy} shares of ${selectedStock.symbol} for $${totalCost.toFixed(2)}.`);
+      setShowTradeModal(false);
+      setShares('');
+      setSelectedStock(null);
+    } catch (error) {
+      Alert.alert('Trade Failed', 'Unable to complete the purchase. Please try again.');
+    } finally {
+      setTradingLoading(false);
+    }
+  }, [selectedStock, shares, inputMode, cash, holdings, setGameState, saveGame, updateMoney]);
 
   const handleSell = useCallback(() => {
     if (!selectedStock || !shares || isNaN(Number(shares)) || Number(shares) <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid number of shares.');
+      Alert.alert('Invalid Input', `Please enter a valid ${inputMode === 'shares' ? 'number of shares' : 'amount of money'}.`);
       return;
     }
 
-    const sharesToSell = Number(shares);
     const existingHolding = holdings.find(h => h.symbol === selectedStock.symbol);
-
-    if (!existingHolding || existingHolding.shares < sharesToSell) {
-      Alert.alert('Insufficient Shares', `You don't have enough shares of ${selectedStock.symbol}.`);
+    if (!existingHolding) {
+      Alert.alert('No Holdings', `You don't own any shares of ${selectedStock.symbol}.`);
       return;
     }
 
-    const totalValue = sharesToSell * selectedStock.currentPrice;
+    let sharesToSell: number;
+    let totalValue: number;
+
+    if (inputMode === 'shares') {
+      sharesToSell = Number(shares);
+      if (existingHolding.shares < sharesToSell) {
+        Alert.alert('Insufficient Shares', `You only have ${existingHolding.shares} shares of ${selectedStock.symbol}.`);
+        return;
+      }
+      totalValue = sharesToSell * selectedStock.currentPrice;
+    } else {
+      totalValue = Number(shares);
+      sharesToSell = Math.floor(totalValue / selectedStock.currentPrice);
+      
+      if (sharesToSell === 0) {
+        Alert.alert('Invalid Amount', `You need at least $${selectedStock.currentPrice.toFixed(2)} to sell 1 share.`);
+        return;
+      }
+      
+      if (existingHolding.shares < sharesToSell) {
+        sharesToSell = existingHolding.shares; // Sell all available shares
+        totalValue = sharesToSell * selectedStock.currentPrice;
+      } else {
+        totalValue = sharesToSell * selectedStock.currentPrice;
+      }
+    }
+
     const remainingShares = existingHolding.shares - sharesToSell;
 
     let newHoldings: Holding[];
@@ -244,7 +375,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
       newHoldings = holdings.map(h => 
         h.symbol === selectedStock.symbol 
           ? { ...h, shares: remainingShares, currentPrice: selectedStock.currentPrice }
-          : h
+          : { ...h, currentPrice: stocks.find(s => s.symbol === h.symbol)?.currentPrice || h.currentPrice }
       );
     } else {
       newHoldings = holdings.filter(h => h.symbol !== selectedStock.symbol);
@@ -266,7 +397,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
     setShowTradeModal(false);
     setShares('');
     setSelectedStock(null);
-  }, [selectedStock, shares, holdings, cash, setGameState, saveGame]);
+  }, [selectedStock, shares, inputMode, holdings, cash, setGameState, saveGame]);
 
   const toggleWatchlist = useCallback((symbol: string) => {
     const newWatchlist = watchlist.includes(symbol)
@@ -287,7 +418,32 @@ export default function StocksApp({ onBack }: StocksAppProps) {
     setSelectedStock(stock);
     setTradeType(type);
     setShares('');
+    setInputMode('shares'); // Reset to shares mode
     setShowTradeModal(true);
+  };
+
+  const handleMaxButton = () => {
+    if (!selectedStock) return;
+
+    if (tradeType === 'buy') {
+      if (inputMode === 'shares') {
+        const maxShares = Math.floor(cash / selectedStock.currentPrice);
+        setShares(maxShares.toString());
+      } else {
+        setShares(cash.toString());
+      }
+    } else {
+      // Sell mode
+      const existingHolding = holdings.find(h => h.symbol === selectedStock.symbol);
+      if (!existingHolding) return;
+
+      if (inputMode === 'shares') {
+        setShares(existingHolding.shares.toString());
+      } else {
+        const maxValue = existingHolding.shares * selectedStock.currentPrice;
+        setShares(maxValue.toString());
+      }
+    }
   };
 
   const getHoldingShares = (symbol: string) => {
@@ -297,7 +453,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
 
   const getHoldingValue = (symbol: string) => {
     const holding = holdings.find(h => h.symbol === symbol);
-    const stock = mockStocks.find(s => s.symbol === symbol);
+    const stock = stocks.find(s => s.symbol === symbol);
     return holding && stock ? holding.shares * stock.currentPrice : 0;
   };
 
@@ -309,7 +465,12 @@ export default function StocksApp({ onBack }: StocksAppProps) {
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Stocks</Text>
-        <View style={styles.headerSpacer} />
+        <InfoButton
+          title="Stock Market Trading"
+          content="Buy and sell stocks to grow your wealth! Stock prices fluctuate each week based on market conditions. Buy low, sell high to make profits. You can buy shares by quantity or by dollar amount. Higher stock prices mean more potential profit but also higher risk."
+          size="small"
+          darkMode={true}
+        />
       </LinearGradient>
 
       {/* Content */}
@@ -378,7 +539,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
         </View>
         {activeTab === 'market' && (
           <View style={styles.stockList}>
-            {mockStocks.map((stock) => (
+            {stocks.map((stock) => (
               <View key={stock.symbol} style={styles.stockCard}>
                 <View style={styles.stockHeader}>
                                      <View style={styles.stockInfo}>
@@ -433,7 +594,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
               </View>
             ) : (
               holdings.map((holding) => {
-                const stock = mockStocks.find(s => s.symbol === holding.symbol);
+                const stock = stocks.find(s => s.symbol === holding.symbol);
                 if (!stock) return null;
                 
                 const currentValue = holding.shares * stock.currentPrice;
@@ -486,7 +647,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                 <Text style={styles.emptyStateText}>No stocks in watchlist. Add some from the Market tab!</Text>
               </View>
             ) : (
-              mockStocks
+              stocks
                 .filter(stock => watchlist.includes(stock.symbol))
                 .map((stock) => (
                   <View key={stock.symbol} style={styles.stockCard}>
@@ -547,37 +708,72 @@ export default function StocksApp({ onBack }: StocksAppProps) {
               Current Price: ${selectedStock?.currentPrice.toFixed(2)}
             </Text>
             
-            <Text style={styles.inputLabel}>Number of Shares</Text>
-            <TextInput
-              style={styles.input}
-              value={shares}
-              onChangeText={setShares}
-              placeholder="0"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-            />
+            {/* Input Mode Toggle */}
+            <View style={styles.inputModeContainer}>
+              <TouchableOpacity
+                style={[styles.inputModeButton, inputMode === 'shares' && styles.inputModeButtonActive]}
+                onPress={() => setInputMode('shares')}
+              >
+                <Text style={[styles.inputModeText, inputMode === 'shares' && styles.inputModeTextActive]}>
+                  Shares
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.inputModeButton, inputMode === 'money' && styles.inputModeButtonActive]}
+                onPress={() => setInputMode('money')}
+              >
+                <Text style={[styles.inputModeText, inputMode === 'money' && styles.inputModeTextActive]}>
+                  Money
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Input Row */}
+            <View style={styles.inputRow}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>
+                  {inputMode === 'shares' ? 'Number of Shares' : 'Amount ($)'}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={shares}
+                  onChangeText={setShares}
+                  placeholder="0"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+              </View>
+              <TouchableOpacity style={styles.maxButton} onPress={handleMaxButton}>
+                <Text style={styles.maxButtonText}>Max</Text>
+              </TouchableOpacity>
+            </View>
             
             {shares && !isNaN(Number(shares)) && (
               <Text style={styles.totalText}>
-                Total: ${(Number(shares) * (selectedStock?.currentPrice || 0)).toFixed(2)}
+                {inputMode === 'shares' 
+                  ? `Total: $${(Number(shares) * (selectedStock?.currentPrice || 0)).toFixed(2)}`
+                  : `Shares: ${Math.floor(Number(shares) / (selectedStock?.currentPrice || 1))}`
+                }
               </Text>
             )}
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalButton}
+              <LoadingButton
                 onPress={() => setShowTradeModal(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
+                title="Cancel"
+                variant="secondary"
+                size="medium"
+                style={styles.modalButton}
+              />
+              <LoadingButton
                 onPress={tradeType === 'buy' ? handleBuy : handleSell}
-              >
-                <Text style={styles.modalButtonText}>
-                  {tradeType === 'buy' ? 'Buy' : 'Sell'}
-                </Text>
-              </TouchableOpacity>
+                title={tradeType === 'buy' ? 'Buy' : 'Sell'}
+                loading={tradingLoading}
+                variant="primary"
+                size="medium"
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                loadingText={tradeType === 'buy' ? 'Buying...' : 'Selling...'}
+              />
             </View>
           </View>
         </View>
@@ -845,6 +1041,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  inputModeContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1F2937',
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 16,
+  },
+  inputModeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  inputModeButtonActive: {
+    backgroundColor: '#3B82F6',
+  },
+  inputModeText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputModeTextActive: {
+    color: '#FFFFFF',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+  },
+  inputContainer: {
+    flex: 1,
+  },
+  maxButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  maxButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   modalActions: {
     flexDirection: 'row',

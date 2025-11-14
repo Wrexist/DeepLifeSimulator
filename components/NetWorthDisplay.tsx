@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
 import { useGame } from '@/contexts/GameContext';
 import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
+import { usePerformanceOptimization } from '@/hooks/usePerformanceOptimization';
 
 const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
@@ -68,6 +69,7 @@ const PieChart = ({ data }: { data: PieSlice[] }) => {
 export default function NetWorthDisplay() {
   const { gameState } = useGame();
   const { settings } = gameState;
+  const { createMemoizedValue } = usePerformanceOptimization();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const previous = useRef(0);
 
@@ -81,53 +83,77 @@ export default function NetWorthDisplay() {
     return `$${a}`;
   };
 
-  const breakdown = useMemo(() => {
+  // Optimize breakdown calculation with specific dependencies
+  const breakdown = createMemoizedValue(() => {
     const assets: Asset[] = [
       { id: 'cash', type: 'cash', baseValue: gameState.stats.money },
       { id: 'savings', type: 'cash', baseValue: gameState.bankSavings || 0 },
     ];
 
-    gameState.items
-      .filter(i => i.owned)
-      .forEach(item =>
-        assets.push({ id: item.id, type: 'collectible', baseValue: item.price })
-      );
+    // Only process owned items
+    const ownedItems = gameState.items.filter(i => i.owned);
+    ownedItems.forEach(item =>
+      assets.push({ id: item.id, type: 'collectible', baseValue: item.price })
+    );
 
+    // Only process companies with income
     gameState.companies.forEach(company => {
+      if (company.weeklyIncome > 0) {
+        assets.push({
+          id: company.id,
+          type: 'business',
+          baseValue: 0,
+          trailingWeeklyProfit: company.weeklyIncome,
+          valuationMultiple: 10,
+        });
+      }
+      
+      // Only process miners if they exist
+      if (company.miners) {
+        Object.entries(company.miners).forEach(([id, count]) => {
+          const price = MINER_PRICES[id as keyof typeof MINER_PRICES];
+          if (price && count > 0) {
+            assets.push({
+              id: `${company.id}_miner_${id}`,
+              type: 'hardware',
+              baseValue: price * count,
+            });
+          }
+        });
+      }
+    });
+
+    // Only process owned real estate
+    const ownedRealEstate = gameState.realEstate.filter(p => p.owned);
+    ownedRealEstate.forEach(p => {
       assets.push({
-        id: company.id,
-        type: 'business',
-        baseValue: 0,
-        trailingWeeklyProfit: company.weeklyIncome,
-        valuationMultiple: 10,
-      });
-      Object.entries(company.miners || {}).forEach(([id, count]) => {
-        const price = MINER_PRICES[id as keyof typeof MINER_PRICES];
-        if (price) {
-          assets.push({
-            id: `${company.id}_miner_${id}`,
-            type: 'hardware',
-            baseValue: price * count,
-          });
-        }
+        id: p.id,
+        type: 'property',
+        baseValue: p.price,
       });
     });
 
-    // Use real estate from game state instead of AsyncStorage
-    gameState.realEstate
-      .filter(p => p.owned)
-      .forEach(p => {
+    // Only process stock holdings
+    if (gameState.stocks?.holdings) {
+      gameState.stocks.holdings.forEach(holding => {
         assets.push({
-          id: p.id,
-          type: 'property',
-          baseValue: p.price,
+          id: `stock_${holding.symbol}`,
+          type: 'investment',
+          baseValue: holding.shares * holding.currentPrice,
         });
       });
+    }
 
     const liabilities: Liability[] = [];
-
     return computeNetWorth(assets, liabilities);
-  }, [gameState]);
+  }, [
+    gameState.stats.money,
+    gameState.bankSavings,
+    gameState.items.map(i => ({ id: i.id, owned: i.owned, price: i.price })),
+    gameState.companies.map(c => ({ id: c.id, weeklyIncome: c.weeklyIncome, miners: c.miners })),
+    gameState.realEstate.map(r => ({ id: r.id, owned: r.owned, price: r.price })),
+    gameState.stocks?.holdings?.map(h => ({ symbol: h.symbol, shares: h.shares, currentPrice: h.currentPrice })) || []
+  ]);
 
   const chartData: PieSlice[] = Object.entries(breakdown.byAssetType).map(
     ([label, value], idx) => ({

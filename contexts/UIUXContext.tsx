@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TutorialStep } from '@/types/tutorial';
+import { EnhancedTutorialStep, getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 
 interface LoadingState {
   id: string;
@@ -39,11 +40,12 @@ interface UIUXContextType extends UIUXState {
   showWarning: (id: string, message: string, title?: string) => void;
   
   // Tutorial management
-  startTutorial: (steps: TutorialStep[]) => void;
+  startTutorial: (steps: TutorialStep[] | EnhancedTutorialStep[], context?: 'game' | 'onboarding' | 'advanced') => void;
   completeTutorial: () => void;
   skipTutorial: () => void;
   setTutorialStep: (step: number) => void;
   resetTutorial: () => void;
+  startEnhancedTutorial: (context?: 'game' | 'onboarding' | 'advanced') => void;
 }
 
 const UIUXContext = createContext<UIUXContextType | undefined>(undefined);
@@ -132,14 +134,25 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
   }, [showError]);
 
   // Tutorial management
-  const startTutorial = useCallback((steps: TutorialStep[]) => {
-    setState(prev => ({
-      ...prev,
-      showTutorial: true,
-      tutorialSteps: steps,
-      currentTutorialStep: 0,
-    }));
+  const startTutorial = useCallback((steps: TutorialStep[] | EnhancedTutorialStep[], context?: 'game' | 'onboarding' | 'advanced') => {
+    console.log('[UIUXContext] startTutorial called with', steps.length, 'steps');
+    console.log('[UIUXContext] First step:', steps[0]);
+    setState(prev => {
+      const newState = {
+        ...prev,
+        showTutorial: true,
+        tutorialSteps: steps as TutorialStep[],
+        currentTutorialStep: 0,
+      };
+      console.log('[UIUXContext] New state:', { showTutorial: newState.showTutorial, stepsCount: newState.tutorialSteps.length });
+      return newState;
+    });
   }, []);
+
+  const startEnhancedTutorial = useCallback((context: 'game' | 'onboarding' | 'advanced' = 'game') => {
+    const enhancedSteps = getEnhancedTutorialSteps(context);
+    startTutorial(enhancedSteps, context);
+  }, [startTutorial]);
 
   const completeTutorial = useCallback(async () => {
     try {
@@ -188,7 +201,7 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const value: UIUXContextType = {
+  const value: UIUXContextType = useMemo(() => ({
     ...state,
     showLoading,
     hideLoading,
@@ -202,7 +215,23 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     skipTutorial,
     setTutorialStep,
     resetTutorial,
-  };
+    startEnhancedTutorial,
+  }), [
+    state,
+    showLoading,
+    hideLoading,
+    isLoading,
+    showError,
+    hideError,
+    showInfo,
+    showWarning,
+    startTutorial,
+    completeTutorial,
+    skipTutorial,
+    setTutorialStep,
+    resetTutorial,
+    startEnhancedTutorial,
+  ]);
 
   return (
     <UIUXContext.Provider value={value}>
@@ -241,6 +270,7 @@ export function useTutorial() {
     skipTutorial,
     setTutorialStep,
     resetTutorial,
+    startEnhancedTutorial,
   } = useUIUX();
   
   return {
@@ -253,5 +283,6 @@ export function useTutorial() {
     skipTutorial,
     setTutorialStep,
     resetTutorial,
+    startEnhancedTutorial,
   };
 }

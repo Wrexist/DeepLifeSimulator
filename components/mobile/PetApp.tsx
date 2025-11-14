@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, PawPrint, Heart, Zap, Coffee, ShoppingCart, Plus, Settings } from 'lucide-react-native';
@@ -23,11 +23,11 @@ interface Pet {
 }
 
 const petTypes = [
-  { id: 'dog', name: 'Dog', emoji: '🐕', price: 500 },
-  { id: 'cat', name: 'Cat', emoji: '🐱', price: 400 },
-  { id: 'bird', name: 'Bird', emoji: '🐦', price: 300 },
-  { id: 'fish', name: 'Fish', emoji: '🐠', price: 200 },
-  { id: 'hamster', name: 'Hamster', emoji: '🐹', price: 150 },
+  { id: 'dog', name: 'Dog', emoji: '🐕', price: 15000 },
+  { id: 'cat', name: 'Cat', emoji: '🐱', price: 12000 },
+  { id: 'bird', name: 'Bird', emoji: '🐦', price: 8000 },
+  { id: 'fish', name: 'Fish', emoji: '🐠', price: 5000 },
+  { id: 'hamster', name: 'Hamster', emoji: '🐹', price: 3500 },
 ];
 
 const petFoods = [
@@ -54,6 +54,18 @@ export default function PetApp({ onBack }: PetAppProps) {
 
   const pets: Pet[] = gameState.pets || [];
   const cash = gameState.stats?.money || 0;
+
+  // Auto-dismiss the purchase success modal after 3 seconds
+  useEffect(() => {
+    if (showPurchaseSuccessModal && purchasedPet) {
+      const timer = setTimeout(() => {
+        setShowPurchaseSuccessModal(false);
+        setPurchasedPet(null);
+      }, 3000); // 3 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [showPurchaseSuccessModal, purchasedPet]);
 
   // Calculate pet bonuses
   const calculatePetBonuses = useCallback(() => {
@@ -494,7 +506,7 @@ export default function PetApp({ onBack }: PetAppProps) {
       </ScrollView>
 
       {/* Shop Modal */}
-      <Modal visible={showShopModal} transparent animationType="fade">
+      <Modal visible={showShopModal} transparent animationType="fade" onRequestClose={() => setShowShopModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Pet Shop</Text>
@@ -522,7 +534,7 @@ export default function PetApp({ onBack }: PetAppProps) {
       </Modal>
 
       {/* Pet Purchase Success Modal */}
-      <Modal visible={showPurchaseSuccessModal} transparent animationType="fade">
+      <Modal visible={showPurchaseSuccessModal} transparent animationType="fade" onRequestClose={() => setShowPurchaseSuccessModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.purchaseSuccessModal}>
             <LinearGradient

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
-import HinderApp from '@/components/mobile/TinderApp';
+import DatingApp from '@/components/mobile/TinderApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
 import SocialApp from '@/components/mobile/SocialApp';
 import StocksApp from '@/components/mobile/StocksApp';
@@ -40,8 +40,12 @@ import {
   responsiveIconSize,
   isSmallDevice,
   isLargeDevice,
-  screenDimensions
+  screenDimensions,
+  isTablet,
 } from '@/utils/scaling';
+import { useLazyComponent, usePerformanceMonitor } from '@/utils/performanceOptimization';
+import { useFeedback } from '@/utils/feedbackSystem';
+import { DesignSystem } from '@/utils/designSystem';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -54,14 +58,17 @@ export default function MobileScreen() {
   const { gameState } = useGame();
   const { settings } = gameState;
   const navigation = useNavigation<any>();
+  const { buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
+  const { logRender } = usePerformanceMonitor();
 
   // Reset to apps grid when the Mobile tab is pressed
   useEffect(() => {
+    logRender('MobileScreen');
     const unsubscribe = navigation.addListener('tabPress', () => {
       setActiveApp(null);
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, logRender]);
 
   if (!gameState.items.find(item => item.id === 'smartphone')?.owned) {
     return (
@@ -86,7 +93,7 @@ export default function MobileScreen() {
 
   if (activeApp) {
     const apps = {
-      tinder: HinderApp,
+      tinder: DatingApp,
       contacts: ContactsApp,
       social: SocialApp,
       stocks: StocksApp,
@@ -97,8 +104,17 @@ export default function MobileScreen() {
     };
 
     const AppComponent = apps[activeApp as keyof typeof apps];
-    return <AppComponent onBack={() => setActiveApp(null)} />;
+    return <AppComponent onBack={() => {
+      buttonPress();
+      haptic('light');
+      setActiveApp(null);
+    }} />;
   }
+
+  const columns = isTablet() ? 3 : 2;
+  const cardGap = responsiveSpacing.md;
+  const horizontalPad = responsivePadding.horizontal;
+  const cardWidth = (screenWidth - horizontalPad * 2 - cardGap * (columns - 1)) / columns;
 
   const apps = [
     {
@@ -170,8 +186,12 @@ export default function MobileScreen() {
           {apps.map((app) => (
             <TouchableOpacity
               key={app.id}
-              style={[styles.appCard, { width: (screenWidth - responsivePadding.horizontal * 2 - responsiveSpacing.md) / 2 }]}
-              onPress={() => setActiveApp(app.id)}
+              style={[styles.appCard, { width: cardWidth }]}
+              onPress={() => {
+                buttonPress();
+                haptic('light');
+                setActiveApp(app.id);
+              }}
               activeOpacity={0.8}
             >
               <LinearGradient

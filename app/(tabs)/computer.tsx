@@ -27,11 +27,12 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
 import BitcoinMiningApp from '@/components/computer/BitcoinMiningApp';
 import RealEstateApp from '@/components/computer/RealEstateApp';
 import OnionApp from '@/components/computer/OnionApp';
 import GamingApp from '@/components/computer/GamingApp';
-import HinderApp from '@/components/mobile/TinderApp';
+import DatingApp from '@/components/mobile/TinderApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
 import SocialApp from '@/components/mobile/SocialApp';
 import StocksApp from '@/components/mobile/StocksApp';
@@ -47,7 +48,8 @@ import {
   responsiveIconSize,
   isSmallDevice,
   isLargeDevice,
-  screenDimensions
+  screenDimensions,
+  isTablet,
 } from '@/utils/scaling';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -56,6 +58,7 @@ export default function ComputerScreen() {
   const { t } = useTranslation();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const { gameState } = useGame();
+  const { highlightedItem, highlightMessage } = useTutorialHighlight();
   const { settings } = gameState;
   const navigation = useNavigation<any>();
 
@@ -93,7 +96,7 @@ export default function ComputerScreen() {
       bitcoin: BitcoinMiningApp,
       realestate: RealEstateApp,
       onion: OnionApp,
-      tinder: HinderApp,
+      tinder: DatingApp,
       contacts: ContactsApp,
       social: SocialApp,
       stocks: StocksApp,
@@ -108,6 +111,10 @@ export default function ComputerScreen() {
     return <AppComponent onBack={() => setActiveApp(null)} />;
   }
 
+  const columns = isTablet() ? 3 : 2;
+  const cardGap = responsiveSpacing.sm;
+  const horizontalPad = responsivePadding.horizontal;
+  const cardWidth = (screenWidth - horizontalPad * 2 - cardGap * (columns - 1)) / columns;
   const apps = [
     {
       id: 'bitcoin',
@@ -238,13 +245,19 @@ export default function ComputerScreen() {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={true}>
         <View style={styles.appsGrid}>
-          {apps.map((app) => (
-            <TouchableOpacity
-              key={app.id}
-              style={[styles.appCard, { width: (screenWidth - responsivePadding.horizontal * 2 - responsiveSpacing.md) / 2 }]}
-              onPress={() => setActiveApp(app.id)}
-              activeOpacity={0.8}
-            >
+          {apps.map((app) => {
+            const isHighlighted = highlightedItem === 'stock-app' && app.id === 'stocks';
+            return (
+              <TouchableOpacity
+                key={app.id}
+                style={[
+                  styles.appCard, 
+                  { width: cardWidth },
+                  isHighlighted && styles.highlightedCard
+                ]}
+                onPress={() => setActiveApp(app.id)}
+                activeOpacity={0.8}
+              >
               <LinearGradient
                 colors={app.gradient as [string, string]}
                 style={styles.appCardGradient}
@@ -265,7 +278,8 @@ export default function ComputerScreen() {
                 <Text style={styles.appDescription}>{app.description}</Text>
               </LinearGradient>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
     </LinearGradient>
@@ -394,5 +408,13 @@ const styles = StyleSheet.create({
   },
   noComputerMessageDark: {
     color: '#9CA3AF',
+  },
+  highlightedCard: {
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    elevation: 12,
+    transform: [{ scale: 1.02 }],
   },
 });

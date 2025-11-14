@@ -1,37 +1,37 @@
 # DeeplifeSim
 
-A comprehensive life simulation game with career progression, crime activities, skill trees, and social interactions.
+A comprehensive life simulation game with career progression, underground economy, skill trees, and social interactions.
 
 ## Recent Updates (Latest)
 
-### Crime System & Talent Trees
-- **Complete Crime Jobs System**: Added 9 crime jobs with progression from beginner to expert level
-- **Talent Trees**: Implemented skill trees for Stealth, Hacking, and Lockpicking with unlockable talents
+### Underground Economy & Skill Trees
+- **Complete Street Jobs System**: Added 9 underground jobs with progression from beginner to expert level
+- **Talent Trees**: Implemented skill trees for Stealth, Technology, and Lockpicking with unlockable talents
 - **Talent Bonuses**: Each talent provides +5% success rate and +10% payment bonus for related jobs
-- **Crime Skills**: Stealth, Hacking, and Lockpicking skills that level up through crime activities
-- **Dark Web Items**: Added items purchasable with BTC that unlock higher-tier crime jobs
+- **Underground Skills**: Stealth, Technology, and Lockpicking skills that level up through activities
+- **Special Items**: Added items purchasable with BTC that unlock higher-tier jobs
 
-### Crime Jobs Progression
-1. **Beginner (Level 1)**: Steal from Cars - $35, no requirements
-2. **Basic (Level 1)**: Pickpocket, Hack Public WiFi, Drug Dealing - requires dark web items
-3. **Intermediate (Level 2)**: Burglary, Cyber Attack, Car Theft - requires items + level
-4. **Expert (Level 3)**: Bank Heist - $5000, requires explosives + level 3
+### Underground Jobs Progression
+1. **Beginner (Level 1)**: Find Lost Items - $35, no requirements
+2. **Basic (Level 1)**: Street Hustle, Network Testing, Street Vending - requires special items
+3. **Intermediate (Level 2)**: Property Acquisition, Security Testing, Vehicle Relocation - requires items + level
+4. **Expert (Level 3)**: High-Stakes Scheme - $5000, requires advanced tools + level 3
 
 ### UI/UX Improvements
 - **Compact Skills Display**: Reduced skills section height by 50% for better navigation
-- **Crime Jobs Visibility**: Fixed crime jobs not showing in new games
+- **Street Jobs Visibility**: Fixed street jobs not showing in new games
 - **Save Slot Management**: Fixed save slot deletion and navigation issues
 - **Talent Tree UI**: Interactive talent trees with visual connections and unlock requirements
 
 ### Game State Management
-- **New Game Creation**: Fixed crime jobs not appearing in new games via onboarding
-- **Save Migration**: Added automatic migration for missing crime jobs, skills, and dark web items
+- **New Game Creation**: Fixed street jobs not appearing in new games via onboarding
+- **Save Migration**: Added automatic migration for missing street jobs, skills, and special items
 - **State Validation**: Enhanced game state validation and error handling
 
 ### Bug Fixes
 - **Computer Data Persistence**: Fixed computer data loss when selling/buying computer
 - **Weekly Summary**: Fixed unexpected weekly summary modal appearing during item transactions
-- **Crime Jobs Loading**: Fixed crime jobs not loading in existing save files
+- **Street Jobs Loading**: Fixed street jobs not loading in existing save files
 - **Save Slot Navigation**: Fixed save slots not updating after deletion or new game creation
 
 ## Web Preview

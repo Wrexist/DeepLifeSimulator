@@ -13,7 +13,10 @@ export default function WeeklyEventModal() {
   if (!event) return null;
 
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal visible transparent animationType="fade" onRequestClose={() => {
+      // Prevent dismissal without making a choice
+      // User must select one of the event choices
+    }}>
       <View style={styles.overlay}>
         <LinearGradient
           colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
