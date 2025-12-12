@@ -84,20 +84,10 @@ try {
 }
 
 /**
- * React Native Reanimated MUST be imported at the very top of the entry file.
- * Wrap in try-catch to gracefully handle initialization failures on beta iOS versions.
+ * React Native Reanimated is imported in app/entry.ts before expo-router loads.
+ * Check if it loaded successfully from the global flag set in entry.ts
  */
-let reanimatedLoaded = false;
-try {
-  require("react-native-reanimated");
-  reanimatedLoaded = true;
-} catch (reanimatedError: any) {
-  console.error('[REANIMATED] Failed to initialize:', reanimatedError?.message);
-  earlyInitError = {
-    message: `Reanimated initialization failed: ${reanimatedError?.message || 'Unknown error'}`,
-    stack: reanimatedError?.stack || '',
-  };
-}
+const reanimatedLoaded = (global as any).__REANIMATED_LOADED__ === true;
 
 // CRITICAL: Intercept React Native's ExceptionsManager to prevent native crashes
 // This must be done AFTER React Native is loaded but BEFORE it's used
