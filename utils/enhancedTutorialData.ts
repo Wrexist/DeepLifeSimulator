@@ -121,7 +121,7 @@ export const MAIN_TUTORIAL_STEPS: EnhancedTutorialStep[] = [
     id: 'market-place',
     title: '🛒 The Market Place',
     description: 'Visit the Market to buy items, food, and gym memberships that will enhance your life!',
-    detailedDescription: 'The Market is where you can purchase items that provide daily bonuses, food to boost your stats, and gym memberships for fitness improvements. Items like smartphones and computers unlock new features and opportunities. Smart purchases can significantly improve your life quality and unlock new possibilities.',
+    detailedDescription: 'The Market is where you can purchase items that provide weekly bonuses, food to boost your stats, and gym memberships for fitness improvements. Items like smartphones and computers unlock new features and opportunities. Smart purchases can significantly improve your life quality and unlock new possibilities.',
     target: 'market-tab',
     position: 'left',
     category: 'features',
@@ -129,7 +129,7 @@ export const MAIN_TUTORIAL_STEPS: EnhancedTutorialStep[] = [
     interactive: true,
     requiresAction: 'navigate_to_market',
     tips: [
-      'Items provide daily bonuses to your stats',
+      'Items provide weekly bonuses to your stats',
       'Food can boost specific stats temporarily',
       'Gym memberships improve fitness over time',
       'Smartphones and computers unlock new features'

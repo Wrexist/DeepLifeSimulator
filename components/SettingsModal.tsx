@@ -1,18 +1,23 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Switch, Alert, TextInput, Linking, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Switch, Alert, TextInput, Linking, Image, Animated, Platform, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
-import { useRouter } from 'expo-router';
-import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, RotateCcw, Bug, Wrench, HelpCircle, Calendar, Settings, Target, Sparkles, Star, Zap, Shield, Heart, RefreshCw } from 'lucide-react-native';
+import { useRouter, type Href } from 'expo-router';
+import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, RotateCcw, Bug, HelpCircle, Calendar, Settings, Target, Sparkles, Star, Zap, Shield, Heart, RefreshCw, MessageCircle, Users, Code } from 'lucide-react-native';
 import { perks } from '@/src/features/onboarding/perksData';
 import LeaderboardModal from './LeaderboardModal';
-import TutorialOverlay from './TutorialOverlay';
+import LegacyOverviewTab from './LegacyOverviewTab';
+import DevToolsModal from './DevToolsModal';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useTutorial } from '@/contexts/UIUXContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setSoundEnabled, setSoundVolume, isSoundEnabled, getSoundVolume } from '@/utils/soundManager';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
+import { logger } from '@/utils/logger';
+import { getShadow } from '@/utils/shadow';
 
 interface SettingsModalProps {
   visible: boolean;
@@ -20,21 +25,62 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ visible, onClose }: SettingsModalProps) {
-  const { gameState, updateSettings, restartGame, nextWeek, setGameState } = useGame();
+  const { gameState, updateSettings, restartGame, nextWeek, setGameState, saveGame } = useGame();
   const { settings } = gameState;
   const router = useRouter();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const languages = ['English', 'Svenska', 'Español', 'Français', 'Deutsch'];
 
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'settings' | 'lifeGoals' | 'upcoming'>('settings');
-  const [showTutorial, setShowTutorial] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'settings' | 'lifeGoals'>('settings');
   const [showBugReport, setShowBugReport] = useState(false);
+  const { startEnhancedTutorial, resetTutorial } = useTutorial();
   const [bugReportText, setBugReportText] = useState('');
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [featureSuggestion, setFeatureSuggestion] = useState('');
+  const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
+  const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
+  const [showDevTools, setShowDevTools] = useState(false);
+  
+  // Animation for Discord button
+  const discordGlowAnim = useRef(new Animated.Value(0)).current;
+  
+  // Check if Discord reward has been claimed
+  useEffect(() => {
+    const checkDiscordReward = async () => {
+      try {
+        const claimed = await AsyncStorage.getItem('discord_reward_claimed');
+        setDiscordRewardClaimed(claimed === 'true');
+      } catch (error) {
+        logger.error('Error checking Discord reward:', error);
+      }
+    };
+    checkDiscordReward();
+  }, []);
+  
+  // Animate Discord button glow
+  useEffect(() => {
+    if (!discordRewardClaimed) {
+      const glowLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(discordGlowAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(discordGlowAnim, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
+      glowLoop.start();
+      return () => glowLoop.stop();
+    }
+  }, [discordRewardClaimed]);
 
   const settingItems = [
     {
@@ -114,9 +160,10 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       setShowRestartConfirm(false);
       onClose();
       // Navigate to main menu after restart
-      router.push('/(onboarding)/MainMenu');
+      const mainMenuPath: Href = '/(onboarding)/MainMenu';
+      router.push(mainMenuPath);
     } catch (error) {
-      console.error('Failed to restart game:', error);
+      logger.error('Failed to restart game:', error);
       Alert.alert('Error', 'Failed to restart game. Please try again.');
     }
   };
@@ -140,24 +187,6 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
     });
   };
 
-  const handleFeatureSuggestion = () => {
-    if (!featureSuggestion.trim()) {
-      Alert.alert('Empty Suggestion', 'Please describe the feature you would like to see.');
-      return;
-    }
-
-    const subject = 'Feature Suggestion - DeepLife Simulator';
-    const body = `Feature Suggestion:\n\n${featureSuggestion.trim()}\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}`;
-    const emailUrl = `mailto:deeplifesimulator@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    Linking.openURL(emailUrl).then(() => {
-      setFeatureSuggestion('');
-      Alert.alert('Thank you!', 'Your feature suggestion has been prepared. Please send the email to help us plan future updates.');
-    }).catch(() => {
-      Alert.alert('Error', 'Could not open email app. Please email deeplifesimulator@gmail.com directly.');
-    });
-  };
-
   const handleRestorePurchases = async () => {
     if (isRestoringPurchases) {
       return;
@@ -166,7 +195,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
     setIsRestoringPurchases(true);
     
     try {
-      console.log('Starting purchase restoration from Settings...');
+      logger.info('Starting purchase restoration from Settings...');
       const success = await iapService.restorePurchases();
       
       if (success) {
@@ -181,7 +210,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
         );
       }
     } catch (error) {
-      console.error('Restore purchases error:', error);
+      logger.error('Restore purchases error:', error);
       Alert.alert(
         'Restore Failed',
         'Unable to restore purchases. Please try again or contact support.',
@@ -189,6 +218,60 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       );
     } finally {
       setIsRestoringPurchases(false);
+    }
+  };
+
+  const handleJoinDiscord = async () => {
+    try {
+      const discordUrl = 'https://discord.gg/MU9VSgKg';
+      
+      // Check if reward already claimed
+      if (discordRewardClaimed) {
+        // Just open Discord link
+        const canOpen = await Linking.canOpenURL(discordUrl);
+        if (canOpen) {
+          await Linking.openURL(discordUrl);
+        } else {
+          Alert.alert('Error', 'Could not open Discord link. Please visit https://discord.gg/MU9VSgKg in your browser.');
+        }
+        return;
+      }
+      
+      // Give reward
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          gems: prev.stats.gems + 500,
+        },
+      }));
+      
+      // Mark as claimed
+      await AsyncStorage.setItem('discord_reward_claimed', 'true');
+      setDiscordRewardClaimed(true);
+      
+      // Save game to persist the gems
+      await saveGame();
+      
+      // Open Discord link
+      const canOpen = await Linking.canOpenURL(discordUrl);
+      if (canOpen) {
+        await Linking.openURL(discordUrl);
+        Alert.alert(
+          '🎉 Reward Claimed!',
+          'You received 500 gems for joining our Discord! Welcome to the community!',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert(
+          '🎉 Reward Claimed!',
+          'You received 500 gems! Please visit https://discord.gg/MU9VSgKg in your browser to join our Discord.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      logger.error('Error joining Discord:', error);
+      Alert.alert('Error', 'Could not open Discord link. Please visit https://discord.gg/MU9VSgKg in your browser.');
     }
   };
 
@@ -202,48 +285,18 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
     settings.darkMode && styles.modalDark
   ];
 
-  const upcomingFeatures = [
-    {
-      id: 'new_apps',
-      title: '📱 New Apps',
-      description: 'Instogram, PayPol, AppHub, YouVideo, Toktik & more!'
-    },
-    {
-      id: 'enhanced_companies',
-      title: '🏢 Enhanced Companies',
-      description: 'IPO, mergers'
-    },
-    {
-      id: 'game_features',
-      title: '🎮 Game Features',
-      description: 'achievements, leaderboards'
-    },
-    {
-      id: 'global_expansion',
-      title: '🌍 Global expansion',
-      description: 'and travel'
-    },
-    {
-      id: 'advanced_careers',
-      title: '💼 Advanced careers',
-      description: 'politician, celebrity, athlete'
-    },
-    {
-      id: 'social_media_superstar',
-      title: '🌟 Social Media Superstar',
-      description: 'Become famous and earn money'
-    },
-  ];
+  // Removed upcoming features tab
 
   return (
     <Modal
       visible={visible}
       transparent={true}
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
-      <BlurView intensity={20} style={styles.overlay}>
-        <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
+      <View style={[styles.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <BlurView intensity={20} style={styles.blurOverlay}>
+          <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
           {/* Enhanced Header with Glass */}
           <View style={styles.glassHeader}>
             <View style={styles.glassOverlay} />
@@ -308,28 +361,6 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   </View>
                 )}
               </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.settingsTab, activeSettingsTab === 'upcoming' && styles.activeSettingsTab]}
-                onPress={() => setActiveSettingsTab('upcoming')}
-              >
-                {activeSettingsTab === 'upcoming' ? (
-                  <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.activeTabGradient}
-                  >
-                    <Sparkles size={16} color="#FFFFFF" style={styles.tabIcon} />
-                    <Text style={styles.activeSettingsTabText}>Coming Soon</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.inactiveTab}>
-                    <Sparkles size={16} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} style={styles.tabIcon} />
-                    <Text style={[styles.settingsTabText, settings.darkMode && styles.settingsTabTextDark]}>Coming Soon</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
             </View>
 
             {activeSettingsTab === 'settings' ? (
@@ -370,6 +401,10 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                             trackColor={{ false: '#E5E7EB', true: '#10B981' }}
                             thumbColor={item.value ? '#FFFFFF' : '#F3F4F6'}
                             ios_backgroundColor="#E5E7EB"
+                            accessibilityLabel={item.title}
+                            accessibilityHint={`Toggle ${item.title.toLowerCase()}. Currently ${item.value ? 'enabled' : 'disabled'}`}
+                            accessibilityRole="switch"
+                            accessibilityState={{ checked: item.value }}
                           />
                         </View>
                       </LinearGradient>
@@ -441,9 +476,25 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                 {/* Enhanced Action Buttons */}
                 <TouchableOpacity
                   style={styles.actionButtonContainer}
+                  onPress={() => setShowLegacyOverview(true)}
+                >
+                  <LinearGradient
+                    colors={['#4F46E5', '#7C3AED']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionButton}
+                  >
+                    <Users size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
+                    <Text style={styles.actionButtonText}>Legacy & Lineage</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.actionButtonContainer}
                   onPress={() => {
                     onClose();
-                    router.push('/(onboarding)/SaveSlots');
+                    const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
+                    router.push(saveSlotsPath);
                   }}
                 >
                   <LinearGradient
@@ -461,18 +512,15 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   style={styles.actionButtonContainer}
                   onPress={async () => {
                     try {
-                      console.log('Opening tutorial...');
-                      // Remove tutorial completed flag so it can be shown again
-                      await AsyncStorage.removeItem('tutorial_completed');
-                      // Close settings
+                      logger.info('Opening tutorial...');
+                      await resetTutorial();
                       onClose();
-                      // Show tutorial after a brief delay
                       setTimeout(() => {
-                        setShowTutorial(true);
-                        console.log('Tutorial opened');
-                      }, 300);
+                        startEnhancedTutorial('game');
+                        logger.info('Tutorial opened');
+                      }, 150);
                     } catch (error) {
-                      console.error('Error opening tutorial:', error);
+                      logger.error('Error opening tutorial:', error);
                       Alert.alert('Error', 'Failed to open tutorial. Please try again.');
                     }
                   }}
@@ -503,6 +551,63 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   </LinearGradient>
                 </TouchableOpacity>
 
+                {/* Special Discord Button with Animation */}
+                <TouchableOpacity
+                  style={styles.discordButtonContainer}
+                  onPress={handleJoinDiscord}
+                  activeOpacity={0.9}
+                >
+                  <Animated.View
+                    style={[
+                      styles.discordButtonGlow,
+                      {
+                        opacity: discordGlowAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.3, 0.8],
+                        }),
+                        transform: [
+                          {
+                            scale: discordGlowAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [1, 1.05],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['#5865F2', '#4752C4', '#3C45A5']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.discordButtonGlowGradient}
+                    />
+                  </Animated.View>
+                  <LinearGradient
+                    colors={discordRewardClaimed ? ['#5865F2', '#4752C4'] : ['#5865F2', '#4752C4', '#3C45A5']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.discordButton}
+                  >
+                    <View style={styles.discordButtonContent}>
+                      <MessageCircle size={22} color="#FFFFFF" style={styles.discordButtonIcon} />
+                      <View style={styles.discordButtonTextContainer}>
+                        <Text style={styles.discordButtonText}>
+                          {discordRewardClaimed ? 'Join Our Discord' : 'Join Our Discord'}
+                        </Text>
+                        {!discordRewardClaimed && (
+                          <Text style={styles.discordButtonRewardText}>🎁 Reward: 500 Gems</Text>
+                        )}
+                      </View>
+                      {!discordRewardClaimed && (
+                        <View style={styles.discordBadge}>
+                          <Text style={styles.discordBadgeText}>NEW</Text>
+                        </View>
+                      )}
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+
                 {/* Restore Purchases */}
                 <TouchableOpacity
                   style={styles.actionButtonContainer}
@@ -521,6 +626,24 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
+
+                {/* Developer Tools - Visible in development mode */}
+                {__DEV__ && (
+                  <TouchableOpacity
+                    style={styles.actionButtonContainer}
+                    onPress={() => setShowDevTools(true)}
+                  >
+                    <LinearGradient
+                      colors={['#6366F1', '#4F46E5']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.actionButton}
+                    >
+                      <Code size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
+                      <Text style={styles.actionButtonText}>Developer Tools</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
 
                 {/* Privacy Policy & Terms */}
                 <TouchableOpacity
@@ -567,6 +690,9 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                       <TouchableOpacity
                         style={styles.dangerButtonContainer}
                         onPress={() => setShowBugReport(true)}
+                        accessibilityLabel={t('settings.reportBug')}
+                        accessibilityRole="button"
+                        accessibilityHint="Tap to report a bug or issue you encountered in the game"
                       >
                         <LinearGradient
                           colors={['#3B82F6', '#1D4ED8']}
@@ -582,6 +708,9 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                       <TouchableOpacity
                         style={styles.dangerButtonContainer}
                         onPress={() => setShowRestartConfirm(true)}
+                        accessibilityLabel={t('settings.restartGame')}
+                        accessibilityRole="button"
+                        accessibilityHint="Tap to restart the game. This will delete all your progress"
                       >
                         <LinearGradient
                           colors={['#EF4444', '#DC2626']}
@@ -645,56 +774,11 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   );
                 })}
               </>
-            ) : (
-              <View style={styles.upcomingSection}>
-                <Text style={[styles.upcomingTitle, settings.darkMode && styles.upcomingTitleDark]}>Exciting Features Coming Soon!</Text>
-                {upcomingFeatures.map(feature => (
-                  <View key={feature.id} style={[styles.upcomingItem, settings.darkMode && styles.upcomingItemDark]}>
-                    <Text style={[styles.upcomingItemTitle, settings.darkMode && styles.upcomingItemTitleDark]}>
-                      {feature.title}
-                    </Text>
-                    <Text style={[styles.upcomingItemDesc, settings.darkMode && styles.upcomingItemDescDark]}>
-                      {feature.description}
-                    </Text>
-                  </View>
-                ))}
-                
-                {/* Feature Suggestion Section */}
-                <View style={[styles.featureSuggestionSection, settings.darkMode && styles.featureSuggestionSectionDark]}>
-                  <Text style={[styles.featureSuggestionTitle, settings.darkMode && styles.featureSuggestionTitleDark]}>
-                    💡 Suggest New Features
-                  </Text>
-                  <Text style={[styles.featureSuggestionDesc, settings.darkMode && styles.featureSuggestionDescDark]}>
-                    Have an idea for a new feature? Let us know what you'd like to see in future updates!
-                  </Text>
-                  
-                  <TextInput
-                    style={[styles.featureSuggestionInput, settings.darkMode && styles.featureSuggestionInputDark]}
-                    placeholder="Describe your feature idea..."
-                    placeholderTextColor={settings.darkMode ? '#9CA3AF' : '#6B7280'}
-                    value={featureSuggestion}
-                    onChangeText={setFeatureSuggestion}
-                    multiline
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                  />
-                  
-                  <TouchableOpacity
-                    style={styles.featureSuggestionButton}
-                    onPress={handleFeatureSuggestion}
-                    disabled={!featureSuggestion.trim()}
-                  >
-                    <Text style={styles.featureSuggestionButtonText}>
-                      Send Suggestion
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+            ) : null}
           </ScrollView>
-        </View>
-      </BlurView>
-
+          </View>
+        </BlurView>
+      </View>
 
       <Modal
         visible={showRestartConfirm}
@@ -740,7 +824,10 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
         animationType="slide"
         onRequestClose={() => setShowBugReport(false)}
       >
-        <View style={overlayStyle}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={overlayStyle}
+        >
           <View style={modalStyle}>
             <View style={styles.header}>
               <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Report Bug</Text>
@@ -749,7 +836,12 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
               </TouchableOpacity>
             </View>
 
-            <View style={styles.bugReportContent}>
+            <ScrollView
+              style={styles.bugReportScrollView}
+              contentContainerStyle={styles.bugReportContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
+            >
               <Text style={[styles.bugReportDescription, settings.darkMode && styles.bugReportDescriptionDark]}>
                 Please describe the bug you encountered. Include steps to reproduce it if possible.
               </Text>
@@ -763,35 +855,38 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                 multiline
                 numberOfLines={6}
                 textAlignVertical="top"
+                maxLength={1000}
               />
+            </ScrollView>
 
-              <View style={styles.bugReportActions}>
-                <TouchableOpacity
-                  style={styles.cancelBugButton}
-                  onPress={() => {
-                    setShowBugReport(false);
-                    setBugReportText('');
-                  }}
-                >
-                  <Text style={styles.cancelBugButtonText}>Cancel</Text>
-                </TouchableOpacity>
+            <View style={[styles.bugReportActions, settings.darkMode && styles.bugReportActionsDark]}>
+              <TouchableOpacity
+                style={styles.cancelBugButton}
+                onPress={() => {
+                  setShowBugReport(false);
+                  setBugReportText('');
+                }}
+              >
+                <Text style={styles.cancelBugButtonText}>Cancel</Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.sendBugButton, !bugReportText.trim() && styles.disabledSendButton]}
-                  onPress={handleBugReport}
-                  disabled={!bugReportText.trim()}
-                >
-                  <Text style={[styles.sendBugButtonText, !bugReportText.trim() && styles.disabledSendButtonText]}>
-                    Send Report
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.sendBugButton, !bugReportText.trim() && styles.disabledSendButton]}
+                onPress={handleBugReport}
+                disabled={!bugReportText.trim()}
+              >
+                <Text style={[styles.sendBugButtonText, !bugReportText.trim() && styles.disabledSendButtonText]}>
+                  Send Report
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
+
       <LeaderboardModal visible={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
-      <TutorialOverlay visible={showTutorial} onClose={() => setShowTutorial(false)} />
+      <LegacyOverviewTab visible={showLegacyOverview} onClose={() => setShowLegacyOverview(false)} />
+      <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
     </Modal>
   );
 }
@@ -799,6 +894,13 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  blurOverlay: {
+    flex: 1,
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     padding: responsivePadding.large,
@@ -811,12 +913,18 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.xl,
     maxWidth: scale(450),
     width: '100%',
-    maxHeight: '85%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
+    maxHeight: '90%',
+    ...Platform.select({
+      ios: {
+        ...getShadow(20, '#000'),
+      },
+      android: {
+        elevation: 10,
+      },
+      web: {
+        ...getShadow(20, '#000'),
+      },
+    }),
     overflow: 'hidden',
   },
   modalDark: {
@@ -837,11 +945,17 @@ const styles = StyleSheet.create({
     paddingVertical: responsivePadding.large,
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    ...Platform.select({
+      ios: {
+        ...getShadow(16, '#000'),
+      },
+      android: {
+        elevation: 12,
+      },
+      web: {
+        ...getShadow(16, '#000'),
+      },
+    }),
   },
   glassOverlay: {
     position: 'absolute',
@@ -893,11 +1007,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: responsiveSpacing.sm,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0px 4px 8px rgba(99, 102, 241, 0.3)',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+      web: {
+        boxShadow: '0px 4px 8px rgba(99, 102, 241, 0.3)',
+      },
+    }),
   },
   title: {
     fontSize: responsiveFontSize.xl,
@@ -916,11 +1040,17 @@ const styles = StyleSheet.create({
     height: scale(40),
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        ...getShadow(8, '#EF4444'),
+      },
+      android: {
+        elevation: 6,
+      },
+      web: {
+        ...getShadow(8, '#EF4444'),
+      },
+    }),
   },
   content: {
     padding: responsivePadding.large,
@@ -955,11 +1085,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: responsiveSpacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        ...getShadow(4, '#000'),
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        ...getShadow(4, '#000'),
+      },
+    }),
   },
   settingTextContainer: {
     flex: 1,
@@ -977,9 +1113,15 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
     lineHeight: 18,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   settingDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   switchContainer: {
     marginLeft: responsiveSpacing.sm,
@@ -1010,19 +1152,31 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.xs,
     paddingHorizontal: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.md,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        ...getShadow(4, '#6366F1'),
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        ...getShadow(4, '#6366F1'),
+      },
+    }),
   },
   languageButtonText: {
     fontSize: responsiveFontSize.xs,
     color: '#6B7280',
     fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   languageButtonTextDark: {
-    color: '#D1D5DB',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   activeLanguageButtonText: {
     fontSize: responsiveFontSize.xs,
@@ -1036,11 +1190,17 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     padding: 4,
     marginBottom: responsiveSpacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        ...getShadow(4, '#000'),
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        ...getShadow(4, '#000'),
+      },
+    }),
   },
   tabContainerDark: {
     backgroundColor: '#374151',
@@ -1058,11 +1218,17 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        ...getShadow(4, '#000'),
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        ...getShadow(4, '#000'),
+      },
+    }),
   },
   inactiveTab: {
     flexDirection: 'row',
@@ -1093,11 +1259,17 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        ...getShadow(8, '#000'),
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        ...getShadow(8, '#000'),
+      },
+    }),
   },
   actionButton: {
     flexDirection: 'row',
@@ -1142,11 +1314,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: responsiveSpacing.sm,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        ...getShadow(4, '#EF4444'),
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        ...getShadow(4, '#EF4444'),
+      },
+    }),
   },
   dangerTitle: {
     fontSize: responsiveFontSize.base,
@@ -1160,11 +1338,17 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        ...getShadow(4, '#000'),
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        ...getShadow(4, '#000'),
+      },
+    }),
   },
   dangerButton: {
     flexDirection: 'row',
@@ -1182,80 +1366,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: responsiveFontSize.sm,
   },
-  // Enhanced Dev Section Styles
-  devSection: {
-    marginTop: responsiveSpacing.xl,
-    borderRadius: responsiveBorderRadius.lg,
-    overflow: 'hidden',
-  },
-  devSectionDark: {},
-  devSectionBlur: {
-    borderRadius: responsiveBorderRadius.lg,
-    overflow: 'hidden',
-  },
-  devSectionGradient: {
-    padding: responsivePadding.large,
-    borderRadius: responsiveBorderRadius.lg,
-  },
-  devHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: responsiveSpacing.md,
-  },
-  devIconContainer: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: responsiveSpacing.sm,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  devTitle: {
-    fontSize: responsiveFontSize.base,
-    fontWeight: '600',
-    color: '#4F46E5',
-  },
-  devTitleDark: {
-    color: '#818CF8',
-  },
-  devButtonContainer: {
-    borderRadius: responsiveBorderRadius.md,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  devButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: responsiveSpacing.sm,
-    paddingHorizontal: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.md,
-  },
-  devButtonIcon: {
-    marginRight: responsiveSpacing.sm,
-  },
-  devButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: responsiveFontSize.sm,
-  },
   lifeGoalInfo: {
     fontSize: 14,
     color: '#6B7280',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
     marginBottom: 12,
     textAlign: 'center',
   },
   lifeGoalInfoDark: {
-    color: '#D1D5DB',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   goalItem: {
     flexDirection: 'row',
@@ -1391,8 +1515,12 @@ const styles = StyleSheet.create({
     padding: 24,
     maxHeight: 400,
   },
+  bugReportScrollView: {
+    flex: 1,
+  },
   bugReportContent: {
     padding: 24,
+    paddingBottom: 12,
   },
   bugReportDescription: {
     fontSize: 14,
@@ -1411,7 +1539,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#FFFFFF',
     minHeight: 120,
-    marginBottom: 20,
+    maxHeight: 200,
+    marginBottom: 12,
   },
   bugReportInputDark: {
     backgroundColor: '#374151',
@@ -1421,6 +1550,14 @@ const styles = StyleSheet.create({
   bugReportActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  bugReportActionsDark: {
+    borderTopColor: '#374151',
   },
   cancelBugButton: {
     flex: 1,
@@ -1510,5 +1647,98 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  // Discord Button Styles
+  discordButtonContainer: {
+    marginBottom: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.lg,
+    overflow: 'visible',
+    position: 'relative',
+    ...Platform.select({
+      ios: {
+        ...getShadow(16, '#5865F2'),
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        ...getShadow(16, '#5865F2'),
+      },
+    }),
+  },
+  discordButtonGlow: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: responsiveBorderRadius.lg + 4,
+    zIndex: 0,
+  },
+  discordButtonGlowGradient: {
+    flex: 1,
+    borderRadius: responsiveBorderRadius.lg + 4,
+  },
+  discordButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: responsiveSpacing.lg,
+    paddingHorizontal: responsiveSpacing.lg,
+    borderRadius: responsiveBorderRadius.lg,
+    position: 'relative',
+    zIndex: 1,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  discordButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  discordButtonIcon: {
+    marginRight: responsiveSpacing.sm,
+  },
+  discordButtonTextContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  discordButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: responsiveFontSize.base + 2,
+    textAlign: 'center',
+  },
+  discordButtonRewardText: {
+    color: '#FFFFFF',
+    fontWeight: '500',
+    fontSize: responsiveFontSize.sm,
+    marginTop: 2,
+    opacity: 0.9,
+  },
+  discordBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: 4,
+    borderRadius: responsiveBorderRadius.md,
+    marginLeft: responsiveSpacing.sm,
+    ...Platform.select({
+      ios: {
+        ...getShadow(4, '#10B981'),
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        ...getShadow(4, '#10B981'),
+      },
+    }),
+  },
+  discordBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: responsiveFontSize.xs,
+    letterSpacing: 0.5,
   },
 });

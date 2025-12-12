@@ -1,23 +1,43 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated, Easing, TextInput } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated, Easing, TextInput, Platform, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { generateRandomName } from '@/src/features/onboarding/nameData';
-import { ArrowLeft, Shuffle } from 'lucide-react-native';
+import { ArrowLeft, Shuffle, Play, Info } from 'lucide-react-native';
 import { responsiveFontSize, responsivePadding, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+import { logger } from '@/utils/logger';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const log = logger.scope('Customize');
 
 export default function Customize() {
   const { state, setState } = useOnboarding();
   const router = useRouter();
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [firstName, setFirstName] = useState(state.firstName || '');
   const [lastName, setLastName] = useState(state.lastName || '');
   const [sex, setSex] = useState(state.sex || 'random');
   const [sexuality, setSexuality] = useState(state.sexuality || 'straight');
+
+  // Safe back navigation - goes to MainMenu if there's no screen to go back to
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(onboarding)/MainMenu');
+    }
+  }, [navigation, router]);
+  
+  log.debug('Customize screen mounted', { 
+    platform: Platform.OS, 
+    screenWidth, 
+    insets: { top: insets.top, bottom: insets.bottom }
+  });
 
   // Generate random name on first load if no names are set
   useEffect(() => {
@@ -35,50 +55,74 @@ export default function Customize() {
 
   // Rotating background animation
   useEffect(() => {
-    const rotateAnimation = Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 30000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
+    let isMounted = true;
+    let rotateAnimation: Animated.CompositeAnimation | null = null;
     
-    if (rotateAnimation) {
-      rotateAnimation.start();
+    try {
+      rotateAnimation = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 30000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      
+      if (isMounted && rotateAnimation) {
+        rotateAnimation.start();
+      }
+    } catch (error) {
+      log.error('Error starting rotate animation', error);
     }
 
     return () => {
+      isMounted = false;
       if (rotateAnimation) {
-        rotateAnimation.stop();
+        try {
+          rotateAnimation.stop();
+        } catch (error) {
+          log.error('Error stopping rotate animation', error);
+        }
       }
     };
   }, [rotateAnim]);
 
   // Fade in and slide up animation
   useEffect(() => {
-    const parallelAnimation = Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]);
+    let isMounted = true;
+    let parallelAnimation: Animated.CompositeAnimation | null = null;
     
-    if (parallelAnimation) {
-      parallelAnimation.start();
+    try {
+      parallelAnimation = Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 1000,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]);
+      
+      if (isMounted && parallelAnimation) {
+        parallelAnimation.start();
+      }
+    } catch (error) {
+      log.error('Error starting fade/slide animation', error);
     }
 
     return () => {
+      isMounted = false;
       if (parallelAnimation) {
-        parallelAnimation.stop();
+        try {
+          parallelAnimation.stop();
+        } catch (error) {
+          log.error('Error stopping fade/slide animation', error);
+        }
       }
     };
   }, [fadeAnim, slideAnim]);
@@ -134,13 +178,14 @@ export default function Customize() {
           styles.content, 
           { 
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
+            transform: [{ translateY: slideAnim }],
+            paddingTop: 50 + insets.top,
           }
         ]}
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <View style={styles.glassButton}>
               <View style={styles.glassOverlay} />
               <View style={styles.glassIconContainer}>
@@ -148,21 +193,29 @@ export default function Customize() {
               </View>
             </View>
           </TouchableOpacity>
-          <Text style={styles.title}>Customize Character</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={true}>
-          <View style={styles.scrollContent}>
-            {/* Hero section */}
-            <View style={styles.heroSection}>
-              <View style={styles.glassCard}>
-                <View style={styles.glassOverlay} />
-                <Text style={styles.heroTitle}>Define Your Identity</Text>
-                <Text style={styles.heroSubtitle}>Choose your character's traits and preferences</Text>
+          <Text style={styles.title}>Create Identity</Text>
+          <TouchableOpacity 
+            onPress={() => Alert.alert(
+              'Create Your Identity',
+              'Customize your character by choosing their name, sex, and sexuality. Use the shuffle button to generate random names!'
+            )}
+            style={styles.infoButton}
+          >
+            <View style={styles.glassButton}>
+              <View style={styles.glassOverlay} />
+              <View style={styles.glassIconContainer}>
+                <Info size={20} color="#FFFFFF" />
               </View>
             </View>
+          </TouchableOpacity>
+        </View>
 
+        <ScrollView 
+          style={styles.scrollContainer} 
+          contentContainerStyle={{ paddingTop: insets.top }}
+          showsVerticalScrollIndicator={true}
+        >
+          <View style={[styles.scrollContent, { paddingBottom: 160 + insets.bottom }]}>
             {/* Name selection */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -280,15 +333,33 @@ export default function Customize() {
               </View>
             </View>
 
-            {/* Next button */}
-            <TouchableOpacity style={styles.nextButton} onPress={next}>
-              <View style={styles.glassButton}>
-                <View style={styles.glassOverlay} />
-                <Text style={styles.glassButtonTitle}>Continue</Text>
-              </View>
-            </TouchableOpacity>
+            {/* Bottom spacing for floating button */}
+            <View style={[styles.bottomSpacing, { height: 140 + insets.bottom }]} />
           </View>
         </ScrollView>
+
+        {/* Floating Continue Button */}
+        <View style={[styles.floatingButtonContainer, { bottom: 20 + insets.bottom }]}>
+          <TouchableOpacity
+            onPress={next}
+            style={styles.floatingButton}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#10B981', '#059669', '#047857']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.floatingGlassButton}
+            >
+              <View style={styles.buttonContent}>
+                <Text style={styles.glassButtonTitle}>Continue</Text>
+                <View style={styles.glassIconContainer}>
+                  <Play size={24} color="#FFFFFF" />
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
 
         {/* Floating particles */}
         <View style={styles.particlesContainer}>
@@ -323,7 +394,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
     overflow: 'hidden',
-    marginTop: -50, // Extend background to cover status bar
   },
   backgroundGradient1: {
     position: 'absolute',
@@ -345,7 +415,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 110, // Account for status bar
   },
   header: {
     flexDirection: 'row',
@@ -359,9 +428,19 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
     textAlign: 'center',
     flex: 1,
     paddingHorizontal: 8,
@@ -370,6 +449,7 @@ const styles = StyleSheet.create({
   backButton: {
     borderRadius: 12,
     overflow: 'hidden',
+    boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.4)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
@@ -398,14 +478,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   glassIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.25)',
+    boxShadow: '0px 2px 4px rgba(255, 255, 255, 0.1)',
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -413,13 +494,58 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   placeholder: {
-    width: 48,
+    width: scale(48),
+  },
+  infoButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  bottomSpacing: {
+    height: 120, // Space for floating button
+  },
+  floatingButtonContainer: {
+    position: 'absolute',
+    left: responsivePadding.horizontal,
+    right: responsivePadding.horizontal,
+    zIndex: 10,
+  },
+  floatingButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 16,
+  },
+  floatingGlassButton: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: 64,
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    width: '100%',
   },
   heroSection: {
     alignItems: 'center',
@@ -432,9 +558,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   heroSubtitle: {
     fontSize: responsiveFontSize.lg,
@@ -448,7 +584,7 @@ const styles = StyleSheet.create({
   },
   nameContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: responsiveSpacing.sm,
   },
   nameInputContainer: {
     flex: 1,
@@ -458,9 +594,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#E5E7EB',
     marginBottom: 10,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   inputBlur: {
     borderRadius: 16,
@@ -492,9 +638,19 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
     marginBottom: responsiveSpacing.sm,
   },
   randomNameButton: {
@@ -551,9 +707,9 @@ const styles = StyleSheet.create({
     minHeight: 100, // Match container height
   },
   optionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(24),
     marginBottom: 12,
   },
   optionText: {
@@ -568,7 +724,7 @@ const styles = StyleSheet.create({
   sexOptionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: responsiveSpacing.sm,
   },
   sexOptionContainer: {
     flex: 1,
@@ -607,7 +763,7 @@ const styles = StyleSheet.create({
   sexualityOptionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: responsiveSpacing.sm,
   },
   sexualityOptionContainer: {
     flex: 1,
@@ -637,6 +793,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     maxWidth: '100%', // Ensure text doesn't overflow
     paddingVertical: responsivePadding.small, // Add small vertical padding for text
+    numberOfLines: 2,
+    ellipsizeMode: 'tail',
   },
   nextButton: {
     marginHorizontal: 20,
@@ -649,7 +807,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
   },
-  glassButton: {
+  glassButtonText: {
     paddingVertical: 18,
     paddingHorizontal: 24,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -661,7 +819,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glassOverlay: {
+  glassOverlayText: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -671,13 +829,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   glassButtonTitle: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#FFFFFF',
+    flex: 1,
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   particlesContainer: {
     position: 'absolute',

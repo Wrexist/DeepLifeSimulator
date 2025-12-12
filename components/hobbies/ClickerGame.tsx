@@ -62,6 +62,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     minWidth: 200,
     alignItems: 'center',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

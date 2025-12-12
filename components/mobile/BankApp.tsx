@@ -43,7 +43,7 @@ try {
    CONFIG
    ========================= */
 const SAVINGS_APR = 0.15;                 // 15% APR on savings
-const PREMIUM_SAVINGS_APR = 0.1875;       // 18.75% APR with premium banking (25% boost)
+const PREMIUM_SAVINGS_APR = 0.30;         // 30% APR with Financial Planning (+15% added)
 const MISSED_PAYMENT_PENALTY = 0.01;      // +1% on remaining if a weekly payment is missed
 const EARLY_FULL_PAY_DISCOUNT = 0.03;     // 3% discount when fully repaying a loan
 const MAX_DEBT_TO_FUNDS = 5;              // Total debt cap = 5 × (cash + savings)
@@ -71,8 +71,12 @@ type Loan = {
   termWeeks: number;
   startWeek: number;
   installment: number; // amortized weekly payment
+  weeklyPayment?: number; // For game loop auto-payment compatibility
   missedPayments: number;
   autoPay?: boolean;   // logically always true; kept for compatibility
+  type?: 'personal' | 'business' | 'mortgage' | 'auto';
+  weeksRemaining?: number;
+  interestRate?: number;
 };
 
 /* =========================
@@ -162,7 +166,7 @@ export default function BankApp({ onBack }: BankAppProps) {
   // From state
   const cash = gameState.stats?.money ?? 0;
   const initialSavings = gameState.bankSavings ?? 0;
-  const loans: Loan[] = (gameState.loans ?? []) as any[];
+  const loans: Loan[] = gameState.loans ?? [];
   const investments = gameState.stocks?.holdings ?? []; // link with Stocks app
 
 
@@ -279,7 +283,7 @@ export default function BankApp({ onBack }: BankAppProps) {
     (nextLoans: Loan[]) => {
       // Remove fully paid loans automatically
       const filtered = nextLoans.filter((l) => (l.remaining || 0) > 0);
-      setGameState((prev: any) => ({ ...prev, bankLoans: filtered }));
+      setGameState((prev: any) => ({ ...prev, loans: filtered }));
       saveGame();
     },
     [setGameState, saveGame]
@@ -321,7 +325,8 @@ export default function BankApp({ onBack }: BankAppProps) {
   /* ---------- Weekly interest: Savings ---------- */
   const lastSavingsWeek = useRef<number>(gameState.week);
   const currentSavingsAPR = useMemo(() => {
-    return hasService(IAP_PRODUCTS.PREMIUM_BANKING) ? PREMIUM_SAVINGS_APR : SAVINGS_APR;
+    // Financial Planning service gives +15% interest bonus (15% base → 17.25% with bonus)
+    return hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) ? PREMIUM_SAVINGS_APR : SAVINGS_APR;
   }, [hasService]);
   const weeklySavingsInterest = useMemo(() => (savings * currentSavingsAPR) / 52, [savings, currentSavingsAPR]);
 
@@ -333,7 +338,9 @@ export default function BankApp({ onBack }: BankAppProps) {
       lastSavingsWeek.current = gameState.week;
       setSavings((prev) => {
         if (prev <= 0) return prev;
-        const interest = (prev * SAVINGS_APR) / 52;
+        // Apply Financial Planning bonus if purchased
+        const effectiveAPR = hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) ? PREMIUM_SAVINGS_APR : SAVINGS_APR;
+        const interest = (prev * effectiveAPR) / 52;
         const newSavings = prev + interest;
         setGameState((p: any) => ({ ...p, bankSavings: newSavings }));
         saveGame();
@@ -344,6 +351,7 @@ export default function BankApp({ onBack }: BankAppProps) {
     // Note: Automatic loan payments are handled by the main game loop in GameContext
     // This ensures consistent payment processing and avoids duplicate deductions
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally only depend on gameState.week to avoid unnecessary recalculations
   }, [gameState.week]);
 
   /* ---------- Take Loan (with caps & market APR) ---------- */
@@ -357,10 +365,10 @@ export default function BankApp({ onBack }: BankAppProps) {
       return;
     }
 
-    // Apply credit boost benefits
-    const creditBoostMultiplier = hasService(IAP_PRODUCTS.CREDIT_BOOST) ? 1.5 : 1;
-    const adjustedLoanCap = Math.floor(singleLoanCap * creditBoostMultiplier);
-    const adjustedMaxDebt = Math.floor(maxTotalDebt * creditBoostMultiplier);
+    // Apply Private Banking benefits (higher loan limits)
+    const privateBankingMultiplier = hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 1.5 : 1;
+    const adjustedLoanCap = Math.floor(singleLoanCap * privateBankingMultiplier);
+    const adjustedMaxDebt = Math.floor(maxTotalDebt * privateBankingMultiplier);
     
     if (amt > adjustedLoanCap) {
       Alert.alert(
@@ -377,10 +385,19 @@ export default function BankApp({ onBack }: BankAppProps) {
       return;
     }
 
-    // Apply credit boost to interest rate
+    // Apply Private Banking interest rate benefits (VIP 3% APR loans)
     const baseAPR = getMarketAPR(gameState.week);
-    const creditBoostDiscount = hasService(IAP_PRODUCTS.CREDIT_BOOST) ? 0.02 : 0; // 2% discount
-    const apr = Math.max(0.01, baseAPR - creditBoostDiscount); // Minimum 1% APR
+    const privateBankingDiscount = hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? (baseAPR - 0.03) : 0; // VIP gets 3% APR
+    
+    // Get political perks if player has political career
+    let politicalInterestReduction = 0;
+    if (gameState.politics && gameState.politics.careerLevel > 0) {
+      const { getCombinedPerkEffects } = require('@/lib/politics/perks');
+      const perkEffects = getCombinedPerkEffects(gameState.politics.careerLevel);
+      politicalInterestReduction = perkEffects.loanInterestReduction / 100; // Convert percentage to decimal
+    }
+    
+    const apr = Math.max(0.01, baseAPR - privateBankingDiscount - politicalInterestReduction); // Minimum 1% APR
     const weeklyRate = apr / 52;
     const termW = selectedTerm;
     const installment = amortizedInstallment(amt, weeklyRate, termW);
@@ -395,15 +412,19 @@ export default function BankApp({ onBack }: BankAppProps) {
       termWeeks: termW,
       startWeek: gameState.week ?? 0,
       installment,
+      weeklyPayment: installment, // For auto-payment compatibility
       missedPayments: 0,
       autoPay: true,
+      type: 'personal' as const, // Default loan type
+      weeksRemaining: termW,
+      interestRate: apr,
     };
 
     const nextCash = cash + amt;
     setGameState((prev: any) => ({
       ...prev,
       stats: { ...prev.stats, money: clampNonNeg(nextCash) },
-      bankLoans: [...(prev.bankLoans ?? []), newLoan],
+      loans: [...(prev.loans ?? []), newLoan],
     }));
     saveGame();
 
@@ -480,7 +501,7 @@ export default function BankApp({ onBack }: BankAppProps) {
         ...prev,
         stats: { ...prev.stats, money: clampNonNeg(nextCash) },
         bankSavings: clampNonNeg(nextSavings),
-        bankLoans: filtered,
+        loans: filtered,
       }));
       saveGame();
       setSavings(clampNonNeg(nextSavings));
@@ -515,7 +536,7 @@ export default function BankApp({ onBack }: BankAppProps) {
         ...prev,
         stats: { ...prev.stats, money: clampNonNeg(nextCash) },
         bankSavings: clampNonNeg(nextSavings),
-        bankLoans: filtered,
+        loans: filtered,
       }));
       saveGame();
       setSavings(clampNonNeg(nextSavings));
@@ -524,9 +545,10 @@ export default function BankApp({ onBack }: BankAppProps) {
   );
 
   /* ---------- Derived UI bits ---------- */
+  const weeklyInterestRate = useMemo(() => (currentSavingsAPR / 52) * 100, [currentSavingsAPR]); // Convert to percentage
   const weeklySavingsText = useMemo(
-    () => `+${formatMoney(weeklySavingsInterest)} / w`,
-    [weeklySavingsInterest]
+    () => `+${formatMoney(weeklySavingsInterest)} / w (${weeklyInterestRate.toFixed(2)}%)`,
+    [weeklySavingsInterest, weeklyInterestRate]
   );
 
   const marketAPR = useMemo(() => getMarketAPR(gameState.week), [gameState.week]);
@@ -639,7 +661,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="Amount"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"}
                 keyboardType="numeric"
                 style={styles.input}
                 returnKeyType="done"
@@ -654,15 +676,40 @@ export default function BankApp({ onBack }: BankAppProps) {
               </View>
             </View>
 
-            {/* Premium Banking Benefits */}
-            {hasService(IAP_PRODUCTS.PREMIUM_BANKING) && (
+            {/* Interest Rate Info Card */}
+            <View style={[styles.card, styles.interestCard, settings?.darkMode && styles.interestCardDark]}>
+              <View style={styles.interestHeader}>
+                <TrendingUp size={18} color="#34D399" />
+                <Text style={[styles.interestTitle, settings?.darkMode && styles.interestTitleDark]}>Savings Interest</Text>
+              </View>
+              <View style={styles.interestDetails}>
+                <View style={styles.interestRow}>
+                  <Text style={[styles.interestLabel, settings?.darkMode && styles.interestLabelDark]}>Annual Rate (APR):</Text>
+                  <Text style={styles.interestValue}>{(currentSavingsAPR * 100).toFixed(1)}%</Text>
+                </View>
+                <View style={styles.interestRow}>
+                  <Text style={[styles.interestLabel, settings?.darkMode && styles.interestLabelDark]}>Weekly Rate:</Text>
+                  <Text style={styles.interestValue}>{weeklyInterestRate.toFixed(2)}%</Text>
+                </View>
+                <View style={styles.interestRow}>
+                  <Text style={[styles.interestLabel, settings?.darkMode && styles.interestLabelDark]}>Weekly Earnings:</Text>
+                  <Text style={[styles.interestValue, styles.interestEarnings]}>+{formatMoney(weeklySavingsInterest)} $</Text>
+                </View>
+              </View>
+              <Text style={[styles.interestNote, settings?.darkMode && styles.interestNoteDark]}>
+                Interest is automatically added to your savings each week.
+              </Text>
+            </View>
+
+            {/* Financial Planning Benefits */}
+            {hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) && (
               <View style={[styles.card, styles.premiumCard, settings?.darkMode && styles.cardDark]}>
                 <View style={styles.premiumHeader}>
                   <Crown size={20} color="#FFD700" />
-                  <Text style={styles.premiumTitle}>Premium Banking Active</Text>
+                  <Text style={styles.premiumTitle}>Financial Planning Active</Text>
                 </View>
                 <Text style={styles.premiumText}>
-                  You're earning {Math.round(currentSavingsAPR * 100)}% APR on savings (25% boost!)
+                  You're earning {(currentSavingsAPR * 100).toFixed(0)}% APR on savings (double interest!)
                 </Text>
               </View>
             )}
@@ -680,7 +727,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                 value={loanAmount}
                 onChangeText={setLoanAmount}
                 placeholder="Loan amount"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"}
                 keyboardType="numeric"
                 style={styles.input}
                 returnKeyType="done"
@@ -702,6 +749,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                   >
                     <Text style={[
                       styles.termButtonText,
+                      settings?.darkMode && styles.termButtonTextDark,
                       selectedTerm === term && styles.termButtonTextActive
                     ]}>
                       {term} weeks
@@ -712,10 +760,10 @@ export default function BankApp({ onBack }: BankAppProps) {
 
               <View style={styles.loanInfo}>
                 <Text style={styles.loanInfoText}>
-                  Max loan: {formatMoney(singleLoanCap * (hasService(IAP_PRODUCTS.CREDIT_BOOST) ? 1.5 : 1))} $
+                  Max loan: {formatMoney(singleLoanCap * (hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 1.5 : 1))} $
                 </Text>
                 <Text style={styles.loanInfoText}>
-                  APR: {((getMarketAPR(gameState.week) - (hasService(IAP_PRODUCTS.CREDIT_BOOST) ? 0.02 : 0)) * 100).toFixed(2)}%
+                  APR: {(hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 3 : getMarketAPR(gameState.week) * 100).toFixed(2)}%
                 </Text>
                 <Text style={styles.loanInfoText}>
                   Weekly payment: ~{formatMoney(approxCost32)} $
@@ -753,7 +801,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                           repayPercent(loan.id, 0.15);
                         }}
                       >
-                        <Text style={styles.loanActionText}>Pay 15%</Text>
+                        <Text style={[styles.loanActionText, settings?.darkMode && styles.loanActionTextDark]}>Pay 15%</Text>
                       </TouchableOpacity>
                       <TouchableOpacity 
                         style={styles.loanActionButton}
@@ -762,7 +810,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                           repayPercent(loan.id, 0.5);
                         }}
                       >
-                        <Text style={styles.loanActionText}>Pay 50%</Text>
+                        <Text style={[styles.loanActionText, settings?.darkMode && styles.loanActionTextDark]}>Pay 50%</Text>
                       </TouchableOpacity>
                       <TouchableOpacity 
                         style={[styles.loanActionButton, styles.loanActionButtonPrimary]}
@@ -786,7 +834,7 @@ export default function BankApp({ onBack }: BankAppProps) {
           <>
             <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
               <Text style={styles.section}>Premium Banking Services</Text>
-              <Text style={styles.servicesDescription}>
+              <Text style={[styles.servicesDescription, settings?.darkMode && styles.servicesDescriptionDark]}>
                 Unlock exclusive banking features and benefits
               </Text>
             </View>
@@ -812,7 +860,7 @@ export default function BankApp({ onBack }: BankAppProps) {
             {/* Premium Banking Services */}
             <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
               <Text style={styles.section}>Premium Banking Services</Text>
-              <Text style={styles.servicesDescription}>
+              <Text style={[styles.servicesDescription, settings?.darkMode && styles.servicesDescriptionDark]}>
                 Exclusive services available on both mobile and computer banking apps
               </Text>
             </View>
@@ -846,7 +894,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                   )}
                 </View>
               </View>
-              <Text style={styles.serviceDescription}>
+              <Text style={[styles.serviceDescription, settings?.darkMode && styles.serviceDescriptionDark]}>
                 10% cashback on all purchases, no annual fee
               </Text>
             </View>
@@ -880,7 +928,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                   )}
                 </View>
               </View>
-              <Text style={styles.serviceDescription}>
+              <Text style={[styles.serviceDescription, settings?.darkMode && styles.serviceDescriptionDark]}>
                 15% interest on bank savings, expert financial advice
               </Text>
             </View>
@@ -914,7 +962,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                   )}
                 </View>
               </View>
-              <Text style={styles.serviceDescription}>
+              <Text style={[styles.serviceDescription, settings?.darkMode && styles.serviceDescriptionDark]}>
                 Company loans, business account management, upgrades
               </Text>
             </View>
@@ -948,7 +996,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                   )}
                 </View>
               </View>
-              <Text style={styles.serviceDescription}>
+              <Text style={[styles.serviceDescription, settings?.darkMode && styles.serviceDescriptionDark]}>
                 VIP 3% APR loans, personal wealth manager, priority support
               </Text>
             </View>
@@ -1007,7 +1055,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                     style={styles.modalBtnSecondary} 
                     onPress={() => setShowPurchaseModal(false)}
                   >
-                    <Text style={styles.modalBtnSecondaryText}>Cancel</Text>
+                    <Text style={[styles.modalBtnSecondaryText, settings?.darkMode && styles.modalBtnSecondaryTextDark]}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.modalBtn} 
@@ -1077,8 +1125,18 @@ const styles = StyleSheet.create({
   activeTab: { backgroundColor: '#1E293B' },
   tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   tabTextActive: { color: '#FFFFFF' },
-  tabTextInactive: { color: '#6B7280' },
-  tabTextInactiveDark: { color: '#FFFFFF' },
+  tabTextInactive: { 
+    color: '#6B7280',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  tabTextInactiveDark: { 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
 
   scrollContent: { padding: responsiveSpacing.lg, paddingBottom: responsiveSpacing['2xl'] },
   card: { backgroundColor: '#0F1220', borderRadius: responsiveBorderRadius.md, padding: responsiveSpacing.md, marginBottom: responsiveSpacing.sm, borderWidth: 0.5, borderColor: '#23283B' },
@@ -1088,7 +1146,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#101426', borderRadius: responsiveBorderRadius.md, paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.md,
     color: '#E7EAF2', borderWidth: 1, borderColor: '#2A2D3A', marginBottom: responsiveSpacing.md, flex: 1,
   },
-  inputLabel: { color: '#9CA3AF', fontSize: responsiveFontSize.sm, marginBottom: scale(6) },
+  inputLabel: { 
+    color: '#9CA3AF', 
+    fontSize: responsiveFontSize.sm, 
+    marginBottom: scale(6),
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  inputLabelDark: { 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
   fakeInput: {
     backgroundColor: '#101426', borderRadius: responsiveBorderRadius.md, paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.md,
     borderWidth: 1, borderColor: '#2A2D3A', justifyContent: 'center', marginBottom: responsiveSpacing.md, height: scale(44),
@@ -1106,7 +1177,18 @@ const styles = StyleSheet.create({
   termBtnActive: { backgroundColor: '#1E293B', borderColor: '#3B82F6' },
   termText: { fontSize: responsiveFontSize.base, fontWeight: '700' },
   termTextActive: { color: '#FFFFFF' },
-  termTextInactive: { color: '#9CA3AF' },
+  termTextInactive: { 
+    color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  termTextInactiveDark: { 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
 
   btnPrimary: {
     flex: 1, backgroundColor: '#2563EB', borderRadius: responsiveBorderRadius.sm, paddingVertical: responsiveSpacing.sm,
@@ -1135,7 +1217,19 @@ const styles = StyleSheet.create({
   termLabel: { color: '#E7EAF2', fontSize: responsiveFontSize.base, fontWeight: '500', marginRight: responsiveSpacing.sm },
   termButton: { paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151' },
   termButtonActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
-  termButtonText: { color: '#9CA3AF', fontSize: responsiveFontSize.sm },
+  termButtonText: { 
+    color: '#9CA3AF', 
+    fontSize: responsiveFontSize.sm,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  termButtonTextDark: { 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
   termButtonTextActive: { color: '#FFFFFF' },
   loanInfo: { backgroundColor: '#1F2937', padding: responsiveSpacing.md, borderRadius: responsiveBorderRadius.md, marginVertical: responsiveSpacing.md },
   loanInfoText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm, marginBottom: responsiveSpacing.xs },
@@ -1143,7 +1237,20 @@ const styles = StyleSheet.create({
   loanActions: { flexDirection: 'row', gap: responsiveSpacing.sm, marginTop: responsiveSpacing.sm },
   loanActionButton: { flex: 1, paddingVertical: responsiveSpacing.sm, paddingHorizontal: responsiveSpacing.md, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151', alignItems: 'center' },
   loanActionButtonPrimary: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  loanActionText: { color: '#9CA3AF', fontSize: responsiveFontSize.sm, fontWeight: '500' },
+  loanActionText: { 
+    color: '#9CA3AF', 
+    fontSize: responsiveFontSize.sm, 
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  loanActionTextDark: { 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
   loanActionTextPrimary: { color: '#FFFFFF' },
 
   // Premium banking styles
@@ -1152,8 +1259,36 @@ const styles = StyleSheet.create({
   premiumTitle: { color: '#FFD700', fontSize: responsiveFontSize.base, fontWeight: '600' },
   premiumText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm },
 
+  // Interest card styles
+  interestCard: { backgroundColor: '#F0FDF4', borderColor: '#34D399', borderWidth: 1 },
+  interestCardDark: { backgroundColor: '#064E3B' },
+  interestHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.md, gap: responsiveSpacing.sm },
+  interestTitle: { color: '#065F46', fontSize: responsiveFontSize.base, fontWeight: '600' },
+  interestTitleDark: { color: '#34D399' },
+  interestDetails: { marginBottom: responsiveSpacing.sm },
+  interestRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: responsiveSpacing.xs },
+  interestLabel: { color: '#374151', fontSize: responsiveFontSize.sm },
+  interestLabelDark: { color: '#D1D5DB' },
+  interestValue: { color: '#059669', fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  interestEarnings: { color: '#10B981' },
+  interestNote: { color: '#6B7280', fontSize: responsiveFontSize.xs, fontStyle: 'italic', marginTop: responsiveSpacing.xs },
+  interestNoteDark: { color: '#9CA3AF' },
+
   // Services styles
-  servicesDescription: { color: '#9CA3AF', fontSize: responsiveFontSize.sm, marginTop: responsiveSpacing.sm },
+  servicesDescription: { 
+    color: '#9CA3AF', 
+    fontSize: responsiveFontSize.sm, 
+    marginTop: responsiveSpacing.sm,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  servicesDescriptionDark: { 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
   serviceHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.md },
   serviceIconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1F2937', alignItems: 'center', justifyContent: 'center', marginRight: responsiveSpacing.md },
   serviceImage: { width: 32, height: 32, resizeMode: 'contain' },
@@ -1166,12 +1301,38 @@ const styles = StyleSheet.create({
   activeText: { color: '#FFFFFF', fontSize: responsiveFontSize.sm, fontWeight: '500' },
   purchaseButton: { backgroundColor: '#3B82F6', paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.md },
   purchaseButtonText: { color: '#FFFFFF', fontSize: responsiveFontSize.sm, fontWeight: '500' },
-  serviceDescription: { color: '#9CA3AF', fontSize: responsiveFontSize.sm, lineHeight: 20 },
+  serviceDescription: { 
+    color: '#9CA3AF', 
+    fontSize: responsiveFontSize.sm, 
+    lineHeight: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  serviceDescriptionDark: { 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
 
   // Modal styles
   modalActions: { flexDirection: 'row', gap: responsiveSpacing.md, marginTop: responsiveSpacing.lg },
   modalBtnSecondary: { flex: 1, paddingVertical: responsiveSpacing.md, paddingHorizontal: responsiveSpacing.lg, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151', alignItems: 'center' },
-  modalBtnSecondaryText: { color: '#9CA3AF', fontSize: responsiveFontSize.base, fontWeight: '500' },
+  modalBtnSecondaryText: { 
+    color: '#9CA3AF', 
+    fontSize: responsiveFontSize.base, 
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  modalBtnSecondaryTextDark: { 
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
   featuresList: { marginVertical: responsiveSpacing.md },
   featureItem: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.sm, gap: responsiveSpacing.sm },
   featureText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm, flex: 1 },
@@ -1222,8 +1383,14 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.xs,
     color: '#6B7280',
     fontStyle: 'italic',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   errorSubtextDark: {
-    color: '#9CA3AF',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
 });

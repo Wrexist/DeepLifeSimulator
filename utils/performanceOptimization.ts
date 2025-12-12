@@ -1,4 +1,5 @@
-import { useMemo, useCallback, useRef } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
+import { Animated } from 'react-native';
 import { GameState } from '@/contexts/GameContext';
 
 // Performance optimization utilities
@@ -84,7 +85,7 @@ export const useOptimizedGameState = (selector: (state: GameState) => any) => {
 // Debounced state updates
 export const useDebouncedState = <T>(initialValue: T, delay: number = 300) => {
   const [value, setValue] = useState(initialValue);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debouncedSetValue = useCallback((newValue: T) => {
     if (timeoutRef.current) {
@@ -95,6 +96,15 @@ export const useDebouncedState = <T>(initialValue: T, delay: number = 300) => {
       setValue(newValue);
     }, delay);
   }, [delay]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return [value, debouncedSetValue] as const;
 };
@@ -118,7 +128,8 @@ export const useOptimizedAnimation = (initialValue: number = 0) => {
 export const useVirtualizedList = <T>(
   items: T[],
   itemHeight: number,
-  containerHeight: number
+  containerHeight: number,
+  scrollOffset: number = 0
 ) => {
   return useMemo(() => {
     const visibleCount = Math.ceil(containerHeight / itemHeight) + 2; // Buffer
@@ -131,7 +142,7 @@ export const useVirtualizedList = <T>(
       endIndex,
       totalHeight: items.length * itemHeight,
     };
-  }, [items, itemHeight, containerHeight]);
+  }, [items, itemHeight, containerHeight, scrollOffset]);
 };
 
 // Performance monitoring
@@ -156,7 +167,7 @@ export const usePerformanceMonitor = () => {
 // Batch state updates
 export const useBatchedUpdates = () => {
   const batchRef = useRef<any[]>([]);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const batchUpdate = useCallback((update: any) => {
     batchRef.current.push(update);
@@ -177,6 +188,15 @@ export const useBatchedUpdates = () => {
         }
       });
     }, 16); // ~60fps
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   return { batchUpdate };
@@ -211,7 +231,7 @@ export const useLazyComponent = <T extends React.ComponentType<any>>(
 };
 
 // Optimized image loading
-export const useOptimizedImage = (uri: string) => {
+export const useOptimizedImage = (_uri: string) => {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
@@ -245,7 +265,9 @@ export const useMemoryCleanup = () => {
         try {
           fn();
         } catch (error) {
-          console.warn('Cleanup function failed:', error);
+          if (__DEV__) {
+            console.warn('Cleanup function failed:', error);
+          }
         }
       });
       cleanupFunctions.current = [];

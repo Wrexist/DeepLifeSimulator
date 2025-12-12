@@ -1,16 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Trophy, 
-  Star, 
   Zap, 
   Heart, 
   DollarSign, 
   Target, 
   Crown,
-  Award,
   Gem,
   ShoppingCart,
   Users,
@@ -19,7 +18,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { setAchievementToastRef } from '@/utils/achievementToast';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
 
 export interface AchievementData {
   title: string;
@@ -35,6 +34,7 @@ export const showAchievementToast = (title: string, category: string = 'general'
 
 export default function AchievementToast() {
   const { gameState } = useGame();
+  const insets = useSafeAreaInsets();
   const [achievement, setAchievement] = useState<AchievementData | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -97,7 +97,9 @@ export default function AchievementToast() {
 
   if (!achievement || !isVisible) return null;
 
-  const isDarkMode = gameState.settings.darkMode;
+  // Add null check for gameState
+  if (!gameState || !gameState.settings) return null;
+
   const categoryColor = getCategoryColor(achievement.category);
 
   return (
@@ -122,7 +124,13 @@ export default function AchievementToast() {
         damping: 20,
         stiffness: 300,
       }}
-      style={styles.container}
+      style={[
+        styles.container, 
+        { 
+          zIndex: 9999,
+          top: insets.top + (Platform.OS === 'ios' ? 60 : 50),
+        }
+      ]}
     >
       <LinearGradient
         colors={[categoryColor, categoryColor + 'DD']}
@@ -147,7 +155,7 @@ export default function AchievementToast() {
           <Text style={styles.achievementLabel}>
             ACHIEVEMENT UNLOCKED!
           </Text>
-          <Text style={styles.achievementTitle}>
+          <Text style={styles.achievementTitle} numberOfLines={3} adjustsFontSizeToFit>
             {achievement.title}
           </Text>
         </View>
@@ -165,12 +173,14 @@ export default function AchievementToast() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 16,
+    right: 16,
     alignSelf: 'center',
-    width: screenWidth * 0.85,
-    maxWidth: 350,
+    maxWidth: screenWidth - 32,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: 'visible',
+    zIndex: 9999,
+    boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
@@ -183,6 +193,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    borderRadius: 16,
   },
   content: {
     padding: 20,
@@ -211,6 +222,8 @@ const styles = StyleSheet.create({
   textContainer: {
     alignItems: 'center',
     marginBottom: 16,
+    width: '100%',
+    paddingHorizontal: 8,
   },
   achievementLabel: {
     fontSize: 12,
@@ -226,6 +239,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     lineHeight: 22,
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   rewardContainer: {
     flexDirection: 'row',

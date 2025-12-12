@@ -270,7 +270,7 @@ export default function DailySummaryModal() {
                 <View style={styles.statusRow}>
                   <Text style={[styles.statusLabel, settings.darkMode && styles.statusLabelDark]}>Week:</Text>
                   <Text style={[styles.statusValue, settings.darkMode && styles.statusValueDark]}>
-                    {gameState.date.week} of {gameState.date.month} {gameState.date.year}
+                    {gameState.date.week} of {gameState.date.month} {Math.floor(gameState.date.year || 2025)}
                   </Text>
                 </View>
               </View>
@@ -280,6 +280,9 @@ export default function DailySummaryModal() {
 
           {/* Footer */}
           <View style={[styles.footer, settings.darkMode && styles.footerDark]}>
+            <Text style={[styles.footerHint, settings.darkMode && styles.footerHintDark]}>
+              You can disable these summaries in Settings
+            </Text>
             <TouchableOpacity onPress={handleClose} style={styles.continueButton}>
               <LinearGradient
                 colors={['#3B82F6', '#2563EB']}
@@ -311,6 +314,7 @@ const styles = StyleSheet.create({
     width: '95%',
     height: '85%',
     maxHeight: '90%',
+    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
@@ -526,6 +530,17 @@ const styles = StyleSheet.create({
   },
   footerDark: {
     borderTopColor: '#374151',
+  },
+  footerHint: {
+    fontSize: responsiveFontSize.xs,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: responsiveSpacing.sm,
+    fontStyle: 'italic',
+    opacity: 0.7,
+  },
+  footerHintDark: {
+    color: '#6B7280',
   },
   continueButton: {
     borderRadius: responsiveBorderRadius.md,

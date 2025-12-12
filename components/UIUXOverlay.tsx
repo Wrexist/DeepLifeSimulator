@@ -3,19 +3,12 @@ import { View, StyleSheet } from 'react-native';
 import { useUIUX } from '@/contexts/UIUXContext';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import TutorialOverlay from './TutorialOverlay';
-import ImmersiveTutorial from './ImmersiveTutorial';
 
 export default function UIUXOverlay() {
   const {
     loadingStates,
     errorStates,
-    showTutorial,
-    tutorialSteps,
-    currentTutorialStep,
     hideError,
-    completeTutorial,
-    skipTutorial,
   } = useUIUX();
 
   // Find the highest priority loading state (overlay > default > inline)
@@ -32,7 +25,7 @@ export default function UIUXOverlay() {
   const highestPriorityLoading = getHighestPriorityLoading();
 
   return (
-    <View style={styles.container} style={{ pointerEvents: 'box-none' }}>
+    <View style={styles.container} pointerEvents="box-none">
       {/* Loading Overlay */}
       {highestPriorityLoading && (
         <LoadingSpinner
@@ -56,25 +49,7 @@ export default function UIUXOverlay() {
         />
       ))}
 
-      {/* Tutorial Overlay - Use Immersive Tutorial for enhanced experience */}
-      <ImmersiveTutorial
-        visible={showTutorial}
-        steps={tutorialSteps}
-        onComplete={completeTutorial}
-        onSkip={skipTutorial}
-        currentStep={currentTutorialStep}
-      />
-      
-      {/* Fallback to basic tutorial if needed */}
-      {!showTutorial && (
-        <TutorialOverlay
-          visible={false}
-          steps={[]}
-          onComplete={completeTutorial}
-          onSkip={skipTutorial}
-          currentStep={currentTutorialStep}
-        />
-      )}
+      {/* Tutorial is handled by TutorialManager component - disabled here to prevent overlap */}
     </View>
   );
 }

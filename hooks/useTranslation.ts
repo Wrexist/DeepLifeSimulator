@@ -1,5 +1,6 @@
 import { useGame } from '@/contexts/GameContext';
 import { t, type Language } from '@/utils/translations';
+import { logger } from '@/utils/logger';
 
 export function useTranslation() {
   const { gameState } = useGame();
@@ -13,12 +14,14 @@ export function useTranslation() {
       
       // Debug logging to catch any potential issues
       if (__DEV__ && (result.includes('computer.') || result.includes('mobile.') || result.includes('work.') || result.includes('market.') || result.includes('health.'))) {
-        console.warn('Translation contains potential prefix issue:', { key, result, language });
+        logger.warn('Translation contains potential prefix issue:', { key, result, language });
       }
       
       return result;
     } catch (error) {
-      console.error('Translation error:', error, 'Key:', key, 'Language:', language);
+      if (__DEV__) {
+        logger.error('Translation error:', { error, key, language });
+      }
       return key; // Return the key if translation fails
     }
   };

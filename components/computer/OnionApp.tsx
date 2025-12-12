@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Lock, ShoppingCart, MessageSquare, Terminal, Bitcoin, Shield, Zap, DollarSign } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
+import { logger } from '@/utils/logger';
+import { useMemoryCleanup } from '@/utils/performanceOptimization';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -13,31 +15,62 @@ interface OnionAppProps {
 
 export default function OnionApp({ onBack }: OnionAppProps) {
   const { gameState, setGameState, buyDarkWebItem, buyHack, performHack } = useGame();
+  const { addCleanup } = useMemoryCleanup();
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'shop' | 'forum' | 'terminal'>('shop');
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
   const [isHacking, setIsHacking] = useState(false);
+  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
 
-  const canUseTerminal =
-    gameState.darkWebItems.find(i => i.id === 'usb')?.owned &&
-    gameState.darkWebItems.find(i => i.id === 'vpn')?.owned;
-
-  const canUseForum =
-    gameState.darkWebItems.find(i => i.id === 'vpn')?.owned &&
-    gameState.darkWebItems.find(i => i.id === 'usb')?.owned;
-
-  const btcBalance = gameState.cryptos.find(c => c.id === 'btc')?.owned || 0;
+  // Extract frequently used values from gameState
+  const darkWebItems = gameState.darkWebItems || [];
+  const cryptos = gameState.cryptos || [];
+  const hacks = gameState.hacks || [];
+  const streetJobs = gameState.streetJobs || [];
+  const energy = gameState.stats.energy;
   const isDarkMode = gameState.settings.darkMode;
 
-  // Helper function to calculate actual hack risk with item buffs
-  const calculateActualRisk = (hack: any) => {
-    const ownedItems = gameState.darkWebItems.filter(i => i.owned);
+  // Memoize helper functions
+  const canUseTerminal = useMemo(() =>
+    darkWebItems.find(i => i.id === 'usb')?.owned &&
+    darkWebItems.find(i => i.id === 'vpn')?.owned,
+    [darkWebItems]
+  );
+
+  const canUseForum = useMemo(() =>
+    darkWebItems.find(i => i.id === 'vpn')?.owned &&
+    darkWebItems.find(i => i.id === 'usb')?.owned,
+    [darkWebItems]
+  );
+
+  const btcBalance = useMemo(() => 
+    cryptos.find(c => c.id === 'btc')?.owned || 0,
+    [cryptos]
+  );
+
+  // Helper function to calculate actual hack risk with item buffs - memoized
+  const calculateActualRisk = useCallback((hack: any) => {
+    const ownedItems = darkWebItems.filter(i => i.owned);
     const totalRiskReduction = ownedItems.reduce(
       (sum, i) => sum + (i.riskReduction || 0),
       0
     );
     return Math.max(0, hack.risk - totalRiskReduction);
-  };
+  }, [darkWebItems]);
+
+  // Helper to create setTimeout with cleanup
+  const createTimeout = useCallback((callback: () => void, delay: number) => {
+    const timeoutId = setTimeout(() => {
+      callback();
+      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
+    }, delay);
+    timeoutRefs.current.push(timeoutId);
+    addCleanup(() => {
+      clearTimeout(timeoutId);
+      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
+    });
+    return timeoutId;
+  }, [addCleanup]);
 
   const hackSteps: Record<string, string[]> = {
     phishing: [
@@ -122,11 +155,11 @@ export default function OnionApp({ onBack }: OnionAppProps) {
     ]
   };
 
-  const runHack = (hackId: string) => {
-    const hack = gameState.hacks.find(h => h.id === hackId);
+  const runHack = useCallback((hackId: string) => {
+    const hack = hacks.find(h => h.id === hackId);
     if (!hack) return;
     const steps = hackSteps[hackId] || ['Initializing attack'];
-    if (gameState.stats.energy < hack.energyCost) {
+    if (energy < hack.energyCost) {
       setTerminalOutput([`> Not enough energy. ${hack.energyCost} energy required.`]);
       return;
     }
@@ -145,7 +178,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
     setTerminalOutput([`> Initiating ${hack.name} sequence...`]);
     setIsHacking(true);
     steps.forEach((step, idx) => {
-      setTimeout(() => {
+      createTimeout(() => {
         const percent = Math.round(((idx + 1) / steps.length) * 100);
         const barLength = 20;
         const filled = Math.round((percent / 100) * barLength);
@@ -154,17 +187,17 @@ export default function OnionApp({ onBack }: OnionAppProps) {
         if (idx === steps.length - 1) {
           try {
             const result = performHack(hackId);
-            setTimeout(() => {
+            createTimeout(() => {
               let finalLine = '';
               if (result && result.caught) {
                 if (result.jailed) {
                   finalLine = `ARRESTED! Jailed for 4 weeks! Wanted level increased!`;
                   // Navigate to work tab to show prison screen
-                  setTimeout(() => {
+                  createTimeout(() => {
                     if (navigation && typeof navigation.navigate === 'function') {
                       navigation.navigate('work');
                     } else {
-                      console.warn('Navigation not available - user is now in jail');
+                      logger.warn('Navigation not available - user is now in jail');
                     }
                   }, 2000); // Give time for the message to be displayed
                 } else {
@@ -184,16 +217,16 @@ export default function OnionApp({ onBack }: OnionAppProps) {
               setIsHacking(false);
             }, 400);
           } catch (error) {
-            console.error('Hack error:', error);
+            logger.error('Hack error:', error);
             setTerminalOutput(prev => [...prev, `> Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`]);
             setIsHacking(false);
           }
         }
       }, (idx + 1) * 400);
     });
-  };
+  }, [hacks, energy, setGameState, performHack, createTimeout, navigation]);
 
-  const renderShopTab = () => (
+  const renderShopTab = useCallback(() => (
     <ScrollView 
       style={styles.content} 
       contentContainerStyle={styles.contentContainer}
@@ -215,8 +248,8 @@ export default function OnionApp({ onBack }: OnionAppProps) {
       </View>
 
       <View style={styles.itemsContainer}>
-        {gameState.darkWebItems.map(item => {
-          const requiredBy = gameState.streetJobs
+        {darkWebItems.map(item => {
+          const requiredBy = streetJobs
             .filter(job => job.darkWebRequirements?.includes(item.id))
             .map(job => job.name);
           return (
@@ -263,7 +296,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                   <View style={styles.requirementsContainer}>
                     <Text style={styles.requirementsTitle}>Required for:</Text>
                     {requiredBy.map(job => (
-                      <Text key={job} style={styles.requirementText}>• {job}</Text>
+                      <Text key={job} style={[styles.requirementText, isDarkMode && styles.requirementTextDark]}>• {job}</Text>
                     ))}
                   </View>
                 )}
@@ -307,9 +340,9 @@ export default function OnionApp({ onBack }: OnionAppProps) {
         })}
       </View>
     </ScrollView>
-  );
+  ), [darkWebItems, streetJobs, btcBalance, buyDarkWebItem, isDarkMode]);
 
-  const renderForumTab = () => (
+  const renderForumTab = useCallback(() => (
     <ScrollView 
       style={styles.content} 
       contentContainerStyle={styles.contentContainer}
@@ -336,8 +369,8 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                 </Text>
                 <View style={styles.forumRequirements}>
                   <Text style={styles.requirementsTitle}>Requirements:</Text>
-                  <Text style={styles.requirementText}>• VPN Connection (0.007 BTC)</Text>
-                  <Text style={styles.requirementText}>• USB Drive (0.012 BTC)</Text>
+                  <Text style={[styles.requirementText, isDarkMode && styles.requirementTextDark]}>• VPN Connection (0.007 BTC)</Text>
+                  <Text style={[styles.requirementText, isDarkMode && styles.requirementTextDark]}>• USB Drive (0.012 BTC)</Text>
                 </View>
                 <Text style={styles.forumNote}>
                   💡 Purchase these items from the Shop tab to access the forum.
@@ -350,8 +383,8 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                 </Text>
                 <View style={styles.forumContent}>
                   <Text style={styles.forumSectionTitle}>Available Hacking Courses:</Text>
-                  {gameState.hacks.map(hack => {
-                    const btc = gameState.cryptos.find(c => c.id === 'btc');
+                  {hacks.map(hack => {
+                    const btc = cryptos.find(c => c.id === 'btc');
                     const canAfford = btc && btc.owned >= hack.costBtc;
                     const actualRisk = calculateActualRisk(hack);
                     
@@ -410,9 +443,9 @@ export default function OnionApp({ onBack }: OnionAppProps) {
         </View>
       </View>
     </ScrollView>
-  );
+  ), [canUseForum, hacks, cryptos, calculateActualRisk, buyHack, isDarkMode]);
 
-  const renderTerminalTab = () => (
+  const renderTerminalTab = useCallback(() => (
     <ScrollView 
       style={styles.content} 
       contentContainerStyle={styles.contentContainer}
@@ -432,9 +465,9 @@ export default function OnionApp({ onBack }: OnionAppProps) {
 
           {!canUseTerminal ? (
             <View style={styles.terminalLocked}>
-              <Lock size={48} color="#6B7280" />
+              <Lock size={48} color={isDarkMode ? "#FFFFFF" : "#6B7280"} />
               <Text style={styles.terminalLockedTitle}>Terminal Locked</Text>
-              <Text style={styles.terminalLockedMessage}>
+              <Text style={[styles.terminalLockedMessage, isDarkMode && styles.terminalLockedMessageDark]}>
                 You need a VPN and USB drive to access the terminal safely.
               </Text>
             </View>
@@ -445,7 +478,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
                   showsVerticalScrollIndicator={false}
                   ref={(scrollView) => {
                     if (scrollView && terminalOutput.length > 0) {
-                      setTimeout(() => {
+                      createTimeout(() => {
                         scrollView.scrollToEnd({ animated: true });
                       }, 100);
                     }
@@ -458,63 +491,99 @@ export default function OnionApp({ onBack }: OnionAppProps) {
               </View>
 
               <View style={styles.hacksContainer}>
-                <Text style={styles.hacksTitle}>Available Hacks</Text>
-                {gameState.hacks.filter(hack => hack.purchased).length === 0 ? (
+                <View style={styles.hacksTitleContainer}>
+                  <View style={styles.hacksTitleIcon}>
+                    <Terminal size={18} color="#8B5CF6" />
+                  </View>
+                  <Text style={styles.hacksTitle}>Available Hacks</Text>
+                </View>
+                {hacks.filter(hack => hack.purchased).length === 0 ? (
                   <View style={styles.noHacksContainer}>
-                    <Text style={styles.noHacksText}>No hacks purchased yet.</Text>
-                    <Text style={styles.noHacksSubtext}>Visit the Forum tab to buy hacking courses.</Text>
+                    <Text style={[styles.noHacksText, isDarkMode && styles.noHacksTextDark]}>No hacks purchased yet.</Text>
+                    <Text style={[styles.noHacksSubtext, isDarkMode && styles.noHacksSubtextDark]}>Visit the Forum tab to buy hacking courses.</Text>
                   </View>
                 ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hacksScrollContent}>
                     <View style={styles.hacksList}>
-                      {gameState.hacks
+                      {hacks
                         .filter(hack => hack.purchased) // Only show purchased hacks
                         .map(hack => {
-                        const canUse = !isHacking && gameState.stats.energy >= hack.energyCost;
-                        const btc = gameState.cryptos.find(c => c.id === 'btc');
+                        const canUse = !isHacking && energy >= hack.energyCost;
+                        const btc = cryptos.find(c => c.id === 'btc');
                         const estimatedBtcReward = btc ? hack.reward / btc.price : 0;
                         const actualRisk = calculateActualRisk(hack);
+                        
+                        // Determine color scheme based on risk level
+                        const riskLevel = actualRisk;
+                        let gradientColors: [string, string, string];
+                        let borderColor: string;
+                        let glowColor: string;
+                        
+                        if (riskLevel >= 0.5) {
+                          // High risk - red/orange theme
+                          gradientColors = canUse ? ['#DC2626', '#B91C1C', '#991B1B'] : ['#6B7280', '#4B5563', '#374151'];
+                          borderColor = canUse ? '#EF4444' : '#6B7280';
+                          glowColor = canUse ? 'rgba(239, 68, 68, 0.4)' : 'rgba(107, 114, 128, 0.2)';
+                        } else if (riskLevel >= 0.3) {
+                          // Medium risk - orange/yellow theme
+                          gradientColors = canUse ? ['#F59E0B', '#D97706', '#B45309'] : ['#6B7280', '#4B5563', '#374151'];
+                          borderColor = canUse ? '#FBBF24' : '#6B7280';
+                          glowColor = canUse ? 'rgba(251, 191, 36, 0.4)' : 'rgba(107, 114, 128, 0.2)';
+                        } else {
+                          // Low risk - purple/blue theme
+                          gradientColors = canUse ? ['#8B5CF6', '#7C3AED', '#6D28D9'] : ['#6B7280', '#4B5563', '#374151'];
+                          borderColor = canUse ? '#A78BFA' : '#6B7280';
+                          glowColor = canUse ? 'rgba(167, 139, 250, 0.4)' : 'rgba(107, 114, 128, 0.2)';
+                        }
                         
                         return (
                           <TouchableOpacity
                             key={hack.id}
-                            style={styles.hackButton}
+                            style={[
+                              styles.hackButton,
+                              canUse && styles.hackButtonActive,
+                              { borderColor, shadowColor: borderColor }
+                            ]}
                             onPress={() => runHack(hack.id)}
                             disabled={!canUse}
+                            activeOpacity={0.8}
                           >
-                                                      <LinearGradient
-                            colors={
-                              !canUse ? ['#F59E0B', '#D97706'] :
-                              ['#10B981', '#059669']
-                            }
+                            <LinearGradient
+                              colors={gradientColors}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={styles.hackButtonGradient}
                             >
                               <View style={styles.hackButtonHeader}>
-                                <Text style={styles.hackName}>{hack.name}</Text>
+                                <View style={styles.hackNameContainer}>
+                                  <View style={[styles.hackStatusIndicator, { backgroundColor: canUse ? '#10B981' : '#6B7280' }]} />
+                                  <Text style={styles.hackName}>{hack.name}</Text>
+                                </View>
                               </View>
                               
                               <View style={styles.hackButtonStats}>
                                 <View style={styles.hackStat}>
-                                  <Zap size={12} color="#FBBF24" />
+                                  <Zap size={14} color="#FBBF24" />
                                   <Text style={styles.hackStatText}>{hack.energyCost} Energy</Text>
                                 </View>
                                 <View style={styles.hackStat}>
-                                  <DollarSign size={12} color="#10B981" />
-                                  <Text style={styles.hackStatText}>${hack.reward}</Text>
+                                  <DollarSign size={14} color="#10B981" />
+                                  <Text style={styles.hackStatText}>${hack.reward.toLocaleString()}</Text>
                                 </View>
                                 <View style={styles.hackStat}>
-                                  <Bitcoin size={12} color="#F7931A" />
+                                  <Bitcoin size={14} color="#F7931A" />
                                   <Text style={styles.hackStatText}>~{estimatedBtcReward.toFixed(6)} BTC</Text>
                                 </View>
                               </View>
                               
-                              <View style={styles.hackButtonRisk}>
-                                <Text style={styles.hackRiskText}>Risk: {Math.round(actualRisk * 100)}%</Text>
+                              <View style={[styles.hackButtonRisk, { backgroundColor: riskLevel >= 0.5 ? 'rgba(239, 68, 68, 0.2)' : riskLevel >= 0.3 ? 'rgba(251, 191, 36, 0.2)' : 'rgba(139, 92, 246, 0.2)' }]}>
+                                <Shield size={12} color={riskLevel >= 0.5 ? '#EF4444' : riskLevel >= 0.3 ? '#FBBF24' : '#A78BFA'} />
+                                <Text style={[styles.hackRiskText, { color: riskLevel >= 0.5 ? '#EF4444' : riskLevel >= 0.3 ? '#FBBF24' : '#A78BFA' }]}>
+                                  Risk: {Math.round(actualRisk * 100)}%
+                                </Text>
                               </View>
                             </LinearGradient>
-                                                     </TouchableOpacity>
+                          </TouchableOpacity>
                          );
                        })}
                     </View>
@@ -526,7 +595,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
         </LinearGradient>
       </View>
     </ScrollView>
-  );
+  ), [canUseTerminal, terminalOutput, isHacking, hacks, cryptos, energy, calculateActualRisk, runHack, createTimeout]);
 
   return (
     <View style={styles.container}>
@@ -631,16 +700,22 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+    marginTop: 0,
     marginBottom: 20,
     gap: 12,
+    borderRadius: 16,
+    overflow: 'visible',
   },
   tab: {
     flex: 1,
-    height: 60,
-    borderRadius: 12,
+    minHeight: 60,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   activeTab: {
+    boxShadow: '0px 4px 8px rgba(59, 130, 246, 0.3)',
     shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -651,7 +726,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    minHeight: 60,
     gap: 8,
   },
   tabText: {
@@ -665,7 +742,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 80,
     flexGrow: 1,
     justifyContent: 'center',
   },
@@ -675,6 +752,7 @@ const styles = StyleSheet.create({
   balanceCard: {
     padding: 20,
     borderRadius: 16,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -704,6 +782,7 @@ const styles = StyleSheet.create({
   itemCard: {
     borderRadius: 16,
     overflow: 'hidden',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -770,6 +849,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     marginBottom: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  requirementTextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   buyButton: {
     borderRadius: 8,
@@ -805,6 +893,7 @@ const styles = StyleSheet.create({
   forumCard: {
     borderRadius: 16,
     overflow: 'hidden',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -880,6 +969,15 @@ const styles = StyleSheet.create({
   hackCourseStats: {
     fontSize: 12,
     color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  hackCourseStatsDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   hackCourseHeader: {
     flexDirection: 'row',
@@ -933,6 +1031,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     borderRadius: 16,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -967,6 +1066,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  terminalLockedMessageDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   terminalOutput: {
     flex: 1,
@@ -982,38 +1090,80 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   hacksContainer: {
-    marginTop: 16,
+    marginTop: 20,
+  },
+  hacksTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 10,
+  },
+  hacksTitleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
   },
   hacksTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  hacksScrollContent: {
+    paddingRight: 20,
   },
   hacksList: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   hackButton: {
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
-    minWidth: 120,
+    minWidth: 180,
+    borderWidth: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  hackButtonActive: {
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   hackButtonGradient: {
-    padding: 16,
-    minWidth: 160,
+    padding: 18,
+    minWidth: 180,
   },
   hackButtonHeader: {
+    marginBottom: 12,
+  },
+  hackNameContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 8,
+  },
+  hackStatusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
   hackName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
     flex: 1,
+    letterSpacing: 0.3,
   },
   hackLockedBadge: {
     backgroundColor: '#6B7280',
@@ -1027,25 +1177,38 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   hackButtonStats: {
-    marginBottom: 8,
+    marginBottom: 12,
+    gap: 6,
   },
   hackStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
   },
   hackStatText: {
-    fontSize: 11,
-    color: '#D1D5DB',
-    marginLeft: 4,
+    fontSize: 12,
+    color: '#E5E7EB',
+    fontWeight: '600',
   },
   hackButtonRisk: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   hackRiskText: {
-    fontSize: 12,
-    color: '#EF4444',
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   noHacksContainer: {
     alignItems: 'center',
@@ -1059,11 +1222,29 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontWeight: '600',
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  noHacksTextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   noHacksSubtext: {
     fontSize: 12,
     color: '#6B7280',
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  noHacksSubtextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
 });
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';

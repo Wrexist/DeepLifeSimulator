@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { logger } from '@/utils/logger';
 
 interface PerformanceMetrics {
   timestamp: number;
@@ -15,24 +16,34 @@ class PerformanceMonitor {
   private componentCount = 0;
   private renderStartTime = 0;
 
+  private intervalId: ReturnType<typeof setInterval> | null = null;
+
   startMonitoring(): void {
     if (this.isMonitoring) return;
     
     this.isMonitoring = true;
     this.startMemoryTracking();
-    console.log('Performance monitoring started');
+    if (__DEV__) {
+      logger.info('Performance monitoring started');
+    }
   }
 
   stopMonitoring(): void {
     this.isMonitoring = false;
-    console.log('Performance monitoring stopped');
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    if (__DEV__) {
+      logger.info('Performance monitoring stopped');
+    }
   }
 
   private startMemoryTracking(): void {
     if (!this.isMonitoring) return;
 
     // Track memory usage every 5 seconds
-    setInterval(() => {
+    this.intervalId = setInterval(() => {
       this.recordMetrics();
     }, 5000);
   }
@@ -72,11 +83,13 @@ class PerformanceMonitor {
     
     // Alert if component count is growing consistently
     if (componentGrowth > 5) {
-      console.warn('Potential memory leak detected: Component count growing rapidly', {
-        growth: componentGrowth,
-        currentCount: recentMetrics[recentMetrics.length - 1].componentCount,
-        timeSpan: recentMetrics[recentMetrics.length - 1].timestamp - recentMetrics[0].timestamp,
-      });
+      if (__DEV__) {
+        logger.warn('Potential memory leak detected: Component count growing rapidly', {
+          growth: componentGrowth,
+          currentCount: recentMetrics[recentMetrics.length - 1].componentCount,
+          timeSpan: recentMetrics[recentMetrics.length - 1].timestamp - recentMetrics[0].timestamp,
+        });
+      }
     }
 
     // Check for memory usage growth on web
@@ -85,11 +98,13 @@ class PerformanceMonitor {
       const memoryGrowthMB = memoryGrowth / (1024 * 1024);
       
       if (memoryGrowthMB > 10) { // 10MB growth threshold
-        console.warn('Potential memory leak detected: Memory usage growing rapidly', {
-          growthMB: memoryGrowthMB.toFixed(2),
-          currentMB: (recentMetrics[recentMetrics.length - 1].jsHeapSize! / (1024 * 1024)).toFixed(2),
-          timeSpan: recentMetrics[recentMetrics.length - 1].timestamp - recentMetrics[0].timestamp,
-        });
+        if (__DEV__) {
+          logger.warn('Potential memory leak detected: Memory usage growing rapidly', {
+            growthMB: memoryGrowthMB.toFixed(2),
+            currentMB: (recentMetrics[recentMetrics.length - 1].jsHeapSize! / (1024 * 1024)).toFixed(2),
+            timeSpan: recentMetrics[recentMetrics.length - 1].timestamp - recentMetrics[0].timestamp,
+          });
+        }
       }
     }
   }
@@ -102,7 +117,9 @@ class PerformanceMonitor {
     if (this.renderStartTime > 0) {
       const renderTime = Date.now() - this.renderStartTime;
       if (renderTime > 16) { // 60fps threshold
-        console.warn('Slow render detected:', renderTime + 'ms');
+        if (__DEV__) {
+          logger.warn('Slow render detected:', { renderTime: renderTime + 'ms' });
+        }
       }
       this.renderStartTime = 0;
     }

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { logger } from '@/utils/logger';
 
 // Create a mock for web platform
 const createMockNotifications = () => ({
@@ -14,16 +15,30 @@ let Notifications: any = Platform.OS === 'web' ? createMockNotifications() : nul
 
 // Load notifications for native platforms
 if (Platform.OS !== 'web') {
-  import('expo-notifications').then(module => {
-    Notifications = module.default || module;
-  }).catch(error => {
-    // Suppress warning in development with Expo Go
-    if (__DEV__ && error.message?.includes('expo-notifications')) {
-      console.log('expo-notifications not available in Expo Go (expected)');
-    } else {
-      console.warn('expo-notifications not available:', error);
+  // Check if we're in Expo Go to suppress warnings
+  let isExpoGo = false;
+  try {
+    // @ts-ignore - Expo constants
+    const Constants = require('expo-constants');
+    isExpoGo = Constants?.executionEnvironment === 'storeClient';
+  } catch {
+    // Not Expo, continue
+  }
+  
+  if (!isExpoGo) {
+    import('expo-notifications').then(module => {
+      Notifications = module.default || module;
+    }).catch(error => {
+      if (__DEV__) {
+        logger.debug('expo-notifications not available:', error);
+      }
+    });
+  } else {
+    // In Expo Go, skip loading to avoid warnings
+    if (__DEV__) {
+      logger.debug('expo-notifications skipped - running in Expo Go');
     }
-  });
+  }
 }
 
 export async function initializeNotifications(): Promise<boolean> {
@@ -37,17 +52,22 @@ export async function initializeNotifications(): Promise<boolean> {
         Notifications = module.default || module;
       } catch (error) {
         // Suppress warning in development with Expo Go
-        if (__DEV__ && error.message?.includes('expo-notifications')) {
-          console.log('expo-notifications not available in Expo Go (expected)');
-        } else {
-          console.warn('expo-notifications not available:', error);
+        if (__DEV__) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('expo-notifications')) {
+            logger.debug('expo-notifications not available in Expo Go (expected)');
+          } else {
+            logger.warn('expo-notifications not available:', error);
+          }
         }
         return false;
       }
     }
     
     if (!Notifications) {
-      console.warn('Notifications module not available');
+      if (__DEV__) {
+        logger.warn('Notifications module not available');
+      }
       return false;
     }
     
@@ -62,11 +82,15 @@ export async function initializeNotifications(): Promise<boolean> {
       return request.granted;
     } else {
       // User denied and can't ask again
-      console.warn('Notification permissions permanently denied');
+      if (__DEV__) {
+        logger.warn('Notification permissions permanently denied');
+      }
       return false;
     }
   } catch (error) {
-    console.error('Notification permission error:', error);
+    if (__DEV__) {
+      logger.error('Notification permission error:', error);
+    }
     return false;
   }
 }
@@ -77,7 +101,9 @@ export async function scheduleDailyReminder(hour = 9, retryCount = 0) {
     
     const hasPermission = await initializeNotifications();
     if (!hasPermission) {
-      console.warn('Notification permission denied');
+      if (__DEV__) {
+        logger.warn('Notification permission denied');
+      }
       return false;
     }
     
@@ -99,13 +125,19 @@ export async function scheduleDailyReminder(hour = 9, retryCount = 0) {
       } as any
     });
     
-    console.log('Daily reminder scheduled successfully');
+    if (__DEV__) {
+      logger.info('Daily reminder scheduled successfully');
+    }
     return true;
   } catch (error) {
-    console.error('Failed to schedule notification:', error);
+    if (__DEV__) {
+      logger.error('Failed to schedule notification:', error);
+    }
     
     if (retryCount < 3) {
-      console.log(`Retrying notification setup... (${retryCount + 1}/3)`);
+      if (__DEV__) {
+        logger.info(`Retrying notification setup... (${retryCount + 1}/3)`);
+      }
       setTimeout(() => scheduleDailyReminder(hour, retryCount + 1), 2000);
     }
     
@@ -122,14 +154,18 @@ export async function cancelDailyReminder() {
         const module = await import('expo-notifications');
         Notifications = module.default || module;
       } catch (error) {
-        console.warn('expo-notifications not available:', error);
+        if (__DEV__) {
+          logger.warn('expo-notifications not available:', error);
+        }
         return;
       }
     }
     
     await Notifications.cancelScheduledNotificationAsync('daily-reminder');
   } catch (error) {
-    console.error('Failed to cancel notification', error);
+    if (__DEV__) {
+      logger.error('Failed to cancel notification', error);
+    }
   }
 }
 
@@ -146,7 +182,9 @@ export async function notifyAchievementUnlock(title: string, gold: number) {
       trigger: null,
     });
   } catch (error) {
-    console.warn('Failed to send achievement notification', error);
+    if (__DEV__) {
+      logger.warn('Failed to send achievement notification', error);
+    }
   }
 }
 
@@ -165,7 +203,9 @@ export async function notifySecretAchievementUnlock(title: string, gems: number)
       trigger: null,
     });
   } catch (error) {
-    console.warn('Failed to send secret achievement notification', error);
+    if (__DEV__) {
+      logger.warn('Failed to send secret achievement notification', error);
+    }
   }
 }
 

@@ -1,8 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
-import { Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, ScrollView , Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Trophy, Star, Zap, X, Clock, Users, TrendingUp } from 'lucide-react-native';
+import { Trophy, Star, Zap, X, Clock, Users, TrendingUp, Medal } from 'lucide-react-native';
+import { useGame } from '@/contexts/GameContext';
+import { fetchLeaderboard, uploadLeaderboardScore, LeaderboardEntry } from '@/lib/progress/cloud';
+import { netWorth } from '@/lib/progress/achievements';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { logger } from '@/utils/logger';
 
 interface Props {
   visible: boolean;
@@ -10,14 +14,29 @@ interface Props {
 }
 
 export default function LeaderboardModal({ visible, onClose }: Props) {
+  const { gameState } = useGame();
   const { width: screenWidth } = Dimensions.get('window');
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('networth');
+  const [playerRank, setPlayerRank] = useState<number>(-1);
+  
+  const categories = [
+    { id: 'networth', name: 'Net Worth', icon: '💰' },
+    { id: 'money', name: 'Money', icon: '💵' },
+    { id: 'age', name: 'Age', icon: '🎂' },
+  ];
 
   useEffect(() => {
     if (visible) {
+      loadLeaderboard();
+      submitPlayerScore();
+      
       // Start animations
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -65,7 +84,51 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
       pulseAnim.setValue(1);
       rotateAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, selectedCategory]);
+
+  const loadLeaderboard = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchLeaderboard(selectedCategory);
+      setLeaderboard(data.sort((a, b) => b.score - a.score));
+      
+      // Find player rank
+      const playerName = gameState.userProfile.name;
+      const rank = data.findIndex(entry => entry.name === playerName);
+      setPlayerRank(rank >= 0 ? rank + 1 : -1);
+    } catch (error) {
+      logger.error('Failed to load leaderboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitPlayerScore = async () => {
+    try {
+      const playerName = gameState.userProfile.name;
+      let score = 0;
+      
+      switch (selectedCategory) {
+        case 'networth':
+          score = netWorth(gameState);
+          break;
+        case 'money':
+          score = gameState.stats.money;
+          break;
+        case 'age':
+          score = gameState.date.age;
+          break;
+      }
+      
+      await uploadLeaderboardScore({
+        name: playerName,
+        score,
+        category: selectedCategory,
+      });
+    } catch (error) {
+      logger.error('Failed to submit score:', error);
+    }
+  };
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -118,56 +181,89 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
             {/* Title */}
             <Text style={styles.title}>Leaderboard</Text>
             
-            {/* Coming Soon Badge */}
-            <View style={styles.comingSoonContainer}>
-              <LinearGradient
-                colors={['#3B82F6', '#1D4ED8', '#1E40AF']}
-                style={styles.comingSoonGradient}
-              >
-                <Clock size={20} color="#FFFFFF" />
-                <Text style={styles.comingSoonText}>Coming Soon</Text>
-              </LinearGradient>
+            {/* Category Selector */}
+            <View style={styles.categoryContainer}>
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.categoryButton,
+                    selectedCategory === cat.id && styles.categoryButtonActive
+                  ]}
+                  onPress={() => setSelectedCategory(cat.id)}
+                >
+                  <Text style={styles.categoryEmoji}>{cat.icon}</Text>
+                  <Text style={[
+                    styles.categoryText,
+                    selectedCategory === cat.id && styles.categoryTextActive
+                  ]}>
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            {/* Description */}
-            <Text style={styles.description}>
-              Compete with players worldwide and climb the ranks!
-            </Text>
+            {/* Player Rank */}
+            {playerRank > 0 && (
+              <View style={styles.playerRankContainer}>
+                <LinearGradient
+                  colors={['#3B82F6', '#1D4ED8']}
+                  style={styles.playerRankGradient}
+                >
+                  <Medal size={20} color="#FFFFFF" />
+                  <Text style={styles.playerRankText}>
+                    Your Rank: #{playerRank}
+                  </Text>
+                </LinearGradient>
+              </View>
+            )}
 
-            {/* Features Preview */}
-            <View style={styles.featuresContainer}>
-              <View style={styles.featureItem}>
-                <LinearGradient colors={['#10B981', '#059669']} style={styles.featureIcon}>
-                  <TrendingUp size={20} color="#FFFFFF" />
-                </LinearGradient>
-                <Text style={styles.featureText}>Global Rankings</Text>
-              </View>
-              
-              <View style={styles.featureItem}>
-                <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.featureIcon}>
-                  <Trophy size={20} color="#FFFFFF" />
-                </LinearGradient>
-                <Text style={styles.featureText}>Weekly Rewards</Text>
-              </View>
-              
-              <View style={styles.featureItem}>
-                <LinearGradient colors={['#8B5CF6', '#7C3AED']} style={styles.featureIcon}>
-                  <Users size={20} color="#FFFFFF" />
-                </LinearGradient>
-                <Text style={styles.featureText}>Player Profiles</Text>
-              </View>
-            </View>
-
-            {/* Notification Button */}
-            <TouchableOpacity style={styles.notifyButton}>
-              <LinearGradient
-                colors={['#3B82F6', '#1D4ED8']}
-                style={styles.notifyButtonGradient}
-              >
-                <Zap size={20} color="#FFFFFF" />
-                <Text style={styles.notifyButtonText}>Get Notified</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            {/* Leaderboard List */}
+            <ScrollView style={styles.leaderboardList} contentContainerStyle={styles.leaderboardContent}>
+              {loading ? (
+                <View style={{ marginTop: 40 }}>
+                  <LoadingSpinner visible size="large" color="#3B82F6" variant="compact" />
+                </View>
+              ) : leaderboard.length === 0 ? (
+                <Text style={styles.emptyText}>No scores yet. Be the first to submit!</Text>
+              ) : (
+                leaderboard.map((entry, index) => {
+                  const isPlayer = entry.name === gameState.userProfile.name;
+                  const rank = index + 1;
+                  const medalColors = rank === 1 ? ['#FFD700', '#FFA500'] : rank === 2 ? ['#C0C0C0', '#A0A0A0'] : rank === 3 ? ['#CD7F32', '#B87333'] : ['#3B82F6', '#1D4ED8'];
+                  
+                  return (
+                    <View
+                      key={`${entry.name}-${index}`}
+                      style={[
+                        styles.leaderboardItem,
+                        isPlayer && styles.leaderboardItemPlayer
+                      ]}
+                    >
+                      <View style={styles.rankContainer}>
+                        {rank <= 3 ? (
+                          <LinearGradient colors={medalColors} style={styles.medalContainer}>
+                            <Medal size={24} color="#FFFFFF" />
+                          </LinearGradient>
+                        ) : (
+                          <Text style={styles.rankText}>#{rank}</Text>
+                        )}
+                      </View>
+                      <View style={styles.entryInfo}>
+                        <Text style={[styles.entryName, isPlayer && styles.entryNamePlayer]}>
+                          {entry.name} {isPlayer && '(You)'}
+                        </Text>
+                        <Text style={styles.entryScore}>
+                          {selectedCategory === 'networth' ? '$' : ''}
+                          {entry.score.toLocaleString()}
+                          {selectedCategory === 'age' && ' years'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
           </Animated.View>
         </LinearGradient>
       </View>
@@ -210,6 +306,7 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
+    boxShadow: '0px 0px 20px rgba(255, 215, 0, 0.5)',
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
@@ -239,79 +336,120 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textShadow: '0px 2px 4px rgba(0, 0, 0, 0.5)',
   },
-  comingSoonContainer: {
-    marginBottom: 30,
+  categoryContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    gap: 10,
+    paddingHorizontal: 20,
   },
-  comingSoonGradient: {
+  categoryButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    gap: 8,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 6,
   },
-  comingSoonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+  categoryButtonActive: {
+    backgroundColor: 'rgba(59, 130, 246, 0.3)',
   },
-  description: {
+  categoryEmoji: {
     fontSize: 16,
+  },
+  categoryText: {
     color: '#E5E7EB',
-    textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 24,
-    paddingHorizontal: 20,
+    fontSize: 12,
+    fontWeight: '600',
   },
-  featuresContainer: {
-    width: '100%',
-    marginBottom: 40,
+  categoryTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  playerRankContainer: {
     marginBottom: 20,
     paddingHorizontal: 20,
   },
-  featureIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  featureText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  notifyButton: {
-    width: '100%',
-    maxWidth: 300,
-  },
-  notifyButtonGradient: {
+  playerRankGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 12,
-    gap: 10,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    gap: 8,
   },
-  notifyButtonText: {
+  playerRankText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  leaderboardList: {
+    width: '100%',
+    maxHeight: 400,
+  },
+  leaderboardContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  loader: {
+    marginVertical: 40,
+  },
+  emptyText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginVertical: 40,
+  },
+  leaderboardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  leaderboardItemPlayer: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    borderWidth: 2,
+    borderColor: '#3B82F6',
+  },
+  rankContainer: {
+    width: 40,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  rankText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  medalContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  entryInfo: {
+    flex: 1,
+  },
+  entryName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  entryNamePlayer: {
+    color: '#60A5FA',
+    fontWeight: '700',
+  },
+  entryScore: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

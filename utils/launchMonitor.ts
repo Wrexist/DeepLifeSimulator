@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Platform } from 'react-native';
+import { logger } from '@/utils/logger';
 
 export interface LaunchMetrics {
   timestamp: number;
@@ -101,7 +102,7 @@ class LaunchMonitor {
    * Check metrics against thresholds and create alerts
    */
   private checkThresholds(metrics: LaunchMetrics): void {
-    const { performance, userEngagement, business } = metrics;
+    const { performance, userEngagement } = metrics;
 
     // Check crash rate
     if (performance.crashRate > this.thresholds.crashRate) {
@@ -312,13 +313,15 @@ class LaunchMonitor {
   }
 
   private logAlert(alert: Alert): void {
-    console.log('Launch Monitor Alert:', {
-      id: alert.id,
-      type: alert.type,
-      severity: alert.severity,
-      title: alert.title,
-      timestamp: new Date(alert.timestamp).toISOString(),
-    });
+    if (__DEV__) {
+      logger.info('Launch Monitor Alert:', {
+        id: alert.id,
+        type: alert.type,
+        severity: alert.severity,
+        title: alert.title,
+        timestamp: new Date(alert.timestamp).toISOString(),
+      });
+    }
   }
 }
 

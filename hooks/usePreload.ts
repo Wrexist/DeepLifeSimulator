@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dimensions } from 'react-native';
 import { getDeviceType, isIPad, isAndroid } from '@/utils/scaling';
+import { logger } from '@/utils/logger';
 
 export function usePreload() {
   const [isPreloaded, setIsPreloaded] = useState(false);
@@ -13,18 +14,34 @@ export function usePreload() {
         setPreloadProgress(10);
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Force Dimensions to update
-        Dimensions.get('window');
+        // Force Dimensions to update - wrap in try-catch
+        try {
+          Dimensions.get('window');
+        } catch (dimError: any) {
+          if (__DEV__) {
+            logger.warn('Failed to get window dimensions:', dimError);
+          }
+          // Continue anyway
+        }
         
-        // Step 2: Detect device type
+        // Step 2: Detect device type - wrap in try-catch
         setPreloadProgress(20);
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        const deviceType = getDeviceType();
-        const isTablet = isIPad();
-        const isAndroidDevice = isAndroid();
-        
-        console.log('Device detected:', { deviceType, isTablet, isAndroidDevice });
+        try {
+          const deviceType = getDeviceType();
+          const isTablet = isIPad();
+          const isAndroidDevice = isAndroid();
+          
+          if (__DEV__) {
+            logger.info('Device detected:', { deviceType, isTablet, isAndroidDevice });
+          }
+        } catch (deviceError: any) {
+          if (__DEV__) {
+            logger.warn('Failed to detect device type:', deviceError);
+          }
+          // Continue anyway
+        }
         
         // Step 3: Preload critical images
         setPreloadProgress(40);
@@ -42,9 +59,13 @@ export function usePreload() {
         await new Promise(resolve => setTimeout(resolve, 200));
         
         setIsPreloaded(true);
-      } catch (error) {
-        console.error('Preload error:', error);
-        setIsPreloaded(true); // Continue anyway
+      } catch (error: any) {
+        // CRITICAL: Catch ALL errors to prevent crash
+        if (__DEV__) {
+          logger.error('Preload error:', error);
+        }
+        // Always continue - don't block app startup
+        setIsPreloaded(true);
       }
     };
 

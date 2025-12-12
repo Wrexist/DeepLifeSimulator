@@ -1,22 +1,38 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
+import { View, StyleSheet, ScrollView, Text, TouchableOpacity, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useGame } from '@/contexts/GameContext';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsProgress from '@/components/AchievementsProgress';
-import WeeklyEventModal from '@/components/WeeklyEventModal';
-import DailySummaryModal from '@/components/DailySummaryModal';
-import DailyRewardPopup from '@/components/DailyRewardPopup';
-import DailyChallengesModal from '@/components/DailyChallengesModal';
 import IdentityCard from '@/components/IdentityCard';
-import DeathPopup from '@/components/DeathPopup';
-import ZeroStatPopup from '@/components/ZeroStatPopup';
-import GoalCompletionPopup from '@/components/GoalCompletionPopup';
+import PrestigeButton from '@/components/PrestigeButton';
+import PrestigeStatsCard from '@/components/PrestigeStatsCard';
+import PrestigePreviewCard from '@/components/PrestigePreviewCard';
+import PrestigeModal from '@/components/PrestigeModal';
+import PrestigeShopModal from '@/components/PrestigeShopModal';
+import PrestigeInfoModal from '@/components/PrestigeInfoModal';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { responsivePadding, verticalScale, responsiveFontSize, responsiveSpacing, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { Target, CheckCircle, Zap } from 'lucide-react-native';
 import { getNextGoal, checkGoalCompletion, Goal, GoalReward } from '@/utils/goalSystem';
 import { LinearGradient } from 'expo-linear-gradient';
 import { generateDailyChallenges } from '@/utils/dailyChallenges';
+
+// Lazy load heavy modals and popups
+const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
+const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
+const WelcomeBackPopup = lazy(() => import('@/components/WelcomeBackPopup'));
+const DailyChallengesModal = lazy(() => import('@/components/DailyChallengesModal'));
+const GoalCompletionPopup = lazy(() => import('@/components/GoalCompletionPopup'));
+
+const ModalFallback = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+    <LoadingSpinner visible size="large" color="#3B82F6" variant="compact" />
+  </View>
+);
 
 // Next Goal Card Component
 function NextGoalCard() {
@@ -83,12 +99,27 @@ function NextGoalCard() {
 }
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+  const topStatsBarHeight = useTopStatsBarHeight();
   const { gameState, dismissWelcomePopup, setGameState } = useGame();
   const { hasCompletedTutorial, startTutorial } = useTutorial();
   const [showGoalCompletion, setShowGoalCompletion] = useState(false);
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
   const [nextGoal, setNextGoal] = useState<Goal | null>(null);
   const [showDailyChallenges, setShowDailyChallenges] = useState(false);
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+  const [showPrestigeShop, setShowPrestigeShop] = useState(false);
+  const [showPrestigeInfo, setShowPrestigeInfo] = useState(false);
+
+  const router = useRouter();
+
+  // Prevent staying on home screen when in prison - redirect to work tab
+  useEffect(() => {
+    if (gameState.jailWeeks > 0) {
+      router.replace('/(tabs)/work');
+    }
+  }, [gameState.jailWeeks, router]);
 
   // Calculate unclaimed challenges
   const getUnclaimedCount = () => {
@@ -148,20 +179,68 @@ export default function HomeScreen() {
   // Show tutorial for new users (replaces the old WelcomePopup)
   useEffect(() => {
     if (!hasCompletedTutorial && gameState.week === 1 && gameState.showWelcomePopup) {
-      // Small delay to ensure the screen is fully loaded
+      // Dismiss welcome popup immediately to prevent overlap
+      dismissWelcomePopup();
+      
+      // Small delay to ensure the screen is fully loaded before starting tutorial
       const timer = setTimeout(() => {
-        dismissWelcomePopup(); // Dismiss the old welcome popup
-        startTutorial(getEnhancedTutorialSteps('game')); // Start the old tutorial system
-      }, 1000);
+        startTutorial(getEnhancedTutorialSteps('game'));
+      }, 500);
       
       return () => clearTimeout(timer);
     }
   }, [hasCompletedTutorial, gameState.week, gameState.showWelcomePopup, startTutorial, dismissWelcomePopup]);
 
+  // Show welcome back popup for returning players (NOT for new players)
+  useEffect(() => {
+    // Only show for returning players, not new players (week === 1)
+    if (gameState.week > 1 && gameState.weeksLived > 1 && gameState.lastLogin) {
+      const lastLogin = gameState.lastLogin || Date.now();
+      const hoursAway = (Date.now() - lastLogin) / (1000 * 60 * 60);
+      
+      // Show welcome back if away for more than 6 hours and not showing daily reward or tutorial
+      if (hoursAway > 6 && !gameState.showDailyRewardPopup && !showWelcomeBack && hasCompletedTutorial) {
+        // Delay to show after daily reward if it exists
+        const timer = setTimeout(() => {
+          setShowWelcomeBack(true);
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [gameState.lastLogin, gameState.weeksLived, gameState.week, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
+
   return (
     <View style={[styles.container, gameState.settings.darkMode && styles.containerDark]}>
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={true}>
+      <ScrollView 
+        style={styles.scrollContainer} 
+        contentContainerStyle={{ 
+          paddingBottom: scale(100) + insets.bottom, 
+          paddingTop: scale(8),
+          paddingHorizontal: responsivePadding.horizontal,
+        }}
+        showsVerticalScrollIndicator={true}
+      >
         <IdentityCard />
+        
+        {/* Prestige Button */}
+        {gameState.prestigeAvailable && (
+          <PrestigeButton onPress={() => setShowPrestigeModal(true)} />
+        )}
+        
+        {/* Prestige Stats Card - Show if player has prestiged */}
+        {gameState.prestige && gameState.prestige.prestigeLevel > 0 && (
+          <PrestigeStatsCard
+            onPress={() => setShowPrestigeModal(true)}
+            onShopPress={() => setShowPrestigeShop(true)}
+            onInfoPress={() => setShowPrestigeInfo(true)}
+          />
+        )}
+        
+        {/* Prestige Preview Card - Show if player hasn't prestiged yet */}
+        {(!gameState.prestige || gameState.prestige.prestigeLevel === 0) && (
+          <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
+        )}
         
         {/* Next Goal Section */}
         <NextGoalCard />
@@ -170,25 +249,51 @@ export default function HomeScreen() {
       </ScrollView>
 
 
-      {gameState.pendingEvents.length > 0 && <WeeklyEventModal />}
-      <DailySummaryModal />
-      {gameState.showZeroStatPopup && !gameState.dailySummary && <ZeroStatPopup />}
-      {gameState.showDeathPopup && <DeathPopup />}
-      <GoalCompletionPopup 
-        visible={showGoalCompletion}
-        completedGoal={completedGoal}
-        nextGoal={nextGoal}
-        onClose={() => setShowGoalCompletion(false)}
-        darkMode={gameState.settings.darkMode}
+      {gameState.pendingEvents.length > 0 && (
+        <Suspense fallback={null}>
+          <WeeklyEventModal />
+        </Suspense>
+      )}
+      <Suspense fallback={null}>
+        <GoalCompletionPopup 
+          visible={showGoalCompletion}
+          completedGoal={completedGoal}
+          nextGoal={nextGoal}
+          onClose={() => setShowGoalCompletion(false)}
+          darkMode={gameState.settings.darkMode}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
+        <DailyRewardPopup
+          visible={gameState.showDailyRewardPopup || false}
+          rewardAmount={gameState.dailyRewardAmount || 0}
+          onClose={() => setGameState(prev => ({ 
+            ...prev, 
+            showDailyRewardPopup: false,
+            dailyRewardAmount: undefined,
+          }))}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
+        <WelcomeBackPopup
+          visible={showWelcomeBack}
+          onClose={() => setShowWelcomeBack(false)}
+        />
+      </Suspense>
+      
+      
+      {/* Prestige Modals */}
+      <PrestigeModal
+        visible={showPrestigeModal}
+        onClose={() => setShowPrestigeModal(false)}
       />
-      <DailyRewardPopup
-        visible={gameState.showDailyRewardPopup || false}
-        rewardAmount={gameState.dailyRewardAmount || 0}
-        onClose={() => setGameState(prev => ({ 
-          ...prev, 
-          showDailyRewardPopup: false,
-          dailyRewardAmount: undefined,
-        }))}
+      <PrestigeShopModal
+        visible={showPrestigeShop}
+        onClose={() => setShowPrestigeShop(false)}
+      />
+      <PrestigeInfoModal
+        visible={showPrestigeInfo}
+        onClose={() => setShowPrestigeInfo(false)}
       />
     </View>
   );
@@ -203,9 +308,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
   },
   scrollContainer: {
-    flex: 1,
-    paddingBottom: scale(100),
-    paddingTop: verticalScale(20),
+    flexGrow: 1,
+    paddingHorizontal: responsivePadding.horizontal,
   },
   infoSection: {
     padding: responsivePadding.large,
@@ -224,6 +328,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
     borderRadius: responsiveBorderRadius.md,
     marginBottom: responsiveSpacing.md,
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -246,6 +351,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.lg,
     backgroundColor: '#FFFFFF',
     borderRadius: responsiveBorderRadius.lg,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

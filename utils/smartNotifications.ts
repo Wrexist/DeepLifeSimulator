@@ -23,8 +23,11 @@ export interface SmartNotification {
     minMoney?: number;
     maxMoney?: number;
     minHealth?: number;
+    maxHealth?: number;
     minHappiness?: number;
+    maxHappiness?: number;
     minEnergy?: number;
+    maxEnergy?: number;
     hasJob?: boolean;
     hasSpouse?: boolean;
     hasChildren?: boolean;
@@ -199,7 +202,7 @@ class SmartNotificationSystem {
         priority: 'high',
         category: 'health',
         icon: '⚠️',
-        conditions: { maxHealth: 30 },
+        conditions: { minHealth: 0, maxHealth: 30 },
         cooldown: 24,
       },
       {
@@ -210,7 +213,7 @@ class SmartNotificationSystem {
         priority: 'high',
         category: 'health',
         icon: '😢',
-        conditions: { maxHappiness: 30 },
+        conditions: { minHappiness: 0, maxHappiness: 30 },
         cooldown: 24,
       },
       {
@@ -221,7 +224,7 @@ class SmartNotificationSystem {
         priority: 'medium',
         category: 'health',
         icon: '😴',
-        conditions: { maxEnergy: 20 },
+        conditions: { minEnergy: 0, maxEnergy: 20 },
         cooldown: 12,
       },
       {
@@ -426,9 +429,8 @@ class SmartNotificationSystem {
     return activeNotifications;
   }
 
-  public showNotification(notification: SmartNotification, context: NotificationContext): void {
+  public showNotification(notification: SmartNotification, _context: NotificationContext): void {
     const now = Date.now();
-    
     // Mark as shown
     this.notificationHistory.set(notification.id, now);
     
@@ -442,7 +444,7 @@ class SmartNotificationSystem {
   private shouldShowNotification(
     notification: SmartNotification,
     context: NotificationContext,
-    now: number
+    _now: number
   ): boolean {
     // Check time-based conditions
     if (notification.conditions) {
@@ -552,7 +554,8 @@ class SmartNotificationSystem {
   private displayNotification(notification: SmartNotification): void {
     // Use the existing achievement toast system for now
     // In a real implementation, you might want a more sophisticated notification system
-    showAchievementToast(notification.title, notification.message, notification.icon);
+    const iconValue = typeof notification.icon === 'string' ? 0 : (notification.icon || 0);
+    showAchievementToast(notification.title, notification.message, iconValue);
   }
 
   private triggerFeedback(notification: SmartNotification): void {

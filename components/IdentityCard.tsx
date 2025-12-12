@@ -7,18 +7,18 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Sparkles } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain } from 'lucide-react-native';
+import { MINDSET_TRAITS, MindsetId } from '@/lib/mindset/config';
 import YouthPillModal from './YouthPillModal';
+import LegacyTimeline from './LegacyTimeline';
 import {
   responsivePadding,
   responsiveFontSize,
   responsiveSpacing,
   responsiveBorderRadius,
   scale,
-  verticalScale,
 } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
@@ -28,6 +28,8 @@ import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getCharacterImage } from '@/utils/characterImages';
+import AutoSaveIndicator from './AutoSaveIndicator';
+import { formatMoney } from '@/utils/formatMoney';
 
 const MINER_PRICES = {
   basic: 500,
@@ -85,34 +87,51 @@ export default function IdentityCard() {
   const { gameState } = useGame();
   const { t } = useTranslation();
   const [showYouthPillModal, setShowYouthPillModal] = useState(false);
-  const scenario = scenarios.find(s => s.id === gameState.scenarioId);
+  
+  const {
+    stats,
+    bankSavings,
+    items,
+    companies,
+    realEstate,
+    userProfile,
+    relationships,
+    careers,
+    currentJob,
+    perks,
+    scenarioId,
+    dietPlans,
+    date,
+    settings,
+    youthPills
+  } = gameState;
 
-  const sex = gameState.userProfile.sex || gameState.userProfile.gender || 'male';
+  const scenario = (scenarios || []).find(s => s.id === scenarioId);
+
+  const sex = userProfile.sex || userProfile.gender || 'male';
   const name =
-    [gameState.userProfile?.firstName, gameState.userProfile?.lastName].filter(Boolean).join(' ') ||
-    gameState.userProfile?.name;
-  const sexuality = (gameState.userProfile?.sexuality ||
-    (gameState.userProfile?.seekingGender === sex ? 'gay' : 'straight')) as string;
-  const partner = gameState.relationships?.find(r => r.type === 'spouse' || r.type === 'partner');
+    [userProfile?.firstName, userProfile?.lastName].filter(Boolean).join(' ') ||
+    userProfile?.name;
+  const partner = (relationships || []).find(r => r.type === 'spouse' || r.type === 'partner');
   const relationshipStatus = partner
     ? partner.type === 'spouse'
       ? 'Married'
       : 'In Relationship'
     : 'Single';
-  const currentCareer = gameState.careers?.find(c => c.id === gameState.currentJob);
+  const currentCareer = (careers || []).find(c => c.id === currentJob);
   const job = currentCareer && currentCareer.levels && currentCareer.levels[currentCareer.level]
     ? currentCareer.levels[currentCareer.level].name
     : 'Unemployed';
 
   const netWorth = useMemo(() => {
     const assets: Asset[] = [
-      { id: 'cash', type: 'cash', baseValue: gameState.stats.money },
-      { id: 'savings', type: 'cash', baseValue: gameState.bankSavings || 0 },
+      { id: 'cash', type: 'cash', baseValue: stats.money },
+      { id: 'savings', type: 'cash', baseValue: bankSavings || 0 },
     ];
-    gameState.items
-      ?.filter(i => i?.owned)
-      ?.forEach(item => assets.push({ id: item.id, type: 'item', baseValue: item.price }));
-    gameState.companies?.forEach(company => {
+    (items || [])
+      .filter(i => i?.owned)
+      .forEach(item => assets.push({ id: item.id, type: 'item', baseValue: item.price }));
+    companies?.forEach(company => {
       assets.push({
         id: company.id,
         type: 'business',
@@ -131,34 +150,55 @@ export default function IdentityCard() {
         }
       });
     });
-    gameState.realEstate
-      ?.filter(p => p?.owned)
-      ?.forEach(p => assets.push({ id: p.id, type: 'property', baseValue: p.price }));
+    (realEstate || [])
+      .filter(p => p?.owned)
+      .forEach(p => assets.push({ id: p.id, type: 'property', baseValue: p.price }));
+    // Add vehicles (depreciated value)
+    (gameState.vehicles || []).forEach(vehicle => {
+      const baseSellPercent = 0.8;
+      const conditionMultiplier = 0.2 + (vehicle.condition / 100) * 0.8;
+      const mileagePenalty = Math.min(0.3, (vehicle.mileage || 0) / 500000);
+      const depreciatedValue = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
+      assets.push({ id: vehicle.id, type: 'vehicle', baseValue: Math.floor(depreciatedValue) });
+    });
     const liabilities: Liability[] = [];
     return computeNetWorth(assets, liabilities).netWorth;
-  }, [gameState]);
+  }, [stats.money, bankSavings, items, companies, realEstate, gameState.vehicles]);
 
-  const passiveInfo = calcWeeklyPassiveIncome(gameState);
-  const expenseInfo = calcWeeklyExpenses(gameState);
+  const passiveInfo = useMemo(() => calcWeeklyPassiveIncome(gameState), [gameState]);
+  const expenseInfo = useMemo(() => calcWeeklyExpenses(gameState), [gameState]);
   const passive = passiveInfo.total;
   const jobIncome = currentCareer ? currentCareer.levels[currentCareer.level].salary : 0;
+
+  // Partner / spouse weekly income (counts even after marriage) - nerfed to 1/3
+  const partnerIncome = useMemo(() => (relationships || [])
+    .filter(rel => (rel.type === 'partner' || rel.type === 'spouse') && rel.income && rel.relationshipScore >= 50)
+    .reduce((sum, rel) => sum + Math.floor((rel.income || 0) / 3), 0), [relationships]);
+
   const expenses = expenseInfo.total;
-  const cashFlow = jobIncome + passive - expenses;
+  const cashFlow = jobIncome + passive + partnerIncome - expenses;
 
   const [showCash, setShowCash] = useState(false);
   const [showPerks, setShowPerks] = useState(false);
   const [showTraits, setShowTraits] = useState(false);
   const [showModifiers, setShowModifiers] = useState(false);
+  const [showMindset, setShowMindset] = useState(false);
+  const [showLegacyTimeline, setShowLegacyTimeline] = useState(false);
 
-  const activePerks = allPerks.filter(p => gameState.perks?.[p.id as keyof typeof gameState.perks]);
-  const derivedTraits: string[] = [];
-  if (gameState.stats.happiness >= 70) derivedTraits.push('happy');
-  else if (gameState.stats.happiness <= 30) derivedTraits.push('sad');
-  if (gameState.stats.health >= 70) derivedTraits.push('healthy');
-  else if (gameState.stats.health <= 30) derivedTraits.push('sick');
-  if (gameState.stats.energy >= 70) derivedTraits.push('energetic');
-  else if (gameState.stats.energy <= 30) derivedTraits.push('tired');
-  const traits = [...(scenario?.start.traits || []), ...derivedTraits];
+  const activePerks = useMemo(() => allPerks.filter(p => perks?.[p.id as keyof typeof perks]), [perks]);
+  
+  const derivedTraits = useMemo(() => {
+    const dt: string[] = [];
+    if (stats.happiness >= 70) dt.push('happy');
+    else if (stats.happiness <= 30) dt.push('sad');
+    if (stats.health >= 70) dt.push('healthy');
+    else if (stats.health <= 30) dt.push('sick');
+    if (stats.energy >= 70) dt.push('energetic');
+    else if (stats.energy <= 30) dt.push('tired');
+    return dt;
+  }, [stats.happiness, stats.health, stats.energy]);
+
+  const traits = useMemo(() => [...(scenario?.start.traits || []), ...derivedTraits], [scenario, derivedTraits]);
 
   // Function to get trait bonuses
   const getTraitBonuses = (trait: string) => {
@@ -170,6 +210,7 @@ export default function IdentityCard() {
       'energetic': ['+20% energy efficiency', '+5% faster promotions', '+1 bonus action per week'],
       'tired': ['-15% energy efficiency', '-3% slower promotions', '-1 action penalty per week'],
       'fit': ['+10 fitness starting bonus', '+5% faster fitness gains', '+2 health per week'],
+      'tough': ['+15 health starting bonus', '+10% reduced damage from dangerous activities', '+5% better street job success rate'],
       'smart': ['+25% faster education progress', '+10% higher starting salary', '+3 reputation gain'],
       'charismatic': ['+15% relationship success rate', '+10% faster career advancement', '+5 reputation gain'],
       'lucky': ['+20% chance for positive events', '+10% bonus income from random events', '+5% better deals'],
@@ -204,14 +245,14 @@ export default function IdentityCard() {
   const weeklyModifiers = useMemo(() => {
     const modifiers: { label: string; changes: Record<string, number> }[] = [];
 
-    if (gameState.stats.health <= 30) {
+    if (stats.health <= 30) {
       modifiers.push({
         label: 'Sickness',
         changes: { health: -10, energy: -15, happiness: -10 },
       });
     }
 
-    const activeDietPlan = gameState.dietPlans.find(plan => plan.active);
+    const activeDietPlan = (dietPlans || []).find(plan => plan.active);
     if (activeDietPlan) {
       const changes: Record<string, number> = {
         money: -activeDietPlan.dailyCost * 7,
@@ -228,18 +269,18 @@ export default function IdentityCard() {
     }
 
     return modifiers;
-  }, [gameState]);
+  }, [stats.health, dietPlans]);
 
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
-  const avatar = getCharacterImage(gameState.date.age, sex);
+  const avatar = getCharacterImage(date.age, sex);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   return (
-    <View>
+    <View style={styles.cardContainer}>
       <LinearGradient
-        colors={gameState.settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
+        colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.card}
@@ -247,9 +288,31 @@ export default function IdentityCard() {
         <View style={styles.avatarContainer}>
           <Image source={avatar} style={styles.avatar} />
           <View style={styles.avatarGlow} />
+          {gameState.prestige?.prestigeLevel !== undefined && gameState.prestige.prestigeLevel > 0 && (
+            <TouchableOpacity
+              style={styles.prestigeBadge}
+              onPress={() => {
+                // Open prestige shop - this would need to be passed as a prop or accessed via context
+                // For now, just show the badge
+              }}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#FCD34D', '#F59E0B', '#D97706']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.prestigeBadgeGradient}
+              >
+                <Crown size={14} color="#FFFFFF" />
+                <Text style={styles.prestigeBadgeText}>P{gameState.prestige.prestigeLevel}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
         </View>
-        <Text style={[styles.name, gameState.settings.darkMode && styles.nameDark]}>{name}</Text>
-        <Text style={[styles.scenarioText, gameState.settings.darkMode && styles.scenarioTextDark]}>
+        <View style={styles.nameContainer}>
+          <Text style={[styles.name, settings.darkMode && styles.nameDark]}>{name}</Text>
+        </View>
+        <Text style={[styles.scenarioText, settings.darkMode && styles.scenarioTextDark]}>
           {scenario?.title || t('common.unknown')}
         </Text>
         
@@ -257,14 +320,14 @@ export default function IdentityCard() {
           <View style={styles.statItem}>
             <View style={styles.statWithButton}>
               <View>
-                <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
+                <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>
                   {t('game.age')}
                 </Text>
-                <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
-                  {Math.floor(gameState.date.age)}
+                <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
+                  {Math.floor(date.age)}
                 </Text>
               </View>
-              {gameState.youthPills > 0 && (
+              {youthPills > 0 && (
                 <TouchableOpacity 
                   style={styles.youthPillButton}
                   onPress={() => setShowYouthPillModal(true)}
@@ -274,170 +337,297 @@ export default function IdentityCard() {
                     style={styles.youthPillIcon}
                     resizeMode="contain"
                   />
-                  <Text style={styles.youthPillButtonText}>{gameState.youthPills}</Text>
+                  <Text style={styles.youthPillButtonText}>{youthPills}</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
+            <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>
               {t('game.sex')}
             </Text>
-            <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+            <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
               {capitalize(sex)}
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
+            <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>
               {t('game.relationshipStatus')}
             </Text>
-            <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+            <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
               {relationshipStatus}
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
+            <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>
               {t('game.job')}
             </Text>
-            <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+            <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
               {job}
             </Text>
           </View>
         </View>
         
         <View style={styles.netWorthContainer}>
-          <DollarSign size={20} color={gameState.settings.darkMode ? '#10B981' : '#059669'} />
-          <Text style={[styles.netWorthText, gameState.settings.darkMode && styles.netWorthTextDark]}>
-            {t('game.netWorth')}: ${netWorth.toLocaleString()}
+          <DollarSign size={20} color={settings.darkMode ? '#10B981' : '#059669'} />
+          <Text style={[styles.netWorthText, settings.darkMode && styles.netWorthTextDark]}>
+            {t('game.netWorth')}: {formatMoney(netWorth)}
           </Text>
         </View>
       </LinearGradient>
 
       <LinearGradient
-        colors={gameState.settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
+        colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.list}
       >
         <TouchableOpacity style={styles.listItem} onPress={() => setShowCash(true)}>
           <View style={styles.listItemContent}>
-            <DollarSign size={20} color={gameState.settings.darkMode ? '#10B981' : '#059669'} />
-            <Text style={[styles.listLabel, gameState.settings.darkMode && styles.listLabelDark]}>
-              {t('game.weeklyCashFlow')}: ${cashFlow.toFixed(0)}
+            <DollarSign size={20} color={settings.darkMode ? '#10B981' : '#059669'} />
+            <Text style={[styles.listLabel, settings.darkMode && styles.listLabelDark]}>
+              {t('game.weeklyCashFlow')}: {formatMoney(cashFlow)}
             </Text>
           </View>
-          <ChevronRight size={20} color={gameState.settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+          <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowPerks(true)}>
           <View style={styles.listItemContent}>
-            <Star size={20} color={gameState.settings.darkMode ? '#F59E0B' : '#D97706'} />
-            <Text style={[styles.listLabel, gameState.settings.darkMode && styles.listLabelDark]}>
+            <Star size={20} color={settings.darkMode ? '#F59E0B' : '#D97706'} />
+            <Text style={[styles.listLabel, settings.darkMode && styles.listLabelDark]}>
               {perksCount} {t('game.perks')}
             </Text>
           </View>
-          <ChevronRight size={20} color={gameState.settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+          <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowTraits(true)}>
           <View style={styles.listItemContent}>
-            <Heart size={20} color={gameState.settings.darkMode ? '#EF4444' : '#DC2626'} />
-            <Text style={[styles.listLabel, gameState.settings.darkMode && styles.listLabelDark]}>
+            <Heart size={20} color={settings.darkMode ? '#EF4444' : '#DC2626'} />
+            <Text style={[styles.listLabel, settings.darkMode && styles.listLabelDark]}>
               {traitsCount} {t('game.traits')}
             </Text>
           </View>
-          <ChevronRight size={20} color={gameState.settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+          <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
         </TouchableOpacity>
+        {gameState.mindset?.activeTraitId && (
+          <TouchableOpacity style={styles.listItem} onPress={() => setShowMindset(true)}>
+            <View style={styles.listItemContent}>
+              <Brain size={20} color={settings.darkMode ? '#8B5CF6' : '#6366F1'} />
+              <Text style={[styles.listLabel, settings.darkMode && styles.listLabelDark]}>
+                Mindset: {MINDSET_TRAITS.find(t => t.id === gameState.mindset?.activeTraitId)?.name || 'Unknown'}
+              </Text>
+            </View>
+            <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+          </TouchableOpacity>
+        )}
+        {(gameState.previousLives && gameState.previousLives.length > 0) && (
+          <TouchableOpacity style={styles.listItem} onPress={() => setShowLegacyTimeline(true)}>
+            <View style={styles.listItemContent}>
+              <History size={20} color={settings.darkMode ? '#8B5CF6' : '#6366F1'} />
+              <Text style={[styles.listLabel, settings.darkMode && styles.listLabelDark]}>
+                Legacy Timeline ({gameState.previousLives.length} generation{gameState.previousLives.length !== 1 ? 's' : ''})
+              </Text>
+            </View>
+            <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+          </TouchableOpacity>
+        )}
+        {(gameState.previousLives && gameState.previousLives.length > 0) && (
+          <TouchableOpacity style={styles.listItem} onPress={() => setShowLegacyTimeline(true)}>
+            <View style={styles.listItemContent}>
+              <History size={20} color={settings.darkMode ? '#8B5CF6' : '#6366F1'} />
+              <Text style={[styles.listLabel, settings.darkMode && styles.listLabelDark]}>
+                Legacy Timeline ({gameState.previousLives.length} generation{gameState.previousLives.length !== 1 ? 's' : ''})
+              </Text>
+            </View>
+            <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.listItem} onPress={() => setShowModifiers(true)}>
           <View style={styles.listItemContent}>
-            <TrendingUp size={20} color={gameState.settings.darkMode ? '#3B82F6' : '#2563EB'} />
-            <Text style={[styles.listLabel, gameState.settings.darkMode && styles.listLabelDark]}>
+            <TrendingUp size={20} color={settings.darkMode ? '#3B82F6' : '#2563EB'} />
+            <Text style={[styles.listLabel, settings.darkMode && styles.listLabelDark]}>
               {t('game.weeklyModifiers')}
             </Text>
           </View>
-          <ChevronRight size={20} color={gameState.settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+          <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
         </TouchableOpacity>
       </LinearGradient>
+      
+      <AutoSaveIndicator position="relative" />
+
+      <LegacyTimeline
+        visible={showLegacyTimeline}
+        onClose={() => setShowLegacyTimeline(false)}
+      />
 
       <InfoModal
         visible={showCash}
         title={t('game.weeklyCashFlow')}
         onClose={() => setShowCash(false)}
-        darkMode={gameState.settings.darkMode}
+        darkMode={settings.darkMode}
         t={t}
       >
         <View style={styles.modalSection}>
-          <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+          <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
             Income Sources
           </Text>
           <View style={styles.modalItem}>
-            <DollarSign size={16} color={gameState.settings.darkMode ? '#10B981' : '#059669'} />
-            <Text style={[styles.modalText, gameState.settings.darkMode && styles.modalTextDark]}>
-              Job Income: ${jobIncome.toFixed(0)}
+            <DollarSign size={16} color={settings.darkMode ? '#10B981' : '#059669'} />
+            <Text style={[styles.modalText, settings.darkMode && styles.modalTextDark]}>
+              Job Income: {formatMoney(jobIncome)}
             </Text>
           </View>
+          {partnerIncome > 0 && (
+            <View style={styles.modalItem}>
+              <DollarSign size={16} color={settings.darkMode ? '#10B981' : '#059669'} />
+              <Text style={[styles.modalText, settings.darkMode && styles.modalTextDark]}>
+                Partner Income: {formatMoney(partnerIncome)}
+              </Text>
+            </View>
+          )}
           <View style={styles.modalItem}>
-            <DollarSign size={16} color={gameState.settings.darkMode ? '#10B981' : '#059669'} />
-            <Text style={[styles.modalText, gameState.settings.darkMode && styles.modalTextDark]}>
-              Passive Income: ${passive.toFixed(0)}
+            <DollarSign size={16} color={settings.darkMode ? '#10B981' : '#059669'} />
+            <Text style={[styles.modalText, settings.darkMode && styles.modalTextDark]}>
+              Passive Income: {formatMoney(passive)}
             </Text>
           </View>
         </View>
 
         <View style={styles.modalSection}>
-          <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+          <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
             Passive Breakdown
           </Text>
-          <View style={styles.modalItem}>
-            <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
-              📈 Stocks: ${passiveInfo.breakdown.stocks.toFixed(0)}
-            </Text>
-          </View>
-          <View style={styles.modalItem}>
-            <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
-              🏠 Real Estate: ${passiveInfo.breakdown.realEstate.toFixed(0)}
-            </Text>
-          </View>
-          <View style={styles.modalItem}>
-            <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
-              🎵 Songs: ${passiveInfo.breakdown.songs.toFixed(0)}
-            </Text>
-          </View>
-          <View style={styles.modalItem}>
-            <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
-              🎨 Art: ${passiveInfo.breakdown.art.toFixed(0)}
-            </Text>
-          </View>
-          <View style={styles.modalItem}>
-            <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
-              📋 Contracts: ${passiveInfo.breakdown.contracts.toFixed(0)}
-            </Text>
-          </View>
-          <View style={styles.modalItem}>
-            <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
-              🤝 Sponsors: ${passiveInfo.breakdown.sponsors.toFixed(0)}
-            </Text>
-          </View>
+          {passiveInfo.breakdown.stocks > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                📈 Stocks: {formatMoney(passiveInfo.breakdown.stocks)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.realEstate > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🏠 Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.companies > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🏢 Companies: {formatMoney(passiveInfo.breakdown.companies)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.cryptoMining > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                ₿ Crypto Mining: {formatMoney(passiveInfo.breakdown.cryptoMining)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.songs > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🎵 Songs: {formatMoney(passiveInfo.breakdown.songs)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.art > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🎨 Art: {formatMoney(passiveInfo.breakdown.art)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.contracts > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                📋 Contracts: {formatMoney(passiveInfo.breakdown.contracts)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.sponsors > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🤝 Sponsors: {formatMoney(passiveInfo.breakdown.sponsors)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.socialMedia > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                📱 Social Media: {formatMoney(passiveInfo.breakdown.socialMedia)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.patents > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🔬 Patents: {formatMoney(passiveInfo.breakdown.patents)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.businessOpportunities > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                ✈️ Business Opportunities: {formatMoney(passiveInfo.breakdown.businessOpportunities)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.political > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🏛️ Political: {formatMoney(passiveInfo.breakdown.political)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.breakdown.gamingStreaming > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🎮 Gaming/Streaming: {formatMoney(passiveInfo.breakdown.gamingStreaming)}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.modalSection}>
-          <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+          <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
             Expenses
           </Text>
           <View style={styles.modalItem}>
-            <DollarSign size={16} color={gameState.settings.darkMode ? '#EF4444' : '#DC2626'} />
-            <Text style={[styles.modalText, gameState.settings.darkMode && styles.modalTextDark]}>
-              Total Expenses: ${expenses.toFixed(0)}
+            <DollarSign size={16} color={settings.darkMode ? '#EF4444' : '#DC2626'} />
+            <Text style={[styles.modalText, settings.darkMode && styles.modalTextDark]}>
+              Total Expenses: {formatMoney(expenses)}
             </Text>
           </View>
-          <View style={styles.modalItem}>
-            <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
-              🏠 Upkeep: ${expenseInfo.breakdown.upkeep.toFixed(0)}
-            </Text>
-          </View>
-          <View style={styles.modalItem}>
-            <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
-              💳 Loans: ${expenseInfo.breakdown.loans.toFixed(0)}
-            </Text>
-          </View>
+          {expenseInfo.breakdown.upkeep > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🏠 Upkeep: {formatMoney(expenseInfo.breakdown.upkeep)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.loans > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                💳 Loans: {formatMoney(expenseInfo.breakdown.loans)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.miningPower > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                ⚡ Mining Power: {formatMoney(expenseInfo.breakdown.miningPower)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.vehicles > 0 && (
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                🚗 Vehicles: {formatMoney(expenseInfo.breakdown.vehicles)}
+              </Text>
+            </View>
+          )}
         </View>
       </InfoModal>
 
@@ -445,18 +635,18 @@ export default function IdentityCard() {
         visible={showPerks}
         title={t('game.perks')}
         onClose={() => setShowPerks(false)}
-        darkMode={gameState.settings.darkMode}
+        darkMode={settings.darkMode}
         t={t}
       >
         {activePerks.length > 0 ? (
           <View style={styles.modalSection}>
-            <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
               Active Perks ({activePerks.length})
             </Text>
             {activePerks.map(p => (
               <View key={p.id} style={styles.modalItem}>
-                <Star size={16} color={gameState.settings.darkMode ? '#F59E0B' : '#D97706'} />
-                <Text style={[styles.modalText, gameState.settings.darkMode && styles.modalTextDark]}>
+                <Star size={16} color={settings.darkMode ? '#F59E0B' : '#D97706'} />
+                <Text style={[styles.modalText, settings.darkMode && styles.modalTextDark]}>
                   {p.title}
                 </Text>
               </View>
@@ -464,11 +654,11 @@ export default function IdentityCard() {
           </View>
         ) : (
           <View style={styles.modalSection}>
-            <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
               No Active Perks
             </Text>
             <View style={styles.modalItem}>
-              <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
                 {t('game.noPerks')}
               </Text>
             </View>
@@ -480,19 +670,19 @@ export default function IdentityCard() {
         visible={showTraits}
         title={t('game.traits')}
         onClose={() => setShowTraits(false)}
-        darkMode={gameState.settings.darkMode}
+        darkMode={settings.darkMode}
         t={t}
       >
         {traits.length > 0 ? (
           <View style={styles.modalSection}>
-            <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
               Character Traits ({traits.length})
             </Text>
             {traits.map(t => (
               <View key={t} style={styles.traitContainer}>
                 <View style={styles.traitHeader}>
-                  <Heart size={16} color={gameState.settings.darkMode ? '#EF4444' : '#DC2626'} />
-                  <Text style={[styles.traitName, gameState.settings.darkMode && styles.traitNameDark]}>
+                  <Heart size={16} color={settings.darkMode ? '#EF4444' : '#DC2626'} />
+                  <Text style={[styles.traitName, settings.darkMode && styles.traitNameDark]}>
                     {capitalize(t)}
                   </Text>
                 </View>
@@ -501,7 +691,7 @@ export default function IdentityCard() {
                     <View key={index} style={styles.bonusItem}>
                       <Text style={[
                         styles.bonusText, 
-                        gameState.settings.darkMode && styles.bonusTextDark,
+                        settings.darkMode && styles.bonusTextDark,
                         bonus.startsWith('+') && styles.positiveBonus,
                         bonus.startsWith('-') && styles.negativeBonus
                       ]}>
@@ -515,12 +705,61 @@ export default function IdentityCard() {
           </View>
         ) : (
           <View style={styles.modalSection}>
-            <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
               No Character Traits
             </Text>
             <View style={styles.modalItem}>
-              <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
                 No traits acquired yet
+              </Text>
+            </View>
+          </View>
+        )}
+      </InfoModal>
+
+      <InfoModal
+        visible={showMindset}
+        title="Mindset"
+        onClose={() => setShowMindset(false)}
+        darkMode={settings.darkMode}
+        t={t}
+      >
+        {gameState.mindset?.activeTraitId ? (
+          <View style={styles.modalSection}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
+              Active Mindset
+            </Text>
+            {(() => {
+              const activeMindset = MINDSET_TRAITS.find(t => t.id === gameState.mindset?.activeTraitId);
+              if (!activeMindset) return null;
+              
+              return (
+                <View style={styles.traitContainer}>
+                  <View style={styles.traitHeader}>
+                    <Brain size={16} color={settings.darkMode ? '#8B5CF6' : '#6366F1'} />
+                    <Text style={[styles.traitName, settings.darkMode && styles.traitNameDark]}>
+                      {activeMindset.name}
+                    </Text>
+                  </View>
+                  <View style={styles.traitBonuses}>
+                    <View style={styles.bonusItem}>
+                      <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>
+                        {activeMindset.description}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })()}
+          </View>
+        ) : (
+          <View style={styles.modalSection}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
+              No Active Mindset
+            </Text>
+            <View style={styles.modalItem}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
+                No mindset trait is currently active. You can select one during character creation or when continuing your legacy.
               </Text>
             </View>
           </View>
@@ -531,18 +770,18 @@ export default function IdentityCard() {
         visible={showModifiers}
         title={t('game.weeklyModifiers')}
         onClose={() => setShowModifiers(false)}
-        darkMode={gameState.settings.darkMode}
+        darkMode={settings.darkMode}
         t={t}
       >
         {weeklyModifiers.length > 0 ? (
           <View style={styles.modalSection}>
-            <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
               Active Modifiers ({weeklyModifiers.length})
             </Text>
             {weeklyModifiers.map(mod => (
               <View key={mod.label} style={styles.modalItem}>
-                <TrendingUp size={16} color={gameState.settings.darkMode ? '#3B82F6' : '#2563EB'} />
-                <Text style={[styles.modalText, gameState.settings.darkMode && styles.modalTextDark]}>
+                <TrendingUp size={16} color={settings.darkMode ? '#3B82F6' : '#2563EB'} />
+                <Text style={[styles.modalText, settings.darkMode && styles.modalTextDark]}>
                   {mod.label}
                 </Text>
               </View>
@@ -550,11 +789,11 @@ export default function IdentityCard() {
           </View>
         ) : (
           <View style={styles.modalSection}>
-            <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
               No Active Modifiers
             </Text>
             <View style={styles.modalItem}>
-              <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
+              <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
                 No modifiers this week
               </Text>
             </View>
@@ -563,18 +802,18 @@ export default function IdentityCard() {
         
         {weeklyModifiers.length > 0 && (
           <View style={styles.modalSection}>
-            <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.modalSectionTitleDark]}>
+            <Text style={[styles.modalSectionTitle, settings.darkMode && styles.modalSectionTitleDark]}>
               Effects Breakdown
             </Text>
             {weeklyModifiers.map(mod => (
               <View key={`${mod.label}-effects`} style={styles.modalItem}>
-                <Text style={[styles.modalSubText, gameState.settings.darkMode && styles.modalSubTextDark]}>
+                <Text style={[styles.modalSubText, settings.darkMode && styles.modalSubTextDark]}>
                   <Text style={{ fontWeight: '600' }}>{mod.label}:</Text>
                 </Text>
                 {Object.entries(mod.changes).map(([stat, value]) => {
                   const formattedValue =
                     stat === 'money'
-                      ? `$${Math.abs(value).toLocaleString()}`
+                      ? formatMoney(Math.abs(value))
                       : Math.abs(value);
                   return (
                     <View key={stat} style={styles.modalItem}>
@@ -607,12 +846,17 @@ export default function IdentityCard() {
 }
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    position: 'relative',
+    width: '100%',
+  },
   card: {
     borderRadius: responsiveBorderRadius.xl,
     padding: responsiveSpacing.xl,
-    marginHorizontal: responsivePadding.large,
     marginBottom: responsiveSpacing.lg,
     alignItems: 'center',
+    width: '100%',
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -721,8 +965,8 @@ const styles = StyleSheet.create({
   },
   list: {
     borderRadius: responsiveBorderRadius.xl,
-    marginHorizontal: responsivePadding.large,
     marginBottom: responsiveSpacing.lg,
+    width: '100%',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -868,7 +1112,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs,
   },
   traitName: {
-    fontSize: responsiveFontSize.md,
+    fontSize: responsiveFontSize.base,
     fontWeight: '600',
     color: '#1F2937',
     marginLeft: responsiveSpacing.xs,
@@ -921,5 +1165,35 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     fontWeight: '700',
     color: '#8B5CF6',
+  },
+  nameContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  prestigeBadge: {
+    position: 'absolute',
+    top: -responsiveSpacing.xs,
+    right: -responsiveSpacing.xs,
+    zIndex: 10,
+    borderRadius: responsiveBorderRadius.full,
+    overflow: 'hidden',
+  },
+  prestigeBadgeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.xs,
+    borderRadius: responsiveBorderRadius.full,
+    gap: 4,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  prestigeBadgeText: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 });

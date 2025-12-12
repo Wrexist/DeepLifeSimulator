@@ -138,6 +138,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     width: '100%',
     maxHeight: '80%',
+    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,

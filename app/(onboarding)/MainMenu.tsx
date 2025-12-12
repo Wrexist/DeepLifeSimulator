@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Dimensions, Animated, Easing, ImageBackground } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, Dimensions, Animated, Easing, ImageBackground, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGame } from '@/contexts/GameContext';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
@@ -15,14 +16,18 @@ import {
   scale,
   verticalScale,
   responsiveScale,
+  isSmallDevice,
 } from '@/utils/scaling';
 
 import { useTranslation } from '@/hooks/useTranslation';
+import { logger } from '@/utils/logger';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function MainMenu() {
+  const log = logger.scope('MainMenu');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { loadGame } = useGame();
   const { setState } = useOnboarding();
   const [hasSave, setHasSave] = useState(false);
@@ -72,14 +77,14 @@ export default function MainMenu() {
             
             setHasSave(hasProgress);
           } catch (parseError) {
-            console.error('Failed to parse game state:', parseError);
+            log.error('Failed to parse game state:', parseError);
             setHasSave(false);
           }
         } else {
           setHasSave(false);
         }
       } catch (error) {
-        console.error('Error checking save data:', error);
+        log.error('Error checking save data:', error);
         setHasSave(false);
       }
     })();
@@ -118,7 +123,7 @@ export default function MainMenu() {
       // Ensure we have valid game data before continuing
       const gameState = await AsyncStorage.getItem('gameState');
       if (!gameState) {
-        console.error('No game state found when trying to continue');
+        log.error('No game state found when trying to continue');
         return;
       }
       
@@ -129,26 +134,69 @@ export default function MainMenu() {
       if (router && typeof router.replace === 'function') {
         router.replace('/(tabs)');
       } else {
-        console.error('Router not available for navigation');
+        log.error('Router not available for navigation');
         startNew();
       }
     } catch (error) {
-      console.error('Navigation error:', error);
+      log.error('Navigation error:', error);
       // If there's an error, fall back to new game
       startNew();
     }
   };
 
-  const startNew = () => {
+  const checkIfAllSlotsFull = async (): Promise<boolean> => {
     try {
+      let fullSlots = 0;
+      for (let i = 1; i <= 3; i++) {
+        const data = await AsyncStorage.getItem(`save_slot_${i}`);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            // Check if slot has actual game data (not just empty object)
+            if (parsed && typeof parsed === 'object') {
+              // Consider slot full if it has meaningful game data
+              const hasGameData = parsed.weeksLived > 0 ||
+                                 parsed.stats?.money > 0 ||
+                                 (parsed.achievements && parsed.achievements.some((a: any) => a?.completed)) ||
+                                 (parsed.relationships && parsed.relationships.length > 0) ||
+                                 (parsed.items && parsed.items.some((item: any) => item?.owned));
+              if (hasGameData) {
+                fullSlots++;
+              }
+            }
+          } catch {
+            // If parsing fails, consider slot as potentially full/corrupted
+            fullSlots++;
+          }
+        }
+      }
+      return fullSlots >= 3;
+    } catch (error) {
+      log.error('Error checking save slots:', error);
+      return false; // Allow new game if check fails
+    }
+  };
+
+  const startNew = async () => {
+    try {
+      const allSlotsFull = await checkIfAllSlotsFull();
+      if (allSlotsFull) {
+        Alert.alert(
+          'All Save Slots Full',
+          'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       setState(prev => ({ ...prev, slot: 1, scenario: undefined, perks: [], firstName: '', lastName: '' }));
       if (router && typeof router.push === 'function') {
         router.push('/(onboarding)/Scenarios');
       } else {
-        console.error('Router not available for navigation');
+        log.error('Router not available for navigation');
       }
     } catch (error) {
-      console.error('Error starting new game:', error);
+      log.error('Error starting new game:', error);
     }
   };
 
@@ -158,12 +206,15 @@ export default function MainMenu() {
       style={styles.container}
       resizeMode="cover"
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { paddingBottom: verticalScale(60) + insets.bottom }]}>
         {/* Main content */}
         <Animated.View 
           style={[
             styles.content, 
-            { opacity: fadeAnim }
+            { 
+              opacity: fadeAnim,
+              paddingTop: 50 + insets.top,
+            }
           ]}
         >
 
@@ -236,7 +287,7 @@ export default function MainMenu() {
         
         {/* Version display in bottom left */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>v1.0.0</Text>
+          <Text style={styles.versionText}>v1.2.2</Text>
         </View>
       </View>
       
@@ -255,14 +306,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: responsivePadding.large,
-    paddingBottom: verticalScale(60),
   },
   content: {
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'center',
     width: '100%',
-    paddingTop: 110, // Account for status bar
   },
   menuSection: {
     width: '100%',
@@ -274,6 +323,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.lg,
     borderRadius: responsiveBorderRadius.xl,
     overflow: 'hidden',
+    boxShadow: '0px 12px 20px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.25,
@@ -324,6 +374,7 @@ const styles = StyleSheet.create({
     marginRight: responsiveSpacing.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.25)',
+    boxShadow: '0px 2px 4px rgba(255, 255, 255, 0.1)',
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -344,21 +395,40 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
   },
   glassButtonTitle: {
-    fontSize: responsiveFontSize.xl,
+    fontSize: isSmallDevice() ? responsiveFontSize.lg : responsiveFontSize.xl,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: responsiveSpacing.xs,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    numberOfLines: 2,
+    ellipsizeMode: 'tail',
+    ...Platform.select({
+      web: { textShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   glassButtonSubtitle: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: isSmallDevice() ? responsiveFontSize.xs : responsiveFontSize.sm,
     color: 'rgba(255, 255, 255, 0.85)',
     fontWeight: '400',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    numberOfLines: 2,
+    ellipsizeMode: 'tail',
+    ...Platform.select({
+      web: { textShadow: '0px 1px 1px rgba(0, 0, 0, 0.2)' },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 1,
+      },
+    }),
   },
   versionContainer: {
     position: 'absolute',

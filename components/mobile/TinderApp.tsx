@@ -1,13 +1,18 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Image, Animated, Dimensions, ScrollView } from 'react-native';
-import { Platform } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, Dimensions, ScrollView , Platform, Modal } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PanGestureHandler } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
-import { ArrowLeft, Heart, X, Settings, DollarSign, Star, MapPin, MessageCircle, Sparkles, Users, Filter, Crown, Zap, ChevronDown, Clock, TrendingUp } from 'lucide-react-native';
+import { ArrowLeft, Heart, X, Settings, DollarSign, Star, MapPin, MessageCircle, Sparkles, Users, ChevronDown, Calendar, Circle } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { scale, fontScale } from '@/utils/scaling';
+import { goOnDate, giveGift, proposeMarriage, getRelationshipStatus } from '@/contexts/game/actions/DatingActions';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { updateStats } from '@/contexts/game/actions/StatsActions';
+import { ENGAGEMENT_RINGS, getTierColor } from '@/lib/dating/engagementRings';
 
 interface DatingAppProps {
   onBack: () => void;
@@ -507,42 +512,912 @@ const mockProfiles: Profile[] = [
     job: 'Commercial Pilot',
     education: 'Aviation Degree',
   },
+  {
+    id: '26',
+    name: 'Aria Patel',
+    age: 26,
+    bio: 'Data scientist and AI researcher 🤖 Exploring the future of technology and machine learning.',
+    interests: ['AI', 'Data Science', 'Technology', 'Research'],
+    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'wealthy',
+    income: 95000,
+    personality: 'analytical',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Data Scientist',
+    education: 'PhD in Computer Science',
+  },
+  {
+    id: '27',
+    name: 'Elena Vasquez',
+    age: 28,
+    bio: 'Journalist and storyteller 📰 Sharing important stories and uncovering the truth.',
+    interests: ['Journalism', 'Writing', 'Travel', 'Politics'],
+    image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=500&h=600&fit=crop&crop=face',
+    distance: 4,
+    wealth: 'average',
+    income: 55000,
+    personality: 'curious',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Journalist',
+    education: 'Journalism Degree',
+  },
+  {
+    id: '28',
+    name: 'Maya Singh',
+    age: 25,
+    bio: 'Therapist and mental health advocate 🧠 Helping people navigate life\'s challenges with compassion.',
+    interests: ['Psychology', 'Mental Health', 'Meditation', 'Wellness'],
+    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'average',
+    income: 58000,
+    personality: 'empathetic',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Therapist',
+    education: 'Master\'s in Psychology',
+  },
+  {
+    id: '29',
+    name: 'Nina Kowalski',
+    age: 27,
+    bio: 'Product manager and innovation enthusiast 💡 Building products that make a difference.',
+    interests: ['Product Management', 'Innovation', 'Startups', 'Design'],
+    image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&h=600&fit=crop&crop=face',
+    distance: 5,
+    wealth: 'wealthy',
+    income: 105000,
+    personality: 'innovative',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Product Manager',
+    education: 'MBA',
+  },
+  {
+    id: '30',
+    name: 'Sofia Andersen',
+    age: 24,
+    bio: 'Photographer and visual storyteller 📷 Capturing moments and emotions through my lens.',
+    interests: ['Photography', 'Art', 'Travel', 'Nature'],
+    image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'average',
+    income: 45000,
+    personality: 'artistic',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Photographer',
+    education: 'Photography Degree',
+  },
+  {
+    id: '31',
+    name: 'Layla Hassan',
+    age: 29,
+    bio: 'Financial advisor and investment strategist 📈 Helping people build wealth and secure their future.',
+    interests: ['Finance', 'Investing', 'Economics', 'Business'],
+    image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500&h=600&fit=crop&crop=face',
+    distance: 1,
+    wealth: 'millionaire',
+    income: 150000,
+    personality: 'strategic',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Financial Advisor',
+    education: 'Finance MBA',
+  },
+  {
+    id: '32',
+    name: 'Zara Williams',
+    age: 23,
+    bio: 'Social worker and community advocate ❤️ Making a positive impact in people\'s lives every day.',
+    interests: ['Social Work', 'Community', 'Volunteering', 'Advocacy'],
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=600&fit=crop&crop=face',
+    distance: 4,
+    wealth: 'poor',
+    income: 35000,
+    personality: 'compassionate',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Social Worker',
+    education: 'Social Work Degree',
+  },
+  {
+    id: '33',
+    name: 'Diana Torres',
+    age: 26,
+    bio: 'Interior designer and space creator 🏠 Transforming houses into beautiful, functional homes.',
+    interests: ['Interior Design', 'Architecture', 'Home Decor', 'Creativity'],
+    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'wealthy',
+    income: 72000,
+    personality: 'creative',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Interior Designer',
+    education: 'Interior Design Degree',
+  },
+  {
+    id: '34',
+    name: 'Kira Nakamura',
+    age: 25,
+    bio: 'Game developer and digital artist 🎮 Creating immersive worlds and interactive experiences.',
+    interests: ['Game Development', 'Gaming', 'Art', 'Technology'],
+    image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'average',
+    income: 68000,
+    personality: 'creative',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Game Developer',
+    education: 'Computer Science Degree',
+  },
+  {
+    id: '35',
+    name: 'Rosa Martinez',
+    age: 30,
+    bio: 'Restaurant owner and culinary innovator 🍽️ Bringing people together through amazing food experiences.',
+    interests: ['Cooking', 'Food', 'Business', 'Hospitality'],
+    image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&h=600&fit=crop&crop=face',
+    distance: 1,
+    wealth: 'wealthy',
+    income: 110000,
+    personality: 'entrepreneurial',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Restaurant Owner',
+    education: 'Culinary Arts & Business',
+  },
+  {
+    id: '36',
+    name: 'Camila Rivera',
+    age: 27,
+    bio: 'Luxury travel writer ✈️ Sharing hidden gems from around the globe and looking for a co-adventurer.',
+    interests: ['Travel', 'Writing', 'Cuisine', 'Photography'],
+    image: 'https://images.unsplash.com/photo-1503342250623-60cdd8f3e0b3?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'wealthy',
+    income: 98000,
+    personality: 'adventurous',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1503342250623-60cdd8f3e0b3?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Travel Journalist',
+    education: 'International Relations Degree',
+  },
+  {
+    id: '37',
+    name: 'Marcus Reid',
+    age: 30,
+    bio: 'Tech founder building AI tools 🤖 Seeking someone curious, driven, and ready for spontaneous coffee runs.',
+    interests: ['Startups', 'Cycling', 'Coffee', 'AI'],
+    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&h=600&fit=crop&crop=face',
+    distance: 4,
+    wealth: 'millionaire',
+    income: 320000,
+    personality: 'ambitious',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'AI Startup CEO',
+    education: 'Computer Engineering',
+  },
+  {
+    id: '38',
+    name: 'Isla Morgan',
+    age: 25,
+    bio: 'Marine conservationist 🌊 Fighting for the oceans and searching for someone who loves the sea breeze.',
+    interests: ['Diving', 'Conservation', 'Kayaking', 'Volunteering'],
+    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=600&fit=crop&crop=face',
+    distance: 5,
+    wealth: 'average',
+    income: 54000,
+    personality: 'empathetic',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Marine Biologist',
+    education: 'Marine Ecology MSc',
+  },
+  {
+    id: '39',
+    name: 'Liam Chen',
+    age: 28,
+    bio: 'Architect designing sustainable cities 🏙️ Looking for someone to explore rooftop gardens and art exhibits.',
+    interests: ['Architecture', 'Art', 'Rock Climbing', 'Tea'],
+    image: 'https://images.unsplash.com/photo-1544723795-76653f02d793?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'wealthy',
+    income: 150000,
+    personality: 'visionary',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1544723795-76653f02d793?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Sustainable Architect',
+    education: 'Architecture Masters',
+  },
+  {
+    id: '40',
+    name: 'Sienna Patel',
+    age: 26,
+    bio: 'Wellness entrepreneur 🧘‍♀️ Hosting retreats around the world and searching for a grounded partner.',
+    interests: ['Yoga', 'Ayurveda', 'Hiking', 'Cooking'],
+    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'wealthy',
+    income: 112000,
+    personality: 'zen',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Retreat Founder',
+    education: 'Holistic Nutrition Certification',
+  },
+  {
+    id: '41',
+    name: 'Noah Hernandez',
+    age: 27,
+    bio: 'Documentary filmmaker 🎥 Capturing real stories and dreaming of a co-director for life.',
+    interests: ['Film', 'Surfing', 'Street Food', 'Travel'],
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=600&fit=crop&crop=face',
+    distance: 1,
+    wealth: 'average',
+    income: 72000,
+    personality: 'creative',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Documentary Director',
+    education: 'Film School Graduate',
+  },
+  {
+    id: '42',
+    name: 'Aurora Bennett',
+    age: 24,
+    bio: 'Concert violinist 🎻 Performing worldwide and hoping to find someone who loves late-night jazz.',
+    interests: ['Music', 'Jazz Clubs', 'Museums', 'Travel'],
+    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=600&fit=crop&crop=face',
+    distance: 4,
+    wealth: 'wealthy',
+    income: 95000,
+    personality: 'passionate',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Professional Violinist',
+    education: 'Royal Conservatory Graduate',
+  },
+  {
+    id: '43',
+    name: 'Julian Park',
+    age: 31,
+    bio: 'Cardiologist on a mission ❤️ Balancing hospital life with mountain biking and Michelin-star dinners.',
+    interests: ['Medicine', 'Cycling', 'Gastronomy', 'Travel'],
+    image: 'https://images.unsplash.com/photo-1504593811423-6dd665756598?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'millionaire',
+    income: 410000,
+    personality: 'dedicated',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1504593811423-6dd665756598?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Cardiologist',
+    education: 'MD, Cardiology Fellowship',
+  },
+  {
+    id: '44',
+    name: 'Maya Alvarez',
+    age: 28,
+    bio: 'Social impact strategist 🌍 Designing programs that uplift communities and searching for a kind heart.',
+    interests: ['Philanthropy', 'Cycling', 'Poetry', 'Cooking'],
+    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'average',
+    income: 68000,
+    personality: 'compassionate',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Program Director',
+    education: 'Public Policy Masters',
+  },
+  {
+    id: '45',
+    name: 'Dominic Rossi',
+    age: 32,
+    bio: 'Luxury home builder 🏡 Crafting dream estates and looking for someone to design a future with.',
+    interests: ['Architecture', 'Sailing', 'Wine', 'Fitness'],
+    image: 'https://images.unsplash.com/photo-1521038199265-3c3f94a1d37b?w=500&h=600&fit=crop&crop=face',
+    distance: 1,
+    wealth: 'millionaire',
+    income: 520000,
+    personality: 'confident',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1521038199265-3c3f94a1d37b?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Luxury Builder',
+    education: 'Business & Construction Management',
+  },
+  {
+    id: '46',
+    name: 'Harper Ellis',
+    age: 23,
+    bio: 'Indie game designer 🎮 Turning stories into experiences and craving a co-op partner IRL.',
+    interests: ['Gaming', 'Storytelling', 'Coffee', 'Comics'],
+    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=600&fit=crop&crop=face',
+    distance: 6,
+    wealth: 'average',
+    income: 58000,
+    personality: 'creative',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Indie Game Writer',
+    education: 'Interactive Media BA',
+  },
+  {
+    id: '47',
+    name: 'Gabriel Foster',
+    age: 27,
+    bio: 'Firefighter and rescue diver 🚒 Ready for early hikes, late-night tacos, and real conversations.',
+    interests: ['Fitness', 'Diving', 'Cooking', 'Volunteering'],
+    image: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'average',
+    income: 69000,
+    personality: 'brave',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Firefighter / EMT',
+    education: 'Emergency Services Academy',
+  },
+  {
+    id: '48',
+    name: 'Adeline Brooks',
+    age: 29,
+    bio: 'Boutique hotel curator 🏨 Blending design and hospitality while searching for someone who loves weekend getaways.',
+    interests: ['Interior Design', 'Wine', 'Hiking', 'Design Fairs'],
+    image: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'wealthy',
+    income: 135000,
+    personality: 'refined',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1463453091185-61582044d556?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Hospitality Consultant',
+    education: 'MBA Hospitality',
+  },
+  {
+    id: '49',
+    name: 'Mateo Silva',
+    age: 26,
+    bio: 'Latin Grammy-nominated producer 🎶 Mixing beats by night and exploring farmers markets by day.',
+    interests: ['Music', 'Dancing', 'Cooking', 'Travel'],
+    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&h=600&fit=crop&crop=face',
+    distance: 4,
+    wealth: 'wealthy',
+    income: 180000,
+    personality: 'charismatic',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Music Producer',
+    education: 'Audio Engineering Degree',
+  },
+  {
+    id: '50',
+    name: 'Vivian Clarke',
+    age: 31,
+    bio: 'Corporate attorney by day, salsa dancer by night 💃 Seeking chemistry, loyalty, and laughter.',
+    interests: ['Law', 'Dance', 'Travel', 'Books'],
+    image: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=500&h=600&fit=crop&crop=face',
+    distance: 1,
+    wealth: 'millionaire',
+    income: 260000,
+    personality: 'driven',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Corporate Attorney',
+    education: 'JD, Ivy League',
+  },
+  {
+    id: '51',
+    name: 'Caleb Stone',
+    age: 29,
+    bio: 'Adventure photographer 📸 Chasing storms, sunrises, and someone to share campfire stories with.',
+    interests: ['Photography', 'Climbing', 'Trail Running', 'Travel'],
+    image: 'https://images.unsplash.com/photo-1502767089025-6572583495b4?w=500&h=600&fit=crop&crop=face',
+    distance: 5,
+    wealth: 'average',
+    income: 82000,
+    personality: 'free-spirited',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1502767089025-6572583495b4?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Adventure Photographer',
+    education: 'Fine Arts Degree',
+  },
+  {
+    id: '52',
+    name: 'Elena Novak',
+    age: 27,
+    bio: 'Biotech researcher 🔬 Turning science fiction into reality and looking for someone equally curious.',
+    interests: ['Biotech', 'Podcasts', 'Running', 'Cooking'],
+    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'wealthy',
+    income: 140000,
+    personality: 'analytical',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Biotech Research Lead',
+    education: 'PhD in Genetics',
+  },
+  {
+    id: '53',
+    name: 'Owen Gallagher',
+    age: 33,
+    bio: 'Commercial pilot ✈️ Home half the week, exploring the rest. Searching for steady ground in love.',
+    interests: ['Aviation', 'Skiing', 'Wine', 'Fitness'],
+    image: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'wealthy',
+    income: 210000,
+    personality: 'confident',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Airline Captain',
+    education: 'Flight Academy Graduate',
+  },
+  {
+    id: '54',
+    name: 'Penelope Ward',
+    age: 25,
+    bio: 'Sustainable fashion CEO ♻️ Building eco-friendly wardrobes and hoping to meet a purpose-driven partner.',
+    interests: ['Fashion', 'Startups', 'Pilates', 'Art'],
+    image: 'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?w=500&h=600&fit=crop&crop=face',
+    distance: 1,
+    wealth: 'millionaire',
+    income: 310000,
+    personality: 'innovative',
+    gender: 'female',
+    seekingGender: 'male',
+    photos: [
+      'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Fashion CEO',
+    education: 'Sustainable Design Degree',
+  },
+  {
+    id: '55',
+    name: 'Sebastian Ibarra',
+    age: 28,
+    bio: 'Chef-owner of a Michelin-starred kitchen 🍽️ Can handle heat in the kitchen and in relationships.',
+    interests: ['Cooking', 'Travel', 'Wine', 'Boxing'],
+    image: 'https://images.unsplash.com/photo-1544723795-432537f4b081?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'wealthy',
+    income: 230000,
+    personality: 'passionate',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1544723795-432537f4b081?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Chef & Restaurateur',
+    education: 'Culinary Institute Graduate',
+  },
+  {
+    id: '56',
+    name: 'Caleb Wright',
+    age: 26,
+    bio: 'Physical therapist helping athletes recover 💪 Looking for someone to share sunrise hikes with.',
+    interests: ['Sports Medicine', 'Hiking', 'Basketball', 'Nutrition'],
+    image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'average',
+    income: 78000,
+    personality: 'supportive',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Physical Therapist',
+    education: 'Doctorate in Physical Therapy',
+  },
+  {
+    id: '57',
+    name: 'Dylan Mitchell',
+    age: 29,
+    bio: 'Music producer with a home studio 🎵 Seeking someone who appreciates a good vinyl collection.',
+    interests: ['Music Production', 'Vinyl Records', 'Jazz', 'Photography'],
+    image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&h=600&fit=crop&crop=face',
+    distance: 4,
+    wealth: 'wealthy',
+    income: 145000,
+    personality: 'creative',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Music Producer',
+    education: 'Audio Engineering Degree',
+  },
+  {
+    id: '58',
+    name: 'Ryan Torres',
+    age: 31,
+    bio: 'Emergency room doctor saving lives daily 🏥 Need someone patient—my schedule is unpredictable.',
+    interests: ['Medicine', 'Running', 'Cooking', 'Travel'],
+    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'wealthy',
+    income: 290000,
+    personality: 'dedicated',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'ER Physician',
+    education: 'Medical Degree',
+  },
+  {
+    id: '59',
+    name: 'Jordan Blake',
+    age: 24,
+    bio: 'Pro gamer and streamer 🎮 Looking for someone who won\'t mind me talking to chat during dinner.',
+    interests: ['Gaming', 'Streaming', 'Anime', 'Tech'],
+    image: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=500&h=600&fit=crop&crop=face',
+    distance: 1,
+    wealth: 'wealthy',
+    income: 180000,
+    personality: 'energetic',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1463453091185-61582044d556?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Professional Gamer',
+    education: 'Self-Taught',
+  },
+  {
+    id: '60',
+    name: 'Mason Park',
+    age: 27,
+    bio: 'Venture capitalist backing the next big thing 📈 Want to build empires together?',
+    interests: ['Investing', 'Startups', 'Golf', 'Wine'],
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=600&fit=crop&crop=face',
+    distance: 5,
+    wealth: 'millionaire',
+    income: 450000,
+    personality: 'ambitious',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Venture Capitalist',
+    education: 'MBA from Stanford',
+  },
+  {
+    id: '61',
+    name: 'Tyler Simmons',
+    age: 25,
+    bio: 'Personal trainer who practices what he preaches 🏋️ Looking for a gym partner and life partner.',
+    interests: ['Fitness', 'Meal Prep', 'Hiking', 'Dogs'],
+    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'average',
+    income: 55000,
+    personality: 'motivated',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Personal Trainer',
+    education: 'Sports Science Degree',
+  },
+  {
+    id: '62',
+    name: 'Brandon Lee',
+    age: 30,
+    bio: 'Criminal defense attorney ⚖️ I argue for a living, but I\'d rather agree with you on everything.',
+    interests: ['Law', 'Jazz', 'Whiskey', 'Chess'],
+    image: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'wealthy',
+    income: 195000,
+    personality: 'intelligent',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Defense Attorney',
+    education: 'Law Degree',
+  },
+  {
+    id: '63',
+    name: 'Cole Anderson',
+    age: 28,
+    bio: 'Wildlife photographer capturing nature\'s beauty 📷 Seeking someone for sunset shoots.',
+    interests: ['Photography', 'Wildlife', 'Camping', 'Conservation'],
+    image: 'https://images.unsplash.com/photo-1504593811423-6dd665756598?w=500&h=600&fit=crop&crop=face',
+    distance: 6,
+    wealth: 'average',
+    income: 68000,
+    personality: 'patient',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1504593811423-6dd665756598?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Wildlife Photographer',
+    education: 'Photography Degree',
+  },
+  {
+    id: '64',
+    name: 'Austin Cooper',
+    age: 26,
+    bio: 'Software engineer at a big tech company 💻 Will write you code comments as love letters.',
+    interests: ['Coding', 'Gaming', 'Board Games', 'Coffee'],
+    image: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=500&h=600&fit=crop&crop=face',
+    distance: 1,
+    wealth: 'wealthy',
+    income: 165000,
+    personality: 'nerdy',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Software Engineer',
+    education: 'Computer Science Degree',
+  },
+  {
+    id: '65',
+    name: 'Elijah Foster',
+    age: 29,
+    bio: 'Pilot flying international routes ✈️ I\'ll take you anywhere—literally and figuratively.',
+    interests: ['Aviation', 'Travel', 'Photography', 'Scuba'],
+    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&h=600&fit=crop&crop=face',
+    distance: 4,
+    wealth: 'wealthy',
+    income: 175000,
+    personality: 'adventurous',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Commercial Pilot',
+    education: 'Aviation Degree',
+  },
+  {
+    id: '66',
+    name: 'Nathan Hayes',
+    age: 32,
+    bio: 'Real estate developer transforming skylines 🏗️ Let\'s build something together.',
+    interests: ['Architecture', 'Investing', 'Tennis', 'Wine'],
+    image: 'https://images.unsplash.com/photo-1502767089025-6572583495b4?w=500&h=600&fit=crop&crop=face',
+    distance: 3,
+    wealth: 'millionaire',
+    income: 520000,
+    personality: 'driven',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1502767089025-6572583495b4?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Real Estate Developer',
+    education: 'Business Degree',
+  },
+  {
+    id: '67',
+    name: 'Luke Bennett',
+    age: 27,
+    bio: 'Craft brewery owner pouring passion into every pint 🍺 Seeking my brewing partner.',
+    interests: ['Brewing', 'Food', 'Hiking', 'Live Music'],
+    image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'average',
+    income: 85000,
+    personality: 'laid-back',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Brewery Owner',
+    education: 'Business Administration',
+  },
+  {
+    id: '68',
+    name: 'Hunter Morgan',
+    age: 25,
+    bio: 'Professional soccer player ⚽ Looking for someone who doesn\'t mind weekend games.',
+    interests: ['Soccer', 'Fitness', 'Travel', 'Video Games'],
+    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=500&h=600&fit=crop&crop=face',
+    distance: 4,
+    wealth: 'wealthy',
+    income: 280000,
+    personality: 'competitive',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Professional Athlete',
+    education: 'Sports Management',
+  },
+  {
+    id: '69',
+    name: 'Gavin Reed',
+    age: 28,
+    bio: 'Marine biologist exploring the deep 🐠 Seeking someone who loves the ocean as much as I do.',
+    interests: ['Marine Life', 'Diving', 'Surfing', 'Conservation'],
+    image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&h=600&fit=crop&crop=face',
+    distance: 5,
+    wealth: 'average',
+    income: 62000,
+    personality: 'curious',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Marine Biologist',
+    education: 'Marine Biology PhD',
+  },
+  {
+    id: '70',
+    name: 'Dominic Russo',
+    age: 30,
+    bio: 'Restaurateur with family recipes from Italy 🍝 Will cook for you on the first date.',
+    interests: ['Cooking', 'Wine', 'Family', 'Soccer'],
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=600&fit=crop&crop=face',
+    distance: 2,
+    wealth: 'wealthy',
+    income: 195000,
+    personality: 'warm',
+    gender: 'male',
+    seekingGender: 'female',
+    photos: [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=600&fit=crop&crop=face',
+    ],
+    job: 'Restaurant Owner',
+    education: 'Culinary Arts',
+  },
 ];
 
 export default function DatingApp({ onBack }: DatingAppProps) {
+  const insets = useSafeAreaInsets();
   const { gameState, setGameState, saveGame } = useGame();
   const { settings } = gameState;
   const { buttonPress, haptic } = useFeedback(settings.hapticFeedback);
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
   const [matches, setMatches] = useState<Profile[]>([]);
-  const [showMatchModal, setShowMatchModal] = useState(false);
-  const [currentMatch, setCurrentMatch] = useState<Profile | null>(null);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const [showProposalModal, setShowProposalModal] = useState(false);
+  const [selectedRingId, setSelectedRingId] = useState<string | null>(null);
   const [scrollIndicatorOpacity, setScrollIndicatorOpacity] = useState(1);
-  const [showProfileDetails, setShowProfileDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
   // Animation values
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const rotate = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
   const scrollIndicatorAnim = useRef(new Animated.Value(1)).current;
   const likeButtonScale = useRef(new Animated.Value(1)).current;
   const passButtonScale = useRef(new Animated.Value(1)).current;
 
-  const currentProfile = mockProfiles[currentProfileIndex];
+  // Filter profiles based on player's gender preference
+  const availableProfiles = React.useMemo(() => {
+    const playerGender = gameState.userProfile?.sex || 'male';
+    // Show profiles of opposite gender (or same if gay dating in future)
+    // For now: male players see female profiles, female players see male profiles
+    const targetGender = playerGender === 'male' ? 'female' : 'male';
+    return mockProfiles.filter(p => p.gender === targetGender);
+  }, [gameState.userProfile?.sex]);
+
+  const currentProfile = availableProfiles[currentProfileIndex % availableProfiles.length];
+
+  // Reset index if out of bounds when profiles change
+  useEffect(() => {
+    if (currentProfileIndex >= availableProfiles.length) {
+      setCurrentProfileIndex(0);
+    }
+  }, [availableProfiles.length, currentProfileIndex]);
 
   // Initialize scroll indicator state
   useEffect(() => {
-    if (currentProfileIndex >= mockProfiles.length - 3) {
+    if (currentProfileIndex >= availableProfiles.length - 3) {
       setShowScrollIndicator(true);
     } else {
       setShowScrollIndicator(false);
     }
-  }, [currentProfileIndex]);
+  }, [currentProfileIndex, availableProfiles.length]);
 
   const getWealthIcon = (wealth: string) => {
     switch (wealth) {
@@ -569,12 +1444,50 @@ export default function DatingApp({ onBack }: DatingAppProps) {
     haptic('success');
     
     if (Math.random() < 0.4) { // 40% match rate
-      setCurrentMatch(currentProfile);
-      setShowMatchModal(true);
+      // Check if player already has a partner
+      const existingPartner = gameState.relationships?.find(r => r.type === 'partner');
+      
+      if (existingPartner) {
+        Alert.alert(
+          'Already Have a Partner',
+          `You already have a partner (${existingPartner.name}). You can only have one partner at a time.`
+        );
+        nextProfile();
+        return;
+      }
+
+      // Add to contacts as partner with 50 relationship score
+      const weeklyIncome = Math.floor(currentProfile.income / 52);
+      
+      const newPartner = {
+        id: `partner_${currentProfile.id}`,
+        name: currentProfile.name,
+        type: 'partner' as const,
+        relationshipScore: 50,
+        personality: currentProfile.personality,
+        gender: currentProfile.gender,
+        age: currentProfile.age,
+        income: weeklyIncome,
+        actions: {},
+        weeksAtZero: 0,
+      };
+
+      setGameState(prev => ({
+        ...prev,
+        relationships: [...(prev.relationships || []), newPartner],
+      }));
+      
+      saveGame();
       setMatches(prev => [...prev, currentProfile]);
+      
+      Alert.alert(
+        'It\'s a Match! 💕',
+        `${currentProfile.name} has been added to your contacts as a partner!`,
+        [{ text: 'OK' }]
+      );
     }
     nextProfile();
-  }, [currentProfile]);
+  }, [currentProfile, gameState.relationships, setGameState, saveGame]);
 
   const handlePass = useCallback(() => {
     // Add haptic feedback
@@ -610,7 +1523,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
       translateX.setValue(0);
       translateY.setValue(0);
       rotate.setValue(0);
-      scale.setValue(1);
+      scaleAnim.setValue(1);
     });
   }, [handleLike, handlePass]);
 
@@ -653,7 +1566,8 @@ export default function DatingApp({ onBack }: DatingAppProps) {
   );
 
   const onHandlerStateChange = (event: any) => {
-    if (event.nativeEvent.state === State.END) {
+    // State.END = 5 in react-native-gesture-handler
+    if (event.nativeEvent.state === 5) {
       const { translationX } = event.nativeEvent;
       
       if (translationX > 100) {
@@ -684,12 +1598,12 @@ export default function DatingApp({ onBack }: DatingAppProps) {
   };
 
   const nextProfile = () => {
-    const nextIndex = (currentProfileIndex + 1) % mockProfiles.length;
+    const nextIndex = (currentProfileIndex + 1) % availableProfiles.length;
     setCurrentProfileIndex(nextIndex);
     setCurrentPhotoIndex(0);
     
     // Show scroll indicator if we're near the end of profiles
-    if (nextIndex >= mockProfiles.length - 3) {
+    if (nextIndex >= availableProfiles.length - 3) {
       setShowScrollIndicator(true);
       // Animate scroll indicator
       Animated.sequence([
@@ -715,86 +1629,6 @@ export default function DatingApp({ onBack }: DatingAppProps) {
     setCurrentPhotoIndex(0);
   };
 
-  const handleConfirmMatch = useCallback(() => {
-    // Handle confirm match
-    if (currentMatch) {
-      // Processing current match
-      
-      // Check if player already has a partner
-      const existingPartner = gameState.relationships?.find(r => r.type === 'partner');
-      
-      if (existingPartner) {
-        Alert.alert(
-          'Already Have a Partner',
-          `You already have a partner (${existingPartner.name}). You can only have one partner at a time.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setShowMatchModal(false);
-                setCurrentMatch(null);
-              }
-            }
-          ]
-        );
-        return;
-      }
-
-      // Add to contacts as partner with 50 relationship score
-      // Convert annual income to weekly income (divide by 52 weeks)
-      const weeklyIncome = Math.floor(currentMatch.income / 52);
-      
-      const newPartner = {
-        id: `partner_${currentMatch.id}`,
-        name: currentMatch.name,
-        type: 'partner' as const,
-        relationshipScore: 50,
-        personality: currentMatch.personality,
-        gender: currentMatch.gender,
-        age: currentMatch.age,
-        income: weeklyIncome,
-        actions: {},
-        weeksAtZero: 0,
-      };
-
-      // Creating new partner
-
-      setGameState(prev => {
-        const updatedState = {
-          ...prev,
-          relationships: [...(prev.relationships || []), newPartner],
-        };
-        // Adding partner to relationships
-        return updatedState;
-      });
-      
-      // Saving game after partner creation
-      saveGame();
-
-      // Close modal immediately
-      setShowMatchModal(false);
-      setCurrentMatch(null);
-      
-      // Show small "Added" popup after a short delay
-      setTimeout(() => {
-        Alert.alert(
-          'Added! 💕',
-          `${currentMatch.name} has been added to your contacts!`,
-          [{ text: 'OK' }]
-        );
-      }, 100);
-    } else {
-      // No current match to confirm
-    }
-  }, [currentMatch, setGameState, saveGame, gameState.relationships]);
-
-  const showDetails = () => {
-    setShowProfileDetails(true);
-  };
-
-  const hideDetails = () => {
-    setShowProfileDetails(false);
-  };
 
   const rotateInterpolate = rotate.interpolate({
     inputRange: [-1, 0, 1],
@@ -804,72 +1638,257 @@ export default function DatingApp({ onBack }: DatingAppProps) {
   // Check if player already has a partner
   const existingPartner = gameState.relationships?.find(r => r.type === 'partner');
 
+  const swipeEnabled = false;
+
+  const renderCardContent = () => {
+    if (!currentProfile) {
+      return null;
+    }
+    return (
+      <BlurView intensity={100} tint={settings.darkMode ? 'dark' : 'light'} style={styles.cardBlur}>
+          <View style={styles.profileImageContainer}>
+            <Image source={{ uri: currentProfile.image }} style={styles.profileImage} />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
+              style={styles.imageGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+            
+            {/* Profile Navigation */}
+            <View style={styles.photoNavigation}>
+              <TouchableOpacity style={styles.photoNavButton} onPress={() => {
+                Alert.alert(
+                  currentProfile.name,
+                  `${currentProfile.bio}\n\nJob: ${currentProfile.job}\nEducation: ${currentProfile.education}\nInterests: ${currentProfile.interests.join(', ')}`
+                );
+              }}>
+                <Text style={styles.photoNavText}>‹</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.photoNavButton} onPress={() => {
+                Alert.alert(
+                  currentProfile.name,
+                  `${currentProfile.bio}\n\nJob: ${currentProfile.job}\nEducation: ${currentProfile.education}\nInterests: ${currentProfile.interests.join(', ')}`
+                );
+              }}>
+                <Text style={styles.photoNavText}>›</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Glassmorphism Wealth Badge */}
+            <BlurView intensity={60} tint="light" style={styles.wealthBadge}>
+              <View style={styles.wealthBadgeContent}>
+                <Text style={styles.wealthIcon}>{getWealthIcon(currentProfile.wealth)}</Text>
+                <Text style={styles.wealthText}>
+                  {currentProfile.wealth.charAt(0).toUpperCase() + currentProfile.wealth.slice(1)}
+                </Text>
+              </View>
+            </BlurView>
+          </View>
+          
+          {/* Glassmorphism Info Section */}
+          <BlurView intensity={80} tint={settings.darkMode ? 'dark' : 'light'} style={styles.profileInfo}>
+            <View style={styles.profileHeader}>
+              <View style={styles.profileNameContainer}>
+                <View style={styles.profileNameRow}>
+                  <Text style={[styles.profileName, settings.darkMode && styles.profileNameDark]}>
+                    {currentProfile.name}, {currentProfile.age}
+                  </Text>
+                  <View style={styles.ageBadge}>
+                    <Text style={styles.ageBadgeText}>{currentProfile.age}</Text>
+                  </View>
+                </View>
+                <View style={styles.profileStats}>
+                  <MapPin size={14} color={settings.darkMode ? '#9FA4B3' : '#6B7280'} />
+                  <Text style={[styles.distanceText, settings.darkMode && styles.distanceTextDark]}>
+                    {currentProfile.distance} miles away
+                  </Text>
+                  <View style={[styles.onlineIndicator, { backgroundColor: '#10B981' }]} />
+                  <Text style={[styles.onlineText, { color: '#10B981' }]}>Online</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.bioContainer}>
+              <Text style={[styles.profileBio, settings.darkMode && styles.profileBioDark]}>
+                {currentProfile.bio}
+              </Text>
+            </View>
+            
+            {/* Quick Stats with Glassmorphism */}
+            <View style={styles.quickStatsContainer}>
+              <BlurView intensity={40} tint={settings.darkMode ? 'dark' : 'light'} style={styles.quickStat}>
+                <Star size={14} color="#F59E0B" />
+                <Text style={[styles.quickStatText, settings.darkMode && styles.quickStatTextDark]}>
+                  {currentProfile.personality}
+                </Text>
+              </BlurView>
+              <BlurView intensity={40} tint={settings.darkMode ? 'dark' : 'light'} style={styles.quickStat}>
+                <Users size={14} color="#10B981" />
+                <Text style={[styles.quickStatText, settings.darkMode && styles.quickStatTextDark]}>
+                  {currentProfile.job}
+                </Text>
+              </BlurView>
+            </View>
+            
+            {/* Interest Tags with Glassmorphism */}
+            <View style={styles.interestsPreviewContainer}>
+              {currentProfile.interests.slice(0, 3).map((interest, index) => (
+                <BlurView key={index} intensity={40} tint={settings.darkMode ? 'dark' : 'light'} style={styles.interestTagPreview}>
+                  <Text style={[styles.interestTagPreviewText, settings.darkMode && styles.interestTagPreviewTextDark]}>
+                    {interest}
+                  </Text>
+                </BlurView>
+              ))}
+              {currentProfile.interests.length > 3 && (
+                <BlurView intensity={40} tint={settings.darkMode ? 'dark' : 'light'} style={styles.moreInterestsTag}>
+                  <Text style={[styles.moreInterestsText, settings.darkMode && styles.moreInterestsTextDark]}>
+                    +{currentProfile.interests.length - 3}
+                  </Text>
+                </BlurView>
+              )}
+            </View>
+            
+            {/* Glassmorphism View Details Button */}
+            <TouchableOpacity style={styles.viewDetailsButton} onPress={() => {
+              Alert.alert(
+                currentProfile.name,
+                `${currentProfile.bio}\n\nJob: ${currentProfile.job}\nEducation: ${currentProfile.education}\nInterests: ${currentProfile.interests.join(', ')}`
+              );
+            }}>
+              <BlurView intensity={60} tint={settings.darkMode ? 'dark' : 'light'} style={styles.viewDetailsButtonBlur}>
+                <Text style={[styles.viewDetailsButtonText, settings.darkMode && styles.viewDetailsButtonTextDark]}>
+                  View Full Profile
+                </Text>
+                <ChevronDown size={18} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+              </BlurView>
+            </TouchableOpacity>
+        </BlurView>
+      </BlurView>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      {/* Enhanced Header */}
+      {/* Glassmorphism Background with Animated Gradient */}
+      <LinearGradient
+        colors={settings.darkMode 
+          ? ['#0F172A', '#1E293B', '#334155'] 
+          : ['#E0E7FF', '#F3E8FF', '#FCE7F3']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Glassmorphism Header */}
       <MotiView
         from={{ opacity: 0, translateY: -50 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 600 }}
         style={styles.headerContainer}
       >
-        <LinearGradient
-          colors={['#FF6B6B', '#FF8E8E', '#FFB3B3']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
+        <BlurView intensity={80} tint={settings.darkMode ? 'dark' : 'light'} style={styles.headerBlur}>
           <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={onBack}>
-              <LinearGradient
-                colors={['#1F2937', '#374151']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.backButtonGradient}
-              >
-                <ArrowLeft size={20} color="#FFFFFF" />
-              </LinearGradient>
+            <TouchableOpacity style={styles.headerButton} onPress={onBack}>
+              <BlurView intensity={60} tint={settings.darkMode ? 'dark' : 'light'} style={styles.headerButtonBlur}>
+                <ArrowLeft size={20} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+              </BlurView>
             </TouchableOpacity>
             
             <View style={styles.headerCenter}>
               <View style={styles.headerTitleContainer}>
-                <Heart size={20} color="#FFFFFF" />
-                <Text style={styles.headerTitle}>Dating</Text>
-                <Sparkles size={16} color="#FFFFFF" />
+                <Heart size={20} color="#FF6B9D" />
+                <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
+                  Dating
+                </Text>
+                <Sparkles size={16} color="#FF6B9D" />
               </View>
-              <Text style={styles.headerSubtitle}>Find your perfect match</Text>
+              <Text style={[styles.headerSubtitle, settings.darkMode && styles.headerSubtitleDark]}>
+                Find your perfect match
+              </Text>
             </View>
             
-            <TouchableOpacity style={styles.settingsButton} onPress={() => setShowSettings(true)}>
-              <LinearGradient
-                colors={['#1F2937', '#374151']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.settingsButtonGradient}
-              >
-                <Settings size={20} color="#FFFFFF" />
-              </LinearGradient>
+            <TouchableOpacity style={styles.headerButton} onPress={() => {
+              Alert.alert(
+                'Reset Profiles',
+                'Do you want to reset and start over?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Reset', 
+                    onPress: () => {
+                      resetProfiles();
+                      Alert.alert('Reset', 'Profiles have been reset!');
+                    }
+                  }
+                ]
+              );
+            }}>
+              <BlurView intensity={60} tint={settings.darkMode ? 'dark' : 'light'} style={styles.headerButtonBlur}>
+                <Settings size={20} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+              </BlurView>
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </BlurView>
       </MotiView>
 
       {/* Main Content */}
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.contentScroll}
+        contentContainerStyle={[styles.content, existingPartner && styles.contentLocked]}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        nestedScrollEnabled={true}
+      >
         {existingPartner ? (
-          // Locked state when already have a partner
+          // Partner relationship panel
           <View style={styles.lockedContainer}>
-            <View style={styles.lockedIcon}>
-              <Text style={styles.lockedIconText}>🔒</Text>
-            </View>
-            <Text style={styles.lockedTitle}>Already Have a Partner</Text>
-            <Text style={styles.lockedMessage}>
-              You're currently in a relationship with {existingPartner.name}. 
-              You can only have one partner at a time.
-            </Text>
-            <Text style={styles.lockedSubtext}>
-              Visit your Contacts app to manage your relationship.
-            </Text>
+            <BlurView intensity={80} tint={settings.darkMode ? 'dark' : 'light'} style={styles.lockedCard}>
+              <View style={styles.lockedIcon}>
+                <Text style={styles.lockedIconText}>💕</Text>
+              </View>
+              <Text style={[styles.lockedTitle, settings.darkMode && styles.lockedTitleDark]}>
+                {existingPartner.engagementWeek ? 'Engaged to ' : 'Dating '}{existingPartner.name}
+              </Text>
+              <Text style={[styles.lockedMessage, settings.darkMode && styles.lockedMessageDark]}>
+                Relationship: {existingPartner.relationshipScore}% • Dates: {existingPartner.datesCount || 0}
+              </Text>
+              
+              {/* Special Action Buttons (only proposal/wedding) */}
+              <View style={styles.partnerActions}>
+                {!existingPartner.engagementWeek && existingPartner.relationshipScore >= 60 && (
+                  <TouchableOpacity
+                    style={[styles.partnerActionBtn, { backgroundColor: '#F59E0B' }]}
+                    onPress={() => setShowProposalModal(true)}
+                  >
+                    <Circle size={scale(18)} color="#FFF" fill="#FFF" />
+                    <Text style={styles.partnerActionText}>Propose</Text>
+                  </TouchableOpacity>
+                )}
+
+                {existingPartner.engagementWeek && (
+                  <TouchableOpacity
+                    style={[styles.partnerActionBtn, { backgroundColor: '#22C55E' }]}
+                    onPress={() => Alert.alert('Coming Soon', 'Wedding planning will be available in the next update!')}
+                  >
+                    <Calendar size={scale(18)} color="#FFF" />
+                    <Text style={styles.partnerActionText}>Plan Wedding</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              <Text style={[styles.partnerHint, settings.darkMode && styles.partnerHintDark]}>
+                💡 Use Contacts app for dates & gifts
+              </Text>
+
+              <Text style={[styles.lockedSubtext, settings.darkMode && styles.lockedSubtextDark]}>
+                {existingPartner.relationshipScore < 60 
+                  ? 'Build your relationship to unlock proposal!'
+                  : existingPartner.engagementWeek 
+                    ? 'Congratulations on your engagement!' 
+                    : 'Your relationship is strong enough to propose!'}
+              </Text>
+            </BlurView>
           </View>
         ) : currentProfile && (
           <MotiView
@@ -878,128 +1897,31 @@ export default function DatingApp({ onBack }: DatingAppProps) {
             transition={{ type: 'spring', damping: 15, stiffness: 150 }}
             style={styles.profileCardContainer}
           >
-            <PanGestureHandler onGestureEvent={onGestureEvent} onHandlerStateChange={onHandlerStateChange}>
-              <Animated.View
-                style={[
-                  styles.profileCard,
-                  {
-                    transform: [
-                      { translateX },
-                      { translateY },
-                      { rotate: rotateInterpolate },
-                      { scale },
-                    ],
-                  },
-                ]}
-              >
-              <View style={styles.profileImageContainer}>
-                <Image source={{ uri: currentProfile.image }} style={styles.profileImage} />
-                <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.8)']}
-                  style={styles.imageGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                />
-                
-                {/* Enhanced overlay with blur effect */}
-                <BlurView intensity={20} style={styles.imageBlurOverlay} />
-                
-                {/* Profile Navigation */}
-                <View style={styles.photoNavigation}>
-                  <TouchableOpacity style={styles.photoNavButton} onPress={showDetails}>
-                    <Text style={styles.photoNavText}>‹</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.photoNavButton} onPress={showDetails}>
-                    <Text style={styles.photoNavText}>›</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Enhanced Wealth Badge */}
-                <LinearGradient
-                  colors={[getWealthColor(currentProfile.wealth), getWealthColor(currentProfile.wealth) + 'CC']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.wealthBadge}
+            {swipeEnabled ? (
+              <PanGestureHandler onGestureEvent={onGestureEvent} onHandlerStateChange={onHandlerStateChange}>
+                <Animated.View
+                  style={[
+                    styles.profileCard,
+                    {
+                      transform: [
+                        { translateX },
+                        { translateY },
+                        { rotate: rotateInterpolate },
+                        { scale: scaleAnim },
+                      ],
+                    },
+                  ]}
                 >
-                  <View style={styles.wealthBadgeContent}>
-                    <Text style={styles.wealthIcon}>{getWealthIcon(currentProfile.wealth)}</Text>
-                    <Text style={styles.wealthText}>{currentProfile.wealth.charAt(0).toUpperCase() + currentProfile.wealth.slice(1)}</Text>
-                  </View>
-                  <View style={styles.wealthBadgeGlow} />
-                </LinearGradient>
-              </View>
-              
-              <LinearGradient
-                colors={['#1F2937', '#111827', '#0F172A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.profileInfo}
-              >
-                <View style={styles.profileHeader}>
-                  <View style={styles.profileNameContainer}>
-                    <View style={styles.profileNameRow}>
-                      <Text style={styles.profileName}>{currentProfile.name}, {currentProfile.age}</Text>
-                      <View style={styles.ageBadge}>
-                        <Text style={styles.ageBadgeText}>{currentProfile.age}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.profileStats}>
-                      <MapPin size={16} color="#9FA4B3" />
-                      <Text style={styles.distanceText}>{currentProfile.distance} miles away</Text>
-                      <View style={styles.onlineIndicator} />
-                      <Text style={styles.onlineText}>Online</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.bioContainer}>
-                  <Text style={styles.profileBio}>{currentProfile.bio}</Text>
-                </View>
-                
-                {/* Quick Stats */}
-                <View style={styles.quickStatsContainer}>
-                  <View style={styles.quickStat}>
-                    <Star size={14} color="#F59E0B" />
-                    <Text style={styles.quickStatText}>{currentProfile.personality}</Text>
-                  </View>
-                  <View style={styles.quickStat}>
-                    <Users size={14} color="#10B981" />
-                    <Text style={styles.quickStatText}>{currentProfile.job}</Text>
-                  </View>
-                </View>
-                
-                {/* Interest Tags */}
-                <View style={styles.interestsPreviewContainer}>
-                  {currentProfile.interests.slice(0, 3).map((interest, index) => (
-                    <View key={index} style={styles.interestTagPreview}>
-                      <Text style={styles.interestTagPreviewText}>{interest}</Text>
-                    </View>
-                  ))}
-                  {currentProfile.interests.length > 3 && (
-                    <View style={styles.moreInterestsTag}>
-                      <Text style={styles.moreInterestsText}>+{currentProfile.interests.length - 3}</Text>
-                    </View>
-                  )}
-                </View>
-                
-                <TouchableOpacity style={styles.viewDetailsButton} onPress={showDetails}>
-                  <LinearGradient
-                    colors={['#3B82F6', '#1D4ED8']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.viewDetailsButtonGradient}
-                  >
-                    <Text style={styles.viewDetailsButtonText}>View Full Profile</Text>
-                    <ChevronDown size={20} color="#FFFFFF" />
-                  </LinearGradient>
-                </TouchableOpacity>
-              </LinearGradient>
-            </Animated.View>
-          </PanGestureHandler>
+                  {renderCardContent()}
+                </Animated.View>
+              </PanGestureHandler>
+            ) : (
+              <Animated.View style={styles.profileCard}>{renderCardContent()}</Animated.View>
+            )}
         </MotiView>
         )}
 
-        {/* Scroll Indicator */}
+        {/* Scroll Indicator with Glassmorphism */}
         {showScrollIndicator && (
           <MotiView
             from={{ opacity: 0, translateY: -20 }}
@@ -1008,48 +1930,55 @@ export default function DatingApp({ onBack }: DatingAppProps) {
             style={styles.scrollIndicatorContainer}
           >
             <Animated.View style={[styles.scrollIndicator, { opacity: scrollIndicatorAnim }]}>
-              <LinearGradient
-                colors={['#3B82F6', '#1D4ED8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.scrollIndicatorGradient}
-              >
-                <ChevronDown size={20} color="#FFFFFF" />
-                <Text style={styles.scrollIndicatorText}>More Profiles</Text>
-                <ChevronDown size={20} color="#FFFFFF" />
-              </LinearGradient>
+              <BlurView intensity={80} tint={settings.darkMode ? 'dark' : 'light'} style={styles.scrollIndicatorBlur}>
+                <ChevronDown size={18} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+                <Text style={[styles.scrollIndicatorText, settings.darkMode && styles.scrollIndicatorTextDark]}>
+                  More Profiles
+                </Text>
+                <ChevronDown size={18} color={settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+              </BlurView>
             </Animated.View>
           </MotiView>
         )}
 
-        {/* Matches Section */}
+        {/* Matches Section with Glassmorphism */}
         {matches.length > 0 && (
           <View style={styles.matchesSection}>
-            <Text style={styles.matchesTitle}>Your Matches</Text>
+            <Text style={[styles.matchesTitle, settings.darkMode && styles.matchesTitleDark]}>
+              Your Matches
+            </Text>
             <View style={styles.matchesList}>
               {matches.map((match, index) => (
-                <View key={index} style={styles.matchItem}>
+                <BlurView key={index} intensity={60} tint={settings.darkMode ? 'dark' : 'light'} style={styles.matchItem}>
                   <Image source={{ uri: match.image }} style={styles.matchImage} />
                   <View style={styles.matchInfo}>
-                    <Text style={styles.matchName}>{match.name}, {match.age}</Text>
-                    <Text style={styles.matchJob}>{match.job}</Text>
+                    <Text style={[styles.matchName, settings.darkMode && styles.matchNameDark]}>
+                      {match.name}, {match.age}
+                    </Text>
+                    <Text style={[styles.matchJob, settings.darkMode && styles.matchJobDark]}>
+                      {match.job}
+                    </Text>
                     <View style={styles.matchWealth}>
                       <Text style={styles.wealthIcon}>{getWealthIcon(match.wealth)}</Text>
-                      <Text style={styles.matchWealthText}>{match.wealth}</Text>
+                      <Text style={[styles.matchWealthText, settings.darkMode && styles.matchWealthTextDark]}>
+                        {match.wealth}
+                      </Text>
                     </View>
                   </View>
-                                     <View style={styles.matchIncome}>
-                     <DollarSign size={16} color="#9FA4B3" />
-                     <Text style={[styles.matchIncomeText, { color: '#9FA4B3' }]}>Hidden</Text>
-                   </View>
-                </View>
+                  <View style={styles.matchIncome}>
+                    <DollarSign size={16} color={settings.darkMode ? '#9FA4B3' : '#6B7280'} />
+                    <Text style={[styles.matchIncomeText, settings.darkMode && styles.matchIncomeTextDark]}>
+                      Hidden
+                    </Text>
+                  </View>
+                </BlurView>
               ))}
             </View>
           </View>
         )}
-      </View>
+      </ScrollView>
 
-      {/* Enhanced Floating Action Buttons - Only show when no partner */}
+      {/* Glassmorphism Floating Action Buttons - Only show when no partner */}
       {!existingPartner && (
         <MotiView
           from={{ opacity: 0, translateY: 100 }}
@@ -1063,14 +1992,11 @@ export default function DatingApp({ onBack }: DatingAppProps) {
             disabled={isLoading}
           >
             <Animated.View style={{ transform: [{ scale: passButtonScale }] }}>
-              <LinearGradient
-                colors={['#EF4444', '#DC2626']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.passButtonGradient}
-              >
-                <X size={28} color="#FFFFFF" />
-              </LinearGradient>
+              <BlurView intensity={80} tint="light" style={styles.actionButtonBlur}>
+                <View style={[styles.actionButtonInner, { backgroundColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                  <X size={28} color="#FFFFFF" />
+                </View>
+              </BlurView>
             </Animated.View>
           </TouchableOpacity>
           
@@ -1080,267 +2006,116 @@ export default function DatingApp({ onBack }: DatingAppProps) {
             disabled={isLoading}
           >
             <Animated.View style={{ transform: [{ scale: likeButtonScale }] }}>
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.likeButtonGradient}
-              >
-                <Heart size={28} color="#FFFFFF" />
-              </LinearGradient>
+              <BlurView intensity={80} tint="light" style={styles.actionButtonBlur}>
+                <View style={[styles.actionButtonInner, { backgroundColor: 'rgba(16, 185, 129, 0.3)' }]}>
+                  <Heart size={28} color="#FFFFFF" />
+                </View>
+              </BlurView>
             </Animated.View>
           </TouchableOpacity>
         </MotiView>
       )}
 
-      {/* Enhanced Match Modal */}
-      <Modal visible={showMatchModal} transparent animationType="fade" onRequestClose={() => setShowMatchModal(false)}>
-        <BlurView intensity={20} style={styles.modalBackdrop}>
-          <MotiView
-            from={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15, stiffness: 150 }}
-            style={styles.modalCard}
-          >
-            <LinearGradient
-              colors={['#FF6B6B', '#FF8E8E', '#FFB3B3']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.modalGradient}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>It's a Match! 💕</Text>
-                <Sparkles size={24} color="#FFFFFF" />
-              </View>
+      {/* Proposal Modal */}
+      <Modal
+        visible={showProposalModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowProposalModal(false)}
+      >
+        <View style={styles.proposalModalOverlay}>
+          <View style={[styles.proposalModalContent, settings.darkMode && styles.proposalModalContentDark]}>
+            <Text style={[styles.proposalModalTitle, settings.darkMode && { color: '#F9FAFB' }]}>
+              Choose an Engagement Ring
+            </Text>
+            <Text style={[styles.proposalModalSubtitle, settings.darkMode && { color: '#9CA3AF' }]}>
+              Better rings increase your chances of success!
+            </Text>
             
-              {currentMatch && (
-                <View style={styles.matchContent}>
-                  <View style={styles.matchImageContainer}>
-                    <Image source={{ uri: currentMatch.image }} style={styles.matchModalImage} />
-                    <View style={styles.matchImageGlow} />
-                  </View>
-                  <Text style={styles.matchModalName}>{currentMatch.name}, {currentMatch.age}</Text>
-                  <Text style={styles.matchModalJob}>{currentMatch.job}</Text>
-                  
-                  <View style={styles.matchModalDetails}>
-                    <View style={styles.matchModalDetail}>
-                      <DollarSign size={20} color="#9FA4B3" />
-                      <Text style={[styles.matchModalDetailText, { color: '#9FA4B3' }]}>
-                        Hidden
+            <ScrollView style={styles.ringList} showsVerticalScrollIndicator={false}>
+              {ENGAGEMENT_RINGS.map(ring => {
+                const isSelected = selectedRingId === ring.id;
+                const canAfford = gameState.stats.money >= ring.price;
+                
+                return (
+                  <TouchableOpacity
+                    key={ring.id}
+                    style={[
+                      styles.ringOption,
+                      isSelected && styles.ringOptionSelected,
+                      !canAfford && styles.ringOptionDisabled,
+                    ]}
+                    onPress={() => canAfford && setSelectedRingId(ring.id)}
+                    disabled={!canAfford}
+                  >
+                    <View style={[styles.ringTier, { backgroundColor: getTierColor(ring.qualityTier) }]}>
+                      <Text style={styles.ringTierText}>{ring.qualityTier.toUpperCase()}</Text>
+    </View>
+                    <View style={styles.ringInfo}>
+                      <Text style={[styles.ringName, settings.darkMode && { color: '#F9FAFB' }]}>
+                        {ring.name}
+                      </Text>
+                      <Text style={[styles.ringDesc, settings.darkMode && { color: '#9CA3AF' }]} numberOfLines={1}>
+                        {ring.description}
                       </Text>
                     </View>
-                    <View style={styles.matchModalDetail}>
-                      <Text style={styles.wealthIcon}>{getWealthIcon(currentMatch.wealth)}</Text>
-                      <Text style={styles.matchModalDetailText}>{currentMatch.wealth}</Text>
+                    <View style={styles.ringPriceContainer}>
+                      <Text style={[styles.ringPrice, !canAfford && { color: '#EF4444' }]}>
+                        ${ring.price.toLocaleString()}
+                      </Text>
+                      <Text style={[styles.ringBonus, settings.darkMode && { color: '#9CA3AF' }]}>
+                        +{ring.acceptanceBonus}% chance
+                      </Text>
                     </View>
-                  </View>
-                  
-                  <Text style={styles.matchModalMessage}>
-                    {currentMatch.name} will be added to your contacts as a partner with 50 relationship points.
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setShowMatchModal(false);
-                    setCurrentMatch(null);
-                  }}
-                >
-                  <LinearGradient
-                    colors={['#6B7280', '#4B5563']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.cancelButtonGradient}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.confirmButton}
-                  onPress={handleConfirmMatch}
-                >
-                  <LinearGradient colors={['#16A34A', '#4ADE80']} style={styles.confirmButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                    <Text style={styles.confirmButtonText}>Confirm Match</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </MotiView>
-        </BlurView>
-      </Modal>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-      {/* Enhanced Settings Modal */}
-      <Modal visible={showSettings} transparent animationType="fade" onRequestClose={() => setShowSettings(false)}>
-        <BlurView intensity={20} style={styles.modalBackdrop}>
-          <MotiView
-            from={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15, stiffness: 150 }}
-            style={styles.modalCard}
-          >
-            <LinearGradient
-              colors={['#1F2937', '#111827', '#0F172A']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.modalGradient}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Dating Settings</Text>
-                <Settings size={24} color="#FFFFFF" />
-              </View>
+            <View style={styles.proposalModalButtons}>
+              <TouchableOpacity
+                style={[styles.proposalCancelBtn]}
+                onPress={() => {
+                  setShowProposalModal(false);
+                  setSelectedRingId(null);
+                }}
+              >
+                <Text style={styles.proposalCancelText}>Cancel</Text>
+              </TouchableOpacity>
               
-              <View style={styles.settingsContent}>
-                <TouchableOpacity
-                  style={styles.settingsButton}
-                  onPress={() => {
-                    resetProfiles();
-                    setShowSettings(false);
-                  }}
-                >
-                  <LinearGradient
-                    colors={['#3B82F6', '#1D4ED8']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.settingsButtonGradient}
-                  >
-                    <Users size={20} color="#FFFFFF" />
-                    <Text style={styles.settingsButtonText}>Reset Profiles</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.settingsButton}
-                  onPress={() => setShowSettings(false)}
-                >
-                  <LinearGradient
-                    colors={['#6B7280', '#4B5563']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.settingsButtonGradient}
-                  >
-                    <X size={20} color="#FFFFFF" />
-                    <Text style={styles.settingsButtonText}>Close</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </MotiView>
-        </BlurView>
-      </Modal>
-
-      {/* Profile Details Modal */}
-      <Modal visible={showProfileDetails} transparent animationType="fade" onRequestClose={hideDetails}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.profileDetailsModal}>
-            <View style={styles.profileDetailsModalHeader}>
-              <Text style={styles.profileDetailsTitle}>Profile Details</Text>
-              <TouchableOpacity style={styles.closeDetailsButton} onPress={hideDetails}>
-                <X size={24} color="#FFFFFF" />
+              <TouchableOpacity
+                style={[styles.proposalConfirmBtn, !selectedRingId && { opacity: 0.5 }]}
+                disabled={!selectedRingId}
+                onPress={() => {
+                  if (!selectedRingId || !existingPartner) return;
+                  const result = proposeMarriage(
+                    gameState,
+                    setGameState,
+                    existingPartner.id,
+                    selectedRingId,
+                    { updateMoney, updateStats }
+                  );
+                  if (result.success) {
+                    saveGame();
+                    setShowProposalModal(false);
+                    setSelectedRingId(null);
+                    Alert.alert(
+                      result.accepted ? '💍 They Said Yes!' : '💔 Not Ready Yet',
+                      result.message
+                    );
+                  } else {
+                    Alert.alert('Cannot Propose', result.message);
+                  }
+                }}
+              >
+                <Circle size={scale(18)} color="#FFF" fill="#FFF" />
+                <Text style={styles.proposalConfirmText}>Propose</Text>
               </TouchableOpacity>
             </View>
-
-            {currentProfile && (
-              <ScrollView 
-                style={styles.profileDetailsScrollView}
-                showsVerticalScrollIndicator={true}
-                contentContainerStyle={styles.profileDetailsContent}
-              >
-                <View style={styles.profileDetailsImageContainer}>
-                  <Image source={{ uri: currentProfile.image }} style={styles.profileDetailsImage} />
-                </View>
-
-                <View style={styles.profileDetailsInfo}>
-                  <View style={styles.profileDetailsInfoHeader}>
-                    <View style={styles.profileNameRow}>
-                      <Text style={styles.profileDetailsName}>{currentProfile.name}, {currentProfile.age}</Text>
-                      <View style={styles.ageBadge}>
-                        <Text style={styles.ageBadgeText}>{currentProfile.age}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.profileStats}>
-                      <MapPin size={16} color="#9FA4B3" />
-                      <Text style={styles.distanceText}>{currentProfile.distance} miles away</Text>
-                      <View style={styles.onlineIndicator} />
-                      <Text style={styles.onlineText}>Online</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.profileDetails}>
-                    <View style={styles.detailCard}>
-                      <View style={styles.detailRow}>
-                        <View style={styles.detailIconContainer}>
-                          <Text style={styles.detailIcon}>💼</Text>
-                        </View>
-                        <View style={styles.detailContent}>
-                          <Text style={styles.detailLabel}>Profession</Text>
-                          <Text style={styles.detailValue}>{currentProfile.job}</Text>
-                        </View>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.detailCard}>
-                      <View style={styles.detailRow}>
-                        <View style={styles.detailIconContainer}>
-                          <Text style={styles.detailIcon}>🎓</Text>
-                        </View>
-                        <View style={styles.detailContent}>
-                          <Text style={styles.detailLabel}>Education</Text>
-                          <Text style={styles.detailValue}>{currentProfile.education}</Text>
-                        </View>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.detailCard}>
-                      <View style={styles.detailRow}>
-                        <View style={styles.detailIconContainer}>
-                          <Text style={styles.detailIcon}>💰</Text>
-                        </View>
-                        <View style={styles.detailContent}>
-                          <Text style={styles.detailLabel}>Income</Text>
-                          <Text style={[styles.detailValue, { color: '#9FA4B3' }]}>
-                            Hidden
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.detailCard}>
-                      <View style={styles.detailRow}>
-                        <View style={styles.detailIconContainer}>
-                          <Text style={styles.detailIcon}>🌟</Text>
-                        </View>
-                        <View style={styles.detailContent}>
-                          <Text style={styles.detailLabel}>Personality</Text>
-                          <Text style={styles.detailValue}>{currentProfile.personality.charAt(0).toUpperCase() + currentProfile.personality.slice(1)}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.bioContainer}>
-                    <Text style={styles.profileBio}>{currentProfile.bio}</Text>
-                  </View>
-                  
-                  <View style={styles.interestsSection}>
-                    <Text style={styles.interestsTitle}>Interests</Text>
-                    <View style={styles.interestsContainer}>
-                      {currentProfile.interests.map((interest, index) => (
-                        <View key={index} style={styles.interestTag}>
-                          <Text style={styles.interestText}>{interest}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-              </ScrollView>
-            )}
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }
@@ -1348,24 +2123,50 @@ export default function DatingApp({ onBack }: DatingAppProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0C10',
   },
   headerContainer: {
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  headerGradient: {
-    paddingTop: 16,
     paddingBottom: 16,
+    paddingHorizontal: 16,
+  },
+  headerBlur: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(25px) saturate(180%)',
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  headerButtonBlur: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   headerCenter: {
     flex: 1,
@@ -1378,64 +2179,60 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
+    color: '#1F2937',
+    fontSize: 22,
     fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  },
+  headerTitleDark: {
+    color: '#FFFFFF',
   },
   headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#6B7280',
     fontSize: 12,
     fontWeight: '500',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    overflow: 'hidden',
+  headerSubtitleDark: {
+    color: 'rgba(255, 255, 255, 0.7)',
   },
-  backButtonGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  settingsButtonGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+  contentScroll: {
+    flex: 1,
   },
   content: {
-    flex: 1,
     padding: 16,
     paddingBottom: 120, // Add space for floating buttons
+  },
+  contentLocked: {
+    paddingTop: scale(64),
   },
   profileCardContainer: {
     marginBottom: 16,
   },
   profileCard: {
-    backgroundColor: '#0F1220',
-    borderRadius: 20,
+    borderRadius: 32,
     overflow: 'hidden',
-    borderColor: '#23283B',
-    borderWidth: 1,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+  },
+  cardBlur: {
+    borderRadius: 36,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(25px) saturate(180%)',
+        boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.25)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 12,
+      },
+    }),
   },
   profileImageContainer: {
-    height: 350,
+    height: 400,
     position: 'relative',
   },
   profileImage: {
@@ -1449,13 +2246,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 120,
-  },
-  imageBlurOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
   },
   photoNavigation: {
     position: 'absolute',
@@ -1509,32 +2299,25 @@ const styles = StyleSheet.create({
   },
   wealthBadge: {
     position: 'absolute',
-    top: 30,
-    right: 20,
-    borderRadius: 25,
+    top: 24,
+    right: 24,
+    borderRadius: 24,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   wealthBadgeContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 6,
-  },
-  wealthBadgeGlow: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 27,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    zIndex: -1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
   },
   wealthIcon: {
     fontSize: 18,
@@ -1543,32 +2326,60 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    ...Platform.select({
+      web: { textShadow: '0px 1px 1px rgba(0, 0, 0, 0.3)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 1,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 1,
+      },
+    }),
   },
   profileInfo: {
-    padding: 20,
-    minHeight: 200,
-    maxHeight: 300,
+    padding: 24,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   viewDetailsButton: {
     marginTop: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     overflow: 'hidden',
   },
-  viewDetailsButtonGradient: {
+  viewDetailsButtonBlur: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   viewDetailsButtonText: {
-    color: '#FFFFFF',
+    color: '#1F2937',
     fontSize: 16,
     fontWeight: '600',
+  },
+  viewDetailsButtonTextDark: {
+    color: '#FFFFFF',
   },
   profileHeader: {
     marginBottom: 16,
@@ -1584,12 +2395,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   profileName: {
-    color: '#FFFFFF',
-    fontSize: 26,
+    color: '#1F2937',
+    fontSize: 28,
     fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  },
+  profileNameDark: {
+    color: '#FFFFFF',
   },
   ageBadge: {
     backgroundColor: '#3B82F6',
@@ -1608,9 +2419,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   distanceText: {
-    color: '#D1D5DB',
+    color: '#6B7280',
     fontSize: 14,
     fontWeight: '500',
+  },
+  distanceTextDark: {
+    color: '#9FA4B3',
   },
   onlineIndicator: {
     width: 8,
@@ -1628,11 +2442,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   detailCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 12,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   detailRow: {
     flexDirection: 'row',
@@ -1654,59 +2473,84 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailLabel: {
-    color: '#9FA4B3',
+    color: '#6B7280',
     fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 2,
+    fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailLabelDark: {
+    color: '#9FA4B3',
   },
   detailValue: {
-    color: '#FFFFFF',
+    color: '#1F2937',
     fontSize: 16,
     fontWeight: '600',
   },
+  detailValueDark: {
+    color: '#FFFFFF',
+  },
   bioContainer: {
     marginBottom: 16,
-    padding: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   profileBio: {
-    color: '#F3F4F6',
+    color: '#374151',
     fontSize: 16,
     lineHeight: 24,
     fontStyle: 'italic',
     textAlign: 'center',
   },
+  profileBioDark: {
+    color: '#F3F4F6',
+  },
   interestsSection: {
-    marginTop: 4,
+    marginTop: 8,
   },
   interestsTitle: {
+    color: '#1F2937',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  interestsTitleDark: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
   },
   interestsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   interestTag: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  interestTagGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   interestText: {
-    color: '#FFFFFF',
+    color: '#1F2937',
     fontSize: 14,
     fontWeight: '600',
+  },
+  interestTextDark: {
+    color: '#FFFFFF',
   },
   scrollIndicatorContainer: {
     alignItems: 'center',
@@ -1715,24 +2559,31 @@ const styles = StyleSheet.create({
   scrollIndicator: {
     borderRadius: 25,
     overflow: 'hidden',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
   },
-  scrollIndicatorGradient: {
+  scrollIndicatorBlur: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 28,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   scrollIndicatorText: {
-    color: '#FFFFFF',
+    color: '#1F2937',
     fontSize: 14,
     fontWeight: '600',
+  },
+  scrollIndicatorTextDark: {
+    color: '#FFFFFF',
   },
   floatingActionButtons: {
     position: 'absolute',
@@ -1745,83 +2596,102 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   passButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     overflow: 'hidden',
-    elevation: 12,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-  },
-  passButtonGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   likeButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     overflow: 'hidden',
-    elevation: 12,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
   },
-  likeButtonGradient: {
+  actionButtonBlur: {
     width: '100%',
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 36,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(25px) saturate(180%)',
+        boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.25)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 12,
+      },
+    }),
+  },
+  actionButtonInner: {
+    width: '100%',
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 34,
   },
   matchesSection: {
-    backgroundColor: '#0F1220',
-    borderRadius: 12,
-    padding: 16,
-    borderColor: '#23283B',
-    borderWidth: 1,
+    marginTop: 16,
   },
   matchesTitle: {
+    color: '#1F2937',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  matchesTitleDark: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
   },
   matchesList: {
     gap: 12,
   },
   matchItem: {
-    backgroundColor: '#1A1D29',
-    padding: 12,
-    borderRadius: 8,
-    borderColor: '#23283B',
-    borderWidth: 1,
+    padding: 16,
+    borderRadius: 28,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   matchImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   matchInfo: {
     flex: 1,
   },
   matchName: {
-    color: '#FFFFFF',
+    color: '#1F2937',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 4,
   },
+  matchNameDark: {
+    color: '#FFFFFF',
+  },
   matchJob: {
-    color: '#9FA4B3',
+    color: '#6B7280',
     fontSize: 14,
     marginBottom: 4,
+  },
+  matchJobDark: {
+    color: '#9FA4B3',
   },
   matchWealth: {
     flexDirection: 'row',
@@ -1829,40 +2699,61 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   matchWealthText: {
-    color: '#9FA4B3',
+    color: '#6B7280',
     fontSize: 12,
     textTransform: 'capitalize',
+    fontWeight: '600',
+  },
+  matchWealthTextDark: {
+    color: '#9FA4B3',
   },
   matchIncome: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   matchIncomeText: {
-    color: '#10B981',
-    fontSize: 14,
+    color: '#6B7280',
+    fontSize: 13,
     fontWeight: '600',
+  },
+  matchIncomeTextDark: {
+    color: '#9FA4B3',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
   },
-  modalCard: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 20,
-    overflow: 'hidden',
-    elevation: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+  modalBackdropBlur: {
+    ...StyleSheet.absoluteFillObject,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(10px)',
+      },
+    }),
   },
-  modalGradient: {
-    padding: 24,
+  modalCard: {
+    width: '90%',
+    maxWidth: 400,
+    alignSelf: 'center',
+    borderRadius: 36,
+    overflow: 'hidden',
+  },
+  modalBlur: {
+    padding: 28,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 36,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(25px) saturate(180%)',
+        boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.25)',
+      },
+    }),
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1872,13 +2763,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    color: '#FFFFFF',
-    fontSize: 22,
+    color: '#1F2937',
+    fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  },
+  modalTitleDark: {
+    color: '#FFFFFF',
   },
   matchContent: {
     alignItems: 'center',
@@ -1886,54 +2777,78 @@ const styles = StyleSheet.create({
   },
   matchImageContainer: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  matchImageBlur: {
+    borderRadius: 60,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   matchModalImage: {
     width: 120,
     height: 120,
-    borderRadius: 60,
-  },
-  matchImageGlow: {
-    position: 'absolute',
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
-    borderRadius: 64,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    zIndex: -1,
+    resizeMode: 'cover',
   },
   matchModalName: {
-    color: '#FFFFFF',
-    fontSize: 20,
+    color: '#1F2937',
+    fontSize: 22,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 6,
+  },
+  matchModalNameDark: {
+    color: '#FFFFFF',
   },
   matchModalJob: {
-    color: '#9FA4B3',
+    color: '#6B7280',
     fontSize: 16,
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  matchModalJobDark: {
+    color: '#9FA4B3',
   },
   matchModalDetails: {
     flexDirection: 'row',
     gap: 20,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   matchModalDetail: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   matchModalDetailText: {
-    color: '#FFFFFF',
+    color: '#1F2937',
     fontSize: 14,
     fontWeight: '600',
   },
+  matchModalDetailTextDark: {
+    color: '#FFFFFF',
+  },
   matchModalMessage: {
-    color: '#9FA4B3',
+    color: '#6B7280',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  matchModalMessageDark: {
+    color: '#9FA4B3',
   },
   modalActions: {
     flexDirection: 'row',
@@ -1941,28 +2856,42 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 24,
     overflow: 'hidden',
-  },
-  cancelButtonGradient: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   confirmButton: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 24,
     overflow: 'hidden',
   },
-  confirmButtonGradient: {
-    paddingVertical: 14,
+  modalButtonBlur: {
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 20,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
+  },
+  modalButtonInner: {
+    width: '100%',
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+  },
+  cancelButtonText: {
+    color: '#1F2937',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButtonTextDark: {
+    color: '#FFFFFF',
   },
   confirmButtonText: {
     color: '#FFFFFF',
@@ -1973,130 +2902,192 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   settingsButton: {
-    borderRadius: 12,
+    borderRadius: 24,
     overflow: 'hidden',
   },
-  settingsButtonGradient: {
+  settingsButtonBlur: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    gap: 10,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   settingsButtonText: {
-    color: '#FFFFFF',
+    color: '#1F2937',
     fontSize: 16,
     fontWeight: '600',
   },
+  settingsButtonTextDark: {
+    color: '#FFFFFF',
+  },
   profileDetailsModal: {
     width: '90%',
-    height: '80%',
     maxWidth: 500,
-    backgroundColor: '#1F2937',
-    borderRadius: 20,
+    maxHeight: '85%',
+    borderRadius: 36,
     overflow: 'hidden',
-    elevation: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    alignSelf: 'center',
+  },
+  profileDetailsBlur: {
+    flex: 1,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 36,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(25px) saturate(180%)',
+      },
+    }),
   },
   profileDetailsModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 10,
+    padding: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    flexShrink: 0,
   },
   profileDetailsInfoHeader: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   profileDetailsTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
+    color: '#1F2937',
+    fontSize: 22,
     fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  },
+  profileDetailsTitleDark: {
+    color: '#FFFFFF',
   },
   closeDetailsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  closeButtonBlur: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 22,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   profileDetailsScrollView: {
     flex: 1,
   },
   profileDetailsContent: {
     paddingBottom: 20,
+    paddingHorizontal: 0,
   },
   profileDetailsImageContainer: {
     position: 'relative',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   profileDetailsImage: {
     width: '100%',
-    height: 300,
+    height: 320,
     resizeMode: 'cover',
   },
   profileDetailsWealthBadge: {
     position: 'absolute',
     top: 20,
     right: 20,
-    borderRadius: 25,
+    borderRadius: 24,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   profileDetailsInfo: {
-    padding: 20,
+    padding: 24,
   },
   profileDetailsName: {
-    color: '#FFFFFF',
-    fontSize: 24,
+    color: '#1F2937',
+    fontSize: 26,
     fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    marginBottom: 8,
+  },
+  profileDetailsNameDark: {
+    color: '#FFFFFF',
   },
   lockedContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    paddingTop: scale(32),
+    paddingBottom: scale(32),
+  },
+  lockedCard: {
+    padding: 32,
+    borderRadius: 36,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(25px) saturate(180%)',
+      },
+    }),
   },
   lockedIcon: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#374151',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   lockedIconText: {
-    fontSize: 32,
+    fontSize: 36,
   },
   lockedTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    color: '#1F2937',
     marginBottom: 16,
     textAlign: 'center',
   },
+  lockedTitleDark: {
+    color: '#FFFFFF',
+  },
   lockedMessage: {
     fontSize: 16,
-    color: '#9FA4B3',
+    color: '#4B5563',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 12,
+  },
+  lockedMessageDark: {
+    color: '#D1D5DB',
   },
   lockedSubtext: {
     fontSize: 14,
@@ -2104,61 +3095,234 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
+  lockedSubtextDark: {
+    color: '#9CA3AF',
+  },
   // New UX Enhancement Styles
   quickStatsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginVertical: 12,
-    paddingHorizontal: 16,
   },
   quickStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(55, 65, 81, 0.5)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   quickStatText: {
+    color: '#4B5563',
+    fontSize: 12,
+    fontWeight: '600',
+    maxWidth: 100,
+  },
+  quickStatTextDark: {
     color: '#D1D5DB',
-    fontSize: 11,
-    fontWeight: '500',
-    maxWidth: 80,
-    textAlign: 'center',
   },
   interestsPreviewContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginVertical: 12,
-    gap: 8,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
+    gap: 10,
   },
   interestTagPreview: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 24,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   interestTagPreviewText: {
-    color: '#60A5FA',
-    fontSize: 12,
-    fontWeight: '500',
+    color: '#1F2937',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  interestTagPreviewTextDark: {
+    color: '#FFFFFF',
   },
   moreInterestsTag: {
-    backgroundColor: 'rgba(156, 163, 175, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(156, 163, 175, 0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 24,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px) saturate(180%)',
+      },
+    }),
   },
   moreInterestsText: {
+    color: '#6B7280',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  moreInterestsTextDark: {
     color: '#9CA3AF',
-    fontSize: 12,
-    fontWeight: '500',
+  },
+  // Partner action styles
+  partnerActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: scale(8),
+    marginTop: scale(16),
+    marginBottom: scale(12),
+  },
+  partnerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(14),
+    borderRadius: scale(12),
+    gap: scale(6),
+  },
+  partnerActionText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(13),
+    fontWeight: '600',
+  },
+  partnerHint: {
+    fontSize: fontScale(12),
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: scale(8),
+  },
+  partnerHintDark: {
+    color: '#9CA3AF',
+  },
+  // Proposal modal styles
+  proposalModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  proposalModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: scale(24),
+    borderTopRightRadius: scale(24),
+    padding: scale(20),
+    maxHeight: '80%',
+  },
+  proposalModalContentDark: {
+    backgroundColor: '#1F2937',
+  },
+  proposalModalTitle: {
+    fontSize: fontScale(20),
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  proposalModalSubtitle: {
+    fontSize: fontScale(14),
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: scale(4),
+    marginBottom: scale(16),
+  },
+  ringList: {
+    maxHeight: scale(320),
+  },
+  ringOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: scale(12),
+    backgroundColor: '#F3F4F6',
+    borderRadius: scale(12),
+    marginBottom: scale(8),
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  ringOptionSelected: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FEF3C7',
+  },
+  ringOptionDisabled: {
+    opacity: 0.5,
+  },
+  ringTier: {
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    borderRadius: scale(6),
+  },
+  ringTierText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(9),
+    fontWeight: '700',
+  },
+  ringInfo: {
+    flex: 1,
+    marginLeft: scale(10),
+  },
+  ringName: {
+    fontSize: fontScale(14),
+    fontWeight: '600',
+    color: '#111827',
+  },
+  ringDesc: {
+    fontSize: fontScale(11),
+    color: '#6B7280',
+    marginTop: scale(2),
+  },
+  ringPriceContainer: {
+    alignItems: 'flex-end',
+  },
+  ringPrice: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    color: '#22C55E',
+  },
+  ringBonus: {
+    fontSize: fontScale(10),
+    color: '#6B7280',
+  },
+  proposalModalButtons: {
+    flexDirection: 'row',
+    gap: scale(12),
+    marginTop: scale(16),
+  },
+  proposalCancelBtn: {
+    flex: 1,
+    paddingVertical: scale(14),
+    backgroundColor: '#F3F4F6',
+    borderRadius: scale(12),
+    alignItems: 'center',
+  },
+  proposalCancelText: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  proposalConfirmBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: scale(14),
+    backgroundColor: '#F59E0B',
+    borderRadius: scale(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(8),
+  },
+  proposalConfirmText: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

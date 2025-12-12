@@ -12,16 +12,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { 
   Gift, 
   DollarSign, 
-  TrendingUp, 
-  Calendar,
+  Gem,
   Sparkles,
   Crown,
-  Star,
-  Gem,
+  Calendar,
+  TrendingUp,
   Zap,
+  CheckCircle,
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
-import { scale, fontScale, verticalScale } from '@/utils/scaling';
+import { useGameState } from '@/contexts/game';
+import { scale, fontScale, verticalScale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -32,37 +32,43 @@ interface DailyRewardPopupProps {
 }
 
 export default function DailyRewardPopup({ visible, rewardAmount, onClose }: DailyRewardPopupProps) {
-  const { gameState } = useGame();
-  const { settings } = gameState;
-  const isDarkMode = settings.darkMode;
+  const { gameState } = useGameState();
+  const { settings } = gameState || { darkMode: false };
+  const isDarkMode = settings?.darkMode || false;
 
   // Animations
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
-  const coinFallAnim = useRef(new Animated.Value(-100)).current;
+  const coinAnim = useRef(new Animated.Value(-80)).current;
+  const gemAnim = useRef(new Animated.Value(-80)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const checkmarkScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       // Reset animations
-      scaleAnim.setValue(0.8);
+      scaleAnim.setValue(0.85);
       fadeAnim.setValue(0);
       glowAnim.setValue(0);
-      coinFallAnim.setValue(-100);
+      coinAnim.setValue(-80);
+      gemAnim.setValue(-80);
       rotateAnim.setValue(0);
+      pulseAnim.setValue(1);
+      checkmarkScale.setValue(0);
 
-      // Start entrance animations
+      // Entrance animations
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
-          tension: 50,
-          friction: 7,
+          tension: 45,
+          friction: 6,
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 350,
           useNativeDriver: true,
         }),
       ]).start();
@@ -73,60 +79,97 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
           Animated.sequence([
             Animated.timing(glowAnim, {
               toValue: 1,
-              duration: 1500,
+              duration: 1800,
               useNativeDriver: true,
             }),
             Animated.timing(glowAnim, {
               toValue: 0,
-              duration: 1500,
+              duration: 1800,
               useNativeDriver: true,
             }),
           ])
         ).start();
-      }, 300);
+      }, 400);
 
-      // Coin fall animation
+      // Reward icons fall animation
       setTimeout(() => {
-        Animated.spring(coinFallAnim, {
-          toValue: 0,
-          tension: 40,
-          friction: 8,
-          useNativeDriver: true,
-        }).start();
-      }, 200);
+        Animated.parallel([
+          Animated.spring(gemAnim, {
+            toValue: 0,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+          ...(rewardAmount > 0
+            ? [Animated.spring(coinAnim, {
+                toValue: 0,
+                tension: 50,
+                friction: 7,
+                delay: 100,
+                useNativeDriver: true,
+              })]
+            : []),
+        ]).start();
+      }, 300);
 
       // Sparkle rotation
       Animated.loop(
         Animated.timing(rotateAnim, {
           toValue: 1,
-          duration: 3000,
+          duration: 4000,
           useNativeDriver: true,
         })
       ).start();
-    }
-  }, [visible]);
 
-  const handleClose = () => {
-    // Exit animation
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 0.8,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose();
-    });
+      // Pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.08,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [visible, rewardAmount]);
+
+  const handleClaim = () => {
+    // Checkmark animation
+    Animated.spring(checkmarkScale, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+
+    // Close after animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 0.9,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        onClose();
+      });
+    }, 800);
   };
 
   const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0.8],
+    outputRange: [0.4, 0.85],
   });
 
   const rotation = rotateAnim.interpolate({
@@ -139,7 +182,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
       visible={visible} 
       transparent 
       animationType="none"
-      onRequestClose={handleClose}
+      onRequestClose={handleClaim}
     >
       <View style={styles.overlay}>
         <Animated.View 
@@ -170,7 +213,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
               },
             ]}
           >
-            <Sparkles size={scale(200)} color="rgba(251, 191, 36, 0.2)" style={styles.sparkleBackground} />
+            <Sparkles size={scale(220)} color="rgba(139, 92, 246, 0.25)" style={styles.sparkleBackground} />
           </Animated.View>
 
           <LinearGradient
@@ -188,26 +231,29 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
                 style={[
                   styles.iconContainer,
                   {
-                    transform: [{ translateY: coinFallAnim }],
+                    transform: [
+                      { translateY: gemAnim },
+                      { scale: pulseAnim }
+                    ],
                   },
                 ]}
               >
                 <LinearGradient
-                  colors={['#F59E0B', '#D97706', '#B45309']}
+                  colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
                   style={styles.iconGradient}
                 >
-                  <Gift size={scale(48)} color="#FFFFFF" />
+                  <Gift size={scale(44)} color="#FFFFFF" strokeWidth={2.5} />
                 </LinearGradient>
                 
                 {/* Sparkle accents */}
                 <View style={[styles.sparkleAccent, styles.sparkleTopLeft]}>
-                  <Star size={scale(16)} color="#FCD34D" fill="#FCD34D" />
+                  <Sparkles size={scale(16)} color="#C4B5FD" fill="#C4B5FD" />
                 </View>
                 <View style={[styles.sparkleAccent, styles.sparkleTopRight]}>
-                  <Star size={scale(12)} color="#FBBF24" fill="#FBBF24" />
+                  <Sparkles size={scale(14)} color="#DDD6FE" fill="#DDD6FE" />
                 </View>
                 <View style={[styles.sparkleAccent, styles.sparkleBottomRight]}>
-                  <Star size={scale(14)} color="#FDE68A" fill="#FDE68A" />
+                  <Sparkles size={scale(12)} color="#EDE9FE" fill="#EDE9FE" />
                 </View>
               </Animated.View>
             </View>
@@ -215,74 +261,78 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
             {/* Title */}
             <View style={styles.titleContainer}>
               <Text style={[styles.title, isDarkMode && styles.titleDark]}>
-                Welcome Back! 🎉
+                Daily Reward! 🎁
               </Text>
               <Text style={[styles.subtitle, isDarkMode && styles.subtitleDark]}>
-                Daily Login Reward
+                Your daily login bonus
               </Text>
             </View>
 
             {/* Reward Display */}
             <View style={styles.rewardContainer}>
-              {/* Always show gems reward */}
-              <LinearGradient
-                colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
-                style={styles.rewardCard}
+              {/* Gem Reward - Always shown */}
+              <Animated.View
+                style={{
+                  transform: [{ translateY: gemAnim }],
+                }}
               >
-                <View style={styles.rewardIconContainer}>
-                  <Gem size={scale(32)} color="#FFFFFF" strokeWidth={3} />
-                </View>
-                <View style={styles.rewardTextContainer}>
-                  <Text style={styles.rewardAmount}>+1 Gem</Text>
-                  <Text style={styles.rewardLabel}>Daily Gem Bonus</Text>
-                </View>
-              </LinearGradient>
-              
-              {/* Show money reward if there is one */}
-              {rewardAmount > 0 && (
                 <LinearGradient
-                  colors={['#10B981', '#059669', '#047857']}
-                  style={[styles.rewardCard, styles.rewardCardSecondary]}
+                  colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
+                  style={styles.rewardCard}
                 >
                   <View style={styles.rewardIconContainer}>
-                    <DollarSign size={scale(32)} color="#FFFFFF" strokeWidth={3} />
+                    <Gem size={scale(36)} color="#FFFFFF" strokeWidth={2.5} />
                   </View>
                   <View style={styles.rewardTextContainer}>
-                    <Text style={styles.rewardAmount}>
-                      ${rewardAmount.toLocaleString()}
-                    </Text>
-                    <Text style={styles.rewardLabel}>Money Bonus</Text>
+                    <Text style={styles.rewardAmount}>+1</Text>
+                    <Text style={styles.rewardLabel}>Gem</Text>
+                  </View>
+                  <View style={styles.rewardBadge}>
+                    <Crown size={scale(16)} color="#FCD34D" fill="#FCD34D" />
                   </View>
                 </LinearGradient>
+              </Animated.View>
+              
+              {/* Money Reward - Shown if there is one */}
+              {rewardAmount > 0 && (
+                <Animated.View
+                  style={{
+                    transform: [{ translateY: coinAnim }],
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#10B981', '#059669', '#047857']}
+                    style={[styles.rewardCard, styles.rewardCardSecondary]}
+                  >
+                    <View style={styles.rewardIconContainer}>
+                      <DollarSign size={scale(36)} color="#FFFFFF" strokeWidth={2.5} />
+                    </View>
+                    <View style={styles.rewardTextContainer}>
+                      <Text style={styles.rewardAmount}>
+                        ${rewardAmount.toLocaleString()}
+                      </Text>
+                      <Text style={styles.rewardLabel}>Money Bonus</Text>
+                    </View>
+                    <View style={styles.rewardBadge}>
+                      <TrendingUp size={scale(16)} color="#FCD34D" />
+                    </View>
+                  </LinearGradient>
+                </Animated.View>
               )}
             </View>
 
-            {/* Daily Streak Info */}
-            <View style={styles.streakContainer}>
-              <View style={styles.streakRow}>
-                <Calendar size={scale(20)} color="#8B5CF6" />
-                <Text style={[styles.streakText, isDarkMode && styles.streakTextDark]}>
+            {/* Info Section */}
+            <View style={styles.infoContainer}>
+              <View style={styles.infoRow}>
+                <Calendar size={scale(18)} color={isDarkMode ? '#8B5CF6' : '#7C3AED'} />
+                <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
                   Come back daily for bigger rewards!
                 </Text>
               </View>
-            </View>
-
-            {/* Benefits List */}
-            <View style={styles.benefitsContainer}>
-              <View style={styles.benefitRow}>
-                <View style={styles.benefitIcon}>
-                  <TrendingUp size={scale(16)} color="#10B981" />
-                </View>
-                <Text style={[styles.benefitText, isDarkMode && styles.benefitTextDark]}>
-                  Reward scales with your net worth
-                </Text>
-              </View>
-              <View style={styles.benefitRow}>
-                <View style={styles.benefitIcon}>
-                  <Zap size={scale(16)} color="#3B82F6" />
-                </View>
-                <Text style={[styles.benefitText, isDarkMode && styles.benefitTextDark]}>
-                  Keep playing to maintain progress
+              <View style={styles.infoRow}>
+                <Zap size={scale(18)} color={isDarkMode ? '#F59E0B' : '#D97706'} />
+                <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                  Rewards scale with your net worth
                 </Text>
               </View>
             </View>
@@ -290,8 +340,8 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
             {/* Claim Button */}
             <TouchableOpacity
               style={styles.claimButton}
-              onPress={handleClose}
-              activeOpacity={0.8}
+              onPress={handleClaim}
+              activeOpacity={0.85}
             >
               <LinearGradient
                 colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
@@ -299,7 +349,17 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
                 end={{ x: 1, y: 1 }}
                 style={styles.claimButtonGradient}
               >
-                <Crown size={scale(20)} color="#FFFFFF" />
+                <Animated.View
+                  style={[
+                    styles.checkmarkContainer,
+                    {
+                      transform: [{ scale: checkmarkScale }],
+                      opacity: checkmarkScale,
+                    },
+                  ]}
+                >
+                  <CheckCircle size={scale(22)} color="#FFFFFF" fill="#FFFFFF" />
+                </Animated.View>
                 <Text style={styles.claimButtonText}>Claim Reward</Text>
                 <Sparkles size={scale(20)} color="#FFFFFF" />
               </LinearGradient>
@@ -317,35 +377,36 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: scale(20),
+    padding: responsivePadding.horizontal,
   },
   container: {
     width: '100%',
-    maxWidth: scale(400),
+    maxWidth: scale(420),
     position: 'relative',
   },
   glowCircle: {
     position: 'absolute',
-    top: -50,
+    top: -60,
     left: '50%',
-    marginLeft: -100,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: '#F59E0B',
-    shadowColor: '#F59E0B',
+    marginLeft: -110,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: '#8B5CF6',
+    boxShadow: '0px 0px 50px rgba(139, 92, 246, 0.7)',
+    shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 40,
-    elevation: 10,
+    shadowOpacity: 0.7,
+    shadowRadius: 50,
+    elevation: 12,
   },
   sparklesContainer: {
     position: 'absolute',
-    top: -20,
+    top: -30,
     left: '50%',
-    marginLeft: -100,
-    width: 200,
-    height: 200,
+    marginLeft: -110,
+    width: 220,
+    height: 220,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -353,46 +414,47 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   content: {
-    borderRadius: scale(24),
-    padding: scale(28),
+    borderRadius: responsiveBorderRadius.xl,
+    padding: responsiveSpacing.xl,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    boxShadow: '0px 10px 24px rgba(0, 0, 0, 0.35)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 14,
   },
   header: {
     alignItems: 'center',
-    marginBottom: scale(20),
+    marginBottom: responsiveSpacing.lg,
   },
   iconContainer: {
     position: 'relative',
-    width: scale(96),
-    height: scale(96),
+    width: scale(100),
+    height: scale(100),
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconGradient: {
-    width: scale(96),
-    height: scale(96),
-    borderRadius: scale(48),
+    width: scale(100),
+    height: scale(100),
+    borderRadius: scale(50),
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
   },
   sparkleAccent: {
     position: 'absolute',
   },
   sparkleTopLeft: {
-    top: scale(-8),
-    left: scale(-8),
+    top: scale(-6),
+    left: scale(-6),
   },
   sparkleTopRight: {
     top: scale(-4),
@@ -400,15 +462,15 @@ const styles = StyleSheet.create({
   },
   sparkleBottomRight: {
     bottom: scale(-4),
-    right: scale(-8),
+    right: scale(-6),
   },
   titleContainer: {
     alignItems: 'center',
-    marginBottom: scale(24),
+    marginBottom: responsiveSpacing.xl,
   },
   title: {
-    fontSize: fontScale(28),
-    fontWeight: 'bold',
+    fontSize: responsiveFontSize['2xl'],
+    fontWeight: '700',
     color: '#1F2937',
     textAlign: 'center',
     marginBottom: scale(4),
@@ -417,7 +479,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   subtitle: {
-    fontSize: fontScale(16),
+    fontSize: responsiveFontSize.base,
     color: '#6B7280',
     textAlign: 'center',
     fontWeight: '500',
@@ -427,121 +489,112 @@ const styles = StyleSheet.create({
   },
   rewardContainer: {
     width: '100%',
-    marginBottom: scale(24),
-    gap: scale(12),
+    marginBottom: responsiveSpacing.xl,
+    gap: responsiveSpacing.md,
   },
   rewardCard: {
-    borderRadius: scale(16),
-    padding: scale(20),
+    borderRadius: responsiveBorderRadius.lg,
+    padding: responsiveSpacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    justifyContent: 'flex-start',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
+    position: 'relative',
   },
   rewardCardSecondary: {
-    marginTop: scale(12),
+    shadowColor: '#10B981',
   },
   rewardIconContainer: {
-    width: scale(56),
-    height: scale(56),
-    borderRadius: scale(28),
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: scale(16),
+    marginRight: responsiveSpacing.md,
   },
   rewardTextContainer: {
+    flex: 1,
     alignItems: 'flex-start',
   },
   rewardAmount: {
-    fontSize: fontScale(32),
-    fontWeight: 'bold',
+    fontSize: responsiveFontSize['2xl'],
+    fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: scale(2),
+    letterSpacing: 0.5,
   },
   rewardLabel: {
-    fontSize: fontScale(14),
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: responsiveFontSize.sm,
+    color: 'rgba(255, 255, 255, 0.95)',
     fontWeight: '600',
   },
-  streakContainer: {
-    width: '100%',
-    marginBottom: scale(20),
-    paddingVertical: scale(12),
-    paddingHorizontal: scale(16),
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    borderRadius: scale(12),
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-  },
-  streakRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakText: {
-    fontSize: fontScale(14),
-    color: '#4B5563',
-    marginLeft: scale(8),
-    fontWeight: '600',
-  },
-  streakTextDark: {
-    color: '#D1D5DB',
-  },
-  benefitsContainer: {
-    width: '100%',
-    marginBottom: scale(24),
-  },
-  benefitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: scale(10),
-    paddingHorizontal: scale(12),
-  },
-  benefitIcon: {
+  rewardBadge: {
+    position: 'absolute',
+    top: responsiveSpacing.sm,
+    right: responsiveSpacing.sm,
     width: scale(32),
     height: scale(32),
     borderRadius: scale(16),
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: scale(12),
   },
-  benefitText: {
-    fontSize: fontScale(14),
+  infoContainer: {
+    width: '100%',
+    marginBottom: responsiveSpacing.xl,
+    gap: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.md,
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.15)',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+  },
+  infoText: {
+    fontSize: responsiveFontSize.sm,
     color: '#4B5563',
     flex: 1,
     fontWeight: '500',
   },
-  benefitTextDark: {
+  infoTextDark: {
     color: '#D1D5DB',
   },
   claimButton: {
     width: '100%',
-    borderRadius: scale(16),
+    borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
     shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 12,
   },
   claimButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: scale(16),
-    paddingHorizontal: scale(24),
-    gap: scale(10),
+    paddingVertical: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.lg,
+    gap: responsiveSpacing.sm,
+  },
+  checkmarkContainer: {
+    position: 'absolute',
+    left: responsiveSpacing.lg,
   },
   claimButtonText: {
-    fontSize: fontScale(18),
-    fontWeight: 'bold',
+    fontSize: responsiveFontSize.lg,
+    fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
 });
-

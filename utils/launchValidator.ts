@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { logger } from '@/utils/logger';
 
 export interface LaunchCheck {
   id: string;
@@ -293,7 +294,7 @@ class LaunchValidator {
   /**
    * Generate launch report
    */
-  private generateReport(): LaunchReport {
+  public generateReport(): LaunchReport {
     const totalChecks = this.checks.length;
     const passedChecks = this.checks.filter(c => c.status === 'pass').length;
     const failedChecks = this.checks.filter(c => c.status === 'fail').length;
@@ -384,7 +385,9 @@ export function useLaunchValidator() {
       const validationReport = await launchValidator.validateLaunch();
       setReport(validationReport);
     } catch (error) {
-      console.error('Launch validation failed:', error);
+      if (__DEV__) {
+        logger.error('Launch validation failed:', error);
+      }
     } finally {
       setIsValidating(false);
     }

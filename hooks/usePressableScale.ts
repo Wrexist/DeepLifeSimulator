@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import Animated, { 
   useSharedValue, 
   withTiming, 
@@ -8,8 +8,8 @@ import Animated, {
   Extrapolate
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { logger } from '@/utils/logger';
 import { Platform } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
 
 interface UsePressableScaleOptions {
   scale?: number;
@@ -17,6 +17,7 @@ interface UsePressableScaleOptions {
   haptic?: boolean;
   spring?: boolean;
   glow?: boolean;
+  hapticEnabled?: boolean; // Optional - pass from parent if needed
 }
 
 export default function usePressableScale(options: UsePressableScaleOptions = {}) {
@@ -25,10 +26,10 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
     duration = 100,
     haptic = true,
     spring = true,
-    glow = false
+    glow = false,
+    hapticEnabled = true, // Default to enabled - parent can override if settings say otherwise
   } = options;
 
-  const { gameState } = useGame();
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
   const isMounted = useRef(true);
@@ -95,14 +96,16 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
   };
 
   const onHaptic = async () => {
-    if (!haptic || !gameState.settings.hapticFeedback) return;
+    if (!haptic || !hapticEnabled) return;
     
     try {
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
     } catch (error) {
-      console.warn('Haptic feedback not available:', error);
+      if (__DEV__) {
+        logger.warn('Haptic feedback not available:', error);
+      }
     }
   };
 

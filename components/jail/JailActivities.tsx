@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';
-import { Zap, DollarSign, Heart, TrendingUp, Shield, AlertTriangle, BookOpen, Leaf, Wrench, Lock, Gavel, Users } from 'lucide-react-native';
+import { Zap, DollarSign, Heart, Shield, AlertTriangle, BookOpen, Wrench, Gavel, TrendingUp } from 'lucide-react-native';
 
 export default function JailActivities() {
   const { gameState, performJailActivity } = useGame();
@@ -37,15 +37,10 @@ export default function JailActivities() {
   const getActivityIcon = (activityId: string) => {
     switch (activityId) {
       case 'prison_job': return DollarSign;
-      case 'train_strength': return TrendingUp;
       case 'library_study': return BookOpen;
-      case 'prison_garden': return Leaf;
       case 'prison_workshop': return Wrench;
-      case 'attempt_escape': return Lock;
-      case 'bribe_guard': return DollarSign;
       case 'legal_appeal': return Gavel;
       case 'good_behavior': return Shield;
-      case 'prison_gang': return Users;
       default: return Zap;
     }
   };
@@ -53,15 +48,10 @@ export default function JailActivities() {
   const getActivityColor = (activityId: string) => {
     switch (activityId) {
       case 'prison_job': return ['#10B981', '#34D399'];
-      case 'train_strength': return ['#3B82F6', '#60A5FA'];
       case 'library_study': return ['#8B5CF6', '#A78BFA'];
-      case 'prison_garden': return ['#059669', '#34D399'];
       case 'prison_workshop': return ['#F59E0B', '#FBBF24'];
-      case 'attempt_escape': return ['#DC2626', '#F87171'];
-      case 'bribe_guard': return ['#7C3AED', '#A78BFA'];
       case 'legal_appeal': return ['#1F2937', '#6B7280'];
       case 'good_behavior': return ['#059669', '#34D399'];
-      case 'prison_gang': return ['#DC2626', '#F87171'];
       default: return ['#6B7280', '#9CA3AF'];
     }
   };
@@ -73,6 +63,13 @@ export default function JailActivities() {
       const hasEducation = gameState.educations.find(e => e.id === activity.requiresEducation)?.completed;
       if (!hasEducation) return false;
     }
+    // Check if requires minimum weeks remaining in jail
+    if (activity.requiresWeeks && jailWeeks < activity.requiresWeeks) return false;
+    // Check if already done this week
+    const weeklyActivities = gameState.weeklyJailActivities || {};
+    const currentWeek = gameState.date.week;
+    const lastDoneWeek = weeklyActivities[activity.id];
+    if (lastDoneWeek === currentWeek) return false;
     return true;
   };
 
@@ -103,7 +100,7 @@ export default function JailActivities() {
             return (
               <View key={activity.id} style={styles.activityWrapper}>
                 <LinearGradient
-                  colors={canPerform ? colors : ['#E5E7EB', '#D1D5DB'] as any}
+                  colors={canPerform ? colors : ['#E5E7EB', '#D1D5DB']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.activityCard}
@@ -195,6 +192,7 @@ export default function JailActivities() {
 
 const styles = StyleSheet.create({
   wrapper: {
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -236,6 +234,7 @@ const styles = StyleSheet.create({
   activityCard: {
     padding: 16,
     borderRadius: 12,
+    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,

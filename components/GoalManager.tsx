@@ -30,6 +30,7 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';
+import { GameState, GoalProgress } from '@/contexts/game/types';
 import {
   Goal,
   GoalCategory,
@@ -48,6 +49,7 @@ import {
   isGoalOverdue,
 } from '@/utils/goalSystem';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { logger } from '@/utils/logger';
 
 interface GoalManagerProps {
   visible: boolean;
@@ -55,7 +57,7 @@ interface GoalManagerProps {
 }
 
 export default function GoalManager({ visible, onClose }: GoalManagerProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'templates'>('active');
   const [selectedCategory, setSelectedCategory] = useState<GoalCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,8 +66,8 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<GoalTemplate | null>(null);
 
   // Get goals from game state (we'll add this to GameState interface later)
-  const goals = (gameState as any).goals || [];
-  const goalProgress = (gameState as any).goalProgress || {};
+  const goals = (gameState as GameState & { goals?: Goal[]; goalProgress?: Record<string, GoalProgress> }).goals || [];
+  const goalProgress = (gameState as GameState & { goals?: Goal[]; goalProgress?: Record<string, GoalProgress> }).goalProgress || {};
 
   const filteredGoals = useMemo(() => {
     let filtered = goals.filter((goal: Goal) => {
@@ -101,22 +103,24 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
   const createGoal = (template: GoalTemplate, customizations?: Partial<Goal>) => {
     const newGoal = createGoalFromTemplate(template, customizations);
     
-    setGameState((prev: any) => ({
+    setGameState((prev: GameState) => ({
       ...prev,
       goals: [...(prev.goals || []), newGoal],
     }));
+    saveGame();
     
     setShowCreateModal(false);
     setSelectedTemplate(null);
   };
 
   const updateGoal = (goalId: string, updates: Partial<Goal>) => {
-    setGameState((prev: any) => ({
+    setGameState((prev: GameState) => ({
       ...prev,
       goals: (prev.goals || []).map((goal: Goal) =>
         goal.id === goalId ? { ...goal, ...updates } : goal
       ),
     }));
+    saveGame();
   };
 
   const deleteGoal = (goalId: string) => {
@@ -129,10 +133,11 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            setGameState((prev: any) => ({
+            setGameState((prev: GameState) => ({
               ...prev,
               goals: (prev.goals || []).filter((goal: Goal) => goal.id !== goalId),
             }));
+            saveGame();
           },
         },
       ]
@@ -158,7 +163,9 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
               // Give reward
               if (goal.reward) {
                 // Apply reward logic here
-                console.log('Goal completed! Reward:', goal.reward);
+                if (__DEV__) {
+                  logger.info('Goal completed! Reward:', { reward: goal.reward });
+                }
               }
             },
           },
@@ -172,7 +179,7 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
       
       // Give reward
       if (goal.reward) {
-        console.log('Goal completed! Reward:', goal.reward);
+        logger.debug('Goal completed! Reward:', { reward: goal.reward });
       }
     }
   };
@@ -587,6 +594,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: responsiveBorderRadius.lg,
     padding: responsiveSpacing.lg,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -714,6 +722,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: responsiveBorderRadius.lg,
     padding: responsiveSpacing.md,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

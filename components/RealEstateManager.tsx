@@ -11,11 +11,11 @@ export default function RealEstateManager() {
     onStartShouldSetPanResponder: () => !!dragItem,
     onPanResponderRelease: () => {
       if (!dragItem) return;
-      const target = gameState.realEstate[0];
+      const target = (gameState.realEstate || [])[0];
       if (target) {
         setGameState(prev => ({
           ...prev,
-          realEstate: prev.realEstate.map(p =>
+          realEstate: (prev.realEstate || []).map(p =>
             p.id === target.id ? { ...p, interior: [...p.interior, dragItem] } : p
           ),
         }));
@@ -25,7 +25,7 @@ export default function RealEstateManager() {
   });
 
   const purchaseUpgrade = (propertyId: string) => {
-    const property = gameState.realEstate.find(p => p.id === propertyId);
+    const property = (gameState.realEstate || []).find(p => p.id === propertyId);
     if (!property) return;
     const nextLevel = property.upgradeLevel + 1;
     const tier = getUpgradeTier(nextLevel);
@@ -33,7 +33,7 @@ export default function RealEstateManager() {
     setGameState(prev => ({
       ...prev,
       stats: { ...prev.stats, money: prev.stats.money - tier.cost },
-      realEstate: prev.realEstate.map(p =>
+      realEstate: (prev.realEstate || []).map(p =>
         p.id === propertyId ? { ...p, upgradeLevel: nextLevel } : p
       ),
     }));
@@ -41,7 +41,7 @@ export default function RealEstateManager() {
 
   return (
     <View style={styles.container}>
-      {gameState.realEstate.map(property => {
+      {(gameState.realEstate || []).map(property => {
         const nextTier = getUpgradeTier(property.upgradeLevel + 1);
         return (
           <View key={property.id} style={styles.property}>

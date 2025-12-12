@@ -214,6 +214,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 5,
         energyChange: -20,
         moneyChange: -150,
+        reputationChange: 0,
         description: 'The dinner was a bit awkward, but you made the best of it.'
       }
     ],
@@ -243,6 +244,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 18,
         energyChange: -15,
         moneyChange: -50,
+        reputationChange: 0,
         description: 'You both loved the movie and had great discussions about it.'
       },
       {
@@ -252,6 +254,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 12,
         energyChange: -15,
         moneyChange: -50,
+        reputationChange: 0,
         description: 'The movie was okay, but you enjoyed spending time together.'
       },
       {
@@ -261,6 +264,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 8,
         energyChange: -15,
         moneyChange: -50,
+        reputationChange: 0,
         description: 'The movie wasn\'t great, but you laughed about it together.'
       }
     ],
@@ -292,6 +296,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 15,
         energyChange: -10,
         moneyChange: -25,
+        reputationChange: 0,
         description: 'Great conversation and laughs with friends.'
       },
       {
@@ -301,6 +306,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 10,
         energyChange: -10,
         moneyChange: -25,
+        reputationChange: 0,
         description: 'A relaxing time catching up with friends.'
       }
     ],
@@ -330,6 +336,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 20,
         energyChange: -15,
         moneyChange: -20,
+        reputationChange: 0,
         description: 'Epic gaming session with lots of fun and competition!'
       },
       {
@@ -339,6 +346,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 15,
         energyChange: -15,
         moneyChange: -20,
+        reputationChange: 0,
         description: 'Fun games and good times with friends.'
       },
       {
@@ -348,6 +356,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 10,
         energyChange: -15,
         moneyChange: -20,
+        reputationChange: 0,
         description: 'Chill gaming session with friends.'
       }
     ],
@@ -379,6 +388,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 18,
         energyChange: -12,
         moneyChange: -40,
+        reputationChange: 0,
         description: 'Warm and loving family time with great food and conversation.'
       },
       {
@@ -388,6 +398,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 12,
         energyChange: -12,
         moneyChange: -40,
+        reputationChange: 0,
         description: 'Nice family dinner with good food.'
       },
       {
@@ -397,6 +408,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 5,
         energyChange: -12,
         moneyChange: -40,
+        reputationChange: 0,
         description: 'Family dinner with some drama, but you worked through it.'
       }
     ],
@@ -481,6 +493,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 25,
         energyChange: -30,
         moneyChange: -30,
+        reputationChange: 0,
         description: 'Amazing hike with beautiful views and great company!'
       },
       {
@@ -490,6 +503,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 18,
         energyChange: -30,
         moneyChange: -30,
+        reputationChange: 0,
         description: 'Good hike with friends, enjoyed the exercise and nature.'
       },
       {
@@ -499,6 +513,7 @@ export const SOCIAL_EVENTS: SocialEvent[] = [
         happinessChange: 12,
         energyChange: -30,
         moneyChange: -30,
+        reputationChange: 0,
         description: 'Challenging hike, but you supported each other through it.'
       }
     ],

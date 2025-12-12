@@ -7,15 +7,17 @@ import {
   Dimensions,
   Animated,
   Image,
+  ImageSourcePropType,
   TextInput,
   Platform,
 } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
+import { logger } from '@/utils/logger';
+import { getShadow } from '@/utils/shadow';
 import { 
   MessageCircle, 
   ArrowRight, 
@@ -24,18 +26,13 @@ import {
   Target, 
   Zap,
   Heart,
-  DollarSign,
   Users,
-  Home,
   Smartphone,
   Laptop,
   TrendingUp,
   Settings,
   Play,
   SkipForward,
-  RotateCcw,
-  Eye,
-  EyeOff,
   Briefcase
 } from 'lucide-react-native';
 import { TutorialStep } from '@/types/tutorial';
@@ -57,7 +54,7 @@ interface EnhancedTutorialStep extends TutorialStep {
   warnings?: string[];
 }
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+// Screen dimensions removed - not used
 
 interface ImmersiveTutorialProps {
   visible: boolean;
@@ -76,6 +73,7 @@ interface ChatBubbleProps {
 }
 
 function ChatBubble({ message, isUser = false, delay = 0, onComplete }: ChatBubbleProps) {
+  // ChatBubble component - styles need to be added
   const [visible, setVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -262,18 +260,29 @@ function getTooltipPosition(targetLayout: any, position: string) {
   }
 }
 
-function getArrowStyle(position: string) {
+function getArrowStyle(position: string): {
+  bottom?: number;
+  top?: number | string;
+  left?: number | string;
+  right?: number;
+  marginLeft?: number;
+  marginTop?: number;
+  borderTopColor?: string;
+  borderBottomColor?: string;
+  borderLeftColor?: string;
+  borderRightColor?: string;
+} {
   switch (position) {
     case 'top':
       return {
-        top: '100%',
+        bottom: -6,
         left: '50%',
         marginLeft: -6,
         borderTopColor: '#1F2937',
       };
     case 'bottom':
       return {
-        bottom: '100%',
+        top: -6,
         left: '50%',
         marginLeft: -6,
         borderBottomColor: '#1F2937',
@@ -281,20 +290,20 @@ function getArrowStyle(position: string) {
     case 'left':
       return {
         top: '50%',
-        left: '100%',
+        right: -6,
         marginTop: -6,
         borderLeftColor: '#1F2937',
       };
     case 'right':
       return {
         top: '50%',
-        right: '100%',
+        left: -6,
         marginTop: -6,
         borderRightColor: '#1F2937',
       };
     default:
       return {
-        bottom: '100%',
+        top: -6,
         left: '50%',
         marginLeft: -6,
         borderBottomColor: '#1F2937',
@@ -321,7 +330,7 @@ export default function ImmersiveTutorial({
   // Web focus guard: ensure no focused element remains inside hidden overlay
   useEffect(() => {
     if (!visible && typeof document !== 'undefined') {
-      const active = document.activeElement as any;
+      const active = document.activeElement as HTMLElement | null;
       if (active && typeof active.blur === 'function') {
         try { active.blur(); } catch {}
       }
@@ -337,6 +346,7 @@ export default function ImmersiveTutorial({
       }, 0);
       return () => clearTimeout(id);
     }
+    return undefined;
   }, [visible]);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -346,7 +356,6 @@ export default function ImmersiveTutorial({
   const currentStepData = steps && steps.length > 0 && currentStepIndex >= 0 && currentStepIndex < steps.length 
     ? steps[currentStepIndex] 
     : null;
-  const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === steps.length - 1;
 
   useEffect(() => {
@@ -393,33 +402,40 @@ export default function ImmersiveTutorial({
 
   const handleSmartNavigation = (action: string) => {
     try {
+      const homeTab: Href = '/';
+      const workTab: Href = '/(tabs)/work';
+      const marketTab: Href = '/(tabs)/market';
+      const computerTab: Href = '/(tabs)/computer';
+      const mobileTab: Href = '/(tabs)/mobile';
+      const healthTab: Href = '/(tabs)/health';
+
       switch (action) {
         case 'navigate_to_work':
-          router.push('/(tabs)/work');
+          router.push(workTab);
           break;
         
         case 'navigate_to_market':
           // Check if player has computer for stock market
           if (!gameState.items?.some(item => item.id === 'computer' && item.owned)) {
             // Navigate to market to buy computer
-            router.push('/(tabs)/market');
+            router.push(marketTab);
             // Delay highlighting to allow navigation to complete
             setTimeout(() => {
               try {
                 setHighlight('computer', 'computer-item', 'Buy a computer to access the stock market!');
               } catch (error) {
-                console.warn('Failed to set highlight:', error);
+                logger.warn('Failed to set highlight:', { error: String(error) });
               }
             }, 500);
           } else {
             // Navigate to computer tab then stock app
-            router.push('/(tabs)/computer');
+            router.push(computerTab);
             // Delay highlighting to allow navigation to complete
             setTimeout(() => {
               try {
                 setHighlight('stock-app', 'stock-app', 'Click here to access the stock market!');
               } catch (error) {
-                console.warn('Failed to set highlight:', error);
+                logger.warn('Failed to set highlight:', { error: String(error) });
               }
             }, 500);
           }
@@ -429,18 +445,18 @@ export default function ImmersiveTutorial({
           // Check if player has smartphone
           if (!gameState.items?.some(item => item.id === 'smartphone' && item.owned)) {
             // Navigate to market to buy smartphone
-            router.push('/(tabs)/market');
+            router.push(marketTab);
             // Delay highlighting to allow navigation to complete
             setTimeout(() => {
               try {
                 setHighlight('smartphone', 'smartphone-item', 'Buy a smartphone to access mobile apps!');
               } catch (error) {
-                console.warn('Failed to set highlight:', error);
+                logger.warn('Failed to set highlight:', { error: String(error) });
               }
             }, 500);
           } else {
             // Navigate to mobile tab
-            router.push('/(tabs)/mobile');
+            router.push(mobileTab);
           }
           break;
         
@@ -448,43 +464,43 @@ export default function ImmersiveTutorial({
           // Check if player has computer
           if (!gameState.items?.some(item => item.id === 'computer' && item.owned)) {
             // Navigate to market to buy computer
-            router.push('/(tabs)/market');
+            router.push(marketTab);
             // Delay highlighting to allow navigation to complete
             setTimeout(() => {
               try {
                 setHighlight('computer', 'computer-item', 'Buy a computer to access advanced features!');
               } catch (error) {
-                console.warn('Failed to set highlight:', error);
+                logger.warn('Failed to set highlight:', { error: String(error) });
               }
             }, 500);
           } else {
             // Navigate to computer tab
-            router.push('/(tabs)/computer');
+            router.push(computerTab);
           }
           break;
         
         case 'improve_health':
           // Navigate to health tab for medical care
-          router.push('/(tabs)/health');
+          router.push(healthTab);
           // Delay highlighting to allow navigation to complete
           setTimeout(() => {
             try {
               setHighlight('health-tab', 'health-tab', 'Visit a doctor or exercise to improve your health!');
             } catch (error) {
-              console.warn('Failed to set highlight:', error);
+              logger.warn('Failed to set highlight:', { error: String(error) });
             }
           }, 500);
           break;
         
         case 'rest_energy':
           // Navigate to home tab for rest
-          router.push('/(tabs)/');
+          router.push(homeTab);
           // Delay highlighting to allow navigation to complete
           setTimeout(() => {
             try {
               setHighlight('rest-activity', 'rest-activity', 'Use the Rest activity to recover energy!');
             } catch (error) {
-              console.warn('Failed to set highlight:', error);
+              logger.warn('Failed to set highlight:', { error: String(error) });
             }
           }, 500);
           break;
@@ -492,24 +508,24 @@ export default function ImmersiveTutorial({
         case 'manage_money':
           // Check if player has smartphone for banking
           if (gameState.items?.some(item => item.id === 'smartphone' && item.owned)) {
-            router.push('/(tabs)/mobile');
+            router.push(mobileTab);
             // Delay highlighting to allow navigation to complete
             setTimeout(() => {
               try {
                 setHighlight('banking-app', 'banking-app', 'Use the Banking app to manage your money!');
               } catch (error) {
-                console.warn('Failed to set highlight:', error);
+                logger.warn('Failed to set highlight:', { error: String(error) });
               }
             }, 500);
           } else {
             // Navigate to market to buy smartphone for banking
-            router.push('/(tabs)/market');
+            router.push(marketTab);
             // Delay highlighting to allow navigation to complete
             setTimeout(() => {
               try {
                 setHighlight('smartphone', 'smartphone-item', 'Buy a smartphone to access banking!');
               } catch (error) {
-                console.warn('Failed to set highlight:', error);
+                logger.warn('Failed to set highlight:', { error: String(error) });
               }
             }, 500);
           }
@@ -517,23 +533,23 @@ export default function ImmersiveTutorial({
 
         case 'view_stats':
           // Navigate to home tab to view stats
-          router.push('/(tabs)/');
+          router.push(homeTab);
           break;
 
         case 'perform_activity':
           // Navigate to home tab for main activities
-          router.push('/(tabs)/');
+          router.push(homeTab);
           break;
 
         case 'view_achievements':
           // Navigate to home tab to view achievements
-          router.push('/(tabs)/');
+          router.push(homeTab);
           break;
 
         case 'open_settings':
           // Navigate to settings (this would need to be implemented)
           // For now, just navigate to home
-          router.push('/(tabs)/');
+          router.push(homeTab);
           break;
         
         default:
@@ -541,7 +557,7 @@ export default function ImmersiveTutorial({
           break;
       }
     } catch (error) {
-      console.warn('Tutorial navigation failed:', error);
+      logger.warn('Tutorial navigation failed:', { error: String(error) });
       // Continue with tutorial even if navigation fails
     }
   };
@@ -552,7 +568,7 @@ export default function ImmersiveTutorial({
 
       // Handle special navigation actions
       if (currentStepData && 'requiresAction' in currentStepData && currentStepData.requiresAction) {
-        handleSmartNavigation(currentStepData.requiresAction);
+        handleSmartNavigation(String(currentStepData.requiresAction));
       }
 
       if (isLastStep) {
@@ -562,7 +578,7 @@ export default function ImmersiveTutorial({
         setCurrentStepIndex(currentStepIndex + 1);
       }
     } catch (error) {
-      console.error('Tutorial next step failed:', error);
+      logger.error('Tutorial next step failed:', error);
       // Fallback: just complete the tutorial to prevent infinite crash loop
       onComplete();
     }
@@ -652,14 +668,14 @@ export default function ImmersiveTutorial({
       const src = (iconValue && (iconValue.uri || iconValue.default || iconValue.src)) || iconValue;
       return (
         <Image
-          source={typeof src === 'string' ? { uri: src } : (src as any)}
+          source={typeof src === 'string' ? { uri: src } : (src as ImageSourcePropType)}
           style={[styles.stepImage, { tintColor: stepColor }]}
           resizeMode="contain"
         />
       );
     }
     if (typeof iconValue === 'function') {
-      const IconComponent = iconValue as any;
+      const IconComponent = iconValue as React.ComponentType<{ size?: number; color?: string }>;
       return <IconComponent size={24} color={stepColor} />;
     }
     return <MessageCircle size={24} color={stepColor} />;
@@ -758,7 +774,7 @@ export default function ImmersiveTutorial({
             target={highlightTargets[currentStepData.target]}
             visible={isHighlighting}
             message={currentStepData?.title || 'Tutorial Step'}
-            position={currentStepData?.position as any || 'bottom'}
+            position={(currentStepData?.position as 'top' | 'bottom' | 'left' | 'right') || 'bottom'}
           />
         )}
 
@@ -924,11 +940,7 @@ const styles = StyleSheet.create({
     padding: 12,
     minWidth: 200,
     maxWidth: 280,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    ...getShadow(8, '#000'),
   },
   tooltipGradient: {
     flexDirection: 'row',
@@ -1099,5 +1111,39 @@ const styles = StyleSheet.create({
     clipPath: 'inset(50%)',
     outlineWidth: 0,
     opacity: 0,
+  },
+  // Chat bubble styles
+  chatBubble: {
+    marginBottom: 12,
+    maxWidth: '80%',
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+  },
+  guideBubble: {
+    alignSelf: 'flex-start',
+  },
+  bubbleGradient: {
+    padding: 12,
+    borderRadius: 16,
+  },
+  bubbleText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  userBubbleText: {
+    color: '#FFFFFF',
+  },
+  bubbleAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
 });

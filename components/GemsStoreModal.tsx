@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  ActivityIndicator,
   Platform,
   Image,
 } from 'react-native';
@@ -16,9 +15,11 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { RefreshCw } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import LoadingSpinner from './LoadingSpinner';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { responsiveFontSize, responsivePadding } from '@/utils/scaling';
+import { logger } from '@/utils/logger';
 
 interface GemsStoreModalProps {
   visible: boolean;
@@ -95,10 +96,10 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
       // Initialize IAP service when modal opens (non-blocking)
       iapService.initialize()
         .then(() => {
-          console.log('IAP service initialized successfully in GemsStoreModal');
+          logger.info('IAP service initialized successfully in GemsStoreModal');
         })
         .catch(error => {
-          console.log('IAP initialization failed in GemsStoreModal:', error);
+          logger.error('IAP initialization failed in GemsStoreModal:', error);
           // Don't block the modal if IAP fails to initialize
         })
         .finally(() => {
@@ -137,7 +138,7 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
         Alert.alert('Purchase Failed', result.message);
       }
     } catch (error) {
-      console.error('Purchase error:', error);
+      logger.error('Purchase error:', error);
       Alert.alert('Purchase Error', 'Something went wrong. Please try again.');
     } finally {
       setPurchasing(null);
@@ -154,7 +155,7 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
     setIsLoading(true);
     
     try {
-      console.log('Starting purchase restoration...');
+      logger.info('Starting purchase restoration...');
       const success = await iapService.restorePurchases();
       
       if (success) {
@@ -169,7 +170,7 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
         );
       }
     } catch (error) {
-      console.error('Restore purchases error:', error);
+      logger.error('Restore purchases error:', error);
       Alert.alert(
         'Restore Failed',
         'Unable to restore purchases. Please try again or contact support.',
@@ -218,7 +219,7 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
           disabled={isPurchasing || isLoading}
         >
           {isPurchasing ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <LoadingSpinner visible size="small" color="#FFFFFF" message="" variant="compact" />
           ) : (
             <Text style={styles.purchaseButtonText}>{pkg.price}</Text>
           )}
@@ -263,12 +264,12 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
             {/* Packages */}
             <ScrollView style={styles.packagesContainer} showsVerticalScrollIndicator={false}>
               <Text style={styles.packagesTitle}>Choose Your Package</Text>
-              {isInitializing ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#FFD700" />
-                  <Text style={styles.loadingText}>Loading store...</Text>
-                </View>
-              ) : (
+            {isInitializing ? (
+              <View style={styles.loadingContainer}>
+                <LoadingSpinner visible size="large" color="#FFD700" message="" variant="compact" />
+                <Text style={styles.loadingText}>Loading store...</Text>
+              </View>
+            ) : (
                 GEM_PACKAGES.map(renderPackage)
               )}
             </ScrollView>

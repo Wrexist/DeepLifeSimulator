@@ -6,6 +6,7 @@ import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale } 
 import { useGame } from '@/contexts/GameContext';
 import { getTutorialSteps } from '@/utils/tutorialData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '@/utils/logger';
 
 const TUTORIAL_COMPLETED_KEY = 'tutorial_completed';
 
@@ -35,7 +36,7 @@ export default function TutorialOverlay({ visible, onClose }: TutorialOverlayPro
       setCurrentStepIndex(0);
       onClose();
     } catch (error) {
-      console.error('Error saving tutorial completion:', error);
+      logger.error('Error saving tutorial completion:', error);
     }
   };
 
@@ -45,7 +46,7 @@ export default function TutorialOverlay({ visible, onClose }: TutorialOverlayPro
       setCurrentStepIndex(0);
       onClose();
     } catch (error) {
-      console.error('Error saving tutorial completion:', error);
+      logger.error('Error saving tutorial completion:', error);
     }
   };
 

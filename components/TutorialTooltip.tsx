@@ -163,6 +163,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
+    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
@@ -170,6 +171,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   containerDark: {
+    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.5)',
     shadowColor: '#000',
     shadowOpacity: 0.5,
   },

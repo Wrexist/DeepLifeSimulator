@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { X, ArrowRight, Lightbulb } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
+import { logger } from '@/utils/logger';
 
 interface TutorialStep {
   id: string;
@@ -33,10 +34,10 @@ export default function SimpleTutorialModal({
   const { gameState } = useGame();
   const { settings } = gameState;
 
-  console.log('[SimpleTutorialModal] Render:', { visible, stepTitle: step?.title, currentStep, totalSteps });
+  logger.debug('[SimpleTutorialModal] Render:', { visible, stepTitle: step?.title, currentStep, totalSteps });
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onShow={() => console.log('[SimpleTutorialModal] Modal shown!')}>
+    <Modal visible={visible} transparent animationType="fade" onShow={() => logger.debug('[SimpleTutorialModal] Modal shown!')}>
       <View style={styles.overlay}>
         <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
           {/* Header */}

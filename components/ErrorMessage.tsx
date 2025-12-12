@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
   container: {
     margin: 16,
     borderRadius: 12,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 4 },

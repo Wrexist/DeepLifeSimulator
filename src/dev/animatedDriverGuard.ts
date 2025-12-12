@@ -16,11 +16,13 @@ function mark(value: any, mode: Mode) {
   if (!rec) {
     reg.set(value, { mode, firstStack: getStack() });
   } else if (rec.mode !== mode) {
-    // eslint-disable-next-line no-console
-    console.error(
-      `[AnimatedDriverGuard] Same Animated.Value used with both drivers!`,
-      { firstMode: rec.mode, now: mode, firstStack: rec.firstStack, nowStack: getStack() }
-    );
+    if (__DEV__) {
+       
+      console.error(
+        `[AnimatedDriverGuard] Same Animated.Value used with both drivers!`,
+        { firstMode: rec.mode, now: mode, firstStack: rec.firstStack, nowStack: getStack() }
+      );
+    }
   }
 }
 
@@ -48,6 +50,8 @@ export function installAnimatedDriverGuard() {
     return origDecay(value, config);
   };
 
-  // eslint-disable-next-line no-console
-  console.log('[AnimatedDriverGuard] installed');
+  if (__DEV__) {
+     
+    console.log('[AnimatedDriverGuard] installed');
+  }
 }

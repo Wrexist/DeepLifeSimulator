@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Platform } from 'react-native';
+import { logger } from '@/utils/logger';
 
 export interface BugReport {
   id: string;
@@ -173,7 +174,9 @@ class BugTracker {
         return true;
       }
     } catch (error) {
-      console.error('Failed to import bugs:', error);
+      if (__DEV__) {
+        logger.error('Failed to import bugs:', error);
+      }
     }
     return false;
   }
@@ -206,13 +209,15 @@ class BugTracker {
   }
 
   private logBug(bug: BugReport): void {
-    console.log('Bug reported:', {
-      id: bug.id,
-      title: bug.title,
-      severity: bug.severity,
-      category: bug.category,
-      priority: bug.priority,
-    });
+    if (__DEV__) {
+      logger.info('Bug reported:', {
+        id: bug.id,
+        title: bug.title,
+        severity: bug.severity,
+        category: bug.category,
+        priority: bug.priority,
+      });
+    }
   }
 }
 

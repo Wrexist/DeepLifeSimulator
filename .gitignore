@@ -33,3 +33,6 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+
+echo "google-play-service-account.json" >> .gitignore

@@ -1,0 +1,31 @@
+# Documentation
+*.md
+README.md
+CHANGELOG.md
+DEBUG_PROTOCOL.md
+PHASE1_MEMORY_LEAKS_AND_SAVE_VALIDATION.md
+DETAILED_UPDATE_LIST.md
+ASSET_GENERATION_PROMPTS.md
+GOOGLE_PLAY_STORE_GUIDE.md
+
+# Tests
+__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+jest.config.js
+
+# CI/CD
+.github/
+
+# Development files
+.vscode/
+.idea/
+*.log
+.DS_Store
+
+# Build artifacts (if any)
+build/
+dist/
+

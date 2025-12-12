@@ -173,7 +173,7 @@ export default function EnhancedDataVisualization({
           onPress={() => {
             buttonPress();
             haptic('light');
-            setSelectedChart(chart.key as any);
+            setSelectedChart(chart.key as typeof selectedChart);
           }}
           style={[
             styles.chartButton,
@@ -692,6 +692,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

@@ -299,6 +299,7 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#3B82F6',
     borderRadius: 4,
+    boxShadow: '0px 2px 4px rgba(59, 130, 246, 0.5)',
     shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,

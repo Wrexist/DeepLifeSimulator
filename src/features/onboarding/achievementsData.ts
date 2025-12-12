@@ -1,4 +1,6 @@
 import { ImageSourcePropType } from 'react-native';
+import { Company, GameState } from '@/contexts/game/types';
+import { netWorth } from '@/lib/progress/achievements';
 
 const socialIcon = require('@/assets/images/Achivements/Career Titan.png');
 const familyIcon = require('@/assets/images/Achivements/Generational Wealth.png');
@@ -247,25 +249,25 @@ export const achievements: Achievement[] = [
   {
     id: 'fitness_champ',
     title: 'Fitness Champion',
-    description: 'Reach 150 fitness.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.fitness ?? 0, goal: 150 },
-    goldReward: 50,
+    description: 'Reach 50 fitness.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.fitness ?? 0, goal: 50 },
+    goldReward: 25,
     group: 'fitness',
   },
   {
     id: 'fitness_guru',
     title: 'Fitness Guru',
-    description: 'Reach 200 fitness.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.fitness ?? 0, goal: 200 },
-    goldReward: 100,
+    description: 'Reach 75 fitness.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.fitness ?? 0, goal: 75 },
+    goldReward: 50,
     group: 'fitness',
   },
   {
     id: 'fitness_deity',
     title: 'Fitness Deity',
-    description: 'Reach 300 fitness.',
-    progressSpec: { kind: 'counter', current: gs => gs.stats?.fitness ?? 0, goal: 300 },
-    goldReward: 200,
+    description: 'Reach 100 fitness.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.fitness ?? 0, goal: 100 },
+    goldReward: 100,
     group: 'fitness',
   },
   {
@@ -371,7 +373,6 @@ export const achievements: Achievement[] = [
     description: 'Get married.',
     progressSpec: { kind: 'boolean', met: gs => !!gs.family?.spouse },
     goldReward: 20,
-    icon: familyIcon,
     group: 'family',
   },
   {
@@ -571,5 +572,398 @@ export const achievements: Achievement[] = [
     progressSpec: { kind: 'boolean', met: gs => gs.escapedFromJail },
     goldReward: 50,
     group: 'crime',
+  },
+
+  // Prestige Achievements
+  {
+    id: 'prestige_first',
+    title: 'First Prestige',
+    description: 'Complete your first prestige reset',
+    progressSpec: { kind: 'boolean', met: gs => (gs.prestige?.totalPrestiges ?? 0) >= 1 },
+    goldReward: 200,
+    group: 'prestige',
+  },
+  {
+    id: 'prestige_veteran',
+    title: 'Prestige Veteran',
+    description: 'Complete 5 prestige resets',
+    progressSpec: { kind: 'counter', current: gs => gs.prestige?.totalPrestiges ?? 0, goal: 5 },
+    goldReward: 500,
+    group: 'prestige',
+  },
+  {
+    id: 'prestige_legend',
+    title: 'Prestige Legend',
+    description: 'Reach prestige level 10',
+    progressSpec: { kind: 'counter', current: gs => gs.prestige?.prestigeLevel ?? 0, goal: 10 },
+    goldReward: 1000,
+    group: 'prestige',
+  },
+  {
+    id: 'prestige_generations',
+    title: 'Generational Wealth',
+    description: 'Complete prestige through 3 generations',
+    progressSpec: { kind: 'counter', current: gs => gs.prestige?.lifetimeStats?.generationsCompleted ?? 0, goal: 3 },
+    goldReward: 750,
+    group: 'prestige',
+  },
+  {
+    id: 'prestige_points_master',
+    title: 'Prestige Points Master',
+    description: 'Accumulate 10,000 prestige points',
+    progressSpec: { kind: 'counter', current: gs => gs.prestige?.prestigePoints ?? 0, goal: 10000 },
+    goldReward: 1500,
+    group: 'prestige',
+  },
+
+  // Social Platform Achievements
+  {
+    id: 'social_dating_first_match',
+    title: 'First Match',
+    description: 'Get your first match on the dating app',
+    progressSpec: { kind: 'counter', current: gs => gs.datingMatches?.length ?? 0, goal: 1 },
+    goldReward: 10,
+    group: 'social',
+  },
+  {
+    id: 'social_dating_casanova',
+    title: 'Casanova',
+    description: 'Get 25 matches on the dating app',
+    progressSpec: { kind: 'counter', current: gs => gs.datingMatches?.length ?? 0, goal: 25 },
+    goldReward: 75,
+    group: 'social',
+  },
+  {
+    id: 'social_media_first_post',
+    title: 'First Post',
+    description: 'Create your first social media post',
+    progressSpec: { kind: 'counter', current: gs => gs.socialMedia?.totalPosts ?? 0, goal: 1 },
+    goldReward: 5,
+    group: 'social',
+  },
+  {
+    id: 'social_media_influencer',
+    title: 'Social Media Influencer',
+    description: 'Reach 10,000 followers',
+    progressSpec: { kind: 'counter', current: gs => gs.socialMedia?.followers ?? 0, goal: 10000 },
+    goldReward: 150,
+    group: 'social',
+  },
+  {
+    id: 'social_media_celebrity',
+    title: 'Social Media Celebrity',
+    description: 'Reach 100,000 followers',
+    progressSpec: { kind: 'counter', current: gs => gs.socialMedia?.followers ?? 0, goal: 100000 },
+    goldReward: 300,
+    group: 'social',
+  },
+  {
+    id: 'social_media_viral',
+    title: 'Viral Sensation',
+    description: 'Create 5 viral posts',
+    progressSpec: { kind: 'counter', current: gs => gs.socialMedia?.viralPosts ?? 0, goal: 5 },
+    goldReward: 200,
+    group: 'social',
+  },
+  {
+    id: 'social_media_brand_deals',
+    title: 'Brand Ambassador',
+    description: 'Secure 10 brand partnerships',
+    progressSpec: { kind: 'counter', current: gs => gs.socialMedia?.brandPartnerships ?? 0, goal: 10 },
+    goldReward: 400,
+    group: 'social',
+  },
+  {
+    id: 'social_media_posts_milestone',
+    title: 'Content Creator',
+    description: 'Create 100 social media posts',
+    progressSpec: { kind: 'counter', current: gs => gs.socialMedia?.totalPosts ?? 0, goal: 100 },
+    goldReward: 100,
+    group: 'social',
+  },
+
+  // Crime & Prison Achievements
+  {
+    id: 'crime_skill_master',
+    title: 'Crime Master',
+    description: 'Max out a crime skill to level 10',
+    progressSpec: { kind: 'boolean', met: gs => Object.values(gs.crimeSkills || {}).some((skill: { level: number }) => skill.level >= 10) },
+    goldReward: 150,
+    group: 'crime',
+  },
+  {
+    id: 'prison_survivor',
+    title: 'Prison Survivor',
+    description: 'Spend 10 weeks in prison',
+    progressSpec: { kind: 'counter', current: gs => gs.totalPrisonWeeks ?? 0, goal: 10 },
+    goldReward: 50,
+    group: 'crime',
+  },
+  {
+    id: 'prison_reformed',
+    title: 'Reformed',
+    description: 'Complete all prison activities in a single sentence',
+    progressSpec: { kind: 'boolean', met: gs => {
+      const weeklyActivities = gs.weeklyJailActivities || {};
+      const uniqueActivities = new Set(Object.keys(weeklyActivities));
+      return uniqueActivities.size >= 5;
+    }},
+    goldReward: 100,
+    group: 'crime',
+  },
+
+  // Company Achievements
+  {
+    id: 'company_first',
+    title: 'Entrepreneur',
+    description: 'Start your first company',
+    progressSpec: { kind: 'counter', current: gs => gs.companies?.length ?? 0, goal: 1 },
+    goldReward: 75,
+    group: 'career',
+  },
+  {
+    id: 'company_tycoon',
+    title: 'Business Tycoon',
+    description: 'Own 5 companies',
+    progressSpec: { kind: 'counter', current: gs => gs.companies?.length ?? 0, goal: 5 },
+    goldReward: 500,
+    group: 'career',
+  },
+  {
+    id: 'company_empire',
+    title: 'Business Empire',
+    description: 'Have 10 employees across all companies',
+    progressSpec: { kind: 'counter', current: gs => gs.companies?.reduce((total: number, c: Company) => total + (c.employees || 0), 0) ?? 0, goal: 10 },
+    goldReward: 200,
+    group: 'career',
+  },
+
+  // Milestone Achievements
+  {
+    id: 'milestone_100_weeks',
+    title: 'Century',
+    description: 'Live for 100 weeks',
+    progressSpec: { kind: 'counter', current: gs => gs.weeksLived ?? 0, goal: 100 },
+    goldReward: 100,
+    group: 'milestone',
+  },
+  {
+    id: 'milestone_500_weeks',
+    title: 'Half Millennium',
+    description: 'Live for 500 weeks',
+    progressSpec: { kind: 'counter', current: gs => gs.weeksLived ?? 0, goal: 500 },
+    goldReward: 500,
+    group: 'milestone',
+  },
+  // Legacy achievements from lib/progress/achievements.ts - consolidated
+  {
+    id: 'first_million',
+    title: 'First Million',
+    description: 'Reach a net worth of $1,000,000.',
+    progressSpec: { 
+      kind: 'counter', 
+      current: (gs: GameState) => {
+        // Use netWorth function for accurate calculation
+        try {
+          return netWorth(gs);
+        } catch {
+          // Fallback calculation
+          const money = gs.stats?.money ?? 0;
+          const bank = gs.bankSavings ?? 0;
+          return money + bank;
+        }
+      }, 
+      goal: 1_000_000 
+    },
+    goldReward: 50,
+    group: 'networth',
+  },
+  {
+    id: 'debt_free',
+    title: 'Debt Free',
+    description: 'Have no outstanding debts after being in debt.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        const hasBeenInDebt = gs.progress?.hasBeenInDebt ?? false;
+        const hasLoans = (gs.loans?.length || 0) > 0;
+        return hasBeenInDebt && !hasLoans && (gs.stats?.money ?? 0) >= 0;
+      }
+    },
+    goldReward: 25,
+    group: 'financial',
+  },
+  {
+    id: 'healthy_lifestyle',
+    title: 'Healthy Lifestyle',
+    description: 'Maintain 90+ health for 10 consecutive weeks.',
+    progressSpec: { 
+      kind: 'counter', 
+      current: (gs: GameState) => gs.healthWeeks ?? 0, 
+      goal: 10 
+    },
+    goldReward: 30,
+    group: 'health',
+  },
+  {
+    id: 'social_star',
+    title: 'Social Star',
+    description: 'Maintain 10 relationships with affection over 70.',
+    progressSpec: { 
+      kind: 'counter', 
+      current: (gs: GameState) => {
+        return (gs.relationships || []).filter((r: any) => r.relationshipScore > 70).length;
+      }, 
+      goal: 10 
+    },
+    goldReward: 25,
+    group: 'social',
+  },
+  {
+    id: 'first_election',
+    title: 'First Victory',
+    description: 'Win your first election.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        return (gs.politics?.electionsWon || 0) >= 1;
+      }
+    },
+    goldReward: 50,
+    group: 'politics',
+  },
+  {
+    id: 'mayor',
+    title: 'Mayor',
+    description: 'Become Mayor.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        return (gs.politics?.careerLevel || 0) >= 1;
+      }
+    },
+    goldReward: 75,
+    group: 'politics',
+  },
+  {
+    id: 'governor',
+    title: 'Governor',
+    description: 'Become Governor.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        return (gs.politics?.careerLevel || 0) >= 3;
+      }
+    },
+    goldReward: 150,
+    group: 'politics',
+  },
+  {
+    id: 'president',
+    title: 'President',
+    description: 'Become President.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        return (gs.politics?.careerLevel || 0) >= 5;
+      }
+    },
+    goldReward: 500,
+    group: 'politics',
+  },
+  {
+    id: 'policy_maker',
+    title: 'Policy Maker',
+    description: 'Enact 10 policies.',
+    progressSpec: { 
+      kind: 'counter', 
+      current: (gs: GameState) => (gs.politics?.policiesEnacted || []).length,
+      goal: 10
+    },
+    goldReward: 100,
+    group: 'politics',
+  },
+  {
+    id: 'popular_politician',
+    title: 'Popular Politician',
+    description: 'Maintain 80%+ approval rating for 52 weeks.',
+    progressSpec: { 
+      kind: 'counter', 
+      current: (gs: GameState) => {
+        // This would need to be tracked in game state
+        // For now, check if current approval is 80+
+        return (gs.politics?.approvalRating || 0) >= 80 ? 1 : 0;
+      },
+      goal: 1
+    },
+    goldReward: 150,
+    group: 'politics',
+  },
+  {
+    id: 'election_champion',
+    title: 'Election Champion',
+    description: 'Win 5 elections.',
+    progressSpec: { 
+      kind: 'counter', 
+      current: (gs: GameState) => (gs.politics?.electionsWon || 0),
+      goal: 5
+    },
+    goldReward: 200,
+    group: 'politics',
+  },
+  {
+    id: 'political_influencer',
+    title: 'Political Influencer',
+    description: 'Reach 50% policy influence.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        return (gs.politics?.policyInfluence || 0) >= 50;
+      }
+    },
+    goldReward: 100,
+    group: 'politics',
+  },
+  {
+    id: 'politician_legend',
+    title: 'Political Legend',
+    description: 'Reach the highest level in the politician career.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        const career = (gs.careers || []).find((c: any) => c.id === 'political');
+        return career && career.level >= 5; // President level
+      }
+    },
+    goldReward: 100,
+    group: 'politics',
+  },
+  {
+    id: 'celebrity_icon',
+    title: 'Celebrity Icon',
+    description: 'Reach the highest level in the celebrity career.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        const career = (gs.careers || []).find((c: any) => c.id === 'celebrity');
+        return career && career.level >= (career.levels?.length || 0);
+      }
+    },
+    goldReward: 100,
+    group: 'career',
+  },
+  {
+    id: 'athletic_champion',
+    title: 'Athletic Champion',
+    description: 'Reach the highest level in the athlete career.',
+    progressSpec: { 
+      kind: 'boolean', 
+      met: (gs: GameState) => {
+        const career = (gs.careers || []).find((c: any) => c.id === 'athlete');
+        return career && career.level >= (career.levels?.length || 0);
+      }
+    },
+    goldReward: 100,
+    group: 'career',
   },
 ];

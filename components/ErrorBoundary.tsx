@@ -1,8 +1,9 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RefreshCw, AlertTriangle, Home } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { logger } from '@/utils/logger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Props {
   children: ReactNode;
@@ -15,6 +16,9 @@ interface State {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   retryCount: number;
+  errorCategory?: 'save' | 'progression' | 'ui' | 'network' | 'unknown';
+  recoverySuggestion?: string;
+  gameStateBackedUp?: boolean;
 }
 
 class ErrorBoundary extends Component<Props, State> {
@@ -39,12 +43,27 @@ class ErrorBoundary extends Component<Props, State> {
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+  async componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    logger.error('ErrorBoundary caught an error:', error, errorInfo);
+    
+    // Categorize error
+    const category = this.categorizeError(error);
+    const recoverySuggestion = this.getRecoverySuggestion(category);
+    
+    // Try to backup game state before showing error
+    let gameStateBackedUp = false;
+    try {
+      gameStateBackedUp = await this.backupGameState();
+    } catch (backupError) {
+      logger.error('Failed to backup game state on error:', backupError);
+    }
     
     this.setState({
       error,
       errorInfo,
+      errorCategory: category,
+      recoverySuggestion,
+      gameStateBackedUp,
     });
 
     // Call custom error handler if provided
@@ -53,25 +72,186 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     // Log error for debugging
-    this.logError(error, errorInfo);
+    this.logError(error, errorInfo, category);
   }
 
-  private logError = (error: Error, errorInfo: ErrorInfo) => {
+  /**
+   * Categorize error based on error message and stack
+   */
+  private categorizeError(error: Error): 'save' | 'progression' | 'ui' | 'network' | 'unknown' {
+    const message = error.message.toLowerCase();
+
+    if (message.includes('save') || message.includes('asyncstorage') || message.includes('quota')) {
+      return 'save';
+    }
+    if (message.includes('week') || message.includes('progression') || message.includes('nextweek')) {
+      return 'progression';
+    }
+    if (message.includes('network') || message.includes('fetch') || message.includes('timeout') || message.includes('cloud')) {
+      return 'network';
+    }
+    if (message.includes('render') || message.includes('component') || message.includes('keyboard')) {
+      return 'ui';
+    }
+    return 'unknown';
+  }
+
+  /**
+   * Get recovery suggestion based on error category
+   */
+  private getRecoverySuggestion(category: 'save' | 'progression' | 'ui' | 'network' | 'unknown'): string {
+    switch (category) {
+      case 'save':
+        return 'Try deleting old saves or freeing up device storage. Your progress has been saved locally.';
+      case 'progression':
+        return 'Try restarting the app. Your game state has been backed up.';
+      case 'network':
+        return 'Check your internet connection. The app will work offline with local saves.';
+      case 'ui':
+        return 'Try navigating away and back, or restart the app.';
+      default:
+        return 'Try restarting the app. If the problem persists, please report this bug.';
+    }
+  }
+
+  /**
+   * Attempt to backup game state before error is shown
+   */
+  private async backupGameState(): Promise<boolean> {
+    try {
+      // Try to get the last saved state from AsyncStorage
+      const lastSlot = await AsyncStorage.getItem('lastSlot');
+      if (lastSlot) {
+        const slotNumber = parseInt(lastSlot, 10);
+        const savedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+        if (savedData) {
+          // Create emergency backup
+          const backupKey = `error_backup_${Date.now()}`;
+          try {
+            await AsyncStorage.setItem(backupKey, savedData);
+            logger.info('Game state backed up before error', { backupKey });
+            return true;
+          } catch (error: any) {
+            // Handle quota exceeded - try to clean up old error backups
+            if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
+              try {
+                const allKeys = await AsyncStorage.getAllKeys();
+                const errorBackupKeys = allKeys
+                  .filter(key => key.startsWith('error_backup_'))
+                  .sort()
+                  .slice(0, -5); // Keep only the 5 most recent error backups
+                
+                if (errorBackupKeys.length > 0) {
+                  await AsyncStorage.multiRemove(errorBackupKeys);
+                  logger.info(`Cleaned up ${errorBackupKeys.length} old error backups`);
+                  
+                  // Retry backup after cleanup
+                  try {
+                    await AsyncStorage.setItem(backupKey, savedData);
+                    logger.info('Game state backed up before error after cleanup', { backupKey });
+                    return true;
+                  } catch (retryError) {
+                    logger.error('Failed to backup game state even after cleanup:', retryError);
+                    return false;
+                  }
+                }
+              } catch (cleanupError) {
+                logger.error('Failed to cleanup old error backups:', cleanupError);
+              }
+            }
+            logger.error('Failed to backup game state:', error);
+            return false;
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      logger.error('Failed to backup game state:', error);
+      return false;
+    }
+  }
+
+  private logError = async (error: Error, errorInfo: ErrorInfo, category?: 'save' | 'progression' | 'ui' | 'network' | 'unknown') => {
+    // Try to get minimal game state context (sanitized)
+    let gameContext: any = null;
+    try {
+      const lastSlot = await AsyncStorage.getItem('lastSlot');
+      if (lastSlot) {
+        const slotNumber = parseInt(lastSlot, 10);
+        const savedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+        if (savedData) {
+          try {
+            const parsed = JSON.parse(savedData);
+            // Only include safe, non-sensitive data
+            gameContext = {
+              week: parsed.week,
+              age: parsed.date?.age,
+              version: parsed.version,
+              // Don't include stats, money, or personal data
+            };
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore errors getting context
+    }
+
     const errorData = {
       message: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
       timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent || 'React Native',
+      userAgent: Platform.OS + ' ' + Platform.Version,
       retryCount: this.state.retryCount,
+      category,
+      gameContext, // Sanitized game context
     };
+
+    // Log to analytics service
+    try {
+      const { analyticsService } = await import('@/services/AnalyticsService');
+      await analyticsService.logCrash(
+        category || 'unknown',
+        error,
+        {
+          component_stack: errorInfo.componentStack?.substring(0, 500),
+          retry_count: this.state.retryCount,
+          game_context: gameContext,
+          platform: Platform.OS,
+          platform_version: Platform.Version,
+        }
+      );
+    } catch (analyticsError) {
+      logger.warn('Failed to log crash to analytics:', analyticsError);
+    }
 
     // In production, send to crash reporting service
     if (!__DEV__) {
-      // TODO: Send to crash reporting service (e.g., Sentry, Bugsnag)
-      console.log('Error logged for crash reporting:', errorData);
+      // Send to crash reporting service (Sentry integration)
+      try {
+        // Dynamic import to avoid breaking if Sentry is not installed
+        const Sentry = require('@sentry/react-native');
+        if (Sentry && Sentry.captureException) {
+          Sentry.captureException(error, {
+            contexts: {
+              react: {
+                componentStack: errorInfo.componentStack,
+              },
+            },
+            extra: {
+              retryCount: this.state.retryCount,
+              timestamp: errorData.timestamp,
+            },
+          });
+        }
+      } catch (sentryError) {
+        // Sentry not available, log to console
+        logger.warn('Error logged for crash reporting', errorData);
+      }
     } else {
-      console.error('Development error:', errorData);
+      logger.error('Development error:', errorData);
     }
   };
 
@@ -95,19 +275,81 @@ class ErrorBoundary extends Component<Props, State> {
     }
   };
 
-  private handleReportBug = () => {
-    const { error, errorInfo } = this.state;
+  private handleReportBug = async () => {
+    const { error, errorInfo, errorCategory } = this.state;
     if (error) {
+      // Get game context for bug report
+      let gameContext: any = null;
+      try {
+        const lastSlot = await AsyncStorage.getItem('lastSlot');
+        if (lastSlot) {
+          const slotNumber = parseInt(lastSlot, 10);
+          const savedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+          if (savedData) {
+            try {
+              const parsed = JSON.parse(savedData);
+              // Include sanitized game context
+              gameContext = {
+                week: parsed.week,
+                age: parsed.date?.age,
+                version: parsed.version,
+                hasJob: !!parsed.currentJob,
+                // Don't include sensitive data
+              };
+            } catch (e) {
+              // Ignore parse errors
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+
       const bugReport = {
         error: error.message,
         stack: error.stack,
         componentStack: errorInfo?.componentStack,
         timestamp: new Date().toISOString(),
+        category: errorCategory,
+        gameContext,
+        platform: Platform.OS,
+        version: Platform.Version,
       };
       
-      // TODO: Implement bug reporting system
-      console.log('Bug report:', bugReport);
-      Alert.alert('Bug Report', 'Thank you for reporting this issue. We will investigate.');
+      // Log to analytics service
+      try {
+        const { analyticsService } = await import('@/services/AnalyticsService');
+        await analyticsService.logEvent('user_reported_bug', {
+          category: errorCategory || 'unknown',
+          error_message: error.message,
+          platform: Platform.OS,
+          has_game_context: !!gameContext,
+        });
+      } catch (analyticsError) {
+        logger.warn('Failed to log bug report to analytics:', analyticsError);
+      }
+      
+      // Try to send to Sentry if available
+      try {
+        const Sentry = require('@sentry/react-native');
+        if (Sentry && Sentry.captureMessage) {
+          Sentry.captureMessage('User reported bug', {
+            level: 'info',
+            extra: bugReport,
+            tags: {
+              errorCategory: errorCategory || 'unknown',
+            },
+          });
+        }
+      } catch (sentryError) {
+        // Sentry not available, log to console
+        logger.info('Bug report:', bugReport);
+      }
+      
+      Alert.alert(
+        'Bug Report', 
+        'Thank you for reporting this issue. We will investigate. Your game state has been saved.'
+      );
     }
   };
 
@@ -148,7 +390,15 @@ class ErrorBoundary extends Component<Props, State> {
               <Text style={styles.title}>Something went wrong</Text>
               <Text style={styles.subtitle}>
                 We're sorry, but something unexpected happened.
+                {this.state.gameStateBackedUp && '\n\nYour game state has been backed up.'}
               </Text>
+              
+              {this.state.recoverySuggestion && (
+                <View style={styles.recoveryContainer}>
+                  <Text style={styles.recoveryTitle}>Suggestion:</Text>
+                  <Text style={styles.recoveryText}>{this.state.recoverySuggestion}</Text>
+                </View>
+              )}
               
               {__DEV__ && this.state.error && (
                 <View style={styles.errorDetails}>
@@ -280,6 +530,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  recoveryContainer: {
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    width: '100%',
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+  },
+  recoveryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  recoveryText: {
+    fontSize: 13,
+    color: '#78350F',
+    lineHeight: 18,
   },
 });
 

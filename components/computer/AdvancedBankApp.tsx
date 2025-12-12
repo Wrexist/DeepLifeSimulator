@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,7 @@ import {
   Star
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { Loan, RealEstate } from '@/contexts/game/types';
 import { 
   responsivePadding, 
   responsiveFontSize, 
@@ -40,13 +41,14 @@ import {
 } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { logger } from '@/utils/logger';
 
 interface AdvancedBankAppProps {
   onBack: () => void;
 }
 
 export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
-  const { gameState, setGameState, buyGoldUpgrade } = useGame();
+  const { gameState, setGameState, buyGoldUpgrade, saveGame } = useGame();
   const { settings } = gameState;
   const [activeTab, setActiveTab] = useState('overview');
   const [showSettings, setShowSettings] = useState(false);
@@ -58,7 +60,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
   const [currentIAP, setCurrentIAP] = useState('');
   const [showNewLoanModal, setShowNewLoanModal] = useState(false);
   const [showLoanDetailsModal, setShowLoanDetailsModal] = useState(false);
-  const [selectedLoan, setSelectedLoan] = useState<any>(null);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [newLoanAmount, setNewLoanAmount] = useState('');
   const [newLoanTerm, setNewLoanTerm] = useState(64);
   const [newLoanType, setNewLoanType] = useState<'personal' | 'business'>('personal');
@@ -82,11 +84,22 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
   const hasBusinessAccount = iapService.hasPurchased(IAP_PRODUCTS.BUSINESS_BANKING);
   const hasPrivateBanking = iapService.hasPurchased(IAP_PRODUCTS.PRIVATE_BANKING);
 
-  // Check if user owns companies
-  const hasCompanies = gameState.companies && gameState.companies.length > 0;
-
-  // Savings functions
-  const handleSavingsAction = (action: 'deposit' | 'withdraw') => {
+  // Extract frequently used values
+  const companies = gameState.companies || [];
+  const loans = gameState.loans || [];
+  const inflation = gameState.inflation || 0.02;
+  const realEstate = gameState.realEstate || [];
+  const stocksOwned = gameState.stocksOwned || {};
+  const relationships = gameState.relationships || [];
+  const hobbies = gameState.hobbies || [];
+  const currentJob = gameState.currentJob;
+  const careers = gameState.careers || [];
+  
+  // Check if user owns companies - memoized
+  const hasCompanies = useMemo(() => companies.length > 0, [companies]);
+  
+  // Savings functions - memoized
+  const handleSavingsAction = useCallback((action: 'deposit' | 'withdraw') => {
     const amount = parseFloat(savingsAmount);
     if (!amount || amount <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0.');
@@ -103,6 +116,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         stats: { ...prev.stats, money: prev.stats.money - amount },
         bankSavings: (prev.bankSavings || 0) + amount,
       }));
+      saveGame();
       Alert.alert('Deposit Successful', `Successfully deposited ${formatMoney(amount)} to savings.`);
     } else {
       if (amount > bankSavings) {
@@ -114,13 +128,14 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         stats: { ...prev.stats, money: prev.stats.money + amount },
         bankSavings: (prev.bankSavings || 0) - amount,
       }));
+      saveGame();
       Alert.alert('Withdrawal Successful', `Successfully withdrew ${formatMoney(amount)} from savings.`);
     }
     
     setSavingsAmount('');
-  };
+  }, [savingsAmount, money, bankSavings, setGameState, saveGame]);
 
-  const handleIAP = async (serviceId: string) => {
+  const handleIAP = useCallback(async (serviceId: string) => {
     try {
       const result = await iapService.purchaseProduct(serviceId);
       if (result.success) {
@@ -132,24 +147,23 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     } catch (error) {
       Alert.alert('Purchase Error', 'Failed to complete purchase. Please try again.');
     }
-  };
+  }, []);
 
-
-  const handleCreditCard = () => {
+  const handleCreditCard = useCallback(() => {
     if (!hasCreditCard) {
       handleIAP(IAP_PRODUCTS.PREMIUM_CREDIT_CARD);
     } else {
       Alert.alert('Premium Credit Card', `You have 10% cashback! Total earned: ${formatMoney(cashbackEarned)}`);
     }
-  };
+  }, [hasCreditCard, cashbackEarned, handleIAP]);
 
-  const handleFinancialPlanning = () => {
+  const handleFinancialPlanning = useCallback(() => {
     if (!hasFinancialPlanning) {
       handleIAP(IAP_PRODUCTS.FINANCIAL_PLANNING);
     } else {
       Alert.alert('Financial Planning', 'Your bank savings earn 15% interest! Expert advice included.');
     }
-  };
+  }, [hasFinancialPlanning, handleIAP]);
 
   const handleBusinessBanking = () => {
     if (!hasBusinessAccount) {
@@ -210,33 +224,63 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     Alert.alert('Company Upgrade', 'This would open the App Store for purchase in the real app.');
   };
 
-  // Loan Management Functions
-  const loans = (gameState as any).loans || [];
+  // Calculate company value including upgrades - memoized
+  const calculateCompanyValue = useCallback((company: { weeklyIncome: number; upgrades?: CompanyUpgrade[] }) => {
+    // Base company value (weekly income × 10)
+    const baseValue = company.weeklyIncome * 10;
+    
+    // Add value of all purchased upgrades
+    let upgradeValue = 0;
+    if (company.upgrades) {
+      company.upgrades.forEach((upgrade) => {
+        if (upgrade.level > 0) {
+          upgradeValue += upgrade.cost || 0;
+        }
+      });
+    }
+    
+    return baseValue + upgradeValue;
+  }, []);
   
-  const calculateMarketAPR = (loanType: 'personal' | 'business' = 'personal') => {
+  const calculateMarketAPR = useCallback((loanType: 'personal' | 'business' = 'personal') => {
+    // Get political perks if player has political career
+    let politicalInterestReduction = 0;
+    if (gameState.politics && gameState.politics.careerLevel > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getCombinedPerkEffects } = require('@/lib/politics/perks');
+      const perkEffects = getCombinedPerkEffects(gameState.politics.careerLevel);
+      politicalInterestReduction = perkEffects.loanInterestReduction / 100; // Convert percentage to decimal
+    }
+
     if (loanType === 'business') {
       // Business loans have lower interest rates
       const baseAPR = 0.04; // 4% base APR for business loans
-      const inflationFactor = (gameState.inflation || 0.02) * 1.5;
+      const inflationFactor = inflation * 1.5;
       const riskFactor = Math.min(0.03, loans.length * 0.005);
-      const companyValue = (gameState.companies || []).reduce((sum, company) => sum + calculateCompanyValue(company), 0);
+      const companyValue = companies.reduce((sum, company) => sum + calculateCompanyValue(company), 0);
       const companyFactor = companyValue > 100000 ? -0.01 : 0.01;
       
-      return Math.max(0.03, Math.min(0.15, baseAPR + inflationFactor + riskFactor + companyFactor));
+      const calculatedAPR = baseAPR + inflationFactor + riskFactor + companyFactor;
+      // Apply political perk reduction
+      const finalAPR = Math.max(0.01, calculatedAPR - politicalInterestReduction);
+      return Math.max(0.01, Math.min(0.15, finalAPR));
     } else {
       // Personal loans have higher interest rates
       const baseAPR = 0.08; // 8% base APR for personal loans
-      const inflationFactor = (gameState.inflation || 0.02) * 2;
+      const inflationFactor = inflation * 2;
       const riskFactor = Math.min(0.05, loans.length * 0.01);
       const incomeFactor = monthlyIncome > 10000 ? -0.02 : 0.02;
       
-      return Math.max(0.05, Math.min(0.25, baseAPR + inflationFactor + riskFactor + incomeFactor));
+      const calculatedAPR = baseAPR + inflationFactor + riskFactor + incomeFactor;
+      // Apply political perk reduction
+      const finalAPR = Math.max(0.01, calculatedAPR - politicalInterestReduction);
+      return Math.max(0.01, Math.min(0.25, finalAPR));
     }
-  };
+  }, [inflation, loans, companies, monthlyIncome, calculateCompanyValue, gameState.politics]);
 
-  const marketAPR = calculateMarketAPR();
+  const marketAPR = useMemo(() => calculateMarketAPR(), [calculateMarketAPR]);
 
-  const calculateLoanDetails = (amount: number, term: number, loanType: 'personal' | 'business' = 'personal') => {
+  const calculateLoanDetails = useCallback((amount: number, term: number, loanType: 'personal' | 'business' = 'personal') => {
     const apr = calculateMarketAPR(loanType);
     const weeklyRate = apr / 52;
     const totalPayments = term;
@@ -254,24 +298,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
       totalInterest,
       interestRate: apr * 100,
     };
-  };
-
-  // Calculate company value including upgrades
-  const calculateCompanyValue = (company: any) => {
-    // Base company value (weekly income × 10)
-    const baseValue = company.weeklyIncome * 10;
-    
-    // Add value of all purchased upgrades
-    let upgradeValue = 0;
-    company.upgrades?.forEach((upgrade: any) => {
-      if (upgrade.level > 0) {
-        // Upgrade value is the cost of each level purchased
-        upgradeValue += upgrade.cost * upgrade.level;
-      }
-    });
-    
-    return baseValue + upgradeValue;
-  };
+  }, [calculateMarketAPR]);
 
   // Calculate total weekly cash flow (income - expenses)
   const calculateWeeklyCashFlow = () => {
@@ -327,8 +354,8 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     });
 
     // Existing loan payments
-    const existingLoans = (gameState as any).loans || [];
-    existingLoans.forEach((loan: any) => {
+    const existingLoans = gameState.loans || [];
+    existingLoans.forEach((loan: Loan) => {
       totalExpenses += loan.weeklyPayment || 0;
     });
 
@@ -336,12 +363,11 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
   };
 
   const takeNewLoan = () => {
-    console.log('takeNewLoan called', { 
+    logger.debug('takeNewLoan called', { 
       newLoanAmount, 
       newLoanType, 
-      companies: gameState.companies,
       companiesLength: gameState.companies?.length,
-      companyValues: gameState.companies?.map(c => ({ id: c.id, name: c.name, value: c.value }))
+      companyValues: gameState.companies?.map(c => ({ id: c.id, name: c.name, value: calculateCompanyValue(c) }))
     });
     const amount = parseFloat(newLoanAmount);
     
@@ -351,7 +377,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     }
     
     // Calculate net worth (cash + savings + real estate + company value)
-    const realEstateValue = (gameState.realEstate || []).reduce((sum: number, property: any) => sum + (property.value || 0), 0);
+    const realEstateValue = (gameState.realEstate || []).reduce((sum: number, property: RealEstate) => sum + (property.price || 0), 0);
     const companyValue = (gameState.companies || []).reduce((sum, company) => sum + calculateCompanyValue(company), 0);
     const netWorth = money + bankSavings + realEstateValue + companyValue;
     
@@ -360,11 +386,10 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     
     // Business loan eligibility check
     if (newLoanType === 'business') {
-      console.log('Business loan check:', {
+      logger.debug('Business loan check:', {
         hasCompanies: !!gameState.companies,
         companiesLength: gameState.companies?.length,
         companyValue,
-        companies: gameState.companies
       });
       
       if (!gameState.companies || gameState.companies.length === 0 || companyValue <= 0) {
@@ -419,7 +444,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     setGameState(prev => ({
       ...prev,
       stats: { ...prev.stats, money: prev.stats.money + amount },
-      loans: [...(prev as any).loans || [], newLoan],
+      loans: [...(prev.loans || []), newLoan],
     }));
     
     setShowNewLoanModal(false);
@@ -428,7 +453,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
   };
 
   const repayLoan = (loanId: string, amount: number) => {
-    const loan = loans.find((l: any) => l.id === loanId);
+    const loan = loans.find((l: Loan) => l.id === loanId);
     if (!loan) return;
     
     const repayAmount = Math.min(amount, loan.remaining);
@@ -446,11 +471,11 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     }
     
     setGameState(prev => {
-      const updatedLoans = (prev as any).loans.map((l: any) => 
+      const updatedLoans = (prev.loans || []).map((l: Loan) => 
         l.id === loanId 
           ? { ...l, remaining: Math.max(0, l.remaining - repayAmount) }
           : l
-      ).filter((l: any) => l.remaining > 0);
+      ).filter((l: Loan) => l.remaining > 0);
       
       return {
         ...prev,
@@ -462,6 +487,9 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         loans: updatedLoans,
       };
     });
+    
+    // Save game after loan payment
+    saveGame();
     
     setRepayAmount('');
     setShowLoanDetailsModal(false);
@@ -520,7 +548,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
       <View style={styles.statsGrid}>
         <View style={styles.statCard}>
           <DollarSign size={24} color="#10B981" />
-          <Text style={styles.statLabel}>Cash</Text>
+          <Text style={[styles.statLabel, settings?.darkMode && styles.statLabelDark]}>Cash</Text>
           <Text style={styles.statValue}>{formatMoney(money)}</Text>
         </View>
         <View style={styles.statCard}>
@@ -531,7 +559,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         <View style={styles.statCard}>
           <CreditCard size={24} color="#8B5CF6" />
           <Text style={styles.statLabel}>Active Loans</Text>
-          <Text style={styles.statValue}>{formatMoney(((gameState as any).loans || []).reduce((sum: number, loan: any) => sum + (loan.remaining || 0), 0))}</Text>
+          <Text style={styles.statValue}>{formatMoney((gameState.loans || []).reduce((sum: number, loan: Loan) => sum + (loan.remaining || 0), 0))}</Text>
         </View>
         <View style={styles.statCard}>
           <Shield size={24} color="#F59E0B" />
@@ -563,7 +591,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
                     styles.loanTypeCard,
                     newLoanType === type.id && styles.loanTypeCardSelected,
                   ]}
-                  onPress={() => setNewLoanType(type.id)}
+                  onPress={() => setNewLoanType(type.id as 'personal' | 'business')}
                 >
                   <type.icon size={20} color={newLoanType === type.id ? '#FFFFFF' : type.color} />
                   <Text style={[
@@ -585,10 +613,10 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               value={newLoanAmount}
               onChangeText={setNewLoanAmount}
               placeholder="Enter amount"
-              placeholderTextColor="#6B7280"
+              placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#6B7280"}
               keyboardType="numeric"
             />
-            <Text style={styles.loanAmountHint}>
+            <Text style={[styles.loanAmountHint, settings?.darkMode && styles.loanAmountHintDark]}>
               Max: {(() => {
                 const maxAmount = Math.min(100000, (money + bankSavings) * 2);
                 return formatMoney(Math.round(maxAmount));
@@ -628,7 +656,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               <View style={styles.loanDetailsPreview}>
                 <Text style={styles.loanDetailsTitle}>Loan Preview</Text>
                 <View style={styles.loanDetailsRow}>
-                  <Text style={styles.loanDetailsLabel}>Weekly Payment:</Text>
+                  <Text style={[styles.loanDetailsLabel, settings?.darkMode && styles.loanDetailsLabelDark]}>Weekly Payment:</Text>
                   <Text style={styles.loanDetailsValue}>{formatMoney(details.weeklyPayment)}</Text>
                 </View>
                 <View style={styles.loanDetailsRow}>
@@ -667,7 +695,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               />
             </View>
             <View style={styles.serviceInfo}>
-              <Text style={[styles.serviceStatusText, hasCreditCard && styles.serviceActiveText]}>
+              <Text style={[styles.serviceStatusText, settings?.darkMode && styles.serviceStatusTextDark, hasCreditCard && styles.serviceActiveText]}>
                 Premium Credit Card
               </Text>
               {hasCreditCard ? (
@@ -687,7 +715,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               />
             </View>
             <View style={styles.serviceInfo}>
-              <Text style={[styles.serviceStatusText, hasFinancialPlanning && styles.serviceActiveText]}>
+              <Text style={[styles.serviceStatusText, settings?.darkMode && styles.serviceStatusTextDark, hasFinancialPlanning && styles.serviceActiveText]}>
                 Financial Planning
               </Text>
               {hasFinancialPlanning ? (
@@ -707,7 +735,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               />
             </View>
             <View style={styles.serviceInfo}>
-              <Text style={[styles.serviceStatusText, hasPrivateBanking && styles.serviceActiveText]}>
+              <Text style={[styles.serviceStatusText, settings?.darkMode && styles.serviceStatusTextDark, hasPrivateBanking && styles.serviceActiveText]}>
                 Private Banking
               </Text>
               {hasPrivateBanking ? (
@@ -787,7 +815,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
             <Text style={styles.serviceDesc}>
               {hasCompanies ? 'Company loans & upgrades' : 'Need companies first'}
             </Text>
-            <Text style={[styles.serviceStatus, !hasBusinessAccount && settings?.darkMode && styles.serviceStatusDark]}>{hasBusinessAccount ? 'Active' : '$3.99'}</Text>
+            <Text style={[styles.serviceStatus, settings?.darkMode && styles.serviceStatusDark]}>{hasBusinessAccount ? 'Active' : '$3.99'}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -801,7 +829,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
             </View>
             <Text style={styles.serviceTitle}>Private Banking</Text>
             <Text style={styles.serviceDesc}>VIP 3% APR loans</Text>
-            <Text style={[styles.serviceStatus, !hasPrivateBanking && settings?.darkMode && styles.serviceStatusDark]}>{hasPrivateBanking ? 'Active' : '$9.99'}</Text>
+            <Text style={[styles.serviceStatus, settings?.darkMode && styles.serviceStatusDark]}>{hasPrivateBanking ? 'Active' : '$9.99'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -814,9 +842,9 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         <Text style={styles.analyticsTitle}>Financial Health Score</Text>
         <View style={styles.scoreContainer}>
           <Text style={styles.scoreValue}>85/100</Text>
-          <Text style={styles.scoreLabel}>Excellent</Text>
+          <Text style={[styles.scoreLabel, settings?.darkMode && styles.scoreLabelDark]}>Excellent</Text>
         </View>
-        <Text style={styles.analyticsDesc}>
+        <Text style={[styles.analyticsDesc, settings?.darkMode && styles.analyticsDescDark]}>
           Your financial health is excellent! You have good savings, 
           a high credit score, and diversified income sources.
         </Text>
@@ -825,7 +853,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
       <View style={styles.analyticsCard}>
         <Text style={styles.analyticsTitle}>Monthly Budget Analysis</Text>
         <View style={styles.budgetItem}>
-          <Text style={styles.budgetLabel}>Income</Text>
+          <Text style={[styles.budgetLabel, settings?.darkMode && styles.budgetLabelDark]}>Income</Text>
           <Text style={styles.budgetValue}>{formatMoney(monthlyIncome)}</Text>
         </View>
         <View style={styles.budgetItem}>
@@ -842,17 +870,17 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         <Text style={styles.analyticsTitle}>Loan Portfolio</Text>
         <View style={styles.budgetItem}>
           <Text style={styles.budgetLabel}>Total Outstanding</Text>
-          <Text style={styles.budgetValue}>{formatMoney(((gameState as any).loans || []).reduce((sum: number, loan: any) => sum + (loan.remaining || 0), 0))}</Text>
+          <Text style={styles.budgetValue}>{formatMoney((gameState.loans || []).reduce((sum: number, loan: Loan) => sum + (loan.remaining || 0), 0))}</Text>
         </View>
         <View style={styles.budgetItem}>
           <Text style={styles.budgetLabel}>Active Loans</Text>
-          <Text style={styles.budgetValue}>{((gameState as any).loans || []).length}</Text>
+          <Text style={styles.budgetValue}>{(gameState.loans || []).length}</Text>
         </View>
         <View style={styles.budgetItem}>
           <Text style={styles.budgetLabel}>Average APR</Text>
           <Text style={styles.budgetValue}>
-            {((gameState as any).loans || []).length > 0 
-              ? `${(((gameState as any).loans || []).reduce((sum: number, loan: any) => sum + (loan.rateAPR || 0), 0) / ((gameState as any).loans || []).length * 100).toFixed(1)}%`
+            {(gameState.loans || []).length > 0 
+              ? `${((gameState.loans || []).reduce((sum: number, loan: Loan) => sum + (loan.rateAPR || 0), 0) / (gameState.loans || []).length * 100).toFixed(1)}%`
               : '0%'
             }
           </Text>
@@ -881,7 +909,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         <LinearGradient colors={['#059669', '#10B981']} style={styles.balanceGradient}>
           <Text style={styles.balanceLabel}>Savings Account</Text>
           <Text style={styles.balanceAmount}>{formatMoney(bankSavings)}</Text>
-          <Text style={styles.balanceSubtext}>Earning 15% APR</Text>
+          <Text style={styles.balanceAmount}>Earning 15% APR</Text>
         </LinearGradient>
       </View>
 
@@ -918,7 +946,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
             placeholderTextColor="#6B7280"
             keyboardType="numeric"
           />
-          <Text style={styles.savingsInputHint}>
+          <Text style={[styles.savingsInputHint, settings?.darkMode && styles.savingsInputHintDark]}>
             Available Cash: {formatMoney(money)}
           </Text>
         </View>
@@ -954,7 +982,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
             placeholderTextColor="#6B7280"
             keyboardType="numeric"
           />
-          <Text style={styles.savingsInputHint}>
+          <Text style={[styles.savingsInputHint, settings?.darkMode && styles.savingsInputHintDark]}>
             Available Savings: {formatMoney(bankSavings)}
           </Text>
         </View>
@@ -1000,7 +1028,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
         <Text style={styles.settingsTitle}>Account Settings</Text>
         
         <View style={styles.settingItem}>
-          <Text style={styles.settingLabel}>Auto-Save</Text>
+          <Text style={[styles.settingLabel, settings?.darkMode && styles.settingLabelDark]}>Auto-Save</Text>
           <TouchableOpacity style={styles.toggleButton}>
             <Text style={styles.toggleText}>ON</Text>
           </TouchableOpacity>
@@ -1126,7 +1154,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
                 <>
                   <Text style={styles.modalText}>Premium Credit Card - $4.99</Text>
                   <View style={styles.featureList}>
-                    <Text style={styles.featureItem}>• 10% cashback on all purchases</Text>
+                    <Text style={[styles.featureItem, settings?.darkMode && styles.featureItemDark]}>• 10% cashback on all purchases</Text>
                     <Text style={styles.featureItem}>• No annual fee</Text>
                     <Text style={styles.featureItem}>• Travel insurance</Text>
                     <Text style={styles.featureItem}>• 24/7 customer support</Text>
@@ -1190,21 +1218,21 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
               {gameState.companies?.map(company => (
                 <View key={company.id} style={styles.companySection}>
                   <Text style={styles.companyName}>{company.name}</Text>
-                  <Text style={styles.companyMoney}>Cash: {formatMoney(company.money || 0)}</Text>
+                  <Text style={[styles.companyMoney, settings?.darkMode && styles.companyMoneyDark]}>Cash: {formatMoney(company.money || 0)}</Text>
                   
-                  <Text style={styles.sectionTitle}>Company Loans:</Text>
+                  <Text style={[styles.sectionTitle, settings?.darkMode && styles.sectionTitleDark]}>Company Loans:</Text>
                   <View style={styles.loanOptions}>
                     <TouchableOpacity style={styles.loanOption} onPress={() => handleCompanyLoan(company.id, 10000)}>
                       <Text style={styles.loanAmount}>$10,000</Text>
-                      <Text style={styles.loanRate}>4% APR</Text>
+                      <Text style={[styles.loanRate, settings?.darkMode && styles.loanRateDark]}>4% APR</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.loanOption} onPress={() => handleCompanyLoan(company.id, 25000)}>
                       <Text style={styles.loanAmount}>$25,000</Text>
-                      <Text style={styles.loanRate}>4% APR</Text>
+                      <Text style={[styles.loanRate, settings?.darkMode && styles.loanRateDark]}>4% APR</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.loanOption} onPress={() => handleCompanyLoan(company.id, 50000)}>
                       <Text style={styles.loanAmount}>$50,000</Text>
-                      <Text style={styles.loanRate}>4% APR</Text>
+                      <Text style={[styles.loanRate, settings?.darkMode && styles.loanRateDark]}>4% APR</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -1260,7 +1288,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
                         newLoanType === type.id && styles.loanTypeCardSelected,
                         isDisabled && styles.loanTypeCardDisabled,
                       ]}
-                      onPress={() => !isDisabled && setNewLoanType(type.id as any)}
+                      onPress={() => !isDisabled && setNewLoanType(type.id as 'personal' | 'business')}
                       disabled={isDisabled}
                     >
                       <View style={[
@@ -1273,11 +1301,12 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
                         styles.loanTypeName,
                         newLoanType === type.id && styles.loanTypeNameSelected,
                         isDisabled && styles.loanTypeNameDisabled,
+                        isDisabled && settings?.darkMode && styles.loanTypeNameDisabledDark,
                       ]}>
                         {type.name}
                       </Text>
                       {(isBusinessLoan || isPersonalLoan) && (
-                        <Text style={styles.loanTypeRequirement}>
+                        <Text style={[styles.loanTypeRequirement, settings?.darkMode && styles.loanTypeRequirementDark]}>
                           {isBusinessLoan 
                             ? (hasCompany ? 'Company Required' : 'No Company')
                             : (hasPositiveCashFlow ? 'Positive Cash Flow' : 'Negative Cash Flow')
@@ -1296,12 +1325,12 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
                 value={newLoanAmount}
                 onChangeText={setNewLoanAmount}
                 placeholder="Enter amount (min $1,000)"
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#6B7280"}
                 keyboardType="numeric"
               />
-              <Text style={styles.maxLoanText}>
+              <Text style={[styles.maxLoanText, settings?.darkMode && styles.maxLoanTextDark]}>
                 Max {newLoanType === 'personal' ? 'Personal' : 'Business'} Loan: {(() => {
-                  const realEstateValue = (gameState.realEstate || []).reduce((sum: number, property: any) => sum + (property.value || 0), 0);
+                  const realEstateValue = (gameState.realEstate || []).reduce((sum: number, property: RealEstate) => sum + (property.price || 0), 0);
                   const companyValue = (gameState.companies || []).reduce((sum, company) => sum + calculateCompanyValue(company), 0);
                   const netWorth = money + bankSavings + realEstateValue + companyValue;
                   const weeklyCashFlow = calculateWeeklyCashFlow();
@@ -1357,7 +1386,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
                           <Text style={styles.loanDetailsValue}>{details.interestRate.toFixed(2)}% APR</Text>
                         </View>
                         <View style={styles.loanDetailsRow}>
-                          <Text style={styles.loanDetailsLabel}>Weekly Payment:</Text>
+                          <Text style={[styles.loanDetailsLabel, settings?.darkMode && styles.loanDetailsLabelDark]}>Weekly Payment:</Text>
                           <Text style={styles.loanDetailsValue}>{formatMoney(details.weeklyPayment)}</Text>
                         </View>
                         <View style={styles.loanDetailsRow}>
@@ -1439,7 +1468,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
                     <Text style={styles.loanDetailsValue}>{formatMoney(selectedLoan.remaining)}</Text>
                   </View>
                   <View style={styles.loanDetailsRow}>
-                    <Text style={styles.loanDetailsLabel}>Weekly Payment:</Text>
+                    <Text style={[styles.loanDetailsLabel, settings?.darkMode && styles.loanDetailsLabelDark]}>Weekly Payment:</Text>
                     <Text style={styles.loanDetailsValue}>{formatMoney(selectedLoan.weeklyPayment)}</Text>
                   </View>
                   <View style={styles.loanDetailsRow}>
@@ -1487,7 +1516,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
                   value={repayAmount}
                   onChangeText={setRepayAmount}
                   placeholder="Enter amount to pay"
-                  placeholderTextColor="#6B7280"
+                  placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#6B7280"}
                   keyboardType="numeric"
                 />
 
@@ -1606,6 +1635,9 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
     fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   activeTabText: {
     color: '#4F46E5',
@@ -1615,6 +1647,9 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#FFFFFF',
     fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   content: {
     flex: 1,
@@ -1665,6 +1700,15 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
     marginTop: responsiveSpacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  statLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   statValue: {
     fontSize: responsiveFontSize.lg,
@@ -1730,6 +1774,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#9CA3AF',
     marginBottom: responsiveSpacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  serviceStatusTextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   serviceActiveText: {
     color: '#FFFFFF',
@@ -1743,11 +1796,17 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
     fontStyle: 'italic',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   serviceInactiveDark: {
     fontSize: responsiveFontSize.sm,
     color: '#FFFFFF',
     fontStyle: 'italic',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   activeIndicator: {
     width: 8,
@@ -1792,11 +1851,17 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
     marginTop: responsiveSpacing.sm,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   serviceStatusDark: {
     fontSize: responsiveFontSize.sm,
     color: '#FFFFFF',
     marginTop: responsiveSpacing.sm,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   analyticsCard: {
     backgroundColor: '#1E293B',
@@ -1823,11 +1888,29 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
     marginTop: responsiveSpacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  scoreLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   analyticsDesc: {
     fontSize: responsiveFontSize.sm,
     color: '#9CA3AF',
     lineHeight: responsiveFontSize.sm * 1.4,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  analyticsDescDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   budgetItem: {
     flexDirection: 'row',
@@ -1840,6 +1923,15 @@ const styles = StyleSheet.create({
   budgetLabel: {
     fontSize: responsiveFontSize.base,
     color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  budgetLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   budgetValue: {
     fontSize: responsiveFontSize.base,
@@ -1869,6 +1961,15 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: responsiveFontSize.base,
     color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  settingLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   toggleButton: {
     width: 60,
@@ -1949,6 +2050,15 @@ const styles = StyleSheet.create({
   loanRate: {
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  loanRateDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   featureList: {
     marginBottom: responsiveSpacing.sm,
@@ -1957,6 +2067,15 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#9CA3AF',
     marginBottom: responsiveSpacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  featureItemDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   confirmButton: {
     backgroundColor: '#10B981',
@@ -1986,6 +2105,15 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.base,
     color: '#9CA3AF',
     marginBottom: responsiveSpacing.sm,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  companyMoneyDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   sectionTitle: {
     fontSize: responsiveFontSize.sm,
@@ -1993,6 +2121,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginTop: responsiveSpacing.sm,
     marginBottom: responsiveSpacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  sectionTitleDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   upgradeOption: {
     flexDirection: 'row',
@@ -2150,6 +2287,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  loanSummaryLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   loanSummaryValue: {
     fontSize: 16,
@@ -2221,11 +2367,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     marginTop: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
-  loanAmount: {
-    fontSize: 18,
-    fontWeight: '700',
+  loanMetaDark: {
     color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   loanProgress: {
     marginBottom: 12,
@@ -2245,6 +2395,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     textAlign: 'right',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  progressTextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   loanPayment: {
     // Additional styles if needed
@@ -2271,6 +2430,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  emptyLoansTextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
 
   // Input Styles
@@ -2296,6 +2464,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginBottom: 16,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  maxLoanTextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
 
   // Loan Type Grid
@@ -2334,12 +2511,30 @@ const styles = StyleSheet.create({
   },
   loanTypeNameDisabled: {
     color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  loanTypeNameDisabledDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   loanTypeRequirement: {
     fontSize: 10,
     color: '#9CA3AF',
     marginTop: 4,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  loanTypeRequirementDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
 
   // Term Grid
@@ -2394,6 +2589,15 @@ const styles = StyleSheet.create({
   loanDetailsLabel: {
     fontSize: 14,
     color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  loanDetailsLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   loanDetailsValue: {
     fontSize: 14,
@@ -2421,6 +2625,15 @@ const styles = StyleSheet.create({
   loanAmountHint: {
     fontSize: 12,
     color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  loanAmountHintDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   termSelection: {
     marginBottom: 20,
@@ -2457,6 +2670,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginBottom: 16,
     lineHeight: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  savingsActionDescDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   savingsInputGroup: {
     marginBottom: 16,
@@ -2474,6 +2696,15 @@ const styles = StyleSheet.create({
   savingsInputHint: {
     fontSize: 12,
     color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  savingsInputHintDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   savingsActionButton: {
     borderRadius: 8,
@@ -2596,8 +2827,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  balanceLabel: {
-    fontSize: 14,
-    color: '#D1D5DB',
+  balanceSubtext: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  balanceSubtextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
 });

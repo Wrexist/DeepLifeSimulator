@@ -1,9 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Animated, Easing } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Animated, Easing, Platform, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { useGame } from '@/contexts/GameContext';
+import { logger } from '@/utils/logger';
 import { ArrowLeft, Save, Trash2, Play } from 'lucide-react-native';
 import { responsiveFontSize, responsivePadding, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -13,8 +17,10 @@ import { createBackupBeforeMajorAction } from '@/utils/saveBackup';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function SaveSlots() {
+  const log = logger.scope('SaveSlots');
   const { state, setState } = useOnboarding();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { loadGame } = useGame();
   const [slots, setSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
@@ -28,58 +34,78 @@ export default function SaveSlots() {
   // Rotating background animation
   useEffect(() => {
     let isMounted = true;
-    const rotateAnimation = Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 30000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
+    let rotateAnimation: Animated.CompositeAnimation | null = null;
     
-    if (isMounted) {
-      rotateAnimation.start();
+    try {
+      rotateAnimation = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 30000,
+          easing: Easing.linear,
+          useNativeDriver: Platform.OS !== 'web',
+        })
+      );
+      
+      if (isMounted && rotateAnimation) {
+        rotateAnimation.start();
+      }
+    } catch (error) {
+      log.error('Error starting rotate animation', error);
     }
 
     return () => {
       isMounted = false;
-      rotateAnimation.stop();
+      if (rotateAnimation) {
+        try {
+          rotateAnimation.stop();
+        } catch (error) {
+          log.error('Error stopping rotate animation', error);
+        }
+      }
     };
   }, [rotateAnim]);
 
   // Fade in and slide up animation
   useEffect(() => {
     let isMounted = true;
-    const parallelAnimation = Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]);
+    let parallelAnimation: Animated.CompositeAnimation | null = null;
     
-    if (isMounted) {
-      parallelAnimation.start();
+    try {
+      parallelAnimation = Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 1000,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ]);
+      
+      if (isMounted && parallelAnimation) {
+        parallelAnimation.start();
+      }
+    } catch (error) {
+      log.error('Error starting fade/slide animation', error);
     }
 
     return () => {
       isMounted = false;
-      parallelAnimation.stop();
+      if (parallelAnimation) {
+        try {
+          parallelAnimation.stop();
+        } catch (error) {
+          log.error('Error stopping fade/slide animation', error);
+        }
+      }
     };
   }, [fadeAnim, slideAnim]);
 
-  useEffect(() => {
-    loadSlots();
-  }, []);
-
-  const loadSlots = async () => {
+  const loadSlots = useCallback(async () => {
     const slotData = [];
     for (let i = 1; i <= 3; i++) {
       try {
@@ -88,8 +114,8 @@ export default function SaveSlots() {
         try {
           data = await AsyncStorage.getItem(`save_slot_${i}`);
         } catch (storageError) {
-          console.error(`AsyncStorage error loading slot ${i}:`, storageError);
-          slotData.push({ slot: i, data: null, error: true });
+          log.error(`AsyncStorage error loading slot ${i}:`, storageError);
+          slotData.push({ id: i, hasData: false, error: true });
           continue;
         }
         
@@ -98,14 +124,13 @@ export default function SaveSlots() {
             const parsed = JSON.parse(data);
             if (parsed && typeof parsed === 'object') {
               slotData.push({
-                id: i,
                 ...parsed,
+                id: i,
                 hasData: true,
               });
             }
           } catch (parseError) {
-            console.error(`Failed to parse save slot ${i}:`, parseError);
-            // Add empty slot if parsing fails
+            log.error(`Failed to parse save slot ${i}:`, parseError);
             slotData.push({
               id: i,
               hasData: false,
@@ -125,6 +150,49 @@ export default function SaveSlots() {
       }
     }
     setSlots(slotData);
+  }, [log]);
+
+  useEffect(() => {
+    loadSlots();
+  }, [loadSlots]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSlots();
+    }, [loadSlots])
+  );
+
+  const checkIfAllSlotsFull = async (): Promise<boolean> => {
+    try {
+      let fullSlots = 0;
+      for (let i = 1; i <= 3; i++) {
+        const data = await AsyncStorage.getItem(`save_slot_${i}`);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            // Check if slot has actual game data (not just empty object)
+            if (parsed && typeof parsed === 'object') {
+              // Consider slot full if it has meaningful game data
+              const hasGameData = parsed.weeksLived > 0 ||
+                                 parsed.stats?.money > 0 ||
+                                 (parsed.achievements && parsed.achievements.some((a: any) => a?.completed)) ||
+                                 (parsed.relationships && parsed.relationships.length > 0) ||
+                                 (parsed.items && parsed.items.some((item: any) => item?.owned));
+              if (hasGameData) {
+                fullSlots++;
+              }
+            }
+          } catch {
+            // If parsing fails, consider slot as potentially full/corrupted
+            fullSlots++;
+          }
+        }
+      }
+      return fullSlots >= 3;
+    } catch (error) {
+      log.error('Error checking save slots:', error);
+      return false; // Allow new game if check fails
+    }
   };
 
   const selectSlot = async (slotId: number) => {
@@ -134,6 +202,19 @@ export default function SaveSlots() {
     // Check if slot is empty (no save data)
     const slot = slots.find(s => s.id === slotId);
     if (!slot || !slot.hasData) {
+      // Check if all slots are full before allowing new game
+      const allSlotsFull = await checkIfAllSlotsFull();
+      if (allSlotsFull) {
+        Alert.alert(
+          'All Save Slots Full',
+          'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
+          [{ text: 'OK' }]
+        );
+        // Reset selection if all slots are full
+        setSelectedSlot(null);
+        setState(prev => ({ ...prev, slot: 0 }));
+        return;
+      }
       // Navigate to Scenarios for new game
       router.push('/(onboarding)/Scenarios');
     } else {
@@ -153,7 +234,7 @@ export default function SaveSlots() {
           // Create backup before deleting
           await createBackupBeforeMajorAction(slotId, gameState, 'delete_save');
         } catch (error) {
-          console.error('Failed to backup save before deletion:', error);
+          log.error('Failed to backup save before deletion:', error);
         }
       }
       
@@ -165,7 +246,7 @@ export default function SaveSlots() {
       }
       setShowDeleteConfirm(null);
     } catch (error) {
-      console.error('Error deleting slot:', error);
+      log.error('Error deleting slot:', error);
     }
   };
 
@@ -175,8 +256,17 @@ export default function SaveSlots() {
     }
   };
 
-  const startNewGame = () => {
-    router.push('/(onboarding)/MainMenu');
+  const startNewGame = async () => {
+    const allSlotsFull = await checkIfAllSlotsFull();
+    if (allSlotsFull) {
+      Alert.alert(
+        'All Save Slots Full',
+        'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    router.push('/(onboarding)/Scenarios');
   };
 
   const rotateInterpolate = rotateAnim.interpolate({
@@ -210,7 +300,8 @@ export default function SaveSlots() {
           styles.content, 
           { 
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
+            transform: [{ translateY: slideAnim }],
+            paddingTop: 50 + insets.top,
           }
         ]}
       >
@@ -228,8 +319,12 @@ export default function SaveSlots() {
           <View style={styles.placeholder} />
         </View>
 
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-          <View style={styles.scrollContent}>
+        <ScrollView 
+          style={styles.scrollContainer} 
+          contentContainerStyle={{ paddingTop: insets.top }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.scrollContent, { paddingBottom: 160 + insets.bottom }]}>
             {/* Hero section */}
             <View style={styles.heroSection}>
               <View style={styles.glassCard}>
@@ -290,8 +385,8 @@ export default function SaveSlots() {
                             </View>
                             <View style={styles.glassStatItem}>
                               <View style={styles.glassOverlay} />
-                              <Text style={styles.statLabel}>Week</Text>
-                              <Text style={styles.statValue}>{slot.date?.week || 0}</Text>
+                              <Text style={styles.statLabel}>Month</Text>
+                              <Text style={styles.statValue}>{slot.date?.month || 'Unknown'}</Text>
                             </View>
                           </View>
                         )}
@@ -317,36 +412,44 @@ export default function SaveSlots() {
             </View>
 
             {/* Bottom spacing for floating button */}
-            <View style={styles.bottomSpacing} />
+            <View style={[styles.bottomSpacing, { height: 140 + insets.bottom }]} />
           </View>
         </ScrollView>
 
         {/* Floating Action Button */}
         {selectedSlot && (
-          <View style={styles.floatingButtonContainer}>
+          <View style={[styles.floatingButtonContainer, { bottom: 20 + insets.bottom }]}>
             {slots.find(s => s.id === selectedSlot)?.hasData ? (
               <TouchableOpacity style={styles.floatingButton} onPress={continueToGame} activeOpacity={0.8}>
-                <View style={styles.glassButton}>
-                  <View style={styles.glassOverlay} />
+                <LinearGradient
+                  colors={['#10B981', '#059669', '#047857']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.floatingGlassButton}
+                >
                   <View style={styles.buttonContent}>
                     <Text style={styles.glassButtonTitle}>Continue Game</Text>
                     <View style={styles.glassIconContainer}>
-                      <Play size={20} color="#FFFFFF" />
+                      <Play size={24} color="#FFFFFF" />
                     </View>
                   </View>
-                </View>
+                </LinearGradient>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.floatingButton} onPress={startNewGame} activeOpacity={0.8}>
-                <View style={styles.glassButton}>
-                  <View style={styles.glassOverlay} />
+                <LinearGradient
+                  colors={['#10B981', '#059669', '#047857']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.floatingGlassButton}
+                >
                   <View style={styles.buttonContent}>
                     <Text style={styles.glassButtonTitle}>Start New Game</Text>
                     <View style={styles.glassIconContainer}>
-                      <Play size={20} color="#FFFFFF" />
+                      <Play size={24} color="#FFFFFF" />
                     </View>
                   </View>
-                </View>
+                </LinearGradient>
               </TouchableOpacity>
             )}
           </View>
@@ -401,7 +504,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
     overflow: 'hidden',
-    marginTop: -50, // Extend background to cover status bar
   },
   backgroundGradient1: {
     position: 'absolute',
@@ -423,7 +525,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 110, // Account for status bar
   },
   header: {
     flexDirection: 'row',
@@ -437,13 +538,24 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
   },
   backButton: {
     borderRadius: 12,
     overflow: 'hidden',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -451,16 +563,14 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   glassButton: {
-    width: 48,
-    height: 48,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     position: 'relative',
     overflow: 'hidden',
+    minHeight: 60,
     justifyContent: 'center',
-    alignItems: 'center',
   },
   glassOverlay: {
     position: 'absolute',
@@ -523,9 +633,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   heroSubtitle: {
     fontSize: 16,
@@ -661,44 +781,51 @@ const styles = StyleSheet.create({
   },
   floatingButtonContainer: {
     position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
+    left: responsivePadding.horizontal,
+    right: responsivePadding.horizontal,
     zIndex: 10,
   },
   floatingButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 16,
   },
-  glassButton: {
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  floatingGlassButton: {
+    width: '100%',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     position: 'relative',
     overflow: 'hidden',
-  },
-  glassButtonTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    minHeight: 64,
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    width: '100%',
+  },
+  glassButtonTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   particlesContainer: {
     position: 'absolute',

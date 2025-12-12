@@ -13,22 +13,26 @@ import { useFeedback } from '@/utils/feedbackSystem';
 
 export default function CureSuccessModal() {
   const { gameState, dismissCureSuccessModal } = useGame();
-  const { showCureSuccessModal, curedDiseases, settings } = gameState;
+  const { showCureSuccessModal, curedDiseases, settings, week } = gameState;
   const darkMode = settings.darkMode;
   const { buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
 
+  // Only show modal when in an active game (week > 0 indicates active game)
+  const isInActiveGame = week > 0;
+
   // Auto-dismiss the modal after 2 seconds
   useEffect(() => {
-    if (showCureSuccessModal && curedDiseases.length > 0) {
+    if (isInActiveGame && showCureSuccessModal && curedDiseases.length > 0) {
       const timer = setTimeout(() => {
         dismissCureSuccessModal();
       }, 2000); // 2 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [showCureSuccessModal, curedDiseases.length, dismissCureSuccessModal]);
+  }, [isInActiveGame, showCureSuccessModal, curedDiseases.length, dismissCureSuccessModal]);
 
-  if (!showCureSuccessModal || curedDiseases.length === 0) {
+  // Don't render if not in active game or if conditions aren't met
+  if (!isInActiveGame || !showCureSuccessModal || curedDiseases.length === 0) {
     return null;
   }
 
@@ -169,6 +173,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     borderRadius: 16,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

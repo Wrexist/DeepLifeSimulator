@@ -1,746 +1,758 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal, Image, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, Users, MessageCircle, Heart, UserPlus, Settings, Send, MoreHorizontal, Camera, UserCheck } from 'lucide-react-native';
+/**
+ * Social App - X.com Style Redesign
+ * 
+ * Complete social media experience with profile customization,
+ * X.com-style feed, photo uploads, and engagement features
+ */
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  RefreshControl,
+  FlatList,
+} from 'react-native';
+import {
+  ArrowLeft,
+  Home,
+  Search,
+  Bell,
+  Mail,
+  Feather,
+  User,
+  TrendingUp,
+  Hash,
+  BadgeCheck,
+  Heart,
+  DollarSign,
+} from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { scale, fontScale } from '@/utils/scaling';
+import ProfileHeader from './social/ProfileHeader';
+import PostCard from './social/PostCard';
+import PostComposer from './social/PostComposer';
+import ProfileEditModal, { ProfileData } from './social/ProfileEditModal';
+import { 
+  calculateFollowerGrowth, 
+  checkViralChance, 
+  getInfluenceLevelInfo,
+  getEnergyCost,
+  getHealthCost,
+  getHappinessGain,
+  getCooldownTime,
+  canCreateContent,
+  calculatePostAdRevenue,
+  calculatePostEngagement,
+  calculateNewFollowersFromPost,
+  calculateWeeklyImpressionEarnings,
+  calculateTipsRevenue,
+  type ContentType,
+  type InfluenceLevel,
+} from '@/lib/social/socialMedia';
+import type { SocialPost } from '@/contexts/game/types';
+import { PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
 
 interface SocialAppProps {
   onBack: () => void;
 }
 
-interface Post {
-  id: string;
-  author: string;
-  content: string;
-  likes: number;
-  comments: number;
-  timestamp: string;
-  isLiked: boolean;
-  photo?: string;
-  authorPhoto?: string;
-  isPlayerPost?: boolean;
-}
+type TabType = 'feed' | 'profile' | 'trending' | 'notifications';
 
-interface Person {
-  id: string;
-  name: string;
-  age: number;
-  bio: string;
-  photo: string;
-  interests: string[];
-  isAdded: boolean;
-}
-
-const randomPeople: Person[] = [
-  {
-    id: '1',
-    name: 'Jessica Kim',
-    age: 24,
-    bio: 'Coffee enthusiast and book lover 📚',
-    photo: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200&h=200&fit=crop&crop=face',
-    interests: ['Reading', 'Coffee', 'Travel'],
-    isAdded: false,
-  },
-  {
-    id: '2',
-    name: 'David Thompson',
-    age: 28,
-    bio: 'Software developer by day, musician by night 🎸',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
-    interests: ['Music', 'Coding', 'Gaming'],
-    isAdded: false,
-  },
-  {
-    id: '3',
-    name: 'Maria Garcia',
-    age: 26,
-    bio: 'Fitness trainer and yoga instructor 🧘‍♀️',
-    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&crop=face',
-    interests: ['Fitness', 'Yoga', 'Healthy Living'],
-    isAdded: false,
-  },
-  {
-    id: '4',
-    name: 'James Wilson',
-    age: 30,
-    bio: 'Photographer capturing life\'s beautiful moments 📸',
-    photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
-    interests: ['Photography', 'Travel', 'Art'],
-    isAdded: false,
-  },
-  {
-    id: '5',
-    name: 'Sophie Anderson',
-    age: 22,
-    bio: 'Student studying environmental science 🌱',
-    photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
-    interests: ['Environment', 'Science', 'Hiking'],
-    isAdded: false,
-  },
-  {
-    id: '6',
-    name: 'Ryan Park',
-    age: 27,
-    bio: 'Chef creating culinary masterpieces 👨‍🍳',
-    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face',
-    interests: ['Cooking', 'Food', 'Travel'],
-    isAdded: false,
-  },
-  {
-    id: '7',
-    name: 'Lisa Chen',
-    age: 25,
-    bio: 'Graphic designer with a passion for creativity 🎨',
-    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=face',
-    interests: ['Design', 'Art', 'Technology'],
-    isAdded: false,
-  },
-  {
-    id: '8',
-    name: 'Tom Martinez',
-    age: 29,
-    bio: 'Entrepreneur building the next big thing 💼',
-    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=face',
-    interests: ['Business', 'Technology', 'Innovation'],
-    isAdded: false,
-  },
+// Generate fake trending topics
+const TRENDING_TOPICS = [
+  { tag: '#TechNews', posts: '125K', category: 'Technology' },
+  { tag: '#MondayMotivation', posts: '89K', category: 'Lifestyle' },
+  { tag: '#GameDay', posts: '234K', category: 'Sports' },
+  { tag: '#NewMusic', posts: '67K', category: 'Entertainment' },
+  { tag: '#CryptoUpdate', posts: '156K', category: 'Finance' },
+  { tag: '#FoodieLife', posts: '45K', category: 'Food' },
+  { tag: '#TravelTuesday', posts: '78K', category: 'Travel' },
+  { tag: '#FitnessGoals', posts: '93K', category: 'Health' },
 ];
 
-const randomPosts: Post[] = [
-  {
-    id: 'random1',
-    author: 'Sarah Johnson',
-    content: 'Just finished my morning workout! 💪 Feeling energized and ready for the day. #fitness #motivation',
-    likes: 24,
-    comments: 8,
-    timestamp: '2h ago',
-    isLiked: false,
-    photo: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-    authorPhoto: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random2',
-    author: 'Mike Chen',
-    content: 'Amazing sunset at the beach today. Sometimes you just need to pause and appreciate the beauty around you. 🌅',
-    likes: 156,
-    comments: 23,
-    timestamp: '4h ago',
-    isLiked: true,
-    photo: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
-    authorPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random3',
-    author: 'Emma Davis',
-    content: 'New coffee shop opened downtown! The latte art is incredible. ☕️ Anyone want to join me for a coffee date?',
-    likes: 89,
-    comments: 15,
-    timestamp: '6h ago',
-    isLiked: false,
-    photo: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop',
-    authorPhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random4',
-    author: 'Alex Rodriguez',
-    content: 'Working on some exciting new projects. Can\'t wait to share what we\'ve been building! 🚀 #startup #innovation',
-    likes: 203,
-    comments: 31,
-    timestamp: '8h ago',
-    isLiked: false,
-    authorPhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random5',
-    author: 'Jessica Kim',
-    content: 'Just finished reading an amazing book! 📚 The character development was incredible. Any book recommendations?',
-    likes: 67,
-    comments: 12,
-    timestamp: '1d ago',
-    isLiked: false,
-    authorPhoto: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random6',
-    author: 'David Thompson',
-    content: 'Late night coding session with some great music playing. Sometimes the best ideas come at 2 AM! 🎵💻',
-    likes: 134,
-    comments: 18,
-    timestamp: '1d ago',
-    isLiked: false,
-    authorPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random7',
-    author: 'Maria Garcia',
-    content: 'Morning yoga session complete! 🧘‍♀️ Starting the day with positive energy and mindfulness. Namaste!',
-    likes: 98,
-    comments: 14,
-    timestamp: '2d ago',
-    isLiked: false,
-    photo: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=300&fit=crop',
-    authorPhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random8',
-    author: 'James Wilson',
-    content: 'Captured this incredible moment during golden hour. Photography is all about being at the right place at the right time! 📸',
-    likes: 287,
-    comments: 42,
-    timestamp: '2d ago',
-    isLiked: false,
-    photo: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
-    authorPhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random9',
-    author: 'Sophie Anderson',
-    content: 'Field research day! 🌱 Studying the local ecosystem and documenting biodiversity. Nature never ceases to amaze me.',
-    likes: 76,
-    comments: 9,
-    timestamp: '3d ago',
-    isLiked: false,
-    photo: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop',
-    authorPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random10',
-    author: 'Ryan Park',
-    content: 'New recipe experiment in the kitchen! 👨‍🍳 This fusion dish turned out better than expected. Food is art!',
-    likes: 145,
-    comments: 23,
-    timestamp: '3d ago',
-    isLiked: false,
-    photo: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop',
-    authorPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random11',
-    author: 'Lisa Chen',
-    content: 'Working on a new design project! 🎨 Creativity flows best when you\'re inspired by the world around you.',
-    likes: 112,
-    comments: 16,
-    timestamp: '4d ago',
-    isLiked: false,
-    authorPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face',
-  },
-  {
-    id: 'random12',
-    author: 'Tom Martinez',
-    content: 'Pitch meeting went amazing! 💼 Sometimes you have to believe in your vision even when others don\'t see it yet.',
-    likes: 189,
-    comments: 28,
-    timestamp: '4d ago',
-    isLiked: false,
-    authorPhoto: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop&crop=face',
-  },
-];
+// Generate fake feed posts with realistic engagement based on follower counts
+const generateFakePosts = (): SocialPost[] => {
+  // Authors with varying follower counts for realistic engagement simulation
+  const fakeAuthors = [
+    { name: 'Tech Daily', handle: 'techdaily', verified: true, followers: 2_500_000, photo: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=100&h=100&fit=crop' },
+    { name: 'Sarah Johnson', handle: 'sarahjohnson', verified: false, followers: 8_500, photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face' },
+    { name: 'Gaming World', handle: 'gamingworld', verified: true, followers: 850_000, photo: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=100&h=100&fit=crop' },
+    { name: 'Mike Chen', handle: 'mikechen', verified: false, followers: 3_200, photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face' },
+    { name: 'Fitness Pro', handle: 'fitnesspro', verified: true, followers: 125_000, photo: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=100&h=100&fit=crop' },
+    { name: 'News Now', handle: 'newsnow', verified: true, followers: 5_000_000, photo: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=100&h=100&fit=crop' },
+    { name: 'Coffee Lover', handle: 'coffeelover', verified: false, followers: 450, photo: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=100&h=100&fit=crop' },
+    { name: 'Travel Bug', handle: 'travelbug', verified: false, followers: 45_000, photo: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=100&h=100&fit=crop' },
+  ];
+  
+  const contents = [
+    'Just launched our new product! Check it out at the link in bio 🚀',
+    'Amazing sunset today. Nature never disappoints 🌅',
+    'New game releases this week! Which one are you most excited for? 🎮',
+    'Working on something exciting. Stay tuned! 👀',
+    'Morning workout done! Consistency is key 💪',
+    'Breaking: Major tech company announces new AI features',
+    'Best coffee shop in the city. Fight me ☕',
+    'Finally finished that book I\'ve been reading. Highly recommend! 📚',
+    'Travel tip: Always pack a portable charger. Trust me.',
+    'Just hit a new personal record at the gym! 🏋️',
+  ];
+  
+  // Helper to calculate realistic engagement for fake posts
+  const getRealisticEngagement = (followers: number, hasPhoto: boolean) => {
+    // Engagement rate decreases as followers increase (realistic pattern)
+    let engagementRate: number;
+    if (followers < 1_000) {
+      engagementRate = 0.08 + Math.random() * 0.07; // 8-15%
+    } else if (followers < 10_000) {
+      engagementRate = 0.04 + Math.random() * 0.04; // 4-8%
+    } else if (followers < 100_000) {
+      engagementRate = 0.02 + Math.random() * 0.02; // 2-4%
+    } else if (followers < 1_000_000) {
+      engagementRate = 0.01 + Math.random() * 0.01; // 1-2%
+    } else {
+      engagementRate = 0.005 + Math.random() * 0.01; // 0.5-1.5%
+    }
+    
+    // Photos get slightly more engagement
+    if (hasPhoto) engagementRate *= 1.3;
+    
+    // Random variation
+    engagementRate *= (0.7 + Math.random() * 0.6);
+    
+    const likes = Math.max(1, Math.floor(followers * engagementRate));
+    const comments = Math.max(0, Math.floor(likes * (0.01 + Math.random() * 0.04)));
+    const reposts = Math.max(0, Math.floor(likes * (0.05 + Math.random() * 0.10)));
+    const views = Math.floor(likes * (10 + Math.random() * 20));
+    const bookmarks = Math.max(0, Math.floor(likes * (0.01 + Math.random() * 0.02)));
+    
+    return { likes, comments, reposts, views, bookmarks };
+  };
+  
+  return contents.map((content, index) => {
+    const author = fakeAuthors[index % fakeAuthors.length];
+    const hasPhoto = Math.random() > 0.5;
+    const engagement = getRealisticEngagement(author.followers, hasPhoto);
+    
+    return {
+      id: `fake-${index}`,
+      authorId: `author-${index}`,
+      authorName: author.name,
+      authorHandle: author.handle,
+      authorPhoto: author.photo,
+      authorVerified: author.verified,
+      content,
+      photo: hasPhoto ? `https://images.unsplash.com/photo-${1550000000000 + index * 10000}?w=400&h=300&fit=crop` : undefined,
+      timestamp: Date.now() - (index * 3600000),
+      gameWeek: 1,
+      likes: engagement.likes,
+      reposts: engagement.reposts,
+      replies: engagement.comments,
+      bookmarks: engagement.bookmarks,
+      views: engagement.views,
+      isLiked: Math.random() > 0.7,
+      isReposted: Math.random() > 0.9,
+      isBookmarked: false,
+      isPlayerPost: false,
+      isViral: false,
+    };
+  });
+};
 
 export default function SocialApp({ onBack }: SocialAppProps) {
-  const { gameState, setGameState, saveGame } = useGame();
-  const { settings } = gameState;
-  const [activeTab, setActiveTab] = useState<'feed' | 'friends'>('feed');
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [people, setPeople] = useState<Person[]>(randomPeople);
-  const [showNewPostModal, setShowNewPostModal] = useState(false);
-  const [newPostContent, setNewPostContent] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
-  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<string>('');
-  const [showAddFriendModal, setShowAddFriendModal] = useState(false);
-  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const likeAnimations = useRef<{ [key: string]: Animated.Value }>({});
-  const postAnimations = useRef<{ [key: string]: Animated.Value }>({});
-
-  // Initialize posts with random selection
-  useEffect(() => {
-    let isMounted = true;
-    const shuffledPosts = [...randomPosts].sort(() => Math.random() - 0.5);
-    const selectedPosts = shuffledPosts.slice(0, Math.min(15, shuffledPosts.length));
-    
-    if (isMounted) {
-      setPosts(selectedPosts);
-      
-      // Initialize animations for posts
-      selectedPosts.forEach(post => {
-        if (!postAnimations.current[post.id]) {
-          postAnimations.current[post.id] = new Animated.Value(0);
-        }
-        const animation = Animated.timing(postAnimations.current[post.id], {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        });
-        
-        if (isMounted) {
-          animation.start();
-        }
-      });
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const handleLike = useCallback((postId: string) => {
-    // Initialize animation if not exists
-    if (!likeAnimations.current[postId]) {
-      likeAnimations.current[postId] = new Animated.Value(1);
-    }
-
-    // Animate like button
-    Animated.sequence([
-      Animated.timing(likeAnimations.current[postId], {
-        toValue: 1.3,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(likeAnimations.current[postId], {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-          isLiked: !post.isLiked,
-        };
-      }
-      return post;
+  const { gameState, setGameState, updateMoney, saveGame } = useGame();
+  const [activeTab, setActiveTab] = useState<TabType>('feed');
+  const [showComposer, setShowComposer] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fakePosts] = useState(generateFakePosts);
+  
+  const userProfile = gameState.userProfile || {
+    name: 'Player',
+    handle: '@player',
+    bio: 'Living my best life!',
+    followers: 0,
+    following: 0,
+    gender: 'male' as const,
+    seekingGender: 'female' as const,
+  };
+  
+  const socialMedia = gameState.socialMedia || {
+    followers: 0,
+    influenceLevel: 'novice' as const,
+    totalPosts: 0,
+    viralPosts: 0,
+    brandPartnerships: 0,
+    engagementRate: 0,
+    recentPosts: [],
+  };
+  
+  const influenceInfo = useMemo(
+    () => getInfluenceLevelInfo(socialMedia.influenceLevel || 'novice'),
+    [socialMedia.influenceLevel]
+  );
+  
+  // Get player posts from state
+  const playerPosts: SocialPost[] = useMemo(() => {
+    const recentPosts = socialMedia.recentPosts || [];
+    return recentPosts.map((post, index) => ({
+      id: post.id || `player-${index}`,
+      authorId: 'player',
+      authorName: userProfile.displayName || userProfile.name || 'Player',
+      authorHandle: userProfile.username || userProfile.handle?.replace('@', '') || 'player',
+      authorPhoto: userProfile.profilePhoto,
+      authorVerified: userProfile.verified || false,
+      content: post.content,
+      photo: post.photo,
+      timestamp: post.timestamp,
+      gameWeek: gameState.week || 1,
+      likes: post.likes,
+      reposts: Math.floor(post.likes * 0.1),
+      replies: post.comments,
+      bookmarks: Math.floor(post.likes * 0.05),
+      views: post.likes * 10,
+        isLiked: false,
+      isReposted: false,
+      isBookmarked: false,
+        isPlayerPost: true,
+      isViral: post.isViral,
     }));
+  }, [socialMedia.recentPosts, userProfile, gameState.week]);
+  
+  // Combined feed with player posts interspersed
+  const feedPosts = useMemo(() => {
+    const combined = [...fakePosts];
+    playerPosts.forEach((post, index) => {
+      // Insert player posts at various positions
+      const insertIndex = Math.min(index * 3, combined.length);
+      combined.splice(insertIndex, 0, post);
+    });
+    return combined.slice(0, 20); // Limit feed size
+  }, [fakePosts, playerPosts]);
+  
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // Simulate refresh delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setRefreshing(false);
   }, []);
 
-  const handleCreatePost = useCallback(() => {
-    if (!newPostContent.trim()) {
-      Alert.alert('Empty Post', 'Please write something before posting.');
+  const handlePost = useCallback(async (content: string, photo?: string) => {
+    const contentType: ContentType = photo ? 'photo' : 'text';
+    
+    // Check if player can create content
+    const canPost = canCreateContent(
+      gameState.stats.energy,
+      contentType,
+      socialMedia.lastPostWeek,
+      gameState.week
+    );
+    
+    if (!canPost.canCreate) {
+      Alert.alert('Cannot Post', canPost.reason || 'You cannot create content right now.');
       return;
     }
-
-    // Generate random likes between 5 and 45 for player posts
-    const randomLikes = Math.floor(Math.random() * 41) + 5; // 5 to 45
-
-    const newPost: Post = {
-      id: Date.now().toString(),
-      author: 'You',
-      content: newPostContent,
-      likes: randomLikes,
-      comments: Math.floor(Math.random() * 10), // 0 to 9 comments
-      timestamp: 'Just now',
-      isLiked: false,
-      photo: selectedPhoto || undefined,
-      authorPhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face', // Default player photo
-      isPlayerPost: true,
+    
+    // Calculate costs and gains
+      const energyCost = getEnergyCost(contentType);
+      const healthCost = getHealthCost(contentType);
+    
+    if (gameState.stats.energy < energyCost) {
+      Alert.alert('Not Enough Energy', `You need ${energyCost} energy to post. Rest or drink coffee!`);
+      return;
+    }
+    
+    // Check for viral chance first
+    const isViral = checkViralChance(socialMedia.influenceLevel, contentType);
+    
+    // Calculate realistic engagement based on followers (scales naturally)
+    const engagement = calculatePostEngagement(
+      socialMedia.followers,
+        contentType,
+      isViral
+    );
+    
+    // Calculate new followers from this post's engagement
+    const followerGrowth = calculateNewFollowersFromPost(
+      socialMedia.followers,
+      engagement,
+      isViral
+    );
+    
+    // Calculate earnings based on engagement
+    const earnings = calculatePostAdRevenue(
+      socialMedia.followers,
+      socialMedia.influenceLevel,
+      contentType
+    );
+    
+    // Calculate happiness gain (posting feels good!)
+    const happinessGain = getHappinessGain(contentType, isViral);
+    
+    // Use the realistic engagement values
+    const postLikes = engagement.likes;
+    const postComments = engagement.comments;
+    const postReposts = engagement.reposts;
+    const postViews = engagement.views;
+    
+    // Create new post
+    const newPost = {
+      id: `post-${Date.now()}`,
+            content,
+      likes: postLikes,
+      comments: postComments,
+      reposts: postReposts,
+      views: postViews,
+      timestamp: Date.now(),
+            contentType,
+      photo,
+            isViral,
     };
-
-    setPosts(prev => [newPost, ...prev]);
-    setNewPostContent('');
-    setSelectedPhoto('');
-    setShowNewPostModal(false);
-    Alert.alert('Posted!', `Your post has been shared! You got ${randomLikes} likes!`);
-  }, [newPostContent, selectedPhoto]);
-
-  const handleAddPerson = useCallback((person: Person) => {
-    // Add person to contacts with 0 relationship score
-    const newFriend = {
-      id: `friend_${person.id}`,
-      name: person.name,
-      type: 'friend' as const,
-      relationshipScore: 0,
-      personality: 'friendly',
-      gender: 'male' as const,
-      age: person.age,
-      income: Math.floor(Math.random() * 50000) + 20000,
-      actions: {},
-    };
-
+    
+    // Update game state - posting costs energy & health but gives happiness!
+    setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+        energy: Math.max(0, prev.stats.energy - energyCost),
+        health: Math.max(0, prev.stats.health - healthCost),
+        happiness: Math.min(100, prev.stats.happiness + happinessGain),
+        },
+        socialMedia: {
+        ...prev.socialMedia!,
+        followers: (prev.socialMedia?.followers || 0) + followerGrowth + (isViral ? 1000 : 0),
+        totalPosts: (prev.socialMedia?.totalPosts || 0) + 1,
+        viralPosts: (prev.socialMedia?.viralPosts || 0) + (isViral ? 1 : 0),
+        lastPostWeek: prev.week,
+        lastPostTime: Date.now(),
+        totalEarnings: (prev.socialMedia?.totalEarnings || 0) + earnings,
+        recentPosts: [
+          newPost,
+          ...(prev.socialMedia?.recentPosts || []).slice(0, 19),
+        ],
+      },
+      // Update lifetime statistics
+      lifetimeStatistics: prev.lifetimeStatistics ? {
+        ...prev.lifetimeStatistics,
+        totalPostsMade: prev.lifetimeStatistics.totalPostsMade + 1,
+        totalViralPosts: prev.lifetimeStatistics.totalViralPosts + (isViral ? 1 : 0),
+      } : prev.lifetimeStatistics,
+    }));
+    
+    // Add earnings
+    if (earnings > 0) {
+      updateMoney(earnings, 'Social media ad revenue', false);
+    }
+    
+    saveGame();
+  }, [gameState, socialMedia, setGameState, updateMoney, saveGame]);
+  
+  const handleLikePost = useCallback((postId: string) => {
+    // Just a visual toggle for non-player posts (no state change needed)
+  }, []);
+  
+  const handleBookmarkPost = useCallback((postId: string) => {
+      setGameState(prev => {
+      const bookmarks = prev.userProfile?.bookmarkedPosts || [];
+      const isBookmarked = bookmarks.includes(postId);
+        return {
+          ...prev,
+        userProfile: {
+          ...prev.userProfile!,
+          bookmarkedPosts: isBookmarked 
+            ? bookmarks.filter(id => id !== postId)
+            : [...bookmarks, postId],
+          },
+        };
+      });
+    saveGame();
+  }, [setGameState, saveGame]);
+  
+  const handleSaveProfile = useCallback(async (data: ProfileData) => {
     setGameState(prev => ({
       ...prev,
-      relationships: [...(prev.relationships || []), newFriend],
+      userProfile: {
+        ...prev.userProfile!,
+        displayName: data.displayName,
+        bio: data.bio,
+        location: data.location,
+        website: data.website,
+        profilePhoto: data.profilePhoto,
+        headerPhoto: data.headerPhoto,
+      },
     }));
     saveGame();
-
-    // Mark person as added
-    setPeople(prev => prev.map(p => 
-      p.id === person.id ? { ...p, isAdded: true } : p
-    ));
-
-    Alert.alert('Friend Added!', `${person.name} has been added to your contacts. You can now interact with them in the Contacts app!`);
   }, [setGameState, saveGame]);
 
-  const handleAddFromFeed = useCallback((authorName: string) => {
-    // Find the person by name
-    const person = people.find(p => p.name === authorName);
-    if (person && !person.isAdded) {
-      setSelectedPerson(person);
-      setShowAddFriendModal(true);
-    } else if (person && person.isAdded) {
-      Alert.alert('Already Added', `${authorName} is already in your contacts!`);
-    } else {
-      Alert.alert('Not Found', `${authorName} is not available to add.`);
+  const renderFeedTab = useCallback(() => (
+    <FlatList
+      data={feedPosts}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <PostCard
+          id={item.id}
+          authorName={item.authorName}
+          authorHandle={item.authorHandle}
+          authorPhoto={item.authorPhoto}
+          authorVerified={item.authorVerified}
+          content={item.content}
+          photo={item.photo}
+          timestamp={new Date(item.timestamp).toISOString()}
+          likes={item.likes}
+          reposts={item.reposts}
+          replies={item.replies}
+          views={item.views}
+          bookmarks={item.bookmarks}
+          isLiked={item.isLiked}
+          isReposted={item.isReposted}
+          isBookmarked={(userProfile.bookmarkedPosts || []).includes(item.id)}
+          isPlayerPost={item.isPlayerPost}
+          isViral={item.isViral}
+          onLike={() => handleLikePost(item.id)}
+          onBookmark={() => handleBookmarkPost(item.id)}
+        />
+      )}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="#1D9BF0"
+        />
+      }
+      ListHeaderComponent={
+        <View style={styles.feedHeader}>
+          <Text style={styles.feedHeaderTitle}>For You</Text>
+        </View>
+      }
+      showsVerticalScrollIndicator={false}
+    />
+  ), [feedPosts, userProfile.bookmarkedPosts, refreshing, handleRefresh, handleLikePost, handleBookmarkPost]);
+  
+  const renderProfileTab = useCallback(() => (
+    <ScrollView 
+      style={styles.profileScroll}
+      showsVerticalScrollIndicator={false}
+    >
+      <ProfileHeader
+        displayName={userProfile.displayName || userProfile.name || 'Player'}
+        username={userProfile.username || userProfile.handle?.replace('@', '') || 'player'}
+        bio={userProfile.bio || ''}
+        profilePhoto={userProfile.profilePhoto}
+        headerPhoto={userProfile.headerPhoto}
+        followers={socialMedia.followers}
+        following={userProfile.following || 0}
+        posts={socialMedia.totalPosts || 0}
+        verified={userProfile.verified || false}
+        location={userProfile.location}
+        website={userProfile.website}
+        joinedDate={userProfile.joinedDate}
+        isOwnProfile={true}
+        onEditProfile={() => setShowEditProfile(true)}
+      />
+      
+      {/* Influence Level Card */}
+      <View style={styles.influenceCard}>
+        <View style={styles.influenceHeader}>
+          <TrendingUp size={scale(20)} color="#1D9BF0" />
+          <Text style={styles.influenceTitle}>Influence Level</Text>
+            </View>
+        <View style={styles.influenceInfo}>
+          <Text style={styles.influenceLevel}>{influenceInfo.name}</Text>
+          <Text style={styles.influenceDescription}>{influenceInfo.description}</Text>
+          </View>
+        <View style={styles.influenceStats}>
+          <View style={styles.influenceStat}>
+            <Text style={styles.influenceStatValue}>{socialMedia.viralPosts || 0}</Text>
+            <Text style={styles.influenceStatLabel}>Viral Posts</Text>
+        </View>
+          <View style={styles.influenceStat}>
+            <Text style={styles.influenceStatValue}>
+              ${(socialMedia.totalEarnings || 0).toFixed(0)}
+          </Text>
+            <Text style={styles.influenceStatLabel}>Total Earnings</Text>
+      </View>
+          <View style={styles.influenceStat}>
+            <Text style={styles.influenceStatValue}>{socialMedia.brandPartnerships || 0}</Text>
+            <Text style={styles.influenceStatLabel}>Brand Deals</Text>
+                    </View>
+                   </View>
+                </View>
+
+      {/* Monetization Card - X.com Creator Program Style */}
+      <View style={styles.monetizationCard}>
+        <View style={styles.monetizationHeader}>
+          <Text style={styles.monetizationTitle}>💰 Creator Monetization</Text>
+          {socialMedia.followers >= 500 ? (
+            <View style={styles.monetizationBadge}>
+              <Text style={styles.monetizationBadgeText}>ACTIVE</Text>
+                </View>
+          ) : (
+            <View style={[styles.monetizationBadge, styles.monetizationBadgeInactive]}>
+              <Text style={styles.monetizationBadgeText}>LOCKED</Text>
+          </View>
+        )}
+        </View>
+        
+        {socialMedia.followers >= 500 ? (
+          <>
+            <Text style={styles.monetizationSubtitle}>
+              Earn money from your posts based on impressions
+            </Text>
+            <View style={styles.monetizationStats}>
+              <View style={styles.monetizationStatRow}>
+                <Text style={styles.monetizationStatLabel}>Weekly Est. Earnings:</Text>
+                <Text style={styles.monetizationStatValue}>{influenceInfo.weeklyEarnings}</Text>
+              </View>
+              <View style={styles.monetizationStatRow}>
+                <Text style={styles.monetizationStatLabel}>CPM Rate:</Text>
+                <Text style={styles.monetizationStatValue}>
+                  ${socialMedia.influenceLevel === 'celebrity' ? '5.00' : 
+                    socialMedia.influenceLevel === 'influencer' ? '3.00' : 
+                    socialMedia.influenceLevel === 'popular' ? '1.50' : 
+                    socialMedia.influenceLevel === 'rising' ? '0.50' : '0.10'}/1K
+                </Text>
+              </View>
+              <View style={styles.monetizationStatRow}>
+                <Text style={styles.monetizationStatLabel}>Total Earned:</Text>
+                <Text style={[styles.monetizationStatValue, styles.monetizationEarnings]}>
+                  ${(socialMedia.totalEarnings || 0).toFixed(2)}
+                </Text>
+              </View>
+                    </View>
+            <Text style={styles.monetizationTip}>
+              💡 Post regularly and go viral to maximize earnings!
+                      </Text>
+          </>
+        ) : (
+          <View style={styles.monetizationLocked}>
+            <Text style={styles.monetizationLockedText}>
+              🔒 Reach 500 followers to unlock monetization
+                      </Text>
+            <View style={styles.monetizationProgress}>
+              <View style={[
+                styles.monetizationProgressBar, 
+                { width: `${Math.min(100, (socialMedia.followers / 500) * 100)}%` }
+              ]} />
+                    </View>
+            <Text style={styles.monetizationProgressText}>
+              {socialMedia.followers}/500 followers
+                      </Text>
+                  </View>
+            )}
+          </View>
+      
+      {/* Player's Posts */}
+      <View style={styles.postsSection}>
+        <Text style={styles.postsSectionTitle}>Your Posts</Text>
+        {playerPosts.length === 0 ? (
+          <View style={styles.noPostsContainer}>
+            <Feather size={scale(40)} color="#71767B" />
+            <Text style={styles.noPostsText}>No posts yet</Text>
+            <Text style={styles.noPostsSubtext}>Share your first post with the world!</Text>
+            <TouchableOpacity 
+              style={styles.createPostButton}
+              onPress={() => setShowComposer(true)}
+            >
+              <Text style={styles.createPostButtonText}>Create Post</Text>
+            </TouchableOpacity>
+              </View>
+        ) : (
+          playerPosts.map(post => (
+            <PostCard
+              key={post.id}
+              id={post.id}
+              authorName={post.authorName}
+              authorHandle={post.authorHandle}
+              authorPhoto={post.authorPhoto}
+              authorVerified={post.authorVerified}
+              content={post.content}
+              photo={post.photo}
+              timestamp={new Date(post.timestamp).toISOString()}
+              likes={post.likes}
+              reposts={post.reposts}
+              replies={post.replies}
+              views={post.views}
+              bookmarks={post.bookmarks}
+              isLiked={post.isLiked}
+              isReposted={post.isReposted}
+              isBookmarked={false}
+              isPlayerPost={true}
+              isViral={post.isViral}
+            />
+          ))
+        )}
+              </View>
+    </ScrollView>
+  ), [userProfile, socialMedia, influenceInfo, playerPosts]);
+  
+  const renderTrendingTab = useCallback(() => (
+    <ScrollView style={styles.trendingScroll} showsVerticalScrollIndicator={false}>
+      <Text style={styles.trendingTitle}>Trending</Text>
+      <Text style={styles.trendingSubtitle}>What's happening now</Text>
+      
+      {TRENDING_TOPICS.map((topic, index) => (
+        <TouchableOpacity key={index} style={styles.trendingItem}>
+          <View style={styles.trendingItemHeader}>
+            <Text style={styles.trendingCategory}>{topic.category}</Text>
+            <Text style={styles.trendingPosition}>#{index + 1}</Text>
+              </View>
+          <Text style={styles.trendingTag}>{topic.tag}</Text>
+          <Text style={styles.trendingPosts}>{topic.posts} posts</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  ), []);
+  
+  const renderNotificationsTab = useCallback(() => (
+    <ScrollView style={styles.notificationsScroll} showsVerticalScrollIndicator={false}>
+      <Text style={styles.notificationsTitle}>Notifications</Text>
+      
+      {socialMedia.followers > 0 ? (
+        <>
+          <View style={styles.notificationItem}>
+            <View style={styles.notificationIcon}>
+              <Heart size={scale(20)} color="#F91880" fill="#F91880" />
+                  </View>
+            <View style={styles.notificationContent}>
+              <Text style={styles.notificationText}>
+                <Text style={styles.notificationBold}>@someone</Text> liked your post
+                    </Text>
+              <Text style={styles.notificationTime}>2h ago</Text>
+                  </View>
+                  </View>
+          <View style={styles.notificationItem}>
+            <View style={styles.notificationIcon}>
+              <User size={scale(20)} color="#1D9BF0" />
+                  </View>
+            <View style={styles.notificationContent}>
+              <Text style={styles.notificationText}>
+                <Text style={styles.notificationBold}>@newuser</Text> followed you
+              </Text>
+              <Text style={styles.notificationTime}>5h ago</Text>
+            </View>
+          </View>
+                    </>
+                  ) : (
+        <View style={styles.noNotifications}>
+          <Bell size={scale(40)} color="#71767B" />
+          <Text style={styles.noNotificationsText}>No notifications yet</Text>
+          <Text style={styles.noNotificationsSubtext}>
+            Start posting to grow your audience!
+          </Text>
+          </View>
+        )}
+      </ScrollView>
+  ), [socialMedia.followers]);
+  
+  const renderContent = useCallback(() => {
+    switch (activeTab) {
+      case 'feed':
+        return renderFeedTab();
+      case 'profile':
+        return renderProfileTab();
+      case 'trending':
+        return renderTrendingTab();
+      case 'notifications':
+        return renderNotificationsTab();
+      default:
+        return renderFeedTab();
     }
-  }, [people]);
-
-  const handleConfirmAddFriend = useCallback(() => {
-    if (selectedPerson) {
-      handleAddPerson(selectedPerson);
-      setShowAddFriendModal(false);
-      setSelectedPerson(null);
-    }
-  }, [selectedPerson, handleAddPerson]);
-
-  const friends = gameState.relationships?.filter(r => r.type === 'friend') || [];
-
+  }, [activeTab, renderFeedTab, renderProfileTab, renderTrendingTab, renderNotificationsTab]);
+  
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <ArrowLeft size={scale(24)} color="#E7E9EA" />
+                  </TouchableOpacity>
         <Text style={styles.headerTitle}>Social</Text>
-        <TouchableOpacity style={styles.settingsButton} onPress={() => setShowSettings(true)}>
-          <Settings size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.headerRight} />
+              </View>
+      
+      {/* Content */}
+      <View style={styles.content}>
+        {renderContent()}
+            </View>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'feed' && styles.activeTab]}
+      {/* Bottom Tab Bar */}
+      <View style={styles.tabBar}>
+                  <TouchableOpacity
+          style={styles.tabItem}
           onPress={() => setActiveTab('feed')}
         >
-          <MessageCircle size={20} color={activeTab === 'feed' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'feed' ? styles.tabTextActive : styles.tabTextInactive]}>
-            Feed
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'friends' && styles.activeTab]}
-          onPress={() => setActiveTab('friends')}
+          <Home 
+            size={scale(24)} 
+            color={activeTab === 'feed' ? '#E7E9EA' : '#71767B'}
+            fill={activeTab === 'feed' ? '#E7E9EA' : 'transparent'}
+          />
+                </TouchableOpacity>
+              <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => setActiveTab('trending')}
         >
-          <UserPlus size={20} color={activeTab === 'friends' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'friends' ? styles.tabTextActive : styles.tabTextInactive]}>
-            Discover
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      <ScrollView 
-        style={styles.content} 
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={true}
-      >
-        {activeTab === 'feed' && (
-          <View style={styles.feedContainer}>
-            {/* Create Post Button */}
-            <TouchableOpacity
-              style={styles.createPostButton}
-              onPress={() => setShowNewPostModal(true)}
-            >
-              <Text style={styles.createPostText}>Create New Post</Text>
-            </TouchableOpacity>
-
-            {/* Posts */}
-            {posts.map((post) => (
-              <Animated.View 
-                key={post.id} 
-                style={[
-                  styles.postCard,
-                  {
-                    opacity: postAnimations.current[post.id] || 1,
-                    transform: [{
-                      translateY: postAnimations.current[post.id]?.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [50, 0],
-                      }) || 0,
-                    }],
-                  },
-                ]}
-              >
-                <View style={styles.postHeader}>
-                  <View style={styles.postAuthor}>
-                    <Image 
-                      source={{ uri: post.authorPhoto || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face' }} 
-                      style={styles.authorPhoto} 
-                    />
-                    <View style={styles.authorInfo}>
-                      <Text style={styles.authorName}>{post.author}</Text>
-                      <Text style={styles.postTimestamp}>{post.timestamp}</Text>
-                    </View>
-                  </View>
-                                     <View style={styles.postHeaderActions}>
-                     <TouchableOpacity style={styles.moreButton}>
-                       <MoreHorizontal size={16} color="#9FA4B3" />
-                     </TouchableOpacity>
-                     {post.author !== 'You' && (
-                       <TouchableOpacity 
-                         style={styles.addFromFeedButton}
-                         onPress={() => handleAddFromFeed(post.author)}
-                       >
-                         <UserPlus size={16} color="#3B82F6" />
-                       </TouchableOpacity>
-                     )}
-                   </View>
-                </View>
-
-                <Text style={styles.postContent}>{post.content}</Text>
-
-                {post.photo && (
-                  <Image source={{ uri: post.photo }} style={styles.postImage} />
-                )}
-
-                <View style={styles.postActions}>
-                  <Animated.View style={{ transform: [{ scale: likeAnimations.current[post.id] || 1 }] }}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleLike(post.id)}
-                    >
-                      <Heart size={16} color={post.isLiked ? '#EF4444' : '#9FA4B3'} fill={post.isLiked ? '#EF4444' : 'none'} />
-                      <Text style={[styles.actionText, post.isLiked && styles.likedText]}>
-                        {post.likes}
-                      </Text>
-                    </TouchableOpacity>
-                  </Animated.View>
-                  <TouchableOpacity style={styles.actionButton}>
-                    <MessageCircle size={16} color="#9FA4B3" />
-                    <Text style={styles.actionText}>{post.comments}</Text>
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-            ))}
-          </View>
-        )}
-
-        {activeTab === 'friends' && (
-          <View style={styles.friendsContainer}>
-            <Text style={styles.sectionTitle}>Discover New People</Text>
-            <Text style={styles.sectionSubtitle}>Add people to your contacts to build relationships</Text>
-            
-            {people.map((person) => (
-              <View key={person.id} style={styles.personCard}>
-                <Image source={{ uri: person.photo }} style={styles.personPhoto} />
-                
-                <View style={styles.personInfo}>
-                  <Text style={styles.personName}>{person.name}, {person.age}</Text>
-                  <Text style={styles.personBio}>{person.bio}</Text>
-                  
-                  <View style={styles.interestsContainer}>
-                    {person.interests.map((interest, index) => (
-                      <View key={index} style={styles.interestTag}>
-                        <Text style={styles.interestText}>{interest}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-
+          <Search 
+            size={scale(24)} 
+            color={activeTab === 'trending' ? '#E7E9EA' : '#71767B'} 
+          />
+              </TouchableOpacity>
+              <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => setActiveTab('notifications')}
+        >
+          <Bell 
+            size={scale(24)} 
+            color={activeTab === 'notifications' ? '#E7E9EA' : '#71767B'} 
+          />
+              </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.addButton, person.isAdded && styles.addedButton]}
-                  onPress={() => handleAddPerson(person)}
-                  disabled={person.isAdded}
-                >
-                  {person.isAdded ? (
-                    <>
-                      <UserCheck size={16} color="#10B981" />
-                      <Text style={styles.addedText}>Added</Text>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={16} color="#FFFFFF" />
-                      <Text style={styles.addButtonText}>Add</Text>
-                    </>
-                  )}
+          style={styles.tabItem}
+          onPress={() => setActiveTab('profile')}
+        >
+          <User 
+            size={scale(24)} 
+            color={activeTab === 'profile' ? '#E7E9EA' : '#71767B'}
+            fill={activeTab === 'profile' ? '#E7E9EA' : 'transparent'}
+          />
                 </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* New Post Modal */}
-      <Modal visible={showNewPostModal} transparent animationType="fade" onRequestClose={() => setShowNewPostModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Post</Text>
-              <TouchableOpacity onPress={() => setShowNewPostModal(false)}>
-                <Text style={styles.closeText}>Cancel</Text>
-              </TouchableOpacity>
             </View>
             
-            <TextInput
-              style={styles.postInput}
-              placeholder="What's on your mind?"
-              placeholderTextColor="#9FA4B3"
-              value={newPostContent}
-              onChangeText={setNewPostContent}
-              multiline
-              textAlignVertical="top"
-              maxLength={500}
-              accessibilityLabel="Post Content Input"
-              accessibilityHint="Write what you want to share with your friends"
-            />
-
-            {selectedPhoto && (
-              <View style={styles.photoPreview}>
-                <Image source={{ uri: selectedPhoto }} style={styles.previewImage} />
-                <TouchableOpacity
-                  style={styles.removePhotoButton}
-                  onPress={() => setSelectedPhoto('')}
-                >
-                  <Text style={styles.removePhotoText}>Remove Photo</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.photoButton}
-                onPress={() => setShowPhotoPicker(true)}
-              >
-                <Camera size={16} color="#3B82F6" />
-                <Text style={styles.photoButtonText}>Add Photo</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.postButton, !newPostContent.trim() && styles.disabledButton]}
-                onPress={handleCreatePost}
-                disabled={!newPostContent.trim()}
-              >
-                <Text style={styles.postButtonText}>Post</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Photo Picker Modal */}
-      <Modal visible={showPhotoPicker} transparent animationType="fade" onRequestClose={() => setShowPhotoPicker(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Choose Photo</Text>
-            
-            <View style={styles.photoGrid}>
-              {[
-                'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200&h=200&fit=crop',
-                'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=200&fit=crop',
-                'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200&h=200&fit=crop',
-                'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=200&h=200&fit=crop',
-                'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=200&fit=crop',
-                'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200&h=200&fit=crop',
-              ].map((photo, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.photoOption}
-                  onPress={() => {
-                    setSelectedPhoto(photo);
-                    setShowPhotoPicker(false);
-                  }}
-                >
-                  <Image source={{ uri: photo }} style={styles.photoOptionImage} />
-                </TouchableOpacity>
-              ))}
-            </View>
-            
+      {/* Floating Action Button */}
             <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowPhotoPicker(false)}
+        style={styles.fab}
+        onPress={() => setShowComposer(true)}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+        <Feather size={scale(24)} color="#FFFFFF" />
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Settings Modal */}
-      <Modal visible={showSettings} transparent animationType="fade" onRequestClose={() => setShowSettings(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Settings</Text>
-            
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>Notifications</Text>
-              <TouchableOpacity style={styles.toggleButton}>
-                <Text style={styles.toggleText}>On</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>Privacy</Text>
-              <TouchableOpacity style={styles.toggleButton}>
-                <Text style={styles.toggleText}>Public</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>Auto-save Posts</Text>
-              <TouchableOpacity style={styles.toggleButton}>
-                <Text style={styles.toggleText}>Off</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowSettings(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Add Friend Modal */}
-      <Modal visible={showAddFriendModal} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add Friend</Text>
-            
-            {selectedPerson && (
-              <View style={styles.addFriendContent}>
-                <Image source={{ uri: selectedPerson.photo }} style={styles.addFriendPhoto} />
-                <Text style={styles.addFriendName}>{selectedPerson.name}, {selectedPerson.age}</Text>
-                <Text style={styles.addFriendBio}>{selectedPerson.bio}</Text>
-                
-                <View style={styles.interestsContainer}>
-                  {selectedPerson.interests.map((interest, index) => (
-                    <View key={index} style={styles.interestTag}>
-                      <Text style={styles.interestText}>{interest}</Text>
-                    </View>
-                  ))}
-                </View>
-                
-                <Text style={styles.addFriendMessage}>
-                  Add {selectedPerson.name} to your contacts? You can then interact with them in the Contacts app to build your relationship.
-                </Text>
-              </View>
-            )}
-            
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => {
-                  setShowAddFriendModal(false);
-                  setSelectedPerson(null);
-                }}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.addFriendButton}
-                onPress={handleConfirmAddFriend}
-              >
-                <Text style={styles.addFriendButtonText}>Add Friend</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      
+      {/* Post Composer Modal */}
+      <PostComposer
+        visible={showComposer}
+        onClose={() => setShowComposer(false)}
+        onPost={handlePost}
+        profilePhoto={userProfile.profilePhoto}
+        displayName={userProfile.displayName || userProfile.name || 'Player'}
+        username={userProfile.username || userProfile.handle?.replace('@', '') || 'player'}
+        verified={userProfile.verified}
+      />
+      
+      {/* Profile Edit Modal */}
+      <ProfileEditModal
+        visible={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        onSave={handleSaveProfile}
+        initialData={{
+          displayName: userProfile.displayName || userProfile.name || 'Player',
+          username: userProfile.username || userProfile.handle?.replace('@', '') || 'player',
+          bio: userProfile.bio || '',
+          location: userProfile.location,
+          website: userProfile.website,
+          profilePhoto: userProfile.profilePhoto,
+          headerPhoto: userProfile.headerPhoto,
+        }}
+      />
     </View>
   );
 }
@@ -748,452 +760,359 @@ export default function SocialApp({ onBack }: SocialAppProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0C10',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: '#11131A',
-    borderBottomColor: '#1F2230',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(12),
     borderBottomWidth: 1,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
+    borderBottomColor: '#2F3336',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#1A1D29',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: scale(4),
   },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#1A1D29',
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerTitle: {
+    fontSize: fontScale(18),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
   },
-  tabContainer: {
-    marginHorizontal: 16,
-    backgroundColor: '#0F1220',
-    borderRadius: 12,
-    borderColor: '#23283B',
-    borderWidth: 1,
-    flexDirection: 'row',
-    padding: 10,
-    gap: 10,
-    marginBottom: 16,
-    marginTop: 16,
-  },
-  tab: {
-    flex: 1,
-    height: 60,
-    borderRadius: 10,
-    backgroundColor: '#101426',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  activeTab: {
-    backgroundColor: '#1E293B',
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-  },
-  tabTextInactive: {
-    color: '#6B7280',
+  headerRight: {
+    width: scale(32),
   },
   content: {
     flex: 1,
   },
-  contentContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 40,
+  tabBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: scale(12),
+    borderTopWidth: 1,
+    borderTopColor: '#2F3336',
+    backgroundColor: '#000000',
   },
-  feedContainer: {
-    gap: 16,
-    paddingBottom: 20,
+  tabItem: {
+    padding: scale(8),
+  },
+  fab: {
+    position: 'absolute',
+    right: scale(16),
+    bottom: scale(80),
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
+    backgroundColor: '#1D9BF0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  feedHeader: {
+    padding: scale(16),
+    borderBottomWidth: 1,
+    borderBottomColor: '#2F3336',
+  },
+  feedHeaderTitle: {
+    fontSize: fontScale(18),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+  },
+  profileScroll: {
+    flex: 1,
+  },
+  influenceCard: {
+    margin: scale(16),
+    padding: scale(16),
+    backgroundColor: '#16181C',
+    borderRadius: scale(16),
+    borderWidth: 1,
+    borderColor: '#2F3336',
+  },
+  influenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    marginBottom: scale(12),
+  },
+  influenceTitle: {
+    fontSize: fontScale(16),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+  },
+  influenceInfo: {
+    marginBottom: scale(16),
+  },
+  influenceLevel: {
+    fontSize: fontScale(24),
+    fontWeight: 'bold',
+    color: '#1D9BF0',
+    marginBottom: scale(4),
+  },
+  influenceDescription: {
+    fontSize: fontScale(14),
+    color: '#71767B',
+  },
+  influenceStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: scale(12),
+    borderTopWidth: 1,
+    borderTopColor: '#2F3336',
+  },
+  influenceStat: {
+    alignItems: 'center',
+  },
+  influenceStatValue: {
+    fontSize: fontScale(18),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+  },
+  influenceStatLabel: {
+    fontSize: fontScale(12),
+    color: '#71767B',
+    marginTop: scale(2),
+  },
+  postsSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#2F3336',
+  },
+  postsSectionTitle: {
+    fontSize: fontScale(16),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+    padding: scale(16),
+    borderBottomWidth: 1,
+    borderBottomColor: '#2F3336',
+  },
+  noPostsContainer: {
+    alignItems: 'center',
+    padding: scale(40),
+  },
+  noPostsText: {
+    fontSize: fontScale(18),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+    marginTop: scale(16),
+  },
+  noPostsSubtext: {
+    fontSize: fontScale(14),
+    color: '#71767B',
+    marginTop: scale(4),
+    marginBottom: scale(20),
   },
   createPostButton: {
-    backgroundColor: '#0F1220',
-    borderRadius: 12,
-    padding: 16,
-    borderColor: '#23283B',
-    borderWidth: 1,
-    alignItems: 'center',
+    backgroundColor: '#1D9BF0',
+    paddingHorizontal: scale(24),
+    paddingVertical: scale(12),
+    borderRadius: scale(24),
   },
-  createPostText: {
-    color: '#3B82F6',
-    fontSize: 16,
-    fontWeight: '600',
+  createPostButtonText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(15),
+    fontWeight: 'bold',
   },
-  postCard: {
-    backgroundColor: '#0F1220',
-    borderRadius: 12,
-    padding: 16,
-    borderColor: '#23283B',
-    borderWidth: 1,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  postAuthor: {
+  trendingScroll: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    padding: scale(16),
   },
-  authorPhoto: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  trendingTitle: {
+    fontSize: fontScale(24),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+    marginBottom: scale(4),
   },
-  authorInfo: {
-    flex: 1,
+  trendingSubtitle: {
+    fontSize: fontScale(14),
+    color: '#71767B',
+    marginBottom: scale(20),
   },
-  authorName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  postTimestamp: {
-    color: '#9FA4B3',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  postHeaderActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  moreButton: {
-    padding: 4,
-  },
-  addFromFeedButton: {
-    padding: 4,
-  },
-  postContent: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  postImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  postActions: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  actionText: {
-    color: '#9FA4B3',
-    fontSize: 14,
-  },
-  likedText: {
-    color: '#EF4444',
-  },
-  friendsContainer: {
-    gap: 16,
-    paddingBottom: 20,
-  },
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    color: '#9FA4B3',
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  personCard: {
-    backgroundColor: '#0F1220',
-    borderRadius: 12,
-    padding: 16,
-    borderColor: '#23283B',
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  personPhoto: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  personInfo: {
-    flex: 1,
-  },
-  personName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  personBio: {
-    color: '#9FA4B3',
-    fontSize: 14,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  interestTag: {
-    backgroundColor: '#1A1D29',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  interestText: {
-    color: '#3B82F6',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  addButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  addedButton: {
-    backgroundColor: '#10B981',
-  },
-  addedText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#121527',
-    borderRadius: 16,
-    padding: 20,
-    borderColor: '#23283B',
-    borderWidth: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  closeText: {
-    color: '#3B82F6',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  postInput: {
-    backgroundColor: '#1A1D29',
-    borderRadius: 8,
-    padding: 12,
-    color: '#FFFFFF',
-    fontSize: 16,
-    minHeight: 100,
-    marginBottom: 16,
-  },
-  photoPreview: {
-    marginBottom: 16,
-  },
-  previewImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  removePhotoButton: {
-    alignSelf: 'flex-start',
-  },
-  removePhotoText: {
-    color: '#EF4444',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  photoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderColor: '#3B82F6',
-    borderWidth: 1,
-  },
-  photoButtonText: {
-    color: '#3B82F6',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  postButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  postButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    backgroundColor: '#6B7280',
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
-  },
-  photoOption: {
-    width: '30%',
-    aspectRatio: 1,
-  },
-  photoOptionImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
-  },
-  cancelButton: {
-    backgroundColor: '#6B7280',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomColor: '#23283B',
+  trendingItem: {
+    paddingVertical: scale(12),
     borderBottomWidth: 1,
+    borderBottomColor: '#2F3336',
   },
-  settingLabel: {
-    color: '#FFFFFF',
-    fontSize: 16,
-  },
-  toggleButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  toggleText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  closeButton: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    borderRadius: 8,
+  trendingItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
+    marginBottom: scale(4),
   },
-  closeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  trendingCategory: {
+    fontSize: fontScale(12),
+    color: '#71767B',
   },
-  addFriendContent: {
-    alignItems: 'center',
-    marginBottom: 20,
+  trendingPosition: {
+    fontSize: fontScale(12),
+    color: '#71767B',
   },
-  addFriendPhoto: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 12,
+  trendingTag: {
+    fontSize: fontScale(16),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+    marginBottom: scale(2),
   },
-  addFriendName: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
+  trendingPosts: {
+    fontSize: fontScale(13),
+    color: '#71767B',
   },
-  addFriendBio: {
-    color: '#9FA4B3',
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  addFriendMessage: {
-    color: '#9FA4B3',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 12,
-  },
-  addFriendButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+  notificationsScroll: {
     flex: 1,
-    marginLeft: 12,
+    padding: scale(16),
   },
-  addFriendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  notificationsTitle: {
+    fontSize: fontScale(24),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+    marginBottom: scale(20),
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: scale(12),
+    borderBottomWidth: 1,
+    borderBottomColor: '#2F3336',
+  },
+  notificationIcon: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    backgroundColor: '#16181C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(12),
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationText: {
+    fontSize: fontScale(15),
+    color: '#E7E9EA',
+    lineHeight: fontScale(20),
+  },
+  notificationBold: {
+    fontWeight: 'bold',
+  },
+  notificationTime: {
+    fontSize: fontScale(13),
+    color: '#71767B',
+    marginTop: scale(4),
+  },
+  noNotifications: {
+    alignItems: 'center',
+    paddingVertical: scale(60),
+  },
+  noNotificationsText: {
+    fontSize: fontScale(18),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+    marginTop: scale(16),
+  },
+  noNotificationsSubtext: {
+    fontSize: fontScale(14),
+    color: '#71767B',
+    marginTop: scale(4),
     textAlign: 'center',
+  },
+  // Monetization Card Styles
+  monetizationCard: {
+    margin: scale(16),
+    marginTop: 0,
+    padding: scale(16),
+    backgroundColor: '#16181C',
+    borderRadius: scale(16),
+    borderWidth: 1,
+    borderColor: '#2F3336',
+  },
+  monetizationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: scale(12),
+  },
+  monetizationTitle: {
+    fontSize: fontScale(16),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+  },
+  monetizationBadge: {
+    backgroundColor: '#00BA7C',
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    borderRadius: scale(4),
+  },
+  monetizationBadgeInactive: {
+    backgroundColor: '#71767B',
+  },
+  monetizationBadgeText: {
+    fontSize: fontScale(10),
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  monetizationSubtitle: {
+    fontSize: fontScale(14),
+    color: '#71767B',
+    marginBottom: scale(16),
+  },
+  monetizationStats: {
+    backgroundColor: '#000000',
+    borderRadius: scale(8),
+    padding: scale(12),
+    marginBottom: scale(12),
+  },
+  monetizationStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: scale(6),
+  },
+  monetizationStatLabel: {
+    fontSize: fontScale(14),
+    color: '#71767B',
+  },
+  monetizationStatValue: {
+    fontSize: fontScale(14),
+    fontWeight: 'bold',
+    color: '#E7E9EA',
+  },
+  monetizationEarnings: {
+    color: '#00BA7C',
+    fontSize: fontScale(16),
+  },
+  monetizationTip: {
+    fontSize: fontScale(13),
+    color: '#1D9BF0',
+    textAlign: 'center',
+  },
+  monetizationLocked: {
+    alignItems: 'center',
+    paddingVertical: scale(8),
+  },
+  monetizationLockedText: {
+    fontSize: fontScale(14),
+    color: '#71767B',
+    marginBottom: scale(12),
+  },
+  monetizationProgress: {
+    width: '100%',
+    height: scale(8),
+    backgroundColor: '#2F3336',
+    borderRadius: scale(4),
+    overflow: 'hidden',
+    marginBottom: scale(8),
+  },
+  monetizationProgressBar: {
+    height: '100%',
+    backgroundColor: '#1D9BF0',
+    borderRadius: scale(4),
+  },
+  monetizationProgressText: {
+    fontSize: fontScale(12),
+    color: '#71767B',
   },
 });

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useUIUX } from '@/contexts/UIUXContext';
 import SimpleTutorialModal from './SimpleTutorialModal';
+import { logger } from '@/utils/logger';
 
 interface TutorialManagerProps {
   children: React.ReactNode;
@@ -20,15 +21,19 @@ export default function TutorialManager({ children }: TutorialManagerProps) {
 
   const currentStep = tutorialSteps && tutorialSteps.length > 0 ? tutorialSteps[currentTutorialStep] : null;
 
-  console.log('[TutorialManager] State:', { 
-    showTutorial, 
-    stepsCount: tutorialSteps?.length || 0, 
-    currentTutorialStep,
-    hasCurrentStep: !!currentStep 
-  });
+  if (__DEV__) {
+    logger.debug('[TutorialManager] State:', { 
+      showTutorial, 
+      stepsCount: tutorialSteps?.length || 0, 
+      currentTutorialStep,
+      hasCurrentStep: !!currentStep 
+    });
+  }
 
   const handleNext = () => {
-    console.log('[TutorialManager] Next button pressed');
+    if (__DEV__) {
+      logger.debug('[TutorialManager] Next button pressed');
+    }
     if (currentTutorialStep < tutorialSteps.length - 1) {
       setTutorialStep(currentTutorialStep + 1);
     } else {
@@ -38,14 +43,17 @@ export default function TutorialManager({ children }: TutorialManagerProps) {
 
   // Only show modal if we have a valid step and showTutorial is true
   const shouldShowModal = showTutorial && currentStep && tutorialSteps.length > 0;
-  console.log('[TutorialManager] shouldShowModal:', shouldShowModal);
+  if (__DEV__) {
+    logger.debug('[TutorialManager] shouldShowModal:', { shouldShowModal });
+  }
 
   useEffect(() => {
-    if (shouldShowModal) {
-      console.log('[TutorialManager] Modal should be visible now!');
-      console.log('[TutorialManager] Current step data:', currentStep);
-    } else {
-      console.log('[TutorialManager] Modal should NOT be visible');
+    if (__DEV__) {
+      if (shouldShowModal) {
+        logger.debug('[TutorialManager] Modal should be visible now!', { currentStep });
+      } else {
+        logger.debug('[TutorialManager] Modal should NOT be visible');
+      }
     }
   }, [shouldShowModal, currentStep]);
 

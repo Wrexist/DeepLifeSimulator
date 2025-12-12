@@ -130,6 +130,7 @@ const styles = StyleSheet.create({
   button: {
     borderRadius: 12,
     overflow: 'hidden',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -181,6 +182,7 @@ const styles = StyleSheet.create({
     right: 20,
     borderRadius: 25,
     overflow: 'hidden',
+    boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,

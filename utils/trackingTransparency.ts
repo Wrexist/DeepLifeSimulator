@@ -6,9 +6,31 @@
 import { Platform } from 'react-native';
 
 // Only import on native platforms (iOS/Android), not on web
+// Lazy-load to avoid bundler issues on web
 let TrackingTransparency: any = null;
-if (Platform.OS !== 'web') {
-  TrackingTransparency = require('expo-tracking-transparency');
+let trackingTransparencyLoaded = false;
+
+function loadTrackingTransparency(): boolean {
+  if (Platform.OS === 'web') {
+    return false;
+  }
+  
+  if (trackingTransparencyLoaded && TrackingTransparency) {
+    return true;
+  }
+  
+  try {
+    const moduleName = 'expo-tracking-transparency';
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    TrackingTransparency = require(moduleName);
+    trackingTransparencyLoaded = true;
+    return true;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('expo-tracking-transparency not available');
+    }
+    return false;
+  }
 }
 
 /**
@@ -18,49 +40,71 @@ if (Platform.OS !== 'web') {
 export async function requestTrackingPermission(): Promise<boolean> {
   // Only relevant for iOS 14+
   if (Platform.OS !== 'ios') {
-    console.log('ATT not applicable on', Platform.OS);
+    if (__DEV__) {
+      console.log('ATT not applicable on', Platform.OS);
+    }
     return true; // Android and Web don't require ATT
   }
 
-  // Safety check for web or if module not available
-  if (!TrackingTransparency) {
-    console.log('TrackingTransparency module not available');
+  // Lazy-load the module
+  if (!loadTrackingTransparency() || !TrackingTransparency) {
+    if (__DEV__) {
+      console.log('TrackingTransparency module not available');
+    }
     return true;
   }
 
   try {
-    console.log('Checking current ATT status...');
+    if (__DEV__) {
+      console.log('Checking current ATT status...');
+    }
     
     // Check current status
     const { status: currentStatus } = await TrackingTransparency.getTrackingPermissionsAsync();
-    console.log('Current ATT status:', currentStatus);
+    if (__DEV__) {
+      console.log('Current ATT status:', currentStatus);
+    }
     
     // If already granted, return true
     if (currentStatus === 'granted') {
-      console.log('Tracking permission already granted');
+      if (__DEV__) {
+        console.log('Tracking permission already granted');
+      }
       return true;
     }
 
     // If not determined yet, request permission
     if (currentStatus === 'undetermined') {
-      console.log('Requesting ATT permission from user...');
+      if (__DEV__) {
+        console.log('Requesting ATT permission from user...');
+      }
       const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
-      console.log('User response to ATT request:', status);
+      if (__DEV__) {
+        console.log('User response to ATT request:', status);
+      }
       
       if (status === 'granted') {
-        console.log('✅ Tracking permission granted by user');
+        if (__DEV__) {
+          console.log('✅ Tracking permission granted by user');
+        }
         return true;
       } else {
-        console.log('❌ Tracking permission denied by user');
+        if (__DEV__) {
+          console.log('❌ Tracking permission denied by user');
+        }
         return false;
       }
     }
 
     // If denied or restricted
-    console.log('Tracking permission not available:', currentStatus);
+    if (__DEV__) {
+      console.log('Tracking permission not available:', currentStatus);
+    }
     return false;
   } catch (error) {
-    console.error('❌ Error requesting tracking permission:', error);
+    if (__DEV__) {
+      console.error('❌ Error requesting tracking permission:', error);
+    }
     return false;
   }
 }
@@ -69,7 +113,11 @@ export async function requestTrackingPermission(): Promise<boolean> {
  * Check if tracking is allowed without requesting
  */
 export async function isTrackingAllowed(): Promise<boolean> {
-  if (Platform.OS !== 'ios' || !TrackingTransparency) {
+  if (Platform.OS !== 'ios') {
+    return true;
+  }
+  
+  if (!loadTrackingTransparency() || !TrackingTransparency) {
     return true;
   }
 
@@ -77,7 +125,9 @@ export async function isTrackingAllowed(): Promise<boolean> {
     const { status } = await TrackingTransparency.getTrackingPermissionsAsync();
     return status === 'granted';
   } catch (error) {
-    console.error('Error checking tracking permission:', error);
+    if (__DEV__) {
+      console.error('Error checking tracking permission:', error);
+    }
     return false;
   }
 }
@@ -94,7 +144,9 @@ export async function getTrackingStatus(): Promise<string> {
     const { status } = await TrackingTransparency.getTrackingPermissionsAsync();
     return status;
   } catch (error) {
-    console.error('Error getting tracking status:', error);
+    if (__DEV__) {
+      console.error('Error getting tracking status:', error);
+    }
     return 'error';
   }
 }

@@ -1,116 +1,76 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Image, Animated, Dimensions, ScrollView } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, ScrollView, Image, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
-import { Skull, Heart, Smile, DollarSign, Crown, Trophy, ArrowLeft, Zap, Sparkles, Star, Gem, TrendingUp, Home, Briefcase, Users } from 'lucide-react-native';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
-import { perks } from '@/src/features/onboarding/perksData';
-import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
+import { Skull, Heart, RotateCcw, Brain, Activity, Smile, Check } from 'lucide-react-native';
+import PrestigeModal from './PrestigeModal';
+import { getCharacterImage } from '@/utils/characterImages';
+import { HeirGenerator } from '@/lib/legacy/heirGeneration';
+import { computeInheritance } from '@/lib/legacy/inheritance';
+import { MINDSET_TRAITS, MindsetId } from '@/lib/mindset/config';
+import { logger } from '@/utils/logger';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function DeathPopup() {
-  const { gameState, setGameState, restartGame, reviveCharacter, currentSlot, buyRevival, clearSaveSlot } = useGame();
-  const { settings, deathReason, stats, date, week } = gameState;
+  const { gameState, setGameState, startNewLifeFromLegacy, reviveCharacter, currentSlot, saveGame } = useGame();
   const router = useRouter();
+  const { settings, deathReason, date } = gameState;
+  const week = gameState.week;
+  const showDeathPopup = gameState.showDeathPopup;
   
-  // Safe data extraction with fallbacks
-  const completed = gameState.achievements?.filter(a => a.completed) || [];
-  const unlockedPerks = gameState.perks ? Object.keys(gameState.perks).filter(key => 
-    gameState.perks && typeof gameState.perks === 'object' && key in gameState.perks && gameState.perks[key as keyof typeof gameState.perks]
-  ) : [];
-  
-  // Safety check - if critical data is missing, don't render
-  if (!gameState || !stats || !date || !settings) {
-    console.error('DeathPopup: Missing critical game state data');
-    return null;
-  }
-
-  // Calculate net worth
-  const netWorthBreakdown = useMemo(() => {
-    const assets: Asset[] = [
-      { id: 'cash', type: 'cash', baseValue: gameState.stats.money },
-      { id: 'savings', type: 'cash', baseValue: gameState.bankSavings || 0 },
-    ];
-
-    // Add owned items
-    gameState.items
-      .filter(i => i.owned)
-      .forEach(item => assets.push({ id: item.id, type: 'collectible', baseValue: item.price }));
-
-    // Add companies and their equipment
-    gameState.companies.forEach(company => {
-      assets.push({
-        id: company.id,
-        type: 'business',
-        baseValue: 0,
-        trailingWeeklyProfit: company.weeklyIncome,
-        valuationMultiple: 10,
-      });
-    });
-
-    // Add real estate
-    gameState.realEstate
-      .filter(p => p.owned)
-      .forEach(p => {
-        assets.push({
-          id: p.id,
-          type: 'property',
-          baseValue: p.price,
-        });
-      });
-
-    const liabilities: Liability[] = [];
-    return computeNetWorth(assets, liabilities);
-  }, [gameState]);
-
-  // Get perk titles from IDs
-  const getPerkTitles = (perkIds: string[]) => {
-    return perkIds.map(id => {
-      const perk = perks.find(p => p.id === id);
-      return perk ? perk.title : id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    });
-  };
-
-  // Calculate key life statistics
-  const lifeStats = useMemo(() => {
-    const totalWeeks = week;
-    const totalDays = Math.floor(date.age * 52); // Rough estimate
-    const relationships = gameState.relationships.length;
-    const companies = gameState.companies.length;
-    const properties = gameState.realEstate.filter(p => p.owned).length;
-    const items = gameState.items.filter(i => i.owned).length;
-
-    return {
-      totalWeeks,
-      totalDays,
-      relationships,
-      companies,
-      properties,
-      items,
-    };
-  }, [gameState, week, date]);
-
-  // Money formatting utility
-  const formatMoney = (amount: number) => {
-    const a = Math.floor(amount || 0);
-    if (a >= 1_000_000_000_000_000) return `$${(a / 1_000_000_000_000_000).toFixed(2)}Q`;
-    if (a >= 1_000_000_000_000) return `$${(a / 1_000_000_000_000).toFixed(2)}T`;
-    if (a >= 1_000_000_000) return `$${(a / 1_000_000_000).toFixed(2)}B`;
-    if (a >= 1_000_000) return `$${(a / 1_000_000).toFixed(2)}M`;
-    if (a >= 1_000) return `$${(a / 1_000).toFixed(2)}K`;
-    return `$${a}`;
-  };
+  // All hooks must be called before any conditional returns
+  const [showHeirSelection, setShowHeirSelection] = useState(false);
+  const [selectedHeirId, setSelectedHeirId] = useState<string | null>(null);
+  const [selectedMindset, setSelectedMindset] = useState<MindsetId | null>(
+    (gameState.mindset?.activeTraitId as MindsetId | null) || null
+  );
+  const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+  const [iapLoading, setIapLoading] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
   const glowAnim = useRef(new Animated.Value(0)).current;
   const sparkleAnim = useRef(new Animated.Value(0)).current;
+
+  // Calculate inheritance and heir data (must be before early return)
+  const inheritanceSummary = useMemo(() => {
+    return computeInheritance(gameState);
+  }, [gameState]);
+
+  const heirs = useMemo(() => {
+    if (!gameState.family?.children) return [];
+    
+    return gameState.family.children.map((child: any) => {
+      // Preview the heir generation
+      const result = HeirGenerator.generateHeir(
+        child,
+        gameState.activeTraits || [], // Player traits
+        (gameState.generationNumber || 1) + 1,
+        gameState.lineageId ?? 'default_lineage',
+        gameState.mindset?.activeTraitId ?? 'unknown_parent',
+        gameState.family?.spouse?.id,
+        []
+      );
+      return {
+        id: child.id,
+        name: (result as any).name || child.name || 'Unknown',
+        age: (result as any).age || child.age || 18,
+        traits: (result as any).traits || [],
+        stats: (result as any).stats || {},
+        preview: result,
+        child: child,
+      };
+    });
+  }, [gameState.family?.children, gameState.activeTraits, gameState.generationNumber, gameState.lineageId, gameState.mindset?.activeTraitId, inheritanceSummary]);
 
   useEffect(() => {
     // Entrance animations
@@ -168,12 +128,131 @@ export default function DeathPopup() {
       scaleAnim.stopAnimation();
       slideAnim.stopAnimation();
     };
-  }, []);
+  }, [fadeAnim, glowAnim, scaleAnim, slideAnim, sparkleAnim]);
 
   const handleNewLife = async () => {
+    const hasChildren = (gameState.family?.children || []).length > 0;
+    if (hasChildren) {
+      setShowHeirSelection(true);
+    } else {
+      // No children - delete save and navigate to scenarios
+      await handleStartNewGame();
+    }
+  };
+
+  const confirmHeirSelection = async () => {
+    if (!selectedHeirId) {
+      Alert.alert('No Heir Selected', 'Please select an heir to continue your legacy.');
+      return;
+    }
+
     try {
-      console.log('Starting new life...');
+      // Start new life from legacy with selected heir
+      startNewLifeFromLegacy(selectedHeirId);
       
+      // Apply selected mindset if one was chosen
+      if (selectedMindset) {
+        setGameState(prev => ({
+          ...prev,
+          mindset: {
+            activeTraitId: selectedMindset,
+            traits: [selectedMindset],
+          },
+        }));
+      }
+      
+      // Close death popup and heir selection modal
+      setGameState(prev => ({
+        ...prev,
+        showDeathPopup: false,
+        deathReason: undefined,
+      }));
+      setShowHeirSelection(false);
+      setSelectedHeirId(null);
+      
+      // Save the new game state
+      await saveGame();
+      
+      // Navigate to main game screen (or stay in current screen)
+      // The game state has been updated, so the game should continue normally
+    } catch (error) {
+      logger.error('Failed to start new life from legacy:', error);
+      Alert.alert('Error', 'Failed to continue legacy. Please try again.');
+      // Re-show the death popup if there was an error
+      setGameState(prev => ({
+        ...prev,
+        showDeathPopup: true,
+      }));
+    }
+  };
+
+  const handleRevive = () => {
+    const reviveCost = 15000;
+    if (gameState.stats.gems >= reviveCost) {
+      reviveCharacter();
+    }
+  };
+
+  const getReviveCost = () => {
+    return 15000; // Base cost for revival
+  };
+
+  const handleIAPRevive = async () => {
+    if (iapLoading) return;
+    
+    setIapLoading(true);
+    
+    try {
+      const result = await iapService.purchaseProduct(IAP_PRODUCTS.REVIVE_SINGLE);
+      
+      if (result.success) {
+        // Purchase successful - directly apply revival to game state
+        // This is more reliable than depending on IAPService async storage updates
+        setGameState(prev => ({
+          ...prev,
+          showDeathPopup: false,
+          deathReason: undefined,
+          stats: {
+            ...prev.stats,
+            health: 100,      // Full health
+            happiness: 100,   // Full happiness
+            energy: 100,      // Full energy
+          },
+          happinessZeroWeeks: 0,
+          healthZeroWeeks: 0,
+        }));
+        
+        // Save the revived state
+        setTimeout(async () => {
+          try {
+            await saveGame();
+            logger.info('Revived state saved after IAP purchase');
+          } catch (saveError) {
+            logger.error('Failed to save revived state:', saveError);
+          }
+        }, 100);
+        
+        Alert.alert(
+          '🎉 Revived!', 
+          'You have been revived with full health, happiness, and energy! Continue your journey.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        // Don't show error for cancelled purchases
+        if (!result.message?.toLowerCase().includes('cancel')) {
+          Alert.alert('Purchase Failed', result.message || 'Unable to complete purchase. Please try again.');
+        }
+      }
+    } catch (error) {
+      logger.error('IAP purchase error:', error);
+      Alert.alert('Error', 'An error occurred during purchase. Please try again.');
+    } finally {
+      setIapLoading(false);
+    }
+  };
+
+  const handleStartNewGame = async () => {
+    try {
       // Close the death popup first
       setGameState(prev => ({
         ...prev,
@@ -181,747 +260,798 @@ export default function DeathPopup() {
         deathReason: undefined,
       }));
       
-      // Add a small delay to ensure state update
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Delete the current save slot
+      if (currentSlot) {
+        await AsyncStorage.removeItem(`save_slot_${currentSlot}`);
+        await AsyncStorage.removeItem('lastSlot');
+      }
       
-      // Clear the current save slot completely using the dedicated function
-      await clearSaveSlot(currentSlot);
-      
-      // Restart the game with preserved achievements and gems
-      await restartGame();
-      
-      // Navigate to main menu
-      router.replace('/(onboarding)/MainMenu');
+      // Navigate to scenarios screen to start a new game
+      router.replace('/(onboarding)/Scenarios');
     } catch (error) {
-      console.error('Failed to start new life:', error);
+      if (__DEV__) {
+        logger.error('Failed to start new game:', error);
+      }
       // Re-show the death popup if there was an error
       setGameState(prev => ({
         ...prev,
         showDeathPopup: true,
-        deathReason: deathReason || 'health',
       }));
     }
   };
 
-  const handleRevive = () => {
-    const reviveCost = 500;
-    if (gameState.stats.gems >= reviveCost) {
-      reviveCharacter();
-    }
-  };
+  if (!gameState.showDeathPopup) return null;
 
-  const getReviveCost = () => {
-    return 500; // Base cost for revival
-  };
+  const age = Math.floor(date.age);
+  const deathMessage =
+    deathReason === 'health'
+      ? 'Your body finally gave out.'
+      : deathReason === 'happiness'
+      ? 'You lost the will to go on.'
+      : 'Your journey has ended.';
 
-  const getGemsNeeded = () => {
-    const cost = getReviveCost();
-    const current = gameState.stats.gems;
-    return Math.max(0, cost - current);
-  };
+  // Interpolations
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
 
-  const handleIAPRevive = () => {
-    // Use the IAP system to purchase revival
-    buyRevival();
-  };
-
-  const getDeathMessage = () => {
-    if (deathReason === 'happiness') {
-      return {
-        title: 'Death by Despair',
-        subtitle: 'You remained unhappy for 4 weeks',
-        description: 'Your spirit could no longer bear the weight of unhappiness. In the end, the darkness consumed you, leaving behind only memories of what could have been.',
-        icon: Smile,
-        gradient: ['#7C2D12', '#DC2626', '#EF4444'],
-        glowColor: 'rgba(239, 68, 68, 0.3)',
-        color: '#EF4444'
-      };
-    } else {
-      return {
-        title: 'Death by Illness',
-        subtitle: 'You remained unhealthy for 4 weeks',
-        description: 'Your body could no longer fight the battle against illness. The light of life has faded, but your legacy remains in the hearts of those you touched.',
-        icon: Heart,
-        gradient: ['#7C2D12', '#DC2626', '#EF4444'],
-        glowColor: 'rgba(239, 68, 68, 0.3)',
-        color: '#EF4444'
-      };
-    }
-  };
-
-  const deathInfo = getDeathMessage();
-  const DeathIcon = deathInfo.icon;
+  // Note: sparkleTranslateY and sparkleOpacity are available for future sparkle effects
+  // const sparkleTranslateY = sparkleAnim.interpolate({
+  //   inputRange: [0, 1],
+  //   outputRange: [0, -20],
+  // });
+  // const sparkleOpacity = sparkleAnim.interpolate({
+  //   inputRange: [0, 0.5, 1],
+  //   outputRange: [0, 1, 0],
+  // });
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={() => {
-      // Prevent dismissal - user must choose an action (revive or new life)
-    }}>
-      <View style={styles.overlay}>
-        {/* Animated background blur */}
-        <BlurView intensity={20} style={styles.blurBackground} />
-        
-        {/* Animated floating particles */}
-        <View style={styles.particlesContainer}>
-          {[...Array(12)].map((_, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.particle,
-                {
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  transform: [
-                    {
-                      rotate: sparkleAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg'],
-                      }),
-                    },
-                    {
-                      scale: sparkleAnim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0.8, 1.2, 0.8],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ))}
-        </View>
+    <>
+    <Modal visible transparent animationType="none">
+      <View style={styles.container}>
+        {/* Dark Overlay Background */}
+        <View style={styles.overlay} />
 
         <Animated.View
           style={[
-            styles.animatedContainer,
+            styles.content,
             {
               opacity: fadeAnim,
-              transform: [
-                { scale: scaleAnim },
-                { translateY: slideAnim },
-              ],
+              transform: [{ scale: scaleAnim }, { translateY: slideAnim }],
             },
           ]}
         >
-          <BlurView intensity={30} style={styles.containerBlur}>
-            <View style={[styles.container, settings.darkMode && styles.containerDark]}>
-              {/* Header with enhanced gradient and glow */}
-              <View style={styles.headerContainer}>
-                <Animated.View
-                  style={[
-                    styles.glowEffect,
-                    {
-                      opacity: glowAnim,
-                      shadowColor: deathInfo.color,
-                    },
-                  ]}
-                />
-                <LinearGradient
-                  colors={deathInfo.gradient as [string, string, ...string[]]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.header}
-                >
-                  <View style={styles.iconContainer}>
-                    <Animated.View
-                      style={[
-                        styles.iconGlow,
-                        {
-                          opacity: glowAnim,
-                          shadowColor: '#FFFFFF',
-                        },
-                      ]}
-                    />
-                    <DeathIcon size={scale(40)} color="#FFFFFF" strokeWidth={2.5} />
-                    <Sparkles size={scale(16)} color="#FFFFFF" style={styles.sparkleIcon} />
-                  </View>
-                  <Text style={styles.title}>{deathInfo.title}</Text>
-                  <Text style={styles.subtitle}>{deathInfo.subtitle}</Text>
-                </LinearGradient>
-              </View>
+          {/* Main Death Content or Heir Selection */}
+          {!showHeirSelection ? (
+            <LinearGradient
+              colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
+              style={styles.card}
+            >
+              <ScrollView 
+                style={styles.cardScrollView}
+                contentContainerStyle={styles.cardScrollContent}
+                showsVerticalScrollIndicator={true}
+                bounces={true}
+                nestedScrollEnabled={true}
+              >
+                {/* Skull Icon with Glow */}
+                <View style={styles.iconContainer}>
+                  <Animated.View
+                    style={[
+                      styles.glowRing,
+                      {
+                        opacity: glowOpacity,
+                        transform: [{ scale: pulseAnim }],
+                      },
+                    ]}
+                  />
+                  <Skull size={48} color={settings.darkMode ? '#9CA3AF' : '#4B5563'} />
+                </View>
 
-              {/* Content */}
-              <View style={styles.content}>
-                <Text style={[styles.description, settings.darkMode && styles.descriptionDark]}>
-                  {deathInfo.description}
+                <Text style={[styles.title, settings.darkMode && styles.textDark]}>R.I.P.</Text>
+                <Text style={[styles.subtitle, settings.darkMode && styles.textDarkSecondary]}>
+                  {gameState.userProfile.name || 'Unknown Soul'}
+                </Text>
+                <Text style={[styles.details, settings.darkMode && styles.textDarkSecondary]}>
+                  Age {age} • {deathMessage}
                 </Text>
 
-                {/* Action Buttons - Moved to top for immediate visibility */}
-                <View style={styles.buttonContainer}>
-                  {/* IAP Revival Button */}
-                  <TouchableOpacity style={styles.iapReviveButton} onPress={handleIAPRevive} activeOpacity={0.8}>
-                    <LinearGradient
-                      colors={['#FFD700', '#FFA500', '#FF8C00']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.iapReviveButtonGradient}
-                    >
-                      <Gem size={scale(20)} color="#FFFFFF" />
-                      <View style={styles.iapButtonContent}>
-                        <Text style={styles.iapReviveButtonText}>Revive with Purchase</Text>
-                        <Text style={styles.iapReviveButtonSubtext}>$2.99 • Instant Revival</Text>
-                      </View>
-                      <Star size={scale(16)} color="#FFFFFF" />
-                    </LinearGradient>
-                  </TouchableOpacity>
-
-                  {/* Gem Revival Button */}
-                  <TouchableOpacity style={styles.reviveButton} onPress={handleRevive} activeOpacity={0.8}>
-                    <LinearGradient
-                      colors={gameState.stats.gems >= getReviveCost() ? ['#10B981', '#34D399'] : ['#6B7280', '#9CA3AF']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.reviveButtonGradient}
-                    >
-                      <Zap size={scale(18)} color="#FFFFFF" />
-                      <View style={styles.reviveButtonContent}>
-                        <Text style={styles.reviveButtonText}>
-                          {gameState.stats.gems >= getReviveCost() 
-                            ? `Revive (${getReviveCost()} gems)` 
-                            : `Need ${getGemsNeeded()} more gems`}
-                        </Text>
-                        <Text style={styles.reviveButtonSubtext}>
-                          Current: {gameState.stats.gems} gems
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-
-                  {/* New Life Button */}
-                  <TouchableOpacity style={styles.newLifeButton} onPress={handleNewLife} activeOpacity={0.8}>
-                    <LinearGradient
-                      colors={['#3B82F6', '#1D4ED8']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.newLifeButtonGradient}
-                    >
-                      <ArrowLeft size={scale(18)} color="#FFFFFF" />
-                      <Text style={styles.newLifeButtonText}>Start New Life</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                {/* Stats Summary */}
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, settings.darkMode && styles.textDark]}>
+                      ${(inheritanceSummary.totalNetWorth).toLocaleString()}
+                    </Text>
+                    <Text style={[styles.statLabel, settings.darkMode && styles.textDarkSecondary]}>Net Worth</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, settings.darkMode && styles.textDark]}>
+                      {gameState.generationNumber || 1}
+                    </Text>
+                    <Text style={[styles.statLabel, settings.darkMode && styles.textDarkSecondary]}>Generation</Text>
+                  </View>
                 </View>
-              </View>
 
-              {/* Scrollable Life Details */}
-              <ScrollView style={styles.scrollableContent} showsVerticalScrollIndicator={false}>
-                {/* Life Summary */}
-                <View style={[styles.summaryContainer, settings.darkMode && styles.summaryContainerDark]}>
-                  <View style={styles.summaryHeader}>
-                    <Trophy size={scale(20)} color={deathInfo.color} />
-                    <Text style={[styles.summaryTitle, settings.darkMode && styles.summaryTitleDark]}>
-                      Life Summary
-                    </Text>
-                  </View>
+                {/* Enhanced Legacy Summary */}
+                <View style={[styles.legacyDetails, settings.darkMode && styles.legacyDetailsDark]}>
+                  <Text style={[styles.legacyDetailsTitle, settings.darkMode && styles.textDark]}>
+                    Inheritance Breakdown
+                  </Text>
                   
-                  <View style={styles.statsGrid}>
-                    <View style={[styles.statItem, settings.darkMode && styles.statItemDark]}>
-                      <Skull size={scale(16)} color="#6B7280" />
-                      <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>Age</Text>
-                      <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
-                        {Math.floor(date.age)}
+                  <View style={styles.legacyBreakdown}>
+                    <View style={styles.legacyItem}>
+                      <Text style={[styles.legacyItemLabel, settings.darkMode && styles.textDarkSecondary]}>Cash:</Text>
+                      <Text style={[styles.legacyItemValue, settings.darkMode && styles.textDark]}>
+                        ${inheritanceSummary.cash.toLocaleString()}
                       </Text>
                     </View>
                     
-                    <View style={[styles.statItem, settings.darkMode && styles.statItemDark]}>
-                      <TrendingUp size={scale(16)} color="#8B5CF6" />
-                      <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>Net Worth</Text>
-                      <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
-                        {formatMoney(netWorthBreakdown.netWorth)}
+                    <View style={styles.legacyItem}>
+                      <Text style={[styles.legacyItemLabel, settings.darkMode && styles.textDarkSecondary]}>Savings:</Text>
+                      <Text style={[styles.legacyItemValue, settings.darkMode && styles.textDark]}>
+                        ${inheritanceSummary.bankSavings.toLocaleString()}
                       </Text>
                     </View>
                     
-                    <View style={[styles.statItem, settings.darkMode && styles.statItemDark]}>
-                      <DollarSign size={scale(16)} color="#10B981" />
-                      <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>Cash</Text>
-                      <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
-                        {formatMoney(stats.money)}
-                      </Text>
-                    </View>
+                    {inheritanceSummary.realEstateIds.length > 0 && (
+                      <View style={styles.legacyItem}>
+                        <Text style={[styles.legacyItemLabel, settings.darkMode && styles.textDarkSecondary]}>
+                          Properties:
+                        </Text>
+                        <Text style={[styles.legacyItemValue, settings.darkMode && styles.textDark]}>
+                          {inheritanceSummary.realEstateIds.length} property{inheritanceSummary.realEstateIds.length !== 1 ? 'ies' : ''}
+                        </Text>
+                      </View>
+                    )}
                     
-                    <View style={[styles.statItem, settings.darkMode && styles.statItemDark]}>
-                      <Heart size={scale(16)} color="#EF4444" />
-                      <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>Health</Text>
-                      <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
-                        {stats.health}
-                      </Text>
-                    </View>
+                    {inheritanceSummary.companyIds.length > 0 && (
+                      <View style={styles.legacyItem}>
+                        <Text style={[styles.legacyItemLabel, settings.darkMode && styles.textDarkSecondary]}>
+                          Companies:
+                        </Text>
+                        <Text style={[styles.legacyItemValue, settings.darkMode && styles.textDark]}>
+                          {inheritanceSummary.companyIds.length} compan{inheritanceSummary.companyIds.length !== 1 ? 'ies' : 'y'}
+                        </Text>
+                      </View>
+                    )}
                     
-                    <View style={[styles.statItem, settings.darkMode && styles.statItemDark]}>
-                      <Smile size={scale(16)} color="#F59E0B" />
-                      <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>Happiness</Text>
-                      <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
-                        {stats.happiness}
-                      </Text>
-                    </View>
-                    
-                    <View style={[styles.statItem, settings.darkMode && styles.statItemDark]}>
-                      <Users size={scale(16)} color="#3B82F6" />
-                      <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>Relations</Text>
-                      <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
-                        {lifeStats.relationships}
-                      </Text>
-                    </View>
+                    {inheritanceSummary.debts > 0 && (
+                      <View style={styles.legacyItem}>
+                        <Text style={[styles.legacyItemLabel, { color: '#EF4444' }]}>Debts:</Text>
+                        <Text style={[styles.legacyItemValue, { color: '#EF4444' }]}>
+                          -${inheritanceSummary.debts.toLocaleString()}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
-                  {/* Additional Life Statistics */}
-                  <View style={[styles.additionalStats, settings.darkMode && styles.additionalStatsDark]}>
-                    <Text style={[styles.additionalStatsTitle, settings.darkMode && styles.additionalStatsTitleDark]}>
-                      Life Achievements
+                  {/* Legacy Bonuses */}
+                  <View style={[styles.legacyBonuses, settings.darkMode && styles.legacyBonusesDark]}>
+                    <Text style={[styles.legacyDetailsTitle, settings.darkMode && styles.textDark]}>
+                      Legacy Bonuses for Next Generation
                     </Text>
-                    <View style={styles.additionalStatsGrid}>
-                      <View style={[styles.additionalStatItem, settings.darkMode && styles.additionalStatItemDark]}>
-                        <Briefcase size={scale(14)} color="#10B981" />
-                        <Text style={[styles.additionalStatLabel, settings.darkMode && styles.additionalStatLabelDark]}>Companies</Text>
-                        <Text style={[styles.additionalStatValue, settings.darkMode && styles.additionalStatValueDark]}>
-                          {lifeStats.companies}
+                    <View style={styles.legacyBreakdown}>
+                      <View style={styles.legacyItem}>
+                        <Text style={[styles.legacyItemLabel, settings.darkMode && styles.textDarkSecondary]}>
+                          Income Multiplier:
+                        </Text>
+                        <Text style={[styles.legacyItemValue, { color: '#10B981' }]}>
+                          +{((inheritanceSummary.legacyBonuses.incomeMultiplier - 1) * 100).toFixed(1)}%
                         </Text>
                       </View>
-                      
-                      <View style={[styles.additionalStatItem, settings.darkMode && styles.additionalStatItemDark]}>
-                        <Home size={scale(14)} color="#F59E0B" />
-                        <Text style={[styles.additionalStatLabel, settings.darkMode && styles.additionalStatLabelDark]}>Properties</Text>
-                        <Text style={[styles.additionalStatValue, settings.darkMode && styles.additionalStatValueDark]}>
-                          {lifeStats.properties}
+                      <View style={styles.legacyItem}>
+                        <Text style={[styles.legacyItemLabel, settings.darkMode && styles.textDarkSecondary]}>
+                          Learning Multiplier:
+                        </Text>
+                        <Text style={[styles.legacyItemValue, { color: '#10B981' }]}>
+                          +{((inheritanceSummary.legacyBonuses.learningMultiplier - 1) * 100).toFixed(1)}%
                         </Text>
                       </View>
-                      
-                      <View style={[styles.additionalStatItem, settings.darkMode && styles.additionalStatItemDark]}>
-                        <Trophy size={scale(14)} color="#8B5CF6" />
-                        <Text style={[styles.additionalStatLabel, settings.darkMode && styles.additionalStatLabelDark]}>Items</Text>
-                        <Text style={[styles.additionalStatValue, settings.darkMode && styles.additionalStatValueDark]}>
-                          {lifeStats.items}
+                      <View style={styles.legacyItem}>
+                        <Text style={[styles.legacyItemLabel, settings.darkMode && styles.textDarkSecondary]}>
+                          Reputation Bonus:
                         </Text>
-                      </View>
-                      
-                      <View style={[styles.additionalStatItem, settings.darkMode && styles.additionalStatItemDark]}>
-                        <Crown size={scale(14)} color="#EF4444" />
-                        <Text style={[styles.additionalStatLabel, settings.darkMode && styles.additionalStatLabelDark]}>Weeks</Text>
-                        <Text style={[styles.additionalStatValue, settings.darkMode && styles.additionalStatValueDark]}>
-                          {lifeStats.totalWeeks}
+                        <Text style={[styles.legacyItemValue, { color: '#10B981' }]}>
+                          +{inheritanceSummary.legacyBonuses.reputationBonus}
                         </Text>
                       </View>
                     </View>
                   </View>
-
-                  {unlockedPerks.length > 0 && (
-                    <View style={styles.achievementsSection}>
-                      <View style={styles.achievementsHeader}>
-                        <Crown size={scale(18)} color="#F59E0B" />
-                        <Text style={[styles.achievementsTitle, settings.darkMode && styles.achievementsTitleDark]}>
-                          Unlocked Perks
-                        </Text>
-                      </View>
-                      <Text style={[styles.achievementsList, settings.darkMode && styles.achievementsListDark]}>
-                        {getPerkTitles(unlockedPerks).join(', ')}
-                      </Text>
-                    </View>
-                  )}
-
-                  {completed.length > 0 && (
-                    <View style={styles.achievementsSection}>
-                      <View style={styles.achievementsHeader}>
-                        <Trophy size={scale(18)} color="#8B5CF6" />
-                        <Text style={[styles.achievementsTitle, settings.darkMode && styles.achievementsTitleDark]}>
-                          Life Goals Completed
-                        </Text>
-                      </View>
-                      <Text style={[styles.achievementsList, settings.darkMode && styles.achievementsListDark]}>
-                        {completed.map(a => a.name).join(', ')}
-                      </Text>
-                    </View>
-                  )}
                 </View>
               </ScrollView>
-            </View>
-          </BlurView>
+
+              {/* Actions - Fixed at bottom */}
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.button, styles.reviveButton]}
+                  onPress={handleRevive}
+                  disabled={gameState.stats.gems < getReviveCost()}
+                >
+                  <LinearGradient
+                    colors={gameState.stats.gems >= getReviveCost() ? ['#10B981', '#059669'] : ['#9CA3AF', '#6B7280']}
+                    style={styles.gradientButton}
+                  >
+                    <Heart size={20} color="#FFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.buttonText}>
+                      Revive ({getReviveCost().toLocaleString()} Gems)
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.button, styles.iapReviveButton]}
+                  onPress={handleIAPRevive}
+                  disabled={iapLoading}
+                >
+                  <LinearGradient
+                    colors={iapLoading ? ['#9CA3AF', '#6B7280'] : ['#EF4444', '#DC2626']}
+                    style={styles.gradientButton}
+                  >
+                    <Heart size={20} color="#FFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.buttonText}>
+                      {iapLoading ? 'Processing...' : 'Revive ($1.99)'}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.button, styles.newLifeButton]} onPress={handleNewLife}>
+                  <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.gradientButton}>
+                    <RotateCcw size={20} color="#FFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.buttonText}>Start Next Generation</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          ) : (
+            // HEIR SELECTION VIEW
+            <LinearGradient
+              colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
+              style={styles.heirCard}
+            >
+              <View style={styles.heirHeader}>
+                <Text style={[styles.heirTitle, settings.darkMode && styles.textDark]}>
+                  Choose Your Heir
+                </Text>
+                <Text style={[styles.heirSubtitle, settings.darkMode && styles.textDarkSecondary]}>
+                  Who will continue your legacy?
+                </Text>
+              </View>
+
+              <ScrollView style={styles.heirList} showsVerticalScrollIndicator={false}>
+                {heirs.map(({ child, stats, traits }) => {
+                  const isSelected = selectedHeirId === child.id;
+                  return (
+                    <TouchableOpacity
+                      key={child.id}
+                      style={[
+                        styles.heirItem,
+                        settings.darkMode && styles.heirItemDark,
+                        isSelected && styles.heirItemSelected
+                      ]}
+                      onPress={() => setSelectedHeirId(child.id)}
+                    >
+                      <View style={styles.heirInfo}>
+                        <Image
+                          source={getCharacterImage(child.age, child.gender)}
+                          style={styles.heirImage}
+                        />
+                        <View style={styles.heirText}>
+                          <Text style={[styles.heirName, settings.darkMode && styles.textDark]}>
+                            {child.name}
+                          </Text>
+                          <Text style={[styles.heirDetails, settings.darkMode && styles.textDarkSecondary]}>
+                            Age {child.age} • {child.gender === 'male' ? 'Son' : 'Daughter'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Heir Stats Preview */}
+                      <View style={styles.heirStats}>
+                        <View style={styles.heirStat}>
+                           <Activity size={14} color="#EF4444" />
+                           <Text style={[styles.heirStatText, settings.darkMode && styles.textDark]}>
+                             {stats.health}
+                           </Text>
+                        </View>
+                        <View style={styles.heirStat}>
+                           <Smile size={14} color="#F59E0B" />
+                           <Text style={[styles.heirStatText, settings.darkMode && styles.textDark]}>
+                             {stats.happiness}
+                           </Text>
+                        </View>
+                        <View style={styles.heirStat}>
+                           <Brain size={14} color="#8B5CF6" />
+                           <Text style={[styles.heirStatText, settings.darkMode && styles.textDark]}>
+                             {(stats.reputation || 0) + (stats.fitness || 0) / 2}
+                           </Text>
+                        </View>
+                      </View>
+
+                      {/* Traits Preview */}
+                      {traits && traits.length > 0 && (
+                        <View style={styles.heirTraits}>
+                          {traits.map((t: any) => (
+                            <View key={t?.id} style={styles.traitBadge}>
+                              <Text style={styles.traitText}>{t?.name}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Mindset Selection */}
+              <View style={styles.mindsetSelectionSection}>
+                <View style={styles.mindsetSectionHeader}>
+                  <Brain size={18} color={settings.darkMode ? '#8B5CF6' : '#6366F1'} />
+                  <Text style={[styles.mindsetSectionTitle, settings.darkMode && styles.textDark]}>
+                    Choose Mindset (Optional)
+                  </Text>
+                </View>
+                <Text style={[styles.mindsetSectionSubtitle, settings.darkMode && styles.textDarkSecondary]}>
+                  Select a mindset trait for your heir
+                </Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.mindsetScroll}
+                  contentContainerStyle={styles.mindsetScrollContent}
+                >
+                  {MINDSET_TRAITS.map(trait => {
+                    const isSelected = selectedMindset === trait.id;
+                    return (
+                      <TouchableOpacity
+                        key={trait.id}
+                        style={[
+                          styles.mindsetOption,
+                          settings.darkMode && styles.mindsetOptionDark,
+                          isSelected && styles.mindsetOptionSelected
+                        ]}
+                        onPress={() => setSelectedMindset(isSelected ? null : trait.id)}
+                      >
+                        <Image source={trait.icon} style={styles.mindsetOptionImage} resizeMode="contain" />
+                        <Text style={[
+                          styles.mindsetOptionName,
+                          settings.darkMode && styles.textDark,
+                          isSelected && styles.mindsetOptionNameSelected
+                        ]}>
+                          {trait.name}
+                        </Text>
+                        <Text style={[
+                          styles.mindsetOptionDesc,
+                          settings.darkMode && styles.textDarkSecondary
+                        ]} numberOfLines={2}>
+                          {trait.description}
+                        </Text>
+                        {isSelected && (
+                          <View style={styles.mindsetCheck}>
+                            <Check size={16} color="#8B5CF6" />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              <View style={styles.heirActions}>
+                <TouchableOpacity 
+                  style={[styles.cancelButton]} 
+                  onPress={() => setShowHeirSelection(false)}
+                >
+                  <Text style={[styles.cancelText, settings.darkMode && styles.textDarkSecondary]}>
+                    Back
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.confirmButton, !selectedHeirId && styles.disabledButton]}
+                  onPress={confirmHeirSelection}
+                  disabled={!selectedHeirId}
+                >
+                  <LinearGradient
+                    colors={selectedHeirId ? ['#3B82F6', '#2563EB'] : ['#9CA3AF', '#6B7280']}
+                    style={styles.gradientButton}
+                  >
+                    <Text style={styles.buttonText}>Continue Legacy</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          )}
         </Animated.View>
       </View>
     </Modal>
+    <PrestigeModal
+      visible={showPrestigeModal}
+      onClose={() => setShowPrestigeModal(false)}
+    />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: screenWidth * 0.02,
-  },
-  blurBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  particlesContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    pointerEvents: 'none',
-  },
-  particle: {
-    position: 'absolute',
-    width: scale(4),
-    height: scale(4),
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    borderRadius: scale(2),
-  },
-  animatedContainer: {
-    maxWidth: screenWidth * 0.92,
-    width: '100%',
-    maxHeight: screenHeight * 0.85,
-  },
-  containerBlur: {
-    borderRadius: responsiveBorderRadius.xl,
-    overflow: 'hidden',
-  },
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: responsiveBorderRadius.xl,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: scale(20) },
-    shadowOpacity: 0.4,
-    shadowRadius: scale(30),
-    elevation: 25,
-  },
-  containerDark: {
-    backgroundColor: 'rgba(31, 41, 55, 0.95)',
-  },
-  headerContainer: {
-    position: 'relative',
-  },
-  glowEffect: {
-    position: 'absolute',
-    top: -scale(20),
-    left: -scale(20),
-    right: -scale(20),
-    bottom: -scale(20),
-    borderRadius: responsiveBorderRadius.xl,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: scale(30),
-    elevation: 20,
-  },
-  header: {
-    padding: screenWidth * 0.04,
-    alignItems: 'center',
-    borderTopLeftRadius: responsiveBorderRadius.xl,
-    borderTopRightRadius: responsiveBorderRadius.xl,
-    position: 'relative',
-  },
-  iconContainer: {
-    width: screenWidth * 0.12,
-    height: screenWidth * 0.12,
-    borderRadius: screenWidth * 0.06,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: screenHeight * 0.015,
-    position: 'relative',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    zIndex: 1000,
   },
-  iconGlow: {
+  overlay: {
     position: 'absolute',
-    width: screenWidth * 0.12,
-    height: screenWidth * 0.12,
-    borderRadius: screenWidth * 0.06,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: screenWidth * 0.04,
-    elevation: 10,
-  },
-  sparkleIcon: {
-    position: 'absolute',
-    top: screenWidth * 0.02,
-    right: screenWidth * 0.02,
-  },
-  title: {
-    fontSize: responsiveFontSize['2xl'],
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: responsiveSpacing.sm,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
-  },
-  subtitle: {
-    fontSize: responsiveFontSize.lg,
-    color: 'rgba(255, 255, 255, 0.95)',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    width: width,
+    height: height,
+    backgroundColor: 'rgba(0,0,0,0.8)',
   },
   content: {
-    padding: screenWidth * 0.03,
-    flexShrink: 0,
-  },
-  scrollableContent: {
-    flex: 1,
-    paddingHorizontal: screenWidth * 0.03,
-    paddingBottom: screenWidth * 0.03,
-  },
-  description: {
-    fontSize: responsiveFontSize.base,
-    color: '#4B5563',
-    textAlign: 'center',
-    lineHeight: responsiveFontSize.base * 1.4,
-    marginBottom: screenHeight * 0.015,
-    fontStyle: 'italic',
-  },
-  descriptionDark: {
-    color: '#D1D5DB',
-  },
-  summaryContainer: {
-    backgroundColor: 'rgba(249, 250, 251, 0.9)',
-    borderRadius: responsiveBorderRadius.lg,
-    padding: screenWidth * 0.03,
-    marginBottom: screenHeight * 0.015,
-    borderWidth: 1,
-    borderColor: 'rgba(229, 231, 235, 0.5)',
-  },
-  summaryContainerDark: {
-    backgroundColor: 'rgba(55, 65, 81, 0.9)',
-    borderColor: 'rgba(75, 85, 99, 0.5)',
-  },
-  summaryHeader: {
-    flexDirection: 'row',
+    width: width * 0.9,
+    maxWidth: 400,
     alignItems: 'center',
-    marginBottom: screenHeight * 0.01,
   },
-  summaryTitle: {
-    fontSize: responsiveFontSize.xl,
+  card: {
+    width: '100%',
+    maxHeight: height * 0.75,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  cardScrollView: {
+    flexGrow: 1,
+    flexShrink: 1,
+  },
+  cardScrollContent: {
+    alignItems: 'center',
+    paddingBottom: 16,
+  },
+  heirCard: {
+    width: '100%',
+    height: height * 0.7,
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  iconContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glowRing: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  title: {
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginLeft: responsiveSpacing.md,
+    color: '#111827',
+    marginBottom: 8,
   },
-  summaryTitleDark: {
-    color: '#F9FAFB',
+  subtitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginBottom: 4,
   },
-  statsGrid: {
+  details: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: screenHeight * 0.01,
-    gap: screenWidth * 0.015,
+    justifyContent: 'space-around',
+    width: '100%',
+    marginBottom: 32,
+    paddingHorizontal: 10,
   },
   statItem: {
-    width: '48%',
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: screenWidth * 0.02,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(229, 231, 235, 0.3)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statItemDark: {
-    backgroundColor: 'rgba(31, 41, 55, 0.8)',
-    borderColor: 'rgba(75, 85, 99, 0.3)',
-  },
-  statLabel: {
-    fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
-    marginLeft: responsiveSpacing.sm,
-    flex: 1,
-    fontWeight: '500',
-  },
-  statLabelDark: {
-    color: '#9CA3AF',
   },
   statValue: {
-    fontSize: responsiveFontSize.base,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#111827',
   },
-  statValueDark: {
-    color: '#F9FAFB',
-  },
-  achievementsSection: {
-    marginBottom: screenHeight * 0.01,
-  },
-  achievementsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: responsiveSpacing.sm,
-  },
-  achievementsTitle: {
-    fontSize: responsiveFontSize.lg,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginLeft: responsiveSpacing.sm,
-  },
-  achievementsTitleDark: {
-    color: '#F9FAFB',
-  },
-  achievementsList: {
-    fontSize: responsiveFontSize.base,
+  statLabel: {
+    fontSize: 12,
     color: '#6B7280',
-    lineHeight: responsiveFontSize.base * 1.5,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 4,
   },
-  achievementsListDark: {
-    color: '#9CA3AF',
+  legacyDetails: {
+    width: '100%',
+    marginTop: 20,
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    borderRadius: 12,
   },
-  additionalStats: {
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderRadius: responsiveBorderRadius.md,
-    padding: screenWidth * 0.025,
-    marginBottom: screenHeight * 0.01,
-    borderWidth: 1,
-    borderColor: 'rgba(229, 231, 235, 0.3)',
+  legacyDetailsDark: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  additionalStatsDark: {
-    backgroundColor: 'rgba(55, 65, 81, 0.7)',
-    borderColor: 'rgba(75, 85, 99, 0.3)',
+  legacyDetailsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 12,
   },
-  additionalStatsTitle: {
-    fontSize: responsiveFontSize.sm,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: screenHeight * 0.008,
-    textAlign: 'center',
+  legacyBreakdown: {
+    gap: 8,
   },
-  additionalStatsTitleDark: {
-    color: '#F9FAFB',
-  },
-  additionalStatsGrid: {
+  legacyItem: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: screenWidth * 0.01,
-  },
-  additionalStatItem: {
-    width: '48%',
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: screenWidth * 0.015,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: responsiveBorderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(229, 231, 235, 0.2)',
+    paddingVertical: 4,
   },
-  additionalStatItemDark: {
-    backgroundColor: 'rgba(31, 41, 55, 0.8)',
-    borderColor: 'rgba(75, 85, 99, 0.2)',
-  },
-  additionalStatLabel: {
-    fontSize: responsiveFontSize.xs,
+  legacyItemLabel: {
+    fontSize: 14,
     color: '#6B7280',
-    marginLeft: screenWidth * 0.01,
     flex: 1,
-    fontWeight: '500',
   },
-  additionalStatLabelDark: {
-    color: '#9CA3AF',
+  legacyItemValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
   },
-  additionalStatValue: {
-    fontSize: responsiveFontSize.sm,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  legacyBonuses: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
-  additionalStatValueDark: {
-    color: '#F9FAFB',
+  legacyBonusesDark: {
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
-  buttonContainer: {
-    gap: screenHeight * 0.012,
-    paddingTop: screenHeight * 0.01,
+  actions: {
+    width: '100%',
+    gap: 12,
   },
-  iapReviveButton: {
-    borderRadius: responsiveBorderRadius.lg,
+  button: {
+    width: '100%',
+    borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
   },
-  iapReviveButtonGradient: {
+  gradientButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: screenHeight * 0.015,
-    paddingHorizontal: screenWidth * 0.04,
-    gap: screenWidth * 0.02,
+    paddingVertical: 16,
   },
-  iapButtonContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  iapReviveButtonText: {
+  buttonText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.lg,
+    fontSize: 16,
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  iapReviveButtonSubtext: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: responsiveFontSize.sm,
-    marginTop: 2,
   },
   reviveButton: {
-    borderRadius: responsiveBorderRadius.lg,
-    overflow: 'hidden',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    marginBottom: 8,
   },
-  reviveButtonGradient: {
-    flexDirection: 'row',
+  iapReviveButton: {
+    marginBottom: 8,
+  },
+  newLifeButton: {},
+  textDark: {
+    color: '#FFFFFF',
+  },
+  textDarkSecondary: {
+    color: '#9CA3AF',
+  },
+  
+  // Heir Styles
+  heirHeader: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: screenHeight * 0.012,
-    paddingHorizontal: screenWidth * 0.04,
-    gap: screenWidth * 0.015,
+    marginBottom: 20,
   },
-  reviveButtonContent: {
+  heirTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  heirSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  heirList: {
     flex: 1,
-    alignItems: 'center',
+    width: '100%',
   },
-  reviveButtonText: {
-    color: '#FFFFFF',
-    fontSize: responsiveFontSize.lg,
-    fontWeight: 'bold',
+  heirItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  reviveButtonSubtext: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: responsiveFontSize.sm,
-    marginTop: 2,
+  heirItemDark: {
+    backgroundColor: '#374151',
   },
-  newLifeButton: {
-    borderRadius: responsiveBorderRadius.lg,
-    overflow: 'hidden',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+  heirItemSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
   },
-  newLifeButtonGradient: {
+  heirInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: screenHeight * 0.012,
-    paddingHorizontal: screenWidth * 0.04,
-    gap: screenWidth * 0.015,
+    marginBottom: 12,
   },
-  newLifeButtonText: {
-    color: '#FFFFFF',
-    fontSize: responsiveFontSize.lg,
+  heirImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  heirText: {
+    flex: 1,
+  },
+  heirName: {
+    fontSize: 18,
     fontWeight: 'bold',
+    color: '#111827',
+  },
+  heirDetails: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  heirStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    marginBottom: 8,
+  },
+  heirStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  heirStatText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  heirTraits: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  traitBadge: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  traitText: {
+    fontSize: 10,
+    color: '#1E40AF',
+    fontWeight: '600',
+  },
+  heirActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  cancelButton: {
+    padding: 12,
+  },
+  cancelText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  confirmButton: {
+    flex: 1,
+    marginLeft: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  
+  // Mindset Selection Styles
+  mindsetSelectionSection: {
+    marginTop: 20,
+    marginBottom: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  mindsetSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  mindsetSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  mindsetSectionSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  mindsetScroll: {
+    maxHeight: 120,
+  },
+  mindsetScrollContent: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  mindsetOption: {
+    minWidth: 140,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    position: 'relative',
+    alignItems: 'center',
+  },
+  mindsetOptionImage: {
+    width: 48,
+    height: 48,
+    marginBottom: 8,
+  },
+  mindsetOptionDark: {
+    backgroundColor: '#374151',
+  },
+  mindsetOptionSelected: {
+    borderColor: '#8B5CF6',
+    backgroundColor: '#EDE9FE',
+  },
+  mindsetOptionName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  mindsetOptionNameSelected: {
+    color: '#6366F1',
+  },
+  mindsetOptionDesc: {
+    fontSize: 11,
+    color: '#6B7280',
+    lineHeight: 14,
+  },
+  mindsetCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,20 +10,14 @@ import {
   Animated,
   Image,
   TextInput,
-} from 'react-native';
+ Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import AnimatedModal from '@/components/anim/AnimatedModal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useGame, Contract, CrimeSkillId, StreetJob } from '@/contexts/GameContext';
 import { useToast } from '@/contexts/ToastContext';
-
-// Hobby Images
-const FootballIcon = require('@/assets/images/Hobby/Football.png');
-const BasketballIcon = require('@/assets/images/Hobby/Basketball.png');
-const TennisIcon = require('@/assets/images/Hobby/Tennis.png');
-const ArtIcon = require('@/assets/images/Hobby/Art.png');
-const MusicIcon = require('@/assets/images/Hobby/Music.png');
+import { getMindsetFeedback } from '@/utils/mindsetFeedback';
 import {
   Briefcase,
   Zap,
@@ -36,11 +30,15 @@ import {
   Handshake,
   X,
   Lock,
-  AlertTriangle, // <-- tillagd
+  AlertTriangle,
+  Info,
+  Heart,
+  Smile,
 } from 'lucide-react-native';
 import JailActivities from '@/components/jail/JailActivities';
 import JailScreen from '@/components/jail/JailScreen';
 import SkillTalentTree from '@/components/SkillTalentTree';
+import InfoButton from '@/components/ui/InfoButton';
 import {
   responsivePadding,
   responsiveFontSize,
@@ -50,8 +48,17 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { responsiveDesign, getResponsiveValue, getResponsiveSpacing } from '@/utils/responsiveDesign';
 import { useTranslation } from '@/hooks/useTranslation';
+
+// Hobby Images
+const FootballIcon = require('@/assets/images/Hobby/Football.png');
+const BasketballIcon = require('@/assets/images/Hobby/Basketball.png');
+const TennisIcon = require('@/assets/images/Hobby/Tennis.png');
+const ArtIcon = require('@/assets/images/Hobby/Art.png');
+const MusicIcon = require('@/assets/images/Hobby/Music.png');
 
 const CRIME_SKILL_UPGRADES: Record<
   CrimeSkillId,
@@ -88,6 +95,8 @@ const CRIME_SKILL_DESCRIPTIONS: Record<CrimeSkillId, string> = {
 
 export default function WorkScreen() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const topStatsBarHeight = useTopStatsBarHeight();
   const [activeTab, setActiveTab] = useState<'street' | 'career' | 'hobby' | 'skills'>('street');
   const [workFeedback, setWorkFeedback] = useState<{ [key: string]: string }>({});
   const [showSongs, setShowSongs] = useState(false);
@@ -151,8 +160,14 @@ export default function WorkScreen() {
   const activeSport = gameState.hobbies.find(h => h.contracts && h.contracts.length > 0)?.id;
   const iconColor = settings.darkMode ? '#93C5FD' : '#1E3A8A';
   const bailCost = gameState.jailWeeks * 500;
-  const legalStreetJobs = gameState.streetJobs.filter(job => !job.illegal);
-  const criminalStreetJobs = gameState.streetJobs.filter(job => job.illegal === true);
+  // Filter out any creative/hobby jobs that might exist in streetJobs
+  const creativeHobbyJobIds = ['guitar', 'music', 'art', 'football', 'basketball', 'tennis'];
+  const legalStreetJobs = gameState.streetJobs.filter(job => !job.illegal && !creativeHobbyJobIds.includes(job.id));
+  const criminalStreetJobs = gameState.streetJobs.filter(job => job.illegal === true && !creativeHobbyJobIds.includes(job.id));
+  
+  // State for negative stats popup
+  const [showNegativeStatsPopup, setShowNegativeStatsPopup] = useState(false);
+  const [selectedJobForStats, setSelectedJobForStats] = useState<StreetJob | null>(null);
 
   // Auto-switch to career tab if player doesn't have a job or is coming from tutorial
   useEffect(() => {
@@ -198,11 +213,31 @@ export default function WorkScreen() {
   }, [workFeedback, feedbackOpacity]);
 
   const handleStreetJob = (jobId: string) => {
+    const job = gameState.streetJobs.find(j => j.id === jobId);
     const result = performStreetJob(jobId);
     if (result) {
       // Show toast notification
       if (result.success) {
         showSuccess(result.message);
+        
+        // Show mindset feedback if applicable
+        if (job && gameState.mindset?.activeTraitId) {
+          const mindsetFeedback = getMindsetFeedback(
+            gameState,
+            job.basePayment,
+            0,
+            0
+          );
+          if (mindsetFeedback?.message) {
+            if (mindsetFeedback.type === 'bonus') {
+              showSuccess(mindsetFeedback.message);
+            } else if (mindsetFeedback.type === 'penalty') {
+              showWarning(mindsetFeedback.message);
+            } else {
+              showInfo(mindsetFeedback.message);
+            }
+          }
+        }
       } else if (result.inJail) {
         showError(result.message || 'You were caught!');
       } else {
@@ -260,13 +295,13 @@ export default function WorkScreen() {
   };
 
   const handleIncomePopup = (hobby: any) => {
-    console.log('Opening income popup for hobby:', hobby?.name || hobby?.id);
+    logger.debug('Opening income popup for hobby:', { hobbyName: hobby?.name || hobby?.id });
     setSelectedHobbyIncome(hobby);
     setShowIncomePopup(true);
   };
 
   const getHobbyIncomeData = (hobby: any) => {
-    console.log('Getting income data for hobby:', hobby?.name || hobby?.id);
+    logger.debug('Getting income data for hobby:', { hobbyName: hobby?.name || hobby?.id });
     
     if (hobby.id === 'music') {
       const songs = hobby.songs || [];
@@ -369,7 +404,7 @@ export default function WorkScreen() {
         goal: 3,
         matchPay: 25,
         weeksRemaining: 6,
-      } as any;
+      } as Contract;
       // Attach minimal contract and league to allow play
       setGameState(prev => ({
         ...prev,
@@ -472,6 +507,15 @@ export default function WorkScreen() {
       return false;
     }
     
+    // Check weekly limit - prevent spamming jobs
+    const weeklyJobs = gameState.weeklyStreetJobs || {};
+    const timesDoneThisWeek = weeklyJobs[job.id] || 0;
+    const maxPerWeek = 3; // Allow each job to be done max 3 times per week
+    
+    if (timesDoneThisWeek >= maxPerWeek) {
+      return false;
+    }
+    
     // Energy check - use current energy value
     const hasEnoughEnergy = gameState.stats.energy >= job.energyCost;
 
@@ -485,9 +529,12 @@ export default function WorkScreen() {
 
     const hasDarkItems =
       !job.darkWebRequirements ||
-      job.darkWebRequirements.every((req: string) =>
-        gameState.darkWebItems.find(item => item.id === req)?.owned
-      );
+      job.darkWebRequirements.every((req: string) => {
+        // Check both darkWebItems and regular items (for compatibility)
+        const darkWebItem = gameState.darkWebItems.find(item => item.id === req)?.owned;
+        const regularItem = gameState.items.find(item => item.id === req)?.owned;
+        return darkWebItem || regularItem;
+      });
 
     const meetsLevel =
       !job.criminalLevelReq ||
@@ -499,25 +546,32 @@ export default function WorkScreen() {
   const getJailRisk = (job: StreetJob) => {
     if (!job.illegal) return 0;
 
-    let baseRisk = 0;
-    switch (job.id) {
-      case 'steal_from_cars': baseRisk = 15; break;
-      case 'pickpocket_basic': baseRisk = 20; break;
-      case 'hack_wifi': baseRisk = 25; break;
-      case 'drug_dealing': baseRisk = 35; break;
-      case 'steal_cars_basic': baseRisk = 40; break;
-      case 'burglary': baseRisk = 45; break;
-      case 'cyber_attack': baseRisk = 50; break;
-      case 'car_theft': baseRisk = 55; break;
-      case 'bank_heist': baseRisk = 70; break;
-      default: baseRisk = 30;
-    }
+    // Calculate risk the same way as in JobActions.ts
+    // Risk = (100 - successChance) / 2
+    const baseSuccess = job.baseSuccessRate || 50;
+    const skillBonus = job.skill ? (gameState.crimeSkills[job.skill]?.level || 0) * 5 : 0;
+    const successChance = Math.min(95, baseSuccess + skillBonus);
+    const caughtChance = (100 - successChance) / 2;
 
-    const levelReduction = Math.min(gameState.criminalLevel * 2, 20);
-    const rankReduction = Math.min((job.rank - 1) * 3, 15);
-    const requirementBonus = canPerformJob(job) ? 10 : 0;
+    // Round to nearest integer for display
+    return Math.round(caughtChance);
+  };
 
-    return Math.max(baseRisk - levelReduction - rankReduction - requirementBonus, 5);
+  const getJobPenalties = (job: StreetJob) => {
+    // Calculate penalties the same way as in JobActions.ts
+    // Illegal jobs: -7 happiness, -3 health
+    // Dangerous jobs (jailWeeks >= 3 or wantedIncrease >= 3): -6 happiness, -4 health
+    // Regular street jobs: -5 happiness, -2 health
+    const isDangerous = (job.jailWeeks && job.jailWeeks >= 3) || (job.wantedIncrease && job.wantedIncrease >= 3);
+    const happinessPenalty = job.illegal ? -7 : (isDangerous ? -6 : -5);
+    const healthPenalty = job.illegal ? -3 : (isDangerous ? -4 : -2);
+    return { happinessPenalty, healthPenalty };
+  };
+
+  const getCareerPenalties = () => {
+    // Career jobs have lighter penalties than street jobs
+    // Careers: -3 happiness, -2 health
+    return { happinessPenalty: -3, healthPenalty: -2 };
   };
 
 
@@ -563,11 +617,62 @@ export default function WorkScreen() {
 
               <Text style={styles.crimeJobDescription}>
                 {job.description}
-                {(() => {
-                  const missing = getMissingRequirements(job);
-                  return missing.length ? `\n\nRequires: ${missing.join(', ')}` : '';
-                })()}
               </Text>
+              {(() => {
+                const itemReqs = job.requirements || [];
+                const darkReqs = job.darkWebRequirements || [];
+                const hasAnyReq = (itemReqs.length + darkReqs.length + (job.criminalLevelReq ? 1 : 0)) > 0;
+                if (!hasAnyReq) return null;
+                return (
+                  <View style={styles.crimeReqChipsContainer}>
+                    {!!job.criminalLevelReq && (
+                      <View
+                        style={[
+                          styles.reqChip,
+                          (gameState.criminalLevel >= (job.criminalLevelReq || 0))
+                            ? styles.reqChipOwned
+                            : styles.reqChipMissing,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.reqChipText,
+                            (gameState.criminalLevel >= (job.criminalLevelReq || 0))
+                              ? styles.reqChipTextOwned
+                              : styles.reqChipTextMissing,
+                          ]}
+                        >
+                          Criminal Lv {job.criminalLevelReq}+
+                        </Text>
+                      </View>
+                    )}
+
+                    {itemReqs.map((reqId: string) => {
+                      const item = gameState.items.find(i => i.id === reqId);
+                      const owned = !!item?.owned;
+                      return (
+                        <View key={`req-item-${reqId}`} style={[styles.reqChip, owned ? styles.reqChipOwned : styles.reqChipMissing]}>
+                          <Text style={[styles.reqChipText, owned ? styles.reqChipTextOwned : styles.reqChipTextMissing]}>
+                            {item?.name || reqId}
+                          </Text>
+                        </View>
+                      );
+                    })}
+
+                    {darkReqs.map((reqId: string) => {
+                      const item = gameState.darkWebItems.find(i => i.id === reqId);
+                      const owned = !!item?.owned;
+                      return (
+                        <View key={`req-dark-${reqId}`} style={[styles.reqChip, owned ? styles.reqChipOwned : styles.reqChipMissing]}>
+                          <Text style={[styles.reqChipText, owned ? styles.reqChipTextOwned : styles.reqChipTextMissing]}>
+                            {item?.name || reqId}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                );
+              })()}
             </View>
           </LinearGradient>
 
@@ -607,25 +712,74 @@ export default function WorkScreen() {
               <Text style={styles.crimeStatLabel}>Risk</Text>
               <Text style={styles.crimeStatValue}>{getJailRisk(job)}%</Text>
             </View>
+
+            {/* Penalties - Direct display */}
+            {(() => {
+              const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+              if (happinessPenalty < 0) {
+                return (
+                  <View style={styles.crimeStatCard}>
+                    <View style={styles.crimeStatIcon}>
+                      <Smile size={16} color="#F59E0B" />
+                    </View>
+                    <Text style={styles.crimeStatLabel}>Happiness</Text>
+                    <Text style={[styles.crimeStatValue, { color: '#EF4444' }]}>{happinessPenalty}</Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
+            {(() => {
+              const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+              if (healthPenalty < 0) {
+                return (
+                  <View style={styles.crimeStatCard}>
+                    <View style={styles.crimeStatIcon}>
+                      <Heart size={16} color="#EF4444" />
+                    </View>
+                    <Text style={styles.crimeStatLabel}>Health</Text>
+                    <Text style={[styles.crimeStatValue, { color: '#EF4444' }]}>{healthPenalty}</Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
           </View>
 
           <View style={styles.crimeJobActionContainer}>
-            <TouchableOpacity
-              onPress={() => handleStreetJob(job.id)}
-              disabled={gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0}
-              style={styles.crimeJobButtonWrapper}
-            >
-              <LinearGradient
-                colors={gameState.stats.energy >= job.energyCost && gameState.jailWeeks === 0 ? ['#DC2626', '#B91C1C', '#991B1B'] : ['#374151', '#374151']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.crimeJobButton}
-              >
-                <Text style={[styles.crimeJobButtonText, (gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0) && styles.crimeJobButtonTextDisabled]}>
-                  {gameState.stats.energy >= job.energyCost && gameState.jailWeeks === 0 ? 'EXECUTE' : 'LOCKED'}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            {(() => {
+              const weeklyJobs = gameState.weeklyStreetJobs || {};
+              const timesDoneThisWeek = weeklyJobs[job.id] || 0;
+              const maxPerWeek = 3;
+              const isAtLimit = timesDoneThisWeek >= maxPerWeek;
+              const isDisabled = gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0 || isAtLimit;
+              
+              return (
+                <>
+                  {isAtLimit && (
+                    <Text style={styles.crimeJobDescription}>
+                      Done {timesDoneThisWeek}/{maxPerWeek} times this week
+                    </Text>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => handleStreetJob(job.id)}
+                    disabled={isDisabled}
+                    style={styles.crimeJobButtonWrapper}
+                  >
+                    <LinearGradient
+                      colors={!isDisabled ? ['#DC2626', '#B91C1C', '#991B1B'] : ['#374151', '#374151']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.crimeJobButton}
+                    >
+                      <Text style={[styles.crimeJobButtonText, isDisabled && styles.crimeJobButtonTextDisabled]}>
+                        {isAtLimit ? `LIMIT REACHED (${timesDoneThisWeek}/${maxPerWeek})` : !isDisabled ? 'EXECUTE' : 'LOCKED'}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </>
+              );
+            })()}
 
             {workFeedback[job.id] && (
               <Animated.View style={[styles.feedbackPopup, { opacity: feedbackOpacity }]}>
@@ -637,178 +791,136 @@ export default function WorkScreen() {
       );
     }
 
-    // Regular job card
+    // Regular street job card - styled like crime jobs but in blue
     return (
-      <LinearGradient
-        key={job.id}
-        colors={settings.darkMode ? ['#374151', '#1F2937'] : ['#FFFFFF', '#E5E7EB']}
-        style={styles.jobCard}
-      >
-        <View style={styles.jobHeader}>
-          <View style={styles.jobInfo}>
-            <Text style={[styles.jobName, settings.darkMode && styles.jobNameDark]}>{job.name}</Text>
-            <View style={styles.rankBadge}>
-              <Star size={10} color="#F59E0B" />
-              <Text style={styles.rankText}>Rank {job.rank}</Text>
+      <View key={job.id} style={styles.streetJobContainer}>
+        <LinearGradient
+          colors={['#1E3A8A', '#1E40AF']}
+          style={styles.streetJobHeader}
+        >
+          <View style={styles.streetJobHeaderContent}>
+            <View style={styles.streetJobTitleRow}>
+              <View style={styles.streetJobTitleContainer}>
+                <Text style={styles.streetJobName}>{job.name}</Text>
+                <View style={styles.streetJobBadge}>
+                  <Text style={styles.streetJobBadgeText}>STREET WORK</Text>
+                </View>
+              </View>
+              <View style={styles.streetJobRankContainer}>
+                <Star size={14} color="#60A5FA" />
+                <Text style={styles.streetJobRank}>Rank {job.rank}</Text>
+              </View>
             </View>
-          </View>
-          <View style={styles.workButtonContainer}>
-            <TouchableOpacity 
-              onPress={() => handleStreetJob(job.id)} 
-              disabled={gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0}
-            >
-              <LinearGradient
-                colors={gameState.stats.energy >= job.energyCost && gameState.jailWeeks === 0 ? ['#16A34A', '#4ADE80'] : ['#E5E7EB', '#E5E7EB']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.actionButton}
-              >
-                <Text style={[styles.workButtonText, (gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0) && styles.disabledButtonText]}>
-                  {t('work.work')}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            {workFeedback[job.id] && (
-              <Animated.View style={[styles.feedbackPopup, { opacity: feedbackOpacity }]}>
-                <Text style={styles.feedbackPopupText}>{workFeedback[job.id]}</Text>
-              </Animated.View>
-            )}
-          </View>
-        </View>
 
-        <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
-          {job.description}
-          {(() => {
-            const missing = getMissingRequirements(job);
-            return missing.length ? ` Requires: ${missing.join(', ')}` : '';
-          })()}
-        </Text>
-
-        <View style={styles.jobStats}>
-          <View style={styles.statItem}>
-            <Zap size={16} color="#EF4444" />
-            <Text style={[styles.statText, settings.darkMode && styles.statTextDark]}>
-              -{job.energyCost} Energy
+            <Text style={styles.streetJobDescription}>
+              {job.description}
+              {(() => {
+                const missing = getMissingRequirements(job);
+                return missing.length ? `\n\nRequires: ${missing.join(', ')}` : '';
+              })()}
             </Text>
           </View>
-          <View style={styles.statItem}>
-            <TrendingUp size={16} color="#10B981" />
-            <Text style={[styles.statText, settings.darkMode && styles.statTextDark]}>
-              ${Math.floor(job.basePayment * 0.7)}-${Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3))}$
+        </LinearGradient>
+
+        <View style={styles.streetJobStatsGrid}>
+          <View style={styles.streetStatCard}>
+            <View style={styles.streetStatIcon}>
+              <Zap size={16} color="#60A5FA" />
+            </View>
+            <Text style={styles.streetStatLabel}>Energy</Text>
+            <Text style={styles.streetStatValue}>-{job.energyCost}</Text>
+          </View>
+
+          <View style={styles.streetStatCard}>
+            <View style={styles.streetStatIcon}>
+              <TrendingUp size={16} color="#4ADE80" />
+            </View>
+            <Text style={styles.streetStatLabel}>Reward</Text>
+            <Text style={styles.streetStatValue}>
+              ${Math.floor(job.basePayment * 0.7)}-${Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3))}
             </Text>
           </View>
+
           {job.skill && (
-            <View style={styles.statItem}>
-              <Star size={16} color="#F59E0B" />
-              <Text style={[styles.statText, settings.darkMode && styles.statTextDark]}>
-                {job.skill.charAt(0).toUpperCase() + job.skill.slice(1)}
-              </Text>
+            <View style={styles.streetStatCard}>
+              <View style={styles.streetStatIcon}>
+                <Star size={16} color="#FFD93D" />
+              </View>
+              <Text style={styles.streetStatLabel}>Skill</Text>
+              <Text style={styles.streetStatValue}>{job.skill.charAt(0).toUpperCase() + job.skill.slice(1)}</Text>
             </View>
           )}
+
           {job.risks && job.risks.length > 0 && (
-            <View style={styles.statItem}>
-              <AlertTriangle size={16} color="#EF4444" />
-              <Text style={[styles.statText, settings.darkMode && styles.statTextDark]}>
-                {job.risks.length} Risk{job.risks.length > 1 ? 's' : ''}
-              </Text>
+            <View style={styles.streetStatCard}>
+              <View style={styles.streetStatIcon}>
+                <AlertTriangle size={16} color="#F59E0B" />
+              </View>
+              <Text style={styles.streetStatLabel}>Risks</Text>
+              <Text style={styles.streetStatValue}>{job.risks.length}</Text>
             </View>
           )}
-        </View>
 
-        {job.requirements && (
-          <View style={[styles.requirements, job.illegal && { marginBottom: 4 }]}>
-            <Text
-              style={[
-                styles.requirementsTitle,
-                settings.darkMode && styles.requirementsTitleDark,
-                job.illegal && { fontSize: responsiveFontSize.xs, color: '#DC2626' },
-              ]}
-            >
-              Requirements:
-            </Text>
-            {job.requirements.map((req: string) => {
-              const item = gameState.items.find(i => i.id === req);
-              const owned = item?.owned || false;
+          {/* Penalties - Direct display */}
+          {(() => {
+            const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+            if (happinessPenalty < 0) {
               return (
-                <Text
-                  key={req}
-                  style={[
-                    styles.requirement,
-                    settings.darkMode && !owned && styles.requirementDark,
-                    owned && styles.metRequirement,
-                    job.illegal && { fontSize: responsiveFontSize.xs },
-                  ]}
-                >
-                  {owned ? '✓' : '✗'} {item?.name || req}
-                </Text>
+                <View style={styles.streetStatCard}>
+                  <View style={styles.streetStatIcon}>
+                    <Smile size={16} color="#F59E0B" />
+                  </View>
+                  <Text style={styles.streetStatLabel}>Happiness</Text>
+                  <Text style={[styles.streetStatValue, { color: '#EF4444' }]}>{happinessPenalty}</Text>
+                </View>
               );
-            })}
-          </View>
-        )}
-
-        {job.darkWebRequirements && (
-          <View style={[styles.requirements, job.illegal && { marginBottom: 2 }]}>
-            <Text
-              style={[
-                styles.requirementsTitle,
-                settings.darkMode && styles.requirementsTitleDark,
-                job.illegal && { fontSize: responsiveFontSize.xs, color: '#8B5CF6' },
-              ]}
-            >
-              Onion Gear:{' '}
-              {job.darkWebRequirements
-                .map((req: string) => {
-                  const item = gameState.darkWebItems.find(i => i.id === req);
-                  const owned = item?.owned || false;
-                  return `${owned ? '✓' : '✗'} ${item?.name || req}`;
-                })
-                .join(', ')}
-            </Text>
-          </View>
-        )}
-
-        {job.criminalLevelReq && (
-          <Text
-            style={[
-              styles.requirementsTitle,
-              settings.darkMode && styles.requirementsTitleDark,
-              job.illegal && {
-                fontSize: responsiveFontSize.xs,
-                color: '#DC2626',
-                marginBottom: 2,
-              },
-            ]}
-          >
-            Requires Criminal Level {job.criminalLevelReq}
-          </Text>
-        )}
-
-        <View style={[styles.progressSection, job.illegal && { marginTop: 2, marginBottom: 4 }]}>
-          <View style={styles.progressInfo}>
-            <Text
-              style={[
-                styles.progressLabel,
-                settings.darkMode && styles.progressLabelDark,
-                job.illegal && { fontSize: responsiveFontSize.xs },
-              ]}
-            >
-              Progress to Rank {job.rank + 1}
-            </Text>
-            <Text
-              style={[
-                styles.progressPercent,
-                settings.darkMode && styles.progressPercentDark,
-                job.illegal && { fontSize: responsiveFontSize.xs },
-              ]}
-            >
-              {job.progress}%
-            </Text>
-          </View>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${job.progress}%` }]} />
-          </View>
+            }
+            return null;
+          })()}
+          {(() => {
+            const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+            if (healthPenalty < 0) {
+              return (
+                <View style={styles.streetStatCard}>
+                  <View style={styles.streetStatIcon}>
+                    <Heart size={16} color="#EF4444" />
+                  </View>
+                  <Text style={styles.streetStatLabel}>Health</Text>
+                  <Text style={[styles.streetStatValue, { color: '#EF4444' }]}>{healthPenalty}</Text>
+                </View>
+              );
+            }
+            return null;
+          })()}
         </View>
-      </LinearGradient>
+
+        <View style={styles.streetJobActionContainer}>
+          <TouchableOpacity
+            onPress={() => handleStreetJob(job.id)}
+            disabled={gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0}
+            style={styles.streetJobButtonWrapper}
+          >
+            <LinearGradient
+              colors={gameState.stats.energy >= job.energyCost && gameState.jailWeeks === 0 
+                ? ['#2563EB', '#1D4ED8', '#1E40AF'] 
+                : ['#374151', '#374151']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.streetJobButton}
+            >
+              <Text style={[styles.streetJobButtonText, (gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0) && styles.streetJobButtonTextDisabled]}>
+                {gameState.stats.energy < job.energyCost || gameState.jailWeeks > 0 ? 'LOCKED' : 'WORK'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {workFeedback[job.id] && (
+            <Animated.View style={[styles.feedbackPopup, { opacity: feedbackOpacity }]}>
+              <Text style={styles.feedbackPopupText}>{workFeedback[job.id]}</Text>
+            </Animated.View>
+          )}
+        </View>
+      </View>
     );
   }; // <-- fix: stänger renderJobCard korrekt
 
@@ -821,7 +933,12 @@ export default function WorkScreen() {
       career.requirements.items.every((itemId: string) =>
         gameState.items.find(item => item.id === itemId)?.owned
       );
+    // Check for early career access bonus
+    const { hasEarlyCareerAccess } = require('@/lib/prestige/applyUnlocks');
+    const unlockedBonuses = gameState.prestige?.unlockedBonuses || [];
+    const hasEarlyAccess = hasEarlyCareerAccess(unlockedBonuses);
     const hasEducation =
+      hasEarlyAccess ||
       !career.requirements.education ||
       career.requirements.education.every((educationId: string) =>
         gameState.educations.find(e => e.id === educationId)?.completed
@@ -901,7 +1018,11 @@ export default function WorkScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
+            <ScrollView 
+              style={styles.content} 
+              contentContainerStyle={{ paddingTop: scale(8) }}
+              showsVerticalScrollIndicator={true}
+            >
               <View style={styles.scrollContainer}>
                 <View style={styles.scrollIndicator}>
                   <View style={styles.scrollBar}>
@@ -912,23 +1033,30 @@ export default function WorkScreen() {
 
               {activeTab === 'street' && (
                 <View>
-                  <Text
-                    style={[
-                      styles.sectionDescription,
-                      settings.darkMode && styles.sectionDescriptionDark,
-                    ]}
-                  >
-                    Street jobs are a great way to start earning money and build your skills. Each job has ranks that improve with experience.
-                  </Text>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Street Jobs</Text>
+                    <InfoButton
+                      title="Street Jobs"
+                      content="Street jobs are a great way to start earning money and build your skills. Each job has ranks that improve with experience. Work more to level up and earn better pay!"
+                      size="small"
+                      darkMode={settings.darkMode}
+                    />
+                  </View>
                   {legalStreetJobs.map(renderJobCard)}
                 </View>
               )}
 
               {activeTab === 'career' && (
                 <View>
-                  <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-                    Apply for traditional careers that offer steady income and advancement opportunities. Meet the requirements first!
-                  </Text>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Careers</Text>
+                    <InfoButton
+                      title="Career Jobs"
+                      content="Apply for traditional careers that offer steady income and advancement opportunities. Each career has requirements like education or fitness levels you must meet first. Work hard to get promoted and earn higher salaries!"
+                      size="small"
+                      darkMode={settings.darkMode}
+                    />
+                  </View>
                   <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Standard Careers</Text>
                   {basicCareers.map(career => {
                     const requiresEdu = !!(career.requirements && career.requirements.education && career.requirements.education.length > 0);
@@ -939,69 +1067,110 @@ export default function WorkScreen() {
                       ) || false;
 
                     return (
-                      <LinearGradient
-                        key={career.id}
-                        colors={settings.darkMode ? ['#374151', '#1F2937'] : ['#FFFFFF', '#E5E7EB']}
-                        style={styles.jobCard}
-                      >
-                        <View style={styles.jobHeader}>
-                          <View style={styles.jobInfo}>
-                            <Text style={[styles.jobName, settings.darkMode && styles.jobNameDark]}>
-                              {career.levels[career.level].name}
-                            </Text>
-                            {requiresEdu && !hasEdu ? (
-                              <View style={styles.lockedSalaryRow}>
-                                <Lock size={14} color={settings.darkMode ? '#FCD34D' : '#92400E'} />
-                                <Text style={[styles.salaryHidden, settings.darkMode && styles.salaryHiddenDark]}>
-                                  Salary hidden until required education is completed
-                                </Text>
+                      <View key={career.id} style={styles.careerJobContainer}>
+                        <BlurView
+                          intensity={26}
+                          tint={settings.darkMode ? 'dark' : 'light'}
+                          style={styles.careerGlass}
+                        />
+                        <LinearGradient
+                          colors={['rgba(16,185,129,0.18)', 'rgba(5,150,105,0.10)']}
+                          style={styles.careerJobHeader}
+                        >
+                          <View style={styles.careerJobHeaderContent}>
+                            <View style={styles.careerJobTitleRow}>
+                              <View style={styles.careerJobTitleContainer}>
+                                <Text style={styles.careerJobName}>{career.levels[career.level].name}</Text>
+                                <View style={styles.careerJobBadge}>
+                                  <Text style={styles.careerJobBadgeText}>CAREER</Text>
+                                </View>
                               </View>
-                            ) : (
-                              <Text style={styles.salary}>${career.levels[career.level].salary}/week</Text>
-                            )}
+                              <View style={styles.careerJobSalaryContainer}>
+                                {requiresEdu && !hasEdu ? (
+                                  <View style={styles.lockedSalaryBadge}>
+                                    <Lock size={10} color="#F59E0B" />
+                                    <Text style={styles.lockedSalaryText}>Locked</Text>
+                                  </View>
+                                ) : (
+                                  <>
+                                    <Text style={styles.careerJobSalaryLabel}>Salary</Text>
+                                    <Text style={styles.careerJobSalary}>${career.levels[career.level].salary}/wk</Text>
+                                  </>
+                                )}
+                              </View>
+                            </View>
+
+                            <Text style={styles.careerJobDescription}>
+                              {career.description}
+                            </Text>
+                          </View>
+                        </LinearGradient>
+
+                        <View style={styles.careerJobStatsGrid}>
+                          {career.requirements.fitness && (
+                            <View style={styles.careerStatCard}>
+                              <View style={styles.careerStatIcon}>
+                                <Trophy size={16} color={gameState.stats.fitness >= career.requirements.fitness ? '#10B981' : '#EF4444'} />
+                              </View>
+                              <Text style={styles.careerStatLabel}>Fitness</Text>
+                              <Text style={[styles.careerStatValue, { color: gameState.stats.fitness >= career.requirements.fitness ? '#10B981' : '#EF4444' }]}>
+                                {career.requirements.fitness}+
+                              </Text>
+                            </View>
+                          )}
+                          
+                          {requiresEdu && (
+                            <View style={styles.careerStatCard}>
+                              <View style={styles.careerStatIcon}>
+                                <Briefcase size={16} color={hasEdu ? '#10B981' : '#EF4444'} />
+                              </View>
+                              <Text style={styles.careerStatLabel}>Education</Text>
+                              <Text style={[styles.careerStatValue, { color: hasEdu ? '#10B981' : '#EF4444' }]}>
+                                {hasEdu ? 'Met' : 'Need'}
+                              </Text>
+                            </View>
+                          )}
+
+                          <View style={styles.careerStatCard}>
+                            <View style={styles.careerStatIcon}>
+                              <Star size={16} color="#FFD93D" />
+                            </View>
+                            <Text style={styles.careerStatLabel}>Level</Text>
+                            <Text style={styles.careerStatValue}>{career.level + 1}</Text>
                           </View>
 
-                          {gameState.currentJob === career.id ? (
-                            <TouchableOpacity
-                              style={[styles.workButton, styles.quitButton]}
-                              onPress={() => setShowQuitJobConfirm(true)}
-                            >
-                              <Text style={[styles.workButtonText, styles.quitButtonText]}>{t('work.quit')}</Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <TouchableOpacity
-                              style={[
-                                styles.workButton,
-                                career.applied && styles.appliedButton,
-                                career.accepted && styles.acceptedButton,
-                                !canApplyForCareer(career) && styles.disabledButton,
-                              ]}
-                              onPress={() => applyForJob(career.id)}
-                              disabled={career.applied || !canApplyForCareer(career) || (requiresEdu && !hasEdu)}
-                            >
-                              <Text
-                                style={[
-                                  styles.workButtonText,
-                                  career.applied && styles.appliedButtonText,
-                                  career.accepted && styles.acceptedButtonText,
-                                  !canApplyForCareer(career) && styles.disabledButtonText,
-                                ]}
-                              >
-                                {career.accepted
-                                  ? 'Hired!'
-                                  : career.applied
-                                  ? 'Applied'
-                                  : requiresEdu && !hasEdu
-                                  ? 'Requires Education'
-                                  : t('work.apply')}
-                              </Text>
-                            </TouchableOpacity>
-                          )}
+                          {/* Penalties - Direct display */}
+                          {(() => {
+                            const { happinessPenalty, healthPenalty } = getCareerPenalties();
+                            if (happinessPenalty < 0) {
+                              return (
+                                <View style={styles.careerStatCard}>
+                                  <View style={styles.careerStatIcon}>
+                                    <Smile size={16} color="#F59E0B" />
+                                  </View>
+                                  <Text style={styles.careerStatLabel}>Happiness</Text>
+                                  <Text style={[styles.careerStatValue, { color: '#EF4444' }]}>{happinessPenalty}</Text>
+                                </View>
+                              );
+                            }
+                            return null;
+                          })()}
+                          {(() => {
+                            const { happinessPenalty, healthPenalty } = getCareerPenalties();
+                            if (healthPenalty < 0) {
+                              return (
+                                <View style={styles.careerStatCard}>
+                                  <View style={styles.careerStatIcon}>
+                                    <Heart size={16} color="#EF4444" />
+                                  </View>
+                                  <Text style={styles.careerStatLabel}>Health</Text>
+                                  <Text style={[styles.careerStatValue, { color: '#EF4444' }]}>{healthPenalty}</Text>
+                                </View>
+                              );
+                            }
+                            return null;
+                          })()}
                         </View>
-
-                        <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
-                          {career.description}
-                        </Text>
 
                         {(career.requirements.fitness || career.requirements.items || career.requirements.education) && (
                           <View style={styles.requirements}>
@@ -1062,6 +1231,59 @@ export default function WorkScreen() {
                           </View>
                         )}
 
+                        {/* Actions - Glass buttons */}
+                        {(() => {
+                          const disabledApply = career.applied || !canApplyForCareer(career) || (requiresEdu && !hasEdu);
+                          return (
+                            <View style={styles.careerJobActionContainer}>
+                              {gameState.currentJob === career.id ? (
+                                <TouchableOpacity onPress={() => setShowQuitJobConfirm(true)}>
+                                  <View style={styles.careerButtonWrapper}>
+                                    <BlurView intensity={22} tint={settings.darkMode ? 'dark' : 'light'} style={styles.careerButtonBlur} />
+                                    <LinearGradient
+                                      colors={['rgba(239, 68, 68, 0.6)', 'rgba(185, 28, 28, 0.35)']}
+                                      start={{ x: 0, y: 0 }}
+                                      end={{ x: 1, y: 1 }}
+                                      style={[styles.careerJobButton, styles.careerJobButtonQuit]}
+                                    >
+                                      <Text style={styles.careerJobButtonText}>{t('work.quit')}</Text>
+                                    </LinearGradient>
+                                  </View>
+                                </TouchableOpacity>
+                              ) : (
+                                <TouchableOpacity
+                                  onPress={() => applyForJob(career.id)}
+                                  disabled={disabledApply}
+                                >
+                                  <View style={styles.careerButtonWrapper}>
+                                    <BlurView intensity={22} tint={settings.darkMode ? 'dark' : 'light'} style={styles.careerButtonBlur} />
+                                    <LinearGradient
+                                      colors={
+                                        !disabledApply
+                                          ? ['rgba(16, 185, 129, 0.35)', 'rgba(5, 150, 105, 0.20)']
+                                          : ['rgba(55, 65, 81, 0.25)', 'rgba(55, 65, 81, 0.15)']
+                                      }
+                                      start={{ x: 0, y: 0 }}
+                                      end={{ x: 1, y: 1 }}
+                                      style={styles.careerJobButton}
+                                    >
+                                      <Text style={[styles.careerJobButtonText, disabledApply && styles.careerJobButtonTextDisabled]}>
+                                        {career.accepted
+                                          ? 'Hired!'
+                                          : career.applied
+                                          ? 'Applied'
+                                          : requiresEdu && !hasEdu
+                                          ? 'Requires Education'
+                                          : t('work.apply')}
+                                      </Text>
+                                    </LinearGradient>
+                                  </View>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          );
+                        })()}
+
                         {career.accepted && (
                           career.level === career.levels.length - 1 && career.progress === 100 ? (
                             <View style={styles.progressSection}>
@@ -1085,7 +1307,7 @@ export default function WorkScreen() {
                             </View>
                           )
                         )}
-                      </LinearGradient>
+                        </View>
                     );
                   })}
                   <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Advanced Careers</Text>
@@ -1093,7 +1315,6 @@ export default function WorkScreen() {
                 </View>
               )}
 
-              {/* Hobby tab content hidden for release */}
               {false && (
                 <View>
                   {/* Liquid Glass Header */}
@@ -1874,14 +2095,15 @@ export default function WorkScreen() {
 
               {activeTab === 'skills' && (
                 <View>
-                  <Text
-                    style={[
-                      styles.sectionDescription,
-                      settings.darkMode && styles.sectionDescriptionDark,
-                    ]}
-                  >
-                    Crime skills improve your odds in illegal jobs. Each talent gives +5% success rate and +10% payment bonus.
-                  </Text>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Crime Skills</Text>
+                    <InfoButton
+                      title="Crime Skills"
+                      content="Crime skills improve your odds in illegal jobs. Each skill has talents you can unlock that give +5% success rate and +10% payment bonus. Level up your skills by doing illegal jobs and unlock powerful abilities!"
+                      size="small"
+                      darkMode={settings.darkMode}
+                    />
+                  </View>
 
                   <View style={styles.skillsRow}>
                     {Object.entries(gameState.crimeSkills).map(([id, skill]) => {
@@ -1935,8 +2157,8 @@ export default function WorkScreen() {
                   <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>
                     Crime Jobs (Level {gameState.criminalLevel})
                   </Text>
-                  {gameState.streetJobs.filter(job => job.illegal === true).length > 0 ? (
-                    gameState.streetJobs.filter(job => job.illegal === true).map(renderJobCard)
+                  {criminalStreetJobs.length > 0 ? (
+                    criminalStreetJobs.map(renderJobCard)
                   ) : (
                     <View style={{ padding: 16, alignItems: 'center' }}>
                       <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
@@ -2515,11 +2737,177 @@ export default function WorkScreen() {
         </>
       )}
 
+      {/* Negative Stats Popup */}
+      <Modal
+        visible={showNegativeStatsPopup}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNegativeStatsPopup(false)}
+      >
+        <View style={styles.negativeStatsModalOverlay}>
+          <TouchableOpacity
+            style={styles.negativeStatsModalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowNegativeStatsPopup(false)}
+          >
+            <TouchableOpacity
+              style={styles.negativeStatsModalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <LinearGradient
+                colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFC']}
+                style={styles.negativeStatsModalContent}
+              >
+                {selectedJobForStats && (() => {
+                  const { happinessPenalty, healthPenalty } = getJobPenalties(selectedJobForStats);
+                  const isDangerous = (selectedJobForStats.jailWeeks && selectedJobForStats.jailWeeks >= 3) || 
+                                     (selectedJobForStats.wantedIncrease && selectedJobForStats.wantedIncrease >= 3);
+                  
+                  return (
+                    <>
+                      <View style={styles.negativeStatsModalHeader}>
+                        <View style={styles.negativeStatsModalIconContainer}>
+                          <AlertTriangle size={32} color="#EF4444" />
+                        </View>
+                        <View style={styles.negativeStatsModalTitleContainer}>
+                          <Text style={[styles.negativeStatsModalTitle, settings.darkMode && styles.negativeStatsModalTitleDark]}>
+                            Job Penalties
+                          </Text>
+                          <Text style={[styles.negativeStatsModalSubtitle, settings.darkMode && styles.negativeStatsModalSubtitleDark]}>
+                            {selectedJobForStats.name}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.negativeStatsModalCloseButton}
+                          onPress={() => setShowNegativeStatsPopup(false)}
+                        >
+                          <X size={24} color={settings.darkMode ? '#F9FAFB' : '#1F2937'} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.negativeStatsModalBody}>
+                        <Text style={[styles.negativeStatsModalDescription, settings.darkMode && styles.negativeStatsModalDescriptionDark]}>
+                          This job will have the following negative effects on your stats:
+                        </Text>
+
+                        <View style={styles.negativeStatsList}>
+                          {happinessPenalty < 0 && (
+                            <View style={styles.negativeStatItem}>
+                              <View style={styles.negativeStatIconContainer}>
+                                <AlertTriangle size={20} color="#EF4444" />
+                              </View>
+                              <View style={styles.negativeStatInfo}>
+                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
+                                  Happiness
+                                </Text>
+                                <Text style={styles.negativeStatValue}>
+                                  {happinessPenalty}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
+
+                          {healthPenalty < 0 && (
+                            <View style={styles.negativeStatItem}>
+                              <View style={styles.negativeStatIconContainer}>
+                                <AlertTriangle size={20} color="#EF4444" />
+                              </View>
+                              <View style={styles.negativeStatInfo}>
+                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
+                                  Health
+                                </Text>
+                                <Text style={styles.negativeStatValue}>
+                                  {healthPenalty}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
+
+                          {selectedJobForStats.illegal && (
+                            <View style={styles.negativeStatItem}>
+                              <View style={[styles.negativeStatIconContainer, { backgroundColor: 'rgba(220, 38, 38, 0.2)' }]}>
+                                <AlertTriangle size={20} color="#DC2626" />
+                              </View>
+                              <View style={styles.negativeStatInfo}>
+                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
+                                  Illegal Activity
+                                </Text>
+                                <Text style={[styles.negativeStatValue, { color: '#DC2626' }]}>
+                                  Risk of jail time
+                                </Text>
+                              </View>
+                            </View>
+                          )}
+
+                          {selectedJobForStats.wantedIncrease && selectedJobForStats.wantedIncrease > 0 && (
+                            <View style={styles.negativeStatItem}>
+                              <View style={[styles.negativeStatIconContainer, { backgroundColor: 'rgba(220, 38, 38, 0.2)' }]}>
+                                <AlertTriangle size={20} color="#DC2626" />
+                              </View>
+                              <View style={styles.negativeStatInfo}>
+                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
+                                  Wanted Level
+                                </Text>
+                                <Text style={[styles.negativeStatValue, { color: '#DC2626' }]}>
+                                  +{selectedJobForStats.wantedIncrease}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
+
+                          {selectedJobForStats.jailWeeks && selectedJobForStats.jailWeeks > 0 && (
+                            <View style={styles.negativeStatItem}>
+                              <View style={[styles.negativeStatIconContainer, { backgroundColor: 'rgba(220, 38, 38, 0.2)' }]}>
+                                <AlertTriangle size={20} color="#DC2626" />
+                              </View>
+                              <View style={styles.negativeStatInfo}>
+                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
+                                  Jail Time (if caught)
+                                </Text>
+                                <Text style={[styles.negativeStatValue, { color: '#DC2626' }]}>
+                                  {selectedJobForStats.jailWeeks} week{selectedJobForStats.jailWeeks > 1 ? 's' : ''}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
+                        </View>
+
+                        {isDangerous && (
+                          <View style={styles.negativeStatsWarningBox}>
+                            <AlertTriangle size={20} color="#F59E0B" />
+                            <Text style={[styles.negativeStatsWarningText, settings.darkMode && styles.negativeStatsWarningTextDark]}>
+                              This is a dangerous job with high risks!
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.negativeStatsModalCloseButtonBottom}
+                        onPress={() => setShowNegativeStatsPopup(false)}
+                      >
+                        <LinearGradient
+                          colors={settings.darkMode ? ['#3B82F6', '#2563EB'] : ['#3B82F6', '#2563EB']}
+                          style={styles.negativeStatsModalCloseButtonGradient}
+                        >
+                          <Text style={styles.negativeStatsModalCloseButtonText}>Got it</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </>
+                  );
+                })()}
+              </LinearGradient>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
       {/* Quit Job Confirmation Dialog */}
       <ConfirmDialog
         visible={showQuitJobConfirm}
         title="Quit Job?"
-        message="Are you sure you want to quit your current job? You'll lose your salary and will need to reapply if you want to work here again."
+        message="Are you sure you want to quit your current job? You&apos;ll lose your salary and will need to reapply if you want to work here again."
         confirmText="Quit Job"
         cancelText="Cancel"
         onConfirm={() => {
@@ -2583,6 +2971,20 @@ const styles = StyleSheet.create({
   sectionDescriptionDark: {
     color: '#D1D5DB',
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  sectionTitleDark: {
+    color: '#F9FAFB',
+  },
   subheader: {
     fontSize: 18,
     fontWeight: '600',
@@ -2605,31 +3007,376 @@ const styles = StyleSheet.create({
     padding: getResponsiveValue(12, 16, 20, 24),
     borderRadius: getResponsiveValue(8, 12, 16, 20),
     marginBottom: getResponsiveValue(12, 16, 20, 24),
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
   },
-  // Crime styles
-  crimeJobContainer: {
-    marginBottom: 8,
-    borderRadius: 12,
+  // Street job styles (blue theme) - Compressed
+  streetJobContainer: {
+    marginBottom: 6,
+    borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#000000',
-    borderWidth: 2,
-    borderColor: '#DC2626',
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1.5,
+    borderColor: '#2563EB',
+    boxShadow: '0px 1px 3px rgba(37, 99, 235, 0.3)',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  streetJobHeader: {
+    padding: 8,
+  },
+  streetJobHeaderContent: {
+    gap: 4,
+  },
+  streetJobTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  streetJobTitleContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  streetJobName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  streetJobBadge: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+    alignSelf: 'flex-start',
+  },
+  streetJobBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  streetJobRankContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#2563EB',
+  },
+  streetJobRank: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#60A5FA',
+  },
+  streetJobDescription: {
+    fontSize: 10,
+    color: '#B0B0B0',
+    lineHeight: 14,
+    fontWeight: '400',
+  },
+  streetJobStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: '#0A1628',
+    padding: 6,
+    gap: 4,
+  },
+  streetStatCard: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: '#1A2642',
+    borderRadius: 4,
+    padding: 4,
+    alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: '#2563EB',
+  },
+  streetStatIcon: {
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 1,
+  },
+  streetStatLabel: {
+    fontSize: 9,
+    color: '#9CA3AF',
+    fontWeight: '600',
+    marginBottom: 1,
+  },
+  streetStatValue: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  streetJobActionContainer: {
+    backgroundColor: '#0A1628',
+    padding: 8,
+    alignItems: 'center',
+  },
+  streetJobButtonWrapper: {
+    width: '100%',
+  },
+  streetJobButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+    boxShadow: '0px 2px 4px rgba(37, 99, 235, 0.4)',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
     shadowRadius: 4,
     elevation: 4,
   },
+  streetJobButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  streetJobButtonTextDisabled: {
+    opacity: 0.5,
+  },
+  // Career job styles (green theme) - Compressed
+  careerJobContainer: {
+    marginBottom: 6,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+    borderWidth: 1.2,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    boxShadow: '0px 1px 3px rgba(5, 150, 105, 0.25)',
+    shadowColor: 'rgba(5, 150, 105, 0.8)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  careerGlass: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 8,
+  },
+  careerJobHeader: {
+    padding: 8,
+  },
+  careerJobHeaderContent: {
+    gap: 4,
+  },
+  careerJobTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  careerJobTitleContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  careerJobName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  careerJobBadge: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+    alignSelf: 'flex-start',
+  },
+  careerJobBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  careerJobSalaryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  lockedSalaryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  lockedSalaryText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  careerJobSalaryLabel: {
+    fontSize: 10,
+    color: '#A7F3D0',
+    fontWeight: '600',
+  },
+  careerJobSalary: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#34D399',
+  },
+  careerJobDescription: {
+    fontSize: 10,
+    color: '#D1FAE5',
+    lineHeight: 14,
+    fontWeight: '400',
+  },
+  careerJobStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: 'rgba(4, 120, 87, 0.12)',
+    padding: 6,
+    gap: 4,
+  },
+  careerStatCard: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderRadius: 4,
+    padding: 4,
+    alignItems: 'center',
+    borderWidth: 0.75,
+    borderColor: 'rgba(16, 185, 129, 0.45)',
+  },
+  careerStatIcon: {
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 1,
+  },
+  careerStatLabel: {
+    fontSize: 9,
+    color: '#CFFAFE',
+    fontWeight: '600',
+    marginBottom: 1,
+  },
+  careerStatValue: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  careerJobActionContainer: {
+    backgroundColor: 'rgba(4, 120, 87, 0.10)',
+    padding: 8,
+    alignItems: 'center',
+  },
+  careerButtonWrapper: {
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  careerButtonBlur: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  careerJobButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  careerQuitButton: {
+    backgroundColor: '#EF4444',
+  },
+  careerJobButtonDisabled: {
+    backgroundColor: '#6EE7B7',
+    opacity: 0.6,
+  },
+  careerJobButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  careerJobButtonTextDisabled: {
+    opacity: 0.6,
+  },
+  careerJobButtonQuit: {
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.8)',
+  },
+  // Requirement chips (shared)
+  crimeReqChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  reqChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  reqChipOwned: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: '#10B981',
+  },
+  reqChipMissing: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: '#EF4444',
+  },
+  reqChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  reqChipTextOwned: {
+    color: '#10B981',
+  },
+  reqChipTextMissing: {
+    color: '#EF4444',
+  },
+  // Crime styles - Compressed
+  crimeJobContainer: {
+    marginBottom: 6,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+    borderWidth: 1.5,
+    borderColor: '#DC2626',
+    boxShadow: '0px 1px 3px rgba(220, 38, 38, 0.3)',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
   crimeJobHeader: {
-    padding: 12,
+    padding: 8,
   },
   crimeJobHeaderContent: {
-    gap: 6,
+    gap: 4,
   },
   crimeJobTitleRow: {
     flexDirection: 'row',
@@ -2638,25 +3385,22 @@ const styles = StyleSheet.create({
   },
   crimeJobTitleContainer: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   crimeJobName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
-    textShadowColor: '#DC2626',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   crimeJobBadge: {
     backgroundColor: '#DC2626',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
     alignSelf: 'flex-start',
   },
   crimeJobBadgeText: {
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.5,
@@ -2664,59 +3408,57 @@ const styles = StyleSheet.create({
   crimeJobRankContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: 'rgba(220, 38, 38, 0.2)',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: '#DC2626',
   },
   crimeJobRank: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
     color: '#FF6B6B',
   },
   crimeJobDescription: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#B0B0B0',
-    lineHeight: 16,
+    lineHeight: 14,
     fontWeight: '400',
   },
   crimeJobStatsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     backgroundColor: '#111111',
-    padding: 8,
-    gap: 6,
+    padding: 6,
+    gap: 4,
   },
   crimeStatCard: {
     flex: 1,
-    minWidth: '45%',
+    minWidth: '30%',
     backgroundColor: '#1A1A1A',
-    borderRadius: 6,
-    padding: 6,
+    borderRadius: 4,
+    padding: 4,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: '#333333',
   },
   crimeStatIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 16,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   crimeStatLabel: {
-    fontSize: getResponsiveValue(10, 12, 14, 16),
+    fontSize: 9,
     color: '#888888',
     fontWeight: '600',
-    marginBottom: getResponsiveValue(2, 4, 6, 8),
+    marginBottom: 1,
   },
   crimeStatValue: {
-    fontSize: getResponsiveValue(12, 14, 16, 18),
+    fontSize: 11,
     color: '#FFFFFF',
     fontWeight: '700',
   },
@@ -2725,31 +3467,29 @@ const styles = StyleSheet.create({
   },
   crimeJobActionContainer: {
     backgroundColor: '#0A0A0A',
-    padding: getResponsiveValue(16, 20, 24, 28),
+    padding: 8,
     alignItems: 'center',
   },
   crimeJobButtonWrapper: {
     width: '100%',
   },
   crimeJobButton: {
-    paddingVertical: getResponsiveValue(12, 16, 20, 24),
-    paddingHorizontal: getResponsiveValue(24, 28, 32, 36),
-    borderRadius: getResponsiveValue(8, 10, 12, 14),
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
     alignItems: 'center',
+    boxShadow: '0px 2px 4px rgba(220, 38, 38, 0.4)',
     shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 4,
+    elevation: 4,
   },
   crimeJobButtonText: {
-    fontSize: getResponsiveValue(14, 16, 18, 20),
+    fontSize: 13,
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 1,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   crimeJobButtonTextDisabled: {
     opacity: 0.5,
@@ -2893,7 +3633,9 @@ const styles = StyleSheet.create({
   },
   jobStats: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginBottom: responsiveSpacing.sm,
+    gap: getResponsiveValue(8, 10, 12, 14),
   },
   statItem: {
     flexDirection: 'row',
@@ -2907,6 +3649,176 @@ const styles = StyleSheet.create({
   },
   statTextDark: {
     color: '#D1D5DB',
+  },
+  negativeStatsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: getResponsiveValue(8, 10, 12, 14),
+    paddingVertical: getResponsiveValue(8, 10, 12, 14),
+    paddingHorizontal: getResponsiveValue(12, 14, 16, 18),
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: getResponsiveValue(8, 10, 12, 14),
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    alignSelf: 'flex-start',
+  },
+  negativeStatsButtonCircle: {
+    width: getResponsiveValue(32, 36, 40, 44),
+    height: getResponsiveValue(32, 36, 40, 44),
+    borderRadius: getResponsiveValue(16, 18, 20, 22),
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: getResponsiveValue(8, 10, 12, 14),
+  },
+  negativeStatsButtonText: {
+    fontSize: getResponsiveValue(12, 14, 16, 18),
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  negativeStatsButtonTextDark: {
+    color: '#F87171',
+  },
+  negativeStatsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  negativeStatsModalContainer: {
+    width: '90%',
+    maxWidth: 500,
+    borderRadius: getResponsiveValue(16, 20, 24, 28),
+    overflow: 'hidden',
+  },
+  negativeStatsModalContent: {
+    padding: getResponsiveValue(20, 24, 28, 32),
+  },
+  negativeStatsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: getResponsiveValue(20, 24, 28, 32),
+  },
+  negativeStatsModalIconContainer: {
+    width: getResponsiveValue(48, 56, 64, 72),
+    height: getResponsiveValue(48, 56, 64, 72),
+    borderRadius: getResponsiveValue(24, 28, 32, 36),
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: getResponsiveValue(12, 14, 16, 18),
+  },
+  negativeStatsModalTitleContainer: {
+    flex: 1,
+  },
+  negativeStatsModalTitle: {
+    fontSize: getResponsiveValue(20, 24, 28, 32),
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: getResponsiveValue(4, 6, 8, 10),
+  },
+  negativeStatsModalTitleDark: {
+    color: '#F9FAFB',
+  },
+  negativeStatsModalSubtitle: {
+    fontSize: getResponsiveValue(14, 16, 18, 20),
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  negativeStatsModalSubtitleDark: {
+    color: '#9CA3AF',
+  },
+  negativeStatsModalCloseButton: {
+    width: getResponsiveValue(32, 36, 40, 44),
+    height: getResponsiveValue(32, 36, 40, 44),
+    borderRadius: getResponsiveValue(16, 18, 20, 22),
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  negativeStatsModalBody: {
+    marginBottom: getResponsiveValue(20, 24, 28, 32),
+  },
+  negativeStatsModalDescription: {
+    fontSize: getResponsiveValue(14, 16, 18, 20),
+    color: '#6B7280',
+    marginBottom: getResponsiveValue(16, 20, 24, 28),
+    lineHeight: getResponsiveValue(20, 24, 28, 32),
+  },
+  negativeStatsModalDescriptionDark: {
+    color: '#9CA3AF',
+  },
+  negativeStatsList: {
+    gap: getResponsiveValue(12, 14, 16, 18),
+  },
+  negativeStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: getResponsiveValue(12, 14, 16, 18),
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: getResponsiveValue(8, 10, 12, 14),
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  negativeStatIconContainer: {
+    width: getResponsiveValue(36, 40, 44, 48),
+    height: getResponsiveValue(36, 40, 44, 48),
+    borderRadius: getResponsiveValue(18, 20, 22, 24),
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: getResponsiveValue(12, 14, 16, 18),
+  },
+  negativeStatInfo: {
+    flex: 1,
+  },
+  negativeStatLabel: {
+    fontSize: getResponsiveValue(14, 16, 18, 20),
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: getResponsiveValue(4, 6, 8, 10),
+  },
+  negativeStatLabelDark: {
+    color: '#D1D5DB',
+  },
+  negativeStatValue: {
+    fontSize: getResponsiveValue(16, 18, 20, 22),
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  negativeStatsWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: getResponsiveValue(12, 14, 16, 18),
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: getResponsiveValue(8, 10, 12, 14),
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    marginTop: getResponsiveValue(12, 14, 16, 18),
+    gap: getResponsiveValue(8, 10, 12, 14),
+  },
+  negativeStatsWarningText: {
+    flex: 1,
+    fontSize: getResponsiveValue(14, 16, 18, 20),
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  negativeStatsWarningTextDark: {
+    color: '#FCD34D',
+  },
+  negativeStatsModalCloseButtonBottom: {
+    marginTop: getResponsiveValue(8, 10, 12, 14),
+  },
+  negativeStatsModalCloseButtonGradient: {
+    paddingVertical: getResponsiveValue(14, 16, 18, 20),
+    paddingHorizontal: getResponsiveValue(24, 28, 32, 36),
+    borderRadius: getResponsiveValue(10, 12, 14, 16),
+    alignItems: 'center',
+  },
+  negativeStatsModalCloseButtonText: {
+    fontSize: getResponsiveValue(16, 18, 20, 22),
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   requirements: {
     marginBottom: responsiveSpacing.sm,
@@ -3074,6 +3986,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 2 },
@@ -3339,6 +4252,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   availableUpgrade: {
+    boxShadow: '0px 2px 4px rgba(59, 130, 246, 0.3)',
     shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -3379,6 +4293,7 @@ const styles = StyleSheet.create({
   skillCardGradient: {
     padding: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.md,
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -3658,16 +4573,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
   },
-  progressSection: {
-    marginBottom: 4,
-  },
-  progressLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
   glassProgressBar: {
     height: 6,
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -3683,9 +4588,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
-  },
-  upgradesSection: {
-    marginTop: 4,
   },
   upgradesTitle: {
     fontSize: 14,
@@ -3776,6 +4678,7 @@ const styles = StyleSheet.create({
     maxWidth: 450,
     borderRadius: 20,
     overflow: 'hidden',
+    boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
     elevation: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -3867,9 +4770,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#10B981',
     textAlign: 'center',
-    textShadowColor: 'rgba(16, 185, 129, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
   },
   incomeModalItemsContainer: {
     flex: 1,
@@ -3948,6 +4848,7 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     borderRadius: 20,
     overflow: 'hidden',
+    boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
     elevation: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -4456,6 +5357,7 @@ const styles = StyleSheet.create({
     maxWidth: 450,
     borderRadius: 20,
     overflow: 'hidden',
+    boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
     elevation: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -4625,6 +5527,7 @@ const styles = StyleSheet.create({
     maxWidth: 450,
     borderRadius: 20,
     overflow: 'hidden',
+    boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
     elevation: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -4783,6 +5686,7 @@ const styles = StyleSheet.create({
     maxWidth: 450,
     borderRadius: 20,
     overflow: 'hidden',
+    boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
     elevation: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -5030,6 +5934,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 16,
     gap: 12,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

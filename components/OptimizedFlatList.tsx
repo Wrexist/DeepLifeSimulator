@@ -1,96 +1,65 @@
-import React, { useCallback, useMemo } from 'react';
-import { FlatList, FlatListProps, ViewStyle, ListRenderItem } from 'react-native';
+import React, { useCallback } from 'react';
+import { FlatList, FlatListProps, StyleSheet, View } from 'react-native';
 
-interface OptimizedFlatListProps<T> extends Omit<FlatListProps<T>, 'renderItem'> {
-  data: T[];
-  renderItem: ListRenderItem<T>;
-  itemHeight?: number;
-  keyExtractor?: (item: T, index: number) => string;
-  contentContainerStyle?: ViewStyle;
-  showsVerticalScrollIndicator?: boolean;
-  showsHorizontalScrollIndicator?: boolean;
-  removeClippedSubviews?: boolean;
-  maxToRenderPerBatch?: number;
-  windowSize?: number;
-  initialNumToRender?: number;
-  updateCellsBatchingPeriod?: number;
-  onEndReachedThreshold?: number;
-  onEndReached?: () => void;
-  refreshing?: boolean;
-  onRefresh?: () => void;
+interface OptimizedFlatListProps<T> extends FlatListProps<T> {
+  itemHeight?: number; // Fixed height for getItemLayout optimization
+  separatorHeight?: number; // Height of separator if used
 }
 
-const OptimizedFlatList = React.memo(<T extends any>({
-  data,
-  renderItem,
-  itemHeight = 80,
-  keyExtractor,
-  contentContainerStyle,
-  showsVerticalScrollIndicator = false,
-  showsHorizontalScrollIndicator = false,
+/**
+ * A wrapper around FlatList with built-in performance optimizations.
+ * 
+ * Optimizations included:
+ * - removeClippedSubviews: true (Android default, force true)
+ * - windowSize: 5 (Reduced from default 21 to save memory)
+ * - maxToRenderPerBatch: 10 (Reduced from default 10 for better responsiveness)
+ * - initialNumToRender: 7 (Enough to fill screen usually)
+ * - getItemLayout: auto-calculated if itemHeight is provided
+ */
+export function OptimizedFlatList<T>({
+  itemHeight,
+  separatorHeight = 0,
+  windowSize = 5,
+  maxToRenderPerBatch = 10,
+  initialNumToRender = 7,
   removeClippedSubviews = true,
-  maxToRenderPerBatch = 20, // Increased for faster rendering
-  windowSize = 15, // Increased window size
-  initialNumToRender = 10, // Increased initial render
-  updateCellsBatchingPeriod = 10, // Faster updates
-  onEndReachedThreshold = 0.5,
-  onEndReached,
-  refreshing = false,
-  onRefresh,
   ...props
-}: OptimizedFlatListProps<T>) => {
-  
-  const defaultKeyExtractor = useCallback((item: T, index: number) => {
-    if (keyExtractor) {
-      return keyExtractor(item, index);
-    }
-    // Fallback to index if no keyExtractor provided
-    return index.toString();
-  }, [keyExtractor]);
+}: OptimizedFlatListProps<T>) {
 
-  const getItemLayout = useCallback((data: ArrayLike<T> | null | undefined, index: number) => ({
-    length: itemHeight,
-    offset: itemHeight * index,
-    index,
-  }), [itemHeight]);
+  const getItemLayout = useCallback(
+    (data: any, index: number) => {
+      if (itemHeight) {
+        return {
+          length: itemHeight,
+          offset: (itemHeight + separatorHeight) * index,
+          index,
+        };
+      }
+      // If props provided their own getItemLayout, utilize it? 
+      // FlatList doesn't compose them, so we just use ours if itemHeight is present.
+      // If user passed getItemLayout in props, it will override this one because props are spread after.
+      // Actually, props are spread after, so user prop wins. We only need to provide it if user didn't?
+      // But we can't know if user provided it easily without inspecting props before spread.
+      // The strategy: if itemHeight is passed, we construct one. User can override by passing getItemLayout.
+      return { length: 0, offset: 0, index };
+    },
+    [itemHeight, separatorHeight]
+  );
 
-  const memoizedRenderItem = useCallback((info: any) => {
-    return renderItem(info);
-  }, [renderItem]);
-
-  const memoizedOnEndReached = useCallback(() => {
-    if (onEndReached) {
-      onEndReached();
-    }
-  }, [onEndReached]);
-
-  const memoizedOnRefresh = useCallback(() => {
-    if (onRefresh) {
-      onRefresh();
-    }
-  }, [onRefresh]);
+  const finalGetItemLayout = itemHeight && !props.getItemLayout ? getItemLayout : props.getItemLayout;
 
   return (
     <FlatList
-      data={data}
-      keyExtractor={defaultKeyExtractor}
-      renderItem={memoizedRenderItem}
-      getItemLayout={getItemLayout}
-      removeClippedSubviews={removeClippedSubviews}
-      maxToRenderPerBatch={maxToRenderPerBatch}
       windowSize={windowSize}
+      maxToRenderPerBatch={maxToRenderPerBatch}
       initialNumToRender={initialNumToRender}
-      updateCellsBatchingPeriod={updateCellsBatchingPeriod}
-      onEndReachedThreshold={onEndReachedThreshold}
-      onEndReached={memoizedOnEndReached}
-      refreshing={refreshing}
-      onRefresh={memoizedOnRefresh}
-      showsVerticalScrollIndicator={showsVerticalScrollIndicator}
-      showsHorizontalScrollIndicator={showsHorizontalScrollIndicator}
-      contentContainerStyle={contentContainerStyle}
+      removeClippedSubviews={removeClippedSubviews}
+      getItemLayout={finalGetItemLayout}
       {...props}
     />
   );
-});
+}
 
-export default OptimizedFlatList;
+const styles = StyleSheet.create({
+  // Add any default styles if needed
+});

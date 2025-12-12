@@ -32,24 +32,7 @@ function readViewportOverride() {
   return width ? { width, height } : null;
 }
 
-function getWindowSize() {
-  if (Platform.OS === 'web') {
-    const ov = __DEV_VIEWPORT__ || readViewportOverride();
-    if (ov?.width) {
-      // Tryck in måtten i RN Dimensions (best effort).
-      try {
-        const scale = (window as any).devicePixelRatio || 1;
-        // @ts-ignore
-        Dimensions.set?.({
-          window: { width: ov.width, height: ov.height ?? window.innerHeight, scale, fontScale: 1 },
-          screen: { width: ov.width, height: ov.height ?? window.innerHeight, scale, fontScale: 1 },
-        });
-      } catch {}
-      return { width: ov.width, height: ov.height ?? window.innerHeight };
-    }
-  }
-  return Dimensions.get('window');
-}
+// Removed unused getWindowSize function
 
 // Get screen dimensions
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');

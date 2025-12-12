@@ -59,13 +59,13 @@ export default function EnhancedSocialManager({ visible, onClose }: EnhancedSoci
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<SocialEvent | null>(null);
   const [showInteractionModal, setShowInteractionModal] = useState(false);
-  const [selectedRelationship, setSelectedRelationship] = useState<any>(null);
+  const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
 
   // Get relationships and social data from game state
   const relationships = gameState.relationships || [];
-  const socialEvents = (gameState as any).socialEvents || [];
-  const socialGroups = (gameState as any).socialGroups || SOCIAL_GROUPS;
-  const socialInteractions = (gameState as any).socialInteractions || [];
+  const socialEvents = (gameState as GameState & { socialEvents?: SocialEvent[] }).socialEvents || [];
+  const socialGroups = (gameState as GameState & { socialGroups?: typeof SOCIAL_GROUPS }).socialGroups || SOCIAL_GROUPS;
+  const socialInteractions = (gameState as GameState & { socialInteractions?: any[] }).socialInteractions || [];
 
   const filteredEvents = useMemo(() => {
     let filtered = SOCIAL_EVENTS.filter(event => {
@@ -731,6 +731,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: responsiveBorderRadius.lg,
     padding: responsiveSpacing.lg,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

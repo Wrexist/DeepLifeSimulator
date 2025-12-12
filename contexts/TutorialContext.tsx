@@ -95,7 +95,9 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         setCompletedTutorials(new Set(completed));
       }
     } catch (error) {
-      console.error('Error loading tutorials:', error);
+      if (__DEV__) {
+        console.error('Error loading tutorials:', error);
+      }
     }
   };
 
@@ -103,7 +105,9 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     try {
       await AsyncStorage.setItem(TUTORIAL_STORAGE_KEY, JSON.stringify(Array.from(completed)));
     } catch (error) {
-      console.error('Error saving tutorials:', error);
+      if (__DEV__) {
+        console.error('Error saving tutorials:', error);
+      }
     }
   };
 

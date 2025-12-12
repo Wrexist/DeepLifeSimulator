@@ -4,7 +4,7 @@
  * Complete video creation platform with recording, rendering, and uploading
  * Includes energy costs, realistic view simulation, and subscriber growth
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   View,
   Text,
@@ -36,14 +36,16 @@ import {
   Eye,
   Heart,
   MessageCircle,
+  Cpu,
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
-
-
-const { width: screenWidth } = Dimensions.get('window');
+import { useGame, Video as VideoType } from '@/contexts/GameContext';
+import { useMemoryCleanup } from '@/utils/performanceOptimization';
 
 // Use shared scaling utils so tablet/web-tablet scale up correctly
 import { scale, fontScale } from '@/utils/scaling';
+
+
+const { width: screenWidth } = Dimensions.get('window');
 
 // YouVideo Upgrade Images
 const UPGRADE_IMAGES = {
@@ -270,7 +272,8 @@ interface GamingAppProps {
 }
 
 export default function GamingApp({ onBack }: GamingAppProps) {
-  const { gameState, updateGameState, updateMoney } = useGame();
+  const { gameState, updateGameState, updateMoney, saveGame } = useGame();
+  const { addCleanup } = useMemoryCleanup();
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'videos' | 'stats' | 'studio' | 'store'>('videos');
   const [videoTitle, setVideoTitle] = useState('');
@@ -296,14 +299,16 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   const renderingAnimation = useRef(new Animated.Value(0)).current;
   const uploadingAnimation = useRef(new Animated.Value(0)).current;
 
-  // Get settings for dark/light mode
+  // Extract frequently used values from gameState
   const settings = gameState.settings;
   const isDarkMode = settings.darkMode;
+  const energy = gameState.stats.energy;
+  const money = gameState.stats.money;
+  const gamingStreaming = gameState.gamingStreaming;
+  const date = gameState.date;
 
-  // Helper function to format game date
-  const formatGameDate = () => {
-    const { date } = gameState;
-    
+  // Helper function to format game date - memoized
+  const formatGameDate = useCallback(() => {
     // Handle the game date structure properly
     const month = date.month || 'Jan';
     const year = date.year || 2024;
@@ -314,11 +319,48 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     
     // Format as "Week X, Month Year" for clarity
     return `Week ${week}, ${month} ${year}`;
-  };
+  }, [date]);
+
+  // Refs for intervals
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const renderingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const uploadingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+      if (renderingIntervalRef.current) {
+        clearInterval(renderingIntervalRef.current);
+      }
+      if (uploadingIntervalRef.current) {
+        clearInterval(uploadingIntervalRef.current);
+      }
+      timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
+      timeoutRefs.current = [];
+    };
+  }, []);
+
+  // Helper to create setTimeout with cleanup
+  const createTimeout = useCallback((callback: () => void, delay: number) => {
+    const timeoutId = setTimeout(() => {
+      callback();
+      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
+    }, delay);
+    timeoutRefs.current.push(timeoutId);
+    addCleanup(() => {
+      clearTimeout(timeoutId);
+      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
+    });
+    return timeoutId;
+  }, [addCleanup]);
 
   // Initialize gaming data if it doesn't exist
   useEffect(() => {
-    if (!gameState.gamingStreaming) {
+    if (!gamingStreaming) {
       updateGameState(prev => ({
         ...prev,
         gamingStreaming: {
@@ -390,9 +432,9 @@ export default function GamingApp({ onBack }: GamingAppProps) {
         },
       }));
     }
-  }, [gameState.gamingStreaming, updateGameState]);
+  }, [gamingStreaming, updateGameState]);
 
-  const videoData = gameState.gamingStreaming || {
+  const videoData = gamingStreaming || {
     followers: 0,
     subscribers: 0,
     totalViews: 0,
@@ -638,8 +680,8 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     const modifiers = calculateUpgradeModifiers();
     const effectiveEnergyCost = Math.ceil(video.energyCost * (1 - modifiers.energyReduction));
     
-    if (gameState.stats.energy < effectiveEnergyCost) {
-      setModalData({ requiredEnergy: effectiveEnergyCost, currentEnergy: gameState.stats.energy });
+    if (energy < effectiveEnergyCost) {
+      setModalData({ requiredEnergy: effectiveEnergyCost, currentEnergy: energy });
       setShowNotEnoughEnergyModal(true);
       return;
     }
@@ -649,19 +691,28 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     setActiveTab('studio');
   };
 
-  // Store interval refs for cleanup
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const renderingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const uploadingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Cleanup on unmount
+  // Cleanup intervals on unmount with useMemoryCleanup
   useEffect(() => {
-    return () => {
-      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-      if (renderingIntervalRef.current) clearInterval(renderingIntervalRef.current);
-      if (uploadingIntervalRef.current) clearInterval(uploadingIntervalRef.current);
+    const cleanup = () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+      if (renderingIntervalRef.current) {
+        clearInterval(renderingIntervalRef.current);
+        renderingIntervalRef.current = null;
+      }
+      if (uploadingIntervalRef.current) {
+        clearInterval(uploadingIntervalRef.current);
+        uploadingIntervalRef.current = null;
+      }
+      timeoutRefs.current.forEach(timeout => clearTimeout(timeout));
+      timeoutRefs.current = [];
     };
-  }, []);
+    
+    addCleanup(cleanup);
+    return cleanup;
+  }, [addCleanup]);
 
   const startRecording = () => {
     if (!selectedVideo || !videoTitle.trim()) return;
@@ -701,8 +752,8 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           const effectiveEnergyCost = video.energyCost * (1 - modifiers.energyReduction);
           const energyPerTick = effectiveEnergyCost / 50; // 50 ticks over 5 seconds
           
-          // Use setTimeout to avoid setState during render
-          setTimeout(() => {
+          // Use setTimeout to avoid setState during render - with cleanup
+          createTimeout(() => {
             updateGameState(prev => ({
               ...prev,
               stats: {
@@ -759,8 +810,8 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           const ticks = Math.ceil(actualDuration / 120);
           const energyPerTick = effectiveEnergyCost / ticks;
           
-          // Use setTimeout to avoid setState during render
-          setTimeout(() => {
+          // Use setTimeout to avoid setState during render - with cleanup
+          createTimeout(() => {
             updateGameState(prev => ({
               ...prev,
               stats: {
@@ -822,8 +873,8 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           const ticks = Math.ceil(actualDuration / 120);
           const energyPerTick = effectiveEnergyCost / ticks;
           
-          // Use setTimeout to avoid setState during render
-          setTimeout(() => {
+          // Use setTimeout to avoid setState during render - with cleanup
+          createTimeout(() => {
             updateGameState(prev => ({
               ...prev,
               stats: {
@@ -899,6 +950,9 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       },
     }));
     
+    // Save game after video upload
+    saveGame();
+    
     // Reset state
     setSelectedVideo(null);
     setVideoTitle('');
@@ -920,7 +974,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     const video = AVAILABLE_VIDEOS.find(v => v.id === videoId);
     if (!video) return;
 
-    if (gameState.stats.money >= video.cost) {
+    if (money >= video.cost) {
       // Use centralized money handling - don't update dailySummary for video purchases
       updateMoney(-video.cost, `Buy ${video.name}`, false);
       
@@ -931,6 +985,9 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           ownedGames: [...prev.gamingStreaming!.ownedGames, videoId],
         },
       }));
+
+      // Save game after purchase
+      saveGame();
 
       setModalData({ videoName: video.name });
       setShowVideoPurchasedModal(true);
@@ -946,7 +1003,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       {AVAILABLE_VIDEOS.map((video) => {
         const isOwned = videoData.ownedGames.includes(video.id);
         const canCreate = isOwned || video.cost === 0;
-        const hasEnergy = gameState.stats.energy >= video.energyCost;
+        const hasEnergy = energy >= video.energyCost;
         
         return (
           <View key={video.id} style={styles.videoCard}>
@@ -985,7 +1042,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                 <TouchableOpacity
                   style={[styles.button, styles.buyButton]}
                   onPress={() => buyVideo(video.id)}
-                  disabled={gameState.stats.money < video.cost}
+                  disabled={money < video.cost}
                 >
                   <Text style={styles.buttonText}>Buy ${video.cost}</Text>
                 </TouchableOpacity>
@@ -1042,7 +1099,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       {/* Uploaded Videos Section */}
       <Text style={styles.sectionTitle}>Recent Videos</Text>
       {videoData.videos && videoData.videos.length > 0 ? (
-        videoData.videos.slice(0, 10).map((video: any) => (
+        videoData.videos.slice(0, 10).map((video: VideoType) => (
           <View key={video.id} style={styles.uploadedVideoCard}>
             <View style={styles.videoHeader}>
               <Text style={styles.videoTitle}>{video.title}</Text>
@@ -1076,118 +1133,303 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     </ScrollView>
   );
 
-  const renderStudioTab = () => (
+  // Memoize estimated views so they don't change during recording
+  const studioEstimates = useMemo(() => {
+    const views = Math.floor(Math.random() * 5000) + 1000;
+    return { views, earnings: Math.floor(views * 0.01) };
+  }, [selectedVideo]);
+
+  const renderStudioTab = () => {
+    const selectedVideoData = AVAILABLE_VIDEOS.find(v => v.id === selectedVideo);
+    const energyCost = selectedVideoData?.energyCost || 15;
+    
+    return (
     <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
-      <Text style={styles.sectionTitle}>Video Studio</Text>
-      
-      {selectedVideo ? (
+        {selectedVideo && selectedVideoData ? (
         <View style={styles.studioContent}>
-          <View style={styles.videoSelection}>
-            <Text style={styles.selectedVideoText}>
-              Selected: {AVAILABLE_VIDEOS.find(v => v.id === selectedVideo)?.name}
+            {/* Studio Header Card */}
+            <LinearGradient
+              colors={isDarkMode ? ['#1E293B', '#0F172A'] : ['#F8FAFC', '#E2E8F0']}
+              style={{
+                borderRadius: scale(16),
+                padding: scale(20),
+                marginBottom: scale(16),
+                borderWidth: 1,
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(12) }}>
+                <View style={{
+                  width: scale(48),
+                  height: scale(48),
+                  borderRadius: scale(12),
+                  backgroundColor: isDarkMode ? '#3B82F6' : '#2563EB',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: scale(12),
+                }}>
+                  <Video size={scale(24)} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    fontSize: fontScale(18),
+                    fontWeight: 'bold',
+                    color: isDarkMode ? '#FFFFFF' : '#1F2937',
+                  }}>
+                    {selectedVideoData.name}
+                  </Text>
+                  <Text style={{
+                    fontSize: fontScale(12),
+                    color: isDarkMode ? '#9CA3AF' : '#6B7280',
+                  }}>
+                    {selectedVideoData.description}
             </Text>
+                </View>
           </View>
           
-          <View style={styles.titleInput}>
-            <Text style={styles.inputLabel}>Video Title:</Text>
+              {/* Quick Stats Row */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <View style={{
+                  flex: 1,
+                  backgroundColor: isDarkMode ? 'rgba(251,191,36,0.1)' : 'rgba(251,191,36,0.15)',
+                  borderRadius: scale(8),
+                  padding: scale(10),
+                  marginRight: scale(8),
+                  alignItems: 'center',
+                }}>
+                  <Zap size={scale(16)} color="#F59E0B" />
+                  <Text style={{ fontSize: fontScale(14), fontWeight: 'bold', color: '#F59E0B', marginTop: scale(4) }}>
+                    {energyCost}
+                  </Text>
+                  <Text style={{ fontSize: fontScale(10), color: isDarkMode ? '#9CA3AF' : '#6B7280' }}>Energy</Text>
+                </View>
+                <View style={{
+                  flex: 1,
+                  backgroundColor: isDarkMode ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.15)',
+                  borderRadius: scale(8),
+                  padding: scale(10),
+                  marginRight: scale(8),
+                  alignItems: 'center',
+                }}>
+                  <Eye size={scale(16)} color="#3B82F6" />
+                  <Text style={{ fontSize: fontScale(14), fontWeight: 'bold', color: '#3B82F6', marginTop: scale(4) }}>
+                    ~{studioEstimates.views.toLocaleString()}
+                  </Text>
+                  <Text style={{ fontSize: fontScale(10), color: isDarkMode ? '#9CA3AF' : '#6B7280' }}>Est. Views</Text>
+                </View>
+                <View style={{
+                  flex: 1,
+                  backgroundColor: isDarkMode ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)',
+                  borderRadius: scale(8),
+                  padding: scale(10),
+                  alignItems: 'center',
+                }}>
+                  <DollarSign size={scale(16)} color="#10B981" />
+                  <Text style={{ fontSize: fontScale(14), fontWeight: 'bold', color: '#10B981', marginTop: scale(4) }}>
+                    ${studioEstimates.earnings}
+                  </Text>
+                  <Text style={{ fontSize: fontScale(10), color: isDarkMode ? '#9CA3AF' : '#6B7280' }}>Est. Earn</Text>
+                </View>
+              </View>
+            </LinearGradient>
+
+            {currentPhase === 'idle' ? (
+              <>
+                {/* Title Input Card */}
+                <View style={{
+                  backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+                  borderRadius: scale(12),
+                  padding: scale(16),
+                  marginBottom: scale(16),
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
+                }}>
+                  <Text style={{
+                    fontSize: fontScale(14),
+                    fontWeight: '600',
+                    color: isDarkMode ? '#FFFFFF' : '#374151',
+                    marginBottom: scale(8),
+                  }}>
+                    Video Title
+                  </Text>
             <TextInput
-              style={styles.textInput}
+                    style={{
+                      backgroundColor: isDarkMode ? '#374151' : '#F3F4F6',
+                      borderRadius: scale(8),
+                      padding: scale(12),
+                      fontSize: fontScale(14),
+                      color: isDarkMode ? '#FFFFFF' : '#1F2937',
+                      borderWidth: 1,
+                      borderColor: videoTitle.trim() ? '#10B981' : (isDarkMode ? '#4B5563' : '#D1D5DB'),
+                    }}
               value={videoTitle}
               onChangeText={setVideoTitle}
-              placeholder="Enter video title..."
+                    placeholder="Enter a catchy title..."
               placeholderTextColor="#9CA3AF"
+                    maxLength={60}
             />
+                  <Text style={{
+                    fontSize: fontScale(11),
+                    color: isDarkMode ? '#6B7280' : '#9CA3AF',
+                    marginTop: scale(6),
+                    textAlign: 'right',
+                  }}>
+                    {videoTitle.length}/60
+                  </Text>
           </View>
           
-          {currentPhase === 'idle' && (
+                {/* Action Buttons */}
             <TouchableOpacity
-              style={[styles.button, styles.createButton]}
+                  style={{
+                    borderRadius: scale(12),
+                    overflow: 'hidden',
+                    marginBottom: scale(12),
+                    opacity: videoTitle.trim() ? 1 : 0.5,
+                  }}
               onPress={startRecording}
               disabled={!videoTitle.trim()}
             >
-              <Play size={scale(20)} color="white" />
-              <Text style={styles.buttonText}>Start Recording</Text>
+                  <LinearGradient
+                    colors={['#EF4444', '#DC2626']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: scale(16),
+                    }}
+                  >
+                    <View style={{
+                      width: scale(12),
+                      height: scale(12),
+                      borderRadius: scale(6),
+                      backgroundColor: '#FFFFFF',
+                      marginRight: scale(10),
+                    }} />
+                    <Text style={{
+                      fontSize: fontScale(16),
+                      fontWeight: 'bold',
+                      color: '#FFFFFF',
+                    }}>
+                      Start Recording
+                    </Text>
+                  </LinearGradient>
             </TouchableOpacity>
-          )}
-          
-          {currentPhase === 'recording' && (
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressTitle}>Recording Video...</Text>
-              <View style={styles.energyDisplay}>
-                <Zap size={scale(16)} color="#F59E0B" />
-                <Text style={styles.energyText}>
-                  Energy: {Math.max(0, Math.floor(gameState.stats.energy))} ⚡
+
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: isDarkMode ? '#374151' : '#E5E7EB',
+                    borderRadius: scale(12),
+                    padding: scale(14),
+                    alignItems: 'center',
+                  }}
+                  onPress={() => {
+                    setSelectedVideo(null);
+                    setVideoTitle('');
+                  }}
+                >
+                  <Text style={{
+                    fontSize: fontScale(14),
+                    fontWeight: '600',
+                    color: isDarkMode ? '#9CA3AF' : '#6B7280',
+                  }}>
+                    Change Game
+                </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              /* Progress View - Recording/Rendering/Uploading */
+              <View style={{
+                backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+                borderRadius: scale(16),
+                padding: scale(20),
+                borderWidth: 1,
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
+              }}>
+                <View style={{ alignItems: 'center', marginBottom: scale(16) }}>
+                  <View style={{
+                    width: scale(64),
+                    height: scale(64),
+                    borderRadius: scale(32),
+                    backgroundColor: currentPhase === 'recording' ? 'rgba(239,68,68,0.1)' : 
+                                    currentPhase === 'rendering' ? 'rgba(168,85,247,0.1)' : 'rgba(59,130,246,0.1)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: scale(12),
+                  }}>
+                    {currentPhase === 'recording' && <Video size={scale(28)} color="#EF4444" />}
+                    {currentPhase === 'rendering' && <Cpu size={scale(28)} color="#A855F7" />}
+                    {currentPhase === 'uploading' && <Upload size={scale(28)} color="#3B82F6" />}
+              </View>
+                  <Text style={{
+                    fontSize: fontScale(18),
+                    fontWeight: 'bold',
+                    color: isDarkMode ? '#FFFFFF' : '#1F2937',
+                  }}>
+                    {currentPhase === 'recording' && 'Recording...'}
+                    {currentPhase === 'rendering' && 'Rendering...'}
+                    {currentPhase === 'uploading' && 'Uploading...'}
+                  </Text>
+                  <Text style={{
+                    fontSize: fontScale(12),
+                    color: isDarkMode ? '#9CA3AF' : '#6B7280',
+                    marginTop: scale(4),
+                  }}>
+                    {videoTitle}
                 </Text>
               </View>
-              <View style={styles.progressBar}>
+
+                {/* Progress Bar */}
+                <View style={{
+                  height: scale(8),
+                  backgroundColor: isDarkMode ? '#374151' : '#E5E7EB',
+                  borderRadius: scale(4),
+                  overflow: 'hidden',
+                  marginBottom: scale(12),
+                }}>
                 <Animated.View 
-                  style={[
-                    styles.progressFill, 
-                    { width: recordingAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '100%']
-                    })}
-                  ]} 
+                    style={{
+                      height: '100%',
+                      borderRadius: scale(4),
+                      backgroundColor: currentPhase === 'recording' ? '#EF4444' : 
+                                      currentPhase === 'rendering' ? '#A855F7' : '#3B82F6',
+                      width: currentPhase === 'recording' 
+                        ? recordingAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
+                        : currentPhase === 'rendering'
+                        ? renderingAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
+                        : uploadingAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                    }}
                 />
               </View>
-              <Text style={styles.progressText}>{Math.round(recordingProgress)}%</Text>
-            </View>
-          )}
-          
-          {currentPhase === 'rendering' && (
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressTitle}>Rendering Video...</Text>
-              <View style={styles.energyDisplay}>
-                <Zap size={scale(16)} color="#F59E0B" />
-                <Text style={styles.energyText}>
-                  Energy: {Math.max(0, Math.floor(gameState.stats.energy))} ⚡
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Zap size={scale(14)} color="#F59E0B" />
+                    <Text style={{ fontSize: fontScale(12), color: '#F59E0B', marginLeft: scale(4) }}>
+                      {Math.max(0, Math.floor(energy))} Energy
                 </Text>
               </View>
-              <View style={styles.progressBar}>
-                <Animated.View 
-                  style={[
-                    styles.progressFill, 
-                    styles.renderingFill,
-                    { width: renderingAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '100%']
-                    })}
-                  ]} 
-                />
+                  <Text style={{
+                    fontSize: fontScale(16),
+                    fontWeight: 'bold',
+                    color: currentPhase === 'recording' ? '#EF4444' : 
+                          currentPhase === 'rendering' ? '#A855F7' : '#3B82F6',
+                  }}>
+                    {currentPhase === 'recording' && `${Math.round(recordingProgress)}%`}
+                    {currentPhase === 'rendering' && `${Math.round(renderingProgress)}%`}
+                    {currentPhase === 'uploading' && `${Math.round(uploadingProgress)}%`}
+                  </Text>
               </View>
-              <Text style={styles.progressText}>{Math.round(renderingProgress)}%</Text>
-            </View>
-          )}
           
-          {currentPhase === 'uploading' && (
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressTitle}>Uploading to YouVideo...</Text>
-              <View style={styles.energyDisplay}>
-                <Zap size={scale(16)} color="#F59E0B" />
-                <Text style={styles.energyText}>
-                  Energy: {Math.max(0, Math.floor(gameState.stats.energy))} ⚡
-                </Text>
-              </View>
-              <View style={styles.progressBar}>
-                <Animated.View 
-                  style={[
-                    styles.progressFill, 
-                    styles.uploadingFill,
-                    { width: uploadingAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '100%']
-                    })}
-                  ]} 
-                />
-              </View>
-              <Text style={styles.progressText}>{Math.round(uploadingProgress)}%</Text>
-            </View>
-          )}
-          
+                {/* Cancel Button */}
           <TouchableOpacity
-            style={styles.cancelButton}
+                  style={{
+                    marginTop: scale(16),
+                    padding: scale(12),
+                    alignItems: 'center',
+                  }}
             onPress={() => {
-              // Clean up all intervals
               if (recordingIntervalRef.current) {
                 clearInterval(recordingIntervalRef.current);
                 recordingIntervalRef.current = null;
@@ -1200,7 +1442,6 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                 clearInterval(uploadingIntervalRef.current);
                 uploadingIntervalRef.current = null;
               }
-              
               setSelectedVideo(null);
               setVideoTitle('');
               setCurrentPhase('idle');
@@ -1212,18 +1453,53 @@ export default function GamingApp({ onBack }: GamingAppProps) {
               setUploadingProgress(0);
             }}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={{ fontSize: fontScale(14), color: '#EF4444', fontWeight: '600' }}>
+                    Cancel
+                  </Text>
           </TouchableOpacity>
+              </View>
+            )}
         </View>
       ) : (
-        <View style={styles.studioEmpty}>
-          <Video size={scale(64)} color="#6B7280" />
-          <Text style={styles.studioEmptyText}>Select a video type to start creating</Text>
-          <Text style={styles.studioEmptySubtext}>Go to Videos tab to choose what to create</Text>
+          /* Empty State - No Video Selected */
+          <View style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: scale(60),
+          }}>
+            <View style={{
+              width: scale(100),
+              height: scale(100),
+              borderRadius: scale(50),
+              backgroundColor: isDarkMode ? '#1F2937' : '#F3F4F6',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: scale(20),
+            }}>
+              <Video size={scale(48)} color={isDarkMode ? '#4B5563' : '#9CA3AF'} />
+            </View>
+            <Text style={{
+              fontSize: fontScale(18),
+              fontWeight: 'bold',
+              color: isDarkMode ? '#FFFFFF' : '#1F2937',
+              marginBottom: scale(8),
+            }}>
+              Ready to Create?
+            </Text>
+            <Text style={{
+              fontSize: fontScale(14),
+              color: isDarkMode ? '#9CA3AF' : '#6B7280',
+              textAlign: 'center',
+              paddingHorizontal: scale(32),
+            }}>
+              Select a game from the Videos tab to start recording your next hit video!
+            </Text>
         </View>
       )}
     </ScrollView>
   );
+  };
 
   const renderStoreTab = () => {
     const currentUpgrades = videoData.upgrades || {};
@@ -1239,7 +1515,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       }
       
       const cost = upgrade.baseCost * (currentLevel + 1);
-      if (gameState.stats.money >= cost) {
+      if (money >= cost) {
         // Use centralized money handling - don't update dailySummary for upgrade purchases
         updateMoney(-cost, `Buy ${upgrade.name} upgrade`, false);
         
@@ -1254,8 +1530,8 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           }
         }));
         
-        setModalData({ upgradeName: upgrade.name, newLevel: currentLevel + 1 });
-        setShowUpgradePurchasedModal(true);
+        // Save game after upgrade purchase
+        saveGame();
       } else {
         setModalData({ upgradeName: upgrade.name, cost });
         setShowInsufficientFundsModal(true);
@@ -1283,7 +1559,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       const nextLevel = currentLevel + 1;
       const canUpgrade = nextLevel <= upgrade.maxLevel;
       const cost = canUpgrade ? upgrade.baseCost * nextLevel : 0;
-      const hasFunds = gameState.stats.money >= cost;
+      const hasFunds = money >= cost;
       
       const upgradeImage = UPGRADE_IMAGES[upgradeId as keyof typeof UPGRADE_IMAGES];
       
@@ -1475,40 +1751,6 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           Upgrade your equipment and skills to improve video quality, reduce energy costs, and increase views!
         </Text>
         
-        {/* Active Upgrades Summary */}
-        {Object.keys(currentUpgrades).length > 0 && (
-          <View style={styles.activeUpgradesSummary}>
-            <Text style={styles.activeUpgradesTitle}>Active Upgrades:</Text>
-            <View style={styles.activeUpgradesList}>
-              {Object.entries(currentUpgrades).map(([upgradeId, level]) => {
-                const upgrade = UPGRADE_STORE[upgradeId as keyof typeof UPGRADE_STORE];
-                if (!upgrade) return null;
-                
-                return (
-                  <View key={upgradeId} style={styles.activeUpgradeItem}>
-                    <Text style={styles.activeUpgradeName}>{upgrade.name} Lv.{level}</Text>
-                    <Text style={styles.activeUpgradeEffects}>
-                      {Object.entries(upgrade.effects).map(([effectKey, effectValues]) => {
-                        if (Array.isArray(effectValues) && effectValues[level - 1] !== undefined) {
-                          const effect = effectValues[level - 1];
-                          if (effectKey === 'energyReduction') {
-                            return `Energy -${Math.round(effect * 100)}% `;
-                          } else if (effectKey === 'viewMultiplier') {
-                            return `Views +${Math.round((effect - 1) * 100)}% `;
-                          } else if (effectKey === 'qualityBonus') {
-                            return `Quality +${Math.round(effect * 100)}% `;
-                          }
-                        }
-                        return '';
-                      })}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-        
         {Object.entries(categories).map(([category, upgradeIds]) => (
           <View key={category} style={styles.categorySection}>
             <Text style={styles.categoryTitle}>
@@ -1597,6 +1839,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       alignItems: 'center',
       borderWidth: isDarkMode ? 0 : 1,
       borderColor: isDarkMode ? 'transparent' : '#E5E7EB',
+      boxShadow: isDarkMode ? 'none' : '0px 2px 4px rgba(0, 0, 0, 0.1)',
       shadowColor: isDarkMode ? 'transparent' : '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: isDarkMode ? 0 : 0.1,
@@ -1677,6 +1920,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       marginBottom: scale(12),
       borderWidth: isDarkMode ? 0 : 1,
       borderColor: isDarkMode ? 'transparent' : '#E5E7EB',
+      boxShadow: isDarkMode ? 'none' : '0px 2px 4px rgba(0, 0, 0, 0.1)',
       shadowColor: isDarkMode ? 'transparent' : '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: isDarkMode ? 0 : 0.1,
@@ -1702,6 +1946,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       marginBottom: scale(12),
       borderWidth: isDarkMode ? 0 : 1,
       borderColor: isDarkMode ? 'transparent' : '#E5E7EB',
+      boxShadow: isDarkMode ? 'none' : '0px 2px 4px rgba(0, 0, 0, 0.1)',
       shadowColor: isDarkMode ? 'transparent' : '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: isDarkMode ? 0 : 0.1,
@@ -1744,7 +1989,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       marginTop: scale(20),
     },
     studioContent: {
-      alignItems: 'center',
+      width: '100%',
     },
     videoSelection: {
       backgroundColor: isDarkMode ? '#374151' : '#FFFFFF',
@@ -1861,6 +2106,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       marginBottom: scale(12),
       borderWidth: isDarkMode ? 0 : 1,
       borderColor: isDarkMode ? 'transparent' : '#E5E7EB',
+      boxShadow: isDarkMode ? 'none' : '0px 2px 4px rgba(0, 0, 0, 0.1)',
       shadowColor: isDarkMode ? 'transparent' : '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: isDarkMode ? 0 : 0.1,
@@ -2028,6 +2274,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       width: '100%',
       maxWidth: 400,
       borderRadius: 16,
+      boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
@@ -2071,9 +2318,15 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       textAlign: 'center',
       marginTop: 12,
       lineHeight: 20,
+      textShadowColor: 'rgba(0, 0, 0, 0.75)',
+      textShadowOffset: { width: -1, height: 1 },
+      textShadowRadius: 2,
     },
     modalSubtextDark: {
-      color: '#9CA3AF',
+      color: '#FFFFFF',
+      textShadowColor: 'rgba(0, 0, 0, 0.75)',
+      textShadowOffset: { width: -1, height: 1 },
+      textShadowRadius: 2,
     },
     modalActions: {
       flexDirection: 'row',
@@ -2107,6 +2360,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       maxWidth: scale(420),
       maxHeight: '90%',
       borderRadius: scale(20),
+      boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.4)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.4,
@@ -2133,6 +2387,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       borderRadius: scale(32),
       alignItems: 'center',
       justifyContent: 'center',
+      boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)',
       shadowColor: '#10B981',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
@@ -2220,6 +2475,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     richModalButton: {
       borderRadius: scale(12),
       overflow: 'hidden',
+      boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)',
       shadowColor: '#10B981',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
@@ -2580,106 +2836,37 @@ export default function GamingApp({ onBack }: GamingAppProps) {
         </View>
       </Modal>
 
-      {/* Video Uploaded Modal - Rich & Smooth */}
+      {/* Video Uploaded Modal - Compact */}
       <Modal visible={showVideoUploadedModal} transparent animationType="fade" onRequestClose={() => setShowVideoUploadedModal(false)}>
         <View style={allStyles.richModalOverlay}>
-          <View style={allStyles.richModalContainer}>
-            <ScrollView 
-              contentContainerStyle={{ flexGrow: 1 }}
-              showsVerticalScrollIndicator={false}
-              bounces={false}
-            >
+          <View style={[allStyles.richModalContainer, { maxHeight: '60%' }]}>
               <LinearGradient
-                colors={['#0F172A', '#1E293B', '#334155']}
+              colors={['#0F172A', '#1E293B']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={allStyles.richModalGradient}
-              >
-              {/* Success Animation Container */}
-              <View style={allStyles.successAnimationContainer}>
-                <View style={allStyles.successIconContainer}>
-                  <LinearGradient
-                    colors={['#10B981', '#059669']}
-                    style={allStyles.successIcon}
-                  >
-                    <Upload size={32} color="#FFFFFF" />
-                  </LinearGradient>
-                  <View style={allStyles.successRipple} />
-                </View>
-              </View>
+              style={[allStyles.richModalGradient, { padding: 20 }]}
+            >
+              {/* Compact Header */}
+              <Text style={[allStyles.richModalTitle, { marginBottom: 8, textAlign: 'center' }]}>🎬 Video Uploaded!</Text>
+              <Text style={[allStyles.videoTitle, { textAlign: 'center', marginBottom: 16 }]}>&quot;{modalData.videoTitle}&quot;</Text>
 
-              {/* Rich Modal Header */}
-              <View style={allStyles.richModalHeader}>
-                <Text style={allStyles.richModalTitle}>🎬 Video Uploaded!</Text>
-                <Text style={allStyles.richModalSubtitle}>
-                  Your content is now live and performing
-                </Text>
-              </View>
-
-              {/* Video Info Card */}
-              <View style={allStyles.videoInfoCard}>
-                <View style={allStyles.videoIconContainer}>
-                  <LinearGradient
-                    colors={['#3B82F6', '#2563EB']}
-                    style={allStyles.videoIcon}
-                  >
-                    <Video size={24} color="#FFFFFF" />
-                  </LinearGradient>
-                </View>
-                <View style={allStyles.videoDetails}>
-                  <Text style={allStyles.videoTitle}>"{modalData.videoTitle}"</Text>
-                  <Text style={allStyles.videoStatus}>✅ Successfully Uploaded</Text>
-                </View>
-              </View>
-
-              {/* Performance Stats Grid */}
-              <View style={allStyles.statsGrid}>
-                <View style={allStyles.statCard}>
-                  <View style={allStyles.statIconContainer}>
-                    <Eye size={20} color="#3B82F6" />
-                  </View>
+              {/* Compact Stats Row */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 }}>
+                <View style={{ alignItems: 'center' }}>
                   <Text style={allStyles.statValue}>{modalData.views?.toLocaleString() || '0'}</Text>
                   <Text style={allStyles.statLabel}>Views</Text>
                 </View>
-
-                <View style={allStyles.statCard}>
-                  <View style={allStyles.statIconContainer}>
-                    <DollarSign size={20} color="#10B981" />
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={allStyles.statValue}>${modalData.earnings?.toFixed(2) || '0.00'}</Text>
+                  <Text style={allStyles.statLabel}>Earnings/wk</Text>
                   </View>
-                  <Text style={allStyles.statValue}>${modalData.earnings?.toFixed(2) || '0.00'}/week</Text>
-                  <Text style={allStyles.statLabel}>Earnings</Text>
-                </View>
-
-                <View style={allStyles.statCard}>
-                  <View style={allStyles.statIconContainer}>
-                    <Users size={20} color="#8B5CF6" />
-                  </View>
+                <View style={{ alignItems: 'center' }}>
                   <Text style={allStyles.statValue}>+{modalData.subscribersGained || '0'}</Text>
-                  <Text style={allStyles.statLabel}>New Subs</Text>
+                  <Text style={allStyles.statLabel}>Subs</Text>
                 </View>
-
-                <View style={allStyles.statCard}>
-                  <View style={allStyles.statIconContainer}>
-                    <Zap size={20} color="#F59E0B" />
-                  </View>
-                  <Text style={allStyles.statValue}>-{modalData.energyUsed || '0'}</Text>
-                  <Text style={allStyles.statLabel}>Energy Used</Text>
-                </View>
-              </View>
-
-              {/* Performance Summary */}
-              <View style={allStyles.performanceSummaryCard}>
-                <View style={allStyles.summaryHeader}>
-                  <TrendingUp size={20} color="#10B981" />
-                  <Text style={allStyles.summaryTitle}>Great Performance!</Text>
-                </View>
-                <Text style={allStyles.summaryDescription}>
-                  Your video is gaining traction! Keep creating quality content to grow your channel even more.
-                </Text>
               </View>
 
               {/* Action Button */}
-              <View style={allStyles.richModalActions}>
                 <TouchableOpacity
                   style={allStyles.richModalButton}
                   onPress={() => setShowVideoUploadedModal(false)}
@@ -2691,13 +2878,10 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                     end={{ x: 1, y: 1 }}
                     style={allStyles.richModalButtonGradient}
                   >
-                    <Text style={allStyles.richModalButtonText}>Keep Creating! 🚀</Text>
-                    <Video size={18} color="#FFFFFF" />
+                  <Text style={allStyles.richModalButtonText}>Continue</Text>
                   </LinearGradient>
                 </TouchableOpacity>
-              </View>
               </LinearGradient>
-            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -2734,7 +2918,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
               <View style={allStyles.richModalHeader}>
                 <Text style={allStyles.richModalTitle}>🎮 Game Purchased!</Text>
                 <Text style={allStyles.richModalSubtitle}>
-                  You're ready to create amazing content
+                  You&apos;re ready to create amazing content
                 </Text>
               </View>
 

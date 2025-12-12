@@ -134,6 +134,12 @@ export const IAP_PRODUCTS = {
     ios: 'revival_pack',
     android: 'revival_pack',
   }) || 'revival_pack',
+
+  // Single Revive (Consumable - one-time use)
+  REVIVE_SINGLE: Platform.select({
+    ios: 'deeplife_revive_single',
+    android: 'deeplife_revive_single',
+  }) || 'deeplife_revive_single',
 };
 
 // Product configurations with descriptions and rewards
@@ -427,10 +433,26 @@ export const PRODUCT_CONFIGS = {
     bestValue: false,
     features: [
       'Instant revival on death',
-      'Restore health to 50',
-      'Restore happiness to 50',
+      'Restore health to 100',
+      'Restore happiness to 100',
       'Restore energy to 100',
       'Continue your progress',
+    ],
+  },
+
+  // Single Revive (Consumable - one-time use)
+  [IAP_PRODUCTS.REVIVE_SINGLE]: {
+    name: 'Revive',
+    description: 'Instantly revive your character with full stats',
+    revive: true,
+    price: '$1.99',
+    popular: true,
+    bestValue: false,
+    features: [
+      'Instant revival',
+      'Restore health to 100',
+      'Restore happiness to 100',
+      'Restore energy to 100',
     ],
   },
 };
@@ -488,6 +510,7 @@ export const CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.MONEY_BOOST,
   IAP_PRODUCTS.SKILL_BOOST,
   IAP_PRODUCTS.REVIVAL_PACK, // Revival is one-time use
+  IAP_PRODUCTS.REVIVE_SINGLE, // Single revive (consumable)
 ];
 
 // Non-consumable products - These SHOULD be restored

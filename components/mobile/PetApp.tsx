@@ -43,7 +43,7 @@ const petToys = [
 ];
 
 export default function PetApp({ onBack }: PetAppProps) {
-  const { gameState, setGameState, saveGame } = useGame();
+  const { gameState, setGameState, saveGame, feedPet, buyPetFood, buyPetToy, usePetToy } = useGame();
   const { settings } = gameState;
   const [activeTab, setActiveTab] = useState<'pets' | 'shop'>('pets');
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
@@ -85,18 +85,20 @@ export default function PetApp({ onBack }: PetAppProps) {
 
   const petBonuses = calculatePetBonuses();
 
-  const handleFeed = useCallback((pet: Pet) => {
-    const food = petFoods[0]; // Basic food
-    if (cash < food.price) {
+  const handleFeed = useCallback((pet: Pet, foodType: string = 'basic') => {
+    // Check if player has food in inventory
+    const foodCount = gameState.petFood?.[foodType] || 0;
+    if (foodCount <= 0) {
       Alert.alert(
-        'Not enough money', 
-        `You need $${food.price} to buy food for ${pet.name}.`,
+        'No Food', 
+        `You don't have any ${foodType} food. Buy some from the shop first!`,
         [
           { text: 'OK', style: 'default' },
           { 
-            text: 'Earn Money', 
+            text: 'Go to Shop', 
             onPress: () => {
-              Alert.alert('Tips', 'Try working, investing, or completing achievements to earn more money!');
+              setActiveTab('shop');
+              setShopCategory('food');
             }
           }
         ]
@@ -104,27 +106,12 @@ export default function PetApp({ onBack }: PetAppProps) {
       return;
     }
 
-    const newPets = pets.map(p => {
-      if (p.id === pet.id) {
-        return {
-          ...p,
-          hunger: Math.max(0, p.hunger - food.nutrition),
-          happiness: Math.min(100, p.happiness + 10),
-          lastFed: Date.now(),
-        };
-      }
-      return p;
-    });
-
-    setGameState(prev => ({
-      ...prev,
-      stats: { ...prev.stats, money: cash - food.price },
-      pets: newPets,
-    }));
-    saveGame();
-
-    Alert.alert('Fed!', `${pet.name} is now less hungry and happier! Cost: $${food.price}`);
-  }, [pets, cash, setGameState, saveGame]);
+    // Use the feedPet function from context
+    feedPet(pet.id, foodType);
+    
+    const food = petFoods.find(f => f.id === foodType) || petFoods[0];
+    Alert.alert('Fed!', `${pet.name} enjoyed the ${food.name}! Hunger decreased and happiness increased.`);
+  }, [gameState.petFood, feedPet]);
 
   const handlePlay = useCallback((pet: Pet) => {
     const currentEnergy = pet.energy || 100;
@@ -383,11 +370,13 @@ export default function PetApp({ onBack }: PetAppProps) {
 
                   <View style={styles.petActions}>
                     <TouchableOpacity
-                      style={[styles.actionButton, cash < petFoods[0].price && styles.disabledButton]}
-                      onPress={() => handleFeed(pet)}
-                      disabled={cash < petFoods[0].price}
+                      style={[styles.actionButton, (gameState.petFood?.['basic'] || 0) <= 0 && styles.disabledButton]}
+                      onPress={() => handleFeed(pet, 'basic')}
+                      disabled={(gameState.petFood?.['basic'] || 0) <= 0}
                     >
-                      <Text style={styles.actionButtonText}>Feed (${petFoods[0].price})</Text>
+                      <Text style={styles.actionButtonText}>
+                        Feed Basic {(gameState.petFood?.['basic'] || 0) > 0 && `(${gameState.petFood['basic']})`}
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[
@@ -406,6 +395,40 @@ export default function PetApp({ onBack }: PetAppProps) {
                       <Text style={styles.actionButtonText}>Sleep</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Pet Toys */}
+                  {pet.toys && pet.toys.length > 0 && (
+                    <View style={styles.petToysSection}>
+                      <Text style={[styles.petToysTitle, settings.darkMode && styles.textDark]}>Toys</Text>
+                      <View style={styles.petToysList}>
+                        {pet.toys.map((toyId) => {
+                          const toy = petToys.find(t => t.id === toyId);
+                          if (!toy) return null;
+                          return (
+                            <TouchableOpacity
+                              key={toyId}
+                              style={styles.petToyButton}
+                              onPress={() => {
+                                const result = usePetToy(pet.id, toyId);
+                                if (result.success) {
+                                  Alert.alert('Success', result.message);
+                                  saveGame();
+                                } else {
+                                  Alert.alert('Error', result.message);
+                                }
+                              }}
+                            >
+                              <Text style={styles.petToyEmoji}>
+                                {toyId === 'ball' ? '⚽' : toyId === 'rope' ? '🪢' : '🧩'}
+                              </Text>
+                              <Text style={styles.petToyName}>{toy.name}</Text>
+                              <Text style={styles.petToyEffect}>+{toy.fun} 😊</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
                 </View>
               ))
             )}
@@ -461,25 +484,29 @@ export default function PetApp({ onBack }: PetAppProps) {
                 </View>
               ))}
 
-              {shopCategory === 'food' && petFoods.map((food) => (
-                <View key={food.id} style={styles.shopItem}>
-                  <View style={styles.itemInfo}>
-                    <Text style={styles.itemEmoji}>🍖</Text>
-                    <View>
-                      <Text style={styles.itemName}>{food.name}</Text>
-                      <Text style={styles.itemDescription}>Nutrition: +{food.nutrition}</Text>
-                      <Text style={styles.itemPrice}>${food.price}</Text>
+              {shopCategory === 'food' && petFoods.map((food) => {
+                const foodCount = gameState.petFood?.[food.id] || 0;
+                return (
+                  <View key={food.id} style={styles.shopItem}>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemEmoji}>🍖</Text>
+                      <View>
+                        <Text style={styles.itemName}>{food.name}</Text>
+                        <Text style={styles.itemDescription}>Nutrition: +{food.nutrition}</Text>
+                        <Text style={styles.itemPrice}>${food.price}</Text>
+                        <Text style={styles.itemInventory}>In inventory: {foodCount}</Text>
+                      </View>
                     </View>
+                    <TouchableOpacity
+                      style={[styles.buyButton, cash < food.price && styles.disabledButton]}
+                      onPress={() => buyPetFood(food.id, 1)}
+                      disabled={cash < food.price}
+                    >
+                      <Text style={styles.buyButtonText}>Buy</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    style={[styles.buyButton, cash < food.price && styles.disabledButton]}
-                    onPress={() => Alert.alert('Coming Soon', 'Food system will be implemented soon!')}
-                    disabled={cash < food.price}
-                  >
-                    <Text style={styles.buyButtonText}>Buy</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
 
               {shopCategory === 'toys' && petToys.map((toy) => (
                 <View key={toy.id} style={styles.shopItem}>
@@ -493,8 +520,20 @@ export default function PetApp({ onBack }: PetAppProps) {
                   </View>
                   <TouchableOpacity
                     style={[styles.buyButton, cash < toy.price && styles.disabledButton]}
-                    onPress={() => Alert.alert('Coming Soon', 'Toy system will be implemented soon!')}
-                    disabled={cash < toy.price}
+                    onPress={() => {
+                      if (!selectedPet) {
+                        Alert.alert('Select Pet', 'Please select a pet first to buy toys for them.');
+                        return;
+                      }
+                      const result = buyPetToy(selectedPet.id, toy.id);
+                      if (result.success) {
+                        Alert.alert('Success', result.message);
+                        saveGame();
+                      } else {
+                        Alert.alert('Error', result.message);
+                      }
+                    }}
+                    disabled={cash < toy.price || !selectedPet}
                   >
                     <Text style={styles.buyButtonText}>Buy</Text>
                   </TouchableOpacity>
@@ -882,6 +921,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  itemInventory: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 2,
+  },
   buyButton: {
     backgroundColor: '#3B82F6',
     borderRadius: 8,
@@ -956,6 +1000,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     borderRadius: 16,
     overflow: 'hidden',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -996,24 +1041,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  petEmoji: {
-    fontSize: 32,
-    marginRight: 16,
-  },
-  petDetails: {
-    flex: 1,
-  },
-  petName: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  petType: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginBottom: 8,
-  },
   petStats: {
     flexDirection: 'row',
     gap: 16,
@@ -1030,6 +1057,49 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  petToysSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  petToysTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  petToysList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  petToyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderRadius: 8,
+    padding: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
+    gap: 6,
+  },
+  petToyEmoji: {
+    fontSize: 16,
+  },
+  petToyName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  petToyEffect: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  textDark: {
+    color: '#F9FAFB',
   },
   purchaseSuccessTip: {
     color: 'rgba(255, 255, 255, 0.9)',

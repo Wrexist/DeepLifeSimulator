@@ -1,7 +1,8 @@
-import { Vibration, Platform, Alert } from 'react-native';
-import { Animated, Easing } from 'react-native';
+import { Vibration, Platform , Animated, Easing } from 'react-native';
+
 import { useState, useCallback, useMemo } from 'react';
 import { showAchievementToast } from './achievementToast';
+import { playSound } from './soundManager';
 
 // Enhanced Feedback System
 export class FeedbackSystem {
@@ -116,7 +117,9 @@ export class FeedbackSystem {
           break;
       }
     } catch (error) {
-      console.warn('Haptic feedback failed:', error);
+      if (__DEV__) {
+        console.warn('Haptic feedback failed:', error);
+      }
     }
   }
 
@@ -124,9 +127,24 @@ export class FeedbackSystem {
   triggerSound(type: keyof typeof FeedbackSystem.SoundTypes) {
     if (!this.soundEnabled) return;
     
-    // Sound system not implemented - uses haptic feedback instead
-    // Fall back to haptic feedback for now
-    this.triggerHaptic('light');
+    // Map sound types to soundManager sound IDs
+    const soundMap: Record<string, string> = {
+      success: 'success',
+      error: 'error',
+      warning: 'notification',
+      info: 'notification',
+      click: 'button_click',
+      notification: 'notification',
+    };
+    
+    const soundId = soundMap[type] || 'button_click';
+    playSound(soundId).catch((error) => {
+      if (__DEV__) {
+        console.warn('Failed to play sound:', error);
+      }
+      // Fallback to haptic feedback
+      this.triggerHaptic('light');
+    });
   }
 
   // Animation Feedback
@@ -171,7 +189,7 @@ export class FeedbackSystem {
   private bounceAnimation(
     animatedValue: Animated.Value,
     duration: number,
-    delay: number,
+    _delay: number,
     loop: boolean
   ) {
     const animation = Animated.sequence([
@@ -199,7 +217,7 @@ export class FeedbackSystem {
   private shakeAnimation(
     animatedValue: Animated.Value,
     duration: number,
-    delay: number,
+    _delay: number,
     loop: boolean
   ) {
     const animation = Animated.sequence([
@@ -235,7 +253,7 @@ export class FeedbackSystem {
   private pulseAnimation(
     animatedValue: Animated.Value,
     duration: number,
-    delay: number,
+    _delay: number,
     loop: boolean
   ) {
     const animation = Animated.sequence([
@@ -263,7 +281,7 @@ export class FeedbackSystem {
   private glowAnimation(
     animatedValue: Animated.Value,
     duration: number,
-    delay: number,
+    _delay: number,
     loop: boolean
   ) {
     const animation = Animated.sequence([
@@ -291,7 +309,7 @@ export class FeedbackSystem {
   private scaleAnimation(
     animatedValue: Animated.Value,
     duration: number,
-    delay: number,
+    _delay: number,
     loop: boolean
   ) {
     const animation = Animated.sequence([
@@ -319,7 +337,7 @@ export class FeedbackSystem {
   private fadeAnimation(
     animatedValue: Animated.Value,
     duration: number,
-    delay: number,
+    _delay: number,
     loop: boolean
   ) {
     const animation = Animated.sequence([
@@ -349,7 +367,7 @@ export class FeedbackSystem {
     this.triggerHaptic('success');
     this.triggerSound('success');
     if (message) {
-      showAchievementToast(message, 'success');
+      showAchievementToast(message, 'success', 0);
     }
   }
 
@@ -357,7 +375,7 @@ export class FeedbackSystem {
     this.triggerHaptic('error');
     this.triggerSound('error');
     if (message) {
-      showAchievementToast(message, 'error');
+      showAchievementToast(message, 'error', 0);
     }
   }
 
@@ -365,7 +383,7 @@ export class FeedbackSystem {
     this.triggerHaptic('warning');
     this.triggerSound('warning');
     if (message) {
-      showAchievementToast(message, 'warning');
+      showAchievementToast(message, 'warning', 0);
     }
   }
 
@@ -373,7 +391,7 @@ export class FeedbackSystem {
     this.triggerHaptic('light');
     this.triggerSound('info');
     if (message) {
-      showAchievementToast(message, 'info');
+      showAchievementToast(message, 'info', 0);
     }
   }
 
@@ -493,12 +511,12 @@ export const useProgressIndicator = (total: number) => {
 
 // Toast notifications
 export const useToast = () => {
-  const [toasts, setToasts] = useState<Array<{
+  const [toasts, setToasts] = useState<{
     id: string;
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
     duration?: number;
-  }>>([]);
+  }[]>([]);
 
   const addToast = useCallback((
     message: string,

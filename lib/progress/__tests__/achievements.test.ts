@@ -20,6 +20,9 @@ const settings: GameSettings = {
   autoSave: true,
   language: 'en',
   maxStats: false,
+  hapticFeedback: true,
+  weeklySummaryEnabled: true,
+  showDecimalsInStats: false,
 };
 
 const createState = (overrides: Partial<GameState>): GameState => ({

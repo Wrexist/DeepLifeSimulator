@@ -1,3 +1,5 @@
+import { logger } from '@/utils/logger';
+
 /**
  * Retry mechanism for async operations
  */
@@ -45,7 +47,10 @@ export async function retry<T>(
       // Calculate delay for this attempt
       const currentDelay = calculateDelay(attempt, delay, backoff, maxDelay);
       
-      console.log(`Attempt ${attempt} failed, retrying in ${currentDelay}ms:`, error.message);
+      if (__DEV__) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.info(`Attempt ${attempt} failed, retrying in ${currentDelay}ms:`, { errorMessage });
+      }
       await sleep(currentDelay);
     }
   }

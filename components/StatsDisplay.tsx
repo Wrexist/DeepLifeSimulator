@@ -88,6 +88,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '48%',
     marginBottom: 10,
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

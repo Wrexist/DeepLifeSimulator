@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import { ArrowLeft, Home, MapPin, DollarSign, TrendingUp, Heart, Shield, Zap, Users, Star, Award, Building2, BarChart3, Calendar, Settings, Eye, Filter, Search, X } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGame, RealEstate as GameRealEstate } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { logger } from '@/utils/logger';
+import { useMemoryCleanup } from '@/utils/performanceOptimization';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -266,7 +268,34 @@ const defaultProperties: Property[] = [
 ];
 
 export default function RealEstateApp({ onBack }: RealEstateAppProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { hasEarlyRealEstateAccess } = require('@/lib/prestige/applyUnlocks');
+  const unlockedBonuses = gameState.prestige?.unlockedBonuses || [];
+  const hasEarlyAccess = hasEarlyRealEstateAccess(unlockedBonuses);
+  const playerAge = gameState.date?.age || 18;
+  const { addCleanup } = useMemoryCleanup();
+  
+  // Extract frequently used values from gameState to avoid unnecessary re-renders
+  const realEstate = gameState.realEstate || [];
+  const money = gameState.stats.money;
+  const week = gameState.week;
+  
+  // Get real estate policy effects
+  const realEstateEffects = gameState.politics?.activePolicyEffects?.realEstate;
+  
+  // Helper function to get adjusted property price and rent
+  const getAdjustedProperty = useCallback((property: Property) => {
+    const priceModifier = realEstateEffects?.priceModifier ?? 1;
+    const rentModifier = realEstateEffects?.rentModifier ?? 1;
+    
+    return {
+      ...property,
+      price: Math.round(property.price * priceModifier),
+      dailyIncome: Math.round(property.dailyIncome * rentModifier),
+    };
+  }, [realEstateEffects]);
+  
   const [activeTab, setActiveTab] = useState<'browse' | 'owned' | 'market'>('browse');
   const [properties, setProperties] = useState<Property[]>(defaultProperties);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -289,97 +318,44 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     notifications: true,
   });
   
-  // Platform-specific alert function for simple messages
-  const showAlert = (title: string, message: string) => {
+  // Refs to prevent infinite loops
+  const isInitializingRef = useRef(false);
+  const lastWeekRef = useRef(week);
+  const lastRealEstateRef = useRef<string>(JSON.stringify(realEstate));
+  const hasInitializedRef = useRef(false);
+  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
+  
+  // Helper to create setTimeout with automatic cleanup
+  const createTimeout = useCallback((callback: () => void, delay: number) => {
+    const timeoutId = setTimeout(() => {
+      callback();
+      // Remove from refs after execution
+      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
+    }, delay);
+    timeoutRefs.current.push(timeoutId);
+    addCleanup(() => {
+      clearTimeout(timeoutId);
+      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
+    });
+    return timeoutId;
+  }, [addCleanup]);
+  
+  // Platform-specific alert function for simple messages - memoized
+  const showAlert = useCallback((title: string, message: string) => {
     if (Platform.OS === 'web') {
       window.alert(`${title}\n\n${message}`);
     } else {
       Alert.alert(title, message);
     }
-  };
+  }, []);
 
-  const handleImageError = (id: string) => {
+  const handleImageError = useCallback((id: string) => {
     setProperties(prev => prev.map(p => (p.id === id ? { ...p, image: placeholderImage } : p)));
-  };
+  }, []);
 
-  // Initialize properties from game state or use defaults
-  useEffect(() => {
-    const gameProperties = gameState.realEstate || [];
-    
-    // Merge game state properties with defaults
-    const mergedProperties = defaultProperties.map(defaultProp => {
-      const gameProp = gameProperties.find(p => p.id === defaultProp.id);
-      if (gameProp) {
-        return {
-          ...defaultProp,
-          owned: gameProp.owned,
-          // Restore management data from game state
-          currentValue: gameProp.currentValue || defaultProp.currentValue,
-          managementLevel: gameProp.upgradeLevel || defaultProp.managementLevel,
-          lastMaintenance: gameProp.lastMaintenance || defaultProp.lastMaintenance,
-          tenantSatisfaction: gameProp.tenantSatisfaction || defaultProp.tenantSatisfaction,
-          marketDemand: gameProp.marketDemand || defaultProp.marketDemand,
-          // Update daily income based on management level
-          dailyIncome: defaultProp.dailyIncome + (Math.floor(defaultProp.dailyIncome * 0.2) * (gameProp.upgradeLevel || 0)),
-        };
-      }
-      return defaultProp;
-    });
-    
-    setProperties(mergedProperties);
-    
-    // If no properties exist in game state, initialize with defaults
-    if (gameProperties.length === 0) {
-      updateGameStateProperties(defaultProperties);
-    }
-  }, [gameState.realEstate]);
-
-  // Weekly property updates
-  useEffect(() => {
-    if (gameState.week > 0) {
-      const updatedProperties = properties.map(prop => {
-        if (!prop.owned) return prop;
-        
-        let newValue = prop.currentValue;
-        let newSatisfaction = prop.tenantSatisfaction;
-        let newDemand = prop.marketDemand;
-        
-        // Market value changes based on demand and satisfaction
-        const marketChange = (prop.marketDemand - 50) * 0.001; // -0.05% to +0.05% per week
-        const satisfactionChange = (prop.tenantSatisfaction - 50) * 0.0005; // -0.025% to +0.025% per week
-        
-        newValue = Math.floor(prop.currentValue * (1 + marketChange + satisfactionChange));
-        
-        // Tenant satisfaction changes based on maintenance
-        const weeksSinceMaintenance = gameState.week - prop.lastMaintenance;
-        if (weeksSinceMaintenance > 4) {
-          newSatisfaction = Math.max(0, prop.tenantSatisfaction - 5);
-        } else if (weeksSinceMaintenance <= 2) {
-          newSatisfaction = Math.min(100, prop.tenantSatisfaction + 2);
-        }
-        
-        // Market demand changes based on overall market conditions
-        const marketTrend = Math.random() > 0.5 ? 1 : -1;
-        newDemand = Math.max(0, Math.min(100, prop.marketDemand + (marketTrend * Math.floor(Math.random() * 3))));
-        
-        return {
-          ...prop,
-          currentValue: newValue,
-          tenantSatisfaction: newSatisfaction,
-          marketDemand: newDemand,
-        };
-      });
-      
-      setProperties(updatedProperties);
-      updateGameStateProperties(updatedProperties);
-    }
-  }, [gameState.week]);
-
-  // Function to update game state when properties change
-  const updateGameStateProperties = (updatedProperties: Property[]) => {
-    console.log('updateGameStateProperties called with:', updatedProperties);
-    
-    const gameProperties = updatedProperties.map(prop => ({
+  // Helper function to convert Property to RealEstate format for game state
+  const propertyToGameState = useCallback((prop: Property) => {
+    return {
       id: prop.id,
       name: prop.name,
       price: prop.price,
@@ -395,40 +371,119 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
       lastMaintenance: prop.lastMaintenance || 0,
       tenantSatisfaction: prop.tenantSatisfaction || 75,
       marketDemand: prop.marketDemand || 80,
-    }));
+    };
+  }, []);
 
-    console.log('Mapped game properties:', gameProperties);
+  // Helper function to convert RealEstate from game state to Property format
+  const gameStateToProperty = useCallback((gameProp: GameRealEstate, defaultProp: Property): Property => {
+    return {
+      ...defaultProp,
+      owned: gameProp.owned || false,
+      currentValue: gameProp.currentValue || defaultProp.currentValue,
+      managementLevel: gameProp.upgradeLevel || defaultProp.managementLevel,
+      lastMaintenance: gameProp.lastMaintenance ?? defaultProp.lastMaintenance,
+      tenantSatisfaction: gameProp.tenantSatisfaction ?? defaultProp.tenantSatisfaction,
+      marketDemand: gameProp.marketDemand ?? defaultProp.marketDemand,
+      dailyIncome: defaultProp.dailyIncome + (Math.floor(defaultProp.dailyIncome * 0.2) * (gameProp.upgradeLevel || 0)),
+    };
+  }, []);
 
-    setGameState(prev => {
-      console.log('Previous game state realEstate:', prev.realEstate);
-      const newState = {
-        ...prev,
-        realEstate: gameProperties,
-      };
-      console.log('New game state realEstate:', newState.realEstate);
-      return newState;
+  // Function to sync local properties from game state - this is the source of truth
+  const syncPropertiesFromGameState = useCallback(() => {
+    // Convert game state properties to local Property format
+    const syncedProperties = defaultProperties.map(defaultProp => {
+      const gameProp = realEstate.find(p => p.id === defaultProp.id);
+      if (gameProp) {
+        return gameStateToProperty(gameProp, defaultProp);
+      }
+      return defaultProp;
     });
-  };
+    
+    setProperties(syncedProperties);
+    return syncedProperties;
+  }, [realEstate, gameStateToProperty]);
 
-  const getTraitIcon = (trait: string) => {
+  // Initialize properties from game state on mount and when game state changes
+  useEffect(() => {
+    // Sync properties from game state - game state is always the source of truth
+    syncPropertiesFromGameState();
+  }, [realEstate, syncPropertiesFromGameState]);
+
+  // Weekly property updates
+  useEffect(() => {
+    // Only update if week actually changed
+    if (week > 0 && week !== lastWeekRef.current) {
+      lastWeekRef.current = week;
+      
+      // Update properties in game state directly
+      setGameState(prev => {
+        const updatedRealEstate = (prev.realEstate || []).map(gameProp => {
+          if (!gameProp.owned) return gameProp;
+          
+          let newValue = gameProp.currentValue || gameProp.price;
+          let newSatisfaction = gameProp.tenantSatisfaction || 75;
+          let newDemand = gameProp.marketDemand || 80;
+          
+          // Market value changes based on demand and satisfaction
+          const marketChange = (newDemand - 50) * 0.001; // -0.05% to +0.05% per week
+          const satisfactionChange = (newSatisfaction - 50) * 0.0005; // -0.025% to +0.025% per week
+          
+          newValue = Math.floor(newValue * (1 + marketChange + satisfactionChange));
+          
+          // Tenant satisfaction changes based on maintenance
+          const weeksSinceMaintenance = week - (gameProp.lastMaintenance || 0);
+          if (weeksSinceMaintenance > 4) {
+            newSatisfaction = Math.max(0, newSatisfaction - 5);
+          } else if (weeksSinceMaintenance <= 2) {
+            newSatisfaction = Math.min(100, newSatisfaction + 2);
+          }
+          
+          // Market demand changes based on overall market conditions
+          const marketTrend = Math.random() > 0.5 ? 1 : -1;
+          newDemand = Math.max(0, Math.min(100, newDemand + (marketTrend * Math.floor(Math.random() * 3))));
+          
+          return {
+            ...gameProp,
+            currentValue: newValue,
+            tenantSatisfaction: newSatisfaction,
+            marketDemand: newDemand,
+          };
+        });
+        
+        return {
+          ...prev,
+          realEstate: updatedRealEstate,
+        };
+      });
+      
+      // Sync local properties and save with cleanup
+      createTimeout(() => {
+        syncPropertiesFromGameState();
+        saveGame(); // Save weekly property updates
+      }, 0);
+    }
+  }, [week, saveGame, syncPropertiesFromGameState, addCleanup]);
+
+  // Memoize helper functions
+  const getTraitIcon = useCallback((trait: string) => {
     switch (trait) {
       case 'happiness': return Heart;
       case 'health': return Shield;
       case 'energy': return Zap;
       default: return TrendingUp;
     }
-  };
+  }, []);
 
-  const getTraitColor = (trait: string) => {
+  const getTraitColor = useCallback((trait: string) => {
     switch (trait) {
       case 'happiness': return '#EF4444';
       case 'health': return '#10B981';
       case 'energy': return '#F59E0B';
       default: return '#6B7280';
     }
-  };
+  }, []);
 
-  const renderTrait = (trait: string, value: number, key: string) => {
+  const renderTrait = useCallback((trait: string, value: number, key: string) => {
     const IconComponent = getTraitIcon(trait);
     const color = getTraitColor(trait);
     const traitName = trait.charAt(0).toUpperCase() + trait.slice(1);
@@ -441,12 +496,17 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
         <Text style={styles.traitText}>+{value} {traitName}</Text>
       </View>
     );
-  };
+  }, [getTraitIcon, getTraitColor]);
 
-  const renderPropertyCard = (property: Property, index: number) => {
-    const canAfford = gameState.stats.money >= property.price;
-    const totalIncome = property.dailyIncome * 7; // Weekly income
-    const roi = ((totalIncome / property.price) * 100).toFixed(1);
+  // Memoize renderPropertyCard to prevent unnecessary re-renders
+  const renderPropertyCard = useCallback((property: Property, index: number) => {
+    const adjusted = getAdjustedProperty(property);
+    const canAfford = money >= adjusted.price;
+    // Check age restriction (typically 25, but bypassed with early real estate access)
+    const ageRestriction = hasEarlyAccess || playerAge >= 25;
+    const canPurchase = canAfford && ageRestriction;
+    const totalIncome = adjusted.dailyIncome * 7; // Weekly income
+    const roi = ((totalIncome / adjusted.price) * 100).toFixed(1);
     
     return (
       <MotiView
@@ -484,7 +544,7 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
             <View style={styles.propertyHeader}>
               <Text style={styles.propertyName}>{property.name}</Text>
               <View style={styles.locationContainer}>
-                <MapPin size={14} color="#9CA3AF" />
+                <MapPin size={14} color={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"} />
                 <Text style={styles.locationText}>{property.location}</Text>
               </View>
             </View>
@@ -493,7 +553,10 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
               <View style={styles.statItem}>
                 <DollarSign size={16} color="#F7931A" />
                 <Text style={styles.statText}>
-                  {property.owned ? `$${property.currentValue.toLocaleString()}` : `$${property.price.toLocaleString()}`}
+                  {property.owned ? `$${property.currentValue.toLocaleString()}` : `$${adjusted.price.toLocaleString()}`}
+                  {!property.owned && adjusted.price !== property.price && (
+                    <Text style={styles.discountText}> (was ${property.price.toLocaleString()})</Text>
+                  )}
                 </Text>
               </View>
               <View style={styles.statItem}>
@@ -521,14 +584,14 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
                   <View style={styles.metricIcon}>
                     <Star size={14} color="#FCD34D" />
                   </View>
-                  <Text style={styles.metricLabel}>Market Demand</Text>
+                  <Text style={[styles.metricLabel, settings?.darkMode && styles.metricLabelDark]}>Market Demand</Text>
                   <Text style={styles.metricValue}>{property.marketDemand}%</Text>
                 </View>
                 <View style={styles.metricItem}>
                   <View style={styles.metricIcon}>
                     <Heart size={14} color="#EF4444" />
                   </View>
-                  <Text style={styles.metricLabel}>Tenant Satisfaction</Text>
+                  <Text style={[styles.metricLabel, settings?.darkMode && styles.metricLabelDark]}>Tenant Satisfaction</Text>
                   <Text style={styles.metricValue}>{property.tenantSatisfaction}%</Text>
                 </View>
               </View>
@@ -547,26 +610,26 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
 
             {!property.owned && (
               <TouchableOpacity
-                style={[styles.buyButton, !canAfford && styles.disabledButton]}
+                style={[styles.buyButton, !canPurchase && styles.disabledButton]}
                 onPress={() => {
-                  console.log('Button pressed for property:', property.name);
+                  logger.debug('Button pressed for property:', { propertyName: property.name });
                   handleBuyProperty(property);
                 }}
-                onPressIn={() => console.log('Button pressed in for:', property.name)}
-                onPressOut={() => console.log('Button pressed out for:', property.name)}
-                disabled={!canAfford}
+                // onPressIn={() => logger.debug('Button pressed in for:', { propertyName: property.name })}
+                // onPressOut={() => logger.debug('Button pressed out for:', { propertyName: property.name })}
+                disabled={!canPurchase}
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <LinearGradient
-                  colors={canAfford ? ['#3B82F6', '#1D4ED8'] : ['#6B7280', '#4B5563']}
+                  colors={canPurchase ? ['#3B82F6', '#1D4ED8'] : ['#6B7280', '#4B5563']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.buyButtonGradient}
                 >
                   <Home size={16} color="#FFFFFF" />
                   <Text style={styles.buyButtonText}>
-                    {canAfford ? 'Purchase Property' : 'Insufficient Funds'}
+                    {!ageRestriction ? 'Age 25+ Required' : canAfford ? 'Purchase Property' : 'Insufficient Funds'}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -612,155 +675,274 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
         </LinearGradient>
       </MotiView>
     );
-  };
+  }, [money, renderTrait, showAlert]);
 
-  const handleBuyProperty = (property: Property) => {
-    console.log('handleBuyProperty called for:', property.name);
-    console.log('Current money:', gameState.stats.money);
-    console.log('Property price:', property.price);
+  const handleBuyProperty = useCallback((property: Property) => {
+    logger.debug('handleBuyProperty called for:', { propertyName: property.name });
+    logger.debug('Current money:', { money });
+    logger.debug('Property price:', { price: property.price });
     
-    if (gameState.stats.money < property.price) {
-      console.log('Insufficient funds, showing alert...');
+    // Check age restriction
+    if (!hasEarlyAccess && playerAge < 25) {
+      showAlert('Age Restriction', 'You must be at least 25 years old to purchase real estate. (Or unlock Early Real Estate Access prestige bonus)');
+      return;
+    }
+    
+    if (money < property.price) {
+      logger.debug('Insufficient funds, showing alert...');
       showAlert('Insufficient Funds', 'You need more money to purchase this property.');
       return;
     }
 
-    console.log('Showing purchase confirmation modal...');
+    logger.debug('Showing purchase confirmation modal...');
     setSelectedProperty(property);
     setShowPurchaseModal(true);
-  };
+  }, [money, showAlert, hasEarlyAccess, playerAge]);
 
-  const confirmPurchase = () => {
+  const confirmPurchase = useCallback(async () => {
     if (!selectedProperty) return;
     
-    console.log('Purchase confirmed, updating stats...');
+    const adjusted = getAdjustedProperty(selectedProperty);
     
     // Check if player has enough money
-    if (gameState.stats.money < selectedProperty.price) {
-      Alert.alert('Insufficient Funds', `You need $${selectedProperty.price.toLocaleString()} to purchase this property.`);
+    if (money < adjusted.price) {
+      Alert.alert('Insufficient Funds', `You need $${adjusted.price.toLocaleString()} to purchase this property.`);
       return;
     }
     
-    // Update money directly using setGameState
-    setGameState(prev => ({
-      ...prev,
-      stats: { ...prev.stats, money: prev.stats.money - selectedProperty.price }
-    }));
+    // Find or create the property in game state
+    const existingPropIndex = realEstate.findIndex(p => p.id === selectedProperty.id);
+    const propertyGameState = propertyToGameState({
+      ...adjusted,
+      owned: true, // Mark as owned
+    });
     
-    const updatedProperties = properties.map(p =>
-      p.id === selectedProperty.id ? { ...p, owned: true } : p
-    );
+    // Update game state directly - this is the source of truth
+    let updatedRealEstate: GameRealEstate[] = [];
+    setGameState(prev => {
+      updatedRealEstate = [...(prev.realEstate || [])];
+      
+      if (existingPropIndex >= 0) {
+        // Update existing property
+        updatedRealEstate[existingPropIndex] = propertyGameState;
+      } else {
+        // Add new property
+        updatedRealEstate.push(propertyGameState);
+      }
+      
+      // Ensure all default properties are in the array
+      defaultProperties.forEach(defaultProp => {
+        if (!updatedRealEstate.find(p => p.id === defaultProp.id)) {
+          updatedRealEstate.push(propertyToGameState(defaultProp));
+        }
+      });
+      
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: prev.stats.money - adjusted.price },
+        realEstate: updatedRealEstate,
+      };
+    });
     
-    console.log('Updated properties:', updatedProperties);
-    setProperties(updatedProperties);
-    updateGameStateProperties(updatedProperties);
+    // Update local state IMMEDIATELY so it shows in portfolio right away
+    setProperties(prevProperties => {
+      return prevProperties.map(prop => {
+        if (prop.id === selectedProperty.id) {
+          // Convert the game state property back to Property format
+          const gameProp = updatedRealEstate.find(p => p.id === selectedProperty.id);
+          if (gameProp) {
+            return gameStateToProperty(gameProp, prop);
+          }
+          return { ...prop, owned: true };
+        }
+        return prop;
+      });
+    });
+    
+    // Save immediately and wait for it to complete
+    try {
+      await saveGame();
+    } catch (error) {
+      logger.error('Failed to save game after purchase:', error);
+    }
     
     setShowPurchaseModal(false);
     setSelectedProperty(null);
     
     setSuccessMessage(`You now own ${selectedProperty.name}!`);
     setShowSuccessModal(true);
-  };
+  }, [selectedProperty, money, realEstate, setGameState, saveGame, propertyToGameState, gameStateToProperty]);
 
   // Property management functions
-  const performMaintenance = (property: Property) => {
+  const performMaintenance = useCallback(async (property: Property) => {
     const maintenanceCost = Math.floor(property.currentValue * 0.02); // 2% of property value
     const satisfactionIncrease = 15;
     const valueIncrease = Math.floor(property.currentValue * 0.05); // 5% value increase
     
-    if (gameState.stats.money < maintenanceCost) {
+    if (money < maintenanceCost) {
       setShowMaintenanceModal(false);
       setSuccessMessage(`Insufficient funds! Maintenance costs $${maintenanceCost.toLocaleString()}`);
       setShowSuccessModal(true);
       return;
     }
     
-    setGameState(prev => ({
-      ...prev,
-      stats: { ...prev.stats, money: prev.stats.money - maintenanceCost }
-    }));
+    // Update property in game state directly
+    setGameState(prev => {
+      const updatedRealEstate = (prev.realEstate || []).map(p => {
+        if (p.id === property.id) {
+          return {
+            ...p,
+            lastMaintenance: week,
+            tenantSatisfaction: Math.min(100, (p.tenantSatisfaction || 75) + satisfactionIncrease),
+            currentValue: (p.currentValue || p.price) + valueIncrease,
+          };
+        }
+        return p;
+      });
+      
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: prev.stats.money - maintenanceCost },
+        realEstate: updatedRealEstate,
+      };
+    });
     
-    const updatedProperties = properties.map(p =>
-      p.id === property.id ? {
-        ...p,
-        lastMaintenance: gameState.week,
-        tenantSatisfaction: Math.min(100, p.tenantSatisfaction + satisfactionIncrease),
-        currentValue: p.currentValue + valueIncrease,
-      } : p
-    );
+    // Sync local properties from game state
+    createTimeout(() => {
+      syncPropertiesFromGameState();
+    }, 0);
     
-    setProperties(updatedProperties);
-    updateGameStateProperties(updatedProperties);
+    // Save immediately
+    try {
+      await saveGame();
+    } catch (error) {
+      logger.error('Failed to save game after maintenance:', error);
+    }
     
     setShowMaintenanceModal(false);
     setSuccessMessage(`Maintenance completed! Property value increased by $${valueIncrease.toLocaleString()}`);
     setShowSuccessModal(true);
-  };
+  }, [money, realEstate, setGameState, saveGame, syncPropertiesFromGameState, createTimeout]);
 
-  const upgradeManagement = (property: Property) => {
+  const upgradeManagement = useCallback(async (property: Property) => {
     const upgradeCost = Math.floor(property.currentValue * 0.1); // 10% of property value
     const incomeIncrease = Math.floor(property.dailyIncome * 0.2); // 20% income increase
     const valueIncrease = Math.floor(property.currentValue * 0.08); // 8% value increase
     
-    if (gameState.stats.money < upgradeCost) {
+    if (money < upgradeCost) {
       setShowUpgradeModal(false);
       setSuccessMessage(`Insufficient funds! Management upgrade costs $${upgradeCost.toLocaleString()}`);
       setShowSuccessModal(true);
       return;
     }
     
-    setGameState(prev => ({
-      ...prev,
-      stats: { ...prev.stats, money: prev.stats.money - upgradeCost }
-    }));
+    // Update property in game state directly
+    setGameState(prev => {
+      const updatedRealEstate = (prev.realEstate || []).map(p => {
+        if (p.id === property.id) {
+          const newUpgradeLevel = (p.upgradeLevel || 0) + 1;
+          return {
+            ...p,
+            upgradeLevel: newUpgradeLevel,
+            rent: (p.rent || property.dailyIncome * 7) + (incomeIncrease * 7),
+            currentValue: (p.currentValue || p.price) + valueIncrease,
+          };
+        }
+        return p;
+      });
+      
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: prev.stats.money - upgradeCost },
+        realEstate: updatedRealEstate,
+      };
+    });
     
-    const updatedProperties = properties.map(p =>
-      p.id === property.id ? {
-        ...p,
-        managementLevel: p.managementLevel + 1,
-        dailyIncome: p.dailyIncome + incomeIncrease,
-        currentValue: p.currentValue + valueIncrease,
-      } : p
-    );
+    // Sync local properties from game state
+    createTimeout(() => {
+      syncPropertiesFromGameState();
+    }, 0);
     
-    setProperties(updatedProperties);
-    updateGameStateProperties(updatedProperties);
+    // Save immediately
+    try {
+      await saveGame();
+    } catch (error) {
+      logger.error('Failed to save game after upgrade:', error);
+    }
     
     setShowUpgradeModal(false);
     setSuccessMessage(`Management upgraded! Daily income increased by $${incomeIncrease}`);
     setShowSuccessModal(true);
-  };
+  }, [money, realEstate, setGameState, saveGame, syncPropertiesFromGameState, createTimeout]);
 
-  const sellProperty = (property: Property) => {
+  const sellProperty = useCallback(async (property: Property) => {
+    // Prevent selling if property is not owned
+    if (!property.owned) {
+      setShowSellModal(false);
+      setSuccessMessage('This property is not owned and cannot be sold.');
+      setShowSuccessModal(true);
+      return;
+    }
+    
     const sellPrice = Math.floor(property.currentValue * 0.75); // 75% of current value
     
-    const updatedProperties = properties.map(p =>
-      p.id === property.id ? { ...p, owned: false, currentValue: p.price } : p
-    );
+    // Update property in game state directly - mark as not owned and reset income/expenses
+    setGameState(prev => {
+      const updatedRealEstate = (prev.realEstate || []).map(p => {
+        if (p.id === property.id && p.owned) {
+          return {
+            ...p,
+            owned: false,
+            currentValue: p.price, // Reset to original price
+            rent: 0, // Reset rent to 0 so it doesn't contribute to income
+            upkeep: 0, // Reset upkeep to 0 so it doesn't contribute to expenses
+          };
+        }
+        return p;
+      });
+      
+      return {
+        ...prev,
+        stats: { ...prev.stats, money: prev.stats.money + sellPrice },
+        realEstate: updatedRealEstate,
+      };
+    });
     
-    setProperties(updatedProperties);
-    updateGameStateProperties(updatedProperties);
+    // Sync local properties from game state immediately
+    syncPropertiesFromGameState();
     
-    setGameState(prev => ({
-      ...prev,
-      stats: { ...prev.stats, money: prev.stats.money + sellPrice }
-    }));
+    // Save immediately
+    try {
+      await saveGame();
+    } catch (error) {
+      logger.error('Failed to save game after selling:', error);
+    }
     
     setShowSellModal(false);
+    setSelectedProperty(null);
     setSuccessMessage(`Property sold for $${sellPrice.toLocaleString()}!`);
     setShowSuccessModal(true);
-  };
+  }, [setGameState, saveGame, syncPropertiesFromGameState]);
 
-  const handleManageProperty = (property: Property) => {
+  const handleManageProperty = useCallback((property: Property) => {
     setSelectedProperty(property);
     setShowManagementModal(true);
-  };
+  }, []);
 
-  // Calculate portfolio stats
-  const ownedProperties = properties.filter(p => p.owned);
-  const totalPortfolioValue = ownedProperties.reduce((sum, p) => sum + p.currentValue, 0);
-  const totalWeeklyIncome = ownedProperties.reduce((sum, p) => sum + (p.dailyIncome * 7), 0);
-  const averageROI = ownedProperties.length > 0 ? (totalWeeklyIncome / totalPortfolioValue) * 100 : 0;
+  // Memoize portfolio stats calculations
+  const ownedProperties = useMemo(() => properties.filter(p => p.owned), [properties]);
+  const totalPortfolioValue = useMemo(() => 
+    ownedProperties.reduce((sum, p) => sum + p.currentValue, 0), 
+    [ownedProperties]
+  );
+  const totalWeeklyIncome = useMemo(() => 
+    ownedProperties.reduce((sum, p) => sum + (p.dailyIncome * 7), 0), 
+    [ownedProperties]
+  );
+  const averageROI = useMemo(() => 
+    ownedProperties.length > 0 ? (totalWeeklyIncome / totalPortfolioValue) * 100 : 0,
+    [ownedProperties, totalWeeklyIncome, totalPortfolioValue]
+  );
 
   // Filter and sort properties
   const filteredProperties = properties.filter(property => {
@@ -916,8 +1098,8 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
           style={styles.searchContainer}
         >
           <View style={styles.searchBar}>
-            <Search size={20} color="#9CA3AF" />
-            <Text style={styles.searchPlaceholder}>Search properties...</Text>
+            <Search size={20} color={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"} />
+            <Text style={[styles.searchPlaceholder, settings?.darkMode && styles.searchPlaceholderDark]}>Search properties...</Text>
           </View>
           
           <View style={styles.filterContainer}>
@@ -947,6 +1129,8 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
         style={styles.content} 
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={true}
+        bounces={true}
+        nestedScrollEnabled={true}
       >
         {activeTab === 'market' ? (
           <View style={styles.marketContainer}>
@@ -1019,7 +1203,10 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
             >
               <Text style={styles.modalTitle}>Purchase Property</Text>
               <Text style={styles.modalMessage}>
-                Are you sure you want to purchase {selectedProperty.name} for ${selectedProperty.price.toLocaleString()}?
+                Are you sure you want to purchase {selectedProperty.name} for ${(() => {
+                  const adjusted = getAdjustedProperty(selectedProperty);
+                  return adjusted.price.toLocaleString();
+                })()}?
               </Text>
               
               <View style={styles.modalButtons}>
@@ -1331,7 +1518,7 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
                 <View style={styles.settingItem}>
                   <View style={styles.settingInfo}>
                     <Text style={styles.settingLabel}>Show ROI</Text>
-                    <Text style={styles.settingDescription}>Display return on investment for properties</Text>
+                    <Text style={[styles.settingDescription, settings?.darkMode && styles.settingDescriptionDark]}>Display return on investment for properties</Text>
                   </View>
                   <TouchableOpacity
                     style={[styles.toggleButton, settings.showROI && styles.toggleButtonActive]}
@@ -1426,11 +1613,21 @@ const styles = StyleSheet.create({
   backButton: {
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0px 4px 8px rgba(99, 102, 241, 0.3)',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0px 4px 8px rgba(99, 102, 241, 0.3)',
+      },
+    }),
   },
   backButtonGradient: {
     width: 48,
@@ -1446,9 +1643,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadow: '0px 2px 4px rgba(0, 0, 0, 0.5)',
   },
   portfolioStats: {
     flexDirection: 'row',
@@ -1500,11 +1695,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   activeTab: {
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 12,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0px 4px 12px rgba(59, 130, 246, 0.5)',
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 12,
+      },
+      web: {
+        boxShadow: '0px 4px 12px rgba(59, 130, 246, 0.5)',
+      },
+    }),
     borderWidth: 2,
     borderColor: '#3B82F6',
   },
@@ -1515,9 +1720,7 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    textShadow: '0px 1px 1px rgba(0, 0, 0, 0.3)',
   },
   searchContainer: {
     paddingHorizontal: 20,
@@ -1536,6 +1739,15 @@ const styles = StyleSheet.create({
   searchPlaceholder: {
     color: '#9CA3AF',
     fontSize: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  searchPlaceholderDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -1564,9 +1776,8 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
     flexGrow: 1,
-    justifyContent: 'center',
   },
   propertiesGrid: {
     gap: 16,
@@ -1575,11 +1786,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
-    elevation: 16,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.6)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 16,
+      },
+      web: {
+        boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.6)',
+      },
+    }),
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
@@ -1611,9 +1832,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadow: '0px 1px 2px rgba(0, 0, 0, 0.5)',
   },
   propertyInfo: {
     gap: 12,
@@ -1626,9 +1845,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadow: '0px 1px 2px rgba(0, 0, 0, 0.5)',
   },
   locationContainer: {
     flexDirection: 'row',
@@ -1654,9 +1871,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFFFFF',
     fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    textShadow: '0px 1px 1px rgba(0, 0, 0, 0.3)',
+  },
+  discountText: {
+    fontSize: 10,
+    color: '#10B981',
+    fontStyle: 'italic',
+    marginLeft: 4,
   },
   traitsContainer: {
     marginBottom: 12,
@@ -1666,9 +1887,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FCD34D',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadow: '0px 1px 2px rgba(0, 0, 0, 0.5)',
   },
   traitsList: {
     gap: 8,
@@ -1694,9 +1913,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
     fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    textShadow: '0px 1px 1px rgba(0, 0, 0, 0.3)',
   },
   propertyMetrics: {
     flexDirection: 'row',
@@ -1726,6 +1943,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontWeight: '500',
     flex: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  metricLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   metricValue: {
     fontSize: 12,
@@ -1743,11 +1969,21 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 16,
+    ...Platform.select({
+      ios: {
+        boxShadow: '0px 8px 16px rgba(245, 158, 11, 0.4)',
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 16,
+      },
+      web: {
+        boxShadow: '0px 8px 16px rgba(245, 158, 11, 0.4)',
+      },
+    }),
   },
   marketCardGradient: {
     padding: 24,
@@ -1763,9 +1999,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadow: '0px 2px 4px rgba(0, 0, 0, 0.5)',
   },
   marketStats: {
     gap: 16,
@@ -1789,9 +2023,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)',
   },
   marketInsights: {
     gap: 12,
@@ -1801,9 +2033,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FCD34D',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadow: '0px 1px 2px rgba(0, 0, 0, 0.5)',
   },
   insightItem: {
     flexDirection: 'row',
@@ -1852,6 +2082,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     fontWeight: '400',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  settingDescriptionDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   toggleButton: {
     width: 50,
@@ -1910,9 +2149,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    textShadow: '0px 1px 1px rgba(0, 0, 0, 0.3)',
   },
   // Modal styles
   modalOverlay: {
@@ -1993,9 +2230,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadow: '0px 1px 2px rgba(0, 0, 0, 0.5)',
   },
   managementStats: {
     gap: 8,
@@ -2019,9 +2254,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFFFFF',
     fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    textShadow: '0px 1px 1px rgba(0, 0, 0, 0.3)',
   },
   managementActions: {
     gap: 12,
@@ -2040,9 +2273,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+    textShadow: '0px 1px 1px rgba(0, 0, 0, 0.3)',
   },
   modalSubMessage: {
     fontSize: 14,

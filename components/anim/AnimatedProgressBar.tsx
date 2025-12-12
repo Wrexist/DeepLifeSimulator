@@ -1,22 +1,28 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ColorValue, StyleProp, ViewStyle } from 'react-native';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';
+import { scale, fontScale } from '@/utils/scaling';
+
+type GradientColors = readonly [ColorValue, ColorValue] | readonly [ColorValue, ColorValue, ...ColorValue[]];
+
+const DEFAULT_HEIGHT = scale(8);
+const GRADIENT_RADIUS = scale(12);
 
 interface AnimatedProgressBarProps {
   progress: number; // 0-100
   height?: number;
   showPercentage?: boolean;
-  color?: string;
-  gradient?: string[];
+  color?: ColorValue;
+  gradient?: GradientColors;
   animated?: boolean;
   label?: string;
 }
 
 export default function AnimatedProgressBar({
   progress,
-  height = 8,
+  height = DEFAULT_HEIGHT,
   showPercentage = false,
   color = '#3B82F6',
   gradient,
@@ -26,66 +32,89 @@ export default function AnimatedProgressBar({
   const { gameState } = useGame();
   const isDarkMode = gameState.settings.darkMode;
 
-  const clampedProgress = Math.max(0, Math.min(100, progress));
-
-  const progressColors = gradient || [color, color + '80'];
-
-  return (
-    <View style={styles.container}>
-      {label && (
-        <View style={styles.labelContainer}>
-          <Text style={[styles.label, isDarkMode && styles.labelDark]}>
-            {label}
-          </Text>
-          {showPercentage && (
-            <Text style={[styles.percentage, isDarkMode && styles.percentageDark]}>
-              {Math.round(clampedProgress)}%
-            </Text>
-          )}
-        </View>
-      )}
-      
-      <View style={[
-        styles.progressContainer,
-        { height },
-        isDarkMode && styles.progressContainerDark
-      ]}>
-        <MotiView
-          from={{ scaleX: 0 }}
-          animate={{ scaleX: clampedProgress / 100 }}
-          transition={{
-            type: animated ? 'spring' : 'timing',
+  const backgroundColors = useMemo<readonly [ColorValue, ColorValue]>(
+    () => (isDarkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFC']),
+    [isDarkMode]
+  );
+  const clampedProgress = useMemo(() => Math.max(0, Math.min(100, progress)), [progress]);
+  const progressColors = useMemo<GradientColors>(() => {
+    if (gradient && gradient.length >= 2) {
+      return gradient;
+    }
+    return [color, `${String(color)}B3`] as const;
+  }, [gradient, color]);
+  const progressContainerStyle = useMemo<StyleProp<ViewStyle>>(
+    () => [styles.progressContainer, { height }, isDarkMode && styles.progressContainerDark],
+    [height, isDarkMode]
+  );
+  const progressFillStyle = useMemo<StyleProp<ViewStyle>>(() => [styles.progressFill, { height }], [height]);
+  const progressFrom = useMemo(() => ({ scaleX: 0 }), []);
+  const progressAnimate = useMemo(() => ({ scaleX: clampedProgress / 100 }), [clampedProgress]);
+  const barTransition = useMemo(
+    () =>
+      animated
+        ? {
+            type: 'spring' as const,
             damping: 15,
             stiffness: 100,
-            duration: animated ? undefined : 800,
-          }}
-          style={styles.progressBar}
-        >
-          <LinearGradient
-            colors={progressColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.progressFill, { height }]}
-          />
-        </MotiView>
-        
-        {/* Shine Effect */}
-        <MotiView
-          from={{ translateX: -100 }}
-          animate={{ translateX: 100 }}
-          transition={{
-            type: 'timing',
-            duration: 1500,
-            loop: true,
-          }}
-          style={styles.shineEffect}
-        />
+          }
+        : {
+            type: 'timing' as const,
+            duration: 800,
+          },
+    [animated]
+  );
+  const shineTransition = useMemo(
+    () => ({
+      type: 'timing' as const,
+      duration: 1500,
+      loop: true,
+    }),
+    []
+  );
+  const shineFrom = useMemo(() => ({ translateX: -100 }), []);
+  const shineAnimate = useMemo(() => ({ translateX: 100 }), []);
+
+  return (
+    <LinearGradient colors={backgroundColors} style={styles.gradientBackground}>
+      <View style={styles.container}>
+        {label && (
+          <View style={styles.labelContainer}>
+            <Text style={[styles.label, isDarkMode && styles.labelDark]}>
+              {label}
+            </Text>
+            {showPercentage && (
+              <Text style={[styles.percentage, isDarkMode && styles.percentageDark]}>
+                {Math.round(clampedProgress)}%
+              </Text>
+            )}
+          </View>
+        )}
+
+        <View style={progressContainerStyle}>
+          <MotiView from={progressFrom} animate={progressAnimate} transition={barTransition} style={styles.progressBar}>
+            <LinearGradient
+              colors={progressColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={progressFillStyle}
+            />
+          </MotiView>
+
+          {/* Shine Effect */}
+          <MotiView from={shineFrom} animate={shineAnimate} transition={shineTransition} style={styles.shineEffect} />
+        </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    width: '100%',
+    borderRadius: GRADIENT_RADIUS,
+    padding: scale(8),
+  },
   container: {
     width: '100%',
   },
@@ -93,10 +122,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   label: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
     color: '#374151',
   },
@@ -104,7 +133,7 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
   percentage: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -114,7 +143,7 @@ const styles = StyleSheet.create({
   progressContainer: {
     width: '100%',
     backgroundColor: '#E5E7EB',
-    borderRadius: 4,
+    borderRadius: scale(4),
     overflow: 'hidden',
     position: 'relative',
   },
@@ -123,12 +152,12 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: scale(4),
     overflow: 'hidden',
   },
   progressFill: {
     width: '100%',
-    borderRadius: 4,
+    borderRadius: scale(4),
   },
   shineEffect: {
     position: 'absolute',
@@ -137,7 +166,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    width: 20,
+    width: scale(20),
     transform: [{ skewX: '-20deg' }],
   },
 });

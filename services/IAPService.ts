@@ -1,13 +1,16 @@
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IAP_PRODUCTS, getProductConfig, getAllProductIds, isConsumableProduct } from '@/utils/iapConfig';
+import { logger } from '@/utils/logger';
+
+const log = logger.scope('IAPService');
 
 // Dynamic import to handle when native module is not available
 let InAppPurchases: any = null;
 try {
   InAppPurchases = require('expo-in-app-purchases');
 } catch (error) {
-  console.log('expo-in-app-purchases not available - will use simulation mode');
+  log.warn('expo-in-app-purchases not available - will use simulation mode');
 }
 
 export interface IAPState {
@@ -44,10 +47,10 @@ class IAPService {
   private detectSandboxEnvironment(receipt?: string): boolean {
     // In development mode, always use sandbox
     if (__DEV__) {
-      console.log('Environment: Development mode detected - using sandbox');
+      log.debug('Environment: Development mode detected - using sandbox');
       return true;
     }
-    
+
     // Check for TestFlight environment (Apple's testing platform)
     // TestFlight builds have specific environment indicators
     if (Platform.OS === 'ios') {
@@ -55,39 +58,39 @@ class IAPService {
         // Check if running in TestFlight by examining app receipt
         // TestFlight builds use sandbox environment
         const isTestFlight = receipt && (
-          receipt.includes('sandbox') || 
+          receipt.includes('sandbox') ||
           receipt.includes('Sandbox') ||
           receipt.includes('SANDBOX')
         );
-        
+
         if (isTestFlight) {
-          console.log('Environment: TestFlight/Sandbox detected from receipt');
+          log.info('Environment: TestFlight/Sandbox detected from receipt');
           return true;
         }
       } catch (error) {
-        console.log('Could not determine TestFlight status:', error);
+        log.warn('Could not determine TestFlight status:', { error });
       }
     }
-    
+
     // Check receipt structure for sandbox indicators
     if (receipt) {
       try {
         // Decode base64 receipt if present
         // Sandbox receipts have different structure than production
         const receiptLower = receipt.toLowerCase();
-        if (receiptLower.includes('sandbox') || 
-            receiptLower.includes('test') ||
-            receiptLower.includes('apple.com/testflight')) {
-          console.log('Environment: Sandbox detected from receipt structure');
+        if (receiptLower.includes('sandbox') ||
+          receiptLower.includes('test') ||
+          receiptLower.includes('apple.com/testflight')) {
+          log.info('Environment: Sandbox detected from receipt structure');
           return true;
         }
       } catch (error) {
-        console.log('Receipt parsing error:', error);
+        log.warn('Receipt parsing error:', { error });
       }
     }
-    
+
     // Default to production for released apps
-    console.log('Environment: Production (default)');
+    log.info('Environment: Production (default)');
     return false;
   }
 
@@ -97,61 +100,62 @@ class IAPService {
       // According to Apple's guidelines:
       // 1. Always validate against production first
       // 2. If you get "sandbox receipt used in production" error, validate against sandbox
-      
-      console.log('=== Receipt Validation Started ===');
-      console.log('Product ID:', productId);
-      console.log('Receipt length:', receipt?.length || 0);
-      
+
+      log.debug('=== Receipt Validation Started ===', {
+        productId,
+        receiptLength: receipt?.length || 0
+      });
+
       // Step 1: Basic receipt validation
       if (!receipt || receipt.length === 0) {
-        console.error('❌ Validation failed: Receipt is empty or null');
+        log.error('❌ Validation failed: Receipt is empty or null');
         return false;
       }
-      
+
       // Step 2: Detect environment from receipt
       // This follows Apple's recommended approach
       this.isSandboxEnvironment = this.detectSandboxEnvironment(receipt);
-      console.log(`📱 Detected environment: ${this.isSandboxEnvironment ? 'Sandbox' : 'Production'}`);
-      
+      log.info(`📱 Detected environment: ${this.isSandboxEnvironment ? 'Sandbox' : 'Production'}`);
+
       // Step 3: Validate receipt structure
       try {
         // Check if receipt has expected format (base64 or JSON)
         if (receipt.length < 10) {
-          console.error('❌ Validation failed: Receipt too short');
+          log.error('❌ Validation failed: Receipt too short');
           return false;
         }
-        
+
         // Receipt appears valid in structure
-        console.log('✅ Receipt structure validated');
+        log.debug('✅ Receipt structure validated');
       } catch (structureError) {
-        console.error('❌ Receipt structure validation error:', structureError);
+        log.error('❌ Receipt structure validation error:', structureError);
         return false;
       }
-      
+
       // Step 4: For client-side validation, we trust the receipt from Apple's IAP SDK
       // The expo-in-app-purchases SDK already validates the receipt with Apple's servers
       // when the purchase is made. This secondary validation is for our app's logic.
-      
+
       // Additional validation: Check if receipt matches expected product
       if (!productId) {
-        console.error('❌ Validation failed: Product ID missing');
+        log.error('❌ Validation failed: Product ID missing');
         return false;
       }
-      
-      console.log('✅ Receipt validated successfully');
-      console.log('=== Receipt Validation Complete ===');
-      
+
+      log.info('✅ Receipt validated successfully');
+      log.debug('=== Receipt Validation Complete ===');
+
       // For production: You would send this receipt to your server here
       // Server would validate with Apple's verifyReceipt API:
       // - Try production URL: https://buy.itunes.apple.com/verifyReceipt
       // - If error 21007 (sandbox receipt in production), retry with:
       //   https://sandbox.itunes.apple.com/verifyReceipt
-      
+
       return true;
-      
+
     } catch (error) {
-      console.error('❌ Receipt validation error:', error);
-      console.error('Error details:', {
+      log.error('❌ Receipt validation error:', error);
+      log.error('Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         productId,
         receiptPresent: !!receipt,
@@ -164,59 +168,59 @@ class IAPService {
   async initialize(): Promise<boolean> {
     // Prevent duplicate initialization
     if (this.hasInitialized) {
-      console.log('✅ IAP already initialized, skipping...');
+      log.debug('✅ IAP already initialized, skipping...');
       return this.state.isConnected;
     }
-    
+
     if (this.isInitializing) {
-      console.log('⏳ IAP initialization in progress, waiting...');
+      log.debug('⏳ IAP initialization in progress, waiting...');
       // Wait for existing initialization to complete
       while (this.isInitializing) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       return this.state.isConnected;
     }
-    
+
     this.isInitializing = true;
-    
+
     try {
       this.setState({ isLoading: true, error: null });
-      
+
       // Check if IAP module is available
       if (!InAppPurchases) {
-        console.log('IAP module not available - running in simulation mode');
-        this.setState({ 
-          isLoading: false, 
+        log.warn('IAP module not available - running in simulation mode');
+        this.setState({
+          isLoading: false,
           isConnected: false,
-          error: 'Running in simulation mode (Expo Go)' 
+          error: 'Running in simulation mode (Expo Go)'
         });
         this.hasInitialized = true;
         return false;
       }
-      
-      console.log('Initializing expo-in-app-purchases...');
-      
+
+      log.info('Initializing expo-in-app-purchases...');
+
       // Connect to the store
       await InAppPurchases.connectAsync();
-      console.log('Connected to store successfully');
-      
+      log.info('Connected to store successfully');
+
       this.setState({ isConnected: true, isLoading: false });
-      
+
       // Load products
       await this.loadProducts();
-      
+
       // Set up purchase listener
       this.setupPurchaseListener();
-      
+
       this.hasInitialized = true;
-      console.log('✅ IAP initialization complete');
+      log.info('✅ IAP initialization complete');
       return true;
     } catch (error) {
-      console.error('IAP initialization error:', error);
-      this.setState({ 
-        isLoading: false, 
+      log.error('IAP initialization error:', error);
+      this.setState({
+        isLoading: false,
         error: `Initialization failed: ${error}`,
-        isConnected: false 
+        isConnected: false
       });
       this.hasInitialized = true; // Mark as attempted to avoid infinite retries
       return false;
@@ -229,20 +233,20 @@ class IAPService {
   async loadProducts(): Promise<void> {
     try {
       if (!InAppPurchases) return;
-      
+
       const productIds = getAllProductIds();
-      console.log('Loading products:', productIds);
-      
+      log.debug('Loading products:', { productIds });
+
       const { responseCode, results } = await InAppPurchases.getProductsAsync(productIds);
-      
+
       if (responseCode === InAppPurchases.IAPResponseCode.OK) {
-        console.log('Loaded products:', results);
+        log.debug('Loaded products:', { count: results.length });
         this.setState({ products: results });
       } else {
         throw new Error(`Failed to load products. Response code: ${responseCode}`);
       }
     } catch (error) {
-      console.error('Failed to load products:', error);
+      log.error('Failed to load products:', error);
       this.setState({ error: `Failed to load products: ${error}` });
     }
   }
@@ -251,20 +255,20 @@ class IAPService {
   async loadPurchases(): Promise<void> {
     try {
       if (!InAppPurchases) return;
-      
+
       const { responseCode, results } = await InAppPurchases.getPurchaseHistoryAsync();
-      
+
       if (responseCode === InAppPurchases.IAPResponseCode.OK) {
-        console.log('Loaded purchases:', results);
+        log.debug('Loaded purchases:', { count: results.length });
         this.setState({ purchases: results });
-        
+
         // Save purchases to AsyncStorage
         await this.savePurchasesToStorage(results);
       } else {
         throw new Error(`Failed to load purchases. Response code: ${responseCode}`);
       }
     } catch (error) {
-      console.error('Failed to load purchases:', error);
+      log.error('Failed to load purchases:', error);
       this.setState({ error: `Failed to load purchases: ${error}` });
     }
   }
@@ -273,17 +277,17 @@ class IAPService {
   async purchaseProduct(productId: string): Promise<PurchaseResult> {
     try {
       this.setState({ isLoading: true, error: null });
-      
+
       // If IAP module not available, simulate purchase (for Expo Go / development)
       if (!InAppPurchases || !this.state.isConnected) {
-        console.log('IAP not available - simulating purchase for:', productId);
+        log.info('IAP not available - simulating purchase for:', { productId });
         this.setState({ isLoading: false });
-        
+
         // Simulate successful purchase
         const config = getProductConfig(productId);
         if (config) {
-          console.log('Product config found:', config.name);
-          
+          log.info('Product config found:', { name: config.name });
+
           // Call the benefit application directly
           await this.applyPurchaseBenefits({
             productId,
@@ -292,108 +296,109 @@ class IAPService {
             purchaseTime: Date.now(),
             orderId: `sim_${Date.now()}`,
           } as any);
-          
-          console.log('Benefits applied successfully');
-          
+
+          log.info('Benefits applied successfully');
+
           return {
             success: true,
             message: `${config.name} purchased successfully! (Development Mode)`,
             productId,
           };
         } else {
-          console.error('Product config not found for:', productId);
+          log.error('Product config not found for:', { productId });
           return {
             success: false,
             message: `Product configuration not found for ${productId}. Please check iapConfig.ts`,
           };
         }
       }
-      
+
       // Check if products have been loaded
       if (this.state.products.length === 0) {
-        console.log('Products not loaded yet, loading products first...');
+        log.info('Products not loaded yet, loading products first...');
         await this.loadProducts();
-        
+
         // Check again after loading
         if (this.state.products.length === 0) {
           throw new Error('No products available in store. Please check App Store Connect configuration.');
         }
       }
-      
+
       // Check if the specific product is available
       const product = this.state.products.find(p => p.productId === productId);
       if (!product) {
         throw new Error(`Product ${productId} not found in store. Please check App Store Connect configuration.`);
       }
-      
-      console.log('Attempting to purchase:', productId);
-      
+
+      log.info('Attempting to purchase:', { productId });
+
       // Request purchase with proper error handling
       const purchaseResult = await InAppPurchases.purchaseItemAsync(productId);
-      
+
       // Check if purchase result is valid
       if (!purchaseResult || typeof purchaseResult !== 'object') {
         throw new Error('Invalid purchase response from App Store. Please try again.');
       }
-      
+
       const { responseCode, results } = purchaseResult;
-      
+
       // Check if responseCode exists
       if (responseCode === undefined || responseCode === null) {
         throw new Error('Purchase response missing response code. Please try again.');
       }
-      
+
       if (responseCode === InAppPurchases.IAPResponseCode.OK) {
         // Validate results array
         if (!results || !Array.isArray(results) || results.length === 0) {
-          console.error('❌ Purchase succeeded but no results returned');
+          log.error('❌ Purchase succeeded but no results returned');
           throw new Error('Invalid purchase response - no purchase data received');
         }
-        
+
         const purchase = results[0];
-        console.log('=== Purchase Successful ===');
-        console.log('Product ID:', purchase.productId);
-        console.log('Transaction ID:', purchase.transactionId);
-        console.log('Purchase Time:', purchase.purchaseTime);
-        
+        log.info('=== Purchase Successful ===', {
+          productId: purchase.productId,
+          transactionId: purchase.transactionId,
+          purchaseTime: purchase.purchaseTime
+        });
+
         // Validate receipt (handles both sandbox and production)
-        console.log('Starting receipt validation...');
+        log.info('Starting receipt validation...');
         const isValidReceipt = await this.validateReceipt(
-          purchase.transactionReceipt || '', 
+          purchase.transactionReceipt || '',
           purchase.productId
         );
-        
+
         if (!isValidReceipt) {
-          console.error('❌ Receipt validation failed');
+          log.error('❌ Receipt validation failed');
           throw new Error('Purchase verification failed. Please contact support.');
         }
-        
-        console.log('✅ Receipt validated successfully');
-        
+
+        log.info('✅ Receipt validated successfully');
+
         // Finish transaction
-        console.log('Finishing transaction with Apple...');
+        log.info('Finishing transaction with Apple...');
         await InAppPurchases.finishTransactionAsync(purchase, true);
-        console.log('✅ Transaction finished');
-        
+        log.info('✅ Transaction finished');
+
         // Add to purchases list
         const updatedPurchases = [...this.state.purchases, purchase];
         this.setState({ purchases: updatedPurchases });
-        console.log('✅ Purchase added to local state');
-        
+        log.info('✅ Purchase added to local state');
+
         // Save to storage
         await this.savePurchasesToStorage(updatedPurchases);
-        console.log('✅ Purchase saved to storage');
-        
+        log.info('✅ Purchase saved to storage');
+
         // Apply purchase benefits
-        console.log('Applying purchase benefits...');
+        log.info('Applying purchase benefits...');
         await this.applyPurchaseBenefits(purchase);
-        console.log('✅ Benefits applied to game state');
-        
+        log.info('✅ Benefits applied to game state');
+
         this.setState({ isLoading: false });
-        
+
         const environment = this.isSandboxEnvironment ? ' (Sandbox)' : '';
-        console.log(`=== Purchase Complete ${environment}===`);
-        
+        log.info(`=== Purchase Complete ${environment}===`);
+
         return {
           success: true,
           message: `Purchase successful!${environment}`,
@@ -402,81 +407,82 @@ class IAPService {
           receipt: purchase.transactionReceipt,
         };
       } else if (responseCode === InAppPurchases.IAPResponseCode.USER_CANCELED) {
-        console.log('ℹ️ User cancelled the purchase');
+        log.info('ℹ️ User cancelled the purchase');
         throw new Error('Purchase was cancelled');
       } else if (responseCode === InAppPurchases.IAPResponseCode.DEFERRED) {
-        console.log('⏳ Purchase deferred - requires approval');
+        log.info('⏳ Purchase deferred - requires approval');
         throw new Error('Purchase is pending approval. Please check back later.');
       } else {
-        console.error('❌ Purchase failed with response code:', responseCode);
+        log.error('❌ Purchase failed with response code:', { responseCode });
         throw new Error(`Purchase failed. Response code: ${responseCode}`);
       }
-      
+
     } catch (error) {
-      console.error('=== Purchase Error ===');
-      console.error('Error:', error);
-      console.error('Product ID:', productId);
-      console.error('Environment:', this.isSandboxEnvironment ? 'Sandbox' : 'Production');
-      
+      log.error('=== Purchase Error ===', {
+        error,
+        productId,
+        environment: this.isSandboxEnvironment ? 'Sandbox' : 'Production'
+      });
+
       let errorMessage = 'Purchase failed';
       let userFriendlyMessage = '';
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // Provide more user-friendly error messages
         if (errorMessage.includes('cancelled')) {
           userFriendlyMessage = 'Purchase was cancelled.';
           // Don't log cancelled purchases as errors - this is user choice
-          console.log('ℹ️ Purchase cancelled by user');
+          log.info('ℹ️ Purchase cancelled by user');
         } else if (errorMessage.includes('pending approval')) {
           userFriendlyMessage = 'Purchase is pending approval. Please check back later.';
-          console.log('⏳ Purchase deferred - waiting for approval');
+          log.info('⏳ Purchase deferred - waiting for approval');
         } else if (errorMessage.includes('verification failed') || errorMessage.includes('Receipt validation failed')) {
           userFriendlyMessage = 'Purchase could not be verified. If you were charged, please contact support with your receipt.';
-          console.error('❌ Receipt verification failed - may need server-side validation');
+          log.error('❌ Receipt verification failed - may need server-side validation');
         } else if (errorMessage.includes('not found in store')) {
           userFriendlyMessage = 'This product is not available in the App Store. Please contact support.';
-          console.error('❌ Product not found in store - check App Store Connect configuration');
+          log.error('❌ Product not found in store - check App Store Connect configuration');
         } else if (errorMessage.includes('No products available')) {
           userFriendlyMessage = 'Store products are not configured. Please contact support.';
-          console.error('❌ No products loaded - IAP may not be properly configured');
+          log.error('❌ No products loaded - IAP may not be properly configured');
         } else if (errorMessage.includes('query item from store')) {
           userFriendlyMessage = 'Store products are not loaded. Please try again.';
-          console.error('❌ Failed to query products from store');
+          log.error('❌ Failed to query products from store');
         } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
           userFriendlyMessage = 'Network error. Please check your connection and try again.';
-          console.error('❌ Network error during purchase');
+          log.error('❌ Network error during purchase');
         } else if (errorMessage.includes('timeout')) {
           userFriendlyMessage = 'Request timed out. Please try again.';
-          console.error('❌ Purchase request timed out');
+          log.error('❌ Purchase request timed out');
         } else if (errorMessage.includes('Invalid purchase response')) {
           userFriendlyMessage = 'App Store connection error. Please check your internet connection and try again.';
-          console.error('❌ Invalid response from App Store - possible network issue');
+          log.error('❌ Invalid response from App Store - possible network issue');
         } else if (errorMessage.includes('Purchase response missing response code')) {
           userFriendlyMessage = 'Purchase verification failed. Please try again or contact support.';
-          console.error('❌ Malformed purchase response - App Store communication error');
+          log.error('❌ Malformed purchase response - App Store communication error');
         } else if (errorMessage.includes('sandbox') || errorMessage.includes('Sandbox')) {
           // Special handling for sandbox-related errors during Apple Review
           userFriendlyMessage = 'Purchase completed but requires additional verification. Your purchase has been recorded.';
-          console.log('⚠️ Sandbox-related issue detected - common during App Review');
+          log.warn('⚠️ Sandbox-related issue detected - common during App Review');
         } else {
           // Generic error with original message for debugging
           userFriendlyMessage = `Unable to complete purchase. ${errorMessage}`;
-          console.error('❌ Unhandled error:', errorMessage);
+          log.error('❌ Unhandled error:', { errorMessage });
         }
       } else {
         userFriendlyMessage = 'An unexpected error occurred. Please try again.';
-        console.error('❌ Non-Error object thrown:', error);
+        log.error('❌ Non-Error object thrown:', { error });
       }
-      
-      console.error('=== Purchase Error End ===');
-      
-      this.setState({ 
-        isLoading: false, 
-        error: userFriendlyMessage 
+
+      log.error('=== Purchase Error End ===');
+
+      this.setState({
+        isLoading: false,
+        error: userFriendlyMessage
       });
-      
+
       return {
         success: false,
         message: userFriendlyMessage,
@@ -487,12 +493,12 @@ class IAPService {
   // Set up purchase listener
   private setupPurchaseListener(): void {
     if (!InAppPurchases) return;
-    
-    InAppPurchases.setPurchaseListener(({ responseCode, results, errorCode }) => {
+
+    InAppPurchases.setPurchaseListener(({ responseCode, results, errorCode }: any) => {
       if (responseCode === InAppPurchases.IAPResponseCode.OK) {
-        results.forEach(purchase => {
+        results.forEach((purchase: any) => {
           if (!purchase.acknowledged) {
-            console.log('Processing purchase:', purchase);
+            log.info('Processing purchase:', { purchase });
             // Apply purchase benefits
             this.applyPurchaseBenefits(purchase);
             // Finish transaction
@@ -500,7 +506,7 @@ class IAPService {
           }
         });
       } else if (responseCode === InAppPurchases.IAPResponseCode.ERROR) {
-        console.warn(`Purchase error code: ${errorCode}`);
+        log.warn(`Purchase error code: ${errorCode}`);
       }
     });
   }
@@ -511,18 +517,24 @@ class IAPService {
     if (!config) return;
 
     // Get current game state from storage
-    const gameStateJson = await AsyncStorage.getItem('gameState');
+    let gameStateJson: string | null = null;
+    try {
+      gameStateJson = await AsyncStorage.getItem('gameState');
+    } catch (error) {
+      log.error('Failed to get game state from storage:', error);
+      return;
+    }
     if (!gameStateJson) return;
 
     let gameState;
     try {
       gameState = JSON.parse(gameStateJson);
       if (!gameState || typeof gameState !== 'object') {
-        console.error('Invalid game state structure in IAPService');
+        log.error('Invalid game state structure in IAPService');
         return;
       }
     } catch (parseError) {
-      console.error('Failed to parse game state in IAPService:', parseError);
+      log.error('Failed to parse game state in IAPService:', parseError);
       return;
     }
 
@@ -583,71 +595,90 @@ class IAPService {
         gameState.settings.adsRemoved = true;
         gameState.settings.adsRemovedDate = new Date().toISOString();
         break;
-        
-      case IAP_PRODUCTS.PREMIUM_PASS:
-        gameState.settings.premiumPass = true;
-        gameState.settings.premiumPassExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        break;
-        
-      case IAP_PRODUCTS.DOUBLE_MONEY:
-        gameState.settings.doubleMoney = true;
-        gameState.settings.doubleMoneyExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-        break;
-        
-      case IAP_PRODUCTS.UNLIMITED_ENERGY:
-        gameState.settings.unlimitedEnergy = true;
-        gameState.settings.unlimitedEnergyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        break;
-        
+
+      // Removed unused IAP products: PREMIUM_PASS, DOUBLE_MONEY, UNLIMITED_ENERGY
+      // These products are not defined in IAP_PRODUCTS and are not currently used
+      // Uncomment and add to iapConfig.ts if these features are needed in the future
+      // case IAP_PRODUCTS.PREMIUM_PASS:
+      //   gameState.settings.premiumPass = true;
+      //   gameState.settings.premiumPassExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      //   break;
+
+      // case IAP_PRODUCTS.DOUBLE_MONEY:
+      //   gameState.settings.doubleMoney = true;
+      //   gameState.settings.doubleMoneyExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      //   break;
+
+      // case IAP_PRODUCTS.UNLIMITED_ENERGY:
+      //   gameState.settings.unlimitedEnergy = true;
+      //   gameState.settings.unlimitedEnergyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      //   break;
+
       // Bank Services IAP (Computer Banking App Services)
-        
+
       // Computer Banking App Services (to sync with mobile)
       case IAP_PRODUCTS.PREMIUM_CREDIT_CARD:
         gameState.settings.premiumCreditCard = true;
         gameState.settings.premiumCreditCardExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         break;
-        
+
       case IAP_PRODUCTS.FINANCIAL_PLANNING:
         gameState.settings.financialPlanning = true;
         gameState.settings.financialPlanningExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         break;
-        
+
       case IAP_PRODUCTS.BUSINESS_BANKING:
         gameState.settings.businessBanking = true;
         gameState.settings.businessBankingExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         break;
-        
+
       case IAP_PRODUCTS.PRIVATE_BANKING:
         gameState.settings.privateBanking = true;
         gameState.settings.privateBankingExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         break;
-        
+
       case IAP_PRODUCTS.REVIVAL_PACK:
-        // Revival pack - restore character to life
+        // Revival pack - restore character to life with full stats
         gameState.showDeathPopup = false;
         gameState.deathReason = undefined;
-        gameState.stats.health = 50;
-        gameState.stats.happiness = 50;
-        gameState.stats.energy = 100;
+        gameState.stats.health = 100;     // Full health
+        gameState.stats.happiness = 100;  // Full happiness
+        gameState.stats.energy = 100;     // Full energy
         gameState.happinessZeroWeeks = 0;
         gameState.healthZeroWeeks = 0;
         gameState.settings.hasRevivalPack = true;
         break;
+
+      case IAP_PRODUCTS.REVIVE_SINGLE:
+        // Single revive - restore character to life with full stats (consumable, one-time use)
+        gameState.showDeathPopup = false;
+        gameState.deathReason = undefined;
+        gameState.stats.health = 100;     // Full health
+        gameState.stats.happiness = 100;  // Full happiness
+        gameState.stats.energy = 100;     // Full energy
+        gameState.happinessZeroWeeks = 0;
+        gameState.healthZeroWeeks = 0;
+        break;
     }
 
     // Save updated game state
-    await AsyncStorage.setItem('gameState', JSON.stringify(gameState));
-    
-    // Trigger a reload in GameContext by setting a timestamp
-    // This signals that the game state has been updated externally
-    await AsyncStorage.setItem('iap_trigger_reload', Date.now().toString());
-    
-    console.log('Applied purchase benefits for:', purchase.productId);
-    console.log('✅ Game state updated and sync trigger set');
+    try {
+      await AsyncStorage.setItem('gameState', JSON.stringify(gameState));
+
+      // Trigger a reload in GameContext by setting a timestamp
+      // This signals that the game state has been updated externally
+      await AsyncStorage.setItem('iap_trigger_reload', Date.now().toString());
+
+      log.info('Applied purchase benefits for:', { productId: purchase.productId });
+      log.info('✅ Game state updated and sync trigger set');
+    } catch (error) {
+      log.error('Failed to save game state after applying purchase benefits:', error);
+      throw error; // Re-throw to let caller handle it
+    }
   }
 
   // Save purchases to AsyncStorage
-  private async savePurchasesToStorage(purchases: InAppPurchases.InAppPurchase[]): Promise<void> {
+  private async savePurchasesToStorage(purchases: any[]): Promise<void> {
     try {
       const purchasesData = purchases.map(purchase => ({
         productId: purchase.productId,
@@ -655,15 +686,15 @@ class IAPService {
         purchaseTime: purchase.purchaseTime,
         transactionReceipt: purchase.transactionReceipt,
       }));
-      
+
       await AsyncStorage.setItem('iap_purchases', JSON.stringify(purchasesData));
     } catch (error) {
-      console.error('Failed to save purchases to storage:', error);
+      log.error('Failed to save purchases to storage:', error);
     }
   }
 
   // Load purchases from AsyncStorage
-  async loadPurchasesFromStorage(): Promise<InAppPurchases.InAppPurchase[]> {
+  async loadPurchasesFromStorage(): Promise<any[]> {
     try {
       const purchasesJson = await AsyncStorage.getItem('iap_purchases');
       if (purchasesJson) {
@@ -671,7 +702,7 @@ class IAPService {
       }
       return [];
     } catch (error) {
-      console.error('Failed to load purchases from storage:', error);
+      log.error('Failed to load purchases from storage:', error);
       return [];
     }
   }
@@ -687,15 +718,17 @@ class IAPService {
   }
 
   // Check if premium pass is active
+  // NOTE: PREMIUM_PASS product is not currently defined in IAP_PRODUCTS
+  // This method is disabled until the product is added to iapConfig.ts
   isPremiumPassActive(): boolean {
-    const purchase = this.state.purchases.find(p => p.productId === IAP_PRODUCTS.PREMIUM_PASS);
-    if (!purchase) return false;
-    
-    // Check if 30 days have passed since purchase
-    const purchaseDate = new Date(purchase.purchaseTime);
-    const expiryDate = new Date(purchaseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-    
-    return new Date() < expiryDate;
+    // const purchase = this.state.purchases.find(p => p.productId === IAP_PRODUCTS.PREMIUM_PASS);
+    // if (!purchase) return false;
+
+    // // Check if 30 days have passed since purchase
+    // const purchaseDate = new Date(purchase.purchaseTime);
+    // const expiryDate = new Date(purchaseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+    // return new Date() < expiryDate;
+    return false; // Disabled until PREMIUM_PASS is added to IAP_PRODUCTS
   }
 
   // Get product by ID
@@ -722,7 +755,7 @@ class IAPService {
   // Add state change listener
   addListener(listener: (state: IAPState) => void): () => void {
     this.listeners.push(listener);
-    
+
     // Return unsubscribe function
     return () => {
       const index = this.listeners.indexOf(listener);
@@ -740,45 +773,45 @@ class IAPService {
   // Restore purchases
   async restorePurchases(): Promise<boolean> {
     try {
-      console.log('=== Starting Purchase Restoration ===');
+      log.info('=== Starting Purchase Restoration ===');
       this.setState({ isLoading: true, error: null });
-      
+
       if (!InAppPurchases) {
-        console.log('❌ IAP module not available');
+        log.warn('❌ IAP module not available');
         this.setState({ isLoading: false });
         // Don't show alert here - let calling component handle it
         return false;
       }
-      
-      console.log('Fetching purchase history from App Store...');
+
+      log.info('Fetching purchase history from App Store...');
       const { responseCode, results } = await InAppPurchases.getPurchaseHistoryAsync();
-      
+
       if (responseCode === InAppPurchases.IAPResponseCode.OK) {
-        console.log(`Found ${results.length} purchases in history`);
-        
+        log.info(`Found ${results.length} purchases in history`);
+
         // Re-apply benefits for NON-CONSUMABLE purchases only
         let restoredCount = 0;
         for (const purchase of results) {
           const productId = purchase.productId;
-          
+
           // Only restore non-consumable products (perks, lifetime features)
           // Don't restore consumables (gems, money) to prevent exploitation
           if (isConsumableProduct(productId)) {
-            console.log(`⏭️  Skipping consumable: ${productId}`);
+            log.debug(`⏭️  Skipping consumable: ${productId}`);
             continue;
           }
-          
-          console.log(`♻️  Restoring non-consumable: ${productId}`);
+
+          log.info(`♻️  Restoring non-consumable: ${productId}`);
           await this.applyPurchaseBenefits(purchase);
           restoredCount++;
         }
-        
+
         // Update purchases list in state
         this.setState({ purchases: results, isLoading: false });
-        
-        console.log(`✅ Restoration complete: ${restoredCount} non-consumable items restored`);
-        console.log('=== Purchase Restoration Complete ===');
-        
+
+        log.info(`✅ Restoration complete: ${restoredCount} non-consumable items restored`);
+        log.info('=== Purchase Restoration Complete ===');
+
         // Don't show alert here - let calling component handle it
         // This prevents double alerts
         return true;
@@ -786,12 +819,12 @@ class IAPService {
         throw new Error(`Failed to restore purchases. Response code: ${responseCode}`);
       }
     } catch (error) {
-      console.error('❌ Failed to restore purchases:', error);
-      this.setState({ 
-        isLoading: false, 
-        error: 'Failed to restore purchases' 
+      log.error('❌ Failed to restore purchases:', error);
+      this.setState({
+        isLoading: false,
+        error: 'Failed to restore purchases'
       });
-      
+
       // Don't show alert here - let calling component handle it
       // This prevents double alerts
       return false;

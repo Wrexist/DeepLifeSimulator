@@ -1,3 +1,4 @@
+/* eslint-env jest */
 // Jest setup file for global test configuration
 
 // Mock performance API for performance tests

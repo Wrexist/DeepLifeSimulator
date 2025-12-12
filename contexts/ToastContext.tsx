@@ -8,6 +8,11 @@ interface Toast {
   type: 'success' | 'error' | 'warning' | 'info';
   duration?: number;
   position?: 'top' | 'bottom';
+  action?: {
+    label: string;
+    onPress: () => void;
+  };
+  persistent?: boolean; // Don't auto-dismiss
 }
 
 interface ToastContextType {
@@ -40,7 +45,9 @@ export function ToastProvider({ children }: ToastProviderProps) {
       message: string,
       type: Toast['type'] = 'info',
       duration: number = 3000,
-      position: Toast['position'] = 'top'
+      position: Toast['position'] = 'top',
+      action?: Toast['action'],
+      persistent?: boolean
     ) => {
       const id = `toast-${Date.now()}-${Math.random()}`;
       const newToast: Toast = {
@@ -49,6 +56,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
         type,
         duration,
         position,
+        action,
+        persistent,
       };
 
       setToasts((prevToasts) => {
@@ -117,6 +126,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
             onDismiss={dismissToast}
             position={toast.position}
             hapticEnabled={true}
+            action={toast.action}
+            persistent={toast.persistent}
           />
         ))}
       </View>

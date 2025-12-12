@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';
+import { getInflatedPrice } from '@/lib/economy/inflation';
 import { 
   Zap, 
   DollarSign, 
@@ -10,15 +11,18 @@ import {
   Shield, 
   AlertTriangle, 
   BookOpen, 
-  Leaf, 
   Wrench, 
   Lock, 
   Gavel, 
-  Users,
   Clock,
   Calendar,
   BarChart3,
-  X
+  X,
+  Utensils,
+  Brain,
+  Dumbbell,
+  Flower2,
+  Smile
 } from 'lucide-react-native';
 
 interface JailScreenProps {
@@ -26,8 +30,8 @@ interface JailScreenProps {
 }
 
 export default function JailScreen({ onClose }: JailScreenProps) {
-  const { gameState, performJailActivity, payBail } = useGame();
-  const { jailActivities, jailWeeks, stats } = gameState;
+  const { gameState, performJailActivity, payBail, buyFood, updateStats } = useGame();
+  const { jailActivities, jailWeeks, stats, foods, economy } = gameState;
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
   const [activityCooldowns, setActivityCooldowns] = useState<Record<string, number>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -53,28 +57,60 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   };
 
   const handleActivity = (activityId: string) => {
-    // Check if activity is on cooldown
-    const cooldownTime = 2000; // 2 seconds cooldown
-    const lastUsed = activityCooldowns[activityId] || 0;
+    const activity = jailActivities.find(a => a.id === activityId);
+    if (!activity) return;
     
+    // Check if already done this week
+    const weeklyActivities = gameState.weeklyJailActivities || {};
+    const currentWeek = gameState.date.week;
+    const lastDoneWeek = weeklyActivities[activityId];
+    if (lastDoneWeek === currentWeek) {
+      Alert.alert(
+        'Activity Already Done',
+        `You've already completed "${activity.name}" this week. Advance to next week to do more activities.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Check energy
+    if (stats.energy < activity.energyCost) {
+      Alert.alert(
+        'Not Enough Energy',
+        `You need ${activity.energyCost} energy to perform this activity. You currently have ${stats.energy} energy.`
+      );
+      return;
+    }
+    
+    // Check cost
+    if (activity.cost && stats.money < activity.cost) {
+      Alert.alert(
+        'Insufficient Funds',
+        `This activity costs $${activity.cost}. You currently have $${stats.money}.`
+      );
+      return;
+    }
+    
+    // Check if requires minimum weeks remaining
+    if (activity.requiresWeeks && jailWeeks < activity.requiresWeeks) {
+      Alert.alert(
+        'Requirement Not Met',
+        `This activity requires at least ${activity.requiresWeeks} weeks remaining in jail. You have ${jailWeeks} weeks remaining.`
+      );
+      return;
+    }
+    
+    // Check cooldown
+    const cooldownTime = 2000;
+    const lastUsed = activityCooldowns[activityId] || 0;
     if (currentTime - lastUsed < cooldownTime) {
       const remainingTime = Math.ceil((cooldownTime - (currentTime - lastUsed)) / 1000);
       Alert.alert('Cooldown', `Please wait ${remainingTime} second(s) before trying again.`);
       return;
     }
 
-    // Check if already done this week
-    const weeklyActivities = gameState.weeklyJailActivities || {};
-    const currentWeek = gameState.date.week;
-    const lastDoneWeek = weeklyActivities[activityId];
-    if (lastDoneWeek === currentWeek) {
-      Alert.alert('Already Done', 'You can only do this activity once per week.');
-      return;
-    }
-
     // Check if this activity will complete the sentence
-    const activity = jailActivities.find(a => a.id === activityId);
-    if (activity && activity.sentenceReduction && jailWeeks <= activity.sentenceReduction) {
+    if (activity.sentenceReduction && jailWeeks <= activity.sentenceReduction) {
       Alert.alert(
         'Final Activity',
         'This activity will complete your sentence and release you from jail!',
@@ -115,15 +151,13 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   const getActivityIcon = (activityId: string) => {
     switch (activityId) {
       case 'prison_job': return DollarSign;
-      case 'train_strength': return TrendingUp;
       case 'library_study': return BookOpen;
-      case 'prison_garden': return Leaf;
       case 'prison_workshop': return Wrench;
-      case 'attempt_escape': return Lock;
-      case 'bribe_guard': return DollarSign;
       case 'legal_appeal': return Gavel;
       case 'good_behavior': return Shield;
-      case 'prison_gang': return Users;
+      case 'prison_meditation': return Brain;
+      case 'prison_exercise': return Dumbbell;
+      case 'prison_yoga': return Flower2;
       default: return Zap;
     }
   };
@@ -131,15 +165,13 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   const getActivityColor = (activityId: string) => {
     switch (activityId) {
       case 'prison_job': return ['#10B981', '#34D399'];
-      case 'train_strength': return ['#3B82F6', '#60A5FA'];
       case 'library_study': return ['#8B5CF6', '#A78BFA'];
-      case 'prison_garden': return ['#059669', '#34D399'];
       case 'prison_workshop': return ['#F59E0B', '#FBBF24'];
-      case 'attempt_escape': return ['#DC2626', '#F87171'];
-      case 'bribe_guard': return ['#7C3AED', '#A78BFA'];
       case 'legal_appeal': return ['#1F2937', '#6B7280'];
       case 'good_behavior': return ['#059669', '#34D399'];
-      case 'prison_gang': return ['#DC2626', '#F87171'];
+      case 'prison_meditation': return ['#6366F1', '#818CF8'];
+      case 'prison_exercise': return ['#EF4444', '#F87171'];
+      case 'prison_yoga': return ['#EC4899', '#F472B6'];
       default: return ['#6B7280', '#9CA3AF'];
     }
   };
@@ -151,6 +183,8 @@ export default function JailScreen({ onClose }: JailScreenProps) {
       const hasEducation = gameState.educations.find(e => e.id === activity.requiresEducation)?.completed;
       if (!hasEducation) return false;
     }
+    // Check if requires minimum weeks remaining in jail
+    if (activity.requiresWeeks && jailWeeks < activity.requiresWeeks) return false;
     
     // Check if already done this week
     const weeklyActivities = gameState.weeklyJailActivities || {};
@@ -257,11 +291,101 @@ export default function JailScreen({ onClose }: JailScreenProps) {
             </TouchableOpacity>
           </View>
 
+          {/* Prison Food Section */}
+          <View style={styles.foodSection}>
+            <View style={styles.foodSectionHeader}>
+              <Utensils size={20} color="#F59E0B" />
+              <Text style={styles.sectionTitle}>Prison Canteen</Text>
+            </View>
+            <Text style={styles.sectionDescription}>
+              Buy food to restore health and happiness. Prices are 2x inflated in prison, and benefits are reduced.
+            </Text>
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.foodScrollView}
+              contentContainerStyle={styles.foodScrollContent}
+            >
+              {foods.slice(0, 6).map(food => {
+                // Prison food prices are 2x inflated (prison markup)
+                const basePrice = getInflatedPrice(food.price, economy?.priceIndex || 1);
+                const price = Math.round(basePrice * 2);
+                const canAfford = stats.money >= price;
+                // Prison food gives less happiness (only 25% of health restore, minimum 1)
+                const happinessRestore = Math.max(1, Math.round(food.healthRestore * 0.25));
+                // Prison food gives less health (75% of normal)
+                const healthRestore = Math.round(food.healthRestore * 0.75);
+                
+                return (
+                  <TouchableOpacity
+                    key={food.id}
+                    onPress={() => {
+                      if (!canAfford) {
+                        Alert.alert('Insufficient Funds', `You need $${price} to buy ${food.name}.`);
+                        return;
+                      }
+                      // Use custom prison food handler with reduced benefits
+                      const foodItem = foods.find(f => f.id === food.id);
+                      if (foodItem) {
+                        updateStats({
+                          money: -price,
+                          health: healthRestore,
+                          energy: foodItem.energyRestore,
+                          happiness: happinessRestore,
+                        }, false);
+                        Alert.alert(
+                          'Food Purchased',
+                          `You ate ${food.name}!\n+${healthRestore} Health\n+${happinessRestore} Happiness\n+${foodItem.energyRestore} Energy`
+                        );
+                      }
+                    }}
+                    disabled={!canAfford}
+                    style={styles.foodCard}
+                  >
+                    <LinearGradient
+                      colors={canAfford ? ['#1F2937', '#374151'] : ['#111827', '#1F2937']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.foodCardGradient}
+                    >
+                      <View style={styles.foodCardHeader}>
+                        <Utensils size={16} color={canAfford ? '#F59E0B' : '#6B7280'} />
+                        <Text style={[styles.foodPrice, !canAfford && styles.disabledText]}>
+                          ${price}
+                        </Text>
+                      </View>
+                      
+                      <Text style={[styles.foodName, !canAfford && styles.disabledText]}>
+                        {food.name}
+                      </Text>
+                      
+                      <View style={styles.foodBenefits}>
+                        <View style={styles.foodBenefitItem}>
+                          <Heart size={12} color="#EF4444" />
+                          <Text style={styles.foodBenefitText}>+{healthRestore}</Text>
+                        </View>
+                        <View style={styles.foodBenefitItem}>
+                          <TrendingUp size={12} color="#10B981" />
+                          <Text style={styles.foodBenefitText}>+{happinessRestore}</Text>
+                        </View>
+                        <View style={styles.foodBenefitItem}>
+                          <Zap size={12} color="#FCD34D" />
+                          <Text style={styles.foodBenefitText}>+{food.energyRestore}</Text>
+                        </View>
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
           {/* Prison Activities */}
           <View style={styles.activitiesSection}>
             <Text style={styles.sectionTitle}>Prison Activities</Text>
             <Text style={styles.sectionDescription}>
-              Use your time wisely to improve skills and potentially earn early release
+              Each activity can be done once per week. Advance to next week to do more activities.
             </Text>
 
             <View style={styles.activitiesGrid}>
@@ -276,7 +400,6 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                   <TouchableOpacity
                     key={activity.id}
                     onPress={() => handleActivity(activity.id)}
-                    disabled={!canPerform || onCooldown || doneThisWeek}
                     style={styles.activityCard}
                   >
                     <LinearGradient
@@ -345,7 +468,13 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         {activity.healthGain && (
                           <View style={styles.rewardItem}>
                             <Heart size={12} color="#FFFFFF" />
-                            <Text style={styles.rewardText}>+{activity.healthGain}</Text>
+                            <Text style={styles.rewardText}>+{activity.healthGain} Health</Text>
+                          </View>
+                        )}
+                        {activity.happinessGain && (
+                          <View style={styles.rewardItem}>
+                            <Smile size={12} color="#FFFFFF" />
+                            <Text style={styles.rewardText}>+{activity.happinessGain} Happiness</Text>
                           </View>
                         )}
                       </View>
@@ -639,5 +768,63 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginTop: 2,
+  },
+  foodSection: {
+    marginTop: 20,
+  },
+  foodSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  foodScrollView: {
+    marginTop: 15,
+  },
+  foodScrollContent: {
+    paddingRight: 20,
+  },
+  foodCard: {
+    width: 140,
+    marginRight: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  foodCardGradient: {
+    padding: 12,
+    minHeight: 120,
+  },
+  foodCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  foodPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#F59E0B',
+  },
+  foodName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 10,
+  },
+  foodBenefits: {
+    gap: 6,
+  },
+  foodBenefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  foodBenefitText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    marginLeft: 4,
+    fontWeight: '500',
   },
 });

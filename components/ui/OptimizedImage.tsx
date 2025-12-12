@@ -1,82 +1,97 @@
-import React, { useState, useCallback } from 'react';
-import { Image, View, StyleSheet, ImageStyle, ImageSourcePropType, ActivityIndicator } from 'react-native';
-
-interface OptimizedImageProps {
-  source: ImageSourcePropType;
-  style?: ImageStyle;
-  fallbackSource?: ImageSourcePropType;
-  showLoadingIndicator?: boolean;
-  loadingIndicatorColor?: string;
-  resizeMode?: 'cover' | 'contain' | 'stretch' | 'repeat' | 'center';
+import React, { useState } from 'react';
+import { Image, ImageProps, StyleSheet, View, ActivityIndicator } from 'react-native';
+// Try to import FastImage, fallback to null if not available
+let FastImage: any = null;
+try {
+  FastImage = require('react-native-fast-image').default;
+} catch (e) {
+  // FastImage not installed, will use native Image
 }
 
+interface OptimizedImageProps extends Omit<ImageProps, 'source'> {
+  source: { uri: string } | number;
+  useFastImage?: boolean;
+  fallbackToNative?: boolean;
+  placeholder?: React.ReactNode;
+}
+
+/**
+ * Optimized Image component that uses react-native-fast-image when available
+ * Falls back to native Image component if fast-image is not available
+ */
 export default function OptimizedImage({
   source,
+  useFastImage = true,
+  fallbackToNative = true,
+  placeholder,
   style,
-  fallbackSource,
-  showLoadingIndicator = true,
-  loadingIndicatorColor = '#3B82F6',
-  resizeMode = 'cover',
+  ...props
 }: OptimizedImageProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const handleLoadStart = useCallback(() => {
-    setIsLoading(true);
-    setHasError(false);
-  }, []);
+  // Check if source is a URI (remote image)
+  const isRemote = typeof source === 'object' && 'uri' in source;
 
-  const handleLoadEnd = useCallback(() => {
-    setIsLoading(false);
-  }, []);
-
-  const handleError = useCallback(() => {
-    setIsLoading(false);
-    setHasError(true);
-  }, []);
-
-  const currentSource = hasError && fallbackSource ? fallbackSource : source;
-
-  return (
-    <View style={[styles.container, style]}>
-      <Image
-        source={currentSource}
-        style={[styles.image, style]}
-        resizeMode={resizeMode}
-        onLoadStart={handleLoadStart}
-        onLoadEnd={handleLoadEnd}
-        onError={handleError}
-        fadeDuration={200}
-      />
-      {isLoading && showLoadingIndicator && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator 
-            size="small" 
-            color={loadingIndicatorColor} 
+  // Use FastImage for remote images if available and enabled
+  if (useFastImage && isRemote && !error) {
+    try {
+      return (
+        <View style={style}>
+          {loading && placeholder && (
+            <View style={[StyleSheet.absoluteFill, styles.placeholderContainer]}>
+              {placeholder}
+            </View>
+          )}
+          <FastImage
+            source={source}
+            style={style}
+            onLoadStart={() => setLoading(true)}
+            onLoadEnd={() => setLoading(false)}
+            onError={() => {
+              setError(true);
+              setLoading(false);
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+            {...props}
           />
         </View>
+      );
+    } catch (fastImageError) {
+      // FastImage not available, fall through to native Image
+      if (!fallbackToNative) {
+        throw fastImageError;
+      }
+    }
+  }
+
+  // Fallback to native Image component
+  return (
+    <View style={style}>
+      {loading && placeholder && (
+        <View style={[StyleSheet.absoluteFill, styles.placeholderContainer]}>
+          {placeholder}
+        </View>
       )}
+      <Image
+        source={source}
+        style={style}
+        onLoadStart={() => setLoading(true)}
+        onLoadEnd={() => setLoading(false)}
+        onError={() => {
+          setError(true);
+          setLoading(false);
+        }}
+        {...props}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  placeholderContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: '#F3F4F6',
   },
 });

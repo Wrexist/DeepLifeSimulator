@@ -109,7 +109,7 @@ class GameStateManager {
       },
       items: [
         ...this.state.items,
-        { id: itemId, name: `Item ${itemId}`, price, owned: true, dailyBonus: {} },
+        { id: itemId, name: `Item ${itemId}`, price, owned: true, weeklyBonus: {} },
       ],
     });
 

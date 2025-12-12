@@ -1,4 +1,4 @@
-import { DollarSign, Gem, Heart, Zap, Shield } from 'lucide-react-native';
+import { DollarSign, Gem, Heart } from 'lucide-react-native';
 
 export interface GoalReward {
   type: 'money' | 'gems' | 'happiness' | 'energy' | 'health';

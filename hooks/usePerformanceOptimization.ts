@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { debounce } from '@/utils/debounce';
+import { logger } from '@/utils/logger';
 
 /**
  * Custom hook for performance optimization
@@ -18,7 +19,7 @@ export function usePerformanceOptimization() {
     lastRenderTimeRef.current = now;
 
     if (__DEV__ && timeSinceLastRender < 16) {
-      console.warn(`Performance warning: Render ${renderCountRef.current} took ${timeSinceLastRender}ms (target: 16ms)`);
+      logger.warn(`Performance warning: Render ${renderCountRef.current} took ${timeSinceLastRender}ms (target: 16ms)`);
     }
   });
 
@@ -33,26 +34,11 @@ export function usePerformanceOptimization() {
     []
   );
 
-  // Memoized value creator with dependency tracking
-  const createMemoizedValue = useCallback(
-    <T>(factory: () => T, deps: React.DependencyList): T => {
-      return useMemo(factory, deps);
-    },
-    []
-  );
-
-  // Stable callback creator
-  const createStableCallback = useCallback(
-    <T extends (...args: any[]) => any>(callback: T): T => {
-      return useCallback(callback, []);
-    },
-    []
-  );
+  // Note: Cannot create hooks inside callbacks - React hooks must be called at top level
+  // If you need memoization, use useMemo/useCallback directly in your component
 
   return {
     createDebouncedFunction,
-    createMemoizedValue,
-    createStableCallback,
     renderCount: renderCountRef.current,
   };
 }
@@ -82,7 +68,9 @@ export function useExpensiveCalculation<T>(
             const value = calculation();
             setResult(value);
           } catch (error) {
-            console.error('Calculation error:', error);
+            if (__DEV__) {
+              logger.error('Calculation error:', error);
+            }
             setResult(null);
           } finally {
             setIsCalculating(false);
@@ -96,7 +84,9 @@ export function useExpensiveCalculation<T>(
             const value = calculation();
             setResult(value);
           } catch (error) {
-            console.error('Calculation error:', error);
+            if (__DEV__) {
+              logger.error('Calculation error:', error);
+            }
             setResult(null);
           } finally {
             setIsCalculating(false);
@@ -109,6 +99,7 @@ export function useExpensiveCalculation<T>(
 
   useEffect(() => {
     debouncedCalculation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   return result;

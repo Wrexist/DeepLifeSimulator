@@ -33,9 +33,11 @@ export function getAccessibilityProps(type: 'button' | 'text' | 'image' | 'input
   min?: number;
   max?: number;
 }): AccessibilityProps {
+  // Map 'input' to 'textbox' for accessibilityRole
+  const role = type === 'input' ? 'textbox' : (type || 'button');
   const baseProps: AccessibilityProps = {
     accessibilityLabel: options.label || '',
-    accessibilityRole: type || 'button',
+    accessibilityRole: role,
   };
 
   if (options.hint) {

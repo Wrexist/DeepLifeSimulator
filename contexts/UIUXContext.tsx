@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TutorialStep } from '@/types/tutorial';
 import { EnhancedTutorialStep, getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
+import { logger } from '@/utils/logger';
 
 interface LoadingState {
   id: string;
@@ -74,7 +75,9 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
         setState(prev => ({ ...prev, hasCompletedTutorial: true }));
       }
     } catch (error) {
-      console.error('Error checking tutorial status:', error);
+      if (__DEV__) {
+        logger.error('Error checking tutorial status:', error);
+      }
     }
   };
 
@@ -135,8 +138,9 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
 
   // Tutorial management
   const startTutorial = useCallback((steps: TutorialStep[] | EnhancedTutorialStep[], context?: 'game' | 'onboarding' | 'advanced') => {
-    console.log('[UIUXContext] startTutorial called with', steps.length, 'steps');
-    console.log('[UIUXContext] First step:', steps[0]);
+    if (__DEV__) {
+      logger.debug('[UIUXContext] startTutorial called with', { stepsCount: steps.length, firstStep: steps[0] });
+    }
     setState(prev => {
       const newState = {
         ...prev,
@@ -144,7 +148,9 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
         tutorialSteps: steps as TutorialStep[],
         currentTutorialStep: 0,
       };
-      console.log('[UIUXContext] New state:', { showTutorial: newState.showTutorial, stepsCount: newState.tutorialSteps.length });
+      if (__DEV__) {
+        logger.debug('[UIUXContext] New state:', { showTutorial: newState.showTutorial, stepsCount: newState.tutorialSteps.length });
+      }
       return newState;
     });
   }, []);
@@ -163,7 +169,9 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
         hasCompletedTutorial: true,
       }));
     } catch (error) {
-      console.error('Error saving tutorial completion:', error);
+      if (__DEV__) {
+        logger.error('Error saving tutorial completion:', error);
+      }
     }
   }, []);
 
@@ -176,7 +184,9 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
         hasCompletedTutorial: true,
       }));
     } catch (error) {
-      console.error('Error saving tutorial completion:', error);
+      if (__DEV__) {
+        logger.error('Error saving tutorial completion:', error);
+      }
     }
   }, []);
 
@@ -197,7 +207,9 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
         currentTutorialStep: 0,
       }));
     } catch (error) {
-      console.error('Error resetting tutorial:', error);
+      if (__DEV__) {
+        logger.error('Error resetting tutorial:', error);
+      }
     }
   }, []);
 

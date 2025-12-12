@@ -84,8 +84,8 @@ export const decayLayout = (
   extra: Partial<Animated.DecayAnimationConfig> = {}
 ) =>
   Animated.decay(value, {
-    useNativeDriver: false,
     ...extra,
+    useNativeDriver: false,
   });
 
 export const decayNative = (
@@ -93,8 +93,8 @@ export const decayNative = (
   extra: Partial<Animated.DecayAnimationConfig> = {}
 ) =>
   Animated.decay(value, {
-    useNativeDriver: NATIVE_OK,
     ...extra,
+    useNativeDriver: NATIVE_OK,
   });
 
 /* -------------------------------------------------------------------------- */
@@ -103,10 +103,10 @@ export const decayNative = (
 
 /** Force driver choice explicitly (useful inside custom animations). */
 export const asNative = <T extends Animated.AnimationConfig>(cfg: T): T =>
-  ({ useNativeDriver: NATIVE_OK, ...cfg } as T);
+  ({ ...cfg, useNativeDriver: NATIVE_OK } as T);
 
 export const asLayout = <T extends Animated.AnimationConfig>(cfg: T): T =>
-  ({ useNativeDriver: false, ...cfg } as T);
+  ({ ...cfg, useNativeDriver: false } as T);
 
 /** Clamp a number between min and max (handy for values going into animations). */
 export const clamp = (n: number, min = 0, max = 1) => Math.min(max, Math.max(min, n));

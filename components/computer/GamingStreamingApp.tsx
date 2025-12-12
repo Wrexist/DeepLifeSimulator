@@ -9,7 +9,7 @@
  * Scaling is based on iPhone 14/15 (390px width) as reference
  * All scaling is contained within this file only
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,8 @@ import {
   Easing,
   Image,
   Modal,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -34,7 +36,7 @@ import {
   TrendingUp,
   DollarSign,
   Gamepad2,
-  Video,
+  Video as VideoIcon,
   Mic,
   Camera,
   Star,
@@ -44,9 +46,17 @@ import {
   Crown,
   Clock,
   Activity
-} from 'lucide-react-native';
-import { Snowflake, Square } from 'lucide-react-native';
-import { useGame, GameState } from '@/contexts/GameContext';
+, Snowflake, Square } from 'lucide-react-native';
+import { useGame, GameState, Video, StreamSession, StreamHistoryItem } from '@/contexts/game/types';
+import StreamingPanel from './gaming/StreamingPanel';
+import VideoPanel from './gaming/VideoPanel';
+import EquipmentPanel from './gaming/EquipmentPanel';
+import PCBuildPanel from './gaming/PCBuildPanel';
+import { getRenderTimeMs, getUploadTimeMs, getNextUpgradePrice } from './gaming/utils';
+import { logger } from '@/utils/logger';
+import { useMemoryCleanup } from '@/utils/performanceOptimization';
+
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 
 // PERMANENT SIMPLE SCALING - INDEPENDENT OF ANY OTHER SCALING SYSTEM
@@ -66,7 +76,7 @@ const simpleScale = (size: number): number => {
   
   // Debug logging (only in development)
   if (__DEV__) {
-    console.log(`🔧 SimpleScale: ${size}px → ${result}px (width: ${width}px, factor: ${scaleFactor.toFixed(2)})`);
+    logger.debug(`🔧 SimpleScale: ${size}px → ${result}px (width: ${width}px, factor: ${scaleFactor.toFixed(2)})`);
   }
   
   return result;
@@ -84,7 +94,7 @@ const simpleFontScale = (size: number): number => {
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // Static game catalog (avoid recreating arrays every render)
-const AVAILABLE_GAMES: Array<{
+const AVAILABLE_GAMES: {
   id: string;
   name: string;
   baseViewers: number;
@@ -92,7 +102,7 @@ const AVAILABLE_GAMES: Array<{
   required: number;
   cost: number;
   description: string;
-}> = [
+}[] = [
   { id: 'minecraft', name: 'Minecraft', baseViewers: 50, baseEarnings: 2, required: 0, cost: 150, description: 'Creative sandbox game' },
   { id: 'amongus', name: 'Among Us', baseViewers: 80, baseEarnings: 3, required: 0, cost: 80, description: 'Social deduction game' },
   { id: 'fortnite', name: 'Fortnite', baseViewers: 120, baseEarnings: 4, required: 100, cost: 50, description: 'Battle royale game' },
@@ -113,60 +123,35 @@ interface GamingStreamingAppProps {
   onBack: () => void;
 }
 
-interface StreamSession {
-  id: string;
-  game: string;
-  duration: number;
-  viewers: number;
-  earnings: number;
-  followers: number;
-  subscribers: number;
-  chatMessages: number;
-  donations: number;
-}
-
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error: any, info: any) { console.error('GamingStreamingApp error:', error, info); }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontWeight: '700', marginBottom: 8 }}>Something went wrong</Text>
-          <Text style={{ color: '#6B7280', marginBottom: 12 }}>Try going back and reopening the app.</Text>
-          <TouchableOpacity onPress={() => this.setState({ hasError: false })} style={{ backgroundColor: '#3B82F6', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}>
-            <Text style={{ color: 'white', fontWeight: '700' }}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    return this.props.children as any;
-  }
-}
-
 export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) {
-  const { gameState, setGameState, updateMoney } = useGame();
+  const { gameState, setGameState, updateMoney, saveGame } = useGame();
+  const { addCleanup } = useMemoryCleanup();
   const { settings } = gameState;
+  
+  // Extract frequently used values from gameState
+  const gamingStreaming = gameState.gamingStreaming;
+  const energy = gameState.stats.energy;
+  const money = gameState.stats.money;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stream' | 'videos' | 'shop'>('dashboard');
-  const [isStreaming, setIsStreaming] = useState(false);
+  const {
+    isStreaming, streamDuration, currentViewers, totalDonations,
+    currentSubsGained, streamDonations, showConfetti, selectedGame,
+    startStream, endStream
+  } = useStreamingLogic(gameState, setGameState, AVAILABLE_GAMES);
   const [selectedGame, setSelectedGame] = useState<string>('');
   const [streamDuration, setStreamDuration] = useState(0);
-  const [streamTimer, setStreamTimer] = useState<NodeJS.Timeout | null>(null);
+  const [streamTimer, setStreamTimer] = useState<NodeJS.Timeout | number | null>(null);
   const [streamProgress, setStreamProgress] = useState(0);
-  const [progressTimer, setProgressTimer] = useState<NodeJS.Timeout | null>(null);
-  const [streamDonations, setStreamDonations] = useState<Array<{id: string, amount: number, message: string, position: {top: number, left: number}}>>([]);
-  const [donationTimer, setDonationTimer] = useState<NodeJS.Timeout | null>(null);
-  const [viewersTimer, setViewersTimer] = useState<NodeJS.Timeout | null>(null);
-  const [energyTimer, setEnergyTimer] = useState<NodeJS.Timeout | null>(null);
+  const [progressTimer, setProgressTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [streamDonations, setStreamDonations] = useState<{id: string, amount: number, message: string, position: {top: number, left: number}}[]>([]);
+  const [donationTimer, setDonationTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [viewersTimer, setViewersTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [energyTimer, setEnergyTimer] = useState<NodeJS.Timeout | number | null>(null);
   const [currentViewers, setCurrentViewers] = useState(0);
   const [totalDonations, setTotalDonations] = useState(0);
-  const [subsTimer, setSubsTimer] = useState<NodeJS.Timeout | null>(null);
+  const [subsTimer, setSubsTimer] = useState<NodeJS.Timeout | number | null>(null);
   const [currentSubsGained, setCurrentSubsGained] = useState(0);
-  const [subPopups, setSubPopups] = useState<Array<{id: string, name: string, position: { top: number, left: number }}>>([]);
+  const [subPopups, setSubPopups] = useState<{id: string, name: string, position: { top: number, left: number }}[]>([]);
   
   // Modal states
   const [showGameNotOwnedModal, setShowGameNotOwnedModal] = useState(false);
@@ -195,9 +180,9 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoGame, setVideoGame] = useState<string>('');
-  const [recordTimer, setRecordTimer] = useState<NodeJS.Timeout | null>(null);
-  const [renderTimer, setRenderTimer] = useState<NodeJS.Timeout | null>(null);
-  const [uploadTimer, setUploadTimer] = useState<NodeJS.Timeout | null>(null);
+  const [recordTimer, setRecordTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [renderTimer, setRenderTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [uploadTimer, setUploadTimer] = useState<NodeJS.Timeout | number | null>(null);
   // Stream goals overlay
   const [subsGoal, setSubsGoal] = useState(0);
   const [donGoal, setDonGoal] = useState(0);
@@ -207,6 +192,35 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   useEffect(() => {
     return () => { mountedRef.current = false; };
   }, []);
+
+  // Cleanup timers on unmount to prevent memory leaks - enhanced with useMemoryCleanup
+  useEffect(() => {
+    const cleanup = () => {
+      if (streamTimer) clearInterval(streamTimer as NodeJS.Timeout);
+      if (progressTimer) clearInterval(progressTimer as NodeJS.Timeout);
+      if (donationTimer) clearInterval(donationTimer as NodeJS.Timeout);
+      if (viewersTimer) clearInterval(viewersTimer as NodeJS.Timeout);
+      if (energyTimer) clearInterval(energyTimer as NodeJS.Timeout);
+      if (subsTimer) clearInterval(subsTimer as NodeJS.Timeout);
+      if (recordTimer) clearInterval(recordTimer as NodeJS.Timeout);
+      if (renderTimer) clearInterval(renderTimer as NodeJS.Timeout);
+      if (uploadTimer) clearInterval(uploadTimer as NodeJS.Timeout);
+    };
+    
+    addCleanup(cleanup);
+    return cleanup;
+  }, [
+    streamTimer, 
+    progressTimer, 
+    donationTimer, 
+    viewersTimer, 
+    energyTimer, 
+    subsTimer, 
+    recordTimer, 
+    renderTimer, 
+    uploadTimer,
+    addCleanup
+  ]);
   const [showConfetti, setShowConfetti] = useState(false);
   const [postInteractionReady, setPostInteractionReady] = useState(false);
 
@@ -247,7 +261,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   };
 
   // Animated popup for donations/subs
-  const AnimatedPopup = ({ children, top, left, bgStyle }: { children: React.ReactNode; top: number; left: number; bgStyle?: any; }) => {
+  const AnimatedPopup = ({ children, top, left, bgStyle }: { children: React.ReactNode; top: number; left: number; bgStyle?: StyleProp<ViewStyle>; }) => {
     const opacity = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(10)).current;
     useEffect(() => {
@@ -312,7 +326,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     const task = InteractionManager.runAfterInteractions(() => {
       setPostInteractionReady(true);
     });
-    // @ts-ignore older RN versions
+    // @ts-ignore - Older React Native versions may not have proper types for this API
     return () => task?.cancel?.();
   }, []);
 
@@ -326,7 +340,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     return Math.floor(experience / 100) + 1;
   };
 
-  const gamingData = (gameState.gamingStreaming || {
+  const gamingData = (gamingStreaming || {
     followers: 0,
     subscribers: 0,
     totalViews: 0,
@@ -388,9 +402,9 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const computeEnergyPerSecond = (): number => {
     // Base drain
     let drain = 3; // base energy per second
-    const eq = gamingData.equipment || {} as any;
-    const pc = gamingData.pcComponents || {} as any;
-    const lv = (gamingData as any).pcUpgradeLevels || {} as any;
+    const eq = gamingData.equipment || {};
+    const pc = gamingData.pcComponents || {};
+    const lv = gamingData.pcUpgradeLevels || {};
 
     // Reductions from equipment
     if (eq.gamingChair) drain *= 0.85; // 15% less
@@ -412,42 +426,10 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   };
 
   // PC component model names per level for display
-  const getComponentModel = (type: string, level: number): string => {
-    const maps: Record<string, string[]> = {
-      cpu: ['Stock CPU', 'Ryzen 5 / Core i5', 'Ryzen 7 / Core i7', 'Ryzen 9 / Core i9'],
-      gpu: ['Integrated GPU', 'RTX 3060', 'RTX 4070', 'RTX 4080'],
-      ram: ['8GB DDR4', '16GB DDR4', '32GB DDR5', '64GB DDR5'],
-      ssd: ['SATA SSD', 'NVMe Gen3', 'NVMe Gen4', 'NVMe Gen5'],
-      motherboard: ['Entry ATX', 'B-Series', 'X-Series'],
-      cooling: ['Stock Cooler', 'Tower Air', '240mm AIO', '360mm AIO'],
-      psu: ['500W Bronze', '650W Gold', '850W Gold'],
-      case: ['Compact Case', 'Mid Tower', 'Airflow Case'],
-      network: ['Basic 50 Mbps', '100 Mbps', '500 Mbps', '1 Gbps'],
-    };
-    const arr = maps[type] || ['Level 0', 'Level 1', 'Level 2', 'Level 3'];
-    const idx = Math.max(0, Math.min(level, arr.length - 1));
-    return arr[idx];
-  };
-
-  const getNextUpgradePrice = (type: string, level: number): number | null => {
-    const pricing: Record<string, number[]> = {
-      cpu: [800, 1200, 1600],
-      gpu: [900, 1400, 2000],
-      ram: [200, 300, 400],
-      ssd: [150, 250, 350],
-      cooling: [120, 220, 320],
-      motherboard: [200, 350],
-      psu: [150, 250],
-      case: [120, 200],
-      network: [100, 200, 400],
-    };
-    const arr = pricing[type] || [];
-    return level < arr.length ? arr[level] : null;
-  };
 
   // ---------- Videos logic ----------
   const randomizeTitle = (gameName: string): string => {
-    const counters = (gameState.gamingStreaming as any).videoTitleCounters || {};
+    const counters = gameState.gamingStreaming?.videoTitleCounters || {};
     const nextIndex = (base: string) => {
       const key = `${gameName}:${base}`;
       const n = (counters[key] || 0) + 1;
@@ -472,30 +454,10 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     return pick();
   };
 
-  const getRenderTimeMs = (): number => {
-    // base 8000ms reduced by components
-    const lv = (gamingData as any).pcUpgradeLevels || {} as any;
-    let t = 8000;
-    t *= Math.pow(0.9, lv.ram || 0); // RAM -10% per level
-    t *= Math.pow(0.85, lv.gpu || 0); // GPU -15% per level
-    t *= Math.pow(0.9, lv.cpu || 0); // CPU -10% per level (render)
-    return Math.max(3000, Math.round(t));
-  };
-
-  const getUploadTimeMs = (): number => {
-    // base 6000ms reduced by SSD + small lighting prep
-    const eq = gamingData.equipment || {} as any;
-    const lv = (gamingData as any).pcUpgradeLevels || {} as any;
-    let t = 6000;
-    t *= Math.pow(0.85, lv.ssd || 0); // SSD -15% per level
-    t *= Math.pow(0.9, lv.network || 0); // Network upgrade -10% per level
-    if (eq.lighting) t *= 0.95;
-    return Math.max(2000, Math.round(t));
-  };
 
   const startVideoRecording = (gameId: string) => {
     if (isStreaming || isRecording || isRendering || isUploading) return;
-    const game = availableGames.find(g => g.id === gameId);
+    const game = (availableGames || []).find(g => g.id === gameId);
     if (!game) return;
     if (!(gamingData.ownedGames || []).includes(game.id)) {
       setModalData({ gameName: game.name });
@@ -504,7 +466,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     }
     // Fixed recording energy cost (no per-second drain)
     const recordCost = Math.max(1, computeEnergyPerSecond() * 12);
-    if (gameState.stats.energy < recordCost) {
+    if (energy < recordCost) {
       setModalData({ requiredEnergy: recordCost });
       setShowNotEnoughEnergyModal(true);
       return;
@@ -604,7 +566,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       setVideoTitle(videoState.videoTitle || '');
       setVideoGame(videoState.videoGame || '');
       
-      const renderMs = getRenderTimeMs();
+      const renderMs = getRenderTimeMs(gamingData);
       const steps = 20;
       const remainingSteps = Math.ceil((100 - videoState.renderProgress) / (100 / steps));
       let step = 0;
@@ -639,7 +601,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       setVideoTitle(videoState.videoTitle || '');
       setVideoGame(videoState.videoGame || '');
       
-      const uploadMs = getUploadTimeMs();
+      const uploadMs = getUploadTimeMs(gamingData);
       const usteps = 20;
       const remainingSteps = Math.ceil((100 - videoState.uploadProgress) / (100 / usteps));
       let ustep = 0;
@@ -661,7 +623,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         clearInterval(uploadInt);
         setUploadTimer(null);
         setIsUploading(false);
-        const game = availableGames.find(g => g.id === videoState.videoGame);
+        const game = (availableGames || []).find(g => g.id === videoState.videoGame);
         if (game) finalizeVideo(game, videoState.videoTitle || randomizeTitle(game.name));
         // Reset flow so user must start from Record again
         setRecordProgress(0);
@@ -694,7 +656,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     // Require recording to be complete
     if (recordProgress < 100) return;
     // Minimal energy check so player understands requirement
-    if (gameState.stats.energy <= 0) {
+    if (energy <= 0) {
       setModalData({ requiredEnergy: 1 });
       setShowNotEnoughEnergyModal(true);
       return;
@@ -705,7 +667,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       isRendering: true,
       renderProgress: 0,
     });
-    const renderMs = getRenderTimeMs();
+    const renderMs = getRenderTimeMs(gamingData);
     const steps = 20;
     let step = 0;
     const renderInt = setInterval(() => {
@@ -738,7 +700,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     if (renderProgress < 100) return;
     const perSec = computeEnergyPerSecond();
     const perSecUpload = Math.max(1, Math.round(perSec * 0.5));
-    if (gameState.stats.energy < perSecUpload) {
+    if (energy < perSecUpload) {
       setModalData({ requiredEnergy: perSecUpload });
       setShowNotEnoughEnergyModal(true);
       return;
@@ -749,7 +711,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       isUploading: true,
       uploadProgress: 0,
     });
-    const uploadMs = getUploadTimeMs();
+    const uploadMs = getUploadTimeMs(gamingData);
     const usteps = 20;
     let ustep = 0;
     const uploadInt = setInterval(() => {
@@ -770,7 +732,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         clearInterval(uploadInt);
         setUploadTimer(null);
         setIsUploading(false);
-        const game = availableGames.find(g => g.id === videoGame);
+        const game = (availableGames || []).find(g => g.id === videoGame);
         if (game) finalizeVideo(game, videoTitle || randomizeTitle(game.name));
         // Reset flow so user must start from Record again
         setRecordProgress(0);
@@ -800,8 +762,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
 
   const finalizeVideo = (game: { id: string; name: string; baseViewers: number }, title: string) => {
     // compute quality and stats with more variance
-    const eq = gamingData.equipment || ({} as any);
-    const lv = ((gamingData as any).pcUpgradeLevels || {}) as any;
+    const eq = gamingData.equipment || {};
+    const lv = gamingData.pcUpgradeLevels || {};
     let quality = 0.2;
     if (eq.microphone) quality += 0.15;
     if (eq.webcam) quality += 0.1;
@@ -818,7 +780,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     const qualityFactor = 0.75 + 0.5 * quality; // stronger impact from quality
     const trendFactor = 0.9 + Math.random() * 0.4; // 0.9..1.3
     const timeFactor = 0.85 + Math.random() * 0.3; // 0.85..1.15
-    const videosOfThisGame = ((gamingData.videos as any[]) || []).filter(v => v.game === game.name).length;
+    const videosOfThisGame = (gamingData.videos || []).filter((v: Video) => v.game === game.name).length;
     const repetitionPenalty = Math.max(0.75, 1 - Math.min(0.25, videosOfThisGame * 0.05)); // up to -25%
     const viralMultiplier = Math.random() < 0.07 ? 1.8 + Math.random() * 2.2 : 1; // 7% viral chance 1.8x..4x
     const randomness = 0.8 + Math.random() * 0.4; // 0.8..1.2
@@ -861,6 +823,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     const rpm = Math.max(0.8, Math.round(((earnings / (views / 1000 || 1)) * 0.7) * 100) / 100); // platform cut approx
 
     // save video and update totals
+    // Note: Video interface doesn't include all properties (durationSec, likes, comments, etc.)
+    // Using type assertion to allow extended properties
     const video = {
       id: Date.now().toString(),
       game: game.name,
@@ -876,13 +840,23 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       avgViewDuration,
       rpm,
       source,
-    } as any;
+    } as Video & {
+      durationSec: number;
+      likes: number;
+      comments: number;
+      quality: number;
+      uploadedAt: number;
+      ctr: number;
+      avgViewDuration: number;
+      rpm: number;
+      source: string;
+    };
 
     setGameState(prev => ({
       ...prev,
       gamingStreaming: {
         ...prev.gamingStreaming!,
-        videos: [video, ...((prev.gamingStreaming!.videos as any[]) || [])].slice(0, 20),
+        videos: [video, ...(prev.gamingStreaming!.videos || [])].slice(0, 20),
         followers: prev.gamingStreaming!.followers + Math.floor(subsGain * 4),
         subscribers: prev.gamingStreaming!.subscribers + subsGain,
         totalViews: prev.gamingStreaming!.totalViews + views,
@@ -897,7 +871,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const POPUP_WIDTH = 200;
   const POPUP_HEIGHT = 60;
   const RESERVED_BOTTOM = 0; // allow popups over streaming container
-  const getNonOverlappingPosition = (existing: Array<{ top: number; left: number }>): { top: number; left: number } => {
+  const getNonOverlappingPosition = (existing: { top: number; left: number }[]): { top: number; left: number } => {
     // Target upper area more densely to surface more popups
     const maxTop = Math.max(0, screenHeight - RESERVED_BOTTOM - POPUP_HEIGHT);
     const maxLeft = Math.max(0, screenWidth - POPUP_WIDTH - 20);
@@ -948,7 +922,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
 
   // Initialize gaming data if it doesn't exist
   useEffect(() => {
-    if (!gameState.gamingStreaming) {
+    if (!gamingStreaming) {
       setGameState(prev => ({
         ...prev,
         gamingStreaming: {
@@ -1100,6 +1074,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   // Cleanup timers when component unmounts
   useEffect(() => {
     return () => {
+      // Clear all streaming timers
       if (streamTimer) {
         clearInterval(streamTimer);
         setStreamTimer(null);
@@ -1116,12 +1091,29 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         clearInterval(viewersTimer);
         setViewersTimer(null);
       }
+      if (subsTimer) {
+        clearInterval(subsTimer);
+        setSubsTimer(null);
+      }
       if (energyTimer) {
         clearInterval(energyTimer);
         setEnergyTimer(null);
       }
+      // Clear all video recording timers
+      if (recordTimer) {
+        clearInterval(recordTimer);
+        setRecordTimer(null);
+      }
+      if (renderTimer) {
+        clearInterval(renderTimer);
+        setRenderTimer(null);
+      }
+      if (uploadTimer) {
+        clearInterval(uploadTimer);
+        setUploadTimer(null);
+      }
     };
-  }, [streamTimer, donationTimer, progressTimer, viewersTimer, energyTimer]);
+  }, [streamTimer, donationTimer, progressTimer, viewersTimer, subsTimer, energyTimer, recordTimer, renderTimer, uploadTimer]);
 
   // Clean tab switching logic for streaming
   useEffect(() => {
@@ -1208,8 +1200,10 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         setIsUploading(false);
       }
     });
-    // @ts-ignore RN older versions
-    return () => { sub?.remove ? sub.remove() : AppState.removeEventListener?.('change', () => {}); };
+    
+    return () => {
+      sub.remove();
+    };
   }, [streamTimer, donationTimer, progressTimer, viewersTimer, subsTimer, energyTimer, recordTimer, renderTimer, uploadTimer]);
 
   const availableGames = AVAILABLE_GAMES as unknown as typeof AVAILABLE_GAMES[number][];
@@ -1278,6 +1272,10 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     if (viewersTimer) { clearInterval(viewersTimer); setViewersTimer(null); }
     if (subsTimer) { clearInterval(subsTimer); setSubsTimer(null); }
     if (energyTimer) { clearInterval(energyTimer); setEnergyTimer(null); }
+    // Also clear video recording timers
+    if (recordTimer) { clearInterval(recordTimer); setRecordTimer(null); }
+    if (renderTimer) { clearInterval(renderTimer); setRenderTimer(null); }
+    if (uploadTimer) { clearInterval(uploadTimer); setUploadTimer(null); }
   };
 
   const resetStreamingState = () => {
@@ -1346,7 +1344,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       });
     }
 
-    const game = availableGames.find(g => g.id === selectedGame);
+    const game = (availableGames || []).find(g => g.id === selectedGame);
     if (!game) return;
 
     if (game.required && gamingData.followers < game.required) {
@@ -1363,7 +1361,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
 
     // Check if player has enough energy to start streaming
     const energyPerSecond = computeEnergyPerSecond();
-    if (gameState.stats.energy < energyPerSecond) {
+    if (energy < energyPerSecond) {
       setModalData({ requiredEnergy: energyPerSecond });
       setShowNotEnoughEnergyModal(true);
       return;
@@ -1375,7 +1373,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     isEndingRef.current = false;
     // ensure enough energy to start, then deduct
     const startCost = computeEnergyPerSecond() * 2;
-    if (gameState.stats.energy < startCost) {
+    if (energy < startCost) {
       setModalData({ requiredEnergy: startCost });
       setShowNotEnoughEnergyModal(true);
       return;
@@ -1423,7 +1421,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         return next;
       });
     }, 1000);
-    setProgressTimer(progressTimerInterval as any);
+    setProgressTimer(progressTimerInterval);
     
     // Duration timer
     const timer = setInterval(() => {
@@ -1436,7 +1434,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         return newDuration;
       });
     }, 1000);
-    setStreamTimer(timer as any);
+    setStreamTimer(timer);
     
     // Viewers timer - update viewers every 2 seconds
     const viewersTimerInterval = setInterval(() => {
@@ -1452,7 +1450,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         });
       }
     }, 2000);
-    setViewersTimer(viewersTimerInterval as any);
+    setViewersTimer(viewersTimerInterval);
     
     // Subscribers timer - random sub gains during stream
     const names = [
@@ -1496,11 +1494,11 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         }
       }
     }, 3000);
-    setSubsTimer(subsTimerInterval as any);
+    setSubsTimer(subsTimerInterval);
     
     // ✅ Energy drain timer - clean implementation
     const energyInterval = createEnergyTimer(energyPerSecond);
-    setEnergyTimer(energyInterval as any);
+    setEnergyTimer(energyInterval);
     
     // Donation timer (random donations during stream)
     const donationInterval = setInterval(() => {
@@ -1558,7 +1556,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         }, 3000);
       }
     }, 2000);
-    setDonationTimer(donationInterval as any);
+    setDonationTimer(donationInterval);
   };
 
   const stopStream = () => {
@@ -1595,7 +1593,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
 
     // Check if player has enough energy to resume streaming
     const energyPerSecond = computeEnergyPerSecond();
-    if (gameState.stats.energy < energyPerSecond) {
+    if (energy < energyPerSecond) {
       setModalData({ requiredEnergy: energyPerSecond });
       setShowNotEnoughEnergyModal(true);
       return;
@@ -1637,7 +1635,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
           return newProgress;
         });
       }, 1000);
-      setProgressTimer(progressTimerInterval as any);
+      setProgressTimer(progressTimerInterval);
     }
 
     // Resume duration timer
@@ -1651,7 +1649,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         return newDuration;
       });
     }, 1000);
-    setStreamTimer(timer as any);
+    setStreamTimer(timer);
 
     // Resume viewers timer
     const viewersTimerInterval = setInterval(() => {
@@ -1667,7 +1665,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         });
       }
     }, 2000);
-    setViewersTimer(viewersTimerInterval as any);
+    setViewersTimer(viewersTimerInterval);
 
     // Resume subscribers timer
     const names = [
@@ -1708,11 +1706,11 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         }
       }
     }, 3000);
-    setSubsTimer(subsTimerInterval as any);
+    setSubsTimer(subsTimerInterval);
 
     // ✅ Resume energy drain timer - clean implementation
     const energyInterval = createEnergyTimer(energyPerSecond);
-    setEnergyTimer(energyInterval as any);
+    setEnergyTimer(energyInterval);
 
     // Resume donation timer
     const donationInterval = setInterval(() => {
@@ -1766,7 +1764,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         }, 3000);
       }
     }, 2000);
-    setDonationTimer(donationInterval as any);
+    setDonationTimer(donationInterval);
   };
 
   const endStream = () => {
@@ -1842,6 +1840,9 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     // Update money without triggering daily summary
     updateMoney(finalEarnings, `Stream earnings from ${game.name}`);
 
+    // Save game after stream ends
+    saveGame();
+
     // ✅ Reset local streaming state (persistent state already cleared in progress timer)
     setIsStreaming(false);
     setStreamDuration(0);
@@ -1873,7 +1874,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     const game = availableGames.find(g => g.id === gameId);
     if (!game) return;
 
-    if (gameState.stats.money < game.cost) {
+    if (money < game.cost) {
       setModalData({ gameName: game.name, gameCost: game.cost });
       setShowInsufficientFundsModal(true);
       return;
@@ -1901,8 +1902,50 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       }
     }));
 
+    // Save game after purchase
+    saveGame();
+
     setModalData({ gameName: game.name });
     setShowGamePurchasedModal(true);
+  };
+
+  const buyEquipment = (k: string, price: number) => {
+    const eq = gamingData.equipment;
+    if (eq && (eq as Record<string, boolean>)[k]) return;
+    if (money < price) {
+      setModalData({ cost: price });
+      setShowInsufficientFundsModal(true);
+      return;
+    }
+    setGameState(prev => ({
+      ...prev,
+      stats: { ...prev.stats, money: prev.stats.money - price },
+      gamingStreaming: {
+        ...prev.gamingStreaming!,
+        equipment: { ...prev.gamingStreaming!.equipment, [k]: true },
+      }
+    }));
+  };
+
+  const upgradeComponent = (k: string) => {
+    const lv = gamingData.pcUpgradeLevels || {};
+    const level = (lv as Record<string, number>)[k] || 0;
+    const price = getNextUpgradePrice(k, level);
+    if (price == null) return;
+    if (money < price) {
+      setModalData({ cost: price });
+      setShowInsufficientFundsModal(true);
+      return;
+    }
+    setGameState(prev => ({
+      ...prev,
+      stats: { ...prev.stats, money: prev.stats.money - price },
+      gamingStreaming: {
+        ...prev.gamingStreaming!,
+        pcUpgradeLevels: { ...(prev.gamingStreaming?.pcUpgradeLevels || {}), [k]: level + 1 },
+        pcComponents: { ...prev.gamingStreaming!.pcComponents, [k]: true },
+      }
+    }));
   };
 
   const renderDashboard = () => (
@@ -1948,7 +1991,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             Subs: ${ (gamingData.totalSubEarnings || 0).toLocaleString() }
           </Text>
           <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>
-            Ads: ${ (((gamingData.videos as any[]) || []).reduce((s,v)=> s + (v.earnings||0), 0)).toLocaleString() }
+            Ads: ${ ((gamingData.videos || []).reduce((s,v)=> s + ((v as { earnings?: number }).earnings||0), 0)).toLocaleString() }
           </Text>
         </View>
       </View>
@@ -1988,8 +2031,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
           style={styles.infoCard}
         >
           {(() => {
-            const videosArr = (gamingData.videos as any[]) || [];
-            const totalAds = videosArr.reduce((s,v)=> s + (v.earnings||0), 0);
+            const videosArr = gamingData.videos || [];
+            const totalAds = videosArr.reduce((s,v)=> s + ((v as { earnings?: number }).earnings||0), 0);
             return (
               <View style={styles.infoPillsRow}>
                 <View style={[styles.infoPill, styles.infoPillGreen, styles.infoPillThird]}>
@@ -2005,8 +2048,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             );
           })()}
           {(() => {
-            const paid = (gamingData as any).paidMembers || 0;
-            const rate = (gamingData as any).membershipRate || 4;
+            const paid = (gamingData as GamingStreamingState & { paidMembers?: number; membershipRate?: number }).paidMembers || 0;
+            const rate = (gamingData as GamingStreamingState & { paidMembers?: number; membershipRate?: number }).membershipRate || 4;
             return (
               <View style={[styles.infoPillsRow, { marginTop: simpleScale(8) }]}>
                 <View style={[styles.infoPill, styles.infoPillGreen, styles.infoPillHalf]}>
@@ -2032,10 +2075,10 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         >
           {(() => {
             const streams = (gamingData.streamHistory || []).slice(0, 10);
-            const avgStreamViewers = streams.length ? Math.round(streams.reduce((s:any,st:any)=> s + (st.viewers||0), 0) / streams.length) : 0;
-            const videosArr = (gamingData.videos as any[]) || [];
+            const avgStreamViewers = streams.length ? Math.round(streams.reduce((s: number, st: StreamHistoryItem) => s + (st.viewers || 0), 0) / streams.length) : 0;
+            const videosArr = gamingData.videos || [];
             const vcount = videosArr.length;
-            const avgCtr = vcount ? Math.round(videosArr.reduce((s,v)=> s + (v.ctr||0), 0) / vcount) : 0;
+            const avgCtr = vcount ? Math.round(videosArr.reduce((s,v)=> s + ((v as { ctr?: number }).ctr||0), 0) / vcount) : 0;
             const avgRpm = vcount ? Math.round(videosArr.reduce((s,v)=> s + (v.rpm||0), 0) / vcount) : 0;
             return (
               <View style={styles.infoPillsRow}>
@@ -2064,9 +2107,9 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
           style={styles.infoCard}
         >
           {(() => {
-            const videosArr = (gamingData.videos as any[]) || [];
+            const videosArr = gamingData.videos || [];
             const count = videosArr.length;
-            const totalAds = videosArr.reduce((s,v)=> s + (v.earnings||0), 0);
+            const totalAds = videosArr.reduce((s,v)=> s + ((v as { earnings?: number }).earnings||0), 0);
             const avgCtr = count ? Math.round(videosArr.reduce((s,v)=> s + (v.ctr||0), 0) / count) : 0;
             const avgAvd = count ? Math.round(videosArr.reduce((s,v)=> s + (v.avgViewDuration||0), 0) / count) : 0;
             const avgRpm = count ? Math.round(videosArr.reduce((s,v)=> s + (v.rpm||0), 0) / count) : 0;
@@ -2085,9 +2128,9 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             );
           })()}
           {(() => {
-            const videosArr = (gamingData.videos as any[]) || [];
+            const videosArr = gamingData.videos || [];
             const count = videosArr.length;
-            const totalAds = videosArr.reduce((s,v)=> s + (v.earnings||0), 0);
+            const totalAds = videosArr.reduce((s,v)=> s + ((v as { earnings?: number }).earnings||0), 0);
             const avgRpm = count ? Math.round(videosArr.reduce((s,v)=> s + (v.rpm||0), 0) / count) : 0;
             return (
               <View style={[styles.infoPillsRow, { marginTop: simpleScale(8) }]}>
@@ -2103,10 +2146,10 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         </LinearGradient>
 
         {/* Latest Video */}
-        {((gamingData.videos as any[]) || []).length > 0 && (
+        {(gamingData.videos || []).length > 0 && (
           <View style={[styles.streamHistoryCard, settings.darkMode && styles.streamHistoryCardDark]}>
             {(() => {
-              const v = (gamingData.videos as any[])[0];
+              const v = (gamingData.videos || [])[0];
               return (
                 <>
                   <Text style={[styles.streamHistoryGame, settings.darkMode && styles.streamHistoryGameDark]}>
@@ -2134,7 +2177,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             No streams yet. Start streaming to see your history!
           </Text>
         ) : (
-          gamingData.streamHistory.map((stream: any) => (
+          gamingData.streamHistory.map((stream) => (
             <View key={stream.id} style={[styles.streamHistoryCard, settings.darkMode && styles.streamHistoryCardDark]}>
               <Text style={[styles.streamHistoryGame, settings.darkMode && styles.streamHistoryGameDark]}>
                 {stream.game}
@@ -2150,116 +2193,6 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     </ScrollView>
   );
 
-  const renderStream = () => (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
-      <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
-        <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
-          Select Game to Stream
-        </Text>
-        <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-          Choose a game to stream. You can purchase games you don't own yet.
-        </Text>
-        {/* Stream Goals */}
-        {isStreaming && (
-          <View style={{ marginBottom: 10 }}>
-            <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>Stream Goals</Text>
-            <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>Subs Goal ({subsMilestone}/{subsGoal || 25})</Text>
-            <View style={styles.progressBar}><View style={[styles.progressFill, { width: `${Math.min(100, Math.round(((subsMilestone)/(subsGoal||25))*100))}%` }]} /></View>
-            <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>Donations Goal (${donMilestone}/${donGoal || 100})</Text>
-            <View style={styles.progressBar}><View style={[styles.progressFill, { width: `${Math.min(100, Math.round(((donMilestone)/(donGoal||100))*100))}%` }]} /></View>
-          </View>
-        )}
-        <LinearGradient
-          colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.infoCard}
-        >
-          <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>Streaming Cost</Text>
-          <View style={styles.infoPillsRow}>
-            <View style={[styles.infoPill, styles.infoPillGreen]}>
-              <Text style={styles.infoPillText}>Per 10s: {computeEnergyPerSecond() * 10}</Text>
-              <Zap size={16} color="#065F46" />
-            </View>
-            <View style={[styles.infoPill, styles.infoPillPurple]}>
-              <Text style={styles.infoPillText}>Start cost: {computeEnergyPerSecond() * 2}</Text>
-              <Zap size={16} color="#4C1D95" />
-            </View>
-          </View>
-        </LinearGradient>
-        <View style={styles.gamesGrid}>
-          {availableGames.map(game => (
-            <TouchableOpacity
-              key={game.id}
-                             style={[
-                 styles.gameCard,
-                 selectedGame === game.id && styles.selectedGameCard,
-                 settings.darkMode && styles.gameCardDark,
-                 game.required && gamingData.followers < game.required ? styles.lockedGameCard : undefined
-               ]}
-               onPress={() => setSelectedGame(game.id)}
-               disabled={game.required ? gamingData.followers < game.required : false}
-            >
-              <Image source={GAME_IMAGES[game.id]} style={{ width: simpleScale(48), height: simpleScale(48), borderRadius: 8 }} resizeMode="cover" />
-              <Text style={[
-                styles.gameName,
-                selectedGame === game.id && styles.selectedGameName,
-                settings.darkMode && styles.gameNameDark
-              ]}>
-                {game.name}
-              </Text>
-              <Text style={[styles.gameStats, settings.darkMode && styles.gameStatsDark]}>
-                {game.baseViewers} viewers • Donation-based
-              </Text>
-              {game.required && gamingData.followers < game.required && (
-                <Text style={styles.requirementText}>
-                  {game.required} followers needed
-                </Text>
-              )}
-              {(gamingData.ownedGames || []).includes(game.id) ? (
-                <Text style={styles.ownedText}>
-                  ✓ Owned
-                </Text>
-              ) : (
-                <Text style={styles.requirementText}>
-                  ${game.cost} to buy
-                </Text>
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-
-
-      {/* Popups Overlay */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-        {/* Donation Popups - Show when streaming is active */}
-        {isStreaming && streamDonations.map(donation => (
-          <AnimatedPopup
-            key={donation.id}
-            top={donation.position.top}
-            left={donation.position.left}
-            bgStyle={settings.darkMode && styles.donationPopupDark}
-          >
-            <Text style={[styles.donationAmount, settings.darkMode && styles.donationAmountDark]}>💰 ${donation.amount}</Text>
-            <Text style={[styles.donationMessage, settings.darkMode && styles.donationMessageDark]}>{donation.message}</Text>
-          </AnimatedPopup>
-        ))}
-        {/* Subscriber Popups */}
-        {isStreaming && subPopups.map(sub => (
-          <AnimatedPopup
-            key={sub.id}
-            top={sub.position.top}
-            left={sub.position.left}
-            bgStyle={[settings.darkMode && styles.donationPopupDark, { borderLeftColor: '#10B981' }]}
-          >
-            <Text style={[styles.donationAmount, settings.darkMode && styles.donationAmountDark]}>⭐ New sub: {sub.name}</Text>
-          </AnimatedPopup>
-        ))}
-      </View>
-    </ScrollView>
-  );
 
   const renderVideos = () => (
     <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
@@ -2422,8 +2355,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       {/* Your Videos */}
       <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
         <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Your Videos</Text>
-        {(gamingData.videos as any[])?.length ? (
-          (gamingData.videos as any[]).map((v: any) => (
+        {(gamingData.videos || []).length ? (
+          (gamingData.videos || []).map((v) => (
             <View key={v.id} style={[styles.streamHistoryCard, settings.darkMode && styles.streamHistoryCardDark]}>
               <Text style={[styles.streamHistoryGame, settings.darkMode && styles.streamHistoryGameDark]}>
                 {v.title}
@@ -2444,203 +2377,6 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     </ScrollView>
   );
 
-  const renderShop = () => {
-    const eq = gamingData.equipment as any;
-    const lv = (gamingData as any).pcUpgradeLevels || {} as any;
-    const money = gameState.stats.money;
-
-    const equipmentList = [
-      { key: 'microphone', name: 'Microphone', price: 300 },
-      { key: 'webcam', name: 'Webcam', price: 400 },
-      { key: 'lighting', name: 'Lighting', price: 200 },
-      { key: 'gamingChair', name: 'Gaming Chair', price: 600 },
-      { key: 'greenScreen', name: 'Green Screen', price: 500 },
-    ];
-
-    const componentsList = [
-      { key: 'cpu', name: 'CPU' },
-      { key: 'gpu', name: 'GPU' },
-      { key: 'ram', name: 'RAM' },
-      { key: 'ssd', name: 'SSD' },
-      { key: 'cooling', name: 'Cooling' },
-      { key: 'motherboard', name: 'Motherboard' },
-      { key: 'psu', name: 'PSU' },
-      { key: 'case', name: 'Case' },
-    ];
-
-    const buyEquipment = (k: string, price: number) => {
-      if (eq[k]) return;
-      if (gameState.stats.money < price) {
-        setModalData({ cost: price });
-        setShowInsufficientFundsModal(true);
-        return;
-      }
-      setGameState(prev => ({
-        ...prev,
-        stats: { ...prev.stats, money: prev.stats.money - price },
-        gamingStreaming: {
-          ...prev.gamingStreaming!,
-          equipment: { ...prev.gamingStreaming!.equipment, [k]: true },
-        }
-      }));
-    };
-
-    const upgradeComponent = (k: string) => {
-      const level = lv[k] || 0;
-      const price = getNextUpgradePrice(k, level);
-      if (price == null) return;
-      if (money < price) {
-        setModalData({ cost: price });
-        setShowInsufficientFundsModal(true);
-        return;
-      }
-      setGameState(prev => ({
-        ...prev,
-        stats: { ...prev.stats, money: prev.stats.money - price },
-        gamingStreaming: {
-          ...prev.gamingStreaming!,
-          pcUpgradeLevels: { ...((prev.gamingStreaming as any).pcUpgradeLevels || {}), [k]: level + 1 },
-          pcComponents: { ...prev.gamingStreaming!.pcComponents, [k]: true },
-        }
-      }));
-    };
-
-    const getEquipmentEffect = (k: string): string => {
-      switch (k) {
-        case 'microphone': return 'Improves video quality → higher CTR and RPM';
-        case 'webcam': return 'Adds facecam → boosts engagement and CTR';
-        case 'lighting': return 'Better lighting → faster uploads and slight quality gain';
-        case 'gamingChair': return 'Comfort → reduces stream energy drain';
-        case 'greenScreen': return 'Clean background → small quality boost';
-        default: return '';
-      }
-    };
-
-    const getComponentEffect = (k: string): string => {
-      switch (k) {
-        case 'cpu': return 'Faster rendering, small energy savings';
-        case 'gpu': return 'Much faster rendering, visual quality boost';
-        case 'ram': return 'Quicker renders, smoother workflow';
-        case 'ssd': return 'Faster uploads and general speed';
-        case 'cooling': return 'Lower temps → less energy drain while streaming';
-        case 'motherboard': return 'Enables higher-tier CPU/RAM speeds';
-        case 'psu': return 'Stable power delivery for upgrades';
-        case 'case': return 'Airflow → helps cooling efficiency';
-        case 'network': return 'Internet plan → faster uploads';
-        default: return '';
-      }
-    };
-
-    const canAfford = (price: number | null) => price != null && money >= price;
-
-    return (
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
-        {/* Shop Intro */}
-        <LinearGradient
-          colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.section, settings.darkMode && styles.sectionDark]}
-        >
-          <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Upgrade Your Setup</Text>
-          <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>Gear reduces energy drain and increases content quality. PC parts speed up rendering and uploading. Network upgrades improve upload speed.</Text>
-          <View style={styles.infoPillsRow}>
-            <View style={[styles.infoPill, styles.infoPillGreen]}>
-              <Zap size={16} color="#065F46" />
-              <Text style={styles.infoPillText}>Energy ↓</Text>
-            </View>
-            <View style={[styles.infoPill, styles.infoPillPurple]}>
-              <Camera size={16} color="#4C1D95" />
-              <Text style={styles.infoPillText}>Quality ↑</Text>
-            </View>
-            <View style={[styles.infoPill, styles.infoPillBlue]}>
-              <Clock size={16} color="#1E3A8A" />
-              <Text style={styles.infoPillText}>Time ↓</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        {/* Equipment */}
-        <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
-          <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Equipment</Text>
-          {equipmentList.map(item => {
-            const owned = !!eq[item.key];
-            return (
-              <View key={item.key} style={[styles.shopRow, settings.darkMode && styles.shopRowDark]}>
-                <View style={styles.shopRowLeft}>
-                  {item.key === 'microphone' && <Mic size={20} color={settings.darkMode ? '#F9FAFB' : '#111827'} />}
-                  {item.key === 'webcam' && <Camera size={20} color={settings.darkMode ? '#F9FAFB' : '#111827'} />}
-                  {item.key === 'lighting' && <Zap size={20} color={settings.darkMode ? '#FCD34D' : '#92400E'} />}
-                  {item.key === 'gamingChair' && <Star size={20} color={settings.darkMode ? '#F59E0B' : '#D97706'} />}
-                  {item.key === 'greenScreen' && <Award size={20} color={settings.darkMode ? '#60A5FA' : '#2563EB'} />}
-                  <View style={styles.shopTextBox}>
-                    <Text style={[styles.shopName, settings.darkMode && styles.shopNameDark]}>{item.name}</Text>
-                    <Text style={[styles.shopDesc, settings.darkMode && styles.shopDescDark]}>{getEquipmentEffect(item.key)}</Text>
-                  </View>
-                </View>
-                {owned ? (
-                  <View style={styles.ownedBadgeBox}><Text style={styles.ownedText}>Owned</Text></View>
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => buyEquipment(item.key, item.price)}
-                    disabled={money < item.price}
-                    style={[styles.priceChip, { opacity: money < item.price ? 0.5 : 1 }]}
-                  >
-                    <Text style={styles.buyButtonText}>Buy ${item.price}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            );
-          })}
-        </View>
-
-        {/* PC Components */}
-        <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
-          <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>PC Components</Text>
-          {componentsList.map(c => {
-            const level = lv[c.key] || 0;
-            const price = getNextUpgradePrice(c.key, level);
-            const currentModel = getComponentModel(c.key, level);
-            const nextModel = getComponentModel(c.key, level + 1);
-            const atMax = price == null;
-            return (
-              <View key={c.key} style={[styles.shopRow, settings.darkMode && styles.shopRowDark]}>
-                <View style={styles.shopRowLeft}>
-                  {c.key === 'cpu' && <Settings size={20} color={settings.darkMode ? '#F9FAFB' : '#111827'} />}
-                  {c.key === 'gpu' && <Video size={20} color={settings.darkMode ? '#F9FAFB' : '#111827'} />}
-                  {c.key === 'ram' && <Activity size={20} color={settings.darkMode ? '#F9FAFB' : '#111827'} />}
-                  {c.key === 'ssd' && <Zap size={20} color={settings.darkMode ? '#F59E0B' : '#D97706'} />}
-                  {c.key === 'cooling' && <Snowflake size={20} color={settings.darkMode ? '#F9FAFB' : '#111827'} />}
-                  {c.key === 'motherboard' && <Crown size={20} color={settings.darkMode ? '#60A5FA' : '#2563EB'} />}
-                  {c.key === 'psu' && <Zap size={20} color={settings.darkMode ? '#34D399' : '#059669'} />}
-                  {c.key === 'case' && <Square size={20} color={settings.darkMode ? '#F9FAFB' : '#111827'} />}
-                  {c.key === 'network' && <Activity size={20} color={settings.darkMode ? '#A78BFA' : '#7C3AED'} />}
-                  <View style={styles.shopTextBox}>
-                    <Text style={[styles.shopName, settings.darkMode && styles.shopNameDark]}>{c.name} • {currentModel}</Text>
-                    <Text style={[styles.shopDesc, settings.darkMode && styles.shopDescDark]}>{getComponentEffect(c.key)}</Text>
-                    <Text style={[styles.smallLabel, settings.darkMode && styles.smallLabelDark]}>
-                      {atMax ? 'Max level reached' : `Next: ${nextModel}`}
-                    </Text>
-                  </View>
-                </View>
-                {atMax ? (
-                  <View style={styles.ownedBadgeBox}><Text style={styles.ownedText}>Max</Text></View>
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => upgradeComponent(c.key)}
-                    disabled={!canAfford(price)}
-                    style={[styles.priceChip, { opacity: !canAfford(price) ? 0.5 : 1 }]}
-                  >
-                    <Text style={styles.buyButtonText}>Upgrade ${price}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    );
-  };
 
   return (
     <ErrorBoundary>
@@ -2677,7 +2413,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
           style={[styles.tab, activeTab === 'stream' && styles.activeTab]}
           onPress={() => setActiveTab('stream')}
         >
-          <Video size={18} color={activeTab === 'stream' ? '#FFFFFF' : '#6B7280'} />
+          <VideoIcon size={18} color={activeTab === 'stream' ? '#FFFFFF' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'stream' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
             Stream
           </Text>
@@ -2706,9 +2442,100 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
 
       {/* Content */}
       {activeTab === 'dashboard' && renderDashboard()}
-      {activeTab === 'stream' && renderStream()}
-      {activeTab === 'videos' && renderVideos()}
-      {activeTab === 'shop' && renderShop()}
+      {activeTab === 'stream' && (
+        <StreamingPanel
+          settings={settings}
+          styles={styles}
+          isStreaming={isStreaming}
+          gamingData={gamingData}
+          availableGames={availableGames}
+          selectedGame={selectedGame}
+          setSelectedGame={setSelectedGame}
+          subsMilestone={subsMilestone}
+          subsGoal={subsGoal}
+          donMilestone={donMilestone}
+          donGoal={donGoal}
+          computeEnergyPerSecond={computeEnergyPerSecond}
+          simpleScale={simpleScale}
+          streamDonations={streamDonations}
+          subPopups={subPopups}
+          GAME_IMAGES={GAME_IMAGES}
+          AnimatedPopup={AnimatedPopup}
+        />
+      )}
+      {activeTab === 'videos' && (
+        <VideoPanel
+          settings={settings}
+          styles={styles}
+          gamingData={gamingData}
+          availableGames={availableGames}
+          videoGame={videoGame}
+          setVideoGame={setVideoGame}
+          buyGame={buyGame}
+          videoTitle={videoTitle}
+          setVideoTitle={setVideoTitle}
+          isRecording={isRecording}
+          isRendering={isRendering}
+          isUploading={isUploading}
+          recordProgress={recordProgress}
+          renderProgress={renderProgress}
+          uploadProgress={uploadProgress}
+          startVideoRecording={startVideoRecording}
+          startRender={startRender}
+          startUpload={startUpload}
+          setShowSelectGameModal={setShowSelectGameModal}
+          setModalData={setModalData}
+          setShowRecordingInProgressModal={setShowRecordingInProgressModal}
+          updateVideoRecordingState={updateVideoRecordingState}
+          setRecordProgress={setRecordProgress}
+          computeEnergyPerSecond={computeEnergyPerSecond}
+          simpleScale={simpleScale}
+          GAME_IMAGES={GAME_IMAGES}
+          Shimmer={Shimmer}
+        />
+      )}
+      {activeTab === 'shop' && (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
+          {/* Shop Intro */}
+          <LinearGradient
+            colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.section, settings.darkMode && styles.sectionDark]}
+          >
+            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Upgrade Your Setup</Text>
+            <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>Gear reduces energy drain and increases content quality. PC parts speed up rendering and uploading. Network upgrades improve upload speed.</Text>
+            <View style={styles.infoPillsRow}>
+              <View style={[styles.infoPill, styles.infoPillGreen]}>
+                <Zap size={16} color="#065F46" />
+                <Text style={styles.infoPillText}>Energy ↓</Text>
+              </View>
+              <View style={[styles.infoPill, styles.infoPillPurple]}>
+                <Camera size={16} color="#4C1D95" />
+                <Text style={styles.infoPillText}>Quality ↑</Text>
+              </View>
+              <View style={[styles.infoPill, styles.infoPillBlue]}>
+                <Clock size={16} color="#1E3A8A" />
+                <Text style={styles.infoPillText}>Time ↓</Text>
+              </View>
+            </View>
+          </LinearGradient>
+          <EquipmentPanel
+            settings={settings}
+            styles={styles}
+            gamingData={gamingData}
+            money={money}
+            buyEquipment={buyEquipment}
+          />
+          <PCBuildPanel
+            settings={settings}
+            styles={styles}
+            gamingData={gamingData}
+            money={money}
+            upgradeComponent={upgradeComponent}
+          />
+        </ScrollView>
+      )}
 
       {/* Floating Action Button - Show when not streaming and no active stream state */}
       {selectedGame && activeTab === 'stream' && !isStreaming && (!gamingData.streamingState || gamingData.streamingState.streamProgress === 0) && (
@@ -3367,9 +3194,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B7280',
     marginLeft: simpleScale(4),
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   tabTextDark: {
-    color: '#9CA3AF',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   activeTabText: {
     color: '#FFFFFF',
@@ -3395,6 +3228,7 @@ const styles = StyleSheet.create({
     borderRadius: simpleScale(12),
     alignItems: 'center',
     marginBottom: simpleScale(8),
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -3417,15 +3251,22 @@ const styles = StyleSheet.create({
     fontSize: simpleFontScale(12),
     color: '#6B7280',
     marginTop: simpleScale(4),
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   statLabelDark: {
-    color: '#9CA3AF',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   levelCard: {
     backgroundColor: '#FFFFFF',
     padding: simpleScale(12),
     borderRadius: simpleScale(12),
     marginBottom: simpleScale(12),
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -3480,9 +3321,15 @@ const styles = StyleSheet.create({
     fontSize: simpleFontScale(12),
     color: '#6B7280',
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   progressTextDark: {
-    color: '#9CA3AF',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   progressButton: {
     position: 'relative',
@@ -3577,6 +3424,7 @@ const styles = StyleSheet.create({
     padding: simpleScale(12),
     borderRadius: simpleScale(12),
     marginBottom: simpleScale(12),
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -3770,6 +3618,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: simpleScale(12),
     borderRadius: simpleScale(12),
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -3792,6 +3641,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#EF4444',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -3842,6 +3692,7 @@ const styles = StyleSheet.create({
     borderRadius: simpleScale(8),
     borderLeftWidth: 4,
     borderLeftColor: '#F59E0B',
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -3942,6 +3793,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: simpleScale(400),
     borderRadius: simpleScale(16),
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

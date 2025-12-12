@@ -201,7 +201,6 @@ export class AppStoreOptimizer {
    */
   private optimizeTitle(): string {
     const baseTitle = 'DeepLife Sim';
-    const keywords = ['Life Simulation', 'Strategy Game', 'Economic Sim'];
     
     // A/B test different titles
     const titles = [

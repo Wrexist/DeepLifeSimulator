@@ -22,6 +22,7 @@ export default function Index() {
       ];
 
       let currentStep = 0;
+      let timeoutId: NodeJS.Timeout | null = null;
       const interval = setInterval(() => {
         if (currentStep < loadingSteps.length) {
           const step = loadingSteps[currentStep];
@@ -30,13 +31,19 @@ export default function Index() {
           currentStep++;
         } else {
           clearInterval(interval);
-          setTimeout(() => {
+          timeoutId = setTimeout(() => {
             setIsLoading(false);
+            timeoutId = null;
           }, 500);
         }
       }, 800);
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      };
     }
   }, [isPreloaded]);
 

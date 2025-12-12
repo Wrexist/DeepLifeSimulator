@@ -8,32 +8,19 @@ import {
   Modal,
   Alert,
   ScrollView,
-  Animated,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame, Loan } from '@/contexts/GameContext';
-import {
-  responsivePadding,
-  responsiveFontSize,
-  responsiveSpacing,
-  responsiveBorderRadius,
-  scale,
-  verticalScale,
-} from '@/utils/scaling';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { getShadow } from '@/utils/shadow';
+import { formatMoney } from '@/utils/formatMoney';
 import {
   CreditCard,
   TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Calendar,
-  Info,
   X,
   CheckCircle,
   AlertCircle,
   PiggyBank,
-  Calculator,
   Car,
 } from 'lucide-react-native';
 
@@ -50,7 +37,7 @@ const MAX_DEBT_TO_INCOME_RATIO = 0.4; // 40% of monthly income
 const EARLY_PAYOFF_DISCOUNT = 0.05; // 5% discount for early payoff
 
 export default function LoanManager() {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { buttonPress, haptic, success } = useFeedback(gameState.settings.hapticFeedback);
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showLoanDetails, setShowLoanDetails] = useState(false);
@@ -61,43 +48,58 @@ export default function LoanManager() {
   const [repayAmount, setRepayAmount] = useState('');
   const [repaySource, setRepaySource] = useState<'cash' | 'savings'>('cash');
 
-  // Get loans from game state (we'll need to add this to the GameState interface)
-  const loans = (gameState as any).loans || [];
+  // Get loans from game state
+  const loans = useMemo(() => gameState.loans || [], [gameState.loans]);
   const cash = gameState.stats.money;
   const savings = gameState.bankSavings || 0;
   const weeklyIncome = useMemo(() => {
     // Calculate weekly income from various sources
     let income = 0;
     
-    // Add job income
-    if (gameState.job) {
-      income += gameState.job.weeklySalary || 0;
-    }
+    // Add job income from careers
+    (gameState.careers || []).forEach(career => {
+      if (career.level > 0 && career.levels && career.levels[career.level - 1]) {
+        income += career.levels[career.level - 1].salary || 0;
+      }
+    });
     
     // Add business income
-    gameState.companies.forEach(company => {
+    (gameState.companies || []).forEach(company => {
       income += company.weeklyIncome || 0;
     });
     
     // Add rental income
-    gameState.realEstate.forEach(property => {
+    (gameState.realEstate || []).forEach(property => {
       if (property.owned) {
-        income += property.weeklyRent || 0;
+        income += property.rent || 0;
       }
     });
     
     return income;
-  }, [gameState]);
+  }, [gameState.careers, gameState.companies, gameState.realEstate]);
 
   // Calculate market APR based on economic conditions
   const marketAPR = useMemo(() => {
     const baseAPR = 0.08; // 8% base APR
-    const inflationFactor = (gameState.inflation || 0.02) * 2; // Inflation affects rates
+    const inflationRate = gameState.economy?.inflationRateAnnual || 0.02;
+    const inflationFactor = inflationRate * 2; // Inflation affects rates
     const riskFactor = Math.min(0.05, loans.length * 0.01); // More loans = higher risk
     const incomeFactor = weeklyIncome > 10000 ? -0.02 : 0.02; // Higher income = lower rates
     
-    return Math.max(0.05, Math.min(0.25, baseAPR + inflationFactor + riskFactor + incomeFactor));
-  }, [gameState.inflation, loans.length, weeklyIncome]);
+    // Get political perks if player has political career
+    let politicalInterestReduction = 0;
+    if (gameState.politics && gameState.politics.careerLevel > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getCombinedPerkEffects } = require('@/lib/politics/perks');
+      const perkEffects = getCombinedPerkEffects(gameState.politics.careerLevel);
+      politicalInterestReduction = perkEffects.loanInterestReduction / 100; // Convert percentage to decimal
+    }
+    
+    const calculatedAPR = baseAPR + inflationFactor + riskFactor + incomeFactor;
+    // Apply political perk reduction
+    const finalAPR = Math.max(0.01, calculatedAPR - politicalInterestReduction);
+    return Math.max(0.01, Math.min(0.25, finalAPR));
+  }, [gameState.economy?.inflationRateAnnual, loans.length, weeklyIncome, gameState.politics]);
 
   // Calculate loan eligibility
   const loanEligibility = useMemo(() => {
@@ -173,14 +175,15 @@ export default function LoanManager() {
     setGameState(prev => ({
       ...prev,
       stats: { ...prev.stats, money: prev.stats.money + amount },
-      loans: [...(prev as any).loans || [], newLoan],
+      loans: [...(prev.loans || []), newLoan],
     }));
     
+    saveGame();
     setShowLoanModal(false);
     setLoanAmount('');
     success('Loan approved and funds transferred!');
     Alert.alert('Loan Approved!', `You received ${formatMoney(amount)} at ${loanDetails.interestRate.toFixed(2)}% APR.`);
-  }, [loanAmount, loanEligibility.maxLoanAmount, selectedType, selectedTerm, marketAPR, loanDetails, gameState.week, setGameState]);
+  }, [loanAmount, loanEligibility.maxLoanAmount, selectedType, selectedTerm, marketAPR, loanDetails, gameState.week, setGameState, saveGame, buttonPress, haptic, success]);
 
   const repayLoan = useCallback((loanId: string, amount: number) => {
     buttonPress();
@@ -204,7 +207,7 @@ export default function LoanManager() {
     }
     
     setGameState(prev => {
-      const updatedLoans = (prev as any).loans.map((l: Loan) => 
+      const updatedLoans = (prev.loans || []).map((l: Loan) => 
         l.id === loanId 
           ? { ...l, remaining: Math.max(0, l.remaining - repayAmount) }
           : l
@@ -221,42 +224,11 @@ export default function LoanManager() {
       };
     });
     
+    saveGame();
     setRepayAmount('');
     success('Payment processed successfully!');
     Alert.alert('Payment Successful', `Paid ${formatMoney(finalAmount)}${discount > 0 ? ` (${(discount * 100).toFixed(1)}% early payoff discount)` : ''}.`);
-  }, [loans, repaySource, cash, savings, setGameState]);
-
-  const formatMoney = (amount: number) => {
-    const a = Math.floor(Math.abs(amount) || 0);
-    const sign = amount < 0 ? '-' : '';
-    
-    let formatted: string;
-    
-    if (a >= 1_000_000_000_000_000) {
-      // Quadrillions (Q)
-      formatted = `${(a / 1_000_000_000_000_000).toFixed(2)}Q`;
-    } else if (a >= 1_000_000_000_000) {
-      // Trillions (T)
-      formatted = `${(a / 1_000_000_000_000).toFixed(2)}T`;
-    } else if (a >= 1_000_000_000) {
-      // Billions (B)
-      formatted = `${(a / 1_000_000_000).toFixed(2)}B`;
-    } else if (a >= 1_000_000) {
-      // Millions (M)
-      formatted = `${(a / 1_000_000).toFixed(2)}M`;
-    } else if (a >= 1_000) {
-      // Thousands (K)
-      formatted = `${(a / 1_000).toFixed(2)}K`;
-    } else {
-      // Regular numbers
-      formatted = a.toString();
-    }
-    
-    // Remove trailing zeros and decimal point if not needed
-    formatted = formatted.replace(/\.00$/, '').replace(/\.0$/, '');
-    
-    return `$${sign}${formatted}`;
-  };
+  }, [loans, repaySource, cash, savings, setGameState, saveGame, buttonPress, haptic, success]);
 
   const getLoanTypeInfo = (type: string) => LOAN_TYPES.find(t => t.id === type) || LOAN_TYPES[0];
 
@@ -336,7 +308,7 @@ export default function LoanManager() {
                 ]}
                 onPress={() => {
                   buttonPress();
-                  setSelectedType(type.id as any);
+                  setSelectedType(type.id as 'personal' | 'business' | 'mortgage' | 'auto');
                 }}
               >
                 <type.icon size={20} color={selectedType === type.id ? '#FFFFFF' : type.color} />
@@ -714,11 +686,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 16,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...getShadow(4, '#000'),
   },
   containerDark: {
     backgroundColor: '#1F2937',
@@ -783,9 +751,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   summaryLabelDark: {
-    color: '#9CA3AF',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   summaryValue: {
     fontSize: 16,
@@ -846,9 +820,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   loanMetaDark: {
-    color: '#9CA3AF',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   loanAmount: {
     fontSize: 18,

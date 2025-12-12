@@ -26,6 +26,8 @@ import {
 import { iapService, IAPState } from '@/services/IAPService';
 import { getProductConfig, IAP_PRODUCTS, isPopularProduct, isBestValueProduct } from '@/utils/iapConfig';
 import { useGame } from '@/contexts/GameContext';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { logger } from '@/utils/logger';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -65,7 +67,7 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
         );
       }
     } catch (error) {
-      console.error('Purchase error:', error);
+      logger.error('Purchase error:', error);
       Alert.alert(
         'Purchase Error',
         'An unexpected error occurred. Please try again.',
@@ -171,7 +173,7 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
         );
       }
     } catch (error) {
-      console.error('Perk purchase error:', error);
+      logger.error('Perk purchase error:', error);
       Alert.alert(
         'Purchase Error',
         'An unexpected error occurred. Please try again.',
@@ -189,7 +191,7 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
         onClose();
       }
     } catch (error) {
-      console.error('Restore error:', error);
+      logger.error('Restore error:', error);
     }
   };
 
@@ -298,7 +300,7 @@ export default function PremiumStore({ visible, onClose }: PremiumStoreProps) {
               style={styles.purchaseButtonGradient}
             >
               {purchasingProduct === productId ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <LoadingSpinner visible size="small" color="#FFFFFF" variant="compact" />
               ) : hasPurchased ? (
                 <>
                   <CheckCircle size={20} color="#FFFFFF" />
@@ -582,6 +584,7 @@ const styles = StyleSheet.create({
   productCard: {
     borderRadius: 16,
     overflow: 'hidden',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

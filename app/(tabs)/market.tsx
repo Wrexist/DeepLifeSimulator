@@ -1,10 +1,12 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { ShoppingBag, Dumbbell, Apple } from 'lucide-react-native';
-import OptimizedFlatList from '@/components/OptimizedFlatList';
+import { ShoppingBag, Dumbbell, Apple, Smartphone, Skull, Heart, Layers } from 'lucide-react-native';
+import { OptimizedFlatList } from '@/components/OptimizedFlatList';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -12,10 +14,47 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
 
+// Item category mapping - outside component for stability
+const ITEM_CATEGORIES: Record<string, 'electronics' | 'crime' | 'lifestyle'> = {
+  smartphone: 'electronics',
+  computer: 'electronics',
+  gloves: 'crime',
+  usb: 'crime',
+  lockpick: 'crime',
+  slim_jim: 'crime',
+  drill_kit: 'crime',
+  explosives: 'crime',
+  crowbar: 'crime',
+  drug_supply: 'crime',
+  guitar: 'lifestyle',
+  bike: 'lifestyle',
+  suit: 'lifestyle',
+  basic_bed: 'lifestyle',
+  gym_membership: 'lifestyle',
+  passport: 'lifestyle',
+};
+
+// Filter categories config
+const FILTER_CATEGORIES = [
+  { id: 'all', label: 'All', icon: Layers, color: '#6366F1' },
+  { id: 'electronics', label: 'Electronics', icon: Smartphone, color: '#3B82F6' },
+  { id: 'crime', label: 'Crime', icon: Skull, color: '#EF4444' },
+  { id: 'lifestyle', label: 'Lifestyle', icon: Heart, color: '#10B981' },
+] as const;
+
 export default function MarketScreen() {
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym'>('items');
   const { gameState, buyItem, sellItem, buyFood, updateStats } = useGame();
+
+  // Prevent staying on market screen when in prison - redirect to work tab
+  useEffect(() => {
+    if (gameState.jailWeeks > 0) {
+      router.replace('/(tabs)/work');
+    }
+  }, [gameState.jailWeeks, router]);
   const { highlightedItem, highlightMessage, clearHighlight } = useTutorialHighlight();
   const { settings } = gameState;
   const { showSuccess, showError, showInfo } = useToast();
@@ -23,6 +62,7 @@ export default function MarketScreen() {
   const [showSellConfirm, setShowSellConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
   const [showPurchaseConfirm, setShowPurchaseConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
+  const [activeFilter, setActiveFilter] = useState<'all' | 'electronics' | 'crime' | 'lifestyle'>('all');
 
   const setLoading = (key: string, loading: boolean) => {
     setLoadingStates(prev => ({ ...prev, [key]: loading }));
@@ -89,16 +129,31 @@ export default function MarketScreen() {
   const [contentHeight, setContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
-  // Memoized data
-  const sortedItems = useMemo(() => 
-    [...gameState.items].sort((a, b) => a.price - b.price), 
-    [gameState.items]
-  );
+  // Memoized data with stable sorting and filtering
+  const sortedItems = useMemo(() => {
+    const filtered = activeFilter === 'all' 
+      ? [...gameState.items]
+      : [...gameState.items].filter(item => ITEM_CATEGORIES[item.id] === activeFilter);
+    
+    return filtered.sort((a, b) => {
+      // Sort by price first, then by name for stability
+      if (a.price !== b.price) return a.price - b.price;
+      return a.name.localeCompare(b.name);
+    });
+  }, [gameState.items, activeFilter]);
   
   const sortedFoods = useMemo(() => 
-    [...gameState.foods].sort((a, b) => a.price - b.price), 
+    [...gameState.foods].sort((a, b) => {
+      // Sort by price first, then by name for stability
+      if (a.price !== b.price) return a.price - b.price;
+      return a.name.localeCompare(b.name);
+    }), 
     [gameState.foods]
   );
+  
+  // Memoize canAfford function
+  const canAfford = useCallback((price: number) => gameState.stats.money >= price, [gameState.stats.money]);
+  const canUseGym = useMemo(() => gameState.stats.money >= 50 && gameState.stats.energy >= 20, [gameState.stats.money, gameState.stats.energy]);
 
   // Auto-switch to items tab if tutorial is highlighting an item
   React.useEffect(() => {
@@ -119,8 +174,8 @@ export default function MarketScreen() {
     }
   }, [highlightedItem, sortedItems]);
 
-  // Memoized render functions
-  const renderItem = useCallback(({ item }: { item: any }) => {
+  // Memoized render functions with proper dependencies
+  const renderItem = useCallback(({ item }: { item: typeof gameState.items[0] }) => {
     const isHighlighted = highlightedItem === item.id;
     
     return (
@@ -138,10 +193,10 @@ export default function MarketScreen() {
           )}
           <Text style={styles.itemPrice}>${item.price}</Text>
           
-          {item.dailyBonus && (
+          {item.weeklyBonus && (
             <View style={styles.bonusInfo}>
-              <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.dailyBonus')}</Text>
-              {Object.entries(item.dailyBonus).map(([stat, bonus]) => (
+              <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.weeklyBonus')}</Text>
+              {Object.entries(item.weeklyBonus).map(([stat, bonus]) => (
                 <Text key={stat} style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>
                   +{String(bonus)} {stat.charAt(0).toUpperCase() + stat.slice(1)}
                 </Text>
@@ -199,10 +254,14 @@ export default function MarketScreen() {
         )}
       </View>
     );
-  }, [settings.darkMode, gameState.economy?.priceIndex, sellItem, buyItem, highlightedItem, highlightMessage]);
+  }, [settings.darkMode, gameState.economy?.priceIndex, gameState.items, highlightedItem, loadingStates, canAfford, handleSell, handlePurchase, showError, showSuccess, showInfo, setShowSellConfirm, setShowPurchaseConfirm]);
 
-  const renderFood = useCallback(({ item: food }: { item: any }) => (
-    <View key={food.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
+  const renderFood = useCallback(({ item: food }: { item: typeof gameState.foods[0] }) => {
+    // Calculate happiness restore based on food quality (healthRestore / 2, rounded, minimum 1)
+    const happinessRestore = Math.max(1, Math.round(food.healthRestore / 2));
+    
+    return (
+      <View key={food.id} style={[styles.itemCard, settings.darkMode && styles.itemCardDark]}>
       <View style={styles.itemInfo}>
         <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{food.name}</Text>
         <Text style={styles.itemPrice}>${food.price}</Text>
@@ -211,6 +270,7 @@ export default function MarketScreen() {
           <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.restores')}</Text>
           <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{food.healthRestore} {t('game.health')}</Text>
           <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{food.energyRestore} {t('game.energy')}</Text>
+          <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{happinessRestore} {t('game.happiness')}</Text>
         </View>
       </View>
 
@@ -218,7 +278,7 @@ export default function MarketScreen() {
         onPress={() => {
           if (canAfford(food.price)) {
             buyFood(food.id);
-            showSuccess(`Ate ${food.name}! +${food.healthRestore} health, +${food.happinessRestore} happiness`);
+            showSuccess(`Ate ${food.name}! +${food.healthRestore} health, +${happinessRestore} happiness, +${food.energyRestore} energy`);
           } else {
             showError("Can't afford this food");
           }
@@ -229,10 +289,11 @@ export default function MarketScreen() {
         size="small"
         style={styles.buyButton}
       />
-    </View>
-  ), [settings.darkMode, buyFood]);
+      </View>
+    );
+  }, [settings.darkMode, buyFood, canAfford, showSuccess, showError, t]);
 
-  const handleGym = () => {
+  const handleGym = useCallback(() => {
     const cost = 50;
     const energyCost = 20;
 
@@ -240,16 +301,14 @@ export default function MarketScreen() {
     if (gameState.stats.energy < energyCost) return;
 
     updateStats({
-      money: gameState.stats.money - cost,
-      energy: gameState.stats.energy - energyCost,
-      fitness: gameState.stats.fitness + 5,
-      health: gameState.stats.health + 3,
-      happiness: gameState.stats.happiness + 2,
+      money: -cost,
+      energy: -energyCost,
+      fitness: 5,
+      health: 3,
+      happiness: 2,
     });
-  };
+  }, [gameState.stats.money, gameState.stats.energy, updateStats]);
 
-  const canAfford = (price: number) => gameState.stats.money >= price;
-  const canUseGym = gameState.stats.money >= 50 && gameState.stats.energy >= 20;
 
   // Calculate scroll indicator position
   const scrollIndicatorHeight = Math.max(20, (scrollViewHeight / contentHeight) * scrollViewHeight);
@@ -319,13 +378,61 @@ export default function MarketScreen() {
               <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
                 {t('market.purchaseItems')}
               </Text>
+              
+              {/* Filter Bar */}
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterContainer}
+                contentContainerStyle={styles.filterContent}
+              >
+                {FILTER_CATEGORIES.map((category) => {
+                  const isActive = activeFilter === category.id;
+                  const IconComponent = category.icon;
+                  return (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[
+                        styles.filterButton,
+                        settings.darkMode && styles.filterButtonDark,
+                        isActive && { backgroundColor: category.color, borderColor: category.color },
+                      ]}
+                      onPress={() => setActiveFilter(category.id as typeof activeFilter)}
+                      activeOpacity={0.7}
+                    >
+                      <IconComponent 
+                        size={14} 
+                        color={isActive ? '#FFFFFF' : (settings.darkMode ? '#9CA3AF' : '#6B7280')} 
+                      />
+                      <Text style={[
+                        styles.filterButtonText,
+                        settings.darkMode && styles.filterButtonTextDark,
+                        isActive && styles.filterButtonTextActive,
+                      ]}>
+                        {category.label}
+                      </Text>
+                      {isActive && (
+                        <View style={[styles.filterCount, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
+                          <Text style={styles.filterCountText}>
+                            {category.id === 'all' 
+                              ? gameState.items.length 
+                              : gameState.items.filter(item => ITEM_CATEGORIES[item.id] === category.id).length
+                            }
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
               <OptimizedFlatList
                 ref={flatListRef}
                 data={sortedItems}
                 renderItem={renderItem}
                 itemHeight={120}
-                contentContainerStyle={{ paddingBottom: 20 }}
-                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}
+                showsVerticalScrollIndicator={true}
                 removeClippedSubviews={true}
                 maxToRenderPerBatch={5}
                 windowSize={5}
@@ -341,8 +448,8 @@ export default function MarketScreen() {
                 data={sortedFoods}
                 renderItem={renderFood}
                 itemHeight={100}
-                contentContainerStyle={{ paddingBottom: 20 }}
-                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}
+                showsVerticalScrollIndicator={true}
                 removeClippedSubviews={true}
                 maxToRenderPerBatch={5}
                 windowSize={5}
@@ -353,7 +460,7 @@ export default function MarketScreen() {
           <View style={{ flex: 1, position: 'relative' }}>
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}
               showsVerticalScrollIndicator={false}
               onScroll={Animated.event(
                 [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -539,9 +646,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#6B7280',
     marginLeft: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   tabTextDark: {
-    color: '#D1D5DB',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   activeTabText: {
     color: '#FFFFFF',
@@ -556,9 +669,62 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 20,
     lineHeight: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   sectionDescriptionDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+  },
+  // Filter bar styles
+  filterContainer: {
+    marginBottom: 16,
+    maxHeight: 44,
+  },
+  filterContent: {
+    paddingHorizontal: 0,
+    gap: 8,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    gap: 6,
+  },
+  filterButtonDark: {
+    backgroundColor: '#374151',
+    borderColor: '#4B5563',
+  },
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  filterButtonTextDark: {
     color: '#9CA3AF',
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  filterCount: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  filterCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowRadius: 2,
   },
   itemCard: {
     backgroundColor: '#FFFFFF',
@@ -568,6 +734,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -593,9 +760,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   itemDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   itemPrice: {
     fontSize: 18,
@@ -656,6 +829,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     marginBottom: 20,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -781,6 +955,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#6B7280',
   },
   highlightedCard: {
+    boxShadow: '0px 0px 15px rgba(245, 158, 11, 1)',
     shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,

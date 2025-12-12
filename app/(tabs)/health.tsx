@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { Activity, Utensils, CircleCheck as CheckCircle } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export default function HealthScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { gameState, performHealthActivity, toggleDietPlan, setGameState } = useGame();
   const { settings } = gameState;
   const [healthFeedback, setHealthFeedback] = useState<{ [key: string]: string }>({});
+
+  // Prevent staying on health screen when in prison - redirect to work tab
+  useEffect(() => {
+    if (gameState.jailWeeks > 0) {
+      router.replace('/(tabs)/work');
+    }
+  }, [gameState.jailWeeks, router]);
 
   const canAfford = (price: number) => gameState.stats.money >= price;
   const canPerformActivity = (activity: any) => {
@@ -54,7 +63,7 @@ export default function HealthScreen() {
             {t('health.investMentalPhysical')}
           </Text>
 
-          {gameState.healthActivities.map(activity => (
+          {gameState.healthActivities.filter(activity => activity.id !== 'vacation').map(activity => (
             <View key={activity.id} style={[styles.activityCard, settings.darkMode && styles.activityCardDark]}>
               <View style={styles.activityInfo}>
                 <Text style={[styles.activityName, settings.darkMode && styles.activityNameDark]}>{activity.name}</Text>
@@ -222,6 +231,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -351,6 +361,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

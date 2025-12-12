@@ -125,6 +125,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -138,6 +139,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   glowCard: {
+    boxShadow: '0px 4px 12px rgba(59, 130, 246, 0.2)',
     shadowColor: '#3B82F6',
     shadowOpacity: 0.2,
     shadowRadius: 12,

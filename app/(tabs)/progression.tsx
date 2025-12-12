@@ -5,16 +5,29 @@ import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, BarChart3, Bell } 
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
 import ClickerGame from '@/components/hobbies/ClickerGame';
-import EnhancedAchievementScreen from '@/components/EnhancedAchievementScreen';
 import EnhancedDataVisualization from '@/components/EnhancedDataVisualization';
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
+import PrestigeStatsCard from '@/components/PrestigeStatsCard';
+import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
+import PrestigeShopModal from '@/components/PrestigeShopModal';
+
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default function ProgressionScreen() {
+  return (
+    <ErrorBoundary>
+      <ProgressionScreenContent />
+    </ErrorBoundary>
+  );
+}
+
+function ProgressionScreenContent() {
   const { gameState, checkAchievements } = useGame();
   const [activeHobby, setActiveHobby] = useState<string | null>(null);
-  const [showEnhancedAchievements, setShowEnhancedAchievements] = useState(false);
   const [showDataVisualization, setShowDataVisualization] = useState(false);
   const [showSmartNotifications, setShowSmartNotifications] = useState(false);
+  const [showPrestigeHistory, setShowPrestigeHistory] = useState(false);
+  const [showPrestigeShop, setShowPrestigeShop] = useState(false);
 
   React.useEffect(() => {
     checkAchievements();
@@ -42,7 +55,7 @@ export default function ProgressionScreen() {
       case 'health': return { icon: Zap, color: '#06B6D4' };
       case 'items': return { icon: Target, color: '#3B82F6' };
       case 'special': return { icon: Crown, color: '#7C2D12' };
-      default: return { icon: Trophy, color: '#6B7280' };
+      default: return { icon: Trophy, color: settings?.darkMode ? '#FFFFFF' : '#6B7280' };
     }
   };
   return (
@@ -53,18 +66,18 @@ export default function ProgressionScreen() {
           <Text style={styles.title}>Your Progress</Text>
         </View>
 
+        {/* Prestige Section */}
+        {gameState.prestige && gameState.prestige.prestigeLevel > 0 && (
+          <PrestigeStatsCard
+            onPress={() => setShowPrestigeHistory(true)}
+            onShopPress={() => setShowPrestigeShop(true)}
+          />
+        )}
+
         {/* Enhanced Features Section */}
         <View style={styles.enhancedFeaturesSection}>
           <Text style={styles.sectionTitle}>Enhanced Features</Text>
           <View style={styles.featureButtons}>
-            <TouchableOpacity
-              style={styles.featureButton}
-              onPress={() => setShowEnhancedAchievements(true)}
-            >
-              <Trophy size={24} color="#F59E0B" />
-              <Text style={styles.featureButtonText}>Enhanced Achievements</Text>
-            </TouchableOpacity>
-            
             <TouchableOpacity
               style={styles.featureButton}
               onPress={() => setShowDataVisualization(true)}
@@ -144,11 +157,12 @@ export default function ProgressionScreen() {
                     <View style={styles.achievementInfo}>
                       <Text style={[
                         styles.achievementName,
-                        achievement.completed && styles.completedAchievement
+                        achievement.completed && styles.completedAchievement,
+                        settings?.darkMode && !achievement.completed && { color: '#FFFFFF' }
                       ]}>
                         {achievement.name}
                       </Text>
-                      <Text style={styles.achievementDescription}>
+                      <Text style={[styles.achievementDescription, settings?.darkMode && styles.achievementDescriptionDark]}>
                         {achievement.description}
                       </Text>
                     </View>
@@ -174,7 +188,7 @@ export default function ProgressionScreen() {
             <View style={styles.statCard}>
               <TrendingUp size={20} color="#3B82F6" />
               <Text style={styles.statValue}>{Math.floor(gameState.date.age)}</Text>
-              <Text style={styles.statLabel}>Age</Text>
+              <Text style={[styles.statLabel, settings?.darkMode && styles.statLabelDark]}>Age</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{gameState.week}</Text>
@@ -194,7 +208,6 @@ export default function ProgressionScreen() {
       
       {/* Enhanced Components */}
         <ClickerGame visible={!!activeHobby} hobbyId={activeHobby ?? ''} onClose={() => setActiveHobby(null)} />
-        <EnhancedAchievementScreen visible={showEnhancedAchievements} onClose={() => setShowEnhancedAchievements(false)} />
         <EnhancedDataVisualization darkMode={gameState.settings.darkMode} compact={false} />
         <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
     </View>
@@ -226,6 +239,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     marginBottom: 30,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -247,6 +261,15 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 16,
     color: '#6B7280',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  progressTextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   progressPercent: {
     fontSize: 20,
@@ -295,6 +318,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -312,6 +336,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B7280',
     marginBottom: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   completedAchievement: {
     color: '#1F2937',
@@ -336,6 +363,7 @@ const styles = StyleSheet.create({
     width: '48%',
     alignItems: 'center',
     marginBottom: 12,
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -353,6 +381,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  statLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   minigamesSection: {
     marginBottom: 30,
@@ -369,6 +406,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

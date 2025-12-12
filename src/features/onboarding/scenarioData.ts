@@ -86,6 +86,6 @@ export const scenarios: Scenario[] = [
     description: 'You want to go live. Can you build an audience streaming and uploading?',
     bonus: 'Start with $1,000, a smartphone, and a computer for editing/streaming.',
     start: { age: 20, cash: 1000, items: ['smartphone', 'computer'] },
-    icon: require('@/assets/images/Scenarios/Influencer Wannabe.png'),
+    icon: require('@/assets/images/Scenarios/Aspiring Streamer.png'),
   },
 ];

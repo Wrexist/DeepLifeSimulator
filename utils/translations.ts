@@ -1,3 +1,5 @@
+import { logger } from '@/utils/logger';
+
 export type Language = 'English' | 'Svenska' | 'Español' | 'Français' | 'Deutsch';
 
 export interface TranslationKeys {
@@ -116,7 +118,7 @@ export interface TranslationKeys {
     items: string;
     food: string;
     gym: string;
-    dailyBonus: string;
+    weeklyBonus: string;
     restores: string;
     gymSession: string;
     currentFitness: string;
@@ -369,13 +371,13 @@ const translations: Record<Language, TranslationKeys> = {
       items: 'Items',
       food: 'Food',
       gym: 'Gym',
-      dailyBonus: 'Daily Bonus:',
+      weeklyBonus: 'Weekly Bonus:',
       restores: 'Restores:',
       gymSession: 'Gym Session',
       currentFitness: 'Current Fitness:',
       cost: 'Cost:',
       energyCost: 'Energy Cost:',
-      purchaseItems: 'Purchase items to unlock new opportunities and daily bonuses!',
+      purchaseItems: 'Purchase items to unlock new opportunities and weekly bonuses!',
       buyFood: 'Buy food to restore your health and energy instantly!',
       trainGym: 'Train at the gym to improve your fitness, health, and happiness!',
       gymDescription: 'A good workout session will boost your stats and make you feel great!',
@@ -609,7 +611,7 @@ const translations: Record<Language, TranslationKeys> = {
       items: 'Föremål',
       food: 'Mat',
       gym: 'Gym',
-      dailyBonus: 'Daglig bonus:',
+      weeklyBonus: 'Ukentlig bonus:',
       restores: 'Återställer:',
       gymSession: 'Gympass',
       currentFitness: 'Nuvarande kondition:',
@@ -849,7 +851,7 @@ const translations: Record<Language, TranslationKeys> = {
       items: 'Artículos',
       food: 'Comida',
       gym: 'Gimnasio',
-      dailyBonus: 'Bono diario:',
+      weeklyBonus: 'Bono semanal:',
       restores: 'Restaura:',
       gymSession: 'Sesión de gimnasio',
       currentFitness: 'Condición física actual:',
@@ -1089,7 +1091,7 @@ const translations: Record<Language, TranslationKeys> = {
       items: 'Objets',
       food: 'Nourriture',
       gym: 'Salle de sport',
-      dailyBonus: 'Bonus quotidien :',
+      weeklyBonus: 'Bonus hebdomadaire :',
       restores: 'Restaure :',
       gymSession: 'Séance de sport',
       currentFitness: 'Forme physique actuelle :',
@@ -1329,7 +1331,7 @@ const translations: Record<Language, TranslationKeys> = {
       items: 'Gegenstände',
       food: 'Nahrung',
       gym: 'Fitnessstudio',
-      dailyBonus: 'Täglicher Bonus:',
+      weeklyBonus: 'Wöchentlicher Bonus:',
       restores: 'Stellt wieder her:',
       gymSession: 'Fitnesssession',
       currentFitness: 'Aktuelle Fitness:',
@@ -1480,7 +1482,7 @@ export function t(language: Language, key: string): string {
     } else {
       // Debug logging for missing translations
       if (__DEV__) {
-        console.warn('Translation not found:', { language, key, missingKey: k, availableKeys: value ? Object.keys(value) : 'undefined' });
+        logger.warn('Translation not found:', { language, key, missingKey: k, availableKeys: value ? Object.keys(value) : 'undefined' });
       }
       return key; // Return key if translation not found
     }
@@ -1490,7 +1492,7 @@ export function t(language: Language, key: string): string {
   
   // Debug logging to catch any potential prefix issues
   if (__DEV__ && typeof result === 'string' && (result.includes('computer.') || result.includes('mobile.') || result.includes('work.') || result.includes('market.') || result.includes('health.'))) {
-    console.warn('Translation result contains potential prefix issue:', { language, key, result });
+    logger.warn('Translation result contains potential prefix issue:', { language, key, result });
   }
   
   return result;

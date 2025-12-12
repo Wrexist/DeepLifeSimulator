@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,12 +22,18 @@ import {
   PawPrint,
   GraduationCap,
   CreditCard,
-  Gamepad2
+  Gamepad2,
+  Plane,
+  Vote,
+  BarChart3,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
+import { useRouter } from 'expo-router';
+
+// Import app components directly (no lazy loading)
 import BitcoinMiningApp from '@/components/computer/BitcoinMiningApp';
 import RealEstateApp from '@/components/computer/RealEstateApp';
 import OnionApp from '@/components/computer/OnionApp';
@@ -40,6 +46,10 @@ import CompanyApp from '@/components/mobile/CompanyApp';
 import PetApp from '@/components/mobile/PetApp';
 import EducationApp from '@/components/mobile/EducationApp';
 import AdvancedBankApp from '@/components/computer/AdvancedBankApp';
+import TravelApp from '@/components/computer/TravelApp';
+import PoliticalApp from '@/components/computer/PoliticalApp';
+import StatisticsApp from '@/components/computer/StatisticsApp';
+
 import { 
   responsivePadding, 
   responsiveFontSize, 
@@ -50,16 +60,41 @@ import {
   isLargeDevice,
   screenDimensions,
   isTablet,
+  fontScale,
+  scale,
 } from '@/utils/scaling';
+import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function ComputerScreen() {
+  return (
+    <ErrorBoundary>
+      <ComputerScreenContent />
+    </ErrorBoundary>
+  );
+}
+
+function ComputerScreenContent() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
+  const [appCategory, setAppCategory] = useState<'desktop' | 'mobile'>('desktop');
   const { gameState } = useGame();
   const { highlightedItem, highlightMessage } = useTutorialHighlight();
   const { settings } = gameState;
+  const router = useRouter();
+
+  // Prevent staying on computer screen when in prison - redirect to work tab
+  useEffect(() => {
+    if (gameState.jailWeeks > 0) {
+      router.replace('/(tabs)/work');
+    }
+  }, [gameState.jailWeeks, router]);
   const navigation = useNavigation<any>();
 
   // Reset to apps grid when the Computer tab is pressed
@@ -70,52 +105,8 @@ export default function ComputerScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  if (!gameState.items.find(item => item.id === 'computer')?.owned) {
-    return (
-      <LinearGradient
-        colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
-        style={styles.container}
-      >
-        <View style={styles.noComputerContainer}>
-          <View style={styles.noComputerIconContainer}>
-            <Monitor size={80} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
-          </View>
-          <Text style={[styles.noComputerTitle, settings.darkMode && styles.noComputerTitleDark]}>
-            {t('computer.noComputerAvailable')}
-          </Text>
-          <Text style={[styles.noComputerMessage, settings.darkMode && styles.noComputerMessageDark]}>
-            {t('computer.noComputerMessage')}
-          </Text>
-        </View>
-      </LinearGradient>
-    );
-  }
-
-  if (activeApp) {
-    const apps = {
-      bitcoin: BitcoinMiningApp,
-      realestate: RealEstateApp,
-      onion: OnionApp,
-      tinder: DatingApp,
-      contacts: ContactsApp,
-      social: SocialApp,
-      stocks: StocksApp,
-      bank: AdvancedBankApp,
-      education: EducationApp,
-      company: CompanyApp,
-      paw: PetApp,
-      gaming: GamingApp,
-    };
-
-    const AppComponent = apps[activeApp as keyof typeof apps];
-    return <AppComponent onBack={() => setActiveApp(null)} />;
-  }
-
-  const columns = isTablet() ? 3 : 2;
-  const cardGap = responsiveSpacing.sm;
-  const horizontalPad = responsivePadding.horizontal;
-  const cardWidth = (screenWidth - horizontalPad * 2 - cardGap * (columns - 1)) / columns;
-  const apps = [
+  // Memoize apps list - must be called before any early returns (Rules of Hooks)
+  const appsList = useMemo(() => [
     {
       id: 'bitcoin',
       name: t('computer.crypto'),
@@ -224,7 +215,96 @@ export default function ComputerScreen() {
       iconGradient: ['#D97706', '#CA8A04'],
       available: true,
     },
-  ];
+    {
+      id: 'travel',
+      name: 'Travel',
+      description: 'Book trips and explore the world',
+      icon: Plane,
+      gradient: ['#0EA5E9', '#0284C7'], // Sky blue gradient for travel
+      iconGradient: ['#0EA5E9', '#0284C7'],
+      available: true,
+    },
+    {
+      id: 'political',
+      name: 'Political Office',
+      description: 'Manage your political career',
+      icon: Vote,
+      gradient: ['#DC2626', '#B91C1C'], // Red gradient for politics
+      iconGradient: ['#DC2626', '#B91C1C'],
+      available: gameState.careers.some(c => c.id === 'political' && c.accepted),
+    },
+    {
+      id: 'statistics',
+      name: 'Statistics',
+      description: 'View lifetime stats and analytics',
+      icon: BarChart3,
+      gradient: ['#10B981', '#059669'], // Green gradient for statistics
+      iconGradient: ['#10B981', '#059669'],
+      available: true,
+    },
+  ], [t, gameState.careers]);
+
+  // Separate apps into categories
+  const desktopApps = useMemo(() => appsList.filter(app => 
+    ['bitcoin', 'realestate', 'onion', 'gaming', 'travel', 'political', 'statistics'].includes(app.id)
+  ), [appsList]);
+  
+  const mobileApps = useMemo(() => appsList.filter(app => 
+    ['tinder', 'contacts', 'social', 'stocks', 'bank', 'education', 'company', 'paw'].includes(app.id)
+  ), [appsList]);
+  
+  // Get apps for current category
+  const displayedApps = appCategory === 'desktop' ? desktopApps : mobileApps;
+
+  if (!gameState.items.find(item => item.id === 'computer')?.owned) {
+    return (
+      <LinearGradient
+        colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
+        style={styles.container}
+      >
+        <View style={styles.noComputerContainer}>
+          <View style={styles.noComputerIconContainer}>
+            <Monitor size={80} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+          </View>
+          <Text style={[styles.noComputerTitle, settings.darkMode && styles.noComputerTitleDark]}>
+            {t('computer.noComputerAvailable')}
+          </Text>
+          <Text style={[styles.noComputerMessage, settings.darkMode && styles.noComputerMessageDark]}>
+            {t('computer.noComputerMessage')}
+          </Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  if (activeApp) {
+    const apps = {
+      bitcoin: BitcoinMiningApp,
+      realestate: RealEstateApp,
+      onion: OnionApp,
+      tinder: DatingApp,
+      contacts: ContactsApp,
+      social: SocialApp,
+      stocks: StocksApp,
+      bank: AdvancedBankApp,
+      education: EducationApp,
+      company: CompanyApp,
+      paw: PetApp,
+      gaming: GamingApp,
+      travel: TravelApp,
+      political: PoliticalApp,
+      statistics: StatisticsApp,
+    };
+
+    const AppComponent = apps[activeApp as keyof typeof apps];
+    
+    return <AppComponent onBack={() => setActiveApp(null)} />;
+  }
+
+  const columns = 3;
+  const cardGap = responsiveSpacing.sm;
+  const horizontalPad = responsivePadding.horizontal;
+  const cardWidth = (screenWidth - horizontalPad * 2 - cardGap * (columns - 1)) / columns;
 
   return (
     <LinearGradient
@@ -243,9 +323,72 @@ export default function ComputerScreen() {
         </Text>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={true}>
+      {/* Category Tabs */}
+      <View style={[
+        styles.categoryTabsContainer,
+        { borderBottomColor: settings.darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }
+      ]}>
+        <TouchableOpacity
+          style={[
+            styles.categoryTab,
+            appCategory === 'desktop' && styles.categoryTabActive,
+          ]}
+          onPress={() => setAppCategory('desktop')}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={appCategory === 'desktop' 
+              ? (settings.darkMode ? ['#3B82F6', '#2563EB'] : ['#3B82F6', '#2563EB'])
+              : (settings.darkMode ? ['#374151', '#4B5563'] : ['#E5E7EB', '#D1D5DB'])
+            }
+            style={styles.categoryTabGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Text style={[
+              styles.categoryTabText,
+              appCategory === 'desktop' && styles.categoryTabTextActive,
+              settings.darkMode && styles.categoryTabTextDark,
+            ]}>
+              Desktop Apps
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.categoryTab,
+            appCategory === 'mobile' && styles.categoryTabActive,
+          ]}
+          onPress={() => setAppCategory('mobile')}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={appCategory === 'mobile'
+              ? (settings.darkMode ? ['#3B82F6', '#2563EB'] : ['#3B82F6', '#2563EB'])
+              : (settings.darkMode ? ['#374151', '#4B5563'] : ['#E5E7EB', '#D1D5DB'])
+            }
+            style={styles.categoryTabGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Text style={[
+              styles.categoryTabText,
+              appCategory === 'mobile' && styles.categoryTabTextActive,
+              settings.darkMode && styles.categoryTabTextDark,
+            ]}>
+              Mobile Apps
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         <View style={styles.appsGrid}>
-          {apps.map((app) => {
+          {displayedApps.map((app) => {
             const isHighlighted = highlightedItem === 'stock-app' && app.id === 'stocks';
             return (
               <TouchableOpacity
@@ -271,7 +414,7 @@ export default function ComputerScreen() {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <app.icon size={responsiveIconSize.lg} color="#FFFFFF" />
+                    <app.icon size={responsiveIconSize.md} color="#FFFFFF" />
                   </LinearGradient>
                 </View>
                 <Text style={styles.appName}>{app.name}</Text>
@@ -289,6 +432,23 @@ export default function ComputerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  loadingContainerDark: {
+    backgroundColor: '#1F2937',
+  },
+  loadingText: {
+    marginTop: responsiveSpacing.md,
+    fontSize: responsiveFontSize.md,
+    color: '#6B7280',
+  },
+  loadingTextDark: {
+    color: '#D1D5DB',
   },
   header: {
     paddingTop: responsivePadding.vertical,
@@ -333,6 +493,7 @@ const styles = StyleSheet.create({
   appCard: {
     aspectRatio: 1,
     borderRadius: responsiveBorderRadius.lg,
+    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -343,7 +504,7 @@ const styles = StyleSheet.create({
   appCardGradient: {
     flex: 1,
     borderRadius: responsiveBorderRadius.lg,
-    padding: responsiveSpacing.sm,
+    padding: responsiveSpacing.xs,
     justifyContent: 'flex-start',
     alignItems: 'center',
     paddingTop: responsiveSpacing.xs,
@@ -352,11 +513,12 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs,
   },
   appIconGradient: {
-    width: responsiveIconSize['2xl'],
-    height: responsiveIconSize['2xl'],
-    borderRadius: responsiveIconSize['2xl'] / 2,
+    width: responsiveIconSize.xl,
+    height: responsiveIconSize.xl,
+    borderRadius: responsiveIconSize.xl / 2,
     justifyContent: 'center',
     alignItems: 'center',
+    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.15)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -366,18 +528,18 @@ const styles = StyleSheet.create({
     marginBottom: 0, // No bottom margin
   },
   appName: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: responsiveFontSize.xs,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.xs / 2,
     textAlign: 'center',
     textShadow: '0px 1px 2px rgba(0, 0, 0, 0.2)',
   },
   appDescription: {
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(9),
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    lineHeight: responsiveFontSize.xs * 1.3,
+    lineHeight: fontScale(9) * 1.3,
     textShadow: '0px 1px 1px rgba(0, 0, 0, 0.2)',
     maxWidth: '90%', // Prevent text from overflowing
   },
@@ -410,11 +572,45 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   highlightedCard: {
+    boxShadow: '0px 0px 15px rgba(245, 158, 11, 1)',
     shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 15,
     elevation: 12,
     transform: [{ scale: 1.02 }],
+  },
+  categoryTabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: responsivePadding.horizontal,
+    paddingVertical: responsiveSpacing.sm,
+    gap: responsiveSpacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  categoryTab: {
+    flex: 1,
+    borderRadius: responsiveBorderRadius.md,
+    overflow: 'hidden',
+  },
+  categoryTabActive: {
+    // Active state handled by gradient
+  },
+  categoryTabGradient: {
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryTabText: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  categoryTabTextActive: {
+    color: '#FFFFFF',
+  },
+  categoryTabTextDark: {
+    color: '#FFFFFF',
   },
 });

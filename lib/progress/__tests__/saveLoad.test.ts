@@ -38,6 +38,7 @@ function createGameState(overrides: Partial<GameState> = {}): GameState {
     relationships: [],
     social: { relations: [] },
     hasPhone: false,
+    computerPreviouslyOwned: false,
     foods: [],
     healthActivities: [],
     dietPlans: [],
@@ -46,7 +47,7 @@ function createGameState(overrides: Partial<GameState> = {}): GameState {
     userProfile: { name: 'Test', handle: 'test', bio: '', followers: 0, following: 0, gender: 'male', seekingGender: 'female' },
     currentJob: undefined,
     showWelcomePopup: true,
-    settings: { darkMode: false, soundEnabled: true, notificationsEnabled: true, autoSave: true, language: 'English', maxStats: false },
+    settings: { darkMode: false, soundEnabled: true, notificationsEnabled: true, autoSave: true, language: 'English', maxStats: false, hapticFeedback: true, weeklySummaryEnabled: true, showDecimalsInStats: false },
     cryptos: [],
     diseases: [],
     realEstate: [],
@@ -172,7 +173,7 @@ describe('Save/Load Integration Tests', () => {
           }
         ],
         items: [
-          { id: 'laptop', name: 'Laptop', price: 1000, owned: true, dailyBonus: { energy: 5 } }
+          { id: 'laptop', name: 'Laptop', price: 1000, owned: true, weeklyBonus: { energy: 5 } }
         ],
         companies: [
           {
@@ -270,7 +271,7 @@ describe('Save/Load Integration Tests', () => {
         stats: { health: 100, happiness: 100, energy: 100, fitness: 100, money: 50000, reputation: 100, gems: 50 },
         week: 20,
         date: { year: 2025, month: 'May', week: 20, age: 18 },
-        settings: { darkMode: true, soundEnabled: false, notificationsEnabled: true, autoSave: false, language: 'Swedish', maxStats: true },
+        settings: { darkMode: true, soundEnabled: false, notificationsEnabled: true, autoSave: false, language: 'Swedish', maxStats: true, hapticFeedback: true, weeklySummaryEnabled: true, showDecimalsInStats: false },
         perks: { workBoost: true, mindset: true, fastLearner: true },
         achievements: [
           { id: 'first_job', name: 'First Job', description: 'Get your first job', category: 'career', completed: true, reward: 100 }

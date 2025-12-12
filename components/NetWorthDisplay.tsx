@@ -1,11 +1,16 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableOpacity , Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
+import { Crown, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
 import { usePerformanceOptimization } from '@/hooks/usePerformanceOptimization';
+
+interface NetWorthDisplayProps {
+  onPress?: () => void;
+  onPrestigePress?: () => void;
+}
 
 const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
@@ -66,8 +71,31 @@ const PieChart = ({ data }: { data: PieSlice[] }) => {
   );
 };
 
-export default function NetWorthDisplay() {
+export default function NetWorthDisplay({ onPress, onPrestigePress }: NetWorthDisplayProps = {}) {
   const { gameState } = useGame();
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  
+  // Pulse animation for prestige indicator
+  useEffect(() => {
+    if (gameState.prestigeAvailable) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [gameState.prestigeAvailable, glowAnim]);
   const { settings } = gameState;
   const { createMemoizedValue } = usePerformanceOptimization();
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -91,13 +119,13 @@ export default function NetWorthDisplay() {
     ];
 
     // Only process owned items
-    const ownedItems = gameState.items.filter(i => i.owned);
+    const ownedItems = (gameState.items || []).filter(i => i.owned);
     ownedItems.forEach(item =>
       assets.push({ id: item.id, type: 'collectible', baseValue: item.price })
     );
 
     // Only process companies with income
-    gameState.companies.forEach(company => {
+    (gameState.companies || []).forEach(company => {
       if (company.weeklyIncome > 0) {
         assets.push({
           id: company.id,
@@ -124,7 +152,7 @@ export default function NetWorthDisplay() {
     });
 
     // Only process owned real estate
-    const ownedRealEstate = gameState.realEstate.filter(p => p.owned);
+    const ownedRealEstate = (gameState.realEstate || []).filter(p => p.owned);
     ownedRealEstate.forEach(p => {
       assets.push({
         id: p.id,
@@ -144,15 +172,32 @@ export default function NetWorthDisplay() {
       });
     }
 
+    // Only process owned vehicles (depreciated value)
+    if (gameState.vehicles) {
+      gameState.vehicles.forEach(vehicle => {
+        // Use same depreciation logic as sell price
+        const baseSellPercent = 0.8;
+        const conditionMultiplier = 0.2 + (vehicle.condition / 100) * 0.8;
+        const mileagePenalty = Math.min(0.3, (vehicle.mileage || 0) / 500000);
+        const depreciatedValue = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
+        assets.push({
+          id: vehicle.id,
+          type: 'vehicle',
+          baseValue: Math.floor(depreciatedValue),
+        });
+      });
+    }
+
     const liabilities: Liability[] = [];
     return computeNetWorth(assets, liabilities);
   }, [
     gameState.stats.money,
     gameState.bankSavings,
-    gameState.items.map(i => ({ id: i.id, owned: i.owned, price: i.price })),
-    gameState.companies.map(c => ({ id: c.id, weeklyIncome: c.weeklyIncome, miners: c.miners })),
-    gameState.realEstate.map(r => ({ id: r.id, owned: r.owned, price: r.price })),
-    gameState.stocks?.holdings?.map(h => ({ symbol: h.symbol, shares: h.shares, currentPrice: h.currentPrice })) || []
+    gameState.items,
+    gameState.companies,
+    gameState.realEstate,
+    gameState.stocks?.holdings,
+    gameState.vehicles
   ]);
 
   const chartData: PieSlice[] = Object.entries(breakdown.byAssetType).map(
@@ -189,9 +234,43 @@ export default function NetWorthDisplay() {
     };
   }, [breakdown.netWorth, scaleAnim]);
 
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
   return (
     <View style={containerStyle}>
-      <Text style={titleStyle}>Net Worth</Text>
+      <View style={styles.headerRow}>
+        <Text style={titleStyle}>Net Worth</Text>
+        {gameState.prestigeAvailable && (
+          <TouchableOpacity
+            onPress={onPrestigePress}
+            activeOpacity={0.8}
+            style={styles.prestigeIndicator}
+          >
+            <Animated.View
+              style={[
+                styles.prestigeGlow,
+                {
+                  opacity: glowOpacity,
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={['#F59E0B', '#D97706', '#B45309']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.prestigeBadge}
+              >
+                <Sparkles size={14} color="#FFFFFF" />
+                <Crown size={14} color="#FFFFFF" />
+                <Text style={styles.prestigeText}>PRESTIGE!</Text>
+              </LinearGradient>
+            </Animated.View>
+          </TouchableOpacity>
+        )}
+      </View>
       <Animated.Text style={[netWorthStyle, { transform: [{ scale: scaleAnim }] }]}>
         {formatMoney(breakdown.netWorth)}
       </Animated.Text>
@@ -219,6 +298,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 20,
     marginBottom: 20,
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -270,5 +350,37 @@ const styles = StyleSheet.create({
   },
   legendLabelDark: {
     color: '#D1D5DB',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  prestigeIndicator: {
+    marginLeft: 8,
+  },
+  prestigeGlow: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  prestigeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  prestigeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
 });

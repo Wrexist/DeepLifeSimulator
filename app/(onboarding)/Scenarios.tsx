@@ -1,20 +1,69 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated, Easing } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { scenarios } from '@/src/features/onboarding/scenarioData';
+import { useRouter, useNavigation } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scenarios, Scenario } from '@/src/features/onboarding/scenarioData';
+import { SCENARIOS as CHALLENGE_SCENARIOS, getDifficultyColor, getDifficultyLabel } from '@/lib/scenarios/scenarioDefinitions';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
-import { ArrowLeft, ArrowRight } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Play, Sparkles, Target, Info, Gem } from 'lucide-react-native';
+import { Alert } from 'react-native';
 import { responsiveFontSize, responsivePadding, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+import { logger } from '@/utils/logger';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const log = logger.scope('Scenarios');
+
+type TabType = 'life_paths' | 'challenges';
 
 export default function Scenarios() {
   const { state, setState } = useOnboarding();
   const router = useRouter();
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<string | null>(state.scenario?.id || null);
+  const [activeTab, setActiveTab] = useState<TabType>('life_paths');
+  
+  log.debug('Scenarios screen mounted', { 
+    platform: Platform.OS, 
+    screenWidth, 
+    insets: { top: insets.top, bottom: insets.bottom }
+  });
+
+  // Convert challenge scenarios to the same format as life path scenarios
+  const challengeScenarios = useMemo(() => {
+    return CHALLENGE_SCENARIOS.map(cs => ({
+      id: cs.id,
+      title: cs.name,
+      difficulty: getDifficultyLabel(cs.difficulty),
+      lifeGoal: cs.primaryGoal.description,
+      description: cs.description,
+      bonus: `Rewards: ${cs.rewards.gems} gems`,
+      start: {
+        age: cs.startingAge,
+        cash: cs.startingMoney,
+        education: cs.startingEducation?.[0],
+        items: cs.startingItems,
+        traits: [],
+      },
+      icon: cs.icon,
+      isChallenge: true,
+      challengeData: cs,
+    }));
+  }, []);
+
+  // Safe back navigation - goes to MainMenu if there's no screen to go back to
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      router.back();
+    } else {
+      // No screen to go back to (e.g., came from death popup)
+      // Navigate to MainMenu instead
+      router.replace('/(onboarding)/MainMenu');
+    }
+  }, [navigation, router]);
 
   // Animations
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -23,57 +72,102 @@ export default function Scenarios() {
 
   // Rotating background animation
   useEffect(() => {
-    const rotateAnimation = Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 30000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
+    let isMounted = true;
+    let rotateAnimation: Animated.CompositeAnimation | null = null;
     
-    if (rotateAnimation) {
-      rotateAnimation.start();
+    try {
+      rotateAnimation = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 30000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      
+      if (isMounted && rotateAnimation) {
+        rotateAnimation.start();
+      }
+    } catch (error) {
+      log.error('Error starting rotate animation', error);
     }
 
     return () => {
+      isMounted = false;
       if (rotateAnimation) {
-        rotateAnimation.stop();
+        try {
+          rotateAnimation.stop();
+        } catch (error) {
+          log.error('Error stopping rotate animation', error);
+        }
       }
     };
   }, [rotateAnim]);
 
   // Fade in and slide up animation
   useEffect(() => {
-    const parallelAnimation = Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]);
+    let isMounted = true;
+    let parallelAnimation: Animated.CompositeAnimation | null = null;
     
-    if (parallelAnimation) {
-      parallelAnimation.start();
+    try {
+      parallelAnimation = Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 1000,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]);
+      
+      if (isMounted && parallelAnimation) {
+        parallelAnimation.start();
+      }
+    } catch (error) {
+      log.error('Error starting fade/slide animation', error);
     }
 
     return () => {
+      isMounted = false;
       if (parallelAnimation) {
-        parallelAnimation.stop();
+        try {
+          parallelAnimation.stop();
+        } catch (error) {
+          log.error('Error stopping fade/slide animation', error);
+        }
       }
     };
   }, [fadeAnim, slideAnim]);
 
-  const select = (id: string) => {
+  const select = (id: string, isChallenge: boolean = false) => {
     setSelected(id);
-    setState(prev => ({ ...prev, scenario: scenarios.find(s => s.id === id)! }));
+    if (isChallenge) {
+      const challengeScenario = challengeScenarios.find(s => s.id === id);
+      if (challengeScenario) {
+        // Convert challenge scenario to the format expected by the game
+        setState(prev => ({ 
+          ...prev, 
+          scenario: {
+            id: challengeScenario.id,
+            title: challengeScenario.title,
+            difficulty: challengeScenario.difficulty,
+            lifeGoal: challengeScenario.lifeGoal,
+            description: challengeScenario.description,
+            bonus: challengeScenario.bonus,
+            start: challengeScenario.start,
+            icon: require('@/assets/images/Scenarios/Street Hustler.png'), // Use a default icon for challenges
+          },
+          challengeScenarioId: challengeScenario.id, // Track this is a challenge
+        }));
+      }
+    } else {
+      setState(prev => ({ ...prev, scenario: scenarios.find(s => s.id === id)!, challengeScenarioId: undefined }));
+    }
   };
 
   const next = () => {
@@ -81,6 +175,8 @@ export default function Scenarios() {
       router.push('/(onboarding)/Customize');
     }
   };
+
+  const currentScenarios = activeTab === 'life_paths' ? scenarios : challengeScenarios;
 
   const rotateInterpolate = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -139,19 +235,20 @@ export default function Scenarios() {
         ]}
       />
 
-      {/* Main content */}
-      <Animated.View 
-        style={[
-          styles.content, 
-          { 
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
-          }
-        ]}
-      >
+        {/* Main content */}
+        <Animated.View 
+          style={[
+            styles.content, 
+            { 
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              paddingTop: 50 + insets.top,
+            }
+          ]}
+        >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <View style={styles.glassButton}>
               <View style={styles.glassOverlay} />
               <View style={styles.glassIconContainer}>
@@ -159,35 +256,78 @@ export default function Scenarios() {
               </View>
             </View>
           </TouchableOpacity>
-          <Text style={styles.title}>Choose Your Scenario</Text>
-          <View style={styles.placeholder} />
+          <Text style={styles.title}>Choose Scenario</Text>
+          <TouchableOpacity 
+            onPress={() => Alert.alert(
+              activeTab === 'life_paths' ? 'Life Paths' : 'Challenges',
+              activeTab === 'life_paths' 
+                ? 'Choose your starting life path. Each scenario gives you different starting conditions like age, money, and items.'
+                : 'Challenge modes offer unique gameplay with special goals and rewards. Complete challenges and prestige for the first time to earn massive gem rewards! Gems are only awarded on your first prestige, so make sure to complete your challenge goals before prestiging.'
+            )}
+            style={styles.infoButton}
+          >
+            <View style={styles.glassButton}>
+              <View style={styles.glassOverlay} />
+              <View style={styles.glassIconContainer}>
+                <Info size={20} color="#FFFFFF" />
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={true}>
-          <View style={styles.scrollContent}>
-            {/* Hero section */}
-            <View style={styles.heroSection}>
-              <View style={styles.glassCard}>
-                <View style={styles.glassOverlay} />
-                <Text style={styles.heroTitle}>Select Your Life Path</Text>
-                <Text style={styles.heroSubtitle}>Choose a scenario that defines your starting point</Text>
-              </View>
+        <ScrollView 
+          style={styles.scrollContainer} 
+          contentContainerStyle={{ paddingTop: insets.top }}
+          showsVerticalScrollIndicator={true}
+        >
+          <View style={[styles.scrollContent, { paddingBottom: 160 + insets.bottom }]}>
+            {/* Tab Selector */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'life_paths' && styles.tabActive]}
+                onPress={() => setActiveTab('life_paths')}
+              >
+                <LinearGradient
+                  colors={activeTab === 'life_paths' ? ['#10B981', '#059669'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+                  style={styles.tabGradient}
+                >
+                  <Target size={18} color={activeTab === 'life_paths' ? '#FFFFFF' : '#9CA3AF'} />
+                  <Text style={[styles.tabText, activeTab === 'life_paths' && styles.tabTextActive]}>Life Paths</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'challenges' && styles.tabActive]}
+                onPress={() => setActiveTab('challenges')}
+              >
+                <LinearGradient
+                  colors={activeTab === 'challenges' ? ['#EF4444', '#DC2626'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+                  style={styles.tabGradient}
+                >
+                  <Sparkles size={18} color={activeTab === 'challenges' ? '#FFFFFF' : '#9CA3AF'} />
+                  <Text style={[styles.tabText, activeTab === 'challenges' && styles.tabTextActive]}>Challenges</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
 
             {/* Scenarios list */}
             <View style={styles.scenariosContainer}>
-              {scenarios.map((scenario) => {
+              {currentScenarios.map((scenario: any) => {
                 const isSelected = selected === scenario.id;
+                const isChallenge = activeTab === 'challenges';
                 
                 return (
                   <TouchableOpacity
                     key={scenario.id}
                     style={styles.scenarioContainer}
-                    onPress={() => select(scenario.id)}
+                    onPress={() => select(scenario.id, isChallenge)}
                   >
                     <BlurView intensity={20} style={styles.scenarioBlur}>
                       <LinearGradient
-                        colors={isSelected ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+                        colors={isSelected 
+                          ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)'] 
+                          : isChallenge 
+                            ? ['rgba(239, 68, 68, 0.1)', 'rgba(220, 38, 38, 0.1)']
+                            : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.scenarioCard}
@@ -197,7 +337,15 @@ export default function Scenarios() {
                             <Image source={scenario.icon} style={styles.scenarioIcon} />
                           </View>
                           <View style={styles.scenarioInfo}>
-                            <Text style={styles.scenarioTitle}>{scenario.title}</Text>
+                            <View style={styles.titleRow}>
+                              <Text style={styles.scenarioTitle}>{scenario.title}</Text>
+                              {/* Difficulty Badge for Challenges */}
+                              {isChallenge && scenario.challengeData && (
+                                <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(scenario.challengeData.difficulty) }]}>
+                                  <Text style={styles.difficultyBadgeText}>{scenario.difficulty.toUpperCase()}</Text>
+                                </View>
+                              )}
+                            </View>
                             <Text style={styles.scenarioDescription}>{scenario.description}</Text>
                           </View>
                           {isSelected && (
@@ -226,6 +374,19 @@ export default function Scenarios() {
                             <Text style={styles.statLabel}>Study</Text>
                             <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
                           </View>
+                          {/* Gem Reward for Challenges */}
+                          {isChallenge && scenario.challengeData && (
+                            <View style={[styles.glassStatItem, styles.gemRewardItem]}>
+                              <View style={styles.glassOverlay} />
+                              <Gem size={18} color="#FFD700" />
+                              <View style={styles.gemRewardTextContainer}>
+                                <Text style={styles.statLabel}>Reward</Text>
+                                <Text style={[styles.statValue, styles.gemRewardValue]}>
+                                  {scenario.challengeData.rewards.gems} Gems
+                                </Text>
+                              </View>
+                            </View>
+                          )}
                         </View>
 
                         {/* Items and Traits */}
@@ -256,31 +417,34 @@ export default function Scenarios() {
             </View>
 
             {/* Bottom spacing for floating button */}
-            <View style={styles.bottomSpacing} />
+            <View style={[styles.bottomSpacing, { height: 140 + insets.bottom }]} />
           </View>
         </ScrollView>
 
         {/* Floating Continue Button */}
-        <View style={styles.floatingButtonContainer}>
-          <TouchableOpacity
-            onPress={next}
-            style={[styles.floatingButton, !selected && styles.floatingButtonDisabled]}
-            disabled={!selected}
-            activeOpacity={0.8}
-          >
-            <View style={styles.glassButton}>
-              <View style={styles.glassOverlay} />
-              <View style={styles.buttonContent}>
-                <Text style={[styles.glassButtonTitle, !selected && styles.glassButtonTitleDisabled]}>
-                  Continue
-                </Text>
-                <View style={styles.glassIconContainer}>
-                  <ArrowRight size={20} color={selected ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)"} />
+        {selected && (
+          <View style={[styles.floatingButtonContainer, { bottom: 20 + insets.bottom }]}>
+            <TouchableOpacity
+              onPress={next}
+              style={styles.floatingButton}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#10B981', '#059669', '#047857']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.floatingGlassButton}
+              >
+                <View style={styles.buttonContent}>
+                  <Text style={styles.glassButtonTitle}>Continue</Text>
+                  <View style={styles.glassIconContainer}>
+                    <Play size={24} color="#FFFFFF" />
+                  </View>
                 </View>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Floating particles */}
         <View style={styles.particlesContainer}>
@@ -315,7 +479,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
     overflow: 'hidden',
-    marginTop: -50, // Extend background to cover status bar
   },
   backgroundGradient1: {
     position: 'absolute',
@@ -337,7 +500,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 110, // Account for status bar
   },
   header: {
     flexDirection: 'row',
@@ -351,15 +513,26 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize['3xl'],
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' },
+      ios: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+      android: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
     textAlign: 'center',
     flex: 1,
   },
   backButton: {
     borderRadius: 12,
     overflow: 'hidden',
+    boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.4)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
@@ -367,8 +540,8 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   glassButton: {
-    width: 48,
-    height: 48,
+    width: scale(48),
+    height: scale(48),
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 12,
     borderWidth: 1,
@@ -403,7 +576,11 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   placeholder: {
-    width: 48,
+    width: scale(48),
+  },
+  infoButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   scrollContainer: {
     flex: 1,
@@ -422,9 +599,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)' },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   heroSubtitle: {
     fontSize: responsiveFontSize.lg,
@@ -489,21 +671,33 @@ const styles = StyleSheet.create({
   scenarioInfo: {
     flex: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   scenarioTitle: {
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 8,
+    flex: 1,
+    numberOfLines: 2,
+    ellipsizeMode: 'tail',
   },
   scenarioDescription: {
     fontSize: responsiveFontSize.base,
     color: '#D1D5DB',
     lineHeight: 20,
+    numberOfLines: 3,
+    ellipsizeMode: 'tail',
   },
   selectedIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     overflow: 'hidden',
     shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 4 },
@@ -525,8 +719,10 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    flexWrap: 'wrap',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 8,
   },
   statItem: {
     alignItems: 'center',
@@ -540,6 +736,8 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.base,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    numberOfLines: 1,
+    ellipsizeMode: 'tail',
   },
   itemsContainer: {
     marginTop: 16,
@@ -622,74 +820,54 @@ const styles = StyleSheet.create({
   },
   floatingButtonContainer: {
     position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
+    left: responsivePadding.horizontal,
+    right: responsivePadding.horizontal,
     zIndex: 10,
   },
   floatingButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 16,
   },
   floatingButtonDisabled: {
     opacity: 0.5,
   },
-  glassButton: {
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  floatingGlassButton: {
+    width: '100%',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     position: 'relative',
     overflow: 'hidden',
-  },
-  glassOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
+    minHeight: 64,
+    justifyContent: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    width: '100%',
   },
   glassButtonTitle: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#FFFFFF',
+    flex: 1,
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  glassButtonTitleDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
-  },
-  glassIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   particlesContainer: {
     position: 'absolute',
@@ -730,6 +908,28 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flex: 1,
     marginHorizontal: 4,
+    minWidth: 80,
+  },
+  gemRewardItem: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderColor: 'rgba(255, 215, 0, 0.5)',
+    borderWidth: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minWidth: 120,
+  },
+  gemRewardTextContainer: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  gemRewardValue: {
+    color: '#FFD700',
+    fontWeight: '700',
+    fontSize: responsiveFontSize.base + 1,
   },
   glassBadge: {
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
@@ -750,5 +950,65 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.25)',
     position: 'relative',
     overflow: 'hidden',
+  },
+  // Tab styles
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: responsivePadding.large,
+    marginBottom: responsiveSpacing.lg,
+    gap: 12,
+  },
+  tab: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  tabActive: {
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+  },
+  tabText: {
+    fontSize: responsiveFontSize.base,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+  },
+  // Challenge styles
+  difficultyBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  difficultyBadgeText: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  challengeIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  challengeIconText: {
+    fontSize: 36,
   },
 });

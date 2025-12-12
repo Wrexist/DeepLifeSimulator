@@ -101,6 +101,7 @@ const availableEducations: Education[] = [
 
 export default function EducationApp({ onBack }: EducationAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
+  const { settings } = gameState;
   const [activeTab, setActiveTab] = useState<'available' | 'enrolled' | 'completed'>('available');
   const [selectedEducation, setSelectedEducation] = useState<Education | null>(null);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -110,27 +111,48 @@ export default function EducationApp({ onBack }: EducationAppProps) {
   const activeEducations: Education[] = enrolledEducations.filter(edu => !edu.completed);
   const cash = gameState.stats?.money || 0;
 
+  // Get education policy effects
+  const educationEffects = gameState.politics?.activePolicyEffects?.education;
+  
+  // Helper function to calculate adjusted cost and duration
+  const getAdjustedEducation = useCallback((education: Education) => {
+    const costReduction = educationEffects?.costReduction || 0;
+    const weeksReduction = educationEffects?.weeksReduction || 0;
+    const scholarshipAmount = educationEffects?.scholarshipAmount || 0;
+    
+    const adjustedCost = Math.max(0, Math.floor(education.cost * (1 - costReduction / 100)) - scholarshipAmount);
+    const adjustedDuration = Math.max(1, education.duration - weeksReduction);
+    
+    return {
+      ...education,
+      cost: adjustedCost,
+      duration: adjustedDuration,
+    };
+  }, [educationEffects]);
+
   const handleEnroll = useCallback((education: Education) => {
-    if (cash < education.cost) {
-      Alert.alert('Insufficient Funds', `You need $${education.cost.toLocaleString()} to enroll in ${education.name}.`);
+    const adjusted = getAdjustedEducation(education);
+    
+    if (cash < adjusted.cost) {
+      Alert.alert('Insufficient Funds', `You need $${adjusted.cost.toLocaleString()} to enroll in ${education.name}.`);
       return;
     }
 
     const newEducation: Education = {
       ...education,
-      weeksRemaining: education.duration,
+      weeksRemaining: adjusted.duration,
     };
 
     setGameState(prev => ({
       ...prev,
-      stats: { ...prev.stats, money: cash - education.cost },
+      stats: { ...prev.stats, money: cash - adjusted.cost },
       educations: [...enrolledEducations, newEducation],
     }));
     saveGame();
 
     Alert.alert('Enrolled!', `You are now enrolled in ${education.name}.`);
     setShowEnrollModal(false);
-  }, [selectedEducation, cash, enrolledEducations, setGameState, saveGame]);
+  }, [selectedEducation, cash, enrolledEducations, setGameState, saveGame, getAdjustedEducation]);
 
   const handleStudy = useCallback((education: Education) => {
     if (gameState.stats.energy < 20) {
@@ -143,7 +165,10 @@ export default function EducationApp({ onBack }: EducationAppProps) {
       return;
     }
 
-    const newWeeksRemaining = Math.max(0, education.weeksRemaining - 1);
+    // Apply weeks reduction from education policies (if studying)
+    const weeksReduction = educationEffects?.weeksReduction || 0;
+    const weeksToReduce = 1 + (weeksReduction > 0 ? 1 : 0); // Reduce 1 extra week if policy active
+    const newWeeksRemaining = Math.max(0, education.weeksRemaining - weeksToReduce);
     const isCompleted = newWeeksRemaining === 0;
 
     const updatedEducations = enrolledEducations.map(edu => {
@@ -162,7 +187,7 @@ export default function EducationApp({ onBack }: EducationAppProps) {
       stats: { 
         ...prev.stats, 
         energy: Math.max(0, prev.stats.energy - 20),
-        happiness: Math.min(100, prev.stats.happiness + 5),
+        happiness: Math.max(0, prev.stats.happiness - 5),
       },
       educations: updatedEducations,
     }));
@@ -218,8 +243,8 @@ export default function EducationApp({ onBack }: EducationAppProps) {
           style={[styles.tab, activeTab === 'available' && styles.activeTab]}
           onPress={() => setActiveTab('available')}
         >
-          <BookOpen size={20} color={activeTab === 'available' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'available' ? styles.tabTextActive : styles.tabTextInactive]}>
+          <BookOpen size={20} color={activeTab === 'available' ? '#FFFFFF' : (settings.darkMode ? '#FFFFFF' : '#6B7280')} />
+          <Text style={[styles.tabText, activeTab === 'available' ? styles.tabTextActive : (settings.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
             Available
           </Text>
         </TouchableOpacity>
@@ -227,8 +252,8 @@ export default function EducationApp({ onBack }: EducationAppProps) {
           style={[styles.tab, activeTab === 'enrolled' && styles.activeTab]}
           onPress={() => setActiveTab('enrolled')}
         >
-          <GraduationCap size={20} color={activeTab === 'enrolled' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'enrolled' ? styles.tabTextActive : styles.tabTextInactive]}>
+          <GraduationCap size={20} color={activeTab === 'enrolled' ? '#FFFFFF' : (settings.darkMode ? '#FFFFFF' : '#6B7280')} />
+          <Text style={[styles.tabText, activeTab === 'enrolled' ? styles.tabTextActive : (settings.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
             Enrolled
           </Text>
         </TouchableOpacity>
@@ -236,8 +261,8 @@ export default function EducationApp({ onBack }: EducationAppProps) {
           style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
           onPress={() => setActiveTab('completed')}
         >
-          <CheckCircle size={20} color={activeTab === 'completed' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'completed' ? styles.tabTextActive : styles.tabTextInactive]}>
+          <CheckCircle size={20} color={activeTab === 'completed' ? '#FFFFFF' : (settings.darkMode ? '#FFFFFF' : '#6B7280')} />
+          <Text style={[styles.tabText, activeTab === 'completed' ? styles.tabTextActive : (settings.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
             Completed
           </Text>
         </TouchableOpacity>
@@ -254,6 +279,7 @@ export default function EducationApp({ onBack }: EducationAppProps) {
             {availableEducations.map((education) => {
               const isEnrolled = enrolledEducations.some(edu => edu.id === education.id);
               const isCompleted = enrolledEducations.some(edu => edu.id === education.id && edu.completed);
+              const adjusted = getAdjustedEducation(education);
               
               return (
                 <View key={education.id} style={styles.educationCard}>
@@ -272,9 +298,17 @@ export default function EducationApp({ onBack }: EducationAppProps) {
                     </View>
                     <View style={styles.educationCost}>
                       <Text style={styles.costText}>
-                        {education.cost === 0 ? 'Free' : `$${education.cost.toLocaleString()}`}
+                        {adjusted.cost === 0 ? 'Free' : `$${adjusted.cost.toLocaleString()}`}
+                        {adjusted.cost < education.cost && (
+                          <Text style={styles.discountText}> (was ${education.cost.toLocaleString()})</Text>
+                        )}
                       </Text>
-                      <Text style={styles.durationText}>{education.duration} weeks</Text>
+                      <Text style={styles.durationText}>
+                        {adjusted.duration} weeks
+                        {adjusted.duration < education.duration && (
+                          <Text style={styles.discountText}> (was {education.duration})</Text>
+                        )}
+                      </Text>
                     </View>
                   </View>
 
@@ -311,7 +345,7 @@ export default function EducationApp({ onBack }: EducationAppProps) {
           <View style={styles.educationsContainer}>
             {activeEducations.length === 0 ? (
               <View style={styles.emptyState}>
-                <GraduationCap size={64} color="#9CA3AF" />
+                <GraduationCap size={64} color={settings.darkMode ? "#FFFFFF" : "#9CA3AF"} />
                 <Text style={styles.emptyTitle}>No Active Education</Text>
                 <Text style={styles.emptyMessage}>
                   Enroll in an education program from the Available tab to start learning!
@@ -361,7 +395,7 @@ export default function EducationApp({ onBack }: EducationAppProps) {
           <View style={styles.educationsContainer}>
             {completedEducations.length === 0 ? (
               <View style={styles.emptyState}>
-                <CheckCircle size={64} color="#9CA3AF" />
+                <CheckCircle size={64} color={settings.darkMode ? "#FFFFFF" : "#9CA3AF"} />
                 <Text style={styles.emptyTitle}>No Completed Education</Text>
                 <Text style={styles.emptyMessage}>
                   Complete your enrolled education programs to see them here!
@@ -402,13 +436,27 @@ export default function EducationApp({ onBack }: EducationAppProps) {
                   <View style={styles.modalDetail}>
                     <DollarSign size={16} color="#9FA4B3" />
                     <Text style={styles.modalDetailText}>
-                      Cost: {selectedEducation.cost === 0 ? 'Free' : `$${selectedEducation.cost.toLocaleString()}`}
+                      Cost: {(() => {
+                        const adjusted = getAdjustedEducation(selectedEducation);
+                        return adjusted.cost === 0 ? 'Free' : `$${adjusted.cost.toLocaleString()}`;
+                      })()}
+                      {(() => {
+                        const adjusted = getAdjustedEducation(selectedEducation);
+                        return adjusted.cost < selectedEducation.cost ? ` (was $${selectedEducation.cost.toLocaleString()})` : '';
+                      })()}
                     </Text>
                   </View>
                   <View style={styles.modalDetail}>
                     <Clock size={16} color="#9FA4B3" />
                     <Text style={styles.modalDetailText}>
-                      Duration: {selectedEducation.duration} weeks
+                      Duration: {(() => {
+                        const adjusted = getAdjustedEducation(selectedEducation);
+                        return adjusted.duration;
+                      })()} weeks
+                      {(() => {
+                        const adjusted = getAdjustedEducation(selectedEducation);
+                        return adjusted.duration < selectedEducation.duration ? ` (was ${selectedEducation.duration})` : '';
+                      })()}
                     </Text>
                   </View>
                   {getCareerRequirements(selectedEducation.id) && (
@@ -510,6 +558,15 @@ const styles = StyleSheet.create({
   },
   tabTextInactive: {
     color: '#6B7280',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  tabTextInactiveDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   content: {
     flex: 1,
@@ -572,6 +629,11 @@ const styles = StyleSheet.create({
   durationText: {
     color: '#9FA4B3',
     fontSize: 12,
+  },
+  discountText: {
+    color: '#10B981',
+    fontSize: 10,
+    fontStyle: 'italic',
   },
   educationProgress: {
     alignItems: 'flex-end',

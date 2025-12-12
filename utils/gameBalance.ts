@@ -76,9 +76,10 @@ export class GameBalance {
     if (gameState.stats.money < 0) {
       violations.push('Money cannot be negative');
     }
-    if (gameState.stats.money > this.config.economy.maxMoney) {
-      violations.push(`Money exceeds maximum (${this.config.economy.maxMoney})`);
-    }
+    // Temporarily disabled max money check to allow uncapped wealth progression
+    // if (gameState.stats.money > this.config.economy.maxMoney) {
+    //   violations.push(`Money exceeds maximum (${this.config.economy.maxMoney})`);
+    // }
 
     // Check stat bounds
     const stats = gameState.stats;
@@ -90,6 +91,12 @@ export class GameBalance {
     }
     if (stats.energy < 0 || stats.energy > this.config.gameplay.maxEnergy) {
       violations.push(`Energy out of bounds (0-${this.config.gameplay.maxEnergy})`);
+    }
+    if (isNaN(stats.money)) {
+      violations.push('Money is NaN');
+    }
+    if (isNaN(stats.health) || isNaN(stats.happiness) || isNaN(stats.energy)) {
+      violations.push('One or more stats are NaN');
     }
 
     // Check progression bounds

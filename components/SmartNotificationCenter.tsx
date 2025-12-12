@@ -336,7 +336,7 @@ export default function SmartNotificationCenter({
                     ].map(filter => (
                       <TouchableOpacity
                         key={filter.key}
-                        onPress={() => handleFilterChange(filter.key as any)}
+                        onPress={() => handleFilterChange(filter.key as typeof selectedFilter)}
                         style={[
                           styles.filterButton,
                           selectedFilter === filter.key && styles.filterButtonActive,
@@ -600,6 +600,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

@@ -1,10 +1,8 @@
+// cspell:words realestate fintech
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import type {
-  GameState,
-  GameStats,
-  Company,
-  CompanyUpgrade,
-} from '../GameContext';
+import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
+import { logger } from '@/utils/logger';
+import type { GameState, Company, CompanyUpgrade } from '../GameContext';
 import type { Dispatch, SetStateAction } from 'react';
 
 export function createCompany(
@@ -14,7 +12,7 @@ export function createCompany(
 ): { success: boolean; message?: string; companyId?: string } {
   // Ensure companyType is a string
   if (typeof companyType !== 'string') {
-    console.error('createCompany: companyType must be a string, received:', typeof companyType, companyType);
+    logger.error('createCompany: companyType must be a string, received:', { type: typeof companyType, value: companyType });
     return { success: false, message: 'Invalid company type' };
   }
   const companyCosts = {
@@ -30,15 +28,18 @@ export function createCompany(
   if (gameState.stats.money < cost) {
     return { success: false, message: 'Insufficient funds' };
   }
-  if (gameState.companies.find(c => c.id === companyType)) {
+  if ((gameState.companies || []).find(c => c.id === companyType)) {
     return { success: false, message: 'You already own this company type' };
   }
 
-  const hasEntrepreneurshipEducation = gameState.educations.find(
+  const unlockedBonuses = gameState.prestige?.unlockedBonuses || [];
+  const hasEarlyAccess = hasEarlyCompanyAccess(unlockedBonuses);
+  
+  const hasEntrepreneurshipEducation = (gameState.educations || []).find(
     e => e.id === 'entrepreneurship'
   )?.completed;
-  if (!hasEntrepreneurshipEducation) {
-    return { success: false, message: 'You need to complete Entrepreneurship Course first!' };
+  if (!hasEarlyAccess && !hasEntrepreneurshipEducation) {
+    return { success: false, message: 'You need to complete Entrepreneurship Course first! (Or unlock Early Company Access prestige bonus)' };
   }
 
   const companyUpgrades: Record<string, CompanyUpgrade[]> = {
@@ -351,7 +352,7 @@ export function createCompany(
 
   setGameState(prev => ({
     ...prev,
-    companies: [...prev.companies, newCompany],
+    companies: [...(prev.companies || []), newCompany],
     company: prev.company ?? newCompany,
     stats: {
       ...prev.stats,
@@ -370,11 +371,11 @@ export function buyCompanyUpgrade(
   const targetId = companyId || gameState.company?.id;
   if (!targetId) return;
 
-  const companyIndex = gameState.companies.findIndex(c => c.id === targetId);
+  const companyIndex = (gameState.companies || []).findIndex(c => c.id === targetId);
   if (companyIndex === -1) return;
 
   // Get the company's available upgrades
-  const company = gameState.companies.find(c => c.id === targetId);
+  const company = (gameState.companies || []).find(c => c.id === targetId);
   if (!company) return;
   
   const companyType = company.type;
@@ -424,7 +425,7 @@ export function buyCompanyUpgrade(
   };
   
   const availableUpgrades = companyUpgrades[companyType] || [];
-  const upgradeDefinition = availableUpgrades.find((u: any) => u.id === upgradeId);
+  const upgradeDefinition = availableUpgrades.find((u: { id: string }) => u.id === upgradeId);
   if (!upgradeDefinition) return;
 
   setGameState(prev => {
@@ -453,15 +454,6 @@ export function buyCompanyUpgrade(
     const updatedUpgrades = existingUpgrade 
       ? company.upgrades.map(u => u.id === upgradeId ? { ...u, level: u.level + 1 } : u)
       : [...company.upgrades, { id: upgradeId, level: 1, maxLevel: upgradeDefinition.maxLevel }];
-
-    // Calculate new base weekly income with all upgrade bonuses
-    let totalBonus = 0;
-    updatedUpgrades.forEach(upgrade => {
-      const upgradeDef = availableUpgrades.find(u => u.id === upgrade.id);
-      if (upgradeDef) {
-        totalBonus += upgradeDef.weeklyIncomeBonus * upgrade.level;
-      }
-    });
 
     const updated: Company = {
       ...company,
@@ -559,12 +551,12 @@ export function sellCompany(
   setGameState: Dispatch<SetStateAction<GameState>>,
   companyId: string
 ): { success: boolean; message?: string; sellValue?: number } {
-  const companyIndex = gameState.companies.findIndex(c => c.id === companyId);
+  const companyIndex = (gameState.companies || []).findIndex(c => c.id === companyId);
   if (companyIndex === -1) {
     return { success: false, message: 'Company not found' };
   }
 
-  const company = gameState.companies[companyIndex];
+  const company = (gameState.companies || [])[companyIndex];
   
   // Calculate total investment (company cost + all upgrade costs)
   const companyCosts = {
@@ -683,8 +675,7 @@ export function buyMiner(
   setGameState: Dispatch<SetStateAction<GameState>>,
   minerId: string,
   minerName: string,
-  cost: number,
-  companyId?: string
+  cost: number
 ): { success: boolean; message?: string } {
   if (!gameState.warehouse) {
     return { success: false, message: 'You need a warehouse to buy miners' };
@@ -718,4 +709,72 @@ export function buyMiner(
   }));
   
   return { success: true, message: `Successfully purchased ${minerName}!` };
+}
+
+export function sellMiner(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  minerId: string,
+  minerName: string,
+  purchasePrice: number,
+  companyId?: string
+): { success: boolean; message?: string } {
+  logger.debug('sellMiner in company.ts called:', { minerId, minerName, purchasePrice, companyId });
+  logger.debug('Current warehouse:', gameState.warehouse);
+  logger.debug('Current miners:', gameState.warehouse?.miners);
+  
+  if (!gameState.warehouse) {
+    logger.debug('No warehouse found');
+    return { success: false, message: 'You need a warehouse to sell miners' };
+  }
+  
+  // Check ownership first using the passed gameState
+  // We'll verify again in the setGameState callback to ensure we have the latest state
+  const initialOwnedCount = gameState.warehouse.miners[minerId] || 0;
+  logger.debug('Initial owned count for miner:', { minerId, initialOwnedCount });
+  
+  if (initialOwnedCount === 0) {
+    return { success: false, message: `You don't own any ${minerName}s to sell` };
+  }
+  
+  // Sell price is 50% of purchase price
+  const sellPrice = Math.floor(purchasePrice * 0.5);
+  
+  // Update state using functional update to ensure we have the latest state
+  setGameState(prev => {
+    // Double-check in the callback to ensure we still have the miner
+    if (!prev.warehouse) {
+      logger.debug('No warehouse in setGameState callback');
+      return prev;
+    }
+    
+    const currentOwnedCount = prev.warehouse.miners[minerId] || 0;
+    logger.debug('Current owned count in callback for miner:', { minerId, currentOwnedCount });
+    
+    if (currentOwnedCount === 0) {
+      logger.debug('No miners to sell in callback');
+      return prev;
+    }
+    
+    const newCount = Math.max(0, currentOwnedCount - 1);
+    logger.debug('Selling miner', { currentOwnedCount, newCount, sellPrice });
+    
+    return {
+      ...prev,
+      warehouse: {
+        ...prev.warehouse,
+        miners: {
+          ...prev.warehouse.miners,
+          [minerId]: newCount,
+        },
+      },
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money + sellPrice,
+      },
+    };
+  });
+  
+  logger.debug('sellMiner returning success', { sellPrice });
+  return { success: true, message: `Sold ${minerName} for ${sellPrice.toLocaleString()}!` };
 }

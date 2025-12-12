@@ -1,73 +1,83 @@
-import React, { useState, useCallback } from 'react';
-import { Image, ImageStyle, View, ActivityIndicator } from 'react-native';
-import { responsiveIconSize } from '@/utils/scaling';
+import React, { useState, useMemo } from 'react';
+import { Image, ImageProps, StyleSheet, View, Animated, StyleProp, ImageStyle } from 'react-native';
 
-interface PerformanceOptimizedImageProps {
-  source: any;
-  style?: ImageStyle;
-  size?: 'small' | 'medium' | 'large' | 'custom';
-  showLoader?: boolean;
-  fadeDuration?: number;
-  resizeMode?: 'cover' | 'contain' | 'stretch' | 'repeat' | 'center';
-  onLoad?: () => void;
-  onError?: () => void;
+interface PerformanceOptimizedImageProps extends ImageProps {
+  fallbackSource?: ImageProps['source'];
+  transitionDuration?: number;
 }
 
-const PerformanceOptimizedImage = React.memo<PerformanceOptimizedImageProps>(({
+/**
+ * A performance-optimized Image component.
+ * 
+ * Features:
+ * - React.memo to prevent unnecessary re-renders
+ * - Fade-in animation on load
+ * - Error handling with fallback source
+ * - Memoized source to prevent flicker
+ */
+const PerformanceOptimizedImageComponent = ({
   source,
   style,
-  size = 'medium',
-  showLoader = false, // Disable loader by default for faster loading
-  fadeDuration = 0, // No fade for instant loading
-  resizeMode = 'contain',
-  onLoad,
-  onError,
-}) => {
+  fallbackSource,
+  transitionDuration = 300,
+  ...props
+}: PerformanceOptimizedImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Start as not loading
+  const opacity = useMemo(() => new Animated.Value(0), []);
 
-  const imageSize = {
-    small: { width: responsiveIconSize.sm, height: responsiveIconSize.sm },
-    medium: { width: responsiveIconSize.md, height: responsiveIconSize.md },
-    large: { width: responsiveIconSize.lg, height: responsiveIconSize.lg },
-    custom: {},
+  const onLoad = (e: any) => {
+    setIsLoaded(true);
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: transitionDuration,
+      useNativeDriver: true,
+    }).start();
+    props.onLoad && props.onLoad(e);
   };
 
-  const handleLoad = useCallback(() => {
-    setIsLoaded(true);
-    onLoad?.();
-  }, [onLoad]);
-
-  const handleError = useCallback(() => {
+  const onError = (e: any) => {
     setHasError(true);
-    onError?.();
-  }, [onError]);
+    props.onError && props.onError(e);
+  };
 
-  if (hasError) {
-    return (
-      <View style={[imageSize[size], style, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="small" color="#6B7280" />
-      </View>
-    );
-  }
+  const finalSource = useMemo(() => {
+    if (hasError && fallbackSource) {
+      return fallbackSource;
+    }
+    return source;
+  }, [source, hasError, fallbackSource]);
+
+  // If simple number source (require), it loads instantly, so show immediately
+  const isLocalImage = typeof source === 'number';
 
   return (
-    <View style={[imageSize[size], style]}>
-      <Image
-        source={source}
+    <View style={[styles.container, style]}>
+      <Animated.Image
+        {...props}
+        source={finalSource}
         style={[
-          imageSize[size],
-          style,
-          { opacity: isLoaded ? 1 : 1 } // Always show image immediately
+          StyleSheet.absoluteFill, 
+          style as StyleProp<ImageStyle>,
+          { opacity: isLocalImage ? 1 : opacity }
         ]}
-        onLoad={handleLoad}
-        onError={handleError}
-        fadeDuration={fadeDuration}
-        resizeMode={resizeMode}
+        onLoad={onLoad}
+        onError={onError}
       />
+      {!isLoaded && !isLocalImage && (
+        <View style={[StyleSheet.absoluteFill, styles.placeholder]} />
+      )}
     </View>
   );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    overflow: 'hidden',
+  },
+  placeholder: {
+    backgroundColor: '#E5E7EB', // Light gray placeholder
+  },
 });
 
-export default PerformanceOptimizedImage;
+export const PerformanceOptimizedImage = React.memo(PerformanceOptimizedImageComponent);

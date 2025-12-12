@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,29 +15,42 @@ import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBor
 
 export default function SicknessModal() {
   const { gameState, dismissSicknessModal, performHealthActivity } = useGame();
-  const { showSicknessModal, diseases, settings } = gameState;
+  const { showSicknessModal, diseases, settings, week } = gameState;
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const darkMode = settings.darkMode;
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Only show modal when in an active game (week > 0 indicates active game)
+  const isInActiveGame = week > 0;
 
   useEffect(() => {
-    if (showSicknessModal && diseases && diseases.length > 0 && !isClosing) {
+    if (isInActiveGame && showSicknessModal && diseases && diseases.length > 0 && !isClosing) {
       setIsVisible(true);
     } else {
       setIsVisible(false);
     }
-  }, [showSicknessModal, diseases, isClosing]);
+  }, [isInActiveGame, showSicknessModal, diseases, isClosing]);
 
   // Cleanup effect to reset state when component unmounts
   useEffect(() => {
     return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       setIsClosing(false);
       setIsVisible(false);
     };
   }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (isClosing) return; // Prevent multiple close calls
+    
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
     
     setIsClosing(true);
     setIsVisible(false);
@@ -46,12 +59,14 @@ export default function SicknessModal() {
     dismissSicknessModal();
     
     // Reset closing state after animation
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       setIsClosing(false);
+      timeoutRef.current = null;
     }, 300);
-  };
+  }, [isClosing, dismissSicknessModal]);
 
-  if (!showSicknessModal || !diseases || diseases.length === 0 || !isVisible) {
+  // Don't render if not in active game or if conditions aren't met
+  if (!isInActiveGame || !showSicknessModal || !diseases || diseases.length === 0 || !isVisible) {
     return null;
   }
 
@@ -233,12 +248,20 @@ export default function SicknessModal() {
                   style={[styles.treatmentButton, darkMode && styles.treatmentButtonDark]}
                   onPress={() => {
                     if (isClosing) return; // Prevent action if modal is closing
+                    setIsClosing(true);
+                    
+                    // Perform the health activity
                     const result = performHealthActivity('doctor');
-                    if (result) {
-                      // Show feedback message
-                      Alert.alert('Doctor Visit', result.message);
-                    }
+                    
+                    // Close modal first, then show alert after a short delay
                     handleClose();
+                    
+                    // Show feedback message after modal closes
+                    setTimeout(() => {
+                      if (result) {
+                        Alert.alert('Doctor Visit', result.message);
+                      }
+                    }, 350); // Wait for modal close animation
                   }}
                   disabled={gameState.stats.money < 500 || isClosing}
                 >
@@ -258,12 +281,20 @@ export default function SicknessModal() {
                   style={[styles.treatmentButton, darkMode && styles.treatmentButtonDark]}
                   onPress={() => {
                     if (isClosing) return; // Prevent action if modal is closing
+                    setIsClosing(true);
+                    
+                    // Perform the health activity
                     const result = performHealthActivity('hospital');
-                    if (result) {
-                      // Show feedback message
-                      Alert.alert('Hospital Stay', result.message);
-                    }
+                    
+                    // Close modal first, then show alert after a short delay
                     handleClose();
+                    
+                    // Show feedback message after modal closes
+                    setTimeout(() => {
+                      if (result) {
+                        Alert.alert('Hospital Stay', result.message);
+                      }
+                    }, 350); // Wait for modal close animation
                   }}
                   disabled={gameState.stats.money < 2000 || isClosing}
                 >
@@ -341,6 +372,7 @@ const styles = StyleSheet.create({
     width: '95%',
     height: '85%',
     maxHeight: '90%',
+    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,

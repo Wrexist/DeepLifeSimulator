@@ -1,21 +1,79 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { useFeedback } from '@/utils/feedbackSystem';
 import { AlertTriangle } from 'lucide-react-native';
+import { logger } from '@/utils/logger';
+
+const log = logger.scope('ZeroStatPopup');
 
 export default function ZeroStatPopup() {
   const { gameState, dismissStatWarning } = useGame();
-  const { settings, zeroStatType } = gameState;
-  const { buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
+  const { settings, zeroStatType, showZeroStatPopup, week, stats } = gameState;
+  const [localDismissed, setLocalDismissed] = useState(false);
+  const dismissedRef = useRef(false);
+
+  // Only show popup when in an active game (week > 0 indicates active game)
+  const isInActiveGame = week > 0;
+
+  // Validate that popup conditions are actually met
+  const isValidPopupState = () => {
+    if (!showZeroStatPopup || !zeroStatType) return false;
+    
+    // Check if the stat is actually at zero
+    if (zeroStatType === 'health' && stats.health > 0) return false;
+    if (zeroStatType === 'happiness' && stats.happiness > 0) return false;
+    
+    return true;
+  };
+
+  // Auto-dismiss if popup state is invalid (corrupted save)
+  useEffect(() => {
+    if (showZeroStatPopup && !isValidPopupState()) {
+      log.warn('Auto-dismissing invalid zero stat popup state');
+      dismissStatWarning();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showZeroStatPopup, zeroStatType, stats.health, stats.happiness]);
+
+  // Reset local dismissed state when popup should show again
+  useEffect(() => {
+    if (showZeroStatPopup && zeroStatType && isValidPopupState()) {
+      setLocalDismissed(false);
+      dismissedRef.current = false;
+    }
+  }, [showZeroStatPopup, zeroStatType, stats.health, stats.happiness]);
+
+  // Don't render if not in active game or if conditions aren't met
+  if (!isInActiveGame || !showZeroStatPopup || !zeroStatType || localDismissed || !isValidPopupState()) {
+    return null;
+  }
 
   const message = zeroStatType === 'happiness'
     ? 'Your happiness is at 0! Increase it within 4 weeks or your character will die.'
     : 'Your health is at 0! Increase it within 4 weeks or your character will die.';
 
+  const handleDismiss = () => {
+    // Prevent multiple calls
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
+    
+    // Immediately hide locally to prevent overlay from blocking
+    setLocalDismissed(true);
+    
+    // Update global state - use setTimeout to ensure it happens after render
+    setTimeout(() => {
+      dismissStatWarning();
+    }, 0);
+  };
+
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={dismissStatWarning}>
-      <View style={styles.overlay}>
+    <Modal 
+      visible={!localDismissed && showZeroStatPopup && isValidPopupState()} 
+      transparent 
+      animationType="fade" 
+      onRequestClose={handleDismiss}
+    >
+      <View style={styles.overlay} pointerEvents={localDismissed ? 'none' : 'auto'}>
         <View style={[styles.popup, settings.darkMode && styles.popupDark]}>
           <View style={styles.iconContainer}>
             <AlertTriangle size={32} color="#F59E0B" />
@@ -24,12 +82,9 @@ export default function ZeroStatPopup() {
           <Text style={[styles.message, settings.darkMode && styles.messageDark]}>{message}</Text>
           <TouchableOpacity 
             style={styles.button} 
-            onPress={() => {
-              buttonPress();
-              haptic('warning');
-              dismissStatWarning();
-            }} 
+            onPress={handleDismiss}
             activeOpacity={0.8}
+            disabled={localDismissed}
           >
             <Text style={styles.buttonText}>OK</Text>
           </TouchableOpacity>

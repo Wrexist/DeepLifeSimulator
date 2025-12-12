@@ -136,6 +136,7 @@ export const DesignSystem = {
   // Shadows
   shadows: {
     sm: {
+      boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
@@ -143,6 +144,7 @@ export const DesignSystem = {
       elevation: 1,
     },
     md: {
+      boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
@@ -150,6 +152,7 @@ export const DesignSystem = {
       elevation: 3,
     },
     lg: {
+      boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.15)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.15,
@@ -157,6 +160,7 @@ export const DesignSystem = {
       elevation: 6,
     },
     xl: {
+      boxShadow: '0px 16px 24px rgba(0, 0, 0, 0.2)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 16 },
       shadowOpacity: 0.2,
@@ -316,13 +320,29 @@ export const statusColors = {
 };
 
 // Utility functions
-export const createShadow = (color: string, opacity: number, radius: number, offset: { width: number; height: number }) => ({
-  shadowColor: color,
-  shadowOffset: offset,
-  shadowOpacity: opacity,
-  shadowRadius: radius,
-  elevation: radius / 2,
-});
+export const createShadow = (color: string, opacity: number, radius: number, offset: { width: number; height: number }) => {
+  // Convert color to rgba format for boxShadow
+  const rgbaColor = color === '#000' 
+    ? `rgba(0, 0, 0, ${opacity})`
+    : color.startsWith('#')
+    ? (() => {
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+      })()
+    : color;
+  
+  return {
+    boxShadow: `${offset.width}px ${offset.height}px ${radius}px ${rgbaColor}`,
+    shadowColor: color,
+    shadowOffset: offset,
+    shadowOpacity: opacity,
+    shadowRadius: radius,
+    elevation: radius / 2,
+  };
+};
 
 export const createGradient = (colors: string[], start: { x: number; y: number }, end: { x: number; y: number }) => ({
   colors,

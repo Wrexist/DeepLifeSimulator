@@ -5,11 +5,31 @@
   "build": {
     "production": {
       "channel": "production",
-      "ios": { "resourceClass": "m-medium" }
+      "ios": { 
+        "resourceClass": "m-medium",
+        "autoIncrement": false,
+        "buildConfiguration": "Release",
+        "env": {
+          "RCT_NEW_ARCH_ENABLED": "0",
+          "FOLLY_NO_CONFIG": "1",
+          "FOLLY_MOBILE": "1",
+          "FOLLY_USE_LIBCPP": "1",
+          "FOLLY_CFG_NO_COROUTINES": "1"
+        },
+        "simulator": false
+      },
+      "android": {
+        "resourceClass": "medium",
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      }
     },
     "preview": {
       "developmentClient": true,
-      "channel": "preview"
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
@@ -18,6 +38,10 @@
         "appleTeamId": "S3U8B8HH96",
         "ascAppId": "6749675615",
         "language": "en-US"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
       }
     }
   }

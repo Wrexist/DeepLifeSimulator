@@ -234,6 +234,7 @@ const styles = StyleSheet.create({
   popup: {
     borderRadius: responsiveBorderRadius.xl,
     padding: responsiveSpacing.xl,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

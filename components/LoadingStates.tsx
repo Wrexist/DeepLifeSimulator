@@ -163,6 +163,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     minWidth: 200,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,

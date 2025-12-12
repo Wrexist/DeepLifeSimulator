@@ -8,6 +8,7 @@ import InfoButton from '@/components/ui/InfoButton';
 import { SkeletonLoader, SkeletonList } from '@/components/ui/SkeletonLoader';
 import { EmptyPortfolio } from '@/components/ui/EmptyState';
 import { getStockInfo, getAllStockSymbols } from '@/lib/economy/stockMarket';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 interface StocksAppProps {
   onBack: () => void;
@@ -269,7 +270,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
       sharesToBuy = Math.floor(totalCost / selectedStock.currentPrice);
       
       if (sharesToBuy === 0) {
-        Alert.alert('Invalid Amount', `You need at least $${selectedStock.currentPrice.toFixed(2)} to buy 1 share.`);
+        Alert.alert('Invalid Amount', `You need at least ${formatMoney(selectedStock.currentPrice)} to buy 1 share.`);
         return;
       }
       
@@ -278,7 +279,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
     }
 
     if (totalCost > cash) {
-      Alert.alert('Insufficient Funds', `You need $${totalCost.toFixed(2)} but only have $${cash.toFixed(2)}.`);
+      Alert.alert('Insufficient Funds', `You need ${formatMoney(totalCost)} but only have ${formatMoney(cash)}.`);
       return;
     }
 
@@ -318,7 +319,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
     }));
     saveGame();
 
-      Alert.alert('Purchase Successful', `Bought ${sharesToBuy} shares of ${selectedStock.symbol} for $${totalCost.toFixed(2)}.`);
+      Alert.alert('Purchase Successful', `Bought ${sharesToBuy} shares of ${selectedStock.symbol} for ${formatMoney(totalCost)}.`);
       setShowTradeModal(false);
       setShares('');
       setSelectedStock(null);
@@ -356,7 +357,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
       sharesToSell = Math.floor(totalValue / selectedStock.currentPrice);
       
       if (sharesToSell === 0) {
-        Alert.alert('Invalid Amount', `You need at least $${selectedStock.currentPrice.toFixed(2)} to sell 1 share.`);
+        Alert.alert('Invalid Amount', `You need at least ${formatMoney(selectedStock.currentPrice)} to sell 1 share.`);
         return;
       }
       
@@ -393,7 +394,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
     }));
     saveGame();
 
-    Alert.alert('Sale Successful', `Sold ${sharesToSell} shares of ${selectedStock.symbol} for $${totalValue.toFixed(2)}.`);
+    Alert.alert('Sale Successful', `Sold ${sharesToSell} shares of ${selectedStock.symbol} for ${formatMoney(totalValue)}.`);
     setShowTradeModal(false);
     setShares('');
     setSelectedStock(null);
@@ -485,19 +486,19 @@ export default function StocksApp({ onBack }: StocksAppProps) {
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Portfolio Value</Text>
-                <Text style={styles.summaryValue}>${portfolioValue.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>{formatMoney(portfolioValue)}</Text>
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Total Gain</Text>
                 <Text style={[styles.summaryValue, portfolioGain >= 0 ? styles.positiveText : styles.negativeText]}>
-                  {portfolioGain >= 0 ? '+' : ''}${portfolioGain.toFixed(2)} ({portfolioGainPercent >= 0 ? '+' : ''}{portfolioGainPercent.toFixed(2)}%)
+                  {portfolioGain >= 0 ? '+' : ''}{formatMoney(portfolioGain)} ({portfolioGainPercent >= 0 ? '+' : ''}{portfolioGainPercent.toFixed(2)}%)
                 </Text>
               </View>
             </View>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Cash</Text>
-                <Text style={styles.summaryValue}>${cash.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>{formatMoney(cash)}</Text>
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Holdings</Text>
@@ -513,8 +514,8 @@ export default function StocksApp({ onBack }: StocksAppProps) {
             style={[styles.tab, activeTab === 'market' && styles.activeTab]}
             onPress={() => setActiveTab('market')}
           >
-            <BarChart3 size={20} color={activeTab === 'market' ? '#FFFFFF' : '#6B7280'} />
-            <Text style={[styles.tabText, activeTab === 'market' ? styles.tabTextActive : styles.tabTextInactive]}>
+            <BarChart3 size={20} color={activeTab === 'market' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+            <Text style={[styles.tabText, activeTab === 'market' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
               Market
             </Text>
           </TouchableOpacity>
@@ -522,8 +523,8 @@ export default function StocksApp({ onBack }: StocksAppProps) {
             style={[styles.tab, activeTab === 'portfolio' && styles.activeTab]}
             onPress={() => setActiveTab('portfolio')}
           >
-            <TrendingUp size={20} color={activeTab === 'portfolio' ? '#FFFFFF' : '#6B7280'} />
-            <Text style={[styles.tabText, activeTab === 'portfolio' ? styles.tabTextActive : styles.tabTextInactive]}>
+            <TrendingUp size={20} color={activeTab === 'portfolio' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+            <Text style={[styles.tabText, activeTab === 'portfolio' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
               Portfolio
             </Text>
           </TouchableOpacity>
@@ -531,8 +532,8 @@ export default function StocksApp({ onBack }: StocksAppProps) {
             style={[styles.tab, activeTab === 'watchlist' && styles.activeTab]}
             onPress={() => setActiveTab('watchlist')}
           >
-            <TrendingUp size={20} color={activeTab === 'watchlist' ? '#FFFFFF' : '#6B7280'} />
-            <Text style={[styles.tabText, activeTab === 'watchlist' ? styles.tabTextActive : styles.tabTextInactive]}>
+            <TrendingUp size={20} color={activeTab === 'watchlist' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
+            <Text style={[styles.tabText, activeTab === 'watchlist' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
               Watchlist
             </Text>
           </TouchableOpacity>
@@ -550,9 +551,9 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                      </Text>
                    </View>
                   <View style={styles.stockPrice}>
-                    <Text style={styles.priceText}>${stock.currentPrice.toFixed(2)}</Text>
+                    <Text style={styles.priceText}>{formatMoney(stock.currentPrice)}</Text>
                     <Text style={[styles.changeText, stock.change >= 0 ? styles.positiveText : styles.negativeText]}>
-                      {stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)
+                      {stock.change >= 0 ? '+' : ''}{formatMoney(stock.change)} ({stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)
                     </Text>
                   </View>
                 </View>
@@ -608,12 +609,12 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                       <View style={styles.stockInfo}>
                         <Text style={styles.stockSymbol}>{holding.symbol}</Text>
                         <Text style={styles.stockName}>{stock.name}</Text>
-                        <Text style={styles.holdingShares}>{holding.shares} shares @ ${holding.averagePrice.toFixed(2)}</Text>
+                        <Text style={styles.holdingShares}>{holding.shares} shares @ {formatMoney(holding.averagePrice)}</Text>
                       </View>
                       <View style={styles.stockPrice}>
-                        <Text style={styles.priceText}>${currentValue.toFixed(2)}</Text>
+                        <Text style={styles.priceText}>{formatMoney(currentValue)}</Text>
                         <Text style={[styles.changeText, gain >= 0 ? styles.positiveText : styles.negativeText]}>
-                          {gain >= 0 ? '+' : ''}{gain.toFixed(2)} ({gainPercent >= 0 ? '+' : ''}{gainPercent.toFixed(2)}%)
+                          {gain >= 0 ? '+' : ''}{formatMoney(gain)} ({gainPercent >= 0 ? '+' : ''}{gainPercent.toFixed(2)}%)
                         </Text>
                       </View>
                     </View>
@@ -660,9 +661,9 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                         </Text>
                       </View>
                       <View style={styles.stockPrice}>
-                        <Text style={styles.priceText}>${stock.currentPrice.toFixed(2)}</Text>
+                        <Text style={styles.priceText}>{formatMoney(stock.currentPrice)}</Text>
                         <Text style={[styles.changeText, stock.change >= 0 ? styles.positiveText : styles.negativeText]}>
-                          {stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)
+                          {stock.change >= 0 ? '+' : ''}{formatMoney(stock.change)} ({stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)
                         </Text>
                       </View>
                     </View>
@@ -704,8 +705,8 @@ export default function StocksApp({ onBack }: StocksAppProps) {
             <Text style={styles.modalTitle}>
               {tradeType === 'buy' ? 'Buy' : 'Sell'} {selectedStock?.symbol}
             </Text>
-            <Text style={styles.modalSubtitle}>
-              Current Price: ${selectedStock?.currentPrice.toFixed(2)}
+            <Text style={[styles.modalSubtitle, settings?.darkMode && styles.modalSubtitleDark]}>
+              Current Price: {formatMoney(selectedStock?.currentPrice || 0)}
             </Text>
             
             {/* Input Mode Toggle */}
@@ -714,7 +715,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                 style={[styles.inputModeButton, inputMode === 'shares' && styles.inputModeButtonActive]}
                 onPress={() => setInputMode('shares')}
               >
-                <Text style={[styles.inputModeText, inputMode === 'shares' && styles.inputModeTextActive]}>
+                <Text style={[styles.inputModeText, settings?.darkMode && styles.inputModeTextDark, inputMode === 'shares' && styles.inputModeTextActive]}>
                   Shares
                 </Text>
               </TouchableOpacity>
@@ -722,7 +723,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                 style={[styles.inputModeButton, inputMode === 'money' && styles.inputModeButtonActive]}
                 onPress={() => setInputMode('money')}
               >
-                <Text style={[styles.inputModeText, inputMode === 'money' && styles.inputModeTextActive]}>
+                <Text style={[styles.inputModeText, settings?.darkMode && styles.inputModeTextDark, inputMode === 'money' && styles.inputModeTextActive]}>
                   Money
                 </Text>
               </TouchableOpacity>
@@ -731,7 +732,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
             {/* Input Row */}
             <View style={styles.inputRow}>
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>
+                <Text style={[styles.inputLabel, settings?.darkMode && styles.inputLabelDark]}>
                   {inputMode === 'shares' ? 'Number of Shares' : 'Amount ($)'}
                 </Text>
                 <TextInput
@@ -739,7 +740,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                   value={shares}
                   onChangeText={setShares}
                   placeholder="0"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"}
                   keyboardType="numeric"
                 />
               </View>
@@ -751,7 +752,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
             {shares && !isNaN(Number(shares)) && (
               <Text style={styles.totalText}>
                 {inputMode === 'shares' 
-                  ? `Total: $${(Number(shares) * (selectedStock?.currentPrice || 0)).toFixed(2)}`
+                  ? `Total: ${formatMoney(Number(shares) * (selectedStock?.currentPrice || 0))}`
                   : `Shares: ${Math.floor(Number(shares) / (selectedStock?.currentPrice || 1))}`
                 }
               </Text>
@@ -881,6 +882,15 @@ const styles = StyleSheet.create({
   },
   tabTextInactive: {
     color: '#6B7280',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  tabTextInactiveDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   content: {
     flex: 1,
@@ -1019,11 +1029,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 16,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  modalSubtitleDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   inputLabel: {
     color: '#9CA3AF',
     fontSize: 12,
     marginBottom: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  inputLabelDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   input: {
     backgroundColor: '#101426',
@@ -1063,6 +1091,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 14,
     fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
+  },
+  inputModeTextDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 2,
   },
   inputModeTextActive: {
     color: '#FFFFFF',

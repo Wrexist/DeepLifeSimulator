@@ -5,8 +5,10 @@ import { useGame } from '@/contexts/GameContext';
 import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Gamepad2, Unlock, Gem, RefreshCw } from 'lucide-react-native';
 import usePressableScale from '@/hooks/usePressableScale';
 import Skeleton from '@/components/anim/Skeleton';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { logger } from '@/utils/logger';
 
 interface ScaleButtonProps {
   onPress: () => void;
@@ -143,7 +145,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     setIapLoading(true);
     
     try {
-      console.log(`Attempting to purchase: ${itemId} (${type})`);
+      logger.info(`Attempting to purchase: ${itemId} (${type})`);
       
       // Use IAP service for purchase
       const result = await iapService.purchaseProduct(itemId);
@@ -157,7 +159,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
         Alert.alert('Purchase Failed', result.message || 'Unable to complete purchase. Please try again.');
       }
     } catch (error) {
-      console.error('Purchase error:', error);
+      logger.error('Purchase error:', error);
       Alert.alert('Error', 'An error occurred during purchase. Please try again.');
     } finally {
       setIapLoading(false);
@@ -269,7 +271,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     setIapLoading(true);
     
     try {
-      console.log('Starting purchase restoration...');
+      logger.info('Starting purchase restoration...');
       const success = await iapService.restorePurchases();
       
       if (success) {
@@ -284,7 +286,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
         );
       }
     } catch (error) {
-      console.error('Restore purchases error:', error);
+      logger.error('Restore purchases error:', error);
       Alert.alert(
         'Restore Failed',
         'Unable to restore purchases. Please try again or contact support.',
@@ -521,7 +523,11 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
               onPress={handleRestorePurchases}
               disabled={iapLoading}
             >
-              <RefreshCw size={18} color={iapLoading ? '#9CA3AF' : '#6B7280'} />
+              {iapLoading ? (
+                <LoadingSpinner visible size="small" color="#9CA3AF" variant="compact" />
+              ) : (
+                <RefreshCw size={18} color="#6B7280" />
+              )}
               <Text style={[styles.restoreButtonText, iapLoading && styles.restoreButtonTextDisabled]}>
                 {iapLoading ? 'Restoring...' : 'Restore Purchases'}
               </Text>
@@ -541,6 +547,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -625,6 +632,7 @@ const styles = StyleSheet.create({
     maxWidth: 450,
     width: '100%',
     maxHeight: '85%',
+    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,

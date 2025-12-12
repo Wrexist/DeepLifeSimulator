@@ -31,6 +31,8 @@ export default function ToastNotification({
   onDismiss,
   position = 'top',
   hapticEnabled = false,
+  action,
+  persistent = false,
 }: ToastNotificationProps) {
   const { buttonPress } = useFeedback(hapticEnabled);
   const slideAnim = useRef(new Animated.Value(-100)).current;
@@ -120,13 +122,15 @@ export default function ToastNotification({
       }),
     ]).start();
 
-    // Auto dismiss
-    const timer = setTimeout(() => {
-      dismiss();
-    }, duration);
+    // Auto dismiss (unless persistent)
+    if (!persistent) {
+      const timer = setTimeout(() => {
+        dismiss();
+      }, duration);
 
-    return () => clearTimeout(timer);
-  }, [slideAnim, opacityAnim, scaleAnim, duration, dismiss]);
+      return () => clearTimeout(timer);
+    }
+  }, [slideAnim, opacityAnim, scaleAnim, duration, dismiss, persistent]);
 
   const handleDismiss = () => {
     buttonPress();
@@ -147,7 +151,11 @@ export default function ToastNotification({
   ];
 
   return (
-    <Animated.View style={containerStyle}>
+    <Animated.View 
+      style={containerStyle}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+    >
       <LinearGradient
         colors={typeStyles.gradient}
         style={styles.toast}
@@ -156,15 +164,37 @@ export default function ToastNotification({
       >
         <View style={styles.content}>
           <View style={styles.iconContainer}>
-            <IconComponent size={20} color={typeStyles.iconColor} />
+            <IconComponent 
+              size={20} 
+              color={typeStyles.iconColor}
+              accessibilityLabel={`${type} icon`}
+            />
           </View>
-          <Text style={styles.message} numberOfLines={2}>
+          <Text 
+            style={styles.message} 
+            numberOfLines={2}
+            accessibilityLabel={message}
+          >
             {message}
           </Text>
+          {action && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={action.onPress}
+              activeOpacity={0.7}
+              accessibilityLabel={action.label}
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionButtonText}>{action.label}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.dismissButton}
             onPress={handleDismiss}
             activeOpacity={0.7}
+            accessibilityLabel="Dismiss notification"
+            accessibilityRole="button"
+            accessibilityHint="Double tap to dismiss this notification"
           >
             <X size={16} color={typeStyles.iconColor} />
           </TouchableOpacity>
@@ -202,6 +232,18 @@ const styles = StyleSheet.create({
     fontFamily: DesignSystem.typography.fontFamily.medium,
     fontWeight: DesignSystem.typography.fontWeight.medium,
     lineHeight: DesignSystem.typography.lineHeight.normal * DesignSystem.typography.fontSize.sm,
+  },
+  actionButton: {
+    marginLeft: DesignSystem.spacing.sm,
+    paddingHorizontal: DesignSystem.spacing.sm,
+    paddingVertical: DesignSystem.spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: DesignSystem.borderRadius.sm,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: DesignSystem.typography.fontSize.xs,
+    fontWeight: DesignSystem.typography.fontWeight.semibold,
   },
   dismissButton: {
     marginLeft: DesignSystem.spacing.sm,

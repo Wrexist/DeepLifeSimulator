@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
+import { Loader } from 'lucide-react-native';
 
 interface LoadingSpinnerProps {
   visible: boolean;
   message?: string;
-  variant?: 'default' | 'overlay' | 'inline';
+  variant?: 'default' | 'overlay' | 'inline' | 'compact';
   size?: 'small' | 'large';
+  color?: string;
 }
 
 export default function LoadingSpinner({
@@ -15,8 +17,11 @@ export default function LoadingSpinner({
   message = 'Loading...',
   variant = 'default',
   size = 'large',
+  color = '#3B82F6',
 }: LoadingSpinnerProps) {
   if (!visible) return null;
+
+  const iconSize = size === 'large' ? 40 : 24;
 
   const renderContent = () => (
     <View style={styles.content}>
@@ -25,18 +30,15 @@ export default function LoadingSpinner({
         animate={{ rotate: '360deg' }}
         transition={{
           type: 'timing',
-          duration: 1000,
+          duration: 1500,
           loop: true,
+          repeatReverse: false,
         }}
-        style={styles.spinnerContainer}
+        style={[styles.spinnerContainer, !message && { marginBottom: 0 }]}
       >
-        <ActivityIndicator
-          size={size}
-          color="#3B82F6"
-          style={styles.spinner}
-        />
+        <Loader size={iconSize} color={color} />
       </MotiView>
-      {message && <Text style={styles.message}>{message}</Text>}
+      {message ? <Text style={[styles.message, { color }]}>{message}</Text> : null}
     </View>
   );
 
@@ -61,6 +63,10 @@ export default function LoadingSpinner({
         {renderContent()}
       </View>
     );
+  }
+
+  if (variant === 'compact') {
+    return renderContent();
   }
 
   return (
@@ -88,6 +94,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 12,
     padding: 24,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
@@ -109,10 +116,8 @@ const styles = StyleSheet.create({
   },
   spinnerContainer: {
     marginBottom: 12,
-  },
-  spinner: {
-    width: 40,
-    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   message: {
     fontSize: 16,

@@ -243,11 +243,6 @@ const hardChallenges: DailyChallenge[] = [
   },
 ];
 
-// Get random challenge from array
-function getRandomChallenge(challenges: DailyChallenge[]): DailyChallenge {
-  return challenges[Math.floor(Math.random() * challenges.length)];
-}
-
 // Generate daily challenges (seeded by date for consistency)
 export function generateDailyChallenges(date: Date = new Date()): {
   easy: DailyChallenge;

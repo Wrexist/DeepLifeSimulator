@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Image } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star, Zap, Shield, Crown, CheckCircle, Sparkles, Diamond, Coins, Award, Heart, RefreshCw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { logger } from '@/utils/logger';
 
 interface GemShopModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-const { width } = Dimensions.get('window');
 
 export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
   const { gameState, buyGoldUpgrade, setGameState, saveGame } = useGame();
@@ -26,7 +27,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       id: 'multiplier',
       name: 'Money Multiplier',
       description: 'All earnings increased by 50% forever',
-      price: 10000,
+      price: 5000, // Balanced: 50% of original (10000)
       icon: TrendingUp,
       image: require('@/assets/images/iap/upgrades/money_multiplier.png'),
       permanent: true,
@@ -38,7 +39,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       id: 'energy_boost',
       name: 'Energy Boost',
       description: 'Maximum energy increased to 100',
-      price: 15000,
+      price: 7500, // Balanced: 50% of original (15000)
       icon: Zap,
       image: require('@/assets/images/iap/upgrades/energy_boost.png'),
       permanent: true,
@@ -50,7 +51,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       id: 'happiness_boost',
       name: 'Happiness Boost',
       description: 'Maximum happiness increased to 100',
-      price: 12000,
+      price: 6000, // Balanced: 50% of original (12000)
       icon: Star,
       image: require('@/assets/images/iap/upgrades/happiness_boost.png'),
       permanent: true,
@@ -62,7 +63,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       id: 'fitness_boost',
       name: 'Fitness Boost',
       description: 'Maximum fitness increased to 100',
-      price: 18000,
+      price: 9000, // Balanced: 50% of original (18000)
       icon: Shield,
       image: require('@/assets/images/iap/upgrades/fitness_boost.png'),
       permanent: true,
@@ -74,7 +75,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       id: 'skill_mastery',
       name: 'Skill Mastery',
       description: 'All skills level up 50% faster',
-      price: 30000,
+      price: 15000, // Balanced: 50% of original (30000)
       icon: Award,
       image: require('@/assets/images/iap/upgrades/skill_mastery.png'),
       permanent: true,
@@ -86,7 +87,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       id: 'time_machine',
       name: 'Time Machine',
       description: 'Travel back in time',
-      price: 50000,
+      price: 25000, // Balanced: 50% of original (50000)
       icon: ArrowRightCircle,
       image: require('@/assets/images/iap/upgrades/time_machine.png'),
       permanent: true,
@@ -98,7 +99,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       id: 'immortality',
       name: 'Immortality',
       description: 'Never die of old age',
-      price: 100000,
+      price: 50000, // Balanced: 50% of original (100000)
       icon: Crown,
       image: require('@/assets/images/iap/upgrades/immortality.png'),
       permanent: true,
@@ -323,7 +324,9 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$2.99',
       icon: CheckCircle,
       value: 'removeAds',
-      owned: gameState.settings?.adsRemoved || false,
+      // Use the correct way to check ad removal: typically this is 'adsRemoved' on GameProgress, not in settings.
+      // If your state puts this in a top-level key, update accordingly.
+      owned: gameState.progress?.adsRemoved || false,
       gradient: ['#06B6D4', '#0891B2'],
       image: require('@/assets/images/iap/premium/remove_ads.png'),
     },
@@ -334,7 +337,8 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$2.99',
       icon: Heart,
       value: 'revival',
-      owned: gameState.settings?.hasRevivalPack || false,
+      // Revival pack should check goldUpgrades.revival_pack, not settings.hasRevivalPack
+      owned: gameState.goldUpgrades?.revival_pack || false,
       gradient: ['#EF4444', '#DC2626'],
       image: require('@/assets/images/iap/items/youth_pill_single.png'),
       popular: true,
@@ -386,7 +390,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
             setIapLoading(true);
             
             try {
-              console.log(`Attempting to purchase: ${id} (${name})`);
+              logger.info(`Attempting to purchase: ${id} (${name})`);
               
               // Use IAP service for purchase
               const result = await iapService.purchaseProduct(id);
@@ -408,7 +412,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
                 }
               }
             } catch (error) {
-              console.error('Purchase error:', error);
+              logger.error('Purchase error:', error);
               
               // Show user-friendly error message
               let errorMsg = 'An unexpected error occurred during purchase.';
@@ -427,8 +431,12 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
   };
 
   const applyPurchaseBenefits = async (productId: string) => {
+    try {
     const config = getProductConfig(productId);
-    if (!config) return;
+      if (!config) {
+        logger.warn('Product config not found for:', { productId });
+        return;
+      }
 
     // Apply benefits based on product type
     if (config.gems) {
@@ -495,6 +503,11 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
 
     // Save the game state
     await saveGame();
+    } catch (error) {
+      logger.error('Error applying purchase benefits:', error);
+      // Re-throw to let the caller handle it
+      throw error;
+    }
   };
 
   const handleRestorePurchases = async () => {
@@ -506,7 +519,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     setIapLoading(true);
     
     try {
-      console.log('Starting purchase restoration...');
+      logger.info('Starting purchase restoration...');
       const success = await iapService.restorePurchases();
       
       if (success) {
@@ -521,7 +534,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
         );
       }
     } catch (error) {
-      console.error('Restore purchases error:', error);
+      logger.error('Restore purchases error:', error);
       Alert.alert(
         'Restore Failed',
         'Unable to restore purchases. Please try again or contact support.',
@@ -533,10 +546,10 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
   };
 
   const tabs = [
-    { id: 'upgrades', label: 'Upgrades', icon: TrendingUp },
-    { id: 'gems', label: 'Gems', icon: Gem },
-    { id: 'store', label: 'Packs', icon: Gift },
-    { id: 'perks', label: 'Perks', icon: Star },
+    { id: 'upgrades' as const, label: 'Upgrades', icon: TrendingUp },
+    { id: 'gems' as const, label: 'Gems', icon: Gem },
+    { id: 'store' as const, label: 'Packs', icon: Gift },
+    { id: 'perks' as const, label: 'Perks', icon: Star },
   ];
 
   const renderUpgradeCard = (item: any) => {
@@ -821,7 +834,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
                 <TouchableOpacity
                   key={tabItem.id}
                   style={[styles.tab, isActive && styles.activeTab]}
-                  onPress={() => setTab(tabItem.id as any)}
+                  onPress={() => setTab(tabItem.id)}
                 >
                   <Icon size={20} color={isActive ? '#6366F1' : (settings.darkMode ? '#9CA3AF' : '#6B7280')} />
                   <Text style={[
@@ -874,7 +887,11 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
               onPress={handleRestorePurchases}
               disabled={iapLoading}
             >
-              <RefreshCw size={18} color={iapLoading ? '#9CA3AF' : '#6B7280'} />
+              {iapLoading ? (
+                <LoadingSpinner visible size="small" color="#9CA3AF" variant="compact" />
+              ) : (
+                <RefreshCw size={18} color="#6B7280" />
+              )}
               <Text style={[styles.restoreButtonText, iapLoading && styles.restoreButtonTextDisabled]}>
                 {iapLoading ? 'Restoring...' : 'Restore Purchases'}
               </Text>
@@ -899,6 +916,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     width: '95%',
     height: '90%',
+    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
@@ -1014,6 +1032,7 @@ const styles = StyleSheet.create({
   upgradeCard: {
     borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -1239,7 +1258,7 @@ const styles = StyleSheet.create({
   },
   storePrice: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.xxl,
+    fontSize: responsiveFontSize['2xl'],
     fontWeight: '700',
   },
   storeBuyButton: {
@@ -1335,7 +1354,7 @@ const styles = StyleSheet.create({
   },
   perkPrice: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.xxl,
+    fontSize: responsiveFontSize['2xl'],
     fontWeight: '700',
     flex: 1,
   },
@@ -1454,7 +1473,7 @@ const styles = StyleSheet.create({
   },
   gemPackPrice: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.xxl,
+    fontSize: responsiveFontSize['2xl'],
     fontWeight: '700',
     marginBottom: responsiveSpacing.xs,
   },
@@ -1494,8 +1513,8 @@ const styles = StyleSheet.create({
   
   // Footer and Restore Button
   footer: {
-    paddingHorizontal: responsivePadding.lg,
-    paddingVertical: responsivePadding.md,
+    paddingHorizontal: responsivePadding.large,
+    paddingVertical: responsivePadding.medium,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
@@ -1508,7 +1527,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: responsivePadding.sm,
+    paddingVertical: responsivePadding.small,
     gap: responsiveSpacing.sm,
   },
   restoreButtonText: {

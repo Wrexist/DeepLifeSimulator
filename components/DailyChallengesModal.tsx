@@ -23,7 +23,7 @@ import {
   TrendingUp,
   Award,
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { scale, fontScale, verticalScale } from '@/utils/scaling';
 import { generateDailyChallenges, getTimeUntilReset, DailyChallenge } from '@/utils/dailyChallenges';
 
@@ -35,7 +35,8 @@ interface DailyChallengesModalProps {
 }
 
 export default function DailyChallengesModal({ visible, onClose }: DailyChallengesModalProps) {
-  const { gameState, claimDailyChallengeReward } = useGame();
+  const { gameState } = useGameState();
+  const { claimDailyChallengeReward } = useGameActions();
   const { settings, dailyChallenges } = gameState;
   const isDarkMode = settings.darkMode;
 
@@ -312,6 +313,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: scale(20),
     overflow: 'hidden',
+    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
