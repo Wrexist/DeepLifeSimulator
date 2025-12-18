@@ -473,16 +473,31 @@ export default function RootLayout() {
         fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:463',message:'After AsyncStorage.getItem',data:{hasError:!!lastError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
         // #endregion
         if (lastError && !fatalError) {
-          const parsed = JSON.parse(lastError);
-          // Only show if it's recent (within last 30 seconds)
-          if (parsed.time && Date.now() - parsed.time < 30000) {
-            logger.warn('Previous fatal error detected:', parsed);
-            setFatalError({ 
-              message: parsed.message || 'Unknown error', 
-              stack: parsed.stack 
-            });
+          try {
+            // CRITICAL: Validate JSON before parsing to prevent crash
+            const parsed = JSON.parse(lastError);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:476',message:'After JSON.parse success',data:{hasTime:!!parsed?.time},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+            // #endregion
+            // Validate parsed data structure
+            if (parsed && typeof parsed === 'object') {
+              // Only show if it's recent (within last 30 seconds)
+              if (parsed.time && Date.now() - parsed.time < 30000) {
+                logger.warn('Previous fatal error detected:', parsed);
+                setFatalError({ 
+                  message: parsed.message || 'Unknown error', 
+                  stack: parsed.stack 
+                });
+              }
+            }
+          } catch (parseError) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:491',message:'JSON.parse error for lastError',data:{error:String(parseError)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+            // #endregion
+            logger.warn('Failed to parse last_fatal_error - corrupted data, ignoring');
+            // Continue without showing error - data was corrupted
           }
-          // Clear the stored error after successful launch
+          // Clear the stored error after successful launch (regardless of parse result)
           await AsyncStorage.removeItem('last_fatal_error');
         }
       } catch {

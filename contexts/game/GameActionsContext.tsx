@@ -2554,10 +2554,35 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         return;
       }
       if (result.success) {
-        const gameStateJson = await AsyncStorage.getItem('gameState');
-        if (gameStateJson) {
-          const updatedState = JSON.parse(gameStateJson);
-          setGameState(updatedState);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameActionsContext.tsx:2557',message:'Before gameState AsyncStorage.getItem',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+        // #endregion
+        try {
+          const gameStateJson = await AsyncStorage.getItem('gameState');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameActionsContext.tsx:2562',message:'After gameState AsyncStorage.getItem',data:{hasData:!!gameStateJson},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+          // #endregion
+          if (gameStateJson) {
+            // CRITICAL: Wrap JSON.parse to prevent crash on corrupted data
+            const updatedState = JSON.parse(gameStateJson);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameActionsContext.tsx:2569',message:'After JSON.parse success',data:{hasState:!!updatedState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+            // #endregion
+            // Validate that parsed data is an object
+            if (updatedState && typeof updatedState === 'object') {
+              setGameState(updatedState);
+            } else {
+              log.error('Invalid gameState structure after parse');
+              // Continue without setting state - user will keep current state
+            }
+          }
+        } catch (storageError: any) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GameActionsContext.tsx:2581',message:'gameState load/parse error',data:{error:String(storageError)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+          // #endregion
+          log.error('Failed to load updated game state after revival:', storageError);
+          // Continue anyway - the purchase succeeded, just couldn't refresh state
+          // User will see updated state after next save/load cycle
         }
         Alert.alert(
           'Purchase Successful!',
