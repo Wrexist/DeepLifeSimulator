@@ -1,7 +1,37 @@
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+// CRITICAL: Lazy-load NetInfo to prevent TurboModule crash at module load
+// import NetInfo, { NetInfoState } from '@react-native-community/netinfo'; // REMOVED - lazy load
 import { logger } from '@/utils/logger';
+
+// Lazy-loaded NetInfo module
+let NetInfo: any = null;
+let netInfoLoadAttempted = false;
+
+function loadNetInfoModule(): boolean {
+  if (netInfoLoadAttempted) {
+    return NetInfo !== null;
+  }
+  
+  netInfoLoadAttempted = true;
+  
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/offlineManager.native.ts:18',message:'Before NetInfo require',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+    // #endregion
+    NetInfo = require('@react-native-community/netinfo').default;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/offlineManager.native.ts:22',message:'After NetInfo require success',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+    // #endregion
+    return true;
+  } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/offlineManager.native.ts:27',message:'NetInfo require failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+    // #endregion
+    // Module not available - will assume online
+    return false;
+  }
+}
 
 interface OfflineAction {
   id: string;
@@ -18,20 +48,48 @@ class OfflineManager {
   private listeners: ((isOnline: boolean) => void)[] = [];
   private syncInProgress: boolean = false;
   private unsubscribeNetInfo: (() => void) | null = null;
+  private isInitialized: boolean = false;
 
+  // CRITICAL: DO NOT call native modules in constructor
+  // Constructor runs at module load time, BEFORE React Native is ready
   private constructor() {
-    this.initializeNetworkListener();
-    this.loadPendingActions();
+    // Defer all initialization - do NOT call initializeNetworkListener() here
+    // Do NOT call loadPendingActions() here
+    // These will be called lazily on first use
   }
 
   static getInstance(): OfflineManager {
     if (!OfflineManager.instance) {
       OfflineManager.instance = new OfflineManager();
     }
+    // Ensure initialization happens on first access
+    OfflineManager.instance.ensureInitialized();
     return OfflineManager.instance;
   }
 
+  // Lazy initialization - only call native modules AFTER this is explicitly invoked
+  private ensureInitialized(): void {
+    if (this.isInitialized) {
+      return;
+    }
+    
+    this.isInitialized = true;
+    this.initializeNetworkListener();
+    this.loadPendingActions();
+  }
+
   private async initializeNetworkListener() {
+    // Try to load NetInfo module
+    if (!loadNetInfoModule()) {
+      // NetInfo not available - assume always online
+      if (__DEV__) {
+        logger.warn('NetInfo not available - assuming always online');
+      }
+      this.isOnline = true;
+      this.notifyListeners();
+      return;
+    }
+
     try {
       // Check initial network state
       const netInfoState = await NetInfo.fetch();
@@ -39,7 +97,7 @@ class OfflineManager {
       this.notifyListeners();
 
       // Subscribe to network state changes
-      this.unsubscribeNetInfo = NetInfo.addEventListener((state: NetInfoState) => {
+      this.unsubscribeNetInfo = NetInfo.addEventListener((state: any) => {
         const wasOnline = this.isOnline;
         this.isOnline = state.isConnected ?? false;
         

@@ -1,7 +1,37 @@
 import { Alert, Linking, Platform } from 'react-native';
-import Constants from 'expo-constants';
-import * as Updates from 'expo-updates';
+// CRITICAL: Lazy-load expo-constants to prevent TurboModule crash at module load
+// import Constants from 'expo-constants'; // REMOVED - lazy load
+// import * as Updates from 'expo-updates'; // REMOVED - not used, commented out below
 import { logger } from './logger';
+
+// Lazy-loaded Constants module
+let Constants: any = null;
+let constantsLoadAttempted = false;
+
+function loadConstantsModule(): boolean {
+  if (constantsLoadAttempted) {
+    return Constants !== null;
+  }
+  
+  constantsLoadAttempted = true;
+  
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/versionCheck.ts:20',message:'Before expo-constants require',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
+    // #endregion
+    Constants = require('expo-constants').default;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/versionCheck.ts:24',message:'After expo-constants require success',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
+    // #endregion
+    return true;
+  } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/versionCheck.ts:29',message:'expo-constants require failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
+    // #endregion
+    // Module not available
+    return false;
+  }
+}
 
 // Minimum required version - update this when you need to force an update
 const MIN_REQUIRED_VERSION = '2.2.4'; // Set to your current version
@@ -34,6 +64,12 @@ function compareVersions(v1: string, v2: string): number {
  */
 export async function checkForForceUpdate(): Promise<boolean> {
   try {
+    // Try to load Constants module
+    if (!loadConstantsModule()) {
+      logger.warn('expo-constants not available - skipping version check');
+      return false;
+    }
+
     const currentVersion = Constants.expoConfig?.version || '0.0.0';
     const currentBuild = Platform.OS === 'ios' 
       ? parseInt(Constants.expoConfig?.ios?.buildNumber || '0', 10)
@@ -125,6 +161,15 @@ export async function checkForForceUpdate(): Promise<boolean> {
  * Get current app version info
  */
 export function getCurrentVersionInfo(): { version: string; buildNumber: number; platform: string } {
+  // Try to load Constants module
+  if (!loadConstantsModule()) {
+    return {
+      version: '0.0.0',
+      buildNumber: 0,
+      platform: Platform.OS,
+    };
+  }
+
   const version = Constants.expoConfig?.version || '0.0.0';
   const buildNumber = Platform.OS === 'ios'
     ? parseInt(Constants.expoConfig?.ios?.buildNumber || '0', 10)
