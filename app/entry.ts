@@ -115,6 +115,58 @@ const reanimatedLoaded = false;
 // Expose reanimated status for downstream code (always false now)
 (global as any).__REANIMATED_LOADED__ = reanimatedLoaded;
 
+// 7) CRITICAL: Unhandled Promise Rejection Handler
+// This prevents crashes from unhandled async errors
+if (typeof (global as any).Promise !== 'undefined') {
+  const originalUnhandledRejection = (global as any).onunhandledrejection;
+  
+  (global as any).onunhandledrejection = (event: any) => {
+    const reason = event?.reason || event;
+    
+    // Store for UI display
+    if (!entryEarlyError) {
+      entryEarlyError = {
+        message: reason?.message || 'Unhandled Promise Rejection',
+        stack: reason?.stack || '',
+        isFatal: false,
+      };
+    }
+    
+    // Log for debugging
+    if (__DEV__) {
+      console.error('[UNHANDLED PROMISE REJECTION]', reason);
+    }
+    
+    // Add to error queue
+    if (typeof (global as any).__errorQueue === 'undefined') {
+      (global as any).__errorQueue = [];
+    }
+    (global as any).__errorQueue.push({
+      message: reason?.message || 'Unhandled Promise Rejection',
+      stack: reason?.stack || '',
+      isFatal: false,
+      time: Date.now(),
+      type: 'unhandledRejection',
+    });
+    
+    // Call original if it exists
+    if (typeof originalUnhandledRejection === 'function') {
+      try {
+        originalUnhandledRejection(event);
+      } catch {
+        // Ignore
+      }
+    }
+    
+    // Prevent default behavior (crash)
+    if (event && typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
+    
+    return true; // Prevent crash
+  };
+}
+
 // 7) CRITICAL: Keep splash screen visible until app is ready
 // Prevent auto-hide so we can control when it disappears
 try {

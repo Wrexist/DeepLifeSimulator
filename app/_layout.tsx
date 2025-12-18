@@ -583,7 +583,14 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ErrorBoundary>
+      <ErrorBoundary
+        onError={(error, errorInfo) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'_layout.tsx:588',message:'ErrorBoundary caught error',data:{message:error.message,component:errorInfo.componentStack?.split('\n')[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
+          // #endregion
+          logger.error('RootLayout ErrorBoundary triggered:', { error, errorInfo });
+        }}
+      >
         <SafeAreaProvider>
           <InnerLayout showStatsBar={finalShowStatsBar} />
         </SafeAreaProvider>
