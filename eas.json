@@ -8,12 +8,13 @@
         "resourceClass": "m-medium",
         "autoIncrement": false,
         "buildConfiguration": "Release",
-        "image": "latest",
+        "image": "macos-sequoia-15.1-xcode-16.1",
         "env": {
           "RCT_NEW_ARCH_ENABLED": "0",
           "FOLLY_NO_CONFIG": "1",
           "FOLLY_MOBILE": "1",
-          "FOLLY_USE_LIBCPP": "1"
+          "FOLLY_USE_LIBCPP": "1",
+          "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES": "YES"
         },
         "simulator": false
       },
