@@ -9,7 +9,7 @@
         "autoIncrement": false,
         "buildConfiguration": "Release",
         "env": {
-          "RCT_NEW_ARCH_ENABLED": "1",
+          "RCT_NEW_ARCH_ENABLED": "0",
           "FOLLY_NO_CONFIG": "1",
           "FOLLY_MOBILE": "1",
           "FOLLY_USE_LIBCPP": "1"
