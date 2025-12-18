@@ -1,6 +1,8 @@
 // CRITICAL: Polyfill toReversed() for Node.js < 20
 // This must run BEFORE Metro config is loaded
+// eslint-disable-next-line no-extend-native
 if (!Array.prototype.toReversed) {
+  // eslint-disable-next-line no-extend-native
   Array.prototype.toReversed = function() {
     return [...this].reverse();
   };
