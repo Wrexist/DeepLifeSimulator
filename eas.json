@@ -10,7 +10,6 @@
         "buildConfiguration": "Release",
         "image": "macos-sonoma-14.6-xcode-16.1",
         "node": "20.18.0",
-        "prebuildCommand": "node -e \"if (!Array.prototype.toReversed) { Array.prototype.toReversed = function() { return [...this].reverse(); }; }\"",
         "env": {
           "RCT_NEW_ARCH_ENABLED": "0",
           "FOLLY_NO_CONFIG": "1",
