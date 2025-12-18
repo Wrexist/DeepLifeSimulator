@@ -34,8 +34,8 @@ module.exports = {
       bundleIdentifier: "com.deeplife.simulator",
       // Build number - increment for each App Store submission
       buildNumber: "65",
-      // Minimum iOS version - set to 13.4 for better Xcode 15 compatibility
-      deploymentTarget: "13.4",
+      // Minimum iOS version - set to 15.1 (EAS requirement)
+      deploymentTarget: "15.1",
       infoPlist: {
         NSUserTrackingUsageDescription: "This app would like to track your activity to provide personalized ads and improve your experience.",
         ITSAppUsesNonExemptEncryption: false
@@ -89,7 +89,7 @@ module.exports = {
         "expo-build-properties",
         {
           ios: {
-            deploymentTarget: "13.4",
+            deploymentTarget: "15.1",
             // Suppress strict module header warnings for Xcode 15/16 compatibility
             extraPodfileProperties: {
               "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES": "YES",
