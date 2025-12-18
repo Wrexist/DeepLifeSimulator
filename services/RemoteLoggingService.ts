@@ -31,11 +31,45 @@ class RemoteLoggingService {
   private syncIntervalId: ReturnType<typeof setInterval> | null = null;
   private remoteUrl: string | null = null;
   private listeners: ((logs: LogEntry[]) => void)[] = [];
+  private appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
+  private isInitialized = false;
 
   constructor() {
+    // CRITICAL: Do NOT call AsyncStorage in constructor
+    // This executes at module load time and can crash the app
+    // Defer initialization until after app renders
+    // Use lazy initialization pattern
+    this.queue = [];
+    // Do NOT call loadQueue() here - it will be called on first use
+    // Do NOT call startSync() here - it will be called on first use
+    // AppState listener will be set up on first use
+  }
+
+  // Lazy initialization - call this on first use, not in constructor
+  // CRITICAL: Only add AppState listener once to prevent leaks
+  private ensureInitialized(): void {
+    if (this.isInitialized) {
+      return;
+    }
+    
+    this.isInitialized = true;
     this.loadQueue();
     this.startSync();
-    AppState.addEventListener('change', this.handleAppStateChange);
+    
+    // CRITICAL: Only add listener once, store subscription for cleanup
+    if (!this.appStateSubscription) {
+      this.appStateSubscription = AppState.addEventListener('change', this.handleAppStateChange);
+    }
+  }
+
+  // Cleanup method for when service is no longer needed
+  cleanup(): void {
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
+    this.stopSync();
+    this.isInitialized = false;
   }
 
   configure(url: string | null) {
@@ -118,6 +152,9 @@ class RemoteLoggingService {
   }
 
   log(entry: Omit<LogEntry, 'id' | 'timestamp'>) {
+    // Lazy initialization - ensure service is initialized on first use
+    this.ensureInitialized();
+    
     const newLog: LogEntry = {
       ...entry,
       id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
@@ -141,16 +178,22 @@ class RemoteLoggingService {
   }
 
   getLogs(): LogEntry[] {
+    // Lazy initialization - ensure service is initialized on first use
+    this.ensureInitialized();
     return [...this.queue].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
   clearLogs() {
+    // Lazy initialization - ensure service is initialized on first use
+    this.ensureInitialized();
     this.queue = [];
     this.persistQueue();
     this.notifyListeners();
   }
 
   subscribe(listener: (logs: LogEntry[]) => void) {
+    // Lazy initialization - ensure service is initialized on first use
+    this.ensureInitialized();
     this.listeners.push(listener);
     listener(this.getLogs());
     return () => {

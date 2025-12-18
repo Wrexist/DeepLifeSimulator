@@ -22,7 +22,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   X,
   Copy,

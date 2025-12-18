@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   Bell,
   BellOff,

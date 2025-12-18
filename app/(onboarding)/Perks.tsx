@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +42,8 @@ import {
 } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { logger } from '@/utils/logger';
+import { validateOnboardingState, applySafeDefaults } from '@/utils/onboardingValidation';
+import { validateGameEntry } from '@/utils/gameEntryValidation';
 
 const { width: screenWidth } = Dimensions.get('window');
 const NATIVE_OK = Platform.OS !== 'web';
@@ -139,7 +141,7 @@ export default function Perks() {
         rotateLoop.start();
       }
     } catch (error) {
-      console.error('Error starting rotate animation:', error);
+      log.error('Error starting rotate animation:', error);
     }
     
     return () => {
@@ -148,7 +150,7 @@ export default function Perks() {
         try {
           rotateLoop.stop();
         } catch (error) {
-          console.error('Error stopping rotate animation:', error);
+          log.error('Error stopping rotate animation:', error);
         }
       }
     };
@@ -179,7 +181,7 @@ export default function Perks() {
         parallel.start();
       }
     } catch (error) {
-      console.error('Error starting fade/slide animation:', error);
+      log.error('Error starting fade/slide animation:', error);
     }
     
     return () => {
@@ -188,7 +190,7 @@ export default function Perks() {
         try {
           parallel.stop();
         } catch (error) {
-          console.error('Error stopping fade/slide animation:', error);
+          log.error('Error stopping fade/slide animation:', error);
         }
       }
     };
@@ -206,12 +208,92 @@ export default function Perks() {
       scenarioId: state.scenario?.id 
     });
     
+    // CRITICAL: Validate onboarding state before proceeding
     if (!state.scenario) {
       log.error('No scenario selected', { state });
+      Alert.alert(
+        'Missing Scenario',
+        'Please select a scenario before starting your life.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Validate character identity
+    if (!state.firstName || !state.firstName.trim()) {
+      log.error('Missing firstName', { state });
+      Alert.alert(
+        'Missing First Name',
+        'Please enter a first name for your character.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    if (!state.lastName || !state.lastName.trim()) {
+      log.error('Missing lastName', { state });
+      Alert.alert(
+        'Missing Last Name',
+        'Please enter a last name for your character.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    if (!state.sex || !['male', 'female', 'random'].includes(state.sex)) {
+      log.error('Invalid sex', { state });
+      Alert.alert(
+        'Invalid Character Sex',
+        'Please select a valid character sex.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    if (!state.sexuality || !['straight', 'gay', 'bi'].includes(state.sexuality)) {
+      log.error('Invalid sexuality', { state });
+      Alert.alert(
+        'Invalid Sexuality',
+        'Please select a valid sexuality.',
+        [{ text: 'OK' }]
+      );
       return;
     }
     
     const scenario = state.scenario;
+    
+    // CRITICAL: Validate scenario data structure before using
+    if (!scenario || !scenario.start || typeof scenario.start !== 'object') {
+      log.error('Invalid scenario structure', { scenario });
+      Alert.alert(
+        'Invalid Scenario',
+        'The selected scenario is invalid. Please go back and select a different scenario.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Validate scenario.start has required properties
+    if (typeof scenario.start.age !== 'number' || scenario.start.age < 18 || scenario.start.age > 150) {
+      log.error('Invalid scenario age', { age: scenario.start.age });
+      Alert.alert(
+        'Invalid Scenario',
+        'The selected scenario has an invalid starting age. Please try again.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    if (typeof scenario.start.cash !== 'number' || scenario.start.cash < 0) {
+      log.error('Invalid scenario cash', { cash: scenario.start.cash });
+      Alert.alert(
+        'Invalid Scenario',
+        'The selected scenario has invalid starting cash. Please try again.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
     const sex =
       state.sex === 'random'
         ? Math.random() < 0.5
@@ -296,20 +378,205 @@ export default function Perks() {
         traits: [selectedMindset],
       } : undefined,
       scenarioId: scenario.id,
+      // CRITICAL FIX: Store challengeScenarioId in game state if this is a challenge scenario
+      // This allows the game to track challenge completion and award gems on prestige
+      challengeScenarioId: state.challengeScenarioId,
       activeTraits: scenario.start.traits || [],
-      items: initialGameState.items.map(i => {
+      // CRITICAL FIX: Define mappedIds outside map callback to fix scope issue
+      // Map scenario item IDs to actual game item IDs
+      items: (() => {
         const mappedIds = scenarioItems.map(sid => itemIdMap[sid] || sid).filter(Boolean);
-        if (mappedIds.includes(i.id)) return { ...i, owned: true };
-        return i;
-      }),
+        return initialGameState.items.map(i => {
+          if (mappedIds.includes(i.id)) return { ...i, owned: true };
+          return i;
+        });
+      })(),
+      // Set hasPhone if smartphone is in items
+      hasPhone: (() => {
+        const mappedIds = scenarioItems.map(sid => itemIdMap[sid] || sid).filter(Boolean);
+        return scenarioItems.includes('smartphone') || mappedIds.includes('smartphone');
+      })(),
+      // Ensure family.children is empty for single parent scenario (and others that specify noChildren)
+      family: {
+        ...initialGameState.family,
+        children: scenario.id === 'single_parent' ? [] : initialGameState.family.children,
+      },
+      version: 5, // Ensure version is set
     };
 
+    // CRITICAL: Validate the complete game state before saving
+    const validation = validateOnboardingState(newState);
+    
+    if (!validation.valid) {
+      log.error('Onboarding validation failed', {
+        errors: validation.errors,
+        warnings: validation.warnings,
+        missingFields: validation.missingFields,
+        invalidFields: validation.invalidFields,
+      });
+      
+      // Try to apply safe defaults for missing fields
+      const defaultsResult = applySafeDefaults(newState);
+      
+      // Re-validate after applying defaults
+      const revalidation = validateOnboardingState(newState);
+      
+      if (!revalidation.valid) {
+        // Still invalid after defaults - fail fast
+        const errorMessage = [
+          'Failed to create valid game state:',
+          ...validation.errors.slice(0, 5), // Show first 5 errors
+          validation.errors.length > 5 ? `... and ${validation.errors.length - 5} more errors` : '',
+        ].filter(Boolean).join('\n');
+        
+        Alert.alert(
+          'Game Creation Failed',
+          errorMessage + '\n\nPlease try again or contact support if this persists.',
+          [{ text: 'OK' }]
+        );
+        
+        log.error('Game state validation failed even after applying defaults', {
+          originalErrors: validation.errors,
+          revalidationErrors: revalidation.errors,
+          defaultsApplied: defaultsResult.defaults,
+        });
+        
+        return;
+      } else {
+        log.warn('Applied defaults to fix validation issues', {
+          defaultsApplied: defaultsResult.defaults,
+          remainingWarnings: revalidation.warnings,
+        });
+      }
+    } else if (validation.warnings.length > 0) {
+      log.warn('Onboarding validation passed with warnings', {
+        warnings: validation.warnings,
+      });
+    } else {
+      log.info('Onboarding validation passed successfully');
+    }
+    
     const slotToUse = state.slot || 1;
-    await AsyncStorage.setItem(`save_slot_${slotToUse}`, JSON.stringify({ ...newState, version: 5 }));
-    await AsyncStorage.setItem('lastSlot', String(slotToUse));
-    setState(prev => ({ ...prev, perks: selected }));
-    await loadGame(slotToUse);
-    router.replace('/(tabs)');
+    
+    try {
+      // Save the validated game state (version already set above)
+      await AsyncStorage.setItem(`save_slot_${slotToUse}`, JSON.stringify(newState));
+      await AsyncStorage.setItem('lastSlot', String(slotToUse));
+      
+      log.info('Game state saved successfully', { slot: slotToUse });
+      
+      setState(prev => ({ ...prev, perks: selected }));
+      
+      // ONBOARDING FIX: Load game and validate before navigation
+      try {
+        await loadGame(slotToUse);
+      } catch (loadError) {
+        log.error('loadGame failed:', loadError);
+        Alert.alert(
+          'Load Failed',
+          'Failed to load your game after saving. Please try again.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // ONBOARDING FIX: Wait for state to update, then validate before navigation
+      // This ensures the loaded state is valid before entering gameplay
+      setTimeout(async () => {
+        try {
+          // CRITICAL: Verify loadGame succeeded by checking storage
+          const loadedData = await AsyncStorage.getItem(`save_slot_${slotToUse}`);
+          if (!loadedData) {
+            log.error('Failed to load game state after save - no data in storage');
+            Alert.alert(
+              'Load Failed',
+              'Failed to load your game after saving. The save file may not have been created properly. Please try again.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+
+          let loadedState;
+          try {
+            loadedState = JSON.parse(loadedData);
+          } catch (parseError) {
+            log.error('Failed to parse loaded game state:', parseError);
+            Alert.alert(
+              'Corrupted Save',
+              'Your save file is corrupted and cannot be loaded. Please try again.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+
+          // CRITICAL: Verify loaded state has required structure
+          if (!loadedState || typeof loadedState !== 'object') {
+            log.error('Loaded state is not a valid object', { loadedState });
+            Alert.alert(
+              'Invalid Save',
+              'The loaded game state is invalid. Please try again.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+
+          // ONBOARDING FIX: Validate state before entering gameplay (using static import)
+          const validation = validateGameEntry(loadedState);
+          
+          if (!validation.canEnter) {
+            log.error('Game entry validation failed after onboarding', {
+              reason: validation.reason,
+              errors: validation.errors,
+              warnings: validation.warnings,
+            });
+
+            // Show appropriate error message
+            if (!validation.versionCompatible) {
+              Alert.alert(
+                'Version Incompatible',
+                'The game state created is incompatible. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } else if (!validation.stateComplete) {
+              Alert.alert(
+                'Incomplete State',
+                'The game state is incomplete. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } else {
+              Alert.alert(
+                'Invalid State',
+                validation.errors[0] || 'The game state is invalid. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
+            return;
+          }
+
+          if (validation.warnings.length > 0) {
+            log.warn('Game entry validation warnings after onboarding', validation.warnings);
+          }
+
+          // ONBOARDING FIX: Only navigate if validation passed
+          log.info('Game entry validation passed after onboarding, navigating to gameplay');
+          router.replace('/(tabs)');
+        } catch (validationError) {
+          log.error('Error during post-load validation:', validationError);
+          Alert.alert(
+            'Validation Error',
+            'An error occurred while validating your game. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
+      }, 500); // Small delay to allow loadGame to complete
+    } catch (error) {
+      log.error('Failed to save game state', error);
+      Alert.alert(
+        'Save Failed',
+        'Failed to save your game. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const getStatIcon = (stat: string) => {

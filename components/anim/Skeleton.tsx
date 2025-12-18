@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
-import { ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import React from 'react';
+import { View, ViewStyle } from 'react-native';
 
 interface SkeletonProps {
   height?: number;
@@ -8,25 +7,21 @@ interface SkeletonProps {
   style?: ViewStyle;
 }
 
+// TEMPORARY: react-native-reanimated removed to fix TurboModule crash
+// This is a static placeholder until we identify the crash culprit
 export default function Skeleton({ height = 16, radius = 4, style }: SkeletonProps) {
-  const opacity = useSharedValue(0.3);
-
-  useEffect(() => {
-    opacity.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);
-  }, [opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  // Removed animation to avoid dependency on react-native-reanimated
 
   return (
-    <Animated.View
+    <View
       style={[
         {
           height,
           borderRadius: radius,
           backgroundColor: '#253046',
           marginVertical: 6,
+          opacity: 0.5, // Static opacity instead of animated
         },
-        animatedStyle,
         style,
       ]}
     />

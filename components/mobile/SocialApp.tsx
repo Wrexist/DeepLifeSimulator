@@ -35,6 +35,7 @@ import ProfileHeader from './social/ProfileHeader';
 import PostCard from './social/PostCard';
 import PostComposer from './social/PostComposer';
 import ProfileEditModal, { ProfileData } from './social/ProfileEditModal';
+import DMSystem from './social/DMSystem';
 import { 
   calculateFollowerGrowth, 
   checkViralChance, 
@@ -59,7 +60,7 @@ interface SocialAppProps {
   onBack: () => void;
 }
 
-type TabType = 'feed' | 'profile' | 'trending' | 'notifications';
+type TabType = 'feed' | 'profile' | 'trending' | 'notifications' | 'messages';
 
 // Generate fake trending topics
 const TRENDING_TOPICS = [
@@ -645,6 +646,11 @@ export default function SocialApp({ onBack }: SocialAppProps) {
         )}
       </ScrollView>
   ), [socialMedia.followers]);
+
+  // Render Messages/DM Tab
+  const renderMessagesTab = useCallback(() => (
+    <DMSystem onBack={() => setActiveTab('feed')} />
+  ), []);
   
   const renderContent = useCallback(() => {
     switch (activeTab) {
@@ -656,10 +662,12 @@ export default function SocialApp({ onBack }: SocialAppProps) {
         return renderTrendingTab();
       case 'notifications':
         return renderNotificationsTab();
+      case 'messages':
+        return renderMessagesTab();
       default:
         return renderFeedTab();
     }
-  }, [activeTab, renderFeedTab, renderProfileTab, renderTrendingTab, renderNotificationsTab]);
+  }, [activeTab, renderFeedTab, renderProfileTab, renderTrendingTab, renderNotificationsTab, renderMessagesTab]);
   
   return (
     <View style={styles.container}>
@@ -705,6 +713,15 @@ export default function SocialApp({ onBack }: SocialAppProps) {
           <Bell 
             size={scale(24)} 
             color={activeTab === 'notifications' ? '#E7E9EA' : '#71767B'} 
+          />
+              </TouchableOpacity>
+                <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => setActiveTab('messages')}
+        >
+          <Mail 
+            size={scale(24)} 
+            color={activeTab === 'messages' ? '#E7E9EA' : '#71767B'}
           />
               </TouchableOpacity>
                 <TouchableOpacity

@@ -46,7 +46,9 @@ export const goOnDate = (
   }
 
   // Date costs and effects
+  // STABILITY FIX: Added free "chat" option for players without money
   const dateConfigs = {
+    chat: { cost: 0, happiness: 2, relationshipBoost: 1, energy: 5 },  // Free option for maintaining relationships
     casual: { cost: 50, happiness: 5, relationshipBoost: 3, energy: 10 },
     coffee: { cost: 30, happiness: 3, relationshipBoost: 2, energy: 5 },
     dinner: { cost: 150, happiness: 10, relationshipBoost: 5, energy: 15 },
@@ -190,7 +192,12 @@ export const proposeMarriage = (
     partner.livingTogether || false
   );
 
-  const accepted = Math.random() * 100 < successRate;
+  // RANDOMNESS FIX: Soft guarantee - if calculated rate is 95%+, guarantee success
+  // This prevents frustrating failures at high relationship scores
+  // PRIORITY 2 FIX: Use constant from randomnessConstants
+  const { SOFT_GUARANTEE_PROPOSAL } = require('@/lib/randomness/randomnessConstants');
+  const guaranteedSuccess = successRate >= SOFT_GUARANTEE_PROPOSAL;
+  const accepted = guaranteedSuccess ? true : Math.random() * 100 < successRate;
 
   if (accepted) {
     // Update partner to engaged
@@ -343,14 +350,26 @@ export const executeWedding = (
 
   // Convert partner to spouse
   setGameState(prev => {
-    const updatedRelationships = (prev.relationships || []).map(r =>
+    // RELATIONSHIP STATE FIX: Remove existing spouse if different person (prevent duplicates)
+    let relationships = prev.relationships || [];
+    const existingSpouse = prev.family?.spouse;
+    if (existingSpouse && existingSpouse.id !== partnerId) {
+      relationships = relationships.filter(r => r.id !== existingSpouse.id);
+      log.warn('Replacing existing spouse during wedding', { oldSpouseId: existingSpouse.id, newSpouseId: partnerId });
+    }
+    
+    const updatedRelationships = relationships.map(r =>
       r.id === partnerId
         ? {
             ...r,
             type: 'spouse' as const,
             marriageWeek: prev.week,
             anniversaryWeek: prev.week,
-            weddingPlanned: undefined, // Clear the plan
+            // RELATIONSHIP STATE FIX: Clear all engagement properties when becoming spouse
+            engagementWeek: undefined,
+            engagementRing: undefined,
+            weddingPlanned: undefined,
+            livingTogether: true, // RELATIONSHIP STATE FIX: Spouses automatically live together
           }
         : r
     );
@@ -419,14 +438,21 @@ export const fileDivorce = (
   deps.updateStats(setGameState, { happiness: -40, reputation: -10 });
 
   // Remove spouse
-  setGameState(prev => ({
-    ...prev,
-    relationships: (prev.relationships || []).filter(r => r.id !== spouseId),
-    family: {
-      ...prev.family,
-      spouse: undefined,
-    },
-  }));
+  setGameState(prev => {
+    // RELATIONSHIP STATE FIX: Clear livingTogether before removing spouse (defensive programming)
+    const relationships = (prev.relationships || []).map(r =>
+      r.id === spouseId ? { ...r, livingTogether: false } : r
+    ).filter(r => r.id !== spouseId);
+    
+    return {
+      ...prev,
+      relationships,
+      family: {
+        ...prev.family,
+        spouse: undefined,
+      },
+    };
+  });
 
   log.info(`Divorced ${spouse.name}, settlement: $${settlement}`);
   return { 

@@ -71,11 +71,17 @@ export const BASE_PRESTIGE_THRESHOLD = 100_000_000; // $100M
 
 /**
  * Calculate the prestige threshold based on current prestige level
- * Threshold increases by $100M for each prestige level
- * Level 0: $100M, Level 1: $200M, Level 2: $300M, etc.
+ * STABILITY FIX: Add difficulty scaling - each prestige increases threshold by 5% (reduced from 10%)
+ * This prevents prestige from becoming trivial after many cycles, but not too aggressive
+ * Level 0: $100M, Level 1: $105M (5% increase), Level 2: $110.25M (5% of $105M), etc.
+ * Base formula: $100M * 1.05^prestigeLevel
  */
 export function getPrestigeThreshold(prestigeLevel: number): number {
-  return BASE_PRESTIGE_THRESHOLD * (prestigeLevel + 1);
+  if (prestigeLevel === 0) {
+    return BASE_PRESTIGE_THRESHOLD; // First prestige: $100M
+  }
+  // Each prestige increases threshold by 5% (compound) - reduced from 10% to be less aggressive
+  return Math.floor(BASE_PRESTIGE_THRESHOLD * Math.pow(1.05, prestigeLevel));
 }
 
 /**

@@ -11,12 +11,13 @@ export interface SeasonalEventData {
 }
 
 /**
- * Calculate current season based on game week
+ * Calculate current season based on weeks lived
  * 52 weeks = 1 year
  * Each season = 13 weeks
+ * TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
  */
-export function getCurrentSeason(week: number): SeasonalEventData {
-  const weekInYear = week % 52;
+export function getCurrentSeason(weeksLived: number): SeasonalEventData {
+  const weekInYear = weeksLived % 52;
   const weekInSeason = weekInYear % 13;
   
   let season: Season;
@@ -60,7 +61,8 @@ export function shouldTriggerSeasonalEvent(
   eventId: string
 ): boolean {
   const seasonalData = state.seasonalEvents || { lastSeason: '', completedEvents: [] };
-  const currentSeason = getCurrentSeason(state.week);
+  // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+  const currentSeason = getCurrentSeason(state.weeksLived || 0);
   
   // Don't trigger if already completed this season
   if (seasonalData.completedEvents.includes(eventId)) {
@@ -86,7 +88,8 @@ const springFestival: EventTemplate = {
   category: 'general',
   weight: 1.0,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.season === 'spring' && shouldTriggerSeasonalEvent(state, 'spring_festival');
   },
   generate: () => ({
@@ -117,7 +120,8 @@ const gardenEvent: EventTemplate = {
   category: 'health',
   weight: 0.8,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.season === 'spring' && shouldTriggerSeasonalEvent(state, 'garden_event');
   },
   generate: () => ({
@@ -147,7 +151,8 @@ const beachParty: EventTemplate = {
   category: 'general',
   weight: 1.0,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.season === 'summer' && shouldTriggerSeasonalEvent(state, 'beach_party');
   },
   generate: () => ({
@@ -178,7 +183,8 @@ const summerSale: EventTemplate = {
   category: 'economy',
   weight: 0.9,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.season === 'summer' && shouldTriggerSeasonalEvent(state, 'summer_sale');
   },
   generate: () => ({
@@ -210,7 +216,8 @@ const harvestFestival: EventTemplate = {
   category: 'economy',
   weight: 1.0,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.season === 'fall' && shouldTriggerSeasonalEvent(state, 'harvest_festival');
   },
   generate: () => ({
@@ -239,7 +246,8 @@ const careerFair: EventTemplate = {
   category: 'economy',
   weight: 0.8,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.season === 'fall' && shouldTriggerSeasonalEvent(state, 'career_fair');
   },
   generate: () => ({
@@ -269,7 +277,8 @@ const winterHolidays: EventTemplate = {
   category: 'relationship',
   weight: 1.0,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.season === 'winter' && shouldTriggerSeasonalEvent(state, 'winter_holidays');
   },
   generate: (state) => {
@@ -305,7 +314,8 @@ const newYear: EventTemplate = {
   category: 'general',
   weight: 1.0,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.holiday === 'newyear' && shouldTriggerSeasonalEvent(state, 'new_year');
   },
   generate: () => ({
@@ -337,7 +347,8 @@ const valentinesDay: EventTemplate = {
   category: 'relationship',
   weight: 1.0,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.holiday === 'valentines' && shouldTriggerSeasonalEvent(state, 'valentines_day');
   },
   generate: (state) => {
@@ -394,7 +405,8 @@ const halloween: EventTemplate = {
   category: 'general',
   weight: 1.0,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.holiday === 'halloween' && shouldTriggerSeasonalEvent(state, 'halloween');
   },
   generate: () => ({
@@ -426,7 +438,8 @@ const christmas: EventTemplate = {
   category: 'relationship',
   weight: 1.0,
   condition: (state) => {
-    const season = getCurrentSeason(state.week);
+    // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+    const season = getCurrentSeason(state.weeksLived || 0);
     return season.holiday === 'christmas' && shouldTriggerSeasonalEvent(state, 'christmas');
   },
   generate: (state) => {
@@ -477,7 +490,8 @@ export const seasonalEventTemplates: EventTemplate[] = [
  */
 export function getSeasonalEvents(state: GameState): WeeklyEvent[] {
   const events: WeeklyEvent[] = [];
-  const currentSeason = getCurrentSeason(state.week);
+  // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+  const currentSeason = getCurrentSeason(state.weeksLived || 0);
   
   // Check each seasonal event template
   for (const template of seasonalEventTemplates) {

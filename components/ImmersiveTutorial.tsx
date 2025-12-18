@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MotiView } from 'moti';
+import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import { useRouter, type Href } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';

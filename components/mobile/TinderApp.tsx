@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, Dimen
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { MotiView } from 'moti';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
+import { MotiView } from '@/components/anim/MotiStub'; // Stub replacement for moti
 import { ArrowLeft, Heart, X, Settings, DollarSign, Star, MapPin, MessageCircle, Sparkles, Users, ChevronDown, Calendar, Circle } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -13,6 +13,7 @@ import { goOnDate, giveGift, proposeMarriage, getRelationshipStatus } from '@/co
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { ENGAGEMENT_RINGS, getTierColor } from '@/lib/dating/engagementRings';
+import WeddingPlanningModal from './WeddingPlanningModal';
 
 interface DatingAppProps {
   onBack: () => void;
@@ -1379,6 +1380,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
+  const [showWeddingModal, setShowWeddingModal] = useState(false);
   const [selectedRingId, setSelectedRingId] = useState<string | null>(null);
   const [scrollIndicatorOpacity, setScrollIndicatorOpacity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -1866,14 +1868,22 @@ export default function DatingApp({ onBack }: DatingAppProps) {
                   </TouchableOpacity>
                 )}
 
-                {existingPartner.engagementWeek && (
+                {existingPartner.engagementWeek && !existingPartner.weddingPlanned && (
                   <TouchableOpacity
                     style={[styles.partnerActionBtn, { backgroundColor: '#22C55E' }]}
-                    onPress={() => Alert.alert('Coming Soon', 'Wedding planning will be available in the next update!')}
+                    onPress={() => setShowWeddingModal(true)}
                   >
                     <Calendar size={scale(18)} color="#FFF" />
                     <Text style={styles.partnerActionText}>Plan Wedding</Text>
                   </TouchableOpacity>
+                )}
+                {existingPartner.weddingPlanned && (
+                  <View style={[styles.partnerActionBtn, { backgroundColor: '#3B82F6', opacity: 0.8 }]}>
+                    <Calendar size={scale(18)} color="#FFF" />
+                    <Text style={styles.partnerActionText}>
+                      Wedding in {Math.max(0, (existingPartner.weddingPlanned.scheduledWeek || 0) - gameState.week)} weeks
+                    </Text>
+                  </View>
                 )}
               </View>
               
@@ -2115,6 +2125,16 @@ export default function DatingApp({ onBack }: DatingAppProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Wedding Planning Modal */}
+      {existingPartner && (
+        <WeddingPlanningModal
+          visible={showWeddingModal}
+          onClose={() => setShowWeddingModal(false)}
+          partnerId={existingPartner.id}
+          partnerName={existingPartner.name}
+        />
+      )}
 
     </View>
   );

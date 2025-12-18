@@ -6,12 +6,13 @@ module.exports = {
     runtimeVersion: {
       policy: "sdkVersion"
     },
-    updates: {
-      url: "https://u.expo.dev/55bb8510-7ba6-4ec5-9174-cc370f5f6fdb",
-      enabled: false, // Temporarily disabled to test if it causes startup crashes
-      checkAutomatically: "NEVER", // Changed from ON_ERROR_RECOVERY to prevent crash loop
-      fallbackToCacheTimeout: 0
-    },
+    // updates: COMPLETELY REMOVED to prevent TurboModule crash
+    // updates: {
+    //   url: "https://u.expo.dev/55bb8510-7ba6-4ec5-9174-cc370f5f6fdb",
+    //   enabled: false,
+    //   checkAutomatically: "NEVER",
+    //   fallbackToCacheTimeout: 0
+    // },
     extra: {
       eas: {
         projectId: "55bb8510-7ba6-4ec5-9174-cc370f5f6fdb"
@@ -20,7 +21,7 @@ module.exports = {
     owner: "isacm",
     // Version number - ensure this matches App Store version
     // Note: If App Store shows different version (e.g., 1.2.x), align this accordingly
-    version: "2.2.6",
+    version: "2.2.7",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "myapp",
@@ -32,13 +33,14 @@ module.exports = {
       supportsTablet: true,
       bundleIdentifier: "com.deeplife.simulator",
       // Build number - increment for each App Store submission
-      buildNumber: "47",
+      buildNumber: "65",
       // Minimum iOS version - set to 13.0 to support iOS 26 beta and older devices
       deploymentTarget: "13.0",
       infoPlist: {
         NSUserTrackingUsageDescription: "This app would like to track your activity to provide personalized ads and improve your experience.",
-        ITSAppUsesNonExemptEncryption: false,
-        GADApplicationIdentifier: "ca-app-pub-2286247955186424~3290819490"
+        ITSAppUsesNonExemptEncryption: false
+        // GADApplicationIdentifier REMOVED - AdMob disabled due to native crashes
+        // "ca-app-pub-2286247955186424~3290819490"
       },
       config: {
         googleMobileAdsAppId: "ca-app-pub-2286247955186424~3290819490"
@@ -80,17 +82,10 @@ module.exports = {
         {
           root: "./app"
         }
-      ],
-      "expo-font",
-      "expo-web-browser",
-      [
-        "expo-tracking-transparency",
-        {
-          userTrackingPermission: "This app would like to track your activity to provide personalized ads and improve your experience."
-        }
-      ],
-      // Fix Folly coroutines issue - disable coroutines to fix 'folly/coro/Coroutine.h' not found
-      "./plugins/withFollyCoroutinesFix.js"
+      ]
+      // REMOVED: expo-font, expo-web-browser, expo-tracking-transparency
+      // REMOVED: ./plugins/withFollyCoroutinesFix.js
+      // All removed to eliminate TurboModule crash suspects
     ],
     experiments: {
       typedRoutes: true

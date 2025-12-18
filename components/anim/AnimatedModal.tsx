@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, View, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
-import { MotiView } from 'moti';
-import { BlurView } from 'expo-blur';
+import { MotiView, MotiText } from '@/components/anim/MotiStub';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useGame } from '@/contexts/GameContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');

@@ -1167,20 +1167,59 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     }
   }, [activeTab]);
 
+  // CRITICAL: Use refs to track timers to avoid stale closures in AppState listener
+  // This prevents race conditions when timers change while listener is active
+  const streamTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const donationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const viewersTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const subsTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const energyTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const renderTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const uploadTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync refs with state to keep them current
+  useEffect(() => {
+    streamTimerRef.current = streamTimer;
+    donationTimerRef.current = donationTimer;
+    progressTimerRef.current = progressTimer;
+    viewersTimerRef.current = viewersTimer;
+    subsTimerRef.current = subsTimer;
+    energyTimerRef.current = energyTimer;
+    recordTimerRef.current = recordTimer;
+    renderTimerRef.current = renderTimer;
+    uploadTimerRef.current = uploadTimer;
+  }, [streamTimer, donationTimer, progressTimer, viewersTimer, subsTimer, energyTimer, recordTimer, renderTimer, uploadTimer]);
+
   // Pause background activity to avoid leaks or stale updates
+  // CRITICAL: No dependencies - uses refs to avoid stale closures and multiple listeners
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') {
-        // Pause streaming timers
-        if (streamTimer) { clearInterval(streamTimer); setStreamTimer(null); }
-        if (donationTimer) { clearInterval(donationTimer); setDonationTimer(null); }
-        if (progressTimer) { clearInterval(progressTimer); setProgressTimer(null); }
-        if (viewersTimer) { clearInterval(viewersTimer); setViewersTimer(null); }
-        if (subsTimer) { clearInterval(subsTimer); setSubsTimer(null); }
-        if (energyTimer) { clearInterval(energyTimer); setEnergyTimer(null); }
+        // Use refs to access current timer values - avoids stale closures
+        const clearTimer = (timerRef: React.MutableRefObject<NodeJS.Timeout | null>, setter: (val: null) => void) => {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+            setter(null);
+          }
+        };
+
+        // Pause streaming timers using refs
+        clearTimer(streamTimerRef, setStreamTimer);
+        clearTimer(donationTimerRef, setDonationTimer);
+        clearTimer(progressTimerRef, setProgressTimer);
+        clearTimer(viewersTimerRef, setViewersTimer);
+        clearTimer(subsTimerRef, setSubsTimer);
+        clearTimer(energyTimerRef, setEnergyTimer);
+        clearTimer(recordTimerRef, setRecordTimer);
+        clearTimer(renderTimerRef, setRenderTimer);
+        clearTimer(uploadTimerRef, setUploadTimer);
         
         // Pause video recording timers and save progress
-        if (recordTimer || renderTimer || uploadTimer) {
+        // Use refs to check if any timer is active
+        if (recordTimerRef.current || renderTimerRef.current || uploadTimerRef.current) {
           updateVideoRecordingState({
             isRecording: false,
             isRendering: false,
@@ -1192,19 +1231,25 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             videoGame,
           });
         }
-        if (recordTimer) { clearInterval(recordTimer); setRecordTimer(null); }
-        if (renderTimer) { clearInterval(renderTimer); setRenderTimer(null); }
-        if (uploadTimer) { clearInterval(uploadTimer); setUploadTimer(null); }
+        
         setIsRecording(false);
         setIsRendering(false);
         setIsUploading(false);
+      } else if (state === 'active') {
+        // CRITICAL: Handle resume - check if streaming was active and restore if needed
+        // This prevents crashes from stale state on resume
+        const streamState = gamingData.streamingState;
+        if (streamState?.isStreaming && streamState.streamProgress < 100) {
+          // Streaming was active - will be resumed by resumeStreaming() if needed
+          // Don't auto-resume here to avoid race conditions
+        }
       }
     });
     
     return () => {
       sub.remove();
     };
-  }, [streamTimer, donationTimer, progressTimer, viewersTimer, subsTimer, energyTimer, recordTimer, renderTimer, uploadTimer]);
+  }, []); // CRITICAL: Empty deps - listener never recreated, uses refs for current values
 
   const availableGames = AVAILABLE_GAMES as unknown as typeof AVAILABLE_GAMES[number][];
 
@@ -1830,7 +1875,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         gamesPlayed: prev.gamingStreaming!.gamesPlayed.includes(game.name) 
           ? prev.gamingStreaming!.gamesPlayed 
           : [...prev.gamingStreaming!.gamesPlayed, game.name],
-        streamHistory: [streamSession, ...prev.gamingStreaming!.streamHistory.slice(0, 9)],
+        // PERFORMANCE FIX: Cap streamHistory to last 100 items to prevent unbounded growth (increased from 10)
+        streamHistory: [streamSession, ...prev.gamingStreaming!.streamHistory].slice(0, 100),
         bestStream: !prev.gamingStreaming!.bestStream || finalViewers > prev.gamingStreaming!.bestStream.viewers
           ? streamSession
           : prev.gamingStreaming!.bestStream,

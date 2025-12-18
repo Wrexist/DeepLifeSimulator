@@ -20,6 +20,7 @@ import { Target, CheckCircle, Zap } from 'lucide-react-native';
 import { getNextGoal, checkGoalCompletion, Goal, GoalReward } from '@/utils/goalSystem';
 import { LinearGradient } from 'expo-linear-gradient';
 import { generateDailyChallenges } from '@/utils/dailyChallenges';
+import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 
 // Lazy load heavy modals and popups
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
@@ -244,6 +245,13 @@ export default function HomeScreen() {
         
         {/* Next Goal Section */}
         <NextGoalCard />
+        
+        {/* Discovery Progress Indicator */}
+        <DiscoveryIndicator 
+          gameState={gameState} 
+          compact={false}
+          darkMode={gameState.settings.darkMode}
+        />
         
         <AchievementsProgress />
       </ScrollView>

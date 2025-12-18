@@ -1,6 +1,7 @@
 import { iapService } from './IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 
 export interface Subscription {
   productId: string;
@@ -45,7 +46,7 @@ class SubscriptionService {
    */
   private async loadSubscriptions(): Promise<void> {
     try {
-      const data = await AsyncStorage.getItem('subscriptions');
+      const data = await safeGetItem('subscriptions');
       if (data) {
         const parsed = JSON.parse(data);
         this.subscriptions = new Map(parsed);
@@ -63,7 +64,7 @@ class SubscriptionService {
   private async saveSubscriptions(): Promise<void> {
     try {
       const data = Array.from(this.subscriptions.entries());
-      await AsyncStorage.setItem('subscriptions', JSON.stringify(data));
+      await safeSetItem('subscriptions', JSON.stringify(data));
     } catch (error) {
       if (__DEV__) {
         console.error('Failed to save subscriptions:', error);

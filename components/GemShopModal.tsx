@@ -3,7 +3,7 @@ import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Ima
 import { useGame } from '@/contexts/GameContext';
 import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star, Zap, Shield, Crown, CheckCircle, Sparkles, Diamond, Coins, Award, Heart, RefreshCw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';

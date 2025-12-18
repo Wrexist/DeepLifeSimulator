@@ -438,6 +438,12 @@ export function buyCompanyUpgrade(
     
     if (currentLevel >= upgradeDefinition.maxLevel) return prev;
 
+    // ECONOMY FIX: Add diminishing returns to upgrade ROI
+    // Higher upgrade levels have reduced income bonus efficiency
+    // Level 1: 100% bonus, Level 2: 90% bonus, Level 3: 80% bonus, etc.
+    const levelPenalty = currentLevel * 0.1; // 10% reduction per level
+    const bonusEfficiency = Math.max(0.5, 1 - levelPenalty); // Minimum 50% efficiency
+    
     // Calculate cost based on current level (using a simple multiplier for now)
     const costMultiplier = 1.5; // Simple cost increase per level
     const nextLevelCost = currentLevel === 0 
@@ -447,20 +453,33 @@ export function buyCompanyUpgrade(
     const cost = getInflatedPrice(nextLevelCost, prev.economy.priceIndex);
     if (prev.stats.money < cost) return prev;
 
-    // Calculate bonus for this level
-    const bonus = upgradeDefinition.weeklyIncomeBonus;
+    // Calculate bonus for this level with diminishing returns
+    const baseBonus = upgradeDefinition.weeklyIncomeBonus;
+    const bonus = Math.round(baseBonus * bonusEfficiency);
 
     // Update or add the upgrade
     const updatedUpgrades = existingUpgrade 
       ? company.upgrades.map(u => u.id === upgradeId ? { ...u, level: u.level + 1 } : u)
       : [...company.upgrades, { id: upgradeId, level: 1, maxLevel: upgradeDefinition.maxLevel }];
 
+    // ECONOMY FIX: Apply diminishing returns when calculating income with upgrades
+    const employeeCount = company.employees;
+    let incomeMultiplier: number;
+    if (employeeCount <= 5) {
+      incomeMultiplier = Math.pow(company.workerMultiplier, employeeCount);
+    } else if (employeeCount <= 10) {
+      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, employeeCount - 5);
+    } else if (employeeCount <= 20) {
+      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, employeeCount - 10);
+    } else {
+      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, employeeCount - 20);
+    }
+    
     const updated: Company = {
       ...company,
       baseWeeklyIncome: company.baseWeeklyIncome + bonus,
       weeklyIncome: Math.round(
-        (company.baseWeeklyIncome + bonus) *
-          Math.pow(company.workerMultiplier, company.employees)
+        (company.baseWeeklyIncome + bonus) * incomeMultiplier
       ),
       upgrades: updatedUpgrades as CompanyUpgrade[],
     };
@@ -491,13 +510,45 @@ export function addWorker(
     const company = companies[companyIndex];
     const { workerSalary, employees, baseWeeklyIncome, workerMultiplier } =
       company;
-    if (employees >= 10 || prev.stats.money < workerSalary) return prev;
+    // ECONOMY FIX: Removed hard cap at 10 employees - diminishing returns already prevent exponential scaling
+    // Allow up to 30 employees to match diminishing returns logic (21+ uses 1.01x multiplier)
+    if (employees >= 30 || prev.stats.money < workerSalary) return prev;
 
+    // ECONOMY FIX: Add diminishing returns to prevent exponential scaling
+    // Diminishing returns: 1.1x for first 5 employees, 1.05x for 6-10, 1.02x for 11-20, 1.01x for 21+
+    const employeeCount = company.employees + 1;
+    let effectiveMultiplier: number;
+    if (employeeCount <= 5) {
+      effectiveMultiplier = workerMultiplier; // 1.1x
+    } else if (employeeCount <= 10) {
+      effectiveMultiplier = 1.05; // Reduced from 1.1x
+    } else if (employeeCount <= 20) {
+      effectiveMultiplier = 1.02; // Further reduced
+    } else {
+      effectiveMultiplier = 1.01; // Minimal growth after 20 employees
+    }
+    
+    // Calculate income with diminishing returns
+    // For employees 1-5: use 1.1^count
+    // For employees 6-10: use 1.1^5 * 1.05^(count-5)
+    // For employees 11-20: use 1.1^5 * 1.05^5 * 1.02^(count-10)
+    // For employees 21+: use 1.1^5 * 1.05^5 * 1.02^10 * 1.01^(count-20)
+    let incomeMultiplier: number;
+    if (employeeCount <= 5) {
+      incomeMultiplier = Math.pow(workerMultiplier, employeeCount);
+    } else if (employeeCount <= 10) {
+      incomeMultiplier = Math.pow(workerMultiplier, 5) * Math.pow(1.05, employeeCount - 5);
+    } else if (employeeCount <= 20) {
+      incomeMultiplier = Math.pow(workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, employeeCount - 10);
+    } else {
+      incomeMultiplier = Math.pow(workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, employeeCount - 20);
+    }
+    
     const updated: Company = {
       ...company,
       employees: company.employees + 1,
       weeklyIncome: Math.round(
-        baseWeeklyIncome * Math.pow(workerMultiplier, company.employees + 1)
+        baseWeeklyIncome * incomeMultiplier
       ),
     };
     companies[companyIndex] = updated;
@@ -527,12 +578,24 @@ export function removeWorker(
     const company = companies[companyIndex];
     if (company.employees <= 0) return prev;
 
+    // ECONOMY FIX: Apply same diminishing returns when removing workers
+    const employeeCount = company.employees - 1;
+    let incomeMultiplier: number;
+    if (employeeCount <= 5) {
+      incomeMultiplier = Math.pow(company.workerMultiplier, employeeCount);
+    } else if (employeeCount <= 10) {
+      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, employeeCount - 5);
+    } else if (employeeCount <= 20) {
+      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, employeeCount - 10);
+    } else {
+      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, employeeCount - 20);
+    }
+    
     const updated: Company = {
       ...company,
       employees: company.employees - 1,
       weeklyIncome: Math.round(
-        company.baseWeeklyIncome *
-          Math.pow(company.workerMultiplier, company.employees - 1)
+        company.baseWeeklyIncome * incomeMultiplier
       ),
     };
     companies[companyIndex] = updated;
@@ -700,6 +763,11 @@ export function buyMiner(
       miners: {
         ...prev.warehouse.miners,
         [minerId]: (prev.warehouse.miners[minerId] || 0) + 1,
+      },
+      // BUG FIX: Initialize durability to 100 for new miners
+      minerDurability: {
+        ...prev.warehouse.minerDurability,
+        [minerId]: 100, // New miners start at 100% durability
       },
     } : undefined,
     stats: {

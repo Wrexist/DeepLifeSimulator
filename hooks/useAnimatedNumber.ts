@@ -1,5 +1,6 @@
+// DISABLED: react-native-reanimated removed to fix TurboModule crash
+// This hook now returns non-animated versions
 import { useEffect, useRef } from 'react';
-import { useSharedValue, withTiming, useAnimatedStyle, interpolate, Extrapolate } from 'react-native-reanimated';
 
 interface UseAnimatedNumberOptions {
   duration?: number;
@@ -12,12 +13,9 @@ export default function useAnimatedNumber(
   options: UseAnimatedNumberOptions = {}
 ) {
   const {
-    duration = 1000,
-    easing = 'easeOut',
     precision = 0
   } = options;
 
-  const animatedValue = useSharedValue(0);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -26,35 +24,16 @@ export default function useAnimatedNumber(
     };
   }, []);
 
-  useEffect(() => {
-    if (isMounted.current) {
-      animatedValue.value = withTiming(targetValue, {
-        duration,
-        easing: easing === 'linear' ? undefined : 
-                easing === 'ease' ? undefined :
-                easing === 'easeIn' ? undefined :
-                easing === 'easeOut' ? undefined :
-                easing === 'easeInOut' ? undefined : undefined
-      });
-    }
-  }, [targetValue, duration, easing]);
+  // Non-animated empty style
+  const animatedStyle = { opacity: 1 };
 
-  const animatedStyle = useAnimatedStyle(() => {
-    const currentValue = interpolate(
-      animatedValue.value,
-      [0, targetValue],
-      [0, targetValue],
-      Extrapolate.CLAMP
-    );
-
-    return {
-      opacity: 1,
-    };
-  });
-
+  // Return target value directly (no animation)
   const getDisplayValue = () => {
-    return Math.round(animatedValue.value * Math.pow(10, precision)) / Math.pow(10, precision);
+    return Math.round(targetValue * Math.pow(10, precision)) / Math.pow(10, precision);
   };
+
+  // Return a simple ref object instead of SharedValue
+  const animatedValue = { value: targetValue };
 
   return {
     animatedStyle,

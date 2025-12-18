@@ -29,6 +29,9 @@ export const useStreamingLogic = (
   const [viewersTimer, setViewersTimer] = useState<TimerType | null>(null);
   const [subsTimer, setSubsTimer] = useState<TimerType | null>(null);
   const [donationTimer, setDonationTimer] = useState<TimerType | null>(null);
+  
+  // TESTFLIGHT FIX: Use ref to track current stream duration for deterministic calculations
+  const streamDurationRef = useRef(0);
 
   // Load saved state
   useEffect(() => {
@@ -36,6 +39,7 @@ export const useStreamingLogic = (
       const state = gamingStreaming.streamingState;
       setIsStreaming(state.isStreaming);
       setStreamDuration(state.streamDuration);
+      streamDurationRef.current = state.streamDuration; // TESTFLIGHT FIX: Initialize ref
       setCurrentViewers(state.currentViewers);
       setTotalDonations(state.totalDonations);
       setCurrentSubsGained(state.currentSubsGained);
@@ -66,6 +70,7 @@ export const useStreamingLogic = (
     
     setIsStreaming(true);
     setStreamDuration(0);
+    streamDurationRef.current = 0; // TESTFLIGHT FIX: Initialize ref
     setCurrentViewers(0);
     setTotalDonations(0);
     setCurrentSubsGained(0);
@@ -84,33 +89,56 @@ export const useStreamingLogic = (
     resumeStreamTimers();
   };
 
+  // TESTFLIGHT FIX: Deterministic random function for consistency on resume
+  const seededRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  };
+
   const resumeStreamTimers = () => {
-    // Duration timer
+    // CRITICAL: Prevent double resume - clear existing timers first
+    clearTimers();
+    
+    // CRITICAL: Use refs to get current values, not stale closures
+    const currentSelectedGame = selectedGameRef.current;
+    
+    // Duration timer - update both state and ref
     const sTimer = setInterval(() => {
       setStreamDuration(prev => {
         const next = prev + 1;
+        streamDurationRef.current = next; // TESTFLIGHT FIX: Update ref for deterministic calculations
         updateStreamingState({ streamDuration: next });
         return next;
       });
     }, 1000);
     setStreamTimer(sTimer);
+    streamTimerRef.current = sTimer; // CRITICAL: Update ref immediately
 
-    // Viewers logic
+    // Viewers logic - deterministic based on stream duration
     const vTimer = setInterval(() => {
       setCurrentViewers(prev => {
-        const game = availableGames.find(g => g.id === selectedGame);
+        // TESTFLIGHT FIX: Use ref for current duration (always up-to-date)
+        const currentDuration = streamDurationRef.current;
+        const game = availableGames.find(g => g.id === currentSelectedGame);
         const base = game ? game.baseViewers : 10;
-        const variation = Math.floor(Math.random() * 10) - 2;
+        // Use current stream duration as seed for deterministic variation
+        const streamSeed = currentDuration * 1000 + (currentSelectedGame?.charCodeAt(0) || 0);
+        const variation = Math.floor(seededRandom(streamSeed) * 10) - 2;
         const next = Math.max(0, prev + variation + Math.floor(base * 0.1));
         updateStreamingState({ currentViewers: next });
         return next;
       });
     }, 2000);
     setViewersTimer(vTimer);
+    viewersTimerRef.current = vTimer; // CRITICAL: Update ref immediately
 
-    // Subs logic
+    // Subs logic - deterministic based on stream duration
     const subTimer = setInterval(() => {
-      if (Math.random() < 0.1) { // 10% chance every 3s
+      // TESTFLIGHT FIX: Use ref for current duration (always up-to-date)
+      const currentDuration = streamDurationRef.current;
+      // Use current stream duration as seed for deterministic chance
+      const subSeed = currentDuration * 1000 + 100 + (currentSelectedGame?.charCodeAt(0) || 0);
+      if (seededRandom(subSeed) < 0.1) { // 10% chance every 3s (deterministic)
         setCurrentSubsGained(prev => {
           const next = prev + 1;
           updateStreamingState({ currentSubsGained: next });
@@ -119,22 +147,32 @@ export const useStreamingLogic = (
       }
     }, 3000);
     setSubsTimer(subTimer);
+    subsTimerRef.current = subTimer; // CRITICAL: Update ref immediately
 
-    // Donation logic
+    // Donation logic - deterministic based on stream duration
     const dTimer = setInterval(() => {
-      if (Math.random() < 0.05) { // 5% chance every 2s
-        const amount = Math.floor(Math.random() * 50) + 5;
+      // TESTFLIGHT FIX: Use ref for current duration (always up-to-date)
+      const currentDuration = streamDurationRef.current;
+      // Use current stream duration as seed for deterministic chance
+      const donationSeed = currentDuration * 1000 + 200 + (currentSelectedGame?.charCodeAt(0) || 0);
+      if (seededRandom(donationSeed) < 0.05) { // 5% chance every 2s (deterministic)
+        const amountSeed = donationSeed + 1;
+        const amount = Math.floor(seededRandom(amountSeed) * 50) + 5;
         setTotalDonations(prev => {
           const next = prev + amount;
           updateStreamingState({ totalDonations: next });
           return next;
         });
         
+        const positionSeed = donationSeed + 2;
         const newDonation = {
           id: Date.now().toString(),
           amount,
-          message: 'Great stream!', // Randomize later
-          position: { top: Math.random() * 200, left: Math.random() * 200 }
+          message: 'Great stream!',
+          position: { 
+            top: seededRandom(positionSeed) * 200, 
+            left: seededRandom(positionSeed + 1) * 200 
+          }
         };
         setStreamDonations(prev => [...prev, newDonation]);
         setTimeout(() => {
@@ -143,6 +181,7 @@ export const useStreamingLogic = (
       }
     }, 2000);
     setDonationTimer(dTimer);
+    donationTimerRef.current = dTimer; // CRITICAL: Update ref immediately
   };
 
   const endStream = () => {
@@ -174,7 +213,8 @@ export const useStreamingLogic = (
       },
       gamingStreaming: {
         ...prev.gamingStreaming!,
-        streamHistory: [session, ...(prev.gamingStreaming!.streamHistory || [])],
+        // PERFORMANCE FIX: Cap streamHistory to last 100 items to prevent unbounded growth
+        streamHistory: [session, ...(prev.gamingStreaming!.streamHistory || [])].slice(0, 100),
         streamingState: {
           isStreaming: false,
           streamDuration: 0,
@@ -189,11 +229,42 @@ export const useStreamingLogic = (
     Alert.alert('Stream Ended', `You earned $${totalEarnings.toFixed(2)} from this stream!`);
   };
 
+  // CRITICAL: Use refs to track timers to avoid stale closures
+  const streamTimerRef = useRef<TimerType | null>(null);
+  const viewersTimerRef = useRef<TimerType | null>(null);
+  const subsTimerRef = useRef<TimerType | null>(null);
+  const donationTimerRef = useRef<TimerType | null>(null);
+  const isStreamingRef = useRef<boolean>(false);
+  const selectedGameRef = useRef<string | null>(null);
+
+  // Sync refs with state
+  useEffect(() => {
+    streamTimerRef.current = streamTimer;
+    viewersTimerRef.current = viewersTimer;
+    subsTimerRef.current = subsTimer;
+    donationTimerRef.current = donationTimer;
+    isStreamingRef.current = isStreaming;
+    selectedGameRef.current = selectedGame;
+  }, [streamTimer, viewersTimer, subsTimer, donationTimer, isStreaming, selectedGame]);
+
   const clearTimers = () => {
-    if (streamTimer) clearInterval(streamTimer);
-    if (viewersTimer) clearInterval(viewersTimer);
-    if (subsTimer) clearInterval(subsTimer);
-    if (donationTimer) clearInterval(donationTimer);
+    // Use refs to access current timer values
+    if (streamTimerRef.current) {
+      clearInterval(streamTimerRef.current);
+      streamTimerRef.current = null;
+    }
+    if (viewersTimerRef.current) {
+      clearInterval(viewersTimerRef.current);
+      viewersTimerRef.current = null;
+    }
+    if (subsTimerRef.current) {
+      clearInterval(subsTimerRef.current);
+      subsTimerRef.current = null;
+    }
+    if (donationTimerRef.current) {
+      clearInterval(donationTimerRef.current);
+      donationTimerRef.current = null;
+    }
     
     setStreamTimer(null);
     setViewersTimer(null);
@@ -202,11 +273,14 @@ export const useStreamingLogic = (
   };
 
   // Pause timers on background
+  // CRITICAL: Empty deps - uses refs to avoid stale closures and multiple listeners
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState.match(/inactive|background/)) {
         clearTimers();
-      } else if (nextAppState === 'active' && isStreaming) {
+      } else if (nextAppState === 'active' && isStreamingRef.current) {
+        // CRITICAL: Only resume if streaming was actually active
+        // Check ref to avoid stale closure issues
         resumeStreamTimers();
       }
     });
@@ -215,7 +289,7 @@ export const useStreamingLogic = (
       subscription.remove();
       clearTimers();
     };
-  }, [isStreaming, selectedGame]);
+  }, []); // CRITICAL: Empty deps - listener never recreated, uses refs for current values
 
   return {
     isStreaming,

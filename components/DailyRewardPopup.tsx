@@ -47,6 +47,12 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
   const checkmarkScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    let glowLoopRef: Animated.CompositeAnimation | null = null;
+    let rotateLoopRef: Animated.CompositeAnimation | null = null;
+    let pulseLoopRef: Animated.CompositeAnimation | null = null;
+    let delayedGlowTimeout: ReturnType<typeof setTimeout> | null = null;
+    let delayedFallTimeout: ReturnType<typeof setTimeout> | null = null;
+
     if (visible) {
       // Reset animations
       scaleAnim.setValue(0.85);
@@ -74,8 +80,8 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
       ]).start();
 
       // Delayed glow animation
-      setTimeout(() => {
-        Animated.loop(
+      delayedGlowTimeout = setTimeout(() => {
+        glowLoopRef = Animated.loop(
           Animated.sequence([
             Animated.timing(glowAnim, {
               toValue: 1,
@@ -88,11 +94,12 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
               useNativeDriver: true,
             }),
           ])
-        ).start();
+        );
+        glowLoopRef.start();
       }, 400);
 
       // Reward icons fall animation
-      setTimeout(() => {
+      delayedFallTimeout = setTimeout(() => {
         Animated.parallel([
           Animated.spring(gemAnim, {
             toValue: 0,
@@ -105,7 +112,6 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
                 toValue: 0,
                 tension: 50,
                 friction: 7,
-                delay: 100,
                 useNativeDriver: true,
               })]
             : []),
@@ -113,16 +119,17 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
       }, 300);
 
       // Sparkle rotation
-      Animated.loop(
+      rotateLoopRef = Animated.loop(
         Animated.timing(rotateAnim, {
           toValue: 1,
           duration: 4000,
           useNativeDriver: true,
         })
-      ).start();
+      );
+      rotateLoopRef.start();
 
       // Pulse animation
-      Animated.loop(
+      pulseLoopRef = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.08,
@@ -135,8 +142,18 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulseLoopRef.start();
     }
+
+    // Cleanup function to stop animations and clear timeouts
+    return () => {
+      if (delayedGlowTimeout) clearTimeout(delayedGlowTimeout);
+      if (delayedFallTimeout) clearTimeout(delayedFallTimeout);
+      if (glowLoopRef) glowLoopRef.stop();
+      if (rotateLoopRef) rotateLoopRef.stop();
+      if (pulseLoopRef) pulseLoopRef.stop();
+    };
   }, [visible, rewardAmount]);
 
   const handleClaim = () => {

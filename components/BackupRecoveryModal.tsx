@@ -7,43 +7,85 @@ import {
   Modal,
   ScrollView,
   Alert,
-  Platform,
+  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, Clock, HardDrive, RotateCcw, AlertTriangle, CheckCircle } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
-import { saveBackupManager, BackupMetadata } from '@/utils/saveBackup';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { 
+  X, 
+  Clock, 
+  HardDrive, 
+  RotateCcw, 
+  Plus, 
+  Trash2,
+  User,
+  DollarSign,
+  Calendar,
+  Archive,
+  Shield,
+  ChevronRight,
+} from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { 
+  saveBackupManager, 
+  BackupMetadata, 
+  BackupStorageInfo,
+  createManualBackup,
+  deleteBackup,
+  getBackupStorageInfo,
+} from '@/utils/saveBackup';
+import { scale, fontScale } from '@/utils/scaling';
 import { logger } from '@/utils/logger';
+import { formatMoney } from '@/utils/moneyFormatting';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface BackupRecoveryModalProps {
   visible: boolean;
   onClose: () => void;
   slot: number;
+  onRestoreComplete?: () => void;
 }
 
-export default function BackupRecoveryModal({ visible, onClose, slot }: BackupRecoveryModalProps) {
-  const { gameState, loadGame } = useGame();
-  const { settings } = gameState;
-  const darkMode = settings.darkMode;
+// Badge colors for different backup types
+const BADGE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  manual: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3B82F6', border: 'rgba(59, 130, 246, 0.3)' },
+  auto_save: { bg: 'rgba(16, 185, 129, 0.15)', text: '#10B981', border: 'rgba(16, 185, 129, 0.3)' },
+  delete_save: { bg: 'rgba(245, 158, 11, 0.15)', text: '#F59E0B', border: 'rgba(245, 158, 11, 0.3)' },
+  corruption_recovery: { bg: 'rgba(239, 68, 68, 0.15)', text: '#EF4444', border: 'rgba(239, 68, 68, 0.3)' },
+  before_update: { bg: 'rgba(139, 92, 246, 0.15)', text: '#8B5CF6', border: 'rgba(139, 92, 246, 0.3)' },
+  background_save: { bg: 'rgba(16, 185, 129, 0.15)', text: '#10B981', border: 'rgba(16, 185, 129, 0.3)' },
+  app_resume: { bg: 'rgba(6, 182, 212, 0.15)', text: '#06B6D4', border: 'rgba(6, 182, 212, 0.3)' },
+  emergency_save: { bg: 'rgba(239, 68, 68, 0.15)', text: '#EF4444', border: 'rgba(239, 68, 68, 0.3)' },
+  before_week: { bg: 'rgba(168, 162, 158, 0.15)', text: '#A8A29E', border: 'rgba(168, 162, 158, 0.3)' },
+};
+
+export default function BackupRecoveryModal({ visible, onClose, slot, onRestoreComplete }: BackupRecoveryModalProps) {
   const log = logger.scope('BackupRecoveryModal');
   
   const [backups, setBackups] = useState<BackupMetadata[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [storageInfo, setStorageInfo] = useState<BackupStorageInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  // Load backups when modal opens
+  // Load backups and storage info when modal opens
   useEffect(() => {
     if (visible) {
-      loadBackups();
+      loadBackupsAndInfo();
     }
   }, [visible, slot]);
 
-  const loadBackups = useCallback(async () => {
+  const loadBackupsAndInfo = useCallback(async () => {
     try {
       setLoading(true);
-      const backupList = await saveBackupManager.listBackups(slot);
+      const [backupList, storage] = await Promise.all([
+        saveBackupManager.listBackups(slot),
+        getBackupStorageInfo(),
+      ]);
       setBackups(backupList);
+      setStorageInfo(storage);
       log.info(`Loaded ${backupList.length} backups for slot ${slot}`);
     } catch (error) {
       log.error('Failed to load backups', error);
@@ -55,8 +97,18 @@ export default function BackupRecoveryModal({ visible, onClose, slot }: BackupRe
 
   const formatDate = useCallback((timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleString(undefined, {
-      year: 'numeric',
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -72,25 +124,85 @@ export default function BackupRecoveryModal({ visible, onClose, slot }: BackupRe
 
   const getReasonLabel = useCallback((reason: string) => {
     const labels: Record<string, string> = {
-      'auto_save': 'Auto Save',
-      'background_save': 'Background Save',
-      'app_resume': 'App Resume',
-      'emergency_save': 'Emergency Save',
-      'before_week': 'Before Week',
+      'auto_save': 'Auto',
+      'background_save': 'Auto',
+      'app_resume': 'Resume',
+      'emergency_save': 'Emergency',
+      'before_week': 'Weekly',
       'manual': 'Manual',
+      'delete_save': 'Pre-Delete',
+      'corruption_recovery': 'Recovery',
+      'before_update': 'Pre-Update',
     };
     return labels[reason] || reason;
   }, []);
 
+  const getBadgeColors = useCallback((reason: string) => {
+    return BADGE_COLORS[reason] || BADGE_COLORS.auto_save;
+  }, []);
+
+  const handleCreateBackup = useCallback(async () => {
+    try {
+      setCreating(true);
+      log.info(`Creating manual backup for slot ${slot}`);
+      
+      const result = await createManualBackup(slot);
+      
+      if (result.success) {
+        Alert.alert('Backup Created', 'Your game has been backed up successfully.');
+        await loadBackupsAndInfo();
+      } else {
+        Alert.alert('Backup Failed', result.error || 'Failed to create backup. Please try again.');
+      }
+    } catch (error: any) {
+      log.error('Failed to create backup', error);
+      Alert.alert('Error', error?.message || 'Failed to create backup. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  }, [slot, log, loadBackupsAndInfo]);
+
+  const handleDeleteBackup = useCallback((backup: BackupMetadata) => {
+    Alert.alert(
+      'Delete Backup?',
+      `Are you sure you want to delete this backup?\n\n${formatDate(backup.timestamp)}\n\nThis action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(backup.id);
+              const success = await deleteBackup(backup.id);
+              if (success) {
+                await loadBackupsAndInfo();
+              } else {
+                throw new Error('Delete failed');
+              }
+            } catch (error) {
+              log.error('Failed to delete backup', error);
+              Alert.alert('Error', 'Failed to delete backup. Please try again.');
+            } finally {
+              setDeleting(null);
+            }
+          },
+        },
+      ]
+    );
+  }, [formatDate, log, loadBackupsAndInfo]);
+
   const handleRestore = useCallback((backup: BackupMetadata) => {
+    const gameInfo = backup.gameInfo;
+    const infoText = gameInfo 
+      ? `\n\nCharacter: ${gameInfo.characterName}\nAge: ${gameInfo.age}\nMoney: ${formatMoney(gameInfo.money)}`
+      : '';
+    
     Alert.alert(
       'Restore Backup?',
-      `Are you sure you want to restore from this backup?\n\nDate: ${formatDate(backup.timestamp)}\nReason: ${getReasonLabel(backup.reason)}\n\nThis will overwrite your current save.`,
+      `Restore this save?\n\n${formatDate(backup.timestamp)}${infoText}\n\nThis will replace your current game.`,
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Restore',
           style: 'destructive',
@@ -99,152 +211,242 @@ export default function BackupRecoveryModal({ visible, onClose, slot }: BackupRe
               setRestoring(backup.id);
               log.info(`Restoring backup ${backup.id} for slot ${slot}`);
               
-              const restored = await saveBackupManager.restoreBackup(slot, backup.id);
-              if (restored) {
-                // Reload the game with restored state
-                await loadGame(slot);
-                
+              // Create safety backup first (ignore errors)
+              try {
+                await createManualBackup(slot, 'Before restore');
+              } catch (e) {
+                log.warn('Could not create safety backup before restore');
+              }
+              
+              const result = await saveBackupManager.restoreBackup(slot, backup.id);
+              if (result.success) {
                 Alert.alert(
                   'Backup Restored',
-                  'Your game has been restored from the backup successfully.',
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => {
-                        setRestoring(null);
-                        onClose();
-                      },
-                    },
-                  ]
+                  'Your game has been restored. Please reload the game.',
+                  [{ 
+                    text: 'OK', 
+                    onPress: () => { 
+                      setRestoring(null); 
+                      onClose();
+                      onRestoreComplete?.();
+                    } 
+                  }]
                 );
-                log.info('Backup restored successfully');
               } else {
-                throw new Error('Restore failed');
+                Alert.alert('Restore Failed', result.error || 'Failed to restore backup.');
+                setRestoring(null);
               }
-            } catch (error) {
+            } catch (error: any) {
               log.error('Failed to restore backup', error);
-              Alert.alert(
-                'Restore Failed',
-                'Failed to restore from backup. Please try again.',
-                [{ text: 'OK', onPress: () => setRestoring(null) }]
-              );
+              Alert.alert('Error', error?.message || 'Failed to restore backup.');
+              setRestoring(null);
             }
           },
         },
       ]
     );
-  }, [slot, loadGame, formatDate, getReasonLabel, log, onClose]);
+  }, [slot, formatDate, log, onClose, onRestoreComplete]);
 
-  if (!visible) return null;
+  const storagePercentage = storageInfo 
+    ? Math.min(100, (storageInfo.totalSize / storageInfo.maxSize) * 100) 
+    : 0;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
+    <Modal 
+      visible={visible} 
+      transparent 
+      animationType="slide" 
       onRequestClose={onClose}
+      statusBarTranslucent
     >
       <View style={styles.overlay}>
-        <LinearGradient
-          colors={darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFC']}
-          style={[styles.modal, darkMode && styles.modalDark]}
-        >
-          {/* Header */}
-          <View style={[styles.header, darkMode && styles.headerDark]}>
-            <View style={styles.headerLeft}>
-              <HardDrive size={24} color={darkMode ? '#FFFFFF' : '#1F2937'} />
-              <Text style={[styles.title, darkMode && styles.titleDark]}>
-                Backup Recovery
-              </Text>
+        <View style={styles.modalContainer}>
+          <LinearGradient
+            colors={['#1E293B', '#0F172A']}
+            style={styles.modalGradient}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.headerIcon}>
+                  <HardDrive size={22} color="#FFFFFF" />
+                </View>
+                <View>
+                  <Text style={styles.title}>Backup Manager</Text>
+                  <Text style={styles.subtitle}>Slot {slot}</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={onClose}
+                style={styles.closeButton}
+                disabled={restoring !== null || creating}
+              >
+                <X size={24} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeButton}
-              disabled={restoring !== null}
-            >
-              <X size={24} color={darkMode ? '#D1D5DB' : '#6B7280'} />
-            </TouchableOpacity>
-          </View>
 
-          {/* Content */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {loading ? (
-              <View style={styles.emptyState}>
-                <Text style={[styles.emptyText, darkMode && styles.emptyTextDark]}>
-                  Loading backups...
-                </Text>
-              </View>
-            ) : backups.length === 0 ? (
-              <View style={styles.emptyState}>
-                <AlertTriangle size={48} color={darkMode ? '#6B7280' : '#9CA3AF'} />
-                <Text style={[styles.emptyText, darkMode && styles.emptyTextDark]}>
-                  No backups available
-                </Text>
-                <Text style={[styles.emptySubtext, darkMode && styles.emptySubtextDark]}>
-                  Backups are created automatically when you save your game.
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.backupList}>
-                <Text style={[styles.sectionTitle, darkMode && styles.sectionTitleDark]}>
-                  Available Backups ({backups.length})
-                </Text>
-                {backups.map((backup) => (
-                  <View
-                    key={backup.id}
-                    style={[styles.backupItem, darkMode && styles.backupItemDark]}
-                  >
-                    <View style={styles.backupHeader}>
-                      <View style={styles.backupInfo}>
-                        <Clock size={16} color={darkMode ? '#9CA3AF' : '#6B7280'} />
-                        <Text style={[styles.backupDate, darkMode && styles.backupDateDark]}>
-                          {formatDate(backup.timestamp)}
-                        </Text>
-                      </View>
-                      <View style={styles.backupBadge}>
-                        <Text style={styles.backupBadgeText}>
-                          {getReasonLabel(backup.reason)}
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.backupDetails}>
-                      <Text style={[styles.backupSize, darkMode && styles.backupSizeDark]}>
-                        Size: {formatSize(backup.size)}
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.restoreButton,
-                        darkMode && styles.restoreButtonDark,
-                        restoring === backup.id && styles.restoreButtonDisabled,
-                      ]}
-                      onPress={() => handleRestore(backup)}
-                      disabled={restoring !== null}
-                    >
-                      {restoring === backup.id ? (
-                        <Text style={styles.restoreButtonText}>Restoring...</Text>
-                      ) : (
-                        <>
-                          <RotateCcw size={16} color="#FFFFFF" />
-                          <Text style={styles.restoreButtonText}>Restore</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                ))}
+            {/* Storage Info Bar */}
+            {storageInfo && (
+              <View style={styles.storageCard}>
+                <View style={styles.storageRow}>
+                  <Archive size={16} color="rgba(255, 255, 255, 0.6)" />
+                  <Text style={styles.storageLabel}>Storage</Text>
+                  <Text style={styles.storageValue}>
+                    {formatSize(storageInfo.totalSize)} / {formatSize(storageInfo.maxSize)}
+                  </Text>
+                </View>
+                <View style={styles.storageBarBg}>
+                  <View 
+                    style={[
+                      styles.storageBarFill, 
+                      { width: `${storagePercentage}%` },
+                      storagePercentage > 80 && styles.storageBarWarning,
+                    ]} 
+                  />
+                </View>
               </View>
             )}
-          </ScrollView>
 
-          {/* Footer */}
-          <View style={[styles.footer, darkMode && styles.footerDark]}>
-            <Text style={[styles.footerText, darkMode && styles.footerTextDark]}>
-              Backups are automatically created when you save your game.
-            </Text>
-          </View>
-        </LinearGradient>
+            {/* Create Backup Button */}
+            <TouchableOpacity
+              style={[styles.createButton, (creating || restoring) && styles.buttonDisabled]}
+              onPress={handleCreateBackup}
+              disabled={creating || restoring !== null}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={creating ? ['#4B5563', '#374151'] : ['#3B82F6', '#2563EB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.createButtonGradient}
+              >
+                {creating ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Plus size={20} color="#FFFFFF" />
+                )}
+                <Text style={styles.createButtonText}>
+                  {creating ? 'Creating Backup...' : 'Create New Backup'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Backup List */}
+            <View style={styles.listHeader}>
+              <Text style={styles.listTitle}>
+                Available Backups ({backups.length})
+              </Text>
+            </View>
+
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#3B82F6" />
+                  <Text style={styles.loadingText}>Loading backups...</Text>
+                </View>
+              ) : backups.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Shield size={56} color="rgba(255, 255, 255, 0.2)" />
+                  <Text style={styles.emptyTitle}>No Backups Yet</Text>
+                  <Text style={styles.emptyText}>
+                    Create your first backup to protect your progress
+                  </Text>
+                </View>
+              ) : (
+                backups.map((backup) => {
+                  const badgeColors = getBadgeColors(backup.reason);
+                  const isProcessing = restoring === backup.id || deleting === backup.id;
+                  
+                  return (
+                    <View key={backup.id} style={styles.backupCard}>
+                      {/* Top row: Time and Badge */}
+                      <View style={styles.backupTopRow}>
+                        <View style={styles.backupTimeRow}>
+                          <Clock size={14} color="rgba(255, 255, 255, 0.5)" />
+                          <Text style={styles.backupTime}>{formatDate(backup.timestamp)}</Text>
+                        </View>
+                        <View style={[
+                          styles.badge,
+                          { backgroundColor: badgeColors.bg, borderColor: badgeColors.border }
+                        ]}>
+                          <Text style={[styles.badgeText, { color: badgeColors.text }]}>
+                            {getReasonLabel(backup.reason)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Game Info */}
+                      {backup.gameInfo && (
+                        <View style={styles.gameInfoContainer}>
+                          <View style={styles.gameInfoItem}>
+                            <User size={14} color="rgba(255, 255, 255, 0.4)" />
+                            <Text style={styles.gameInfoText}>{backup.gameInfo.characterName}</Text>
+                          </View>
+                          <View style={styles.gameInfoItem}>
+                            <Calendar size={14} color="rgba(255, 255, 255, 0.4)" />
+                            <Text style={styles.gameInfoText}>Age {backup.gameInfo.age}</Text>
+                          </View>
+                          <View style={styles.gameInfoItem}>
+                            <DollarSign size={14} color="rgba(255, 255, 255, 0.4)" />
+                            <Text style={styles.gameInfoText}>{formatMoney(backup.gameInfo.money)}</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Size */}
+                      <Text style={styles.sizeText}>{formatSize(backup.size)}</Text>
+
+                      {/* Action buttons */}
+                      <View style={styles.actionRow}>
+                        <TouchableOpacity
+                          style={[styles.restoreBtn, isProcessing && styles.buttonDisabled]}
+                          onPress={() => handleRestore(backup)}
+                          disabled={restoring !== null || deleting !== null}
+                        >
+                          {restoring === backup.id ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          ) : (
+                            <RotateCcw size={16} color="#FFFFFF" />
+                          )}
+                          <Text style={styles.restoreBtnText}>
+                            {restoring === backup.id ? 'Restoring...' : 'Restore'}
+                          </Text>
+                          <ChevronRight size={16} color="rgba(255, 255, 255, 0.5)" />
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          style={[styles.deleteBtn, isProcessing && styles.buttonDisabled]}
+                          onPress={() => handleDeleteBackup(backup)}
+                          disabled={restoring !== null || deleting !== null}
+                        >
+                          {deleting === backup.id ? (
+                            <ActivityIndicator size="small" color="#EF4444" />
+                          ) : (
+                            <Trash2 size={16} color="#EF4444" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+              
+              {/* Bottom padding */}
+              <View style={{ height: scale(20) }} />
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                Backups protect your progress from data loss
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
       </View>
     </Modal>
   );
@@ -253,199 +455,266 @@ export default function BackupRecoveryModal({ visible, onClose, slot }: BackupRe
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: responsivePadding.horizontal,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'flex-end',
   },
-  modal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: responsiveBorderRadius.xl,
-    width: '95%',
-    maxWidth: scale(700),
-    height: '90%',
-    maxHeight: '95%',
+  modalContainer: {
+    width: '100%',
+    height: screenHeight * 0.85,
+    borderTopLeftRadius: scale(28),
+    borderTopRightRadius: scale(28),
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 10,
-      },
-      web: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-      },
-    }),
   },
-  modalDark: {
-    backgroundColor: '#1F2937',
+  modalGradient: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: responsiveSpacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerDark: {
-    borderBottomColor: '#374151',
+    paddingHorizontal: scale(20),
+    paddingTop: scale(24),
+    paddingBottom: scale(16),
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: responsiveSpacing.sm,
+    gap: scale(14),
   },
-  title: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  titleDark: {
-    color: '#FFFFFF',
-  },
-  closeButton: {
-    padding: responsiveSpacing.xs,
-  },
-  content: {
-    flex: 1,
-    padding: responsiveSpacing.lg,
-    minHeight: verticalScale(500),
-    maxHeight: '100%',
-  },
-  emptyState: {
+  headerIcon: {
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(14),
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: verticalScale(60),
-    gap: responsiveSpacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  title: {
+    fontSize: fontScale(22),
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  subtitle: {
+    fontSize: fontScale(14),
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: scale(2),
+  },
+  closeButton: {
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storageCard: {
+    marginHorizontal: scale(20),
+    marginBottom: scale(16),
+    padding: scale(16),
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: scale(16),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  storageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+    marginBottom: scale(12),
+  },
+  storageLabel: {
+    flex: 1,
+    fontSize: fontScale(14),
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '500',
+  },
+  storageValue: {
+    fontSize: fontScale(14),
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  storageBarBg: {
+    height: scale(8),
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: scale(4),
+    overflow: 'hidden',
+  },
+  storageBarFill: {
+    height: '100%',
+    backgroundColor: '#3B82F6',
+    borderRadius: scale(4),
+  },
+  storageBarWarning: {
+    backgroundColor: '#F59E0B',
+  },
+  createButton: {
+    marginHorizontal: scale(20),
+    marginBottom: scale(20),
+    borderRadius: scale(16),
+    overflow: 'hidden',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  createButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: scale(18),
+    gap: scale(10),
+  },
+  createButtonText: {
+    fontSize: fontScale(17),
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  listHeader: {
+    paddingHorizontal: scale(20),
+    marginBottom: scale(12),
+  },
+  listTitle: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: scale(20),
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: scale(60),
+    gap: scale(16),
+  },
+  loadingText: {
+    fontSize: fontScale(16),
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: scale(60),
+    gap: scale(16),
+  },
+  emptyTitle: {
+    fontSize: fontScale(20),
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.6)',
   },
   emptyText: {
-    fontSize: responsiveFontSize.lg,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontSize: fontScale(14),
+    color: 'rgba(255, 255, 255, 0.4)',
     textAlign: 'center',
+    paddingHorizontal: scale(30),
   },
-  emptyTextDark: {
-    color: '#9CA3AF',
-  },
-  emptySubtext: {
-    fontSize: responsiveFontSize.base,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    paddingHorizontal: responsiveSpacing.lg,
-  },
-  emptySubtextDark: {
-    color: '#6B7280',
-  },
-  backupList: {
-    gap: responsiveSpacing.md,
-  },
-  sectionTitle: {
-    fontSize: responsiveFontSize.base,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: responsiveSpacing.sm,
-  },
-  sectionTitleDark: {
-    color: '#D1D5DB',
-  },
-  backupItem: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: responsiveBorderRadius.md,
-    padding: responsiveSpacing.md,
+  backupCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: scale(18),
+    padding: scale(18),
+    marginBottom: scale(14),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  backupItemDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
-  },
-  backupHeader: {
+  backupTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.sm,
+    marginBottom: scale(14),
   },
-  backupInfo: {
+  backupTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: responsiveSpacing.xs,
+    gap: scale(8),
+  },
+  backupTime: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  badge: {
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(5),
+    borderRadius: scale(10),
+    borderWidth: 1,
+  },
+  badgeText: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
+  },
+  gameInfoContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: scale(16),
+    marginBottom: scale(12),
+  },
+  gameInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+  },
+  gameInfoText: {
+    fontSize: fontScale(14),
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontWeight: '500',
+  },
+  sizeText: {
+    fontSize: fontScale(12),
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginBottom: scale(14),
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: scale(12),
+  },
+  restoreBtn: {
     flex: 1,
-  },
-  backupDate: {
-    fontSize: responsiveFontSize.base,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  backupDateDark: {
-    color: '#FFFFFF',
-  },
-  backupBadge: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: scale(4),
-    borderRadius: responsiveBorderRadius.sm,
-  },
-  backupBadgeText: {
-    fontSize: responsiveFontSize.xs,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  backupDetails: {
-    marginBottom: responsiveSpacing.md,
-  },
-  backupSize: {
-    fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
-  },
-  backupSizeDark: {
-    color: '#9CA3AF',
-  },
-  restoreButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: responsiveSpacing.xs,
-    backgroundColor: '#10B981',
-    paddingVertical: responsiveSpacing.sm,
-    paddingHorizontal: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.md,
+    gap: scale(8),
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingVertical: scale(14),
+    borderRadius: scale(14),
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
-  restoreButtonDark: {
-    backgroundColor: '#059669',
-  },
-  restoreButtonDisabled: {
-    opacity: 0.6,
-  },
-  restoreButtonText: {
-    fontSize: responsiveFontSize.base,
+  restoreBtnText: {
+    flex: 1,
+    fontSize: fontScale(15),
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  footer: {
-    padding: responsiveSpacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+  deleteBtn: {
+    width: scale(52),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: scale(14),
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
   },
-  footerDark: {
-    borderTopColor: '#374151',
-    backgroundColor: '#374151',
+  footer: {
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(16),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   footerText: {
-    fontSize: responsiveFontSize.xs,
-    color: '#6B7280',
+    fontSize: fontScale(13),
+    color: 'rgba(255, 255, 255, 0.4)',
     textAlign: 'center',
-  },
-  footerTextDark: {
-    color: '#9CA3AF',
   },
 });
 

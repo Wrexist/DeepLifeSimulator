@@ -217,7 +217,8 @@ export const useVideoLogic = (
       ...prev,
       gamingStreaming: {
         ...prev.gamingStreaming!,
-        videos: [newVideo, ...(prev.gamingStreaming!.videos || [])],
+        // PERFORMANCE FIX: Cap videos to last 100 items to prevent unbounded growth
+        videos: [newVideo, ...(prev.gamingStreaming!.videos || [])].slice(0, 100),
         videoRecordingState: {
           isRecording: false,
           isRendering: false,

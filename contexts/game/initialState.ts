@@ -36,6 +36,9 @@ export const initialGameState: GameState = {
   petFood: {}, // Pet food inventory: { 'basic': 0, 'premium': 0, 'luxury': 0 }
   vehicles: [], // Player's owned vehicles
   activeVehicleId: undefined, // Currently selected vehicle
+  unlockedLifeSkills: [], // Life skills from SkillTreeModal
+  dmConversations: [], // DM conversations in Social App
+  revealedDMClues: [], // Revealed clues from DM system
   crimeSkills: {
     stealth: { xp: 0, level: 1, upgrades: [] },
     hacking: { xp: 0, level: 1, upgrades: [] },
@@ -1391,7 +1394,9 @@ export const initialGameState: GameState = {
   ],
   healthActivities: [
     { id: 'walk', name: 'Walk in Park', description: 'Peaceful walk to clear your mind', price: 0, happinessGain: 3, healthGain: 1, energyCost: 12 },
-    { id: 'meditation', name: 'Meditation Session', description: 'Find inner peace and reduce stress', price: 80, happinessGain: 6, energyCost: 8 },
+    // STABILITY FIX: Make meditation free to provide low-cost happiness recovery option
+    // This prevents death spiral for players with low money who can't afford health activities
+    { id: 'meditation', name: 'Meditation Session', description: 'Find inner peace and reduce stress', price: 0, happinessGain: 6, energyCost: 8 },
     { id: 'yoga', name: 'Yoga Class', description: 'Improve flexibility and mental clarity', price: 100, happinessGain: 6, healthGain: 3, energyCost: 12 },
     { id: 'massage', name: 'Spa Massage', description: 'Relax and rejuvenate your body', price: 300, happinessGain: 10, healthGain: 5, energyCost: 12 },
     {
@@ -1457,6 +1462,7 @@ export const initialGameState: GameState = {
     maxStats: false,
     weeklySummaryEnabled: true,
     showDecimalsInStats: false, // Default to false - no decimals for savings and gems
+    autoProgression: true, // Auto-progression for progressive disclosure (enabled by default)
   },
   diseases: [],
   realEstate: [],
@@ -1767,6 +1773,7 @@ export const initialGameState: GameState = {
   progress: { achievements: [], adsRemoved: false, hasBeenInDebt: false },
   journal: [],
   scenarioId: undefined,
+  challengeScenarioId: undefined, // CRITICAL FIX: Track challenge scenario ID for completion tracking
   stocks: {
     holdings: [],
     watchlist: [],
@@ -1853,6 +1860,29 @@ export const initialGameState: GameState = {
   pendingChainedEvents: [],
   // Enhanced Social Posts
   socialPosts: [],
+  // Life Milestones (wedding, engagement, etc.)
+  lifeMilestones: [],
+  // Activity Commitment System
+  activityCommitments: {
+    primary: undefined,
+    secondary: undefined,
+    lastChangedWeek: undefined,
+    commitmentLevels: {
+      career: 0,
+      hobbies: 0,
+      relationships: 0,
+      health: 0,
+    },
+  },
+  // Depth Enhancement System
+  discoveredSystems: [],
+  depthMetrics: {
+    depthScore: 0,
+    systemsEngaged: 0,
+    lastCalculated: Date.now(),
+  },
+  progressiveDisclosureLevel: 'standard',
+  systemStatistics: {},
 };
 
 

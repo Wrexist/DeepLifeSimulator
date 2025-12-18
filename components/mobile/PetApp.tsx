@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, PawPrint, Heart, Zap, Coffee, ShoppingCart, Plus, Settings } from 'lucide-react-native';
+import { ArrowLeft, PawPrint, Heart, Zap, Coffee, ShoppingCart, Plus, Settings, Stethoscope, Trophy, Clock, Star, Award, Sparkles, AlertTriangle } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { scale, fontScale } from '@/utils/scaling';
 
 interface PetAppProps {
   onBack: () => void;
@@ -20,37 +21,77 @@ interface Pet {
   lastFed?: number;
   lastPlayed?: number;
   lastSlept?: number;
+  lastVetVisit?: number;
+  vaccinated?: boolean;
+  competitionWins?: number;
+  traits?: string[];
+  isSick?: boolean;
+  sickness?: string;
 }
 
 const petTypes = [
-  { id: 'dog', name: 'Dog', emoji: '🐕', price: 15000 },
-  { id: 'cat', name: 'Cat', emoji: '🐱', price: 12000 },
-  { id: 'bird', name: 'Bird', emoji: '🐦', price: 8000 },
-  { id: 'fish', name: 'Fish', emoji: '🐠', price: 5000 },
-  { id: 'hamster', name: 'Hamster', emoji: '🐹', price: 3500 },
+  { id: 'dog', name: 'Dog', emoji: '🐕', price: 15000, lifespan: 15 },
+  { id: 'cat', name: 'Cat', emoji: '🐱', price: 12000, lifespan: 18 },
+  { id: 'bird', name: 'Bird', emoji: '🐦', price: 8000, lifespan: 12 },
+  { id: 'fish', name: 'Fish', emoji: '🐠', price: 5000, lifespan: 5 },
+  { id: 'hamster', name: 'Hamster', emoji: '🐹', price: 3500, lifespan: 3 },
+  { id: 'rabbit', name: 'Rabbit', emoji: '🐰', price: 10000, lifespan: 10 },
+  { id: 'turtle', name: 'Turtle', emoji: '🐢', price: 7000, lifespan: 30 },
 ];
 
 const petFoods = [
   { id: 'basic', name: 'Basic Food', price: 10, nutrition: 20 },
   { id: 'premium', name: 'Premium Food', price: 25, nutrition: 50 },
   { id: 'luxury', name: 'Luxury Food', price: 50, nutrition: 100 },
+  { id: 'organic', name: 'Organic Food', price: 75, nutrition: 80, healthBonus: 5 },
 ];
 
 const petToys = [
   { id: 'ball', name: 'Ball', price: 15, fun: 30 },
   { id: 'rope', name: 'Rope Toy', price: 20, fun: 40 },
   { id: 'puzzle', name: 'Puzzle Toy', price: 35, fun: 70 },
+  { id: 'laser', name: 'Laser Pointer', price: 25, fun: 50 },
+];
+
+// Vet services
+const vetServices = [
+  { id: 'checkup', name: 'Regular Checkup', price: 100, healthBonus: 10, description: 'Basic health examination' },
+  { id: 'vaccination', name: 'Vaccination', price: 200, healthBonus: 5, description: 'Protect against diseases' },
+  { id: 'treatment', name: 'Illness Treatment', price: 500, healthBonus: 30, description: 'Treat sick pets' },
+  { id: 'surgery', name: 'Surgery', price: 1500, healthBonus: 50, description: 'Major medical procedure' },
+  { id: 'dental', name: 'Dental Cleaning', price: 150, healthBonus: 15, description: 'Oral hygiene care' },
+  { id: 'grooming', name: 'Professional Grooming', price: 80, happinessBonus: 20, description: 'Full spa treatment' },
+];
+
+// Pet competitions
+const petCompetitions = [
+  { id: 'beauty', name: 'Beauty Contest', entryFee: 50, prize: 500, requirement: 'happiness', minValue: 70, emoji: '👑' },
+  { id: 'agility', name: 'Agility Race', entryFee: 75, prize: 750, requirement: 'energy', minValue: 60, emoji: '🏃' },
+  { id: 'obedience', name: 'Obedience Trial', entryFee: 100, prize: 1000, requirement: 'happiness', minValue: 80, emoji: '🎓' },
+  { id: 'talent', name: 'Talent Show', entryFee: 150, prize: 1500, requirement: 'health', minValue: 70, emoji: '⭐' },
+  { id: 'championship', name: 'Grand Championship', entryFee: 500, prize: 5000, requirement: 'all', minValue: 75, emoji: '🏆' },
+];
+
+// Pet sicknesses
+const petSicknesses = [
+  { id: 'cold', name: 'Common Cold', severity: 'mild', treatmentCost: 100, healthDrain: 2 },
+  { id: 'infection', name: 'Infection', severity: 'moderate', treatmentCost: 300, healthDrain: 5 },
+  { id: 'parasite', name: 'Parasites', severity: 'moderate', treatmentCost: 250, healthDrain: 3 },
+  { id: 'injury', name: 'Minor Injury', severity: 'mild', treatmentCost: 150, healthDrain: 4 },
 ];
 
 export default function PetApp({ onBack }: PetAppProps) {
   const { gameState, setGameState, saveGame, feedPet, buyPetFood, buyPetToy, usePetToy } = useGame();
   const { settings } = gameState;
-  const [activeTab, setActiveTab] = useState<'pets' | 'shop'>('pets');
+  const [activeTab, setActiveTab] = useState<'pets' | 'shop' | 'vet' | 'competitions'>('pets');
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [showShopModal, setShowShopModal] = useState(false);
   const [shopCategory, setShopCategory] = useState<'pets' | 'food' | 'toys'>('pets');
   const [showPurchaseSuccessModal, setShowPurchaseSuccessModal] = useState(false);
   const [purchasedPet, setPurchasedPet] = useState<Pet | null>(null);
+  const [showVetModal, setShowVetModal] = useState(false);
+  const [showCompetitionResultModal, setShowCompetitionResultModal] = useState(false);
+  const [competitionResult, setCompetitionResult] = useState<{ won: boolean; prize: number; competition: string } | null>(null);
 
   const pets: Pet[] = gameState.pets || [];
   const cash = gameState.stats?.money || 0;
@@ -84,6 +125,161 @@ export default function PetApp({ onBack }: PetAppProps) {
   }, [pets]);
 
   const petBonuses = calculatePetBonuses();
+
+  // Calculate pet age in human years (based on weeks played)
+  const getPetAgeDisplay = useCallback((pet: Pet) => {
+    const ageInWeeks = pet.age || 0;
+    const years = Math.floor(ageInWeeks / 52);
+    const months = Math.floor((ageInWeeks % 52) / 4);
+    if (years > 0) {
+      return `${years}y ${months}m`;
+    }
+    return `${months}m`;
+  }, []);
+
+  // Check pet lifespan
+  const getPetLifeStatus = useCallback((pet: Pet) => {
+    const petType = petTypes.find(p => p.id === pet.type);
+    const lifespan = petType?.lifespan || 10;
+    const ageInYears = (pet.age || 0) / 52;
+    const percentLife = (ageInYears / lifespan) * 100;
+    
+    if (percentLife >= 90) return { status: 'elderly', color: '#EF4444', label: 'Elderly' };
+    if (percentLife >= 70) return { status: 'senior', color: '#F59E0B', label: 'Senior' };
+    if (percentLife >= 30) return { status: 'adult', color: '#10B981', label: 'Adult' };
+    return { status: 'young', color: '#3B82F6', label: 'Young' };
+  }, []);
+
+  // Handle vet visit
+  const handleVetService = useCallback((pet: Pet, serviceId: string) => {
+    const service = vetServices.find(s => s.id === serviceId);
+    if (!service) return;
+
+    if (cash < service.price) {
+      Alert.alert('Insufficient Funds', `You need $${service.price} for this service.`);
+      return;
+    }
+
+    Alert.alert(
+      service.name,
+      `This service costs $${service.price}. Proceed?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: () => {
+            const newPets = pets.map(p => {
+              if (p.id === pet.id) {
+                const updates: Partial<Pet> = {
+                  health: Math.min(100, (p.health || 0) + (service.healthBonus || 0)),
+                  happiness: Math.min(100, (p.happiness || 0) + ((service as any).happinessBonus || 0)),
+                  lastVetVisit: Date.now(),
+                };
+                
+                if (serviceId === 'vaccination') {
+                  updates.vaccinated = true;
+                }
+                
+                if (serviceId === 'treatment' && p.isSick) {
+                  updates.isSick = false;
+                  updates.sickness = undefined;
+                }
+                
+                return { ...p, ...updates };
+              }
+              return p;
+            });
+
+            setGameState(prev => ({
+              ...prev,
+              stats: { ...prev.stats, money: cash - service.price },
+              pets: newPets,
+            }));
+            saveGame();
+            Alert.alert('Success! 🏥', `${pet.name} received ${service.name}. Health improved!`);
+          },
+        },
+      ]
+    );
+  }, [cash, pets, setGameState, saveGame]);
+
+  // Handle competition entry
+  const handleEnterCompetition = useCallback((pet: Pet, competitionId: string) => {
+    const competition = petCompetitions.find(c => c.id === competitionId);
+    if (!competition) return;
+
+    if (cash < competition.entryFee) {
+      Alert.alert('Insufficient Funds', `Entry fee is $${competition.entryFee}.`);
+      return;
+    }
+
+    // Check requirements
+    let canEnter = true;
+    let failReason = '';
+
+    if (competition.requirement === 'all') {
+      if (pet.happiness < competition.minValue || pet.health < competition.minValue || (pet.energy || 100) < competition.minValue) {
+        canEnter = false;
+        failReason = `${pet.name} needs at least ${competition.minValue} in all stats.`;
+      }
+    } else {
+      const statValue = pet[competition.requirement as keyof Pet] as number;
+      if (statValue < competition.minValue) {
+        canEnter = false;
+        failReason = `${pet.name} needs at least ${competition.minValue} ${competition.requirement}.`;
+      }
+    }
+
+    if (!canEnter) {
+      Alert.alert('Requirements Not Met', failReason);
+      return;
+    }
+
+    Alert.alert(
+      `Enter ${competition.name}?`,
+      `Entry fee: $${competition.entryFee}\nPrize: $${competition.prize}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Enter',
+          onPress: () => {
+            // Calculate win chance based on pet stats
+            const statAverage = ((pet.happiness || 0) + (pet.health || 0) + (pet.energy || 100)) / 3;
+            const winChance = Math.min(80, statAverage - 20 + (pet.competitionWins || 0) * 5);
+            const won = Math.random() * 100 < winChance;
+
+            const newPets = pets.map(p => {
+              if (p.id === pet.id) {
+                return {
+                  ...p,
+                  energy: Math.max(0, (p.energy || 100) - 30),
+                  happiness: won ? Math.min(100, (p.happiness || 0) + 10) : Math.max(0, (p.happiness || 0) - 5),
+                  competitionWins: won ? (p.competitionWins || 0) + 1 : (p.competitionWins || 0),
+                };
+              }
+              return p;
+            });
+
+            const moneyChange = won ? competition.prize - competition.entryFee : -competition.entryFee;
+
+            setGameState(prev => ({
+              ...prev,
+              stats: { ...prev.stats, money: cash + moneyChange },
+              pets: newPets,
+            }));
+            saveGame();
+
+            setCompetitionResult({
+              won,
+              prize: won ? competition.prize : 0,
+              competition: competition.name,
+            });
+            setShowCompetitionResultModal(true);
+          },
+        },
+      ]
+    );
+  }, [cash, pets, setGameState, saveGame]);
 
   const handleFeed = useCallback((pet: Pet, foodType: string = 'basic') => {
     // Check if player has food in inventory
@@ -279,12 +475,17 @@ export default function PetApp({ onBack }: PetAppProps) {
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabScrollContainer}
+        contentContainerStyle={styles.tabContainer}
+      >
         <TouchableOpacity
           style={[styles.tab, activeTab === 'pets' && styles.activeTab]}
           onPress={() => setActiveTab('pets')}
         >
-          <PawPrint size={20} color={activeTab === 'pets' ? '#FFFFFF' : '#6B7280'} />
+          <PawPrint size={18} color={activeTab === 'pets' ? '#FFFFFF' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'pets' ? styles.tabTextActive : styles.tabTextInactive]}>
             My Pets
           </Text>
@@ -293,12 +494,30 @@ export default function PetApp({ onBack }: PetAppProps) {
           style={[styles.tab, activeTab === 'shop' && styles.activeTab]}
           onPress={() => setActiveTab('shop')}
         >
-          <ShoppingCart size={20} color={activeTab === 'shop' ? '#FFFFFF' : '#6B7280'} />
+          <ShoppingCart size={18} color={activeTab === 'shop' ? '#FFFFFF' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'shop' ? styles.tabTextActive : styles.tabTextInactive]}>
             Shop
           </Text>
         </TouchableOpacity>
-      </View>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'vet' && styles.activeTab]}
+          onPress={() => setActiveTab('vet')}
+        >
+          <Stethoscope size={18} color={activeTab === 'vet' ? '#FFFFFF' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'vet' ? styles.tabTextActive : styles.tabTextInactive]}>
+            Vet
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'competitions' && styles.activeTab]}
+          onPress={() => setActiveTab('competitions')}
+        >
+          <Trophy size={18} color={activeTab === 'competitions' ? '#FFFFFF' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'competitions' ? styles.tabTextActive : styles.tabTextInactive]}>
+            Compete
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       {/* Content */}
       <ScrollView 
@@ -542,6 +761,206 @@ export default function PetApp({ onBack }: PetAppProps) {
             </View>
           </View>
         )}
+
+        {/* Vet Tab */}
+        {activeTab === 'vet' && (
+          <View style={styles.vetContainer}>
+            {pets.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Stethoscope size={48} color="#6B7280" />
+                <Text style={styles.emptyStateText}>No pets to treat</Text>
+                <Text style={[styles.emptyStateText, { fontSize: 14 }]}>Adopt a pet first!</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.vetSectionTitle}>Select a Pet</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petSelector}>
+                  {pets.map((pet) => {
+                    const lifeStatus = getPetLifeStatus(pet);
+                    return (
+                      <TouchableOpacity
+                        key={pet.id}
+                        style={[
+                          styles.petSelectorItem,
+                          selectedPet?.id === pet.id && styles.petSelectorItemActive,
+                        ]}
+                        onPress={() => setSelectedPet(pet)}
+                      >
+                        <Text style={styles.petSelectorEmoji}>{getPetEmoji(pet.type)}</Text>
+                        <Text style={styles.petSelectorName}>{pet.name}</Text>
+                        <View style={[styles.petAgeBadge, { backgroundColor: lifeStatus.color }]}>
+                          <Text style={styles.petAgeBadgeText}>{lifeStatus.label}</Text>
+                        </View>
+                        {pet.isSick && (
+                          <View style={styles.sickBadge}>
+                            <AlertTriangle size={12} color="#EF4444" />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {selectedPet && (
+                  <>
+                    <View style={styles.petHealthCard}>
+                      <LinearGradient
+                        colors={selectedPet.isSick ? ['#EF4444', '#DC2626'] : ['#10B981', '#059669']}
+                        style={styles.petHealthCardGradient}
+                      >
+                        <View style={styles.petHealthHeader}>
+                          <Text style={styles.petHealthEmoji}>{getPetEmoji(selectedPet.type)}</Text>
+                          <View style={styles.petHealthInfo}>
+                            <Text style={styles.petHealthName}>{selectedPet.name}</Text>
+                            <Text style={styles.petHealthAge}>Age: {getPetAgeDisplay(selectedPet)}</Text>
+                          </View>
+                          <View style={styles.petHealthStats}>
+                            <Text style={styles.petHealthStat}>❤️ {selectedPet.health}%</Text>
+                            {selectedPet.vaccinated && <Text style={styles.vaccinatedBadge}>💉 Vaccinated</Text>}
+                          </View>
+                        </View>
+                        {selectedPet.isSick && (
+                          <View style={styles.sickAlert}>
+                            <AlertTriangle size={16} color="#FFF" />
+                            <Text style={styles.sickAlertText}>
+                              {selectedPet.name} is sick: {selectedPet.sickness}
+                            </Text>
+                          </View>
+                        )}
+                      </LinearGradient>
+                    </View>
+
+                    <Text style={styles.vetSectionTitle}>Veterinary Services</Text>
+                    {vetServices.map((service) => (
+                      <TouchableOpacity
+                        key={service.id}
+                        style={styles.vetServiceCard}
+                        onPress={() => handleVetService(selectedPet, service.id)}
+                        disabled={cash < service.price}
+                      >
+                        <View style={styles.vetServiceInfo}>
+                          <Text style={styles.vetServiceName}>{service.name}</Text>
+                          <Text style={styles.vetServiceDesc}>{service.description}</Text>
+                          <View style={styles.vetServiceEffects}>
+                            {service.healthBonus && (
+                              <Text style={styles.vetServiceEffect}>+{service.healthBonus} ❤️</Text>
+                            )}
+                            {(service as any).happinessBonus && (
+                              <Text style={styles.vetServiceEffect}>+{(service as any).happinessBonus} 😊</Text>
+                            )}
+                          </View>
+                        </View>
+                        <View style={[styles.vetServicePrice, cash < service.price && styles.disabledPrice]}>
+                          <Text style={styles.vetServicePriceText}>${service.price}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+          </View>
+        )}
+
+        {/* Competitions Tab */}
+        {activeTab === 'competitions' && (
+          <View style={styles.competitionsContainer}>
+            {pets.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Trophy size={48} color="#6B7280" />
+                <Text style={styles.emptyStateText}>No pets to compete</Text>
+                <Text style={[styles.emptyStateText, { fontSize: 14 }]}>Adopt a pet first!</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.vetSectionTitle}>Select a Competitor</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petSelector}>
+                  {pets.map((pet) => (
+                    <TouchableOpacity
+                      key={pet.id}
+                      style={[
+                        styles.petSelectorItem,
+                        selectedPet?.id === pet.id && styles.petSelectorItemActive,
+                      ]}
+                      onPress={() => setSelectedPet(pet)}
+                    >
+                      <Text style={styles.petSelectorEmoji}>{getPetEmoji(pet.type)}</Text>
+                      <Text style={styles.petSelectorName}>{pet.name}</Text>
+                      {(pet.competitionWins || 0) > 0 && (
+                        <View style={styles.winsBadge}>
+                          <Trophy size={10} color="#F59E0B" />
+                          <Text style={styles.winsBadgeText}>{pet.competitionWins}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {selectedPet && (
+                  <>
+                    <View style={styles.competitorStats}>
+                      <LinearGradient
+                        colors={['#8B5CF6', '#7C3AED']}
+                        style={styles.competitorStatsGradient}
+                      >
+                        <Text style={styles.competitorEmoji}>{getPetEmoji(selectedPet.type)}</Text>
+                        <View style={styles.competitorInfo}>
+                          <Text style={styles.competitorName}>{selectedPet.name}</Text>
+                          <View style={styles.competitorStatRow}>
+                            <Text style={styles.competitorStat}>❤️ {selectedPet.health}</Text>
+                            <Text style={styles.competitorStat}>😊 {selectedPet.happiness}</Text>
+                            <Text style={styles.competitorStat}>⚡ {selectedPet.energy || 100}</Text>
+                          </View>
+                        </View>
+                        <View style={styles.competitorTrophies}>
+                          <Trophy size={24} color="#FFD700" />
+                          <Text style={styles.competitorWins}>{selectedPet.competitionWins || 0}</Text>
+                        </View>
+                      </LinearGradient>
+                    </View>
+
+                    <Text style={styles.vetSectionTitle}>Available Competitions</Text>
+                    {petCompetitions.map((comp) => {
+                      const meetsRequirement = comp.requirement === 'all'
+                        ? (selectedPet.happiness >= comp.minValue && selectedPet.health >= comp.minValue && (selectedPet.energy || 100) >= comp.minValue)
+                        : (selectedPet[comp.requirement as keyof Pet] as number) >= comp.minValue;
+
+                      return (
+                        <TouchableOpacity
+                          key={comp.id}
+                          style={[styles.competitionCard, !meetsRequirement && styles.competitionCardDisabled]}
+                          onPress={() => handleEnterCompetition(selectedPet, comp.id)}
+                          disabled={!meetsRequirement || cash < comp.entryFee}
+                        >
+                          <Text style={styles.competitionEmoji}>{comp.emoji}</Text>
+                          <View style={styles.competitionInfo}>
+                            <Text style={styles.competitionName}>{comp.name}</Text>
+                            <Text style={styles.competitionRequirement}>
+                              Requires: {comp.requirement === 'all' ? 'All stats' : comp.requirement} ≥ {comp.minValue}
+                            </Text>
+                            <View style={styles.competitionRewards}>
+                              <Text style={styles.competitionEntry}>Entry: ${comp.entryFee}</Text>
+                              <Text style={styles.competitionPrize}>Prize: ${comp.prize}</Text>
+                            </View>
+                          </View>
+                          {meetsRequirement ? (
+                            <View style={styles.enterButton}>
+                              <Text style={styles.enterButtonText}>Enter</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.lockedBadge}>
+                              <Text style={styles.lockedText}>Locked</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </>
+                )}
+              </>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* Shop Modal */}
@@ -636,6 +1055,42 @@ export default function PetApp({ onBack }: PetAppProps) {
                     <Text style={styles.purchaseSuccessButtonSecondaryText}>Continue Shopping</Text>
                   </TouchableOpacity>
                 </View>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Competition Result Modal */}
+      <Modal visible={showCompetitionResultModal} transparent animationType="fade" onRequestClose={() => setShowCompetitionResultModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.competitionResultModal}>
+            <LinearGradient
+              colors={competitionResult?.won ? ['#F59E0B', '#D97706'] : ['#6B7280', '#4B5563']}
+              style={styles.competitionResultGradient}
+            >
+              <View style={styles.competitionResultContent}>
+                <Text style={styles.competitionResultEmoji}>
+                  {competitionResult?.won ? '🏆' : '😢'}
+                </Text>
+                <Text style={styles.competitionResultTitle}>
+                  {competitionResult?.won ? 'Victory!' : 'Better Luck Next Time'}
+                </Text>
+                <Text style={styles.competitionResultSubtitle}>
+                  {competitionResult?.competition}
+                </Text>
+                {competitionResult?.won && (
+                  <View style={styles.prizeDisplay}>
+                    <Text style={styles.prizeLabel}>Prize Won:</Text>
+                    <Text style={styles.prizeAmount}>${competitionResult.prize}</Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.competitionResultButton}
+                  onPress={() => setShowCompetitionResultModal(false)}
+                >
+                  <Text style={styles.competitionResultButtonText}>Continue</Text>
+                </TouchableOpacity>
               </View>
             </LinearGradient>
           </View>
@@ -1137,6 +1592,353 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 16,
     fontWeight: '500',
+  },
+
+  // New tab styles
+  tabScrollContainer: {
+    maxHeight: 80,
+  },
+
+  // Vet styles
+  vetContainer: {
+    gap: 16,
+    paddingBottom: 20,
+  },
+  vetSectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  petSelector: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  petSelectorItem: {
+    alignItems: 'center',
+    backgroundColor: '#1A1D29',
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 12,
+    minWidth: 80,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  petSelectorItemActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#1E293B',
+  },
+  petSelectorEmoji: {
+    fontSize: 32,
+    marginBottom: 4,
+  },
+  petSelectorName: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  petAgeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  petAgeBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  sickBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 10,
+    padding: 2,
+  },
+  petHealthCard: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  petHealthCardGradient: {
+    padding: 16,
+  },
+  petHealthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  petHealthEmoji: {
+    fontSize: 40,
+    marginRight: 12,
+  },
+  petHealthInfo: {
+    flex: 1,
+  },
+  petHealthName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  petHealthAge: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+  },
+  petHealthStats: {
+    alignItems: 'flex-end',
+  },
+  petHealthStat: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  vaccinatedBadge: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  sickAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 12,
+  },
+  sickAlertText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    marginLeft: 8,
+  },
+  vetServiceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F1220',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#23283B',
+  },
+  vetServiceInfo: {
+    flex: 1,
+  },
+  vetServiceName: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  vetServiceDesc: {
+    color: '#9FA4B3',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  vetServiceEffects: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  vetServiceEffect: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  vetServicePrice: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  vetServicePriceText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  disabledPrice: {
+    backgroundColor: '#4B5563',
+  },
+
+  // Competition styles
+  competitionsContainer: {
+    gap: 16,
+    paddingBottom: 20,
+  },
+  winsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F59E0B',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 4,
+  },
+  winsBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  competitorStats: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  competitorStatsGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  competitorEmoji: {
+    fontSize: 40,
+    marginRight: 12,
+  },
+  competitorInfo: {
+    flex: 1,
+  },
+  competitorName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  competitorStatRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  competitorStat: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12,
+  },
+  competitorTrophies: {
+    alignItems: 'center',
+  },
+  competitorWins: {
+    color: '#FFD700',
+    fontSize: 20,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  competitionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F1220',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#23283B',
+  },
+  competitionCardDisabled: {
+    opacity: 0.5,
+  },
+  competitionEmoji: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  competitionInfo: {
+    flex: 1,
+  },
+  competitionName: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  competitionRequirement: {
+    color: '#9FA4B3',
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  competitionRewards: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  competitionEntry: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  competitionPrize: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  enterButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  enterButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  lockedBadge: {
+    backgroundColor: '#374151',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  lockedText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Competition Result Modal
+  competitionResultModal: {
+    width: '85%',
+    maxWidth: 350,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  competitionResultGradient: {
+    padding: 24,
+  },
+  competitionResultContent: {
+    alignItems: 'center',
+  },
+  competitionResultEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  competitionResultTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  competitionResultSubtitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  prizeDisplay: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  prizeLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+  },
+  prizeAmount: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    fontWeight: '800',
+  },
+  competitionResultButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 40,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  competitionResultButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

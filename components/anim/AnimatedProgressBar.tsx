@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ColorValue, StyleProp, ViewStyle } from 'react-native';
-import { MotiView } from 'moti';
+import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';

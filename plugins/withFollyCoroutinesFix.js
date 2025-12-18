@@ -20,9 +20,8 @@ const withFollyCoroutinesFix = (config) => {
         if (!podfileContent.includes('FOLLY_HAS_COROUTINES')) {
           // The Ruby code to patch Folly after pods are installed
           const follyPatch = `
-    # Fix Folly coroutines issue - disable coroutines to fix 'folly/coro/Coroutine.h' not found
-    # This is needed because react-native-reanimated tries to use coroutines
-    # but they're not available without new architecture enabled
+    # Fix Folly coroutines issue - configure Folly settings
+    # Note: With New Architecture enabled, coroutines are available, but we still need proper Folly configuration
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         # Add preprocessor macro to disable coroutines

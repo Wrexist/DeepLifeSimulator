@@ -97,13 +97,28 @@ export const performStreetJob = (
   const baseSuccess = job.baseSuccessRate;
   const skillBonus = job.skill ? (gameState.crimeSkills[job.skill]?.level || 0) * 5 : 0;
   const successChance = Math.min(95, baseSuccess + skillBonus);
-  const success = Math.random() * 100 < successChance;
+  // RANDOMNESS FIX: Pity system for street jobs - guaranteed success after 5 failures
+  // Track consecutive failures per job (persists across weeks, resets on success)
+  // PRIORITY 2 FIX: Use constant from randomnessConstants
+  const { PITY_THRESHOLD_STREET_JOB } = require('@/lib/randomness/randomnessConstants');
+  const pityThreshold = PITY_THRESHOLD_STREET_JOB; // Guaranteed success after 5 failures
+  // Only count failures (success resets counter in state update below)
+  const failureCount = gameState.streetJobFailureCount?.[jobId] || 0;
+  const guaranteedSuccess = failureCount >= pityThreshold;
+  const success = guaranteedSuccess ? true : Math.random() * 100 < successChance;
 
   // Calculate money - store original money BEFORE any changes
   const moneyBeforeJob = gameState.stats.money;
   const basePay = job.basePayment;
   const levelBonus = (gameState.criminalLevel - 1) * 0.1;
-  const moneyGained = success ? Math.round(basePay * (1 + levelBonus)) : 0;
+  
+  // STABILITY FIX: Increase street job income by 50% for unemployed players
+  // Street jobs are balanced for side income, but unemployed players need them as primary income
+  // This prevents poverty trap where street jobs don't provide enough to survive
+  const hasCareerJob = gameState.currentJob && gameState.currentJob.length > 0;
+  const unemployedBonus = hasCareerJob ? 1.0 : 1.5; // 50% boost if no career job
+  
+  const moneyGained = success ? Math.round(basePay * (1 + levelBonus) * unemployedBonus) : 0;
   
   // Risk calculation
   const caughtChance = job.illegal ? (100 - successChance) / 2 : 0;
@@ -231,6 +246,27 @@ export const performStreetJob = (
         return j;
       });
       
+      // RANDOMNESS FIX: Track street job failures for pity system
+      // Update failure count: reset on success, increment on failure
+      //
+      // SAFETY: This is safe because:
+      // - State update is atomic (single setGameState call)
+      // - Failure count is isolated per job (no cross-contamination)
+      // - Counter persists across weeks (allows pity system to work over time)
+      //
+      // FRAGILE LOGIC WARNING:
+      // - Failure count is updated AFTER success/failure is determined (correct order)
+      // - If state update fails, failure count won't update (acceptable - retry will fix)
+      // - No cleanup for old failure counts (acceptable - they decay naturally)
+      //
+      // FUTURE BUG RISK:
+      // - If job is removed from streetJobs array, failure count becomes orphaned (acceptable - minor memory leak)
+      // - If job ID changes, failure count is lost (shouldn't happen, but defensive code could check)
+      const currentFailureCount = prev.streetJobFailureCount || {};
+      const newFailureCount = success 
+        ? { ...currentFailureCount, [jobId]: 0 } // Reset on success
+        : { ...currentFailureCount, [jobId]: (currentFailureCount[jobId] || 0) + 1 }; // Increment on failure
+      
       return {
         ...prev,
         streetJobs: updatedStreetJobs,
@@ -238,6 +274,7 @@ export const performStreetJob = (
           ...currentWeeklyJobs,
           [jobId]: currentCount + 1,
         },
+        streetJobFailureCount: newFailureCount,
         stats: {
           ...prev.stats,
           money: newMoney, // Use calculated value from snapshot

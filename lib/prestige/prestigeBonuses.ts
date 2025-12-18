@@ -175,6 +175,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'unlock',
     cost: 5000,
     rarity: 'rare',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
   {
     id: 'early_education_access',
@@ -183,6 +184,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'unlock',
     cost: 3000,
     rarity: 'uncommon',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
   {
     id: 'early_item_access',
@@ -191,6 +193,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'unlock',
     cost: 4000,
     rarity: 'rare',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
   {
     id: 'early_real_estate',
@@ -199,6 +202,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'unlock',
     cost: 6000,
     rarity: 'epic',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
   {
     id: 'early_company_access',
@@ -207,6 +211,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'unlock',
     cost: 8000,
     rarity: 'epic',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
 
   // Quality of Life Bonuses
@@ -259,6 +264,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'special',
     cost: 50000,
     rarity: 'legendary',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
   {
     id: 'perfect_start',
@@ -267,6 +273,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'special',
     cost: 30000,
     rarity: 'legendary',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
   {
     id: 'wealth_magnet',
@@ -275,6 +282,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'special',
     cost: 40000,
     rarity: 'legendary',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
   {
     id: 'genius',
@@ -283,6 +291,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'special',
     cost: 35000,
     rarity: 'legendary',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
   {
     id: 'social_master',
@@ -291,6 +300,7 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     category: 'special',
     cost: 20000,
     rarity: 'epic',
+    maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
 ];
 

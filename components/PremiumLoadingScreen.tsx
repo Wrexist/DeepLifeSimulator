@@ -9,7 +9,8 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// BlurView removed - TurboModule crash fix
+// import { BlurView } from 'expo-blur';
 import { 
   Zap, 
   Star, 

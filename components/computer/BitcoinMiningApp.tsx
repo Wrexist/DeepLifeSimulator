@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, TextInput, useColorScheme, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, TextInput, Dimensions, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Bitcoin, Zap, DollarSign, TrendingUp, TrendingDown, Cpu, Activity, HardDrive, Coins, Building2, CheckCircle, Sparkles, AlertTriangle, X } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { MotiView } from 'moti';
+import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import { CoinEffect } from '@/components/ui/ParticleEffects';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { logger } from '@/utils/logger';
 import { getShadow } from '@/utils/shadow';
+import { scale, fontScale, responsivePadding, responsiveBorderRadius } from '@/utils/scaling';
+import { validateMoney, validatePositiveNumber } from '@/utils/validation';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -98,20 +100,26 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
   const { success, buttonPress } = useFeedback(gameState.settings.hapticFeedback);
   const [activeTab, setActiveTab] = useState<'miners' | 'crypto'>('miners');
 
+  // Extract settings for dark mode support
+  const { settings } = gameState;
+  const isDarkMode = settings?.darkMode ?? false;
+
   // Extract frequently used values from gameState to avoid unnecessary re-renders
   const warehouse = gameState.warehouse;
   const cryptos = gameState.cryptos;
   const money = gameState.stats.money;
   const [selectedStock, setSelectedStock] = useState<Crypto | null>(null);
-  const isDarkMode = useColorScheme() === 'dark';
   const [investAmount, setInvestAmount] = useState('');
+  const [investAmountError, setInvestAmountError] = useState<string | undefined>();
   const [showInvestModal, setShowInvestModal] = useState(false);
   const [swapFrom, setSwapFrom] = useState<Crypto | null>(null);
   const [swapTo, setSwapTo] = useState<Crypto | null>(null);
   const [swapAmount, setSwapAmount] = useState('');
+  const [swapAmountError, setSwapAmountError] = useState<string | undefined>();
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [sellCryptoItem, setSellCryptoItem] = useState<Crypto | null>(null);
   const [sellAmount, setSellAmount] = useState('');
+  const [sellAmountError, setSellAmountError] = useState<string | undefined>();
   const [showSellModal, setShowSellModal] = useState(false);
   const [showAutoRepairModal, setShowAutoRepairModal] = useState(false);
   const [showPurchaseSuccessModal, setShowPurchaseSuccessModal] = useState(false);
@@ -174,13 +182,14 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
   const cryptoEffects = gameState.politics?.activePolicyEffects?.crypto;
 
   // Memoize miners array with owned counts from gameState
+  // BUG FIX: Get durability from warehouse state (defaults to 100 for new miners)
   const miners = useMemo<Miner[]>(() => {
     return MINERS_DATA.map(minerData => ({
       ...minerData,
       owned: warehouse?.miners[minerData.id] || 0,
-      durability: 100, // Default durability
+      durability: warehouse?.minerDurability?.[minerData.id] ?? 100, // Get from state or default to 100
     }));
-  }, [warehouse?.miners]);
+  }, [warehouse?.miners, warehouse?.minerDurability]);
 
   const handleBuyMiner = useCallback((miner: Miner) => {
     buttonPress();
@@ -232,6 +241,55 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
       Alert.alert('Error', `An error occurred while selling the miner: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, [sellMiner, success]);
+
+  // BUG FIX: Handle manual repair of miners
+  const handleRepairMiner = useCallback((miner: Miner) => {
+    if (!warehouse) {
+      Alert.alert('No Warehouse', 'You need a warehouse to repair miners.');
+      return;
+    }
+    
+    const currentDurability = warehouse.minerDurability?.[miner.id] ?? 100;
+    if (currentDurability >= 100) {
+      Alert.alert('Perfect Condition', 'This miner is already at 100% health!');
+      return;
+    }
+    
+    const repairCost = miner.repairCost * (warehouse.miners[miner.id] || 0);
+    if (gameState.stats.money < repairCost) {
+      Alert.alert('Insufficient Funds', `You need ${formatMoney(repairCost)} to repair all ${miner.name} miners.`);
+      return;
+    }
+    
+    Alert.alert(
+      `Repair ${miner.name}`,
+      `Repair all ${warehouse.miners[miner.id] || 0} ${miner.name} miners to 100% health for ${formatMoney(repairCost)}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Repair',
+          onPress: () => {
+            setGameState(prev => ({
+              ...prev,
+              stats: {
+                ...prev.stats,
+                money: prev.stats.money - repairCost,
+              },
+              warehouse: prev.warehouse ? {
+                ...prev.warehouse,
+                minerDurability: {
+                  ...prev.warehouse.minerDurability,
+                  [miner.id]: 100,
+                },
+              } : undefined,
+            }));
+            saveGame();
+            Alert.alert('Repaired!', `All ${miner.name} miners have been repaired to 100% health.`);
+          },
+        },
+      ]
+    );
+  }, [warehouse, gameState.stats.money, setGameState, saveGame]);
 
   const handleSellMiner = useCallback((miner: Miner) => {
     buttonPress();
@@ -317,26 +375,47 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
           {hasWarehouse ? (
             <View style={styles.minerActions}>
               {owned > 0 && (
-                <TouchableOpacity
-                  style={styles.sellMinerButton}
-                  onPress={() => {
-                    logger.debug('Sell button pressed for miner:', { minerId: miner.id, minerName: miner.name });
-                    handleSellMiner(miner);
-                  }}
-                  activeOpacity={0.8}
-                  disabled={false}
-                >
-                  <LinearGradient
-                    colors={['#EF4444', '#DC2626']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.sellMinerButtonGradient}
+                <>
+                  {/* BUG FIX: Show repair button if durability is below 100% */}
+                  {miner.durability < 100 && (
+                    <TouchableOpacity
+                      style={styles.repairMinerButton}
+                      onPress={() => handleRepairMiner(miner)}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient
+                        colors={['#F59E0B', '#D97706']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.repairMinerButtonGradient}
+                      >
+                        <Text style={styles.repairMinerButtonText}>
+                          Repair ({formatMoney(miner.repairCost * owned)})
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={styles.sellMinerButton}
+                    onPress={() => {
+                      logger.debug('Sell button pressed for miner:', { minerId: miner.id, minerName: miner.name });
+                      handleSellMiner(miner);
+                    }}
+                    activeOpacity={0.8}
+                    disabled={false}
                   >
-                    <Text style={styles.sellMinerButtonText}>
-                      Sell ({formatMoney(Math.floor(miner.price * 0.5))})
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={['#EF4444', '#DC2626']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.sellMinerButtonGradient}
+                    >
+                      <Text style={styles.sellMinerButtonText}>
+                        Sell ({formatMoney(Math.floor(miner.price * 0.5))})
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </>
               )}
               <TouchableOpacity
                 style={[styles.buyMinerButton, !canAfford && styles.disabledButton, owned > 0 && styles.buyMinerButtonWithSell]}
@@ -898,8 +977,11 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
   }, [warehouse, cryptos, totalWeeklyEarnings, handleSelectCrypto, isDarkMode]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <LinearGradient
+      colors={isDarkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
+      style={styles.container}
+    >
+      <View style={[styles.header, isDarkMode && styles.headerDark]}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <LinearGradient
             colors={['#374151', '#1F2937']}
@@ -910,7 +992,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
             <ArrowLeft size={24} color="#FFFFFF" />
           </LinearGradient>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bitcoin Mining</Text>
+        <Text style={[styles.headerTitle, isDarkMode && styles.headerTitleDark]}>Bitcoin Mining</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -1164,13 +1246,28 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
               Enter the dollar amount you want to invest
             </Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, investAmountError && styles.inputError]}
               placeholder="Amount to invest ($)"
               placeholderTextColor={isDarkMode ? "#FFFFFF" : "#9CA3AF"}
               value={investAmount}
-              onChangeText={setInvestAmount}
+              onChangeText={(text) => {
+                setInvestAmount(text);
+                if (text) {
+                  const validation = validateMoney(text, 1, money);
+                  if (!validation.valid) {
+                    setInvestAmountError(validation.error);
+                  } else {
+                    setInvestAmountError(undefined);
+                  }
+                } else {
+                  setInvestAmountError(undefined);
+                }
+              }}
               keyboardType="numeric"
             />
+            {investAmountError && (
+              <Text style={styles.errorText}>{investAmountError}</Text>
+            )}
             {investAmount && selectedStock && (
               <View style={styles.investmentPreview}>
                 <Text style={styles.investmentPreviewText}>
@@ -1228,13 +1325,29 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
           >
             <Text style={styles.modalTitle}>Sell {sellCryptoItem?.symbol}</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, sellAmountError && styles.inputError]}
               placeholder="Amount to sell"
               placeholderTextColor={isDarkMode ? "#FFFFFF" : "#9CA3AF"}
               value={sellAmount}
-              onChangeText={setSellAmount}
+              onChangeText={(text) => {
+                setSellAmount(text);
+                if (text && sellCryptoItem) {
+                  const maxAmount = sellCryptoItem.owned;
+                  const validation = validatePositiveNumber(text, 0.000001, maxAmount);
+                  if (!validation.valid) {
+                    setSellAmountError(validation.error);
+                  } else {
+                    setSellAmountError(undefined);
+                  }
+                } else {
+                  setSellAmountError(undefined);
+                }
+              }}
               keyboardType="numeric"
             />
+            {sellAmountError && (
+              <Text style={styles.errorText}>{sellAmountError}</Text>
+            )}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.modalButton}
@@ -1903,14 +2016,13 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
           </Animated.View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
   },
   header: {
     flexDirection: 'row',
@@ -1933,7 +2045,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  headerTitleDark: {
     color: '#FFFFFF',
+  },
+  headerDark: {
+    backgroundColor: 'transparent',
   },
   placeholder: {
     width: 48,
@@ -2893,6 +3011,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  repairMinerButton: {
+    flex: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+    minHeight: 44,
+  },
+  repairMinerButtonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  repairMinerButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   disabledButton: {
     opacity: 0.6,
   },
@@ -3308,5 +3444,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });

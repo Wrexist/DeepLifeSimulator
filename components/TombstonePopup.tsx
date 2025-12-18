@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useGame } from '@/contexts/GameContext';
+import { logger } from '@/utils/logger';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
@@ -39,9 +40,7 @@ export default function TombstonePopup() {
       await restartGame();
       router.replace('/(onboarding)/MainMenu');
     } catch (error) {
-      if (__DEV__) {
-        console.error('Failed to start new life:', error);
-      }
+      logger.error('Failed to start new life:', error);
       setGameState(prev => ({
         ...prev,
         showDeathPopup: true,

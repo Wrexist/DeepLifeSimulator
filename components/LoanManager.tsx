@@ -122,19 +122,40 @@ export default function LoanManager() {
     const weeklyRate = marketAPR / 52;
     const totalPayments = selectedTerm;
     
-    // Calculate weekly payment using loan formula
-    // Protect against division by zero
-    const denominator = Math.pow(1 + weeklyRate, totalPayments) - 1;
-    const weeklyPayment = amount > 0 && denominator > 0 ? 
-      (amount * weeklyRate * Math.pow(1 + weeklyRate, totalPayments)) / denominator
-      : 0;
+    // BUG FIX: Calculate weekly payment using more stable formula for long terms
+    // For very long terms (520 weeks), use alternative formula to avoid precision issues
+    let weeklyPayment = 0;
+    
+    if (amount > 0 && totalPayments > 0) {
+      if (weeklyRate <= 0 || totalPayments > 400) {
+        // For very long terms or zero interest, use simple division
+        // Minimum payment ensures debt is paid down
+        weeklyPayment = Math.max(amount / totalPayments, amount * 0.001); // At least 0.1% of principal per week
+      } else {
+        // Standard amortization formula: A = P * r / (1 - (1 + r)^-n)
+        // This formula is more stable for long terms
+        const r = weeklyRate;
+        const n = totalPayments;
+        const denom = 1 - Math.pow(1 + r, -n);
+        
+        if (denom > 0.0001) { // Avoid division by very small numbers
+          weeklyPayment = (amount * r) / denom;
+        } else {
+          // Fallback for very small denominators (very long terms)
+          weeklyPayment = Math.max(amount / totalPayments, amount * 0.001);
+        }
+        
+        // Ensure minimum payment to prevent zero debt issue
+        weeklyPayment = Math.max(weeklyPayment, amount * 0.001); // At least 0.1% of principal per week
+      }
+    }
     
     const totalCost = weeklyPayment * totalPayments;
     const totalInterest = totalCost - amount;
     
     return {
-      weeklyPayment: isFinite(weeklyPayment) ? weeklyPayment : 0,
-      totalCost: isFinite(totalCost) ? totalCost : 0,
+      weeklyPayment: isFinite(weeklyPayment) && weeklyPayment > 0 ? weeklyPayment : Math.max(amount / totalPayments, amount * 0.001),
+      totalCost: isFinite(totalCost) ? totalCost : amount,
       totalInterest: isFinite(totalInterest) ? totalInterest : 0,
       interestRate: marketAPR * 100,
     };

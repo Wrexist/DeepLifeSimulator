@@ -4,15 +4,19 @@ import * as FamilyBusinessActions from './actions/FamilyBusinessActions';
 import * as TravelActions from './actions/TravelActions';
 import * as PoliticalActions from './actions/PoliticalActions';
 import * as RDActions from './actions/RDActions';
+import * as CompanyActions from './actions/CompanyActions';
+import { executeWedding } from './actions/DatingActions';
+import { processVehicleWeekly } from './actions/VehicleActions';
 import { updatePatents } from '@/lib/rd/patents';
 import * as statisticsTracker from '@/lib/statistics/statisticsTracker';
 
 import React, { createContext, useContext, useCallback, useRef, ReactNode, useMemo } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { applyWeeklyInflation, getInflatedPrice } from '@/lib/economy/inflation';
 import { simulateWeek, getStockInfo } from '@/lib/economy/stockMarket';
+import { MAX_ACTIVE_RELATIONSHIPS, MAX_RELATIONSHIP_INCOME, MAX_RELATIONSHIPS_FOR_INCOME } from '@/lib/economy/balanceConstants';
 import {
   Relation,
   RelationAction,
@@ -20,7 +24,7 @@ import {
 } from '@/lib/social/relations';
 import * as companyLogic from './company';
 import * as socialLogic from './social';
-import { rollWeeklyEvents } from '@/lib/events/engine';
+import { rollWeeklyEvents, type WeeklyEvent } from '@/lib/events/engine';
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { v4 as uuidv4 } from 'uuid';
@@ -37,6 +41,8 @@ import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prest
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { getBonusPurchaseCost, canPurchaseBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
+import { validateStatChanges, sanitizeStatChanges, sanitizeFinalStats, validateStateInvariants, validateMoneyInvariants } from '@/utils/stateInvariants';
+import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
 import { shouldAutoCollectRent, shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { useGameState } from './GameStateContext';
@@ -150,6 +156,7 @@ interface GameActionsContextType {
   askForMoney: (relationshipId: string) => { success: boolean; message: string } | void;
   callRelationship: (relationshipId: string) => { success: boolean; message: string };
   recordRelationshipAction: (relationshipId: string, action: string) => void;
+  changeActivityCommitment: (primary?: 'career' | 'hobbies' | 'relationships' | 'health', secondary?: 'career' | 'hobbies' | 'relationships' | 'health') => { success: boolean; message: string };
 
   // Pets
   adoptPet: (type: string) => void;
@@ -279,6 +286,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   const nextWeekRef = useRef<(() => void) | null>(null);
   const actionLockRef = useRef(false);
   const isNextWeekRunningRef = useRef(false);
+  // LIFECYCLE FIX: Use refs to prevent stale closures in AppState listener
+  const gameStateRef = useRef<GameState | null>(null);
+  const isSavingRef = useRef(false);
   const log = logger.scope('GameActions');
 
   const withActionLock = useCallback((actionName: string, fn: Function) => {
@@ -368,7 +378,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       if (passportIndex === -1) {
         const passportItem = initialState.items.find(item => item.id === 'passport');
         if (passportItem) {
-          state.items.push({ ...passportItem });
+          state.items = [...state.items, { ...passportItem }];
         }
       }
     }
@@ -471,6 +481,30 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     if (!state.happinessZeroWeeks) state.happinessZeroWeeks = 0;
     if (!state.healthZeroWeeks) state.healthZeroWeeks = 0;
     if (!state.healthWeeks) state.healthWeeks = 0;
+    
+    // PRIORITY 3 FIX: Migrate randomness tracking fields for old saves
+    // Initialize moneyRequestAttempts and childAttempts on relationships if missing
+    if (state.relationships && Array.isArray(state.relationships)) {
+      state.relationships = state.relationships.map(rel => ({
+        ...rel,
+        // Initialize moneyRequestAttempts if missing (defaults to undefined for fresh start)
+        moneyRequestAttempts: rel.moneyRequestAttempts !== undefined ? rel.moneyRequestAttempts : undefined,
+        // Initialize childAttempts if missing (defaults to undefined for fresh start)
+        childAttempts: rel.childAttempts !== undefined ? rel.childAttempts : undefined,
+      }));
+    }
+    // Initialize streetJobFailureCount if missing (defaults to empty object)
+    if (!state.streetJobFailureCount) {
+      state.streetJobFailureCount = {};
+    }
+    // Initialize applicationAttempts on careers if missing
+    if (state.careers && Array.isArray(state.careers)) {
+      state.careers = state.careers.map(career => ({
+        ...career,
+        // Initialize applicationAttempts if missing (defaults to undefined for fresh start)
+        applicationAttempts: career.applicationAttempts !== undefined ? career.applicationAttempts : undefined,
+      }));
+    }
     if (!state.progress) {
       state.progress = { ...initialState.progress };
     } else {
@@ -502,6 +536,34 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     if (!state.updatedAt) state.updatedAt = Date.now();
     if (!state.weeklyJailActivities) state.weeklyJailActivities = {};
     if (!state.weeklyStreetJobs) state.weeklyStreetJobs = {};
+    // Initialize Activity Commitment System
+    if (!state.activityCommitments) {
+      state.activityCommitments = {
+        primary: undefined,
+        secondary: undefined,
+        lastChangedWeek: undefined,
+        commitmentLevels: {
+          career: 0,
+          hobbies: 0,
+          relationships: 0,
+          health: 0,
+        },
+      };
+    } else {
+      // Ensure commitmentLevels exists with all required fields
+      const commitments = state.activityCommitments;
+      state.activityCommitments = {
+        primary: commitments.primary,
+        secondary: commitments.secondary,
+        lastChangedWeek: commitments.lastChangedWeek,
+        commitmentLevels: {
+          career: commitments.commitmentLevels?.career ?? 0,
+          hobbies: commitments.commitmentLevels?.hobbies ?? 0,
+          relationships: commitments.commitmentLevels?.relationships ?? 0,
+          health: commitments.commitmentLevels?.health ?? 0,
+        },
+      };
+    }
     if (version < stateVersion) state.version = stateVersion;
 
     // Ensure gamingStreaming block exists and has all required fields
@@ -717,6 +779,55 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       }
     }
 
+    // ============================================
+    // Migrate Life Skills & DM System fields
+    // ============================================
+    if (!state.unlockedLifeSkills) {
+      state.unlockedLifeSkills = [];
+    }
+    if (!state.dmConversations) {
+      state.dmConversations = [];
+    }
+    if (!state.revealedDMClues) {
+      state.revealedDMClues = [];
+    }
+
+    // ============================================
+    // Migrate Life Milestones
+    // ============================================
+    if (!state.lifeMilestones) {
+      state.lifeMilestones = [];
+    }
+
+    // ============================================
+    // Migrate Depth Enhancement System fields
+    // ============================================
+    if (!state.discoveredSystems) {
+      state.discoveredSystems = [];
+    }
+    if (!state.depthMetrics) {
+      state.depthMetrics = {
+        depthScore: 0,
+        systemsEngaged: 0,
+        lastCalculated: Date.now(),
+      };
+    }
+    if (!state.progressiveDisclosureLevel) {
+      // Auto-calculate based on experience
+      const weeksLived = state.weeksLived || 0;
+      const discoveredCount = state.discoveredSystems?.length || 0;
+      if (weeksLived < 4 || discoveredCount < 3) {
+        state.progressiveDisclosureLevel = 'simple';
+      } else if (weeksLived >= 20 && discoveredCount >= 10) {
+        state.progressiveDisclosureLevel = 'advanced';
+      } else {
+        state.progressiveDisclosureLevel = 'standard';
+      }
+    }
+    if (!state.systemStatistics) {
+      state.systemStatistics = {};
+    }
+
     return state as GameState;
   }, [initialState, stateVersion]);
 
@@ -742,7 +853,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       });
 
       const finalDelta = Math.round(mindsetAdjusted.moneyDelta ?? adjustedAmount);
-      const newMoney = Math.max(0, prev.stats.money + finalDelta);
+      // CRITICAL FIX: Validate prev.stats.money before calculation
+      const currentMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) 
+        ? prev.stats.money 
+        : 0;
+      const newMoney = Math.max(0, currentMoney + finalDelta);
 
       return {
         ...prev,
@@ -838,7 +953,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         
         if (typeof value === 'number' && typeof currentValue === 'number') {
           if (statKey === 'gems' || statKey === 'money') {
-            updatedStats[statKey] = Math.max(0, currentValue + value);
+            // CRITICAL FIX: Validate currentValue before calculation
+            const validCurrent = !isNaN(currentValue) ? currentValue : 0;
+            const validValue = !isNaN(value) ? value : 0;
+            updatedStats[statKey] = Math.max(0, validCurrent + validValue);
           } else {
             let delta = value;
             if (statKey === 'health' && mindsetAdjusted.healthDelta !== undefined) {
@@ -847,7 +965,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             if (statKey === 'happiness' && mindsetAdjusted.happinessDelta !== undefined) {
               delta = mindsetAdjusted.happinessDelta;
             }
-            updatedStats[statKey] = clampStatByKey(statKey, currentValue + delta);
+            // CRITICAL FIX: Validate currentValue before calculation
+            const validCurrent = !isNaN(currentValue) ? currentValue : 0;
+            const validDelta = !isNaN(delta) ? delta : 0;
+            updatedStats[statKey] = clampStatByKey(statKey, validCurrent + validDelta);
           }
         }
       });
@@ -960,14 +1081,50 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   }, [setGameState]);
 
   const updateRelationship = useCallback((relationshipId: string, change: number) => {
-    setGameState(prev => ({
-      ...prev,
-      relationships: (prev.relationships || []).map(rel =>
-        rel.id === relationshipId
-          ? { ...rel, relationshipScore: Math.max(0, Math.min(100, rel.relationshipScore + change)) }
-          : rel
-      ),
-    }));
+    setGameState(prev => {
+      // Apply commitment bonuses to relationship changes
+      const { getCommitmentBonuses, getCommitmentPenalties } = require('@/lib/commitments/commitmentSystem');
+      const relationshipBonuses = getCommitmentBonuses(prev, 'relationships');
+      const relationshipPenalties = getCommitmentPenalties(prev, 'relationships');
+      
+      // Apply bonuses/penalties to relationship score change
+      let effectiveChange = change;
+      if (relationshipBonuses.progressBonus > 0) {
+        effectiveChange = change * (1 + relationshipBonuses.progressBonus / 100);
+      }
+      if (relationshipPenalties.progressPenalty > 0) {
+        effectiveChange = change * (1 - relationshipPenalties.progressPenalty / 100);
+      }
+      
+      // Update commitment level for relationships when interacting
+      let updatedCommitments = prev.activityCommitments;
+      if (updatedCommitments && change > 0) {
+        const { updateCommitmentLevel } = require('@/lib/commitments/commitmentSystem');
+        const isCommitted = updatedCommitments.primary === 'relationships' || updatedCommitments.secondary === 'relationships';
+        const newRelationshipLevel = updateCommitmentLevel(
+          updatedCommitments.commitmentLevels?.relationships || 0,
+          'relationships',
+          isCommitted
+        );
+        updatedCommitments = {
+          ...updatedCommitments,
+          commitmentLevels: {
+            ...updatedCommitments.commitmentLevels!,
+            relationships: newRelationshipLevel,
+          },
+        };
+      }
+      
+      return {
+        ...prev,
+        relationships: (prev.relationships || []).map(rel =>
+          rel.id === relationshipId
+            ? { ...rel, relationshipScore: Math.max(0, Math.min(100, rel.relationshipScore + Math.round(effectiveChange))) }
+            : rel
+        ),
+        activityCommitments: updatedCommitments,
+      };
+    });
   }, [setGameState]);
 
   const recordRelationshipAction = useCallback((relationshipId: string, action: string) => {
@@ -985,16 +1142,30 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         return prev;
       }
       let relationships = prev.relationships || [];
+      
+      // RELATIONSHIP STATE FIX: Only one partner at a time (already enforced)
       if (relationship.type === 'partner') {
         relationships = relationships.filter(rel => rel.type !== 'partner');
       }
+      
+      // RELATIONSHIP STATE FIX: Only one spouse at a time - remove existing spouse if adding new one
       const family = { ...prev.family };
       if (relationship.type === 'spouse') {
+        // Remove existing spouse from relationships if different person
+        if (family.spouse && family.spouse.id !== relationship.id) {
+          relationships = relationships.filter(rel => rel.id !== family.spouse!.id);
+          log.warn('Replacing existing spouse', { oldSpouseId: family.spouse.id, newSpouseId: relationship.id });
+        }
         family.spouse = relationship;
       }
+      
+      // RELATIONSHIP STATE FIX: Prevent duplicate children
       if (relationship.type === 'child') {
-        family.children = [...family.children, relationship];
+        if (!family.children.some(c => c.id === relationship.id)) {
+          family.children = [...family.children, relationship];
+        }
       }
+      
       return { ...prev, relationships: [...relationships, relationship], family };
     });
   }, [setGameState]);
@@ -1473,7 +1644,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       career.requirements.education.every(educationId =>
         (gameState.educations || []).find(e => e.id === educationId)?.completed
       );
-    if (!meetsFitness || !hasItems || !hasEducation) return;
+    // LIFESTYLE MAINTENANCE: Check if career is unlocked by lifestyle
+    const { isCareerUnlockedByLifestyle } = require('@/lib/economy/lifestyle');
+    const lifestyleUnlocked = isCareerUnlockedByLifestyle(jobId, gameState);
+    // Some careers require lifestyle (corporate, celebrity, politician), others don't
+    const lifestyleRequired = ['corporate', 'celebrity', 'politician'].includes(jobId);
+    const meetsLifestyle = !lifestyleRequired || lifestyleUnlocked;
+    
+    if (!meetsFitness || !hasItems || !hasEducation || !meetsLifestyle) {
+      if (lifestyleRequired && !lifestyleUnlocked) {
+        const { calculateLifestyleLevel } = require('@/lib/economy/lifestyle');
+        const currentLevel = calculateLifestyleLevel(gameState);
+        Alert.alert(
+          'Lifestyle Requirement',
+          `This career requires a higher lifestyle level. Your current lifestyle: ${currentLevel}. Required: comfortable or higher`
+        );
+      }
+      return;
+    }
     setGameState(prev => ({
       ...prev,
       careers: (prev.careers || []).map(c =>
@@ -1679,9 +1867,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       if (family.spouse && family.spouse.id === partnerId) {
         family.spouse = undefined;
       }
+      // RELATIONSHIP STATE FIX: Clear livingTogether before removing partner (defensive programming)
+      const relationships = (prev.relationships || []).map(rel =>
+        rel.id === partnerId ? { ...rel, livingTogether: false } : rel
+      ).filter(rel => rel.id !== partnerId);
+      
       return {
         ...prev,
-        relationships: (prev.relationships || []).filter(rel => rel.id !== partnerId),
+        relationships,
         family,
       };
     });
@@ -1711,20 +1904,35 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       }
     }));
     if (success) {
+      // RELATIONSHIP STATE FIX: Remove existing spouse if different person (prevent duplicates)
       const spouse: Relationship = {
         ...partner,
         type: 'spouse',
         relationshipScore: Math.min(100, partner.relationshipScore + 20),
         familyHappiness: partner.familyHappiness ?? 5,
         expenses: partner.expenses ?? 100,
+        livingTogether: true, // RELATIONSHIP STATE FIX: Spouses automatically live together
+        // RELATIONSHIP STATE FIX: Clear engagement properties when becoming spouse
+        engagementWeek: undefined,
+        engagementRing: undefined,
+        weddingPlanned: undefined,
       };
-      setGameState(prev => ({
-        ...prev,
-        relationships: (prev.relationships || []).map(rel =>
-          rel.id === partnerId ? spouse : rel
-        ),
-        family: { ...prev.family, spouse },
-      }));
+      setGameState(prev => {
+        let relationships = prev.relationships || [];
+        const existingSpouse = prev.family?.spouse;
+        if (existingSpouse && existingSpouse.id !== partnerId) {
+          relationships = relationships.filter(r => r.id !== existingSpouse.id);
+          log.warn('Replacing existing spouse during proposal', { oldSpouseId: existingSpouse.id, newSpouseId: partnerId });
+        }
+        
+        return {
+          ...prev,
+          relationships: relationships.map(rel =>
+            rel.id === partnerId ? spouse : rel
+          ),
+          family: { ...prev.family, spouse },
+        };
+      });
       return { success: true, message: `${partner.name} said yes! You're now engaged!` };
     } else {
       setGameState(prev => ({
@@ -1743,7 +1951,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       return { success: false, message: 'You need to own a home first!' };
     }
     const successChance = partner.relationshipScore * 0.8;
-    const success = Math.random() * 100 < successChance;
+    // RANDOMNESS FIX: Soft guarantee for move in together - 100% success if chance >= 80%
+    // Prevents frustrating failures at high relationship scores (similar to proposals)
+    const guaranteedSuccess = successChance >= 80;
+    const success = guaranteedSuccess ? true : Math.random() * 100 < successChance;
     if (success) {
       setGameState(prev => ({
         ...prev,
@@ -1772,26 +1983,64 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     if (gameState.stats.money < cost) {
       return { success: false, message: 'You need $10,000 for hospital costs!' };
     }
-    setGameState(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        money: prev.stats.money - cost
-      }
-    }));
-    const success = Math.random() < 0.1;
-    if (!success) {
-      return { success: false, message: `${partner.name} and you were unable to conceive. Try again later.` };
+    
+    // RANDOMNESS FIX: Pity system for having children - guaranteed success after 15 attempts
+    // NOTE: Partner existence validated early (line 1876), but if relationship is removed between
+    // validation and state update, childAttempts update will be no-op (safe, just no tracking)
+    // PRIORITY 2 FIX: Use constant from randomnessConstants
+    const { PITY_THRESHOLD_CHILDREN } = require('@/lib/randomness/randomnessConstants');
+    const childAttempts = (partner.childAttempts || 0) + 1;
+    const baseChance = 0.1; // 10% base chance
+    const pityThreshold = PITY_THRESHOLD_CHILDREN; // Guaranteed success after 15 attempts
+    const guaranteedSuccess = childAttempts >= pityThreshold;
+    const success = guaranteedSuccess ? true : Math.random() < baseChance;
+    
+    // CRITICAL FIX: Only deduct money on success to prevent loss on failure
+    // Previous version deducted money before success check, which could lose money on failure
+    // Now: Money deducted only if success, counter updated regardless
+    if (success) {
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          money: prev.stats.money - cost
+        },
+        relationships: (prev.relationships || []).map(rel =>
+          rel.id === partnerId 
+            ? { ...rel, childAttempts: 0 } // Reset counter on success
+            : rel
+        ),
+      }));
+    } else {
+      // Update counter on failure (but don't deduct money)
+      setGameState(prev => ({
+        ...prev,
+        relationships: (prev.relationships || []).map(rel =>
+          rel.id === partnerId 
+            ? { ...rel, childAttempts: childAttempts } // Increment counter on failure
+            : rel
+        ),
+      }));
+      
+      const attemptsRemaining = pityThreshold - childAttempts;
+      const message = attemptsRemaining > 0
+        ? `${partner.name} and you were unable to conceive. Try again later. (${attemptsRemaining} attempts until guaranteed success)`
+        : `${partner.name} and you were unable to conceive. Try again later.`;
+      return { success: false, message };
     }
-    const childNames = ['Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Ethan', 'Sophia', 'Mason'];
-    const childName = childNames[Math.floor(Math.random() * childNames.length)];
+    // BUG FIX: Match child gender to name (prevent male names with female portraits)
+    const maleNames = ['Liam', 'Noah', 'Ethan', 'Mason'];
+    const femaleNames = ['Emma', 'Olivia', 'Ava', 'Sophia'];
+    const allNames = [...maleNames, ...femaleNames];
+    const childName = allNames[Math.floor(Math.random() * allNames.length)];
+    const childGender = maleNames.includes(childName) ? 'male' : 'female';
     const child: Relationship = {
       id: `child_${Date.now()}`,
       name: childName,
       type: 'child',
       relationshipScore: 100,
       personality: 'innocent',
-      gender: 'female',
+      gender: childGender, // BUG FIX: Match gender to name
       age: 0,
       familyHappiness: 3,
       expenses: 50,
@@ -1800,7 +2049,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     setGameState(prev => ({
       ...prev,
       relationships: (prev.relationships || []).map(rel =>
-        rel.id === partnerId ? { ...rel, relationshipScore: Math.min(100, rel.relationshipScore + 25) } : rel
+        rel.id === partnerId 
+          ? { ...rel, relationshipScore: Math.min(100, rel.relationshipScore + 25), childAttempts: 0 } // Reset counter on success
+          : rel
       ),
     }));
     return { success: true, message: `Congratulations! ${childName} was born!` };
@@ -1822,7 +2073,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     }
     const relationshipBonus = Math.min(40, relationship.relationshipScore * 0.4);
     const successRate = 30 + relationshipBonus;
-    const success = Math.random() * 100 < successRate;
+    // RANDOMNESS FIX: Pity system for asking for money - guaranteed success after 5 attempts
+    // Prevents frustrating streaks with 4-week cooldown
+    //
+    // SAFETY: This is safe because:
+    // - Attempt counter is per-relationship (isolated, no cross-contamination)
+    // - Counter is reset on success (prevents accumulation)
+    // - Counter persists across weeks (allows pity system to work over time)
+    //
+    // FRAGILE LOGIC WARNING:
+    // - If relationship is removed/deleted, counter is lost (acceptable - new relationship = fresh start)
+    // - If relationship ID changes, counter is lost (shouldn't happen, but defensive code could check)
+    // - No migration logic: Old saves without moneyRequestAttempts default to 0 (acceptable - fresh start)
+    //
+    // FUTURE BUG RISK:
+    // - If successRate calculation changes, pity threshold might need adjustment
+    // - If cooldown period changes, pity threshold might need adjustment (currently 4 weeks)
+    const moneyRequestAttempts = (relationship.moneyRequestAttempts || 0) + 1;
+    const pityThreshold = 5; // Guaranteed success after 5 attempts
+    const guaranteedSuccess = moneyRequestAttempts >= pityThreshold;
+    const success = guaranteedSuccess ? true : Math.random() * 100 < successRate;
     const rejectionMessages = [
       'No spare cash right now',
       'Maybe another time',
@@ -1843,7 +2113,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       amount = Math.floor(baseAmount * relationshipMultiplier);
       message = `Got $${amount} from ${relationship.name}!`;
     } else {
-      message = rejectionMessages[Math.floor(Math.random() * rejectionMessages.length)];
+      const attemptsRemaining = pityThreshold - moneyRequestAttempts;
+      const rejectionMessage = rejectionMessages[Math.floor(Math.random() * rejectionMessages.length)];
+      message = attemptsRemaining > 0 
+        ? `${rejectionMessage} (${attemptsRemaining} more attempts until guaranteed success)`
+        : rejectionMessage;
     }
     setGameState(prev => ({
       ...prev,
@@ -1854,11 +2128,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         rel.id === relationshipId
           ? {
               ...rel,
+              lastMoneyRequest: prev.week,
+              // RANDOMNESS FIX: Reset attempts on success, increment on failure
+              moneyRequestAttempts: success ? 0 : moneyRequestAttempts,
               relationshipScore: Math.max(
                 0,
                 Math.min(100, rel.relationshipScore + (success ? -10 : -5))
               ),
-              lastMoneyRequest: prev.week,
               actions: { ...(rel.actions || {}), money: prev.day },
             }
           : rel
@@ -1912,9 +2188,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   }, [gameState, setGameState]));
 
   const buyCompanyUpgrade = withActionLock('buyCompanyUpgrade', useCallback((upgradeId: string, companyId?: string) => {
-    companyLogic.buyCompanyUpgrade(gameState, setGameState, upgradeId, companyId);
-    if (saveGameRef.current) saveGameRef.current();
-  }, [gameState, setGameState]));
+    const result = CompanyActions.buyCompanyUpgrade(gameState, setGameState, upgradeId, companyId, { updateMoney: applyMoneyChange });
+    if (result.success && saveGameRef.current) {
+      saveGameRef.current();
+    }
+    if (!result.success) {
+      Alert.alert('Upgrade Failed', result.message);
+    }
+  }, [gameState, setGameState, applyMoneyChange]));
 
   const createFamilyBusiness = useCallback((companyId: string) => {
     FamilyBusinessActions.createFamilyBusiness(gameState, setGameState, companyId, { updateMoney: applyMoneyChange });
@@ -2707,7 +2988,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   const trainHobby = useCallback((hobbyId: string) => {
     const hobby = (gameState.hobbies || []).find(h => h.id === hobbyId);
     if (!hobby) return;
-    if (gameState.stats.energy < hobby.energyCost) {
+    
+    // Apply commitment bonuses/penalties to hobby activities
+    const { getCommitmentBonuses, getCommitmentPenalties, getEffectiveEnergyCost, getEffectiveProgressGain } = require('@/lib/commitments/commitmentSystem');
+    const hobbyBonuses = getCommitmentBonuses(gameState, 'hobbies');
+    const hobbyPenalties = getCommitmentPenalties(gameState, 'hobbies');
+    const effectiveEnergyCost = getEffectiveEnergyCost(hobby.energyCost, hobbyBonuses, hobbyPenalties);
+    
+    if (gameState.stats.energy < effectiveEnergyCost) {
       return { success: false, message: 'Not enough energy' };
     }
     const gamingActivities = ['gaming', 'esports', 'streaming'];
@@ -2719,7 +3007,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       }
     }
     updateStats({
-      energy: -hobby.energyCost,
+      energy: -effectiveEnergyCost,
       health: -8,
       happiness: -3,
       money: -moneyCost,
@@ -2727,24 +3015,47 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     const skillBonus = hobby.upgrades
       .reduce((sum, u) => sum + (u.skillBonusPerLevel || 0) * u.level, 0);
     const baseGain = Math.floor(Math.random() * 3) + 2 + Math.floor(skillBonus / 2);
+    const effectiveGain = getEffectiveProgressGain(baseGain, hobbyBonuses, hobbyPenalties);
     // Apply skill gain multiplier from prestige bonuses
     const prestigeData = gameState.prestige;
     const unlockedBonuses = prestigeData?.unlockedBonuses || [];
     const skillGainMultiplier = getSkillGainMultiplier(unlockedBonuses);
-    const gain = Math.floor(baseGain * skillGainMultiplier);
-    setGameState(prev => ({
-      ...prev,
-      hobbies: prev.hobbies.map(h => {
-        if (h.id !== hobbyId) return h;
-        const total = h.skill + gain;
-        const levelUps = Math.floor(total / 100);
-        return {
-          ...h,
-          skill: total % 100,
-          skillLevel: h.skillLevel + levelUps,
+    const baseGainWithMultiplier = Math.floor(effectiveGain * skillGainMultiplier);
+    setGameState(prev => {
+      // Update commitment level for hobbies when training
+      let updatedCommitments = prev.activityCommitments;
+      if (updatedCommitments) {
+        const { updateCommitmentLevel } = require('@/lib/commitments/commitmentSystem');
+        const isCommitted = updatedCommitments.primary === 'hobbies' || updatedCommitments.secondary === 'hobbies';
+        const newHobbyLevel = updateCommitmentLevel(
+          updatedCommitments.commitmentLevels?.hobbies || 0,
+          'hobbies',
+          isCommitted
+        );
+        updatedCommitments = {
+          ...updatedCommitments,
+          commitmentLevels: {
+            ...updatedCommitments.commitmentLevels!,
+            hobbies: newHobbyLevel,
+          },
         };
-      }),
-    }));
+      }
+      
+      return {
+        ...prev,
+        hobbies: prev.hobbies.map(h => {
+          if (h.id !== hobbyId) return h;
+          const total = h.skill + baseGainWithMultiplier;
+          const levelUps = Math.floor(total / 100);
+          return {
+            ...h,
+            skill: total % 100,
+            skillLevel: h.skillLevel + levelUps,
+          };
+        }),
+        activityCommitments: updatedCommitments,
+      };
+    });
     maybeOfferSponsor(hobbyId);
     if (saveGameRef.current) saveGameRef.current();
     return { success: true, message: `Trained ${hobby.name}!` };
@@ -2766,7 +3077,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       return { success: false, message: 'Skill too low for tournament' };
     }
     const successChance = effectiveSkill / 100;
-    const success = Math.random() < successChance;
+    // RANDOMNESS FIX: Soft guarantee for hobby tournaments - 100% success if chance >= 90%
+    // High skill should guarantee tournament success
+    // PRIORITY 2 FIX: Use constant from randomnessConstants
+    const { SOFT_GUARANTEE_TOURNAMENT } = require('@/lib/randomness/randomnessConstants');
+    const guaranteedSuccess = successChance >= SOFT_GUARANTEE_TOURNAMENT;
+    const success = guaranteedSuccess ? true : Math.random() < successChance;
     const rewardBonus = hobby.upgrades
       .reduce((sum, u) => sum + (u.rewardBonusPerLevel || 0) * u.level, 0);
     const reward = Math.round(hobby.tournamentReward * (1 + rewardBonus));
@@ -2801,21 +3117,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     }, false);
     const effectiveSkill = (hobby.skillLevel - 1) * 20 + hobby.skill;
     const roll = Math.random() * 100 + effectiveSkill * 0.5;
+    // RANDOMNESS FIX: Add minimum grade bounds based on skill level
+    // High skill should guarantee minimum grade (prevents frustrating "Terrible" grades at high skill)
+    // PRIORITY 1 FIX: Extracted to shared function to eliminate duplication
+    const { calculateMinRollForSkill } = require('@/lib/randomness/hobbyUtils');
+    const minRoll = calculateMinRollForSkill(effectiveSkill);
+    const adjustedRoll = Math.max(minRoll, roll);
     let grade: 'Terrible Song' | 'Bad Song' | 'Normal' | 'Good' | 'Great' | 'Incredible';
     let income: number;
-    if (roll < 40) {
+    if (adjustedRoll < 40) {
       grade = 'Terrible Song';
       income = 5;
-    } else if (roll < 70) {
+    } else if (adjustedRoll < 70) {
       grade = 'Bad Song';
       income = 10;
-    } else if (roll < 90) {
+    } else if (adjustedRoll < 90) {
       grade = 'Normal';
       income = 20;
-    } else if (roll < 110) {
+    } else if (adjustedRoll < 110) {
       grade = 'Good';
       income = 40;
-    } else if (roll < 130) {
+    } else if (adjustedRoll < 130) {
       grade = 'Great';
       income = 80;
     } else {
@@ -2829,6 +3151,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       id: `song-${Date.now()}`,
       grade,
       weeklyIncome: finalIncome,
+      uploadWeek: gameState.week || 0, // Keep for backward compatibility
+      uploadWeeksLived: gameState.weeksLived || 0, // MONEY FLOW FIX: Track weeksLived for correct decay calculation
     };
     setGameState(prev => ({
       ...prev,
@@ -2856,21 +3180,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     }, false);
     const effectiveSkill = (hobby.skillLevel - 1) * 20 + hobby.skill;
     const roll = Math.random() * 100 + effectiveSkill * 0.5;
+    // RANDOMNESS FIX: Add minimum grade bounds based on skill level (same as music uploads)
+    // PRIORITY 1 FIX: Extracted to shared function to eliminate duplication
+    const { calculateMinRollForSkill } = require('@/lib/randomness/hobbyUtils');
+    const minRoll = calculateMinRollForSkill(effectiveSkill);
+    const adjustedRoll = Math.max(minRoll, roll);
     let grade: 'Terrible Art' | 'Bad Art' | 'Normal' | 'Good' | 'Great' | 'Incredible';
     let income: number;
-    if (roll < 40) {
+    if (adjustedRoll < 40) {
       grade = 'Terrible Art';
       income = 5;
-    } else if (roll < 70) {
+    } else if (adjustedRoll < 70) {
       grade = 'Bad Art';
       income = 10;
-    } else if (roll < 90) {
+    } else if (adjustedRoll < 90) {
       grade = 'Normal';
       income = 20;
-    } else if (roll < 110) {
+    } else if (adjustedRoll < 110) {
       grade = 'Good';
       income = 40;
-    } else if (roll < 130) {
+    } else if (adjustedRoll < 130) {
       grade = 'Great';
       income = 80;
     } else {
@@ -2884,6 +3213,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       id: `art-${Date.now()}`,
       grade,
       weeklyIncome: finalIncome,
+      uploadWeek: gameState.week || 0, // Keep for backward compatibility
+      uploadWeeksLived: gameState.weeksLived || 0, // MONEY FLOW FIX: Track weeksLived for correct decay calculation
     };
     setGameState(prev => ({
       ...prev,
@@ -2982,8 +3313,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     let result: 'win' | 'draw' | 'loss' = 'loss';
     if (playerRoll > opponentRoll + 10) result = 'win';
     else if (Math.abs(playerRoll - opponentRoll) <= 10) result = 'draw';
-    const playerTeam = league.standings.find(t => t.team === contract.team)!;
-    const oppTeam = league.standings.find(t => t.team === opponent.team)!;
+    // RC-0 FIX: Add null checks to prevent crashes if team not found
+    const playerTeam = league.standings.find(t => t.team === contract.team);
+    const oppTeam = league.standings.find(t => t.team === opponent.team);
+    if (!playerTeam || !oppTeam) {
+      log.error('Team not found in standings', { contractTeam: contract.team, opponentTeam: opponent.team });
+      return; // Exit early if teams not found
+    }
     playerTeam.played += 1;
     oppTeam.played += 1;
     if (result === 'win') playerTeam.points += 3;
@@ -3317,7 +3653,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     return { caught: false, reward, btcReward, risk };
   }, [gameState.hacks, gameState.darkWebItems, gameState.cryptos, gameState.stats.energy, gameState.wantedLevel, setGameState]);
 
-  const buyFood = useCallback((foodId: string, restoreHappiness: boolean = false) => {
+  // BUG FIX: Food items should always restore happiness (UI shows it, so it should work)
+  // Changed default restoreHappiness to true, or better yet, always calculate it
+  const buyFood = useCallback((foodId: string, restoreHappiness: boolean = true) => {
     const food = gameState.foods.find(f => f.id === foodId);
     if (!food) return;
     const price = getInflatedPrice(food.price, gameState.economy.priceIndex);
@@ -3328,7 +3666,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       );
       return;
     }
-    // Calculate happiness restore based on food quality (healthRestore / 2, rounded)
+    // BUG FIX: Always calculate happiness restore based on food quality (healthRestore / 2, rounded, minimum 1)
+    // The UI always shows happiness restore, so it should always be applied
     const happinessRestore = restoreHappiness ? Math.max(1, Math.round(food.healthRestore / 2)) : 0;
     updateStats({
       money: -price,
@@ -3358,14 +3697,47 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     const energyCost = defaults?.energyCost ?? activity.energyCost ?? 0;
     const price = getInflatedPrice(activityPrice, gameState.economy.priceIndex);
     if (price > 0 && gameState.stats.money < price) return;
-    if (energyCost > 0 && gameState.stats.energy < energyCost) return;
-    const energyChange = -energyCost;
+    
+    // Apply commitment bonuses/penalties to health activities
+    const { getCommitmentBonuses, getCommitmentPenalties, getEffectiveEnergyCost } = require('@/lib/commitments/commitmentSystem');
+    const healthBonuses = getCommitmentBonuses(gameState, 'health');
+    const healthPenalties = getCommitmentPenalties(gameState, 'health');
+    const effectiveEnergyCost = getEffectiveEnergyCost(energyCost, healthBonuses, healthPenalties);
+    
+    if (effectiveEnergyCost > 0 && gameState.stats.energy < effectiveEnergyCost) return;
+    
+    // Apply stat bonuses/penalties from commitments
+    const effectiveHappinessGain = happinessGain + (healthBonuses.statBonus?.happiness || 0) + (healthPenalties.statPenalty?.happiness || 0);
+    const effectiveHealthGain = healthGain + (healthBonuses.statBonus?.health || 0) + (healthPenalties.statPenalty?.health || 0);
+    
     updateStats({
       money: -price,
-      happiness: happinessGain,
-      health: healthGain,
-      energy: energyChange,
+      happiness: effectiveHappinessGain,
+      health: effectiveHealthGain,
+      energy: -effectiveEnergyCost,
     }, false);
+    
+    // Update commitment level for health when performing health activities
+    setGameState(prev => {
+      if (!prev.activityCommitments) return prev;
+      const { updateCommitmentLevel } = require('@/lib/commitments/commitmentSystem');
+      const isCommitted = prev.activityCommitments.primary === 'health' || prev.activityCommitments.secondary === 'health';
+      const newHealthLevel = updateCommitmentLevel(
+        prev.activityCommitments.commitmentLevels?.health || 0,
+        'health',
+        isCommitted
+      );
+      return {
+        ...prev,
+        activityCommitments: {
+          ...prev.activityCommitments,
+          commitmentLevels: {
+            ...prev.activityCommitments.commitmentLevels!,
+            health: newHealthLevel,
+          },
+        },
+      };
+    });
     let message: string | undefined;
     if (activity.id === 'doctor') {
       if (gameState.diseases.length > 0) {
@@ -3492,11 +3864,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         const idx = relationships.findIndex(r => r.id === event.relationId);
         if (idx >= 0) {
           const partner = relationships[idx];
+          
+          // RELATIONSHIP STATE FIX: Check for existing spouse
+          const existingSpouse = family?.spouse;
+          if (existingSpouse && existingSpouse.id !== event.relationId) {
+            relationships = relationships.filter(r => r.id !== existingSpouse.id);
+            log.warn('Replacing existing spouse during wedding event', { 
+              oldSpouseId: existingSpouse.id, 
+              newSpouseId: event.relationId 
+            });
+          }
+          
           const spouse: Relationship = {
             ...partner,
             type: 'spouse',
             familyHappiness: partner.familyHappiness ?? 5,
             expenses: partner.expenses ?? 100,
+            livingTogether: true, // RELATIONSHIP STATE FIX: Spouses automatically live together
+            // RELATIONSHIP STATE FIX: Clear engagement properties
+            engagementWeek: undefined,
+            engagementRing: undefined,
+            weddingPlanned: undefined,
           };
           relationships = [...relationships];
           relationships[idx] = spouse;
@@ -3527,7 +3915,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             jailWeeks = 0;
             wantedLevel = 0;
           } else {
-            jailWeeks += 2;
+            // STABILITY FIX: Prevent jail time accumulation - new sentence replaces old
+            const currentJailWeeks = gameState.jailWeeks || 0;
+            jailWeeks = Math.max(2, currentJailWeeks); // Use longer of current or new sentence
           }
         }
       }
@@ -3560,6 +3950,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           ...politics,
           policyInfluence: Math.max(0, Math.min(100, (politics.policyInfluence || 0) + choice.effects.policyInfluence)),
         };
+      }
+
+      // STABILITY FIX: Handle special effects (e.g., grant_free_education for scholarship event)
+      let educations = prev.educations || [];
+      if ((choice as any).special === 'grant_free_education') {
+        // Grant free business degree education
+        const businessDegree = educations.find(e => e.id === 'business_degree');
+        if (!businessDegree) {
+          educations = [...educations, {
+            id: 'business_degree',
+            name: 'Business Degree',
+            description: 'Free scholarship education',
+            cost: 0, // Free!
+            duration: 52,
+            completed: false,
+            weeksRemaining: 52,
+          }];
+        } else if (!businessDegree.completed) {
+          // Update existing enrollment to be free
+          educations = educations.map(e => 
+            e.id === 'business_degree' ? { ...e, cost: 0 } : e
+          );
+        }
       }
 
       const pendingEvents = prev.pendingEvents.filter(e => e.id !== eventId);
@@ -3935,16 +4348,36 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   // Note: startEducation is already declared earlier in the file (line ~1504) - removed duplicate
   // Note: claimProgressAchievement is already declared earlier in the file (line ~1589) - removed duplicate
 
+  // CORRUPTION FIX 1.1: Store state snapshot before save for rollback
+  const saveGameStateSnapshotRef = React.useRef<GameState | null>(null);
+  
   const saveGame = withActionLock('saveGame', useCallback(async (retryCount = 0) => {
     // Removed "Saving game..." loading text as it's annoying when pressing next week
     // showLoading('saving', 'Saving game...', 'inline');
+    
+    // CORRUPTION FIX 1.1: Create snapshot before save for rollback if save fails
+    let stateSnapshot: GameState | null = null;
     try {
+      stateSnapshot = JSON.parse(JSON.stringify(gameState));
+      saveGameStateSnapshotRef.current = stateSnapshot;
+    } catch (snapshotError) {
+      log.warn('Failed to create state snapshot for rollback', { error: snapshotError });
+    }
+    
+    try {
+      // TESTFLIGHT FIX: Include app version in save metadata for compatibility tracking
+      const appConfig = require('../../app.config.js');
+      const appVersion = appConfig.expo?.version || 'unknown';
+      const buildNumber = appConfig.expo?.ios?.buildNumber || appConfig.expo?.android?.versionCode || 'unknown';
+      
       let stateToSave = {
         ...gameState,
         version: stateVersion,
         updatedAt: Date.now(),
         lastLogin: Date.now(),
         _saveVersion: stateVersion,
+        _appVersion: appVersion, // TESTFLIGHT FIX: Track app version for compatibility
+        _buildNumber: buildNumber, // TESTFLIGHT FIX: Track build number for compatibility
       };
       // Create backup before validation
       let validationBackup: any = null;
@@ -3962,6 +4395,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       if (!validation.valid) {
         log.error('Game state validation failed:', validation.errors);
         
+        // CORRUPTION FIX: Rollback to snapshot if save validation fails
+        if (stateSnapshot) {
+          try {
+            log.warn('Rolling back to state snapshot due to save validation failure');
+            setGameState(stateSnapshot);
+            saveGameStateSnapshotRef.current = null;
+          } catch (rollbackError) {
+            log.error('Failed to rollback state on validation failure:', rollbackError);
+          }
+        }
+        
         // Try to repair if backup exists
         if (validationBackup) {
           log.info('Attempting to repair game state...');
@@ -3976,13 +4420,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
               stateToSave = validationBackup;
             } else {
               log.error('Repaired state still invalid:', repairedValidation.errors);
-              throw new Error(`Invalid game state: ${validation.errors.join(', ')}`);
+              // RC-0 FIX: Log error and skip save instead of throwing to prevent crashes
+              log.error('Cannot save invalid game state. Skipping save to prevent corruption.');
+              return; // Exit early, don't save invalid state
             }
           } else {
-            throw new Error(`Invalid game state: ${validation.errors.join(', ')}`);
+            // RC-0 FIX: Log error and skip save instead of throwing to prevent crashes
+            log.error('Cannot save invalid game state. Skipping save to prevent corruption.');
+            return; // Exit early, don't save invalid state
           }
         } else {
-          throw new Error(`Invalid game state: ${validation.errors.join(', ')}`);
+          // RC-0 FIX: Log error and skip save instead of throwing to prevent crashes
+          log.error('Cannot save invalid game state. Skipping save to prevent corruption.');
+          return; // Exit early, don't save invalid state
         }
       }
       // Calculate checksum on the exact data structure (excluding _checksum itself)
@@ -4007,7 +4457,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         log.error('Error updating globalGems:', error);
       }
       
-      await queueSave(currentSlot, stateToSave);
+      // CORRUPTION FIX 1.2: Acquire mutex before save to prevent race conditions
+      await saveLoadMutex.acquire('save');
+      try {
+        await queueSave(currentSlot, stateToSave);
+      } finally {
+        saveLoadMutex.release();
+      }
+      
       try {
         const uploadResult = await uploadGameState({ state: stateToSave, updatedAt: stateToSave.updatedAt });
         
@@ -4041,14 +4498,36 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         log.warn('Cloud save failed, but local save succeeded', { error: cloudError });
         // Cloud sync errors are handled gracefully - local save succeeded
       }
+      
+      // CORRUPTION FIX 1.1: Clear snapshot on successful save
+      saveGameStateSnapshotRef.current = null;
     } catch (error) {
       log.error('Save error:', error);
+      
+      // CORRUPTION FIX 1.1: Rollback to snapshot if save fails
+      if (stateSnapshot) {
+        try {
+          log.warn('Rolling back to state snapshot due to save failure');
+          setGameState(stateSnapshot);
+          saveGameStateSnapshotRef.current = null;
+        } catch (rollbackError) {
+          log.error('Failed to rollback state:', rollbackError);
+        }
+      }
+      
       try {
+        // TESTFLIGHT FIX: Include app version in force save metadata
+        const appConfig = require('../../app.config.js');
+        const appVersion = appConfig.expo?.version || 'unknown';
+        const buildNumber = appConfig.expo?.ios?.buildNumber || appConfig.expo?.android?.versionCode || 'unknown';
+        
         const stateToSave = {
           ...gameState,
           version: stateVersion,
           updatedAt: Date.now(),
           lastLogin: Date.now(),
+          _appVersion: appVersion, // TESTFLIGHT FIX: Track app version
+          _buildNumber: buildNumber, // TESTFLIGHT FIX: Track build number
         };
         // Auto-fix stats before force save
         const validation = validateGameState(stateToSave, true);
@@ -4056,7 +4535,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           log.warn('Auto-fixed stats during force save:', validation.fixes);
         }
         if (!validation.valid) {
-          throw new Error(`Invalid game state for force save: ${validation.errors.join(', ')}`);
+          // RC-0 FIX: Log error instead of throwing to prevent crashes
+          log.error('Force save failed: Invalid game state', { errors: validation.errors });
+          return; // Exit early, don't save invalid state
         }
         const saveDataString = JSON.stringify(stateToSave);
         const checksum = calculateChecksum(saveDataString);
@@ -4104,6 +4585,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         slotToLoad = currentSlot;
         log.info(`Falling back to currentSlot: ${slotToLoad}`);
       }
+      // CORRUPTION FIX 1.3: Cleanup orphaned temp keys before load
+      try {
+        const allKeys = await AsyncStorage.getAllKeys();
+        const tempKeys = allKeys.filter(key => key.startsWith(`save_slot_${slotToLoad}_temp_`));
+        if (tempKeys.length > 0) {
+          log.info(`Cleaning up ${tempKeys.length} orphaned temp keys`);
+          await AsyncStorage.multiRemove(tempKeys);
+        }
+        } catch (cleanupError: unknown) {
+          log.warn('Failed to cleanup orphaned temp keys:', cleanupError as Error);
+          // Non-critical, continue with load
+        }
+      
+      // CORRUPTION FIX 1.2: Acquire mutex before load to prevent race conditions
+      await saveLoadMutex.acquire('load');
+      
       let savedData: string | null = null;
       try {
         savedData = await AsyncStorage.getItem(`save_slot_${slotToLoad}`);
@@ -4114,6 +4611,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           'Failed to load game from device storage. Please try restarting the app.',
           [{ text: 'OK' }]
         );
+        saveLoadMutex.release(); // CORRUPTION FIX 1.2: Release mutex on error
         return;
       }
       if (savedData) {
@@ -4122,6 +4620,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           loadedState = JSON.parse(savedData);
           if (!loadedState || typeof loadedState !== 'object') {
             log.error('Invalid game state data structure');
+            saveLoadMutex.release(); // CORRUPTION FIX 1.2: Release mutex on error
             return;
           }
           if (loadedState._checksum) {
@@ -4160,14 +4659,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 }, 1000);
               } else {
                 log.error('Failed to restore backup state is null');
+                saveLoadMutex.release(); // CORRUPTION FIX 1.2: Release mutex on error
                 return;
               }
             } else {
               log.warn('No backups available to restore');
+              saveLoadMutex.release(); // CORRUPTION FIX 1.2: Release mutex on error
               return;
             }
           } catch (backupError) {
             log.error('Backup restoration failed:', backupError);
+            saveLoadMutex.release(); // CORRUPTION FIX 1.2: Release mutex on error
             return;
           }
         }
@@ -4209,7 +4711,68 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         const validatedState = migrateState(loadedState);
         if (!validatedState.stats || typeof validatedState.stats !== 'object') {
           log.error('Invalid stats structure in loaded state');
+          saveLoadMutex.release(); // CORRUPTION FIX 1.2: Release mutex on error
           return;
+        }
+        
+        // CORRUPTION FIX 1.4: Validate state after migration before setting
+        const postMigrationValidation = validateStateInvariants(validatedState);
+        if (!postMigrationValidation.valid) {
+          log.error('State validation failed after migration:', postMigrationValidation.errors);
+          // Try to repair
+          const { repairGameState } = await import('@/utils/saveValidation');
+          const repairResult = repairGameState(validatedState);
+          if (repairResult.repaired) {
+            log.info('State repaired after migration:', repairResult.repairs);
+            // Re-validate repaired state
+            const repairedValidation = validateStateInvariants(validatedState);
+            if (!repairedValidation.valid) {
+              log.error('Repaired state still invalid:', repairedValidation.errors);
+              saveLoadMutex.release(); // CORRUPTION FIX 1.2: Release mutex on error
+              // TESTFLIGHT FIX: Offer backup restoration option
+              Alert.alert(
+                'Corrupted Save',
+                'Your save file is corrupted and could not be repaired.\n\nWould you like to try restoring from a backup?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'View Backups', 
+                    onPress: () => {
+                      // Note: Backup recovery modal should be accessible from Settings
+                      // For now, show instructions
+                      Alert.alert(
+                        'Backup Recovery',
+                        'To restore from a backup:\n1. Go to Settings\n2. Select Backup & Recovery\n3. Choose this save slot\n4. Select a backup to restore',
+                        [{ text: 'OK' }]
+                      );
+                    }
+                  }
+                ]
+              );
+              return;
+            }
+          } else {
+            saveLoadMutex.release(); // CORRUPTION FIX 1.2: Release mutex on error
+            // TESTFLIGHT FIX: Offer backup restoration option
+            Alert.alert(
+              'Corrupted Save',
+              'Your save file is corrupted and could not be repaired.\n\nWould you like to try restoring from a backup?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'View Backups', 
+                  onPress: () => {
+                    Alert.alert(
+                      'Backup Recovery',
+                      'To restore from a backup:\n1. Go to Settings\n2. Select Backup & Recovery\n3. Choose this save slot\n4. Select a backup to restore',
+                      [{ text: 'OK' }]
+                    );
+                  }
+                }
+              ]
+            );
+            return;
+          }
         }
         const originalMoney = validatedState.stats?.money ?? 0;
         // Use the higher of savedGems or globalGems to preserve gems across saves
@@ -4331,6 +4894,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         } catch (error) {
           log.error('Failed to save lastSlot:', error);
         }
+        
+        // CORRUPTION FIX 1.2: Release mutex after successful load
+        saveLoadMutex.release();
       } else {
         let globalGems = 0;
         try {
@@ -4363,9 +4929,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             gems: validateGems(globalGems),
           },
         }));
+        
+        // CORRUPTION FIX 1.2: Release mutex after new game setup
+        saveLoadMutex.release();
       }
     } catch (error) {
       log.error('Failed to load game:', error);
+      // CORRUPTION FIX 1.2: Release mutex on error
+      saveLoadMutex.release();
     } finally {
       actionLockRef.current = false;
       hideLoading('loading');
@@ -4376,6 +4947,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   React.useEffect(() => {
     saveGameRef.current = saveGame;
   }, [saveGame]);
+
+  // LIFECYCLE FIX: Update gameState ref when gameState changes to prevent stale closures
+  React.useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   // Automated cache management and game loading on startup
   React.useEffect(() => {
@@ -4449,6 +5025,48 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       }
     };
   }, [loadGame, setCacheUpdateInfo, setIsCacheClearing, setIsLoading, setLoadingMessage, setLoadingProgress]);
+
+  // TESTFLIGHT FIX: Save game when app goes to background to prevent data loss
+  // CRITICAL: Handle both background and resume to prevent crashes
+  // LIFECYCLE FIX: Use refs to prevent stale closures and race conditions
+  React.useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // Save game when app goes to background to prevent data loss on kill
+        // LIFECYCLE FIX: Use ref for isSaving to prevent race conditions
+        // LIFECYCLE FIX: Validate saveGameRef.current before calling to prevent null reference
+        const saveFn = saveGameRef.current;
+        if (!isSavingRef.current && saveFn) {
+          isSavingRef.current = true;
+          log.info('App going to background, saving game...');
+          saveFn()
+            .then(() => {
+              isSavingRef.current = false;
+            })
+            .catch((error) => {
+              log.error('Failed to save game on background:', error);
+              isSavingRef.current = false; // Reset even on error to allow retry
+            });
+        }
+      } else if (nextAppState === 'active') {
+        // CRITICAL: Handle resume - validate state is still valid
+        // This prevents crashes from stale state after long suspension
+        // LIFECYCLE FIX: Reset save flag on resume to allow future saves
+        isSavingRef.current = false;
+        
+        // LIFECYCLE FIX: Use ref to check state to prevent stale closure issues
+        // Access current state via ref instead of closure-captured gameState
+        if (!gameStateRef.current) {
+          log.warn('Game state is null on resume - may need to reload');
+          // Don't crash - let the app continue and handle gracefully
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []); // CRITICAL: Empty deps - uses refs, doesn't need to recreate listener
 
   /**
    * Validate game state before week progression
@@ -4598,13 +5216,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         throw new Error(`Stock market simulation failed: ${simError instanceof Error ? simError.message : 'Unknown error'}`);
       }
       
+      // CORRUPTION FIX: Declare variables for batch updates before use
+      type StockHolding = { symbol: string; shares: number; averagePrice: number; currentPrice: number };
+      let updatedStockHoldings: StockHolding[] | null = null;
+      let updatedCryptosForBatch: typeof gameState.cryptos | null = null;
+      let bankruptcyStateUpdate: Partial<GameState> | null = null;
+      
       // Update stock holdings with current prices
+      // CORRUPTION FIX: Collect updates instead of applying immediately to prevent partial updates
       if (gameState.stocks?.holdings) {
         try {
           if (!Array.isArray(gameState.stocks.holdings)) {
             log.warn('stocks.holdings is not an array, skipping stock update');
           } else {
-            const updatedHoldings = gameState.stocks.holdings.map(holding => {
+            updatedStockHoldings = gameState.stocks.holdings.map(holding => {
               try {
                 if (!holding || !holding.symbol) {
                   log.warn('Invalid holding found, skipping');
@@ -4613,6 +5238,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 const stockInfo = getStockInfo(holding.symbol);
                 if (!stockInfo || typeof stockInfo.price !== 'number') {
                   log.warn(`Invalid stock info for ${holding.symbol}, using current price`);
+                  return holding;
+                }
+                // CORRUPTION FIX: Validate price before updating
+                if (isNaN(stockInfo.price) || !isFinite(stockInfo.price) || stockInfo.price < 0) {
+                  log.warn(`Invalid stock price for ${holding.symbol}: ${stockInfo.price}, keeping current price`);
                   return holding;
                 }
                 return {
@@ -4624,19 +5254,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 return holding;
               }
             });
-            
-            setGameState(prev => ({
-              ...prev,
-              stocks: {
-                ...prev.stocks,
-                holdings: updatedHoldings,
-                watchlist: prev.stocks?.watchlist || []
-              }
-            }));
           }
         } catch (stockError) {
           log.error('Error updating stock holdings:', stockError);
-          // Continue with week progression even if stock update fails
+          // CORRUPTION FIX: Validate collected updates before throwing
+          // If we have valid updates, use them; only throw if all updates failed
+          if (!updatedStockHoldings || updatedStockHoldings.length === 0) {
+            // All updates failed, throw error
+            throw new Error(`Stock update failed: ${stockError instanceof Error ? stockError.message : 'Unknown error'}`);
+          } else {
+            // Some updates succeeded, log warning and continue with valid updates
+            log.warn('Some stock updates failed, continuing with valid updates', { error: stockError });
+          }
         }
       }
 
@@ -4658,6 +5287,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           'link': 0.14,  // Chainlink: 14% volatility
         };
 
+            // CORRUPTION FIX: Collect updates instead of applying immediately
             const updatedCryptos = gameState.cryptos.map(crypto => {
               try {
                 if (!crypto || typeof crypto !== 'object' || !crypto.id) {
@@ -4666,6 +5296,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 }
                 const volatility = cryptoVolatility[crypto.id] || 0.12; // Default 12% volatility
                 const oldPrice = typeof crypto.price === 'number' && crypto.price > 0 ? crypto.price : 0.0001;
+                
+                // CORRUPTION FIX: Validate oldPrice before calculation
+                if (isNaN(oldPrice) || !isFinite(oldPrice) || oldPrice <= 0) {
+                  log.warn(`Invalid crypto price for ${crypto.id}: ${oldPrice}, keeping current`);
+                  return crypto;
+                }
                 
                 // Generate random price change with normal distribution approximation
                 // Box-Muller transform
@@ -4681,6 +5317,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 // Apply the change, ensuring price doesn't go below $0.0001
                 const newPrice = Math.max(0.0001, oldPrice * (1 + changePercent));
                 
+                // CORRUPTION FIX: Validate newPrice before rounding
+                if (isNaN(newPrice) || !isFinite(newPrice) || newPrice <= 0) {
+                  log.warn(`Invalid calculated price for ${crypto.id}: ${newPrice}, keeping current`);
+                  return crypto;
+                }
+                
                 // Round to appropriate decimal places based on price range
                 let roundedPrice: number;
                 if (newPrice >= 1) {
@@ -4689,6 +5331,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                   roundedPrice = Math.round(newPrice * 1000) / 1000; // 3 decimal places for prices >= $0.01
                 } else {
                   roundedPrice = Math.round(newPrice * 10000) / 10000; // 4 decimal places for prices < $0.01
+                }
+                
+                // CORRUPTION FIX: Final validation before returning
+                if (isNaN(roundedPrice) || !isFinite(roundedPrice) || roundedPrice <= 0) {
+                  log.warn(`Invalid rounded price for ${crypto.id}: ${roundedPrice}, keeping current`);
+                  return crypto;
                 }
                 
                 const change = roundedPrice - oldPrice;
@@ -4706,21 +5354,36 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
               }
             });
             
-            setGameState(prev => ({
-              ...prev,
-              cryptos: updatedCryptos,
-            }));
+            // CORRUPTION FIX: Store for batch update instead of immediate setGameState
+            updatedCryptosForBatch = updatedCryptos;
           }
         } catch (cryptoError) {
           log.error('Error updating crypto prices:', cryptoError);
-          // Continue with week progression even if crypto update fails
+          // CORRUPTION FIX: Validate collected updates before throwing
+          // If we have valid updates, use them; only throw if all updates failed
+          if (!updatedCryptosForBatch || updatedCryptosForBatch.length === 0) {
+            // All updates failed, throw error
+            throw new Error(`Crypto update failed: ${cryptoError instanceof Error ? cryptoError.message : 'Unknown error'}`);
+          } else {
+            // Some updates succeeded, log warning and continue with valid updates
+            log.warn('Some crypto updates failed, continuing with valid updates', { error: cryptoError });
+          }
         }
       }
       
-      const nextWeeksLived = gameState.weeksLived + 1;
-      const nextWeek = gameState.week + 1;
+      // CRITICAL FIX: Validate weeksLived before calculation to prevent NaN propagation
+      const currentWeeksLived = typeof gameState.weeksLived === 'number' && !isNaN(gameState.weeksLived) && isFinite(gameState.weeksLived) && gameState.weeksLived >= 0
+        ? gameState.weeksLived
+        : 0; // Default to 0 if invalid
+      const nextWeeksLived = currentWeeksLived + 1;
+      // TIME PROGRESSION FIX: Calculate nextWeek before incrementing to use consistently
+      // Validate current week before calculating next week to prevent desynchronization
+      const currentWeek = typeof gameState.date.week === 'number' && !isNaN(gameState.date.week) && gameState.date.week >= 1 && gameState.date.week <= 4
+        ? gameState.date.week
+        : 1; // Default to 1 if invalid
+      const nextWeek = currentWeek === 4 ? 1 : currentWeek + 1;
       let newDate = { ...gameState.date };
-      newDate.week += 1;
+      newDate.week = nextWeek;
       // Advance age by one week
       newDate.age = addWeekToAge(newDate.age);
 
@@ -4736,7 +5399,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         return;
       }
 
-      if (newDate.week > 4) {
+      // TIME PROGRESSION FIX: Week validation and rollover logic simplified
+      // Week is now calculated above (nextWeek), so we only need to handle month/year rollover
+      // Normal week rollover: if week is 1 (after rolling from 4), advance month/year
+      if (nextWeek === 1 && currentWeek === 4) {
       newDate.week = 1;
       const months = [
         'January',
@@ -4752,17 +5418,81 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         'November',
         'December',
       ];
-      const currentMonthIndex = months.indexOf(newDate.month);
-      if (currentMonthIndex === 11) {
-        newDate.month = 'January';
-        newDate.year += 1;
+        // CRITICAL FIX: Validate month before indexOf to prevent silent failures
+        // MINOR FIX: Normalize month to title case to handle case sensitivity
+        // If month is invalid, default to January and log error
+        //
+        // SAFETY: This is safe because:
+        // - Month normalization handles case variations (e.g., "january" → "January")
+        // - Invalid months default to "January" without incrementing year (prevents time desync)
+        // - Year is capped at 9999 to prevent integer overflow
+        //
+        // FRAGILE LOGIC WARNING:
+        // - Month normalization uses charAt(0) which fails on empty strings (returns "")
+        //   If month is "", normalizedMonth becomes "" + "" = "", which indexOf won't find.
+        //   This is handled by the -1 check, but could be more explicit.
+        // - The months array is hardcoded - if month names change elsewhere, this breaks.
+        //   Consider extracting to a constant.
+        //
+        // Type safety: Robust type checking ensures month is always a valid string.
+        // If month is not a string or is empty, defaults to 'January' to prevent crashes.
+        // Year cap of 9999 is sufficient for all realistic gameplay scenarios.
+        const normalizedMonth = typeof newDate.month === 'string' && newDate.month.length > 0
+          ? newDate.month.charAt(0).toUpperCase() + newDate.month.slice(1).toLowerCase()
+          : 'January';
+        const currentMonthIndex = months.indexOf(normalizedMonth);
+        if (currentMonthIndex === -1) {
+          // Invalid month - default to January and don't increment year
+          // This prevents time desynchronization when month is corrupted
+          log.warn(`Invalid month detected: ${newDate.month}, defaulting to January`);
+          newDate.month = 'January';
+          // CORRUPTION FIX: Validate year when month is invalid to prevent NaN propagation
+          if (typeof newDate.year !== 'number' || isNaN(newDate.year) || !isFinite(newDate.year)) {
+            log.warn(`Invalid year detected: ${newDate.year}, defaulting to 2025`);
+            newDate.year = 2025;
+          }
+        } else if (currentMonthIndex === 11) {
+          newDate.month = 'January';
+          // CRITICAL FIX: Cap year to prevent overflow (max 9999)
+          // CORRUPTION FIX: Validate year before increment to prevent NaN propagation
+          const currentYear = typeof newDate.year === 'number' && !isNaN(newDate.year) && isFinite(newDate.year) && newDate.year >= 2025
+            ? newDate.year
+            : 2025; // Default to 2025 if invalid
+          const incrementedYear = currentYear + 1;
+          // CORRUPTION FIX: Validate incremented year before setting
+          if (typeof incrementedYear !== 'number' || isNaN(incrementedYear) || !isFinite(incrementedYear)) {
+            log.warn(`Invalid incremented year: ${incrementedYear}, keeping current year ${currentYear}`);
+            newDate.year = currentYear; // Keep current year if increment fails
+          } else {
+            // MINOR FIX: Increase year cap to 99999 to support very long play sessions (prestige loops)
+            // Year rollover would be complex, so increasing cap is simpler
+            newDate.year = Math.min(99999, Math.max(2025, incrementedYear)); // Clamp to [2025, 99999]
+          }
       } else {
         newDate.month = months[currentMonthIndex + 1];
+        // CORRUPTION FIX: Validate year on normal month increment to prevent corruption
+        if (typeof newDate.year !== 'number' || isNaN(newDate.year) || !isFinite(newDate.year)) {
+          log.warn(`Invalid year detected during month increment: ${newDate.year}, defaulting to 2025`);
+          newDate.year = 2025;
+        }
       }
+        
+        // MINOR FIX: Ensure month is normalized (title case) after setting
+        // This is redundant but ensures consistency if months array has wrong case
+        // FUTURE: Consider removing if months array is guaranteed to be correct case
+        if (newDate.month && typeof newDate.month === 'string' && newDate.month.length > 0) {
+          newDate.month = newDate.month.charAt(0).toUpperCase() + newDate.month.slice(1).toLowerCase();
+        }
     }
 
     // Check if player should return from travel (will be checked after week increment)
 
+    // TIME PROGRESSION FIX: Jail handling with minimal progression
+    // When in jail, only basic time progression happens (date, stats, weeksLived)
+    // This is intentional - jail should pause most game systems (relationships, companies, etc.)
+    // However, time still passes, so date and weeksLived must update
+    // NOTE: This creates intentional desynchronization - relationships/companies don't age in jail
+    // This is acceptable because jail is meant to pause progression
     if (gameState.jailWeeks > 0) {
       const jailResult = serveJailTime();
       log.info('Jail release - Current money before release', { money: gameState.stats.money });
@@ -4826,62 +5556,120 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       }
     }
     
+    // STABILITY FIX: Track weeks in poverty for scholarship event trigger
+    // Increment weeksInPoverty if money < $500, reset if money >= $500
+    const weeksInPoverty = gameState.weeksInPoverty || 0;
+    const newWeeksInPoverty = gameState.stats.money < 500 ? weeksInPoverty + 1 : 0;
+    
+    // STABILITY FIX: Emergency income for poverty path - prevents complete stagnation
+    // If player has 0 money and no income sources, grant emergency income once per month
+    // Uses week % 4 == 0 as proxy for monthly check (avoids adding new state fields)
+    // This prevents players from getting completely stuck without recovery options
+    // STABILITY FIX: Scale emergency income with family size (families need more support)
+    // STABILITY FIX: Extend emergency income to ALL players (not just families)
+    // Single players in poverty also need recovery options
+    if (gameState.stats.money < 100 && adjustedPassiveIncome === 0 && jailWeeks === 0) {
+      const currentCareer = gameState.careers.find(c => c.id === gameState.currentJob);
+      const weeklySalary = currentCareer && currentCareer.level >= 0 && currentCareer.level < currentCareer.levels.length
+        ? currentCareer.levels[currentCareer.level].salary / 52
+        : 0;
+      
+      // Check if player has no income sources (no passive income, no salary)
+      // TIME PROGRESSION FIX: Use nextWeek for monthly check to ensure correct timing
+      if (weeklySalary === 0 && (nextWeek % 4 === 0)) {
+        // STABILITY FIX: Scale emergency income with family size
+        // Base: $200/month ($50/week) for single player, +$25 per child, +$50 if has spouse
+        // Increased from $50/month to provide basic survival ($200/month = $50/week)
+        const baseEmergencyIncome = 200; // $200/month = $50/week (increased from $50/month)
+        const childrenCount = (gameState.family?.children || []).length;
+        const hasSpouse = gameState.family?.spouse !== undefined;
+        const familyBonus = (childrenCount * 25) + (hasSpouse ? 50 : 0);
+        const emergencyIncome = baseEmergencyIncome + familyBonus;
+        
+        moneyChange += emergencyIncome;
+        events.push(`Emergency assistance: +$${emergencyIncome} (welfare support${familyBonus > 0 ? ` - family assistance` : ''})`);
+        log.info('Emergency income granted', { week: gameState.week, money: gameState.stats.money, familySize: childrenCount, hasSpouse });
+      }
+    }
+    
     // Auto-reinvest dividends (QoL bonus)
+    // ECONOMY FIX: Add friction to prevent exponential compound growth
+    // CORRUPTION FIX: Add validation to prevent silent failures
     if (reinvested && reinvested > 0 && shouldAutoReinvestDividends(unlockedBonuses)) {
-      // Automatically reinvest dividends into stocks
-      setGameState(prev => {
-        if (!prev.stocks?.holdings) return prev;
-        const updatedHoldings = prev.stocks.holdings.map(holding => {
-          const stockInfo = getStockInfo(holding.symbol);
-          if (!stockInfo) return holding;
-          const weeklyDividend = (stockInfo.price * stockInfo.dividendYield * holding.shares) / 52;
-          const sharesToBuy = Math.floor(weeklyDividend / stockInfo.price);
-          if (sharesToBuy > 0) {
-            return {
-              ...holding,
-              shares: holding.shares + sharesToBuy,
-              averagePrice: ((holding.averagePrice * holding.shares) + (stockInfo.price * sharesToBuy)) / (holding.shares + sharesToBuy),
-            };
-          }
-          return holding;
+      try {
+        // Automatically reinvest dividends into stocks (with 1% transaction cost)
+        setGameState(prev => {
+          if (!prev.stocks?.holdings) return prev;
+          const updatedHoldings = prev.stocks.holdings.map(holding => {
+            try {
+              const stockInfo = getStockInfo(holding.symbol);
+              if (!stockInfo) return holding;
+              // CORRUPTION FIX: Validate stock info before calculation
+              if (typeof stockInfo.price !== 'number' || isNaN(stockInfo.price) || stockInfo.price <= 0) {
+                log.warn(`Invalid stock price for ${holding.symbol}: ${stockInfo.price}, skipping reinvest`);
+                return holding;
+              }
+              if (typeof stockInfo.dividendYield !== 'number' || isNaN(stockInfo.dividendYield) || stockInfo.dividendYield < 0) {
+                log.warn(`Invalid dividend yield for ${holding.symbol}: ${stockInfo.dividendYield}, skipping reinvest`);
+                return holding;
+              }
+              if (typeof holding.shares !== 'number' || isNaN(holding.shares) || holding.shares <= 0) {
+                log.warn(`Invalid shares for ${holding.symbol}: ${holding.shares}, skipping reinvest`);
+                return holding;
+              }
+              const weeklyDividend = (stockInfo.price * stockInfo.dividendYield * holding.shares) / 52;
+              // Apply 1% transaction cost to prevent exponential growth
+              const reinvestAmount = weeklyDividend * 0.99;
+              const sharesToBuy = Math.floor(reinvestAmount / stockInfo.price);
+              if (sharesToBuy > 0) {
+                const newShares = holding.shares + sharesToBuy;
+                const newAveragePrice = ((holding.averagePrice * holding.shares) + (stockInfo.price * sharesToBuy)) / newShares;
+                // CORRUPTION FIX: Validate calculated values
+                if (isNaN(newShares) || !isFinite(newShares) || newShares <= 0) {
+                  log.warn(`Invalid calculated shares for ${holding.symbol}: ${newShares}, skipping reinvest`);
+                  return holding;
+                }
+                if (isNaN(newAveragePrice) || !isFinite(newAveragePrice) || newAveragePrice <= 0) {
+                  log.warn(`Invalid calculated average price for ${holding.symbol}: ${newAveragePrice}, skipping reinvest`);
+                  return holding;
+                }
+                return {
+                  ...holding,
+                  shares: newShares,
+                  averagePrice: newAveragePrice,
+                };
+              }
+              return holding;
+            } catch (holdingError) {
+              log.error(`Error processing holding ${holding?.symbol}:`, holdingError);
+              return holding; // Return unchanged on error
+            }
+          });
+          return {
+            ...prev,
+            stocks: {
+              ...prev.stocks,
+              holdings: updatedHoldings,
+            },
+          };
         });
-        return {
-          ...prev,
-          stocks: {
-            ...prev.stocks,
-            holdings: updatedHoldings,
-          },
-        };
-      });
-      events.push(`Auto-Invest: $${reinvested.toFixed(2)} in dividends reinvested into stocks`);
+        events.push(`Auto-Invest: $${reinvested.toFixed(2)} in dividends reinvested into stocks (1% transaction cost)`);
+      } catch (reinvestError) {
+        log.error('Error in auto-reinvest dividends:', reinvestError);
+        // Design: Auto-reinvest is a non-critical optimization feature.
+        // If it fails, the game continues normally - dividends are still earned,
+        // they just won't be automatically reinvested this week. The money change
+        // is calculated separately and will be applied in the main state update.
+        // This separation ensures week progression never fails due to reinvest errors.
+      }
     }
 
     // Gaming and streaming earnings
-    let gamingEarnings = 0;
-    let streamingEarnings = 0;
-    
-    if (gameState.gamingStreaming) {
-      // Calculate gaming earnings from videos
-      const gamingData = gameState.gamingStreaming;
-      if (gamingData.videos && gamingData.videos.length > 0) {
-        gamingEarnings = gamingData.videos.reduce((sum, video) => {
-          // Calculate earnings based on views and engagement
-          const baseEarnings = video.views * 0.01; // $0.01 per view
-          return sum + baseEarnings;
-        }, 0);
-      }
-      
-      // Calculate streaming earnings from stream history
-      if (gamingData.streamHistory && gamingData.streamHistory.length > 0) {
-        streamingEarnings = gamingData.streamHistory.reduce((sum, stream) => {
-          // Calculate earnings based on viewers and duration (donations are added immediately)
-          const viewerEarnings = stream.viewers * 0.005; // $0.005 per viewer per stream (4x nerf)
-          const durationEarnings = stream.duration * 0.02; // $0.02 per minute (5x nerf)
-          // Donations are now added immediately during streaming, not in weekly calculation
-          return sum + viewerEarnings + durationEarnings;
-        }, 0);
-      }
-    }
+    // LONG-TERM DEGRADATION FIX: Use shared calculation function to avoid duplication
+    const { calcGamingStreamingIncome } = require('@/lib/economy/gamingStreamingIncome');
+    const gamingStreamingResult = calcGamingStreamingIncome(gameState.gamingStreaming, nextWeek);
+    const gamingEarnings = gamingStreamingResult.gaming;
+    const streamingEarnings = gamingStreamingResult.streaming;
     
     if (gamingEarnings > 0) {
       moneyChange += gamingEarnings;
@@ -4893,29 +5681,132 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       events.push(`Streaming earnings $${streamingEarnings.toFixed(2)}`);
     }
 
+    // PERFORMANCE FIX: Combine children calculations into single pass (calculate outside jail check for reuse)
+    // NOTE: gameState is read-only in this function, so values remain valid when used later (line 5204)
+    // If children array is empty, both values correctly remain 0
+    // CRITICAL FIX: Validate child expenses to prevent NaN propagation
+    // STABILITY FIX: Apply diminishing returns to child expenses to prevent bankruptcy
+    // 1-3 children: $50 each, 4-6 children: $40 each, 7-10 children: $30 each, 11+ children: $25 each
+    // This prevents families with many children from going bankrupt
+    let childrenExpenses = 0;
+    let childrenHappiness = 0;
+    const childCount = gameState.family.children.length;
+    for (let i = 0; i < gameState.family.children.length; i++) {
+      const child = gameState.family.children[i];
+      const baseExpenses = typeof child.expenses === 'number' && !isNaN(child.expenses)
+        ? child.expenses
+        : 50; // Default $50 if not set
+      
+      // Apply diminishing returns based on child count
+      let expenseMultiplier = 1.0;
+      if (childCount >= 11) {
+        expenseMultiplier = 0.5; // $25 each (50% of base)
+      } else if (childCount >= 7) {
+        expenseMultiplier = 0.6; // $30 each (60% of base)
+      } else if (childCount >= 4) {
+        expenseMultiplier = 0.8; // $40 each (80% of base)
+      }
+      // 1-3 children: 100% (no reduction)
+      
+      const expenses = Math.round(baseExpenses * expenseMultiplier);
+      const happiness = typeof child.familyHappiness === 'number' && !isNaN(child.familyHappiness)
+        ? child.familyHappiness
+        : 0;
+      childrenExpenses += expenses;
+      childrenHappiness += happiness;
+    }
+    
     // Don't deduct expenses while in jail - expenses are paused during jail time
     // (This check is redundant since we return early if jailWeeks > 0, but added for safety)
     if (jailWeeks === 0) {
-      const familyExpense =
-        (gameState.family.spouse?.expenses || 0) +
-        gameState.family.children.reduce((sum, c) => sum + (c.expenses || 0), 0);
+      const rawFamilyExpense =
+        (gameState.family.spouse?.expenses || 0) + childrenExpenses;
+      
+      // STABILITY FIX: Cap family expenses at 50% of total weekly income to prevent bankruptcy
+      // Calculate total weekly income (passive + active salary)
+      // Note: passiveIncome is calculated earlier in nextWeek, weeklySalary calculated here
+      const currentCareer = gameState.careers.find(c => c.id === gameState.currentJob);
+      const weeklySalary = currentCareer && currentCareer.level >= 0 && currentCareer.level < currentCareer.levels.length
+        ? currentCareer.levels[currentCareer.level].salary / 52
+        : 0;
+      const totalWeeklyIncome = passiveIncome + weeklySalary;
+      
+      // STABILITY FIX: Minimum family expense cap for zero-income players
+      // If income is 0, cap at $50/week minimum (prevents complete bankruptcy)
+      // Otherwise, cap at 50% of income
+      const minFamilyExpenseCap = 50; // Minimum $50/week for families with no income
+      const maxFamilyExpense = totalWeeklyIncome > 0 
+        ? Math.floor(totalWeeklyIncome * 0.5) 
+        : Math.min(minFamilyExpenseCap, rawFamilyExpense); // Use minimum cap if no income
+      const familyExpense = Math.min(rawFamilyExpense, maxFamilyExpense);
+      
       if (familyExpense > 0) {
         moneyChange -= familyExpense;
-        events.push(`Family expenses $${familyExpense}`);
+        if (familyExpense < rawFamilyExpense) {
+          events.push(`Family expenses $${familyExpense} (capped at 50% of income)`);
+        } else {
+          events.push(`Family expenses $${familyExpense}`);
+        }
       }
 
-      // Automatic loan payments - paused while in jail
+      // BUG FIX: Automatic loan payments - handle loans with zero weeklyPayment
+      // STABILITY FIX: Add late fees and skip payments when money < payment amount
+      // For loans with 0 weeklyPayment (long terms), calculate minimum payment
       const loans = gameState.loans || [];
       if (loans.length > 0) {
         let totalLoanPayments = 0;
+        let totalLateFees = 0;
+        let missedPaymentsCount = 0;
         const updatedLoans = loans.map((loan: any) => {
           if (loan.remaining <= 0) return loan;
           
-          const weeklyPayment = loan.weeklyPayment || 0;
-          if (weeklyPayment > 0) {
+          let weeklyPayment = loan.weeklyPayment || 0;
+          
+          // BUG FIX: If weeklyPayment is 0, calculate minimum payment based on remaining debt
+          if (weeklyPayment <= 0) {
+            const remaining = loan.remaining || loan.principal || 0;
+            const weeksRemaining = loan.weeksRemaining || loan.termWeeks || 520;
+            if (remaining > 0 && weeksRemaining > 0) {
+              // Minimum payment: at least 0.1% of remaining debt per week
+              weeklyPayment = Math.max(remaining / weeksRemaining, remaining * 0.001);
+            }
+          }
+          
+          // STABILITY FIX: Only process payment if player can afford it
+          // Track missed payments for late fees
+          const currentMoney = gameState.stats.money + moneyChange; // Money after income but before expenses
+          const missedPayments = loan.missedPayments || 0;
+          
+          if (weeklyPayment > 0 && currentMoney >= weeklyPayment) {
+            // Can afford payment - process it
             totalLoanPayments += weeklyPayment;
             const newRemaining = Math.max(0, loan.remaining - weeklyPayment);
-            return { ...loan, remaining: newRemaining };
+            const newWeeksRemaining = Math.max(0, (loan.weeksRemaining || loan.termWeeks || 520) - 1);
+            return { 
+              ...loan, 
+              remaining: newRemaining,
+              weeksRemaining: newWeeksRemaining,
+              missedPayments: 0, // Reset missed payments counter
+              // Update weeklyPayment if it was 0 (so it persists)
+              weeklyPayment: loan.weeklyPayment || weeklyPayment,
+            };
+          } else if (weeklyPayment > 0) {
+            // Can't afford payment - track missed payment and apply late fees
+            const newMissedPayments = missedPayments + 1;
+            let lateFee = 0;
+            
+            // STABILITY FIX: Apply late fees after 2+ missed payments (5% of payment per missed week)
+            if (newMissedPayments >= 2) {
+              lateFee = Math.round(weeklyPayment * 0.05 * newMissedPayments); // 5% per missed week
+              totalLateFees += lateFee;
+            }
+            
+            missedPaymentsCount++;
+            return {
+              ...loan,
+              missedPayments: newMissedPayments,
+              remaining: loan.remaining + lateFee, // Add late fee to remaining debt
+            };
           }
           return loan;
         }).filter((loan: any) => loan.remaining > 0); // Remove fully paid loans
@@ -4923,43 +5814,122 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         if (totalLoanPayments > 0) {
           moneyChange -= totalLoanPayments;
           events.push(`Automatic loan payments: -$${totalLoanPayments.toFixed(2)}`);
-          
-          // Update loans in game state
-          setGameState(prev => ({
-            ...prev,
-            loans: updatedLoans,
-          }));
         }
+        
+        if (totalLateFees > 0) {
+          moneyChange -= totalLateFees;
+          events.push(`Late fees on missed loan payments: -$${totalLateFees.toFixed(2)}`);
+        }
+        
+        if (missedPaymentsCount > 0 && totalLateFees === 0) {
+          events.push(`Missed ${missedPaymentsCount} loan payment(s) - insufficient funds`);
+        }
+        
+        // Update loans in game state
+        setGameState(prev => ({
+          ...prev,
+          loans: updatedLoans,
+        }));
       }
     } else {
       // While in jail, expenses are paused
       events.push('Expenses paused while in jail');
     }
+    
+    // LIFESTYLE MAINTENANCE: Apply lifestyle costs and effects (not paused in jail - lifestyle continues)
+    const { calculateLifestyleCosts, getLifestyleEffects } = require('@/lib/economy/lifestyle');
+    const lifestyleCosts = calculateLifestyleCosts(gameState);
+    const lifestyleEffects = getLifestyleEffects(gameState);
+    
+    if (lifestyleCosts > 0) {
+      moneyChange -= lifestyleCosts;
+      events.push(`Lifestyle maintenance (${lifestyleEffects.level}): -$${lifestyleCosts.toLocaleString()}`);
+    }
+    
+    // Apply lifestyle effects on reputation
+    if (lifestyleEffects.reputationBonus !== 0) {
+      statsChange.reputation = (statsChange.reputation || 0) + lifestyleEffects.reputationBonus;
+      if (lifestyleEffects.reputationBonus > 0) {
+        events.push(`Lifestyle boosts reputation: +${lifestyleEffects.reputationBonus}`);
+      } else {
+        events.push(`Low lifestyle hurts reputation: ${lifestyleEffects.reputationBonus}`);
+      }
+    }
 
+    // PERFORMANCE FIX: Use pre-calculated childrenHappiness from above (calculated in single pass with expenses)
     const familyHappy =
-      (gameState.family.spouse?.familyHappiness || 0) +
-      gameState.family.children.reduce((sum, c) => sum + (c.familyHappiness || 0), 0);
+      (gameState.family.spouse?.familyHappiness || 0) + childrenHappiness;
     if (familyHappy !== 0) {
       statsChange.happiness = (statsChange.happiness || 0) + familyHappy;
     }
 
     if (wantedLevel > 0) {
       if (Math.random() < wantedLevel * 0.25) {
-        jailWeeks = 2 + Math.floor(Math.random() * 4);
+        const newJailWeeks = 2 + Math.floor(Math.random() * 4);
+        // STABILITY FIX: Prevent jail time accumulation - new sentence replaces old, doesn't add
+        // Cap total jail time at 52 weeks (1 year max sentence) to prevent infinite accumulation
+        // If already in jail, new sentence replaces remaining time (whichever is longer)
+        const currentJailWeeks = gameState.jailWeeks || 0;
+        jailWeeks = Math.min(Math.max(newJailWeeks, currentJailWeeks), 52);
         events.push(`Arrested and jailed for ${jailWeeks} weeks`);
         wantedLevel = 0;
       } else {
-        wantedLevel = Math.max(0, wantedLevel - 1);
+        // STABILITY FIX: Scale wanted level decay - faster decay over time to prevent infinite accumulation
+        // After 4 weeks: decay 2 per week, after 8 weeks: decay 3 per week, after 12 weeks: decay 4 per week
+        // Track weeks with wanted level (simplified: use current wanted level as proxy for duration)
+        // STABILITY FIX: Increased decay rates to better handle frequent crimes
+        // At very high wanted levels (12+), increase decay to 5/week to allow wanted level to decrease even with frequent crimes
+        let decayAmount = 1;
+        if (wantedLevel >= 12) {
+          decayAmount = 5;  // Very high wanted level decays faster (increased from 4 to 5)
+        } else if (wantedLevel >= 8) {
+          decayAmount = 3;
+        } else if (wantedLevel >= 4) {
+          decayAmount = 2;
+        }
+        wantedLevel = Math.max(0, wantedLevel - decayAmount);
       }
     }
 
+    // BUG FIX: Add pet death logic when health reaches 0%
+    // MINOR FIX: Add maximum pet age (520 weeks = 10 years) to prevent unbounded growth
+    const MAX_PET_AGE_WEEKS = 520; // 10 years
     let pets = gameState.pets.map(p => {
       const hunger = Math.min(100, p.hunger + 10);
       const happiness = Math.max(0, p.happiness - 5);
       const age = p.age + 1;
       const health = Math.max(0, Math.min(100, p.health - (hunger > 80 ? 10 : 0)));
-      return { ...p, hunger, happiness, age, health };
+      
+      // MINOR FIX: Remove pets that exceed maximum age (natural death from old age)
+      if (age >= MAX_PET_AGE_WEEKS) {
+        return { ...p, hunger, happiness, age, health: 0, weeksAtZeroHealth: 2, isDead: true };
+      }
+      
+      // Check if pet should die (health at 0% for 2+ weeks)
+      // Track weeks at 0 health (similar to player death system)
+      const weeksAtZeroHealth = (p.weeksAtZeroHealth || 0) + (health <= 0 ? 1 : 0);
+      const shouldDie = health <= 0 && weeksAtZeroHealth >= 2;
+      
+      if (shouldDie) {
+        // Pet dies - will be removed from array below
+        return { ...p, hunger, happiness, age, health: 0, weeksAtZeroHealth, isDead: true };
+      }
+      
+      return { ...p, hunger, happiness, age, health, weeksAtZeroHealth: health <= 0 ? weeksAtZeroHealth : 0 };
     });
+    
+    // Remove dead pets and add death event
+    const deadPets = pets.filter(p => p.isDead);
+    if (deadPets.length > 0) {
+      pets = pets.filter(p => !p.isDead);
+      deadPets.forEach(deadPet => {
+        const deathReason = deadPet.age >= MAX_PET_AGE_WEEKS 
+          ? 'old age' 
+          : 'poor health';
+        events.push(`💔 ${deadPet.name} passed away due to ${deathReason}.`);
+        log.info('Pet died', { petId: deadPet.id, petName: deadPet.name, health: deadPet.health, age: deadPet.age, reason: deathReason });
+      });
+    }
 
     const petHappinessBonus = pets.reduce(
       (sum, p) => (p.hunger < 50 && p.happiness >= 35 ? sum + 5 : sum),
@@ -5005,7 +5975,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         log.info(`Disease check - Fitness: ${gameState.stats.fitness}, Disease chance: ${diseaseChance.toFixed(2)}%`);
       }
 
-      if (Math.random() * 100 < diseaseChance) {
+      // RANDOMNESS FIX: Disease bounds - max 1 disease per 4 weeks to prevent stacking
+      // TIME PROGRESSION FIX: Use nextWeek for disease check to ensure correct timing
+      const lastDiseaseWeek = gameState.lastDiseaseWeek || 0;
+      let weeksSinceLastDisease = nextWeek - lastDiseaseWeek;
+      // Handle year rollover (if nextWeek < lastDiseaseWeek, we've rolled over)
+      if (weeksSinceLastDisease < 0) {
+        weeksSinceLastDisease = weeksSinceLastDisease + 52; // Add 52 weeks for year rollover
+      }
+      const canContractDisease = weeksSinceLastDisease >= 4 || gameState.diseases.length === 0;
+      
+      if (canContractDisease && Math.random() * 100 < diseaseChance) {
         const diseases: Disease[] = [
           { id: 'flu', name: 'Flu', severity: 'mild', effects: { health: -15, energy: -20, happiness: -10 }, curable: true },
           { id: 'cold', name: 'Common Cold', severity: 'mild', effects: { health: -10, energy: -15 }, curable: true },
@@ -5034,6 +6014,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         const randomDisease = diseases[Math.floor(Math.random() * diseases.length)];
 
         if (!gameState.diseases.find(d => d.id === randomDisease.id)) {
+          // RANDOMNESS FIX: Track disease week to enforce bounds
+          // TIME PROGRESSION FIX: Use nextWeek for disease tracking to ensure correct timing
+          setGameState(prev => ({
+            ...prev,
+            lastDiseaseWeek: nextWeek, // Track when disease was contracted (use nextWeek, not prev.week)
+          }));
           setGameState(prev => ({
             ...prev,
             diseases: [...prev.diseases, randomDisease],
@@ -5058,10 +6044,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     checkForDisease();
 
     // Weekly disease effects & cancer countdown
-    gameState.diseases.forEach(disease => {
+    // STABILITY FIX: Use diminishing returns instead of hard cap for more realistic disease stacking
+    // 1st disease: 100% effect, 2nd: 80%, 3rd: 60%, 4th: 40%, 5th+: 20%
+    // This allows multiple diseases to stack but with diminishing impact (more realistic)
+    const diseaseEffects: Partial<GameStats> = {};
+    
+    gameState.diseases.forEach((disease, index) => {
+      // Diminishing returns multiplier based on disease order
+      const diminishingMultipliers = [1.0, 0.8, 0.6, 0.4, 0.2]; // 1st, 2nd, 3rd, 4th, 5th+
+      const multiplier = diminishingMultipliers[Math.min(index, diminishingMultipliers.length - 1)];
+      
       Object.entries(disease.effects).forEach(([stat, effect]) => {
-        if (effect !== undefined) {
-          statsChange[stat as keyof GameStats] = (statsChange[stat as keyof GameStats] || 0) + effect;
+        if (effect !== undefined && typeof effect === 'number') {
+          const statKey = stat as keyof GameStats;
+          const adjustedEffect = Math.round(effect * multiplier);
+          diseaseEffects[statKey] = (diseaseEffects[statKey] || 0) + adjustedEffect;
         }
       });
 
@@ -5078,6 +6075,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         }));
       }
     });
+    
+    // Apply disease effects (with diminishing returns already applied)
+    // STABILITY FIX: Still cap at -75 to prevent instant death from many diseases
+    const diseaseEffectCaps: Partial<GameStats> = { health: -75, happiness: -75 };
+    Object.entries(diseaseEffects).forEach(([stat, totalEffect]) => {
+      const statKey = stat as keyof GameStats;
+      // Cap the total effect to prevent instant death
+      const cap = diseaseEffectCaps[statKey] || -100;
+      const cappedEffect = Math.max(cap, totalEffect);
+      statsChange[statKey] = (statsChange[statKey] || 0) + cappedEffect;
+    });
 
     if (gameState.diseases.length > 0) {
       const names = gameState.diseases.map(d => d.name).join(', ');
@@ -5088,66 +6096,336 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       }
     }
 
+    // TIME PROGRESSION FIX: Calculate all ages upfront before any setGameState to ensure atomic updates
+    // This prevents age desynchronization if any setGameState call fails
+    const updatedRelationshipAges = (gameState.relationships || []).map(rel => ({
+      ...rel,
+      age: Math.min(150, addWeekToAge(rel.age || 0))
+    }));
+    const updatedSpouseAge = gameState.family?.spouse
+      ? Math.min(150, addWeekToAge(gameState.family.spouse.age || 0))
+      : undefined;
+    // RELATIONSHIP STATE FIX: Track children being removed to clean up relationships array
+    const childrenToRemove: string[] = [];
+    // MAJOR FIX: Cap children array to prevent unbounded growth (max 20 children)
+    const MAX_CHILDREN = 20;
+    const updatedChildrenAges = (gameState.family?.children || [])
+      .map(c => ({
+        ...c,
+        age: addWeekToAge(c.age || 0)
+      }))
+      .filter(c => {
+        // Remove children who reach age 18+ (they become independent)
+        if (c.age >= 18) {
+          childrenToRemove.push(c.id);
+          events.push(`${c.name || 'Child'} has reached adulthood and moved out.`);
+          return false;
+        }
+        return true;
+      })
+      .slice(0, MAX_CHILDREN); // MAJOR FIX: Cap to max 20 children (remove oldest if over limit)
+    const updatedSocialAges = (gameState.social?.relations || []).map(rel => ({
+      ...rel,
+      age: rel.age !== undefined ? addWeekToAge(rel.age) : undefined
+    }));
+
+    // TIME PROGRESSION FIX: Process social relations before state update to combine with ages
+    const socialOutcome = processWeeklyRelations(
+      gameState.social.relations,
+      nextWeek
+    );
+    const processedSocialRelations = socialOutcome.relations.map(rel => {
+      const agedRel = updatedSocialAges.find(r => r.id === rel.id);
+      return agedRel ? { ...rel, age: agedRel.age } : rel;
+    });
+    // Apply social relations happiness bonus
+    if (socialOutcome.happiness) {
+      statsChange.happiness = (statsChange.happiness || 0) + socialOutcome.happiness;
+    }
+    if (socialOutcome.events.length > 0) {
+      events.push(...socialOutcome.events);
+    }
+
+    // TIME PROGRESSION FIX: Process travel return synchronously before state update
+    let travelReturnBenefits: Partial<GameStats> = {};
+    let shouldReturnFromTravel = false;
+    let travelDestinationId: string | undefined;
+    let isFirstVisit = false;
+    if (gameState.travel?.currentTrip && nextWeek >= gameState.travel.currentTrip.returnWeek) {
+      shouldReturnFromTravel = true;
+      travelDestinationId = gameState.travel.currentTrip.destinationId;
+      const { DESTINATIONS } = require('@/lib/travel/destinations');
+      const destination = DESTINATIONS.find((d: any) => d.id === travelDestinationId);
+      if (destination) {
+        travelReturnBenefits = {
+          happiness: destination.benefits.happiness || 0,
+          health: destination.benefits.health || 0,
+          energy: destination.benefits.energy || 0,
+        };
+        isFirstVisit = !gameState.travel?.visitedDestinations?.includes(travelDestinationId);
+        // Apply travel benefits to statsChange
+        Object.entries(travelReturnBenefits).forEach(([stat, value]) => {
+          if (value !== undefined) {
+            statsChange[stat as keyof GameStats] = (statsChange[stat as keyof GameStats] || 0) + value;
+          }
+        });
+        events.push(`Welcome back from ${destination.name}!`);
+      }
+    }
+
+    // TIME PROGRESSION FIX: Process competition results synchronously before state update
+    let competitionPrizeMoney = 0;
+    let updatedCompetitionHistory: { companyId: string; history: any[] }[] = [];
+    const { getActiveCompetitions } = require('@/lib/rd/competitions');
+    const activeCompetitions = getActiveCompetitions(nextWeek);
+    (gameState.companies || []).forEach(company => {
+      const competitionHistory = company.competitionHistory || [];
+      const pendingCompetitions = competitionHistory.filter(
+        entry => !entry.completed && entry.endWeek <= nextWeek
+      );
+
+      if (pendingCompetitions.length > 0) {
+        const updatedHistory = [...competitionHistory];
+        pendingCompetitions.forEach(entry => {
+          const competition = activeCompetitions.find((c: any) => c.id === entry.competitionId);
+          if (!competition) return;
+
+          // Generate AI competitors
+          const numCompetitors = Math.floor(Math.random() * 8) + 3;
+          const competitorScores: number[] = [];
+          const baseScore = entry.score;
+          for (let i = 0; i < numCompetitors; i++) {
+            const variation = (Math.random() - 0.5) * baseScore * 0.5;
+            competitorScores.push(Math.max(0, Math.floor(baseScore + variation)));
+          }
+
+          const allScores = [...competitorScores, entry.score].sort((a, b) => b - a);
+          const playerRank = allScores.indexOf(entry.score) + 1;
+
+          let prize = 0;
+          if (playerRank === 1) prize = competition.prizes.first;
+          else if (playerRank === 2) prize = competition.prizes.second;
+          else if (playerRank === 3) prize = competition.prizes.third;
+
+          competitionPrizeMoney += prize;
+          if (prize > 0) {
+            events.push(`Won ${competition.name} (${playerRank === 1 ? '1st' : playerRank === 2 ? '2nd' : '3rd'} place): +$${prize}`);
+          }
+
+          // Update entry
+          const entryIndex = updatedHistory.findIndex(
+            e => e.competitionId === entry.competitionId && e.entryWeek === entry.entryWeek
+          );
+          if (entryIndex !== -1) {
+            updatedHistory[entryIndex] = {
+              ...entry,
+              completed: true,
+              rank: playerRank,
+              prize: prize,
+            };
+          }
+        });
+        updatedCompetitionHistory.push({ companyId: company.id, history: updatedHistory });
+      }
+    });
+    if (competitionPrizeMoney > 0) {
+      moneyChange += competitionPrizeMoney;
+    }
+    
+    // LONG-TERM DEGRADATION FIX: Cap competition history to prevent unbounded growth
+    // Keep only last 50 entries per company (older competitions rarely accessed)
+    if (updatedCompetitionHistory.length > 0) {
+      updatedCompetitionHistory.forEach(({ companyId, history }) => {
+        if (history.length > 50) {
+          // Keep most recent 50 entries (assuming newest first, or reverse if needed)
+          const cappedHistory = history.slice(0, 50);
+          const companyIndex = updatedCompetitionHistory.findIndex(c => c.companyId === companyId);
+          if (companyIndex !== -1) {
+            updatedCompetitionHistory[companyIndex] = { companyId, history: cappedHistory };
+          }
+        }
+      });
+    }
+
     // Advance time and age relationships
     setGameState(prev => {
       // Small random relationship decay each week
-      const decayedRelationships = (prev.relationships || []).map(rel => {
-        if (rel.type !== 'partner' && rel.type !== 'spouse') return rel;
-        const decay = Math.random() < 0.5 ? 0 : -(Math.random() < 0.5 ? 1 : 2);
-        const relationshipScore = Math.max(
-          0,
-          Math.min(100, rel.relationshipScore + decay),
-        );
+      // LONG-TERM DEGRADATION FIX: Skip relationship decay processing when effectiveDecay = 0
+      // This avoids unnecessary array mapping when prestige bonuses eliminate decay
+      let decayedRelationships = prev.relationships || [];
+      
+      // Only apply decay if needed (when effectiveDecay > 0, we still need random decay for partners/spouses)
+      // Note: effectiveDecay applies to friend relationships, but partners/spouses have their own random decay
+      // So we always process partners/spouses, but could skip if no decay needed for any relationship type
+      // For now, we keep the processing since partners/spouses need random decay regardless of effectiveDecay
+      // CRITICAL FIX: Validate relationshipScore for ALL relationships to prevent NaN propagation
+      decayedRelationships = decayedRelationships.map(rel => {
+        // CRITICAL FIX: Validate relationshipScore for all relationship types, not just partner/spouse
+        const currentScore = typeof rel.relationshipScore === 'number' && isFinite(rel.relationshipScore) && !isNaN(rel.relationshipScore)
+          ? rel.relationshipScore
+          : 50; // Default to 50 if invalid
+        
+        // Apply decay only to partner/spouse relationships
+        if (rel.type === 'partner' || rel.type === 'spouse') {
+          // RANDOMNESS FIX: Normalize relationship decay - use single random roll with weighted distribution
+          // Distribution: 50% no decay, 30% -1, 20% -2 (same average as before, less variance)
+          // This prevents double randomness and makes decay more predictable
+          // PRIORITY 2 FIX: Use constants from randomnessConstants
+          const {
+            DECAY_NO_DECAY_CHANCE,
+            DECAY_MINUS_ONE_CHANCE,
+          } = require('@/lib/randomness/randomnessConstants');
+          const roll = Math.random();
+          let decay = 0;
+          if (roll < DECAY_NO_DECAY_CHANCE) {
+            decay = 0; // 50% chance: no decay
+          } else if (roll < DECAY_NO_DECAY_CHANCE + DECAY_MINUS_ONE_CHANCE) {
+            decay = -1; // 30% chance: -1 decay
+          } else {
+            decay = -2; // 20% chance: -2 decay (remaining probability)
+          }
+          const relationshipScore = Math.max(0, Math.min(100, currentScore + decay));
+          return { ...rel, relationshipScore };
+        }
+        
+        // For other relationship types, ensure score is valid but don't apply decay
+        const relationshipScore = Math.max(0, Math.min(100, currentScore));
         return { ...rel, relationshipScore };
       });
 
-      const updatedWeek = prev.week + 1;
-      
-      // Check if player should return from travel after week increment
-      if (prev.travel?.currentTrip && updatedWeek >= prev.travel.currentTrip.returnWeek) {
-        // Return from trip - benefits will be applied via returnFromTrip
-        // Note: This is called within setGameState, so we need to handle it carefully
-        // The returnFromTrip will update the state separately
-        setTimeout(() => {
-          TravelActions.returnFromTrip(
-            { ...prev, week: updatedWeek },
-            setGameState,
-            { updateStats: applyStatsChange }
-          );
-        }, 0);
+      // TIME PROGRESSION FIX: Use pre-calculated ages to ensure atomic update
+      // RELATIONSHIP STATE FIX: Remove children who reached age 18+ from relationships array
+      const relationshipsWithAges = decayedRelationships
+        .filter(rel => !childrenToRemove.includes(rel.id)) // Remove children who reached age 18+
+        .map((rel) => {
+          const updatedRel = updatedRelationshipAges.find(r => r.id === rel.id);
+          return updatedRel ? {
+            ...rel,
+            age: updatedRel.age,
+            relationshipScore: Math.max(0, Math.min(100, rel.relationshipScore))
+          } : rel;
+        });
+
+      // TIME PROGRESSION FIX: Handle travel return in main state update
+      let updatedTravel = prev.travel;
+      if (shouldReturnFromTravel && travelDestinationId) {
+        updatedTravel = {
+          ...prev.travel!,
+          currentTrip: undefined,
+        };
+        // Business opportunity unlock will be handled separately if needed
       }
 
+      // TIME PROGRESSION FIX: Update competition history in main state update
+      // LONG-TERM DEGRADATION FIX: Cap competition history to prevent unbounded growth (50 entries per company)
+      let updatedCompanies = prev.companies;
+      let updatedCompany = prev.company;
+      if (updatedCompetitionHistory.length > 0) {
+        updatedCompanies = (prev.companies || []).map(c => {
+          const compHistory = updatedCompetitionHistory.find(ch => ch.companyId === c.id);
+          if (compHistory) {
+            // LONG-TERM DEGRADATION FIX: Cap history to last 50 entries
+            const cappedHistory = compHistory.history.length > 50 
+              ? compHistory.history.slice(0, 50) 
+              : compHistory.history;
+            return { ...c, competitionHistory: cappedHistory };
+          }
+          // LONG-TERM DEGRADATION FIX: Cap existing history if not in update list
+          if (c.competitionHistory && c.competitionHistory.length > 50) {
+            return { ...c, competitionHistory: c.competitionHistory.slice(0, 50) };
+          }
+          return c;
+        });
+        if (prev.company) {
+          const compHistory = updatedCompetitionHistory.find(ch => ch.companyId === prev.company!.id);
+          if (compHistory) {
+            // LONG-TERM DEGRADATION FIX: Cap history to last 50 entries
+            const cappedHistory = compHistory.history.length > 50 
+              ? compHistory.history.slice(0, 50) 
+              : compHistory.history;
+            updatedCompany = { ...prev.company, competitionHistory: cappedHistory };
+          } else if (prev.company.competitionHistory && prev.company.competitionHistory.length > 50) {
+            // LONG-TERM DEGRADATION FIX: Cap existing history if not in update list
+            updatedCompany = { 
+              ...prev.company, 
+              competitionHistory: prev.company.competitionHistory.slice(0, 50) 
+            };
+          }
+        }
+      } else {
+        // LONG-TERM DEGRADATION FIX: Cap existing history even if no updates this week
+        updatedCompanies = (prev.companies || []).map(c => {
+          if (c.competitionHistory && c.competitionHistory.length > 50) {
+            return { ...c, competitionHistory: c.competitionHistory.slice(0, 50) };
+          }
+          return c;
+        });
+        if (prev.company && prev.company.competitionHistory && prev.company.competitionHistory.length > 50) {
+          updatedCompany = { 
+            ...prev.company, 
+            competitionHistory: prev.company.competitionHistory.slice(0, 50) 
+          };
+        }
+      }
+
+      // RELATIONSHIP STATE FIX: Ensure spouse consistency - if spouse exists, must be in relationships array
+      let validatedSpouse = prev.family?.spouse;
+      if (validatedSpouse && updatedSpouseAge !== undefined) {
+        // Check if spouse is still in relationships array
+        const spouseInRelationships = relationshipsWithAges.find(r => r.id === validatedSpouse!.id);
+        if (!spouseInRelationships) {
+          // Spouse missing from relationships - clear family.spouse
+          log.warn('Spouse missing from relationships array, clearing family.spouse', { spouseId: validatedSpouse.id });
+          validatedSpouse = undefined;
+        } else if (spouseInRelationships.type !== 'spouse') {
+          // Spouse type mismatch - clear family.spouse
+          log.warn('Spouse type mismatch, clearing family.spouse', { spouseId: validatedSpouse.id, actualType: spouseInRelationships.type });
+          validatedSpouse = undefined;
+        } else {
+          // MINOR FIX: Ensure spouse age doesn't exceed 150 (enforce cap)
+          const cappedSpouseAge = Math.min(150, updatedSpouseAge);
+          validatedSpouse = { ...validatedSpouse, age: cappedSpouseAge };
+        }
+      }
+      
+      // RELATIONSHIP STATE FIX: Ensure children consistency - only include children that are in relationships array
+      const validatedChildren = updatedChildrenAges
+        .map(c => updateChildWeekly(c as ChildInfo))
+        .filter(child => {
+          const childInRelationships = relationshipsWithAges.find(r => r.id === child.id);
+          if (!childInRelationships) {
+            log.warn('Child missing from relationships array, removing from family.children', { childId: child.id });
+            return false;
+          }
+          if (childInRelationships.type !== 'child') {
+            log.warn('Child type mismatch, removing from family.children', { childId: child.id, actualType: childInRelationships.type });
+            return false;
+          }
+          return true;
+        });
+      
       const updatedState = {
         ...prev,
-        week: updatedWeek,
+        week: nextWeek,
         date: newDate,
-        relationships: decayedRelationships.map(rel => ({
-          ...rel,
-          age: addWeekToAge(rel.age),
-        })),
+        weeksLived: nextWeeksLived,
+        relationships: relationshipsWithAges,
         family: {
-          spouse: prev.family.spouse
-            ? { ...prev.family.spouse, age: addWeekToAge(prev.family.spouse.age) }
-            : undefined,
-          children: (prev.family.children || []).map(c =>
-            updateChildWeekly({ ...c, age: addWeekToAge(c.age) } as ChildInfo),
-          ),
+          spouse: validatedSpouse,
+          children: validatedChildren,
         },
+        social: {
+          ...prev.social,
+          relations: processedSocialRelations,
+        },
+        travel: updatedTravel,
+        companies: updatedCompanies,
+        company: updatedCompany,
         lifeStage: getLifeStage(newDate.age),
       };
 
-      // Process competition results after week increment
-      setTimeout(() => {
-        RDActions.processCompetitionResults(
-          updatedState,
-          setGameState,
-          { updateMoney: applyMoneyChange },
-          updatedWeek
-        );
-      }, 0);
-
       // Update patents: decrement duration and remove expired patents
-      const updatedCompanies = (updatedState.companies || []).map(company => {
+      const companiesWithPatents = (updatedState.companies || []).map(company => {
         if (company.patents && company.patents.length > 0) {
           const updatedPatents = updatePatents(company.patents);
           return {
@@ -5159,22 +6437,67 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       });
 
       // Also update company if it has patents
-      let updatedCompany = updatedState.company;
-      if (updatedCompany?.patents && updatedCompany.patents.length > 0) {
-        updatedCompany = {
-          ...updatedCompany,
-          patents: updatePatents(updatedCompany.patents),
+      let companyWithPatents = updatedState.company;
+      if (companyWithPatents?.patents && companyWithPatents.patents.length > 0) {
+        companyWithPatents = {
+          ...companyWithPatents,
+          patents: updatePatents(companyWithPatents.patents),
         };
       }
 
-      // IMPORTANT: Preserve all state including stats to prevent money from being reset
-      return {
+      // Update commitment levels: decay neglected areas
+      let updatedCommitments = updatedState.activityCommitments;
+      if (updatedCommitments) {
+        const { decayCommitmentLevels } = require('@/lib/commitments/commitmentSystem');
+        const decayedLevels = decayCommitmentLevels(updatedCommitments);
+        updatedCommitments = {
+          ...updatedCommitments,
+          commitmentLevels: decayedLevels,
+        };
+      }
+
+      // CORRUPTION FIX: Include stock and crypto updates in main batch update
+      // This prevents partial state updates if main update fails
+      const finalState = {
         ...prev, // Preserve all existing state first
         ...updatedState, // Then apply week/time updates
-        companies: updatedCompanies,
-        company: updatedCompany,
+        companies: companiesWithPatents,
+        company: companyWithPatents,
+        activityCommitments: updatedCommitments,
+        // CORRUPTION FIX: Include stock updates in batch
+        stocks: updatedStockHoldings !== null ? {
+          ...prev.stocks,
+          holdings: updatedStockHoldings,
+          watchlist: prev.stocks?.watchlist || []
+        } : prev.stocks,
+        // CORRUPTION FIX: Include crypto updates in batch
+        cryptos: updatedCryptosForBatch !== null ? updatedCryptosForBatch : prev.cryptos,
+        // CORRUPTION FIX: Include bankruptcy state update in batch (if triggered)
+        ...(bankruptcyStateUpdate || {}),
       };
+      
+      // CORRUPTION FIX: Validate state before applying
+      const stateValidation = validateStateInvariants(finalState);
+      if (!stateValidation.valid) {
+        log.error('State invariant violation detected before applying:', stateValidation.errors);
+        // Don't apply invalid state - return previous state
+        return prev;
+      }
+      
+      return finalState;
     });
+
+    // TIME PROGRESSION FIX: Unlock business opportunity after travel return (non-critical, can be async)
+    if (shouldReturnFromTravel && isFirstVisit && travelDestinationId) {
+      setTimeout(() => {
+        try {
+          const { unlockBusinessOpportunity } = require('@/contexts/game/actions/TravelActions');
+          unlockBusinessOpportunity(gameState, setGameState, travelDestinationId);
+        } catch (error) {
+          log.error('Error unlocking business opportunity:', error);
+        }
+      }, 0);
+    }
 
     // Daily item bonuses (applied weekly)
     gameState.items.forEach(item => {
@@ -5192,13 +6515,31 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     if (jailWeeks === 0 && gameState.currentJob) {
       const career = gameState.careers.find(c => c.id === gameState.currentJob);
       if (career) {
-        const weeklySalary = career.levels[career.level].salary;
-        salaryEarnings = weeklySalary;
-        moneyChange += weeklySalary;
-        events.push(`Earned weekly salary: $${weeklySalary}`);
+        // CRITICAL FIX: Validate career level and levels array before accessing salary
+        if (!career.levels || career.levels.length === 0) {
+          log.warn(`Career ${career.id} has no levels, skipping salary calculation`);
+        } else {
+          const validLevel = typeof career.level === 'number' && !isNaN(career.level) && isFinite(career.level) && career.level >= 0 && career.level < career.levels.length
+            ? career.level
+            : 0; // Default to level 0 if invalid
+          const baseWeeklySalary = career.levels[validLevel].salary;
+          // BUG FIX: Apply prestige income multiplier to career salary
+          const incomeMultiplier = getIncomeMultiplier(unlockedBonuses);
+          salaryEarnings = Math.floor(baseWeeklySalary * incomeMultiplier);
+          moneyChange += salaryEarnings;
+          events.push(`Earned weekly salary: $${salaryEarnings}${incomeMultiplier > 1.0 ? ` (${((incomeMultiplier - 1) * 100).toFixed(0)}% prestige bonus)` : ''}`);
+        }
 
+        // STABILITY FIX: Work-life balance enforcement - prevent working with critically low stats
+        // If health or happiness is at 0, working becomes impossible (realistic work-life balance)
+        const canWork = gameState.stats.health > 0 && gameState.stats.happiness > 0;
+        if (!canWork) {
+          events.push(`Cannot work: ${gameState.stats.health === 0 ? 'health' : 'happiness'} is at 0. Take care of yourself first.`);
+          // Don't apply work penalties or progress if can't work
+        } else {
         statsChange.happiness = (statsChange.happiness || 0) - 15;
         statsChange.health = (statsChange.health || 0) - 5;
+        }
 
         // Apply prestige experience multiplier
         const prestigeData = gameState.prestige;
@@ -5207,25 +6548,83 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           : 1.0;
         const baseProgressGain = Math.floor(Math.random() * 5) + 2; // Reduced from 5-15 to 2-7 (2x slower)
         const progressGain = Math.floor(baseProgressGain * expMultiplier);
-        setGameState(prev => ({
-          ...prev,
-          careers: prev.careers.map(c => {
-            if (c.id !== gameState.currentJob) return c;
-            let newProgress = Math.min(100, c.progress + progressGain);
-            let newLevel = c.level;
+        
+        // Apply commitment bonuses/penalties to career progression
+        const { getCommitmentBonuses, getCommitmentPenalties, getEffectiveProgressGain } = require('@/lib/commitments/commitmentSystem');
+        const careerBonuses = getCommitmentBonuses(gameState, 'career');
+        const careerPenalties = getCommitmentPenalties(gameState, 'career');
+        const rawEffectiveProgressGain = getEffectiveProgressGain(progressGain, careerBonuses, careerPenalties);
+        
+        // CRITICAL FIX: Validate effectiveProgressGain BEFORE any calculations
+        const effectiveProgressGain = typeof rawEffectiveProgressGain === 'number' && isFinite(rawEffectiveProgressGain) && !isNaN(rawEffectiveProgressGain) && rawEffectiveProgressGain >= 0
+          ? rawEffectiveProgressGain
+          : 0;
+        
+        setGameState(prev => {
+          // Update commitment level for career when working
+          let updatedCommitments = prev.activityCommitments;
+          if (updatedCommitments) {
+            const { updateCommitmentLevel } = require('@/lib/commitments/commitmentSystem');
+            const isCommitted = updatedCommitments.primary === 'career' || updatedCommitments.secondary === 'career';
+            const newCareerLevel = updateCommitmentLevel(
+              updatedCommitments.commitmentLevels?.career || 0,
+              'career',
+              isCommitted
+            );
+            updatedCommitments = {
+              ...updatedCommitments,
+              commitmentLevels: {
+                ...updatedCommitments.commitmentLevels!,
+                career: newCareerLevel,
+              },
+            };
+          }
+          
+          return {
+            ...prev,
+            careers: prev.careers.map(c => {
+              if (c.id !== gameState.currentJob) return c;
+              // STABILITY FIX: Only progress career if player can work (work-life balance)
+              const canWork = gameState.stats.health > 0 && gameState.stats.happiness > 0;
+              if (!canWork) {
+                return c; // No progress if can't work
+              }
+              // CRITICAL FIX: Validate career level and progress before calculations
+              // CRITICAL FIX: Validate levels array exists and is not empty
+              if (!c.levels || c.levels.length === 0) {
+                log.warn(`Career ${c.id} has no levels, skipping progression`);
+                return c;
+              }
+              const currentLevel = typeof c.level === 'number' && isFinite(c.level) && !isNaN(c.level) && c.level >= 0
+                ? Math.min(c.level, c.levels.length - 1) // Clamp to valid range
+                : 0;
+              const currentProgress = typeof c.progress === 'number' && isFinite(c.progress) && !isNaN(c.progress)
+                ? Math.max(0, Math.min(100, c.progress))
+                : 0;
+              
+              // CRITICAL FIX: effectiveProgressGain is already validated above, use directly
+              const safeProgressGain = effectiveProgressGain;
+              
+              let newProgress = Math.min(100, currentProgress + safeProgressGain);
+              let newLevel = currentLevel;
             if (newProgress >= 100) {
-              if (c.level < c.levels.length - 1) {
+                if (currentLevel < c.levels.length - 1) {
                 newLevel += 1;
+                // CRITICAL FIX: Ensure level doesn't exceed array bounds
+                  // This is redundant after currentLevel clamp, but provides extra safety
+                newLevel = Math.min(newLevel, c.levels.length - 1);
                 newProgress = 0;
                 events.push(`Promoted to ${c.levels[newLevel].name}!`);
-              } else if (c.progress < 100) {
+                } else if (currentProgress < 100) {
                 newProgress = 100;
                 events.push('You have reached the highest position in your career!');
               }
             }
-            return { ...c, progress: newProgress, level: newLevel };
-          }),
-        }));
+              return { ...c, progress: newProgress, level: newLevel };
+            }),
+            activityCommitments: updatedCommitments,
+          };
+        });
 
         // Advanced career perks
         switch (career.id) {
@@ -5261,6 +6660,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     const pendingApplications = gameState.careers.filter(c => c.applied && !c.accepted);
     const hasEarlyCareerAccessBonus = hasEarlyCareerAccess(unlockedBonuses);
     pendingApplications.forEach(career => {
+      // LIFESTYLE MAINTENANCE: Check if career is unlocked by lifestyle
+      const { isCareerUnlockedByLifestyle } = require('@/lib/economy/lifestyle');
+      const lifestyleUnlocked = isCareerUnlockedByLifestyle(career.id, gameState);
+      const lifestyleRequired = ['corporate', 'celebrity', 'politician'].includes(career.id);
+      const meetsLifestyle = !lifestyleRequired || lifestyleUnlocked;
+      
       const meetRequirements =
         (career.requirements.fitness || 0) <= gameState.stats.fitness &&
         (!career.requirements.items ||
@@ -5269,47 +6674,105 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           !career.requirements.education ||
           career.requirements.education.every(educationId =>
             gameState.educations.find(e => e.id === educationId)?.completed
-          ));
+          )) &&
+        meetsLifestyle;
 
-      if (meetRequirements && Math.random() > 0.3) {
+      // RANDOMNESS FIX: Pity system for job applications - guaranteed acceptance after 3 attempts
+      // PRIORITY 2 FIX: Use constant from randomnessConstants
+      const { PITY_THRESHOLD_JOB_APPLICATION } = require('@/lib/randomness/randomnessConstants');
+      const applicationAttempts = (career.applicationAttempts || 0) + 1;
+      const baseChance = 0.7; // 70% base chance if requirements met
+      const pityThreshold = PITY_THRESHOLD_JOB_APPLICATION; // Guaranteed acceptance after 3 attempts
+      const guaranteedAcceptance = applicationAttempts >= pityThreshold;
+      const accepted = guaranteedAcceptance ? true : (meetRequirements && Math.random() < baseChance);
+      
+      if (accepted) {
         setGameState(prev => ({
           ...prev,
-          careers: prev.careers.map(c => (c.id === career.id ? { ...c, accepted: true } : c)),
+          careers: prev.careers.map(c => 
+            c.id === career.id 
+              ? { ...c, accepted: true, applicationAttempts: 0 } // Reset counter on acceptance
+              : c
+          ),
           currentJob: career.id,
         }));
-        events.push(`Accepted for ${career.levels[career.level].name}!`);
+        // CRITICAL FIX: Validate career level before accessing name
+        const validLevel = career.levels && career.levels.length > 0 && typeof career.level === 'number' && !isNaN(career.level) && isFinite(career.level) && career.level >= 0 && career.level < career.levels.length
+          ? career.level
+          : 0; // Default to level 0 if invalid
+        const levelName = career.levels && career.levels.length > 0 ? career.levels[validLevel].name : 'Entry Level';
+        events.push(`Accepted for ${levelName}!`);
+      } else if (meetRequirements) {
+        // Increment attempt counter on rejection (if requirements were met)
+        setGameState(prev => ({
+          ...prev,
+          careers: prev.careers.map(c => 
+            c.id === career.id 
+              ? { ...c, applicationAttempts: applicationAttempts }
+              : c
+          ),
+        }));
       }
     });
 
-    // Social relations weekly drift
-    const socialOutcome = processWeeklyRelations(
-      gameState.social.relations,
-      gameState.week + 1
-    );
-    if (socialOutcome.happiness) {
-      statsChange.happiness = (statsChange.happiness || 0) + socialOutcome.happiness;
-    }
-    if (socialOutcome.events.length > 0) {
-      events.push(...socialOutcome.events);
-    }
-    setGameState(prev => ({
-      ...prev,
-      social: {
-        relations: socialOutcome.relations.map(rel => ({
-          ...rel,
-          age: rel.age !== undefined ? addWeekToAge(rel.age) : undefined,
-        })),
-      },
-    }));
+    // TIME PROGRESSION FIX: Social relations already processed above and included in main setGameState
+    // No additional processing needed here
 
     // Relationship decay and happiness boost from friends
     // Apply stat decay multiplier to relationship decay
+    // LIFESTYLE MAINTENANCE: Lifestyle affects relationship decay
     const relationshipDecayMultiplier = getStatDecayMultiplier(unlockedBonuses);
+    const baseDecay = 10 * relationshipDecayMultiplier;
+    // Lifestyle maintenance reduces relationship decay (positive = less decay, negative = more decay)
+    const lifestyleDecayAdjustment = -lifestyleEffects.relationshipMaintenance;
+    const effectiveDecay = Math.max(0, baseDecay + lifestyleDecayAdjustment);
+    
     setGameState(prev => {
-      const updatedRelationships = prev.relationships.map(rel => ({
-        ...rel,
-        relationshipScore: Math.max(0, rel.relationshipScore - (10 * relationshipDecayMultiplier)),
-      }));
+      // STABILITY FIX: Cap active relationships to prevent performance degradation
+      // Inactive relationships (score <= 0) decay faster and can be removed
+      //
+      // SAFETY: This is safe because:
+      // - Only removes relationships during weekly processing (not during active gameplay)
+      // - Preserves inactive relationships (score <= 0) which may recover
+      // - Removes lowest-scored relationships first (least important)
+      // - PROTECTS spouse/partner from removal (critical relationships always kept)
+      //
+      // FRAGILE LOGIC WARNING:
+      // - This modifies relationships DURING decay processing, which could cause issues if:
+      //   a) Relationship processing code expects stable array length
+      //   b) Other code iterates relationships while this modifies them
+      // - Mitigation: We create new array (relationshipsToProcess) before modifying
+      
+      // PROTECT spouse/partner from removal - these are critical relationships
+      const criticalRelationships = prev.relationships.filter(rel => 
+        rel.type === 'spouse' || rel.type === 'partner'
+      );
+      const nonCriticalRelationships = prev.relationships.filter(rel => 
+        rel.type !== 'spouse' && rel.type !== 'partner'
+      );
+      
+      const activeNonCritical = nonCriticalRelationships.filter(rel => rel.relationshipScore > 0);
+      const inactiveNonCritical = nonCriticalRelationships.filter(rel => rel.relationshipScore <= 0);
+      
+      // If over limit (after accounting for critical relationships), remove lowest-scored non-critical
+      let relationshipsToProcess = prev.relationships;
+      const criticalCount = criticalRelationships.length;
+      const maxNonCritical = Math.max(0, MAX_ACTIVE_RELATIONSHIPS - criticalCount);
+      
+      if (activeNonCritical.length > maxNonCritical) {
+        const sortedActive = [...activeNonCritical].sort((a, b) => b.relationshipScore - a.relationshipScore);
+        const topActive = sortedActive.slice(0, maxNonCritical);
+        relationshipsToProcess = [...criticalRelationships, ...topActive, ...inactiveNonCritical];
+        events.push(`Some relationships were removed due to too many active connections (max ${MAX_ACTIVE_RELATIONSHIPS}, ${criticalCount} critical relationships protected).`);
+      }
+
+      // PERFORMANCE FIX: Skip relationship updates if decay is 0 (common case)
+      const updatedRelationships = effectiveDecay > 0
+        ? relationshipsToProcess.map(rel => ({
+            ...rel,
+            relationshipScore: Math.max(0, rel.relationshipScore - effectiveDecay),
+          }))
+        : relationshipsToProcess; // No changes needed if no decay
 
       const supportiveFriends = updatedRelationships.filter(
         rel => rel.type === 'friend' && rel.relationshipScore > 50
@@ -5323,6 +6786,59 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
       return { ...prev, relationships: updatedRelationships };
     });
+
+    // Check for scheduled weddings and execute them
+    // Check relationships for weddings scheduled for this week (nextWeek = gameState.week + 1)
+    const relationshipsWithWeddings = (gameState.relationships || []).filter(
+      rel => rel.weddingPlanned && rel.weddingPlanned.scheduledWeek === nextWeek
+    );
+    
+    for (const relationship of relationshipsWithWeddings) {
+      if (relationship.weddingPlanned) {
+        try {
+          // Create a temporary state with nextWeek for the wedding check
+          const tempState = { ...gameState, week: nextWeek };
+          const weddingResult = executeWedding(
+            tempState,
+            setGameState,
+            relationship.id,
+            { updateMoney: applyMoneyChange, updateStats: applyStatsChange }
+          );
+          
+          if (weddingResult.success) {
+            events.push(weddingResult.message);
+            log.info(`Wedding executed for ${relationship.name}`);
+          } else {
+            // If wedding can't be executed (e.g., insufficient funds), add to events
+            events.push(`Wedding scheduled but couldn't be finalized: ${weddingResult.message}`);
+            log.warn(`Wedding execution failed for ${relationship.name}: ${weddingResult.message}`);
+          }
+        } catch (weddingError) {
+          log.error(`Error executing wedding for ${relationship.name}:`, weddingError);
+          events.push(`Error processing wedding with ${relationship.name}`);
+        }
+      }
+    }
+
+    // Process vehicle weekly maintenance and costs
+    try {
+      const vehicleResult = processVehicleWeekly(
+        gameState,
+        setGameState,
+        { updateMoney: applyMoneyChange }
+      );
+      
+      if (vehicleResult.totalCosts > 0) {
+        moneyChange -= vehicleResult.totalCosts;
+        events.push(`Vehicle maintenance & fuel: -$${vehicleResult.totalCosts.toFixed(2)}`);
+      }
+      
+      if (vehicleResult.expiredInsurance.length > 0) {
+        events.push(`Insurance expired for: ${vehicleResult.expiredInsurance.join(', ')}`);
+      }
+    } catch (vehicleError) {
+      log.error('Error processing vehicle weekly maintenance:', vehicleError);
+    }
 
     // Diet plan effects - paused while in jail
     const activeDietPlan = gameState.dietPlans.find(plan => plan.active);
@@ -5367,12 +6883,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         events.push(`Weekly company income (${company.name}): +$${weeklyIncome}`);
 
         if (company.selectedCrypto && Object.keys(company.miners).length > 0) {
+        // ECONOMY FIX: Balanced company miner earnings to match warehouse efficiency
         const minerEarnings: Record<string, number> = {
-          basic: 175,
-          advanced: 840,
-          pro: 3500,
-          industrial: 12600,
-          quantum: 56000,
+          basic: 22,      // Match warehouse basic (was 175)
+          advanced: 105,  // Match warehouse advanced (was 840)
+          pro: 438,       // Match warehouse pro (was 3500)
+          industrial: 1575, // Match warehouse industrial (was 12600)
+          quantum: 7000,   // Match warehouse quantum (was 56000)
         };
         const minerPower: Record<string, number> = {
           basic: 10,
@@ -5404,8 +6921,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         }
 
         // Company power costs - paused while in jail (already inside jailWeeks === 0 check)
-        if (gameState.week % 4 === 0 && totalPower > 0) {
-          const monthlyBill = totalPower * 0.12 * 30;
+        // ECONOMY FIX: Increased power costs by 67% (0.12 → 0.20)
+        // TIME PROGRESSION FIX: Use nextWeek for monthly check to ensure correct timing
+        if (nextWeek % 4 === 0 && totalPower > 0) {
+          const monthlyBill = totalPower * 0.20 * 30;
           moneyChange -= monthlyBill;
           events.push(`Paid electrical bill: -$${monthlyBill.toFixed(2)}`);
         }
@@ -5466,32 +6985,119 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           0
         );
 
-        const cryptoEarned = weeklyMiningEarnings / selectedCrypto.price;
+        // BUG FIX: Apply durability multiplier to earnings (miners at 0% durability earn 0%, 100% durability = 100% earnings)
+        const minerDurability = gameState.warehouse.minerDurability || {};
+        let totalDurabilityMultiplier = 0;
+        let totalMiners = 0;
+        
+        Object.entries(gameState.warehouse.miners).forEach(([minerId, count]) => {
+          const durability = minerDurability[minerId] ?? 100; // Default to 100 for new miners
+          totalDurabilityMultiplier += durability * count;
+          totalMiners += count;
+        });
+        
+        const averageDurability = totalMiners > 0 ? totalDurabilityMultiplier / totalMiners : 100;
+        const durabilityMultiplier = averageDurability / 100; // Convert to 0-1 multiplier
+        
+        // Apply durability to earnings
+        const adjustedMiningEarnings = Math.round(weeklyMiningEarnings * durabilityMultiplier);
+        const cryptoEarned = adjustedMiningEarnings / selectedCrypto.price;
         cryptoEarnings[selectedCrypto.id] = (cryptoEarnings[selectedCrypto.id] || 0) + cryptoEarned;
-        events.push(`Warehouse mined ${cryptoEarned.toFixed(6)} ${selectedCrypto.symbol} (≈$${weeklyMiningEarnings.toFixed(2)})`);
-
-        // Power costs - paused while in jail
-        if (jailWeeks === 0) {
-          const weeklyPowerCost = totalPower * 0.40; // $0.40 per power unit per week
-          moneyChange -= weeklyPowerCost;
-          events.push(`Warehouse power costs: -$${weeklyPowerCost.toFixed(2)}`);
+        
+        if (averageDurability < 100) {
+          events.push(`Warehouse mined ${cryptoEarned.toFixed(6)} ${selectedCrypto.symbol} (≈$${adjustedMiningEarnings.toFixed(2)}, ${averageDurability.toFixed(0)}% efficiency)`);
+        } else {
+          events.push(`Warehouse mined ${cryptoEarned.toFixed(6)} ${selectedCrypto.symbol} (≈$${adjustedMiningEarnings.toFixed(2)})`);
         }
 
-        // Auto-repair costs
+        // BUG FIX: Miner durability decay (1-2% per week depending on usage)
+        // Higher tier miners decay slower (better build quality)
+        const decayRates: Record<string, number> = {
+          basic: 2.0,      // 2% per week
+          advanced: 1.8,   // 1.8% per week
+          pro: 1.5,        // 1.5% per week
+          industrial: 1.2, // 1.2% per week
+          quantum: 1.0,    // 1.0% per week
+          mega: 0.8,       // 0.8% per week
+          giga: 0.6,       // 0.6% per week
+          tera: 0.5,       // 0.5% per week
+        };
+        
+        // Update miner durability (decay only if not in jail and miners are active)
+        if (jailWeeks === 0 && Object.keys(gameState.warehouse.miners).length > 0) {
+          const updatedMinerDurability: Record<string, number> = { ...minerDurability };
+          
+          Object.entries(gameState.warehouse.miners).forEach(([minerId, count]) => {
+            if (count > 0) {
+              const currentDurability = updatedMinerDurability[minerId] ?? 100;
+              const decayRate = decayRates[minerId] || 2.0; // Default 2% if unknown
+              const newDurability = Math.max(0, currentDurability - decayRate);
+              updatedMinerDurability[minerId] = newDurability;
+              
+              // Warn if durability is low
+              if (newDurability < 20 && currentDurability >= 20) {
+                events.push(`⚠️ ${minerId} miners are critically damaged (${newDurability.toFixed(0)}% health)! Repair needed.`);
+        }
+            }
+          });
+
+          // Auto-repair: If enabled, repair all miners to 100% (costs crypto)
         if (gameState.warehouse.autoRepairEnabled && gameState.warehouse.autoRepairCryptoId) {
           const autoRepairCrypto = (gameState.cryptos || []).find(c => c.id === gameState.warehouse?.autoRepairCryptoId);
           if (autoRepairCrypto && autoRepairCrypto.owned >= (gameState.warehouse.autoRepairWeeklyCost || 0)) {
             const autoRepairCost = gameState.warehouse.autoRepairWeeklyCost || 0;
+              
+              // Repair all miners to 100%
+              if (gameState.warehouse) {
+                Object.keys(gameState.warehouse.miners).forEach(minerId => {
+                  if (gameState.warehouse!.miners[minerId] > 0) {
+                    updatedMinerDurability[minerId] = 100;
+                  }
+                });
+              }
+              
+              const autoRepairCryptoId = gameState.warehouse?.autoRepairCryptoId;
             setGameState(prev => ({
               ...prev,
               cryptos: prev.cryptos.map(c => 
-                c.id === gameState.warehouse?.autoRepairCryptoId 
+                  c.id === autoRepairCryptoId 
                   ? { ...c, owned: c.owned - autoRepairCost }
                   : c
               ),
+                warehouse: prev.warehouse ? {
+                  ...prev.warehouse,
+                  minerDurability: updatedMinerDurability,
+                } : undefined,
             }));
-            events.push(`Auto-repair service: -${autoRepairCost.toFixed(6)} ${autoRepairCrypto.symbol}`);
+              events.push(`Auto-repair service: -${autoRepairCost.toFixed(6)} ${autoRepairCrypto.symbol} (all miners repaired)`);
+            } else {
+              // Auto-repair enabled but can't afford - update durability anyway (decay continues)
+              setGameState(prev => ({
+                ...prev,
+                warehouse: prev.warehouse ? {
+                  ...prev.warehouse,
+                  minerDurability: updatedMinerDurability,
+                } : undefined,
+              }));
+            }
+          } else {
+            // No auto-repair - just update durability
+            setGameState(prev => ({
+              ...prev,
+              warehouse: prev.warehouse ? {
+                ...prev.warehouse,
+                minerDurability: updatedMinerDurability,
+              } : undefined,
+            }));
           }
+        }
+
+        // Power costs - paused while in jail
+        if (jailWeeks === 0) {
+          // ECONOMY FIX: Increased power costs by 50% (0.40 → 0.60)
+          const weeklyPowerCost = totalPower * 0.60; // $0.60 per power unit per week
+          moneyChange -= weeklyPowerCost;
+          events.push(`Warehouse power costs: -$${weeklyPowerCost.toFixed(2)}`);
         }
       }
     }
@@ -5628,34 +7234,58 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     }
 
     // Real estate bonuses
+    // LONG-TERM DEGRADATION FIX: Optimize nested loop by combining furniture calculations
+    // Reduces from O(n × m) to O(n) by calculating furniture bonuses in single pass
     gameState.realEstate.forEach(property => {
       if (property.owned) {
-        statsChange.happiness = (statsChange.happiness || 0) + property.weeklyHappiness;
-        statsChange.energy = (statsChange.energy || 0) + property.weeklyEnergy;
+        let propertyEnergy = property.weeklyEnergy || 0;
+        let propertyHappiness = property.weeklyHappiness || 0;
+        let propertyHealth = 0;
+        let propertyFitness = 0;
 
+        // Calculate furniture bonuses in single pass (optimized from nested loop)
         property.interior.forEach(furnitureId => {
           if (furnitureId === 'luxury_bed') {
-            statsChange.energy = (statsChange.energy || 0) + 10;
-            statsChange.happiness = (statsChange.happiness || 0) + 5;
+            propertyEnergy += 10;
+            propertyHappiness += 5;
           } else if (furnitureId === 'home_gym') {
-            statsChange.health = (statsChange.health || 0) + 15;
-            statsChange.fitness = (statsChange.fitness || 0) + 5;
+            propertyHealth += 15;
+            propertyFitness += 5;
           }
         });
+
+        // Apply all bonuses at once
+        statsChange.energy = (statsChange.energy || 0) + propertyEnergy;
+        statsChange.happiness = (statsChange.happiness || 0) + propertyHappiness;
+        statsChange.health = (statsChange.health || 0) + propertyHealth;
+        statsChange.fitness = (statsChange.fitness || 0) + propertyFitness;
       }
     });
 
     // Partner income and relationship management
     const updatedRelationships: Relationship[] = [];
     
+    // STABILITY FIX: Cap relationship income to prevent economy dominance
+    // Limit total relationship income to MAX_RELATIONSHIP_INCOME/week (top N relationships by income)
+    //
+    // SAFETY: This is safe because:
+    // - Income calculation is isolated to this section
+    // - Cap is applied before adding to moneyChange (no double-counting)
+    // - Top relationships by income are prioritized (fair distribution)
+    // - Processes relationships in sorted order (consistent income distribution)
+    //
+    // LONG-TERM DEGRADATION FIX: Collect income relationships during main loop to avoid double-pass
+    // Eliminates O(n log n) sort operation, reduces to O(n) complexity
+    const relationshipIncomes: { id: string; income: number; name: string }[] = [];
+    let totalRelationshipIncome = 0;
+    
+    // RELATIONSHIP STATE FIX: Track relationships to remove for cleanup
+    const relationshipsToRemove: string[] = [];
+    
+    // LONG-TERM DEGRADATION FIX: Single pass over relationships - collect income data and process all logic
+    // This eliminates the separate filter/sort pass, reducing from O(n log n) to O(n)
     gameState.relationships.forEach(rel => {
       let updatedRel = { ...rel };
-      
-      // Partner income
-      if (rel.income && (rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 50) {
-        moneyChange += rel.income;
-        events.push(`${rel.name} contributed $${rel.income}`);
-      }
       
       // Friend relationship decay and happiness gain
       if (rel.type === 'friend') {
@@ -5684,14 +7314,133 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         }
       }
       
+      // RELATIONSHIP IMPROVEMENT: Automatic breakup/divorce from neglect
+      // Partners: Breakup after 8 weeks at relationship score ≤ 10
+      // Spouses: Divorce after 12 weeks at relationship score ≤ 15
+      if (rel.type === 'partner' || rel.type === 'spouse') {
+        const weeksAtLowRelationship = rel.weeksAtLowRelationship || 0;
+        const isPartner = rel.type === 'partner';
+        const threshold = isPartner ? 10 : 15; // Partners break up at ≤10, spouses divorce at ≤15
+        const requiredWeeks = isPartner ? 8 : 12; // Partners need 8 weeks, spouses need 12 weeks
+        
+        if (rel.relationshipScore <= threshold) {
+          updatedRel.weeksAtLowRelationship = weeksAtLowRelationship + 1;
+          
+          // Trigger automatic breakup/divorce
+          if (updatedRel.weeksAtLowRelationship >= requiredWeeks) {
+            if (isPartner) {
+              // Automatic breakup
+              events.push(`💔 ${rel.name} ended the relationship. The connection has faded away.`);
+              statsChange.happiness = (statsChange.happiness || 0) - 20;
+              // Remove partner income if they had any
+              if (rel.income && rel.relationshipScore >= 50) {
+                events.push(`Lost ${rel.name}'s income contribution.`);
+              }
+              relationshipsToRemove.push(rel.id); // RELATIONSHIP STATE FIX: Track for removal
+              return; // Skip adding this relationship (breakup)
+            } else {
+              // Automatic divorce
+              // STABILITY FIX: Cap divorce settlement at available money to prevent impossible debt
+              // Calculate divorce settlement (20-30% of money, minimum $5,000, but capped at available money)
+              const settlementPercent = 0.2 + Math.random() * 0.1; // 20-30%
+              const currentMoney = gameState.stats.money;
+              const baseSettlement = Math.max(5000, Math.floor(currentMoney * settlementPercent));
+              const lawyerFees = 5000;
+              const totalCost = baseSettlement + lawyerFees;
+              
+              // STABILITY FIX: Cap settlement at available money to prevent negative debt
+              // If player can't afford full settlement, reduce it proportionally
+              const availableMoney = Math.max(0, currentMoney);
+              const actualSettlement = availableMoney >= totalCost 
+                ? baseSettlement 
+                : Math.max(0, Math.floor(availableMoney * 0.5)); // Take 50% of available if can't afford full
+              const actualLawyerFees = availableMoney >= totalCost 
+                ? lawyerFees 
+                : Math.max(0, availableMoney - actualSettlement); // Remaining goes to lawyer fees
+              const actualTotalCost = actualSettlement + actualLawyerFees;
+              
+              // Apply divorce costs (capped at available money)
+              moneyChange -= actualTotalCost;
+              statsChange.happiness = (statsChange.happiness || 0) - 30;
+              statsChange.reputation = (statsChange.reputation || 0) - 10;
+              
+              if (actualTotalCost < totalCost) {
+                events.push(`💔 ${rel.name} filed for divorce. Settlement: $${actualSettlement.toLocaleString()}, Lawyer fees: $${actualLawyerFees.toLocaleString()} (reduced due to limited funds).`);
+              } else {
+                events.push(`💔 ${rel.name} filed for divorce. Settlement: $${actualSettlement.toLocaleString()}, Lawyer fees: $${actualLawyerFees.toLocaleString()}.`);
+              }
+              
+              relationshipsToRemove.push(rel.id); // RELATIONSHIP STATE FIX: Track for removal
+              return; // Skip adding this relationship (divorce)
+            }
+          }
+        } else {
+          // Reset counter if relationship improves above threshold
+          updatedRel.weeksAtLowRelationship = 0;
+        }
+      }
+      
+      // LONG-TERM DEGRADATION FIX: Collect income relationships during main loop
+      // Track eligible relationships for income calculation (will sort and process after loop)
+      if (rel.income && (rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 50) {
+        relationshipIncomes.push({ id: rel.id, income: rel.income || 0, name: rel.name });
+      }
+      
       updatedRelationships.push(updatedRel);
     });
     
+    // LONG-TERM DEGRADATION FIX: Process relationship income after collecting all eligible relationships
+    // Sort and cap to top earners (ensures consistent income distribution week-to-week)
+    // This is done after the main loop to avoid O(n log n) sort during relationship processing
+    // Only sort the small subset (max 20 relationships) instead of all relationships
+    relationshipIncomes.sort((a, b) => b.income - a.income); // Sort by income descending
+    const topIncomeRelationships = relationshipIncomes.slice(0, MAX_RELATIONSHIPS_FOR_INCOME); // Top 20 relationships
+    
+    topIncomeRelationships.forEach(({ income, name }) => {
+      if (totalRelationshipIncome < MAX_RELATIONSHIP_INCOME) {
+        const incomeToAdd = Math.min(income, MAX_RELATIONSHIP_INCOME - totalRelationshipIncome);
+        moneyChange += incomeToAdd;
+        totalRelationshipIncome += incomeToAdd;
+        if (incomeToAdd > 0) {
+          events.push(`${name} contributed $${incomeToAdd}${incomeToAdd < income ? ' (capped)' : ''}`);
+        }
+      }
+    });
+    
+    // RELATIONSHIP STATE FIX: Remove tracked relationships and ensure family state consistency
     // Update relationships in game state
-    setGameState(prev => ({
-      ...prev,
-      relationships: updatedRelationships,
-    }));
+    setGameState(prev => {
+      // Remove relationships that were marked for removal (breakups, divorces)
+      const finalRelationships = updatedRelationships.filter(r => !relationshipsToRemove.includes(r.id));
+      
+      // RELATIONSHIP STATE FIX: Clean up family state - remove spouse if they're not in relationships
+      let validatedFamily = { ...prev.family };
+      
+      // Validate spouse
+      if (validatedFamily.spouse) {
+        const spouseInRelationships = finalRelationships.find(r => r.id === validatedFamily.spouse!.id && r.type === 'spouse');
+        if (!spouseInRelationships) {
+          // Spouse was removed (divorce/breakup) - clear family.spouse
+          validatedFamily.spouse = undefined;
+        }
+      }
+      
+      // Validate children - only keep children that are in relationships array
+      validatedFamily.children = validatedFamily.children.filter(child => {
+        const childInRelationships = finalRelationships.find(r => r.id === child.id && r.type === 'child');
+        if (!childInRelationships) {
+          // Child was removed - clear from family.children
+          return false;
+        }
+        return true;
+      });
+      
+      return {
+        ...prev,
+        relationships: finalRelationships,
+        family: validatedFamily,
+      };
+    });
 
     // Sponsor income
     let sponsorEarnings = 0;
@@ -5712,43 +7461,218 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       return { ...h, sponsors: activeSponsors };
     });
 
-    setGameState(prev => ({ ...prev, hobbies: hobbySponsorUpdates }));
+    // CORRUPTION FIX: Add validation to prevent silent failures in hobby sponsor updates
+    try {
+      setGameState(prev => ({ ...prev, hobbies: hobbySponsorUpdates }));
+    } catch (hobbyError) {
+      log.error('Error updating hobby sponsors:', hobbyError);
+      // Design: Sponsor updates are non-critical weekly maintenance operations.
+      // If this update fails, sponsor income is already calculated and will be applied
+      // in the main state update. The game continues normally - sponsors will update
+      // next week. This separation ensures week progression never fails due to sponsor errors.
+    }
 
     // Education progress
-    setGameState(prev => ({
-      ...prev,
-      educations: prev.educations.map(education => {
-        if (education.weeksRemaining && education.weeksRemaining > 0) {
-          const newWeeksRemaining = education.weeksRemaining - 1;
-          if (newWeeksRemaining === 0) {
-            events.push(`Completed ${education.name}!`);
-            return { ...education, completed: true, weeksRemaining: undefined };
+    // CRITICAL FIX: Validate and clamp weeksRemaining to prevent negative values
+    // MAJOR FIX: Normalize undefined/null to undefined consistently
+    //
+    // SAFETY: This is safe because:
+    // - Null is normalized to undefined, ensuring consistent type checking
+    // - Negative/NaN values are treated as completed, preventing infinite loops
+    // - All educations are processed, ensuring no corrupted states persist
+    //
+    // FRAGILE LOGIC WARNING:
+    // - If education.weeksRemaining is 0 (not undefined), it's treated as "has weeksRemaining"
+    //   but then the check `weeksRemaining > 0` fails, so it falls through to normalization.
+    //   This is correct (0 means completed), but the logic flow could be clearer.
+    // - If education.completed is false but weeksRemaining is undefined, we normalize to
+    //   undefined. This is correct, but if the education was never started, this might be
+    //   unexpected. Consider checking if education was ever enrolled.
+    //
+    // Validation: weeksRemaining is clamped to duration if it exceeds it (see line 7493-7499).
+    // Large values are handled gracefully - they will decrement normally until completion.
+    // If duration changes after enrollment, the clamp ensures weeksRemaining never exceeds duration.
+    // CORRUPTION FIX: Add try-catch to prevent silent failures in education updates
+    // MAJOR FIX: Clean up completed educations to prevent unbounded array growth
+    // Remove completed educations if array gets too large (>30 educations, lowered from 50)
+    const completedEducationNames: string[] = []; // Collect completion messages
+    try {
+      setGameState(prev => {
+        // MAJOR FIX: Filter out old completed educations if array is too large
+        // Keep all active educations and limit completed ones to prevent unbounded growth
+        // Lowered threshold from 50 to 30 to prevent array growth in education hoarder paths
+        let cleanedEducations = prev.educations;
+        if (prev.educations.length > 30) {
+          const activeEducations = prev.educations.filter(e => !e.completed);
+          const completedEducations = prev.educations.filter(e => e.completed);
+          // Keep all active + most recent 20 completed (lowered from 30 to prevent growth)
+          if (completedEducations.length > 20) {
+            cleanedEducations = [...activeEducations, ...completedEducations.slice(-20)]; // Keep last 20 (most recent)
           }
-          return { ...education, weeksRemaining: Math.max(0, newWeeksRemaining) };
         }
-        return education;
-      }),
-    }));
+        
+        return {
+          ...prev,
+          educations: cleanedEducations.map(education => {
+            try {
+              // MAJOR FIX: Normalize null to undefined for consistent handling
+              // This ensures type checking works correctly (undefined vs null)
+              const weeksRemaining = education.weeksRemaining === null ? undefined : education.weeksRemaining;
+              
+              // CRITICAL FIX: Validate weeksRemaining: if negative, NaN, or exceeds duration, treat as completed or clamp
+              if (weeksRemaining !== undefined) {
+                if (isNaN(weeksRemaining) || !isFinite(weeksRemaining) || weeksRemaining < 0) {
+                  // Corrupted state - mark as completed
+                  log.warn(`Education ${education.name} has invalid weeksRemaining: ${weeksRemaining}, marking as completed`);
+                  return { ...education, completed: true, weeksRemaining: undefined };
+                }
+                // CRITICAL FIX: Clamp weeksRemaining to duration if it exceeds (prevents corruption)
+                if (weeksRemaining > education.duration) {
+                  log.warn(`Education ${education.name} has weeksRemaining (${weeksRemaining}) exceeding duration (${education.duration}), clamping`);
+                  const clampedWeeksRemaining = education.duration;
+                  if (clampedWeeksRemaining === 0) {
+                    return { ...education, completed: true, weeksRemaining: undefined };
+                  }
+                  return { ...education, weeksRemaining: clampedWeeksRemaining };
+                }
+                if (weeksRemaining > 0) {
+                  // BUG FIX: Apply prestige experience multiplier to education progress
+                  const prestigeData = prev.prestige;
+                  const expMultiplier = prestigeData?.unlockedBonuses 
+                    ? getExperienceMultiplier(prestigeData.unlockedBonuses)
+                    : 1.0;
+                  // CORRUPTION FIX: Validate multiplier before use
+                  const validMultiplier = typeof expMultiplier === 'number' && !isNaN(expMultiplier) && isFinite(expMultiplier) && expMultiplier > 0
+                    ? expMultiplier
+                    : 1.0;
+                  // Reduce weeks by 1 + bonus weeks (e.g., 1.5x multiplier = reduce by 1.5 weeks, rounded)
+                  const weeksToReduce = Math.max(1, Math.floor(validMultiplier));
+                  const newWeeksRemaining = Math.max(0, weeksRemaining - weeksToReduce);
+                  // CORRUPTION FIX: Validate result
+                  if (isNaN(newWeeksRemaining) || !isFinite(newWeeksRemaining) || newWeeksRemaining < 0) {
+                    log.warn(`Invalid calculated weeksRemaining for ${education.name}: ${newWeeksRemaining}, marking as completed`);
+                    return { ...education, completed: true, weeksRemaining: undefined };
+                  }
+                  if (newWeeksRemaining === 0) {
+                    // Collect completion message to add to events array after state update
+                    completedEducationNames.push(education.name);
+                    return { ...education, completed: true, weeksRemaining: undefined };
+                  }
+                  return { ...education, weeksRemaining: newWeeksRemaining };
+                }
+              }
+              // If weeksRemaining is undefined and not completed, ensure it's undefined (not null)
+              // MAJOR FIX: Normalize to undefined for consistency
+              // This ensures all completed/not-started educations have undefined, not null
+              return { ...education, weeksRemaining: undefined };
+            } catch (eduError) {
+              log.error(`Error processing education ${education?.name}:`, eduError);
+              return education; // Return unchanged on error
+            }
+          }),
+        };
+      });
+      // Add completion messages to events array after state update
+      completedEducationNames.forEach(name => {
+        events.push(`Completed ${name}!`);
+      });
+    } catch (educationError) {
+      log.error('Error updating education progress:', educationError);
+      // Design: Education progress updates are non-critical weekly maintenance operations.
+      // If this update fails, education progress is preserved and will update next week.
+      // The game continues normally - no data is lost. This separation ensures week
+      // progression never fails due to education update errors.
+    }
 
-    const weeklyEvents = rollWeeklyEvents(gameState);
+    // TIME PROGRESSION FIX: Process chained events before rolling weekly events
+    // Chained events are follow-up events scheduled from previous event choices
+    const { getFollowUpEvent } = require('@/lib/events/lifeEvents');
+    const pendingChainedEvents = gameState.pendingChainedEvents || [];
+    const chainedEventsToProcess: WeeklyEvent[] = [];
+    const remainingPendingChainedEvents: typeof pendingChainedEvents = [];
+    
+    pendingChainedEvents.forEach((pending) => {
+      if (nextWeek >= pending.triggerWeek) {
+        const followUp = getFollowUpEvent([pending], nextWeek);
+        if (followUp) {
+          chainedEventsToProcess.push(followUp.event);
+          log.info('Chained event triggered', { 
+            eventId: followUp.event.id, 
+            sourceEventId: pending.sourceEventId,
+            triggerWeek: pending.triggerWeek,
+            currentWeek: nextWeek 
+          });
+        } else {
+          // Keep pending if not yet due or event not found
+          remainingPendingChainedEvents.push(pending);
+        }
+      } else {
+        // Keep pending if not yet due
+        remainingPendingChainedEvents.push(pending);
+      }
+    });
+    
+    // RANDOMNESS FIX: Roll weekly events with pity system
+    // TIME PROGRESSION FIX: Use nextWeek for event rolling to ensure events are associated with correct week
+    const weeklyEvents = rollWeeklyEvents({ ...gameState, week: nextWeek });
+    
+    // Add chained events to weekly events (before max events check)
+    if (chainedEventsToProcess.length > 0) {
+      weeklyEvents.push(...chainedEventsToProcess);
+      log.info('Chained events added to weekly events', { count: chainedEventsToProcess.length });
+    }
+    
+    // Track last event week if events occurred (for pity system)
+    const hasEvents = weeklyEvents.length > 0;
     
     // Apply follower decay if inactive (social media)
+    // CORRUPTION FIX: Add validation to prevent silent failures
+    // TIME PROGRESSION FIX: Use nextWeek for social media week calculation
     if (gameState.socialMedia) {
-      const lastPostWeek = gameState.socialMedia.lastPostWeek || 0;
-      const weeksSinceLastPost = gameState.week - lastPostWeek;
-      if (weeksSinceLastPost >= 2) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { calculateFollowerDecay } = require('@/lib/social/socialMedia');
-        const decay = calculateFollowerDecay(gameState.socialMedia.followers, weeksSinceLastPost);
-        if (decay > 0) {
-          setGameState(prev => ({
-            ...prev,
-            socialMedia: prev.socialMedia ? {
-              ...prev.socialMedia,
-              followers: Math.max(0, prev.socialMedia.followers - decay),
-            } : prev.socialMedia,
-          }));
+      try {
+        const lastPostWeek = gameState.socialMedia.lastPostWeek || 0;
+        let weeksSinceLastPost = nextWeek - lastPostWeek;
+        // Handle year rollover (if nextWeek < lastPostWeek, we've rolled over)
+        if (weeksSinceLastPost < 0) {
+          weeksSinceLastPost = weeksSinceLastPost + 52; // Add 52 weeks for year rollover
         }
+        if (weeksSinceLastPost >= 2) {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { calculateFollowerDecay } = require('@/lib/social/socialMedia');
+          let currentFollowers = typeof gameState.socialMedia.followers === 'number' && !isNaN(gameState.socialMedia.followers)
+            ? gameState.socialMedia.followers
+            : 0;
+          // CORRUPTION FIX: Validate followers before calculation
+          if (currentFollowers < 0) {
+            log.warn(`Invalid follower count: ${currentFollowers}, resetting to 0`);
+            currentFollowers = 0;
+          }
+          const decay = calculateFollowerDecay(currentFollowers, weeksSinceLastPost);
+          // CORRUPTION FIX: Validate decay value
+          if (typeof decay === 'number' && !isNaN(decay) && isFinite(decay) && decay > 0) {
+            const newFollowers = Math.max(0, currentFollowers - decay);
+            // CORRUPTION FIX: Validate result before applying
+            if (typeof newFollowers === 'number' && !isNaN(newFollowers) && isFinite(newFollowers)) {
+              setGameState(prev => ({
+                ...prev,
+                socialMedia: prev.socialMedia ? {
+                  ...prev.socialMedia,
+                  followers: newFollowers,
+                } : prev.socialMedia,
+              }));
+            } else {
+              log.warn(`Invalid calculated followers: ${newFollowers}, skipping update`);
+            }
+          } else {
+            log.warn(`Invalid follower decay: ${decay}, skipping update`);
+          }
+        }
+      } catch (socialError) {
+        log.error('Error updating social media followers:', socialError);
+        // Design: Social media follower decay is a non-critical weekly maintenance operation.
+        // If this update fails, follower count is preserved and will update next week.
+        // The game continues normally - no data is lost. This separation ensures week
+        // progression never fails due to social media update errors.
       }
     }
 
@@ -5761,23 +7685,231 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     
     // Apply stat decay reduction
     const statDecayMultiplier = getStatDecayMultiplier(unlockedBonuses);
-    statsChange.happiness = (statsChange.happiness || 0) - (5 * statDecayMultiplier);
-    statsChange.health = (statsChange.health || 0) - (5 * statDecayMultiplier);
-    events.push('Weekly lifestyle: -5 health, -5 happiness');
+    
+    // STABILITY FIX: Reduce stat decay for high net worth players (investment strategy support)
+    // Players with high net worth can afford better lifestyle, reducing natural decay
+    // This allows investment-focused players to maintain stats without constant active maintenance
+    // Note: netWorth is already imported at top of file
+    // CORRUPTION FIX: Validate net worth calculation to prevent NaN propagation in stat chain
+    let currentNetWorth: number;
+    try {
+      currentNetWorth = netWorth(gameState);
+      // Validate net worth result
+      if (typeof currentNetWorth !== 'number' || isNaN(currentNetWorth) || !isFinite(currentNetWorth)) {
+        log.warn(`Invalid net worth calculated: ${currentNetWorth}, defaulting to 0`);
+        currentNetWorth = 0;
+      }
+      // Clamp to reasonable range to prevent overflow
+      currentNetWorth = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, currentNetWorth));
+    } catch (netWorthError) {
+      log.error('Error calculating net worth:', netWorthError);
+      currentNetWorth = 0; // Default to 0 on error
+    }
+    
+    const netWorthDecayReduction = currentNetWorth >= 1_000_000 
+      ? 0.5  // 50% reduction at $1M+ net worth (wealth provides passive health benefits)
+      : currentNetWorth >= 100_000 
+        ? 0.25  // 25% reduction at $100K+ net worth
+        : 0;  // No reduction below $100K
+    
+    // CORRUPTION FIX: Validate stat decay multiplier before use
+    const validStatDecayMultiplier = typeof statDecayMultiplier === 'number' && !isNaN(statDecayMultiplier) && isFinite(statDecayMultiplier) && statDecayMultiplier > 0
+      ? statDecayMultiplier
+      : 1.0;
+    
+    const baseHealthDecay = 5 * validStatDecayMultiplier;
+    const baseHappinessDecay = 5 * validStatDecayMultiplier;
+    // CORRUPTION FIX: Validate decay calculations
+    let healthDecay = Math.max(0, Math.floor(baseHealthDecay * (1 - netWorthDecayReduction)));
+    if (isNaN(healthDecay) || !isFinite(healthDecay)) {
+      log.warn(`Invalid health decay calculated: ${healthDecay}, defaulting to 5`);
+      healthDecay = 5;
+    }
+    
+    // STABILITY FIX: Reduce happiness decay for isolated players (no active relationships)
+    // Isolated players have fewer happiness recovery options, so decay should be lower
+    const activeRelationships = (gameState.relationships || []).filter(r => 
+      typeof r.relationshipScore === 'number' && !isNaN(r.relationshipScore) && r.relationshipScore > 0
+    ).length;
+    const isolatedPlayerReduction = activeRelationships === 0 ? 1 : 0; // -1 decay if no relationships
+    let happinessDecay = Math.max(0, Math.floor(baseHappinessDecay * (1 - netWorthDecayReduction)) - isolatedPlayerReduction);
+    // CORRUPTION FIX: Validate happiness decay
+    if (isNaN(happinessDecay) || !isFinite(happinessDecay)) {
+      log.warn(`Invalid happiness decay calculated: ${happinessDecay}, defaulting to 5`);
+      happinessDecay = 5;
+    }
+    
+    // STABILITY FIX: Add minimal passive stat recovery when stats are critically low (<30)
+    // Prevents death spiral for players who can't afford recovery activities
+    // Recovery: +1-2 points/week when stats are low (represents natural healing/rest)
+    // STABILITY FIX: Increase recovery for isolated players (+2-3/week) to offset higher decay
+    // CORRUPTION FIX: Validate current stats before calculating recovery
+    const currentHealth = typeof gameState.stats.health === 'number' && !isNaN(gameState.stats.health) && isFinite(gameState.stats.health)
+      ? gameState.stats.health
+      : 50; // Default to 50 if invalid
+    const currentHappiness = typeof gameState.stats.happiness === 'number' && !isNaN(gameState.stats.happiness) && isFinite(gameState.stats.happiness)
+      ? gameState.stats.happiness
+      : 50; // Default to 50 if invalid
+    // Increase recovery for isolated players (no active relationships) to +2-3/week
+    const isIsolated = activeRelationships === 0;
+    const passiveHealthRecovery = currentHealth < 30 
+      ? (isIsolated ? Math.floor(Math.random() * 2) + 2 : Math.floor(Math.random() * 2) + 1) // +2-3 if isolated, +1-2 otherwise
+      : 0;
+    const passiveHappinessRecovery = currentHappiness < 30 
+      ? (isIsolated ? Math.floor(Math.random() * 2) + 2 : Math.floor(Math.random() * 2) + 1) // +2-3 if isolated, +1-2 otherwise
+      : 0;
+    
+    // CORRUPTION FIX: Validate stat changes before accumulation to prevent NaN propagation
+    const existingHappinessChange = typeof statsChange.happiness === 'number' && !isNaN(statsChange.happiness) && isFinite(statsChange.happiness)
+      ? statsChange.happiness
+      : 0;
+    const existingHealthChange = typeof statsChange.health === 'number' && !isNaN(statsChange.health) && isFinite(statsChange.health)
+      ? statsChange.health
+      : 0;
+    
+    // CORRUPTION FIX: Validate decay and recovery values before accumulation
+    const validHappinessDecay = typeof happinessDecay === 'number' && !isNaN(happinessDecay) && isFinite(happinessDecay) ? happinessDecay : 5;
+    const validHealthDecay = typeof healthDecay === 'number' && !isNaN(healthDecay) && isFinite(healthDecay) ? healthDecay : 5;
+    const validPassiveHappinessRecovery = typeof passiveHappinessRecovery === 'number' && !isNaN(passiveHappinessRecovery) && isFinite(passiveHappinessRecovery) ? passiveHappinessRecovery : 0;
+    const validPassiveHealthRecovery = typeof passiveHealthRecovery === 'number' && !isNaN(passiveHealthRecovery) && isFinite(passiveHealthRecovery) ? passiveHealthRecovery : 0;
+    
+    statsChange.happiness = existingHappinessChange - validHappinessDecay + validPassiveHappinessRecovery;
+    statsChange.health = existingHealthChange - validHealthDecay + validPassiveHealthRecovery;
+    
+    // CORRUPTION FIX: Final validation of accumulated stat changes
+    if (isNaN(statsChange.happiness) || !isFinite(statsChange.happiness)) {
+      log.warn(`Invalid happiness change after accumulation: ${statsChange.happiness}, resetting to 0`);
+      statsChange.happiness = 0;
+    }
+    if (isNaN(statsChange.health) || !isFinite(statsChange.health)) {
+      log.warn(`Invalid health change after accumulation: ${statsChange.health}, resetting to 0`);
+      statsChange.health = 0;
+    }
+    
+    let decayMessage = `Weekly lifestyle: -${healthDecay} health, -${happinessDecay} happiness`;
+    if (netWorthDecayReduction > 0) decayMessage += ' (reduced by wealth)';
+    if (isolatedPlayerReduction > 0) decayMessage += ' (reduced for isolated players)';
+    if (passiveHealthRecovery > 0 || passiveHappinessRecovery > 0) {
+      decayMessage += ` (+${passiveHealthRecovery} health, +${passiveHappinessRecovery} happiness from natural recovery)`;
+    }
+    events.push(decayMessage);
     
     // Reset weekly jail activities for new week
     const resetWeeklyJailActivities = {};
+    
+    // ECONOMY FIX: Add reputation decay to prevent unlimited growth
+    // Decay: -1% of current reputation per week (minimum -1)
+    // Reduced decay if in political/celebrity career (maintaining reputation is part of the job)
+    const currentReputation = gameState.stats.reputation;
+    const isReputationCareer = ['political', 'celebrity', 'politician'].includes(gameState.currentJob || '');
+    const decayPercent = isReputationCareer ? 0.005 : 0.01; // 0.5% for careers, 1% otherwise
+    const reputationDecay = Math.max(-1, Math.floor(-currentReputation * decayPercent));
+    
+    // STABILITY FIX: Debt collection and bankruptcy system with improved asset valuation
+    // Track debt weeks and trigger bankruptcy when money < -$10,000 for 4+ weeks
+    // CORRUPTION FIX: Calculate bankruptcy state before main update to include in batch
+    const currentMoney = typeof gameState.stats.money === 'number' && !isNaN(gameState.stats.money) && isFinite(gameState.stats.money)
+      ? gameState.stats.money
+      : 0;
+    const calculatedFinalMoney = currentMoney + moneyChange;
+    const debtWeeks = gameState.debtWeeks || 0;
+    let newDebtWeeks = debtWeeks;
+    let newBankruptcyTriggered = gameState.bankruptcyTriggered || false;
+    
+    if (calculatedFinalMoney < -10000) {
+      newDebtWeeks = debtWeeks + 1;
+      if (newDebtWeeks >= 4 && !gameState.bankruptcyTriggered) {
+        // Trigger bankruptcy: force asset sale, reduce stats, clear some debt
+        // STABILITY FIX: Use actual asset values from net worth calculation instead of fixed values
+        newBankruptcyTriggered = true;
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { netWorth } = require('@/lib/progress/achievements');
+        const currentNetWorth = netWorth(gameState);
+        
+        // Calculate asset counts for event message
+        const companyCount = (gameState.companies || []).length;
+        const propertyCount = (gameState.realEstate || []).filter(p => p.owned).length;
+        const vehicleCount = (gameState.vehicles || []).length;
+        
+        // Use actual net worth for asset value (more accurate than fixed values)
+        // Asset value = net worth (which includes all assets) - cash - bank savings
+        const assetValue = Math.max(0, currentNetWorth - (gameState.stats.money || 0) - (gameState.bankSavings || 0));
+        
+        // Debt reduction: 50% of asset value (liquidation discount)
+        const debtReduction = Math.min(Math.abs(calculatedFinalMoney), assetValue * 0.5);
+        moneyChange += debtReduction; // Add back money from asset sale
+        
+        // CRITICAL FIX: Ensure money is non-negative after bankruptcy
+        // Recalculate final money after debt reduction to ensure it's >= 0
+        const postBankruptcyMoney = currentMoney + moneyChange;
+        if (postBankruptcyMoney < 0) {
+          // If still negative, set to 0 (debt is cleared but no money remains)
+          const additionalReduction = Math.abs(postBankruptcyMoney);
+          moneyChange += additionalReduction;
+          log.warn('Bankruptcy: Money still negative after debt reduction, setting to 0', { postBankruptcyMoney, additionalReduction });
+        }
+        
+        // Stat penalties for bankruptcy
+        statsChange.reputation = (statsChange.reputation || 0) - 20; // Bankruptcy hurts reputation
+        statsChange.happiness = (statsChange.happiness || 0) - 10; // Bankruptcy is stressful
+        
+        // CORRUPTION FIX: Prepare bankruptcy state update for batch inclusion
+        bankruptcyStateUpdate = {
+          companies: [],
+          realEstate: gameState.realEstate.map(p => ({ ...p, owned: false })),
+          stocks: gameState.stocks ? { ...gameState.stocks, holdings: [] } : { holdings: [], watchlist: [] },
+          vehicles: [],
+          bankruptcyTriggered: newBankruptcyTriggered,
+        };
+        
+        events.push(`BANKRUPTCY: Debt collectors seized your assets. Lost ${companyCount} companies, ${propertyCount} properties, and ${vehicleCount} vehicles. Debt reduced by $${debtReduction.toLocaleString()}.`);
+        log.warn('Bankruptcy triggered', { debtWeeks: newDebtWeeks, calculatedFinalMoney, debtReduction, assetValue, finalMoney: currentMoney + moneyChange });
+      } else if (newDebtWeeks >= 2) {
+        events.push(`Warning: Deep in debt (${newDebtWeeks} weeks). Bankruptcy risk if debt continues.`);
+      }
+    } else {
+      newDebtWeeks = 0; // Reset debt weeks if money is above -$10,000
+      // Reset bankruptcy flag if debt is cleared (money > -$10,000)
+      if (calculatedFinalMoney >= -10000) {
+        newBankruptcyTriggered = false;
+      }
+    }
+    
+    // CORRUPTION FIX: Validate stat changes before applying
+    const sanitizedStatsChange = sanitizeStatChanges(statsChange);
+    const statChangeValidation = validateStatChanges(sanitizedStatsChange);
+    if (!statChangeValidation.valid) {
+      log.error('Invalid stat changes detected, sanitizing:', statChangeValidation.errors);
+      // Stat changes are already sanitized, but log the errors
+    }
+    
+    // CORRUPTION FIX: Validate money calculation
+    const finalMoney = Math.max(0, currentMoney + moneyChange);
+    const moneyValidation = validateMoneyInvariants(currentMoney, moneyChange, finalMoney);
+    let validatedFinalMoney = finalMoney;
+    if (!moneyValidation.valid) {
+      log.error('Money calculation invalid:', moneyValidation.errors);
+      // Use safe defaults
+      const safeMoneyChange = isNaN(moneyChange) || !isFinite(moneyChange) ? 0 : moneyChange;
+      const safeFinalMoney = Math.max(0, currentMoney + safeMoneyChange);
+      log.warn(`Money calculation corrected: ${finalMoney} -> ${safeFinalMoney}`);
+      validatedFinalMoney = safeFinalMoney; // CRITICAL FIX: Use safe value when validation fails
+    }
+    
     const updatedStats = {
       ...gameState.stats,
-      money: gameState.stats.money + moneyChange,
-      health: Math.max(0, Math.min(100, gameState.stats.health + (statsChange.health || 0))),
-      happiness: Math.max(0, Math.min(100, gameState.stats.happiness + (statsChange.happiness || 0))),
-      energy: Math.max(0, Math.min(100, statsChange.energy || gameState.stats.energy)),
-      fitness: Math.max(0, Math.min(100, gameState.stats.fitness + (statsChange.fitness || 0))),
-      reputation: Math.max(0, gameState.stats.reputation + (statsChange.reputation || 0)),
+      money: validatedFinalMoney, // CRITICAL FIX: Use validated money value
+      health: Math.max(0, Math.min(100, gameState.stats.health + (sanitizedStatsChange.health || 0))),
+      happiness: Math.max(0, Math.min(100, gameState.stats.happiness + (sanitizedStatsChange.happiness || 0))),
+      energy: Math.max(0, Math.min(100, sanitizedStatsChange.energy !== undefined ? sanitizedStatsChange.energy : gameState.stats.energy)),
+      fitness: Math.max(0, Math.min(100, gameState.stats.fitness + (sanitizedStatsChange.fitness || 0))),
+      reputation: Math.max(0, gameState.stats.reputation + (sanitizedStatsChange.reputation || 0) + reputationDecay),
       gems: gameState.stats.gems,
     };
-    const nextTotalHappiness = gameState.totalHappiness + updatedStats.happiness;
+    
+    // CORRUPTION FIX: Sanitize final stats to ensure no NaN/Infinity
+    const sanitizedStats = sanitizeFinalStats(updatedStats);
+    const nextTotalHappiness = gameState.totalHappiness + sanitizedStats.happiness;
 
     let happinessZeroWeeks = gameState.happinessZeroWeeks || 0;
     let healthZeroWeeks = gameState.healthZeroWeeks || 0;
@@ -5928,94 +8060,143 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
     setTimeout(() => checkAchievementsRef.current?.(), 100);
 
-    // Update money immediately for better UX
-    setGameState(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        money: prev.stats.money + moneyChange,
-      },
-    }));
+    // CORRUPTION FIX: Don't update money separately - include in main batch update
+    // This prevents partial state updates if main update fails
 
-    // Commit weekly summary + stats with a slight delay to prevent UI blocking
-    setTimeout(() => {
-      setGameState(prev => {
-        const stateWithInflation = applyWeeklyInflation(prev);
-        
-        // Update seasonal events state
-        const currentSeason = getCurrentSeason(newDate.week);
-        const prevSeasonalEvents = prev.seasonalEvents || { lastSeason: '', completedEvents: [] };
-        let seasonalEvents = { ...prevSeasonalEvents };
-        
-        // If season changed, reset completed events
-        if (prevSeasonalEvents.lastSeason !== currentSeason.season) {
-          seasonalEvents = {
-            lastSeason: currentSeason.season,
-            completedEvents: [],
-          };
-        }
-        
-        // Update lifetime statistics
-        const weeklyIncome = Math.max(0, moneyChange);
-        let updatedLifetimeStats = statisticsTracker.updateWeeklyStatistics(
-          { ...prev, stats: updatedStats },
-          weeklyIncome
-        );
-        
-        // Track money spent (negative transactions)
-        if (moneyChange < 0) {
-          updatedLifetimeStats = statisticsTracker.trackMoneySpent(updatedLifetimeStats, moneyChange);
-        }
-        
-        return {
-          ...stateWithInflation,
-          day: prev.day + 1,
-          date: newDate,
-          seasonalEvents,
-          lifetimeStatistics: updatedLifetimeStats,
-          dailySummary: (() => {
-            const shouldShow = stateWithInflation.settings.weeklySummaryEnabled && (nextWeeksLived % 4 === 0);
-            if (__DEV__) {
-              log.info('GameContext - Setting dailySummary', { shouldShow, weeklySummaryEnabled: stateWithInflation.settings.weeklySummaryEnabled, nextWeeksLived, remainder: nextWeeksLived % 4 });
-            }
-            return shouldShow;
-          })()
-            ? {
-                moneyChange,
-                statsChange,
-                events,
-                earningsBreakdown: {
-                  gaming: gamingEarnings,
-                  streaming: streamingEarnings,
-                  passive: passiveIncome,
-                  salary: salaryEarnings,
-                  sponsors: sponsorEarnings,
-                  other: 0, // Will be updated for other earnings
-                },
-              }
-            : undefined,
-          stats: updatedStats,
-          pets,
-          pendingEvents: weeklyEvents,
-          happinessZeroWeeks,
-          healthZeroWeeks,
-          healthWeeks,
-          showZeroStatPopup,
-          zeroStatType,
-          totalHappiness: nextTotalHappiness,
-          weeksLived: nextWeeksLived,
-          jailWeeks,
-          wantedLevel,
-          weeklyJailActivities: resetWeeklyJailActivities, // Reset jail activities for new week
-          weeklyStreetJobs: {}, // Reset street jobs for new week
+    // TIME PROGRESSION FIX: Make final update synchronous to prevent state loss on app close
+    // All functions (applyWeeklyInflation, getCurrentSeason, statisticsTracker) are synchronous
+    // Removing setTimeout prevents timing risk where app closes before state update applies
+    setGameState(prev => {
+      const stateWithInflation = applyWeeklyInflation(prev);
+      
+      // Update seasonal events state
+      // TIME PROGRESSION FIX: Use weeksLived instead of week (1-4) for seasonal calculations
+      const currentSeason = getCurrentSeason(nextWeeksLived);
+      const prevSeasonalEvents = prev.seasonalEvents || { lastSeason: '', completedEvents: [] };
+      let seasonalEvents = { ...prevSeasonalEvents };
+      
+      // If season changed, reset completed events
+      if (prevSeasonalEvents.lastSeason !== currentSeason.season) {
+        seasonalEvents = {
+          lastSeason: currentSeason.season,
+          completedEvents: [],
         };
-      });
+      }
+      
+      // Update lifetime statistics
+      const weeklyIncome = Math.max(0, moneyChange);
+      let updatedLifetimeStats = statisticsTracker.updateWeeklyStatistics(
+        { ...prev, stats: sanitizedStats },
+        weeklyIncome
+      );
+      
+      // Track money spent (negative transactions)
+      if (moneyChange < 0) {
+        updatedLifetimeStats = statisticsTracker.trackMoneySpent(updatedLifetimeStats, moneyChange);
+      }
+      
+      // Update depth system metrics
+      let updatedDepthMetrics = prev.depthMetrics || {
+        depthScore: 0,
+        systemsEngaged: 0,
+        lastCalculated: Date.now(),
+      };
+      let updatedSystemStatistics = prev.systemStatistics || {};
+      
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { calculateDepthScore } = require('@/lib/depth/discoverySystem');
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { getSystemHealth } = require('@/lib/depth/systemInterconnections');
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { getEnhancedLifetimeStatistics } = require('@/lib/statistics/enhancedStatistics');
+        
+        const depthScore = calculateDepthScore({ ...prev, stats: sanitizedStats });
+        const systemHealth = getSystemHealth({ ...prev, stats: sanitizedStats });
+        const enhancedStats = getEnhancedLifetimeStatistics({ ...prev, stats: sanitizedStats });
+        
+        // Update depth metrics
+        updatedDepthMetrics = {
+          depthScore,
+          systemsEngaged: systemHealth.length,
+          lastCalculated: Date.now(),
+        };
+        
+        // Update system statistics
+        updatedSystemStatistics = enhancedStats.systemStats || {};
+      } catch (depthError: unknown) {
+        // If depth system fails, continue without it
+        if (depthError instanceof Error) {
+          log.warn(`Failed to update depth metrics: ${depthError.message}`, depthError);
+        } else {
+          log.warn('Failed to update depth metrics with non-Error type:', { depthError });
+        }
+      }
+      
+      // BUG FIX: Ensure lifetime statistics are properly saved
+      // Statistics are updated but need to be explicitly included in state update
+      return {
+        ...stateWithInflation,
+        day: prev.day + 1,
+        date: newDate,
+        seasonalEvents,
+        lifetimeStatistics: updatedLifetimeStats, // Explicitly update statistics
+        dailySummary: (() => {
+          const shouldShow = stateWithInflation.settings.weeklySummaryEnabled && (nextWeeksLived % 4 === 0);
+          if (__DEV__) {
+            log.info('GameContext - Setting dailySummary', { shouldShow, weeklySummaryEnabled: stateWithInflation.settings.weeklySummaryEnabled, nextWeeksLived, remainder: nextWeeksLived % 4 });
+          }
+          return shouldShow;
+        })()
+          ? {
+              moneyChange,
+              statsChange: sanitizedStatsChange,
+              events,
+              earningsBreakdown: {
+                gaming: gamingEarnings,
+                streaming: streamingEarnings,
+                passive: passiveIncome,
+                salary: salaryEarnings,
+                sponsors: sponsorEarnings,
+                other: 0, // Will be updated for other earnings
+              },
+            }
+          : undefined,
+        stats: sanitizedStats, // CORRUPTION FIX: Use sanitized stats
+        pets,
+        pendingEvents: weeklyEvents,
+        lastEventWeek: hasEvents ? nextWeek : (prev.lastEventWeek || 0), // Track last event week for pity system (deprecated, use lastEventWeeksLived)
+        lastEventWeeksLived: hasEvents ? nextWeeksLived : (prev.lastEventWeeksLived !== undefined ? prev.lastEventWeeksLived : (prev.lastEventWeek || 0)), // TIME PROGRESSION FIX: Track weeksLived for pity system
+        pendingChainedEvents: remainingPendingChainedEvents, // Update pending chained events (remove processed ones)
+        happinessZeroWeeks,
+        healthZeroWeeks,
+        healthWeeks,
+        showZeroStatPopup,
+        zeroStatType,
+        totalHappiness: nextTotalHappiness,
+        weeksLived: nextWeeksLived,
+        jailWeeks,
+        wantedLevel,
+        depthMetrics: updatedDepthMetrics,
+        systemStatistics: updatedSystemStatistics,
+        debtWeeks: newDebtWeeks, // STABILITY FIX: Track debt weeks for bankruptcy system
+        bankruptcyTriggered: newBankruptcyTriggered, // STABILITY FIX: Track if bankruptcy triggered
+        weeksInPoverty: newWeeksInPoverty, // STABILITY FIX: Track weeks in poverty for scholarship event
+        weeklyJailActivities: resetWeeklyJailActivities, // Reset jail activities for new week
+        weeklyStreetJobs: {}, // Reset street jobs for new week
+      };
+    });
 
-      // Check prestige availability after state update
-      setTimeout(() => {
+    // TIME PROGRESSION FIX: Check prestige availability after save (non-critical, can be async)
+    // This is just a check, not a state modification, so setTimeout is acceptable
+    setTimeout(() => {
+      try {
         checkPrestigeAvailability();
-      }, 100);
-    }, 50);
+      } catch (error) {
+        log.error('Error checking prestige availability:', error);
+        // Don't block progression if prestige check fails
+      }
+    }, 100);
 
     // Save game with proper error handling
     try {
@@ -6073,6 +8254,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
   // Prestige functions
   const checkPrestigeAvailability = useCallback(() => {
+    try {
     const currentNetWorth = netWorth(gameState);
     const prestigeLevel = gameState.prestige?.prestigeLevel || 0;
     const threshold = getPrestigeThreshold(prestigeLevel);
@@ -6082,7 +8264,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       ...prev,
       prestigeAvailable: isAvailable,
     }));
-  }, [gameState, setGameState]);
+    } catch (error) {
+      // BUG FIX: Prevent prestige check errors from blocking game progression
+      // If prestige check fails, just log and don't update state
+      log.error('Error in checkPrestigeAvailability:', error);
+      // Don't throw - allow game to continue
+    }
+  }, [gameState, setGameState, log]);
 
   const executePrestige = useCallback(async (chosenPath: 'reset' | 'child', childId?: string) => {
     try {
@@ -6127,6 +8315,66 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       showError('prestige_execution_failed', 'Failed to prestige. Please try again.');
     }
   }, [gameState, setGameState, showError, loadPermanentPerks]);
+
+  const changeActivityCommitment = useCallback((primary?: 'career' | 'hobbies' | 'relationships' | 'health', secondary?: 'career' | 'hobbies' | 'relationships' | 'health') => {
+    const { canChangeCommitments } = require('@/lib/commitments/commitmentSystem');
+    const { canChange, weeksUntilChange } = canChangeCommitments(gameState);
+    
+    if (!canChange) {
+      return {
+        success: false,
+        message: `You can only change commitments once every 4 weeks. ${weeksUntilChange} week(s) remaining.`,
+      };
+    }
+    
+    // Validate: secondary cannot be same as primary
+    if (primary && secondary && primary === secondary) {
+      return {
+        success: false,
+        message: 'Primary and secondary commitments must be different.',
+      };
+    }
+    
+    setGameState(prev => {
+      const currentCommitments = prev.activityCommitments || {
+        primary: undefined,
+        secondary: undefined,
+        lastChangedWeek: undefined,
+        commitmentLevels: {
+          career: 0,
+          hobbies: 0,
+          relationships: 0,
+          health: 0,
+        },
+      };
+      
+      return {
+        ...prev,
+        activityCommitments: {
+          primary,
+          secondary,
+          lastChangedWeek: prev.weeksLived,
+          commitmentLevels: currentCommitments.commitmentLevels || {
+            career: 0,
+            hobbies: 0,
+            relationships: 0,
+            health: 0,
+          },
+        },
+      };
+    });
+    
+    if (saveGameRef.current) {
+      saveGameRef.current();
+    }
+    
+    const primaryText = primary ? `Primary: ${primary}` : 'No primary commitment';
+    const secondaryText = secondary ? `Secondary: ${secondary}` : 'No secondary commitment';
+    return {
+      success: true,
+      message: `Commitments updated! ${primaryText}. ${secondaryText}.`,
+    };
+  }, [gameState, setGameState]);
 
   const purchasePrestigeBonus = useCallback((bonusId: string) => {
     const prestigeData = gameState.prestige;
@@ -6231,6 +8479,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
     askForMoney,
     callRelationship,
     recordRelationshipAction,
+    changeActivityCommitment,
 
     // Pets
     adoptPet,

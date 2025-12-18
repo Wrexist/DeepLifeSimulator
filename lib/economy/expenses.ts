@@ -1,11 +1,13 @@
 import { GameState } from '@/contexts/GameContext';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { calculateLifestyleCosts } from './lifestyle';
 
 export interface ExpenseBreakdown {
   upkeep: number;
   loans: number;
   miningPower: number;
   vehicles: number;
+  lifestyle: number;
 }
 
 interface LoanLike {
@@ -23,7 +25,25 @@ export function calcWeeklyExpenses(
     return sum + (p.upkeep ?? 0) + tier.upkeepBonus;
   }, 0);
   const loans = state.loans ?? [];
-  const loanPayments = loans.reduce((sum, l) => sum + l.weeklyPayment, 0);
+  // BUG FIX: Calculate loan payments, but also ensure minimum payment for loans with zero weeklyPayment
+  // For loans with 0 weeklyPayment (long terms), calculate minimum payment based on remaining debt
+  const loanPayments = loans.reduce((sum, l) => {
+    const weeklyPayment = l.weeklyPayment || 0;
+    if (weeklyPayment > 0) {
+      return sum + weeklyPayment;
+    } else {
+      // For loans with 0 weeklyPayment, calculate minimum payment to ensure debt is paid
+      // Use remaining debt (or principal if remaining not set) divided by remaining weeks
+      const remaining = (l as any).remaining ?? (l as any).principal ?? 0;
+      const weeksRemaining = (l as any).weeksRemaining ?? (l as any).termWeeks ?? 520;
+      if (remaining > 0 && weeksRemaining > 0) {
+        // Minimum payment: at least 0.1% of remaining debt per week
+        const minPayment = Math.max(remaining / weeksRemaining, remaining * 0.001);
+        return sum + minPayment;
+      }
+      return sum;
+    }
+  }, 0);
   
   // Mining power costs
   let miningPowerCosts = 0;
@@ -44,8 +64,9 @@ export function calcWeeklyExpenses(
         0
       );
       if (totalPower > 0) {
-        // Monthly bill: totalPower * 0.12 * 30, averaged to weekly
-        const monthlyBill = totalPower * 0.12 * 30;
+        // ECONOMY FIX: Increased power costs by 67% to better balance mining profitability
+        // Monthly bill: totalPower * 0.20 * 30, averaged to weekly (was 0.12, now 0.20)
+        const monthlyBill = totalPower * 0.20 * 30;
         const weeklyBill = monthlyBill / 4; // Average monthly cost to weekly
         miningPowerCosts += Math.round(weeklyBill);
       }
@@ -70,8 +91,9 @@ export function calcWeeklyExpenses(
       0
     );
     if (totalPower > 0) {
-      // Weekly power cost: $0.40 per power unit per week
-      const weeklyPowerCost = totalPower * 0.40;
+      // ECONOMY FIX: Increased power costs by 50% to better balance mining profitability
+      // Weekly power cost: $0.60 per power unit per week (was 0.40, now 0.60)
+      const weeklyPowerCost = totalPower * 0.60;
       miningPowerCosts += Math.round(weeklyPowerCost);
     }
   }
@@ -96,8 +118,20 @@ export function calcWeeklyExpenses(
     });
   }
   
-  const total = upkeep + loanPayments + miningPowerCosts + vehicleCosts;
-  return { total, breakdown: { upkeep, loans: loanPayments, miningPower: miningPowerCosts, vehicles: vehicleCosts } };
+  // LIFESTYLE MAINTENANCE: Wealth requires ongoing lifestyle costs
+  const lifestyleCosts = calculateLifestyleCosts(state);
+  
+  const total = upkeep + loanPayments + miningPowerCosts + vehicleCosts + lifestyleCosts;
+  return { 
+    total, 
+    breakdown: { 
+      upkeep, 
+      loans: loanPayments, 
+      miningPower: miningPowerCosts, 
+      vehicles: vehicleCosts,
+      lifestyle: lifestyleCosts,
+    } 
+  };
 }
 
 export type { LoanLike as LoanLikeType };

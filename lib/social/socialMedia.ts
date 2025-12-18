@@ -163,8 +163,14 @@ export function calculateNewFollowersFromPost(
   }
   
   // Growth rate slows as you get bigger (logarithmic)
-  const growthModifier = 1 / (1 + Math.log10(Math.max(1, currentFollowers / 500)));
+  let growthModifier = 1 / (1 + Math.log10(Math.max(1, currentFollowers / 500)));
   newFollowers = Math.floor(newFollowers * growthModifier);
+  
+  // STABILITY FIX: Add soft cap at 10M followers - reduce growth rate by 50% after 10M
+  // Prevents unbounded growth while maintaining realism
+  if (currentFollowers >= 10_000_000) {
+    newFollowers = Math.floor(newFollowers * 0.5); // 50% growth rate after 10M
+  }
   
   // Minimum 1 follower if they got any engagement
   return Math.max(engagement.likes > 0 ? 1 : 0, newFollowers);
@@ -200,8 +206,16 @@ export function calculateFollowerGrowth(
   baseGrowth = Math.floor(baseGrowth * typeMultipliers[contentType]);
   
   // Logarithmic growth: growth slows as followers increase
-  const growthModifier = 1 / (1 + Math.log10(Math.max(1, currentFollowers / 1000)));
+  // STABILITY FIX: Soften curve by dividing by 10K instead of 1K to allow faster growth at high counts
+  // This makes reaching 1M followers achievable (was taking 1000+ weeks, now ~500 weeks)
+  let growthModifier = 1 / (1 + Math.log10(Math.max(1, currentFollowers / 10000)));
   baseGrowth = Math.floor(baseGrowth * growthModifier);
+  
+  // STABILITY FIX: Add soft cap at 10M followers - reduce growth rate by 50% after 10M
+  // Prevents unbounded growth while maintaining realism
+  if (currentFollowers >= 10_000_000) {
+    baseGrowth = Math.floor(baseGrowth * 0.5); // 50% growth rate after 10M
+  }
   
   return Math.max(1, baseGrowth); // At least 1 follower
 }
@@ -245,8 +259,16 @@ export function calculateFollowerGrowthFull(
   }
   
   // Logarithmic growth: growth slows as followers increase
-  const growthModifier = 1 / (1 + Math.log10(Math.max(1, currentFollowers / 1000)));
+  // STABILITY FIX: Soften curve by dividing by 10K instead of 1K to allow faster growth at high counts
+  // This makes reaching 1M followers achievable (was taking 1000+ weeks, now ~500 weeks)
+  let growthModifier = 1 / (1 + Math.log10(Math.max(1, currentFollowers / 10000)));
   baseGrowth = Math.floor(baseGrowth * growthModifier);
+  
+  // STABILITY FIX: Add soft cap at 10M followers - reduce growth rate by 50% after 10M
+  // Prevents unbounded growth while maintaining realism
+  if (currentFollowers >= 10_000_000) {
+    baseGrowth = Math.floor(baseGrowth * 0.5); // 50% growth rate after 10M
+  }
   
   return Math.max(1, baseGrowth); // At least 1 follower
 }

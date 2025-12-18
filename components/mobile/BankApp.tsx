@@ -123,13 +123,24 @@ function formatMoney(n: number): string {
 }
 function amortizedInstallment(principal: number, weeklyRate: number, termWeeks: number): number {
   if (termWeeks <= 0) return principal; // safety
-  if (weeklyRate <= 0) return principal / termWeeks;
+  if (weeklyRate <= 0) return Math.max(principal / termWeeks, principal * 0.001); // At least 0.1% per week
+  
+  // BUG FIX: Use more stable formula for long terms to prevent zero payments
   // A = P * r / (1 - (1 + r)^-n)
   const r = weeklyRate;
   const n = termWeeks;
   const denom = 1 - Math.pow(1 + r, -n);
-  if (denom === 0) return principal / termWeeks;
-  return principal * (r / denom);
+  
+  if (denom === 0 || denom < 0.0001) {
+    // Fallback for very small denominators (very long terms)
+    return Math.max(principal / termWeeks, principal * 0.001); // At least 0.1% per week
+  }
+  
+  const payment = principal * (r / denom);
+  
+  // BUG FIX: Ensure minimum payment to prevent zero debt issue
+  // At least 0.1% of principal per week ensures debt is paid down
+  return Math.max(payment, principal * 0.001);
 }
 
 // Pseudo market-driven APR (deterministic by week). Smooth oscillation between 6% and 14%.

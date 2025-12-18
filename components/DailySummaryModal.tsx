@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Platform } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { X, TrendingUp, TrendingDown, Calendar, DollarSign, Activity, Heart } from 'lucide-react-native';
+import { X, TrendingUp, TrendingDown, Calendar, DollarSign, Activity, Heart, Network, Link, Compass, Star } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { getSystemHealth, getSystemInterconnections } from '@/lib/depth/systemInterconnections';
+import { getDiscoveryProgress } from '@/lib/depth/discoverySystem';
 
 export default function DailySummaryModal() {
   const { gameState, setGameState } = useGame();
@@ -554,6 +556,114 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: responsiveFontSize.lg,
     fontWeight: '600',
+  },
+  engagementCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: responsiveBorderRadius.md,
+    padding: responsiveSpacing.md,
+  },
+  engagementCardDark: {
+    backgroundColor: '#374151',
+  },
+  engagementText: {
+    fontSize: responsiveFontSize.sm,
+    color: '#374151',
+    marginBottom: responsiveSpacing.sm,
+    fontWeight: '500',
+  },
+  engagementTextDark: {
+    color: '#D1D5DB',
+  },
+  systemsList: {
+    gap: responsiveSpacing.sm,
+  },
+  systemItem: {
+    marginBottom: responsiveSpacing.xs,
+  },
+  systemName: {
+    fontSize: responsiveFontSize.xs,
+    color: '#6B7280',
+    marginBottom: responsiveSpacing.xs / 2,
+  },
+  systemNameDark: {
+    color: '#9CA3AF',
+  },
+  systemHealthBar: {
+    height: scale(6),
+    backgroundColor: '#E5E7EB',
+    borderRadius: responsiveBorderRadius.full,
+    overflow: 'hidden',
+  },
+  systemHealthBarDark: {
+    backgroundColor: '#4B5563',
+  },
+  systemHealthFill: {
+    height: '100%',
+    borderRadius: responsiveBorderRadius.full,
+  },
+  discoveryCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: responsiveBorderRadius.md,
+    padding: responsiveSpacing.md,
+  },
+  discoveryCardDark: {
+    backgroundColor: '#374151',
+  },
+  newSystemsSection: {
+    marginBottom: responsiveSpacing.md,
+  },
+  newSystemsTitle: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: responsiveSpacing.sm,
+  },
+  newSystemsTitleDark: {
+    color: '#D1D5DB',
+  },
+  newSystemItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.xs,
+  },
+  newSystemName: {
+    fontSize: responsiveFontSize.sm,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  newSystemNameDark: {
+    color: '#F9FAFB',
+  },
+  depthScoreSection: {
+    marginTop: responsiveSpacing.sm,
+  },
+  depthScoreHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.xs,
+  },
+  depthScoreLabel: {
+    fontSize: responsiveFontSize.sm,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  depthScoreLabelDark: {
+    color: '#D1D5DB',
+  },
+  depthScoreBar: {
+    height: scale(8),
+    backgroundColor: '#FEF3C7',
+    borderRadius: responsiveBorderRadius.full,
+    overflow: 'hidden',
+  },
+  depthScoreBarDark: {
+    backgroundColor: '#78350F',
+  },
+  depthScoreFill: {
+    height: '100%',
+    borderRadius: responsiveBorderRadius.full,
   },
   debugTest: {
     borderRadius: 8,

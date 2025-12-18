@@ -4,12 +4,13 @@ import { useGame } from '@/contexts/GameContext';
 import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, BarChart3, Bell } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
-import ClickerGame from '@/components/hobbies/ClickerGame';
 import EnhancedDataVisualization from '@/components/EnhancedDataVisualization';
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
+import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
+import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
 
@@ -23,11 +24,12 @@ export default function ProgressionScreen() {
 
 function ProgressionScreenContent() {
   const { gameState, checkAchievements } = useGame();
-  const [activeHobby, setActiveHobby] = useState<string | null>(null);
+  const { settings } = gameState;
   const [showDataVisualization, setShowDataVisualization] = useState(false);
   const [showSmartNotifications, setShowSmartNotifications] = useState(false);
   const [showPrestigeHistory, setShowPrestigeHistory] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
+  const [showCommitments, setShowCommitments] = useState(false);
 
   React.useEffect(() => {
     checkAchievements();
@@ -92,6 +94,14 @@ function ProgressionScreenContent() {
             >
               <Bell size={24} color="#10B981" />
               <Text style={styles.featureButtonText}>Smart Notifications</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => setShowCommitments(true)}
+            >
+              <Target size={24} color="#F59E0B" />
+              <Text style={styles.featureButtonText}>Activity Commitments</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -207,9 +217,9 @@ function ProgressionScreenContent() {
       </ScrollView>
       
       {/* Enhanced Components */}
-        <ClickerGame visible={!!activeHobby} hobbyId={activeHobby ?? ''} onClose={() => setActiveHobby(null)} />
         <EnhancedDataVisualization darkMode={gameState.settings.darkMode} compact={false} />
         <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
+        <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
     </View>
   );
 }

@@ -1,9 +1,12 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, Share, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { RefreshCw, AlertTriangle, Home } from 'lucide-react-native';
+import { RefreshCw, AlertTriangle, Home, Download, MessageCircle, FileText } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { remoteLogger } from '@/services/RemoteLoggingService';
+import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
+import { validateGameState } from '@/utils/saveValidation';
 
 interface Props {
   children: ReactNode;
@@ -366,6 +369,301 @@ class ErrorBoundary extends Component<Props, State> {
     // This will be handled by the parent component
   };
 
+  /**
+   * Export detailed crash log for bug reporting
+   * Focused on essential information for debugging
+   */
+  private handleExportLog = async () => {
+    try {
+      const { error, errorInfo, errorCategory } = this.state;
+      
+      // Get error logs (only errors and warnings, last 20 entries)
+      let errorLogs: any[] = [];
+      try {
+        const allLogs = remoteLogger?.getLogs() || [];
+        // Filter to only errors and warnings, limit to 20 most recent
+        errorLogs = allLogs
+          .filter((log: any) => log.level === 'error' || log.level === 'warn')
+          .slice(-20)
+          .map((log: any) => ({
+            timestamp: log.timestamp,
+            level: log.level,
+            message: log.message,
+            // Only include context if it's relevant (not full state dumps)
+            context: log.context && typeof log.context === 'object' 
+              ? Object.keys(log.context).length <= 5 
+                ? JSON.stringify(log.context).substring(0, 150)
+                : undefined
+              : undefined,
+          }));
+      } catch (logError) {
+        logger.warn('Failed to get logs from remoteLogger:', logError);
+      }
+      
+      // Get essential game state information
+      let gameStateInfo: any = null;
+      let saveValidation: any = null;
+      let entryValidation: any = null;
+      let stateValidation: any = null;
+      
+      try {
+        const lastSlot = await AsyncStorage.getItem('lastSlot');
+        if (lastSlot) {
+          const slotNumber = parseInt(lastSlot, 10);
+          
+          // Validate save slot
+          if (!isNaN(slotNumber) && slotNumber >= 1 && slotNumber <= 3) {
+            saveValidation = await validateSaveSlot(slotNumber);
+          }
+          
+          const savedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+          if (savedData) {
+            try {
+              const parsed = JSON.parse(savedData);
+              
+              // Essential game state info only
+              gameStateInfo = {
+                slot: slotNumber,
+                version: parsed.version,
+                week: parsed.week,
+                weeksLived: parsed.weeksLived,
+                age: parsed.date?.age,
+                scenarioId: parsed.scenarioId,
+                challengeScenarioId: parsed.challengeScenarioId,
+                hasJob: !!parsed.currentJob,
+                prestigeLevel: parsed.prestige?.prestigeLevel || 0,
+                generationNumber: parsed.generationNumber || 1,
+                // Critical state structure checks
+                hasStats: !!parsed.stats,
+                hasDate: !!parsed.date,
+                hasUserProfile: !!parsed.userProfile,
+                hasSettings: !!parsed.settings,
+                // Array existence checks (count only, not contents)
+                arrayCounts: {
+                  careers: parsed.careers?.length || 0,
+                  items: parsed.items?.length || 0,
+                  relationships: parsed.relationships?.length || 0,
+                  achievements: parsed.achievements?.length || 0,
+                  educations: parsed.educations?.length || 0,
+                },
+              };
+              
+              // Validate game entry (critical for debugging entry point issues)
+              entryValidation = validateGameEntry(parsed);
+              
+              // Validate state structure (for debugging state corruption)
+              stateValidation = validateGameState(parsed, false);
+            } catch (parseError: any) {
+              gameStateInfo = {
+                error: 'Failed to parse save data',
+                parseError: parseError?.message || 'Unknown parse error',
+              };
+            }
+          } else {
+            gameStateInfo = {
+              error: 'No save data found',
+              slot: slotNumber,
+            };
+          }
+        }
+      } catch (e: any) {
+        gameStateInfo = {
+          error: 'Failed to read game state',
+          errorMessage: e?.message || 'Unknown error',
+        };
+      }
+
+      // Build focused crash report with only essential information
+      const crashReport = {
+        // Error details (essential)
+        error: {
+          message: error?.message || 'Unknown error',
+          stack: error?.stack?.split('\n').slice(0, 15).join('\n') || 'No stack trace', // Limit stack trace
+          componentStack: errorInfo?.componentStack?.split('\n').slice(0, 10).join('\n') || 'No component stack', // Limit component stack
+          category: errorCategory || 'unknown',
+        },
+        
+        // System information (essential)
+        system: {
+          platform: Platform.OS,
+          platformVersion: Platform.Version,
+          timestamp: new Date().toISOString(),
+          retryCount: this.state.retryCount,
+          gameStateBackedUp: this.state.gameStateBackedUp || false,
+        },
+        
+        // Game state (essential only)
+        gameState: gameStateInfo,
+        
+        // Validation results (NEW - critical for debugging)
+        validation: {
+          saveSlot: saveValidation,
+          gameEntry: entryValidation ? {
+            canEnter: entryValidation.canEnter,
+            versionCompatible: entryValidation.versionCompatible,
+            stateComplete: entryValidation.stateComplete,
+            errorCount: entryValidation.errors.length,
+            warningCount: entryValidation.warnings.length,
+            // Only include first 3 errors (most important)
+            errors: entryValidation.errors.slice(0, 3),
+          } : null,
+          stateStructure: stateValidation ? {
+            valid: stateValidation.valid,
+            errorCount: stateValidation.errors.length,
+            warningCount: stateValidation.warnings.length,
+            // Only include first 3 errors
+            errors: stateValidation.errors.slice(0, 3),
+          } : null,
+        },
+        
+        // Error logs (only errors/warnings, last 20)
+        errorLogs: errorLogs.slice(0, 20),
+      };
+
+      // Format as focused, readable text (essential information only)
+      const reportText = `=== DEEPLIFESIM CRASH REPORT ===
+Generated: ${new Date().toLocaleString()}
+
+--- ERROR DETAILS ---
+Message: ${crashReport.error.message}
+Category: ${crashReport.error.category}
+Retry Count: ${crashReport.system.retryCount}
+Game State Backed Up: ${crashReport.system.gameStateBackedUp ? 'Yes' : 'No'}
+
+--- SYSTEM INFO ---
+Platform: ${crashReport.system.platform} ${crashReport.system.platformVersion}
+Timestamp: ${crashReport.system.timestamp}
+
+--- GAME STATE (Essential) ---
+${gameStateInfo && !gameStateInfo.error ? `Slot: ${gameStateInfo.slot || 'N/A'}
+Version: ${gameStateInfo.version || 'N/A'} ${gameStateInfo.version && gameStateInfo.version < 5 ? '⚠️ OLD VERSION' : ''}
+Week: ${gameStateInfo.week || 'N/A'}
+Age: ${gameStateInfo.age || 'N/A'}
+Scenario: ${gameStateInfo.scenarioId || 'N/A'}
+Has Job: ${gameStateInfo.hasJob ? 'Yes' : 'No'}
+Prestige Level: ${gameStateInfo.prestigeLevel || 0}
+Generation: ${gameStateInfo.generationNumber || 1}
+
+State Structure:
+  - Stats: ${gameStateInfo.hasStats ? '✓' : '✗'}
+  - Date: ${gameStateInfo.hasDate ? '✓' : '✗'}
+  - User Profile: ${gameStateInfo.hasUserProfile ? '✓' : '✗'}
+  - Settings: ${gameStateInfo.hasSettings ? '✓' : '✗'}
+  - Arrays: Careers(${gameStateInfo.arrayCounts?.careers || 0}) Items(${gameStateInfo.arrayCounts?.items || 0}) Relationships(${gameStateInfo.arrayCounts?.relationships || 0})` 
+  : gameStateInfo?.error ? `ERROR: ${gameStateInfo.error}${gameStateInfo.parseError ? `\n  Parse Error: ${gameStateInfo.parseError}` : ''}${gameStateInfo.errorMessage ? `\n  Error: ${gameStateInfo.errorMessage}` : ''}`
+  : 'No game state available'}
+
+--- VALIDATION RESULTS (NEW) ---
+${crashReport.validation.saveSlot ? `Save Slot Validation:
+  Valid: ${crashReport.validation.saveSlot.valid ? '✓' : '✗'}
+  Exists: ${crashReport.validation.saveSlot.exists ? 'Yes' : 'No'}
+  Version: ${crashReport.validation.saveSlot.version || 'N/A'}
+  ${crashReport.validation.saveSlot.errors.length > 0 ? `Errors: ${crashReport.validation.saveSlot.errors.slice(0, 2).join(', ')}` : ''}
+` : 'Save slot validation: Not performed'}
+
+${crashReport.validation.gameEntry ? `Game Entry Validation:
+  Can Enter: ${crashReport.validation.gameEntry.canEnter ? '✓' : '✗'}
+  Version Compatible: ${crashReport.validation.gameEntry.versionCompatible ? '✓' : '✗'}
+  State Complete: ${crashReport.validation.gameEntry.stateComplete ? '✓' : '✗'}
+  Errors: ${crashReport.validation.gameEntry.errorCount}
+  Warnings: ${crashReport.validation.gameEntry.warningCount}
+  ${crashReport.validation.gameEntry.errors.length > 0 ? `Key Errors: ${crashReport.validation.gameEntry.errors.join('; ')}` : ''}
+` : 'Game entry validation: Not performed'}
+
+${crashReport.validation.stateStructure ? `State Structure Validation:
+  Valid: ${crashReport.validation.stateStructure.valid ? '✓' : '✗'}
+  Errors: ${crashReport.validation.stateStructure.errorCount}
+  Warnings: ${crashReport.validation.stateStructure.warningCount}
+  ${crashReport.validation.stateStructure.errors.length > 0 ? `Key Errors: ${crashReport.validation.stateStructure.errors.join('; ')}` : ''}
+` : 'State structure validation: Not performed'}
+
+--- ERROR STACK TRACE (Limited) ---
+${crashReport.error.stack}
+
+--- COMPONENT STACK (Limited) ---
+${crashReport.error.componentStack}
+
+--- ERROR LOGS (Last 20 Errors/Warnings) ---
+${crashReport.errorLogs.length > 0 
+  ? crashReport.errorLogs.map(log => `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.message}${log.context ? `\n  ${log.context}` : ''}`).join('\n\n')
+  : 'No error logs available'}
+
+=== END OF REPORT ===
+
+Please share this report in our Discord server to help us fix this issue!
+Discord: https://discord.gg/JaJhS2RVu9`;
+
+      // Also create JSON version for technical analysis (focused, no verbose logs)
+      const reportJson = JSON.stringify(crashReport, null, 2);
+
+      // Share the report
+      try {
+        const result = await Share.share({
+          message: reportText,
+          title: 'DeepLifeSim Crash Report',
+        });
+
+        if (result.action === Share.sharedAction) {
+          Alert.alert(
+            'Report Exported!',
+            'Thank you for helping us improve the game! Please share this report in our Discord server.\n\nDiscord: https://discord.gg/JaJhS2RVu9',
+            [
+              { text: 'Open Discord', onPress: () => this.handleOpenDiscord() },
+              { text: 'OK', style: 'default' },
+            ]
+          );
+        }
+      } catch (shareError) {
+        // If Share API fails, show the report in an alert (truncated)
+        Alert.alert(
+          'Crash Report',
+          `Error details:\n\n${error?.message || 'Unknown error'}\n\nPlease copy this information and share it in our Discord server.`,
+          [
+            { text: 'Open Discord', onPress: () => this.handleOpenDiscord() },
+            { text: 'OK', style: 'default' },
+          ]
+        );
+        logger.error('Failed to share crash report:', shareError);
+      }
+    } catch (exportError) {
+      logger.error('Failed to export crash log:', exportError);
+      Alert.alert(
+        'Export Failed',
+        'Could not export crash log. Please try again or report the error manually.',
+        [
+          { text: 'Open Discord', onPress: () => this.handleOpenDiscord() },
+          { text: 'OK', style: 'default' },
+        ]
+      );
+    }
+  };
+
+  /**
+   * Open Discord server invite link
+   */
+  private handleOpenDiscord = async () => {
+    const discordUrl = 'https://discord.gg/JaJhS2RVu9';
+    try {
+      const canOpen = await Linking.canOpenURL(discordUrl);
+      if (canOpen) {
+        await Linking.openURL(discordUrl);
+      } else {
+        Alert.alert(
+          'Discord Link',
+          `Could not open Discord. Please visit:\n\n${discordUrl}\n\nin your browser.`,
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      logger.error('Failed to open Discord link:', error);
+      Alert.alert(
+        'Discord Link',
+        `Please visit:\n\n${discordUrl}\n\nin your browser.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    }
+  };
+
   render() {
     if (this.state.hasError) {
       // Custom fallback UI
@@ -399,6 +697,17 @@ class ErrorBoundary extends Component<Props, State> {
                   <Text style={styles.recoveryText}>{this.state.recoverySuggestion}</Text>
                 </View>
               )}
+
+              {/* Bug Report Encouragement */}
+              <View style={styles.bugReportContainer}>
+                <View style={styles.bugReportHeader}>
+                  <FileText size={20} color="#3B82F6" />
+                  <Text style={styles.bugReportTitle}>Help Us Fix This!</Text>
+                </View>
+                <Text style={styles.bugReportText}>
+                  Exporting your crash log helps us identify and fix bugs faster. Your report includes error details, system info, and recent logs (no personal data).
+                </Text>
+              </View>
               
               {__DEV__ && this.state.error && (
                 <View style={styles.errorDetails}>
@@ -414,6 +723,7 @@ class ErrorBoundary extends Component<Props, State> {
                 </View>
               )}
               
+              {/* Primary Action Buttons */}
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
                   style={[styles.button, styles.retryButton]}
@@ -434,6 +744,29 @@ class ErrorBoundary extends Component<Props, State> {
                   <Text style={styles.buttonText}>Go Home</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Bug Report & Discord Buttons */}
+              <View style={styles.bugReportButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.button, styles.exportButton]}
+                  onPress={this.handleExportLog}
+                >
+                  <Download size={20} color="#FFFFFF" />
+                  <Text style={styles.buttonText}>Export Crash Log</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.button, styles.discordButton]}
+                  onPress={this.handleOpenDiscord}
+                >
+                  <MessageCircle size={20} color="#FFFFFF" />
+                  <Text style={styles.buttonText}>Join Discord</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.helpText}>
+                💡 Export your crash log and share it in our Discord server to help us debug this issue!
+              </Text>
               
               <Text style={styles.retryInfo}>
                 Retry attempt: {this.state.retryCount + 1} of {this.maxRetries + 1}
@@ -549,6 +882,53 @@ const styles = StyleSheet.create({
   recoveryText: {
     fontSize: 13,
     color: '#78350F',
+    lineHeight: 18,
+  },
+  bugReportContainer: {
+    backgroundColor: '#EFF6FF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    width: '100%',
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  bugReportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  bugReportTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E40AF',
+  },
+  bugReportText: {
+    fontSize: 13,
+    color: '#1E3A8A',
+    lineHeight: 18,
+  },
+  bugReportButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+    width: '100%',
+  },
+  exportButton: {
+    flex: 1,
+    backgroundColor: '#3B82F6',
+  },
+  discordButton: {
+    flex: 1,
+    backgroundColor: '#5865F2',
+  },
+  helpText: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 20,
     lineHeight: 18,
   },
 });

@@ -145,6 +145,33 @@ function MobileScreenContent() {
       iconGradient: ['#FD79A8', '#FDCB6E'],
       available: true,
     },
+    {
+      id: 'education',
+      name: t('mobile.education') || 'Education',
+      description: t('mobile.learnNewSkills') || 'Learn new skills and advance',
+      icon: GraduationCap,
+      gradient: ['#00B894', '#00CEC9'], // Teal gradient for education
+      iconGradient: ['#00B894', '#00CEC9'],
+      available: true,
+    },
+    {
+      id: 'company',
+      name: t('mobile.company') || 'Company',
+      description: t('mobile.buildBusiness') || 'Build and manage your business',
+      icon: Building,
+      gradient: ['#5F27CD', '#341F97'], // Purple gradient for company
+      iconGradient: ['#5F27CD', '#341F97'],
+      available: true,
+    },
+    {
+      id: 'pet',
+      name: t('mobile.pets') || 'Pets',
+      description: t('mobile.adoptPet') || 'Adopt and care for pets',
+      icon: PawPrint,
+      gradient: ['#D97706', '#CA8A04'], // Orange gradient for pets
+      iconGradient: ['#D97706', '#CA8A04'],
+      available: true,
+    },
   ], [t]);
 
   if (!gameState.items.find(item => item.id === 'smartphone')?.owned) {

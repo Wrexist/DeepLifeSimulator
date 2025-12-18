@@ -32,8 +32,16 @@ const getLifeStage = (age: number): 'child' | 'teen' | 'adult' | 'senior' => {
 };
 
 const addWeekToAge = (age: number): number => {
-  const weeks = Math.round(age * 52);
-  return (weeks + 1) / 52;
+  // CRITICAL FIX: Improve precision by using more precise calculation
+  // Store age as decimal years, but calculate with higher precision
+  if (typeof age !== 'number' || isNaN(age) || age < 0) {
+    return 0; // Return 0 for invalid ages
+  }
+  // Use more precise calculation: age in years * 52 + 1 week, then convert back
+  // This reduces floating-point error accumulation
+  const totalWeeks = Math.round(age * 52) + 1;
+  // Round to 4 decimal places to maintain reasonable precision
+  return Math.round((totalWeeks / 52) * 10000) / 10000;
 };
 
 export function GameDataProvider({ 

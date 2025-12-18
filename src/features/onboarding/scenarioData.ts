@@ -88,4 +88,14 @@ export const scenarios: Scenario[] = [
     start: { age: 20, cash: 1000, items: ['smartphone', 'computer'] },
     icon: require('@/assets/images/Scenarios/Aspiring Streamer.png'),
   },
+  {
+    id: 'single_parent',
+    title: 'Single Parent',
+    difficulty: 'Hard',
+    lifeGoal: 'Family Focused',
+    description: 'You\'re raising a child alone. Balance work, life, and parenting to provide the best future.',
+    bonus: 'Start with no children, a smartphone to manage contacts, and $1,200. You\'ll need to build relationships and support.',
+    start: { age: 28, cash: 1200, items: ['smartphone'], traits: ['resilient'] },
+    icon: require('@/assets/images/Scenarios/Single Parent_final.png'),
+  },
 ];

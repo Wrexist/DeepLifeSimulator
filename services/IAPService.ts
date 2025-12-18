@@ -2,15 +2,31 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IAP_PRODUCTS, getProductConfig, getAllProductIds, isConsumableProduct } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
+import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 
-const log = logger.scope('IAPService');
+// CRITICAL: Do NOT create logger scope here - logger may not be initialized yet
+// This module is imported at app startup before UI renders
 
-// Dynamic import to handle when native module is not available
+// Lazy-load native module - do NOT require at module load time
+// This prevents crashes if the native module fails to initialize
 let InAppPurchases: any = null;
-try {
-  InAppPurchases = require('expo-in-app-purchases');
-} catch (error) {
-  log.warn('expo-in-app-purchases not available - will use simulation mode');
+let inAppPurchasesLoadAttempted = false;
+
+function loadInAppPurchasesModule(): boolean {
+  if (inAppPurchasesLoadAttempted) {
+    return InAppPurchases !== null;
+  }
+  
+  inAppPurchasesLoadAttempted = true;
+  
+  try {
+    InAppPurchases = require('expo-in-app-purchases');
+    return true;
+  } catch (error) {
+    // Module not available - will use simulation mode
+    // Do NOT log here as logger may not be initialized
+    return false;
+  }
 }
 
 export interface IAPState {
@@ -45,6 +61,7 @@ class IAPService {
 
   // Detect if we're in sandbox environment
   private detectSandboxEnvironment(receipt?: string): boolean {
+    const log = logger.scope('IAPService');
     // In development mode, always use sandbox
     if (__DEV__) {
       log.debug('Environment: Development mode detected - using sandbox');
@@ -166,13 +183,29 @@ class IAPService {
 
   // Initialize IAP connection
   async initialize(): Promise<boolean> {
+    // CRITICAL: Lazy-load native module here, not at module load time
+    // This prevents crashes if the module fails to initialize
+    if (!loadInAppPurchasesModule()) {
+      const log = logger.scope('IAPService');
+      log.warn('IAP module not available - running in simulation mode');
+      this.setState({
+        isLoading: false,
+        isConnected: false,
+        error: 'Running in simulation mode (Expo Go)'
+      });
+      this.hasInitialized = true;
+      return false;
+    }
+
     // Prevent duplicate initialization
     if (this.hasInitialized) {
+      const log = logger.scope('IAPService');
       log.debug('✅ IAP already initialized, skipping...');
       return this.state.isConnected;
     }
 
     if (this.isInitializing) {
+      const log = logger.scope('IAPService');
       log.debug('⏳ IAP initialization in progress, waiting...');
       // Wait for existing initialization to complete
       while (this.isInitializing) {
@@ -182,11 +215,12 @@ class IAPService {
     }
 
     this.isInitializing = true;
+    const log = logger.scope('IAPService');
 
     try {
       this.setState({ isLoading: true, error: null });
 
-      // Check if IAP module is available
+      // Check if IAP module is available (should be loaded by now)
       if (!InAppPurchases) {
         log.warn('IAP module not available - running in simulation mode');
         this.setState({
@@ -200,8 +234,14 @@ class IAPService {
 
       log.info('Initializing expo-in-app-purchases...');
 
-      // Connect to the store
-      await InAppPurchases.connectAsync();
+      // CRITICAL FIX: Connect to the store with defensive error handling
+      // Wrap in Promise.resolve to catch any synchronous errors from native module
+      await Promise.resolve().then(async () => {
+        if (typeof InAppPurchases.connectAsync !== 'function') {
+          throw new Error('InAppPurchases.connectAsync is not a function');
+        }
+        await InAppPurchases.connectAsync();
+      });
       log.info('Connected to store successfully');
 
       this.setState({ isConnected: true, isLoading: false });
@@ -232,7 +272,8 @@ class IAPService {
   // Load available products from store
   async loadProducts(): Promise<void> {
     try {
-      if (!InAppPurchases) return;
+      if (!loadInAppPurchasesModule() || !InAppPurchases) return;
+      const log = logger.scope('IAPService');
 
       const productIds = getAllProductIds();
       log.debug('Loading products:', { productIds });
@@ -254,7 +295,8 @@ class IAPService {
   // Load existing purchases
   async loadPurchases(): Promise<void> {
     try {
-      if (!InAppPurchases) return;
+      if (!loadInAppPurchasesModule() || !InAppPurchases) return;
+      const log = logger.scope('IAPService');
 
       const { responseCode, results } = await InAppPurchases.getPurchaseHistoryAsync();
 
@@ -275,11 +317,12 @@ class IAPService {
 
   // Purchase a product
   async purchaseProduct(productId: string): Promise<PurchaseResult> {
+    const log = logger.scope('IAPService');
     try {
       this.setState({ isLoading: true, error: null });
 
       // If IAP module not available, simulate purchase (for Expo Go / development)
-      if (!InAppPurchases || !this.state.isConnected) {
+      if (!loadInAppPurchasesModule() || !InAppPurchases || !this.state.isConnected) {
         log.info('IAP not available - simulating purchase for:', { productId });
         this.setState({ isLoading: false });
 
@@ -333,6 +376,10 @@ class IAPService {
       log.info('Attempting to purchase:', { productId });
 
       // Request purchase with proper error handling
+      // Ensure module is loaded before use
+      if (!loadInAppPurchasesModule() || !InAppPurchases) {
+        throw new Error('IAP module not available');
+      }
       const purchaseResult = await InAppPurchases.purchaseItemAsync(productId);
 
       // Check if purchase result is valid
@@ -492,7 +539,8 @@ class IAPService {
 
   // Set up purchase listener
   private setupPurchaseListener(): void {
-    if (!InAppPurchases) return;
+    if (!loadInAppPurchasesModule() || !InAppPurchases) return;
+    const log = logger.scope('IAPService');
 
     InAppPurchases.setPurchaseListener(({ responseCode, results, errorCode }: any) => {
       if (responseCode === InAppPurchases.IAPResponseCode.OK) {
@@ -519,7 +567,7 @@ class IAPService {
     // Get current game state from storage
     let gameStateJson: string | null = null;
     try {
-      gameStateJson = await AsyncStorage.getItem('gameState');
+      gameStateJson = await safeGetItem('gameState');
     } catch (error) {
       log.error('Failed to get game state from storage:', error);
       return;
@@ -663,11 +711,11 @@ class IAPService {
 
     // Save updated game state
     try {
-      await AsyncStorage.setItem('gameState', JSON.stringify(gameState));
+      await safeSetItem('gameState', JSON.stringify(gameState));
 
       // Trigger a reload in GameContext by setting a timestamp
       // This signals that the game state has been updated externally
-      await AsyncStorage.setItem('iap_trigger_reload', Date.now().toString());
+      await safeSetItem('iap_trigger_reload', Date.now().toString());
 
       log.info('Applied purchase benefits for:', { productId: purchase.productId });
       log.info('✅ Game state updated and sync trigger set');
@@ -687,7 +735,7 @@ class IAPService {
         transactionReceipt: purchase.transactionReceipt,
       }));
 
-      await AsyncStorage.setItem('iap_purchases', JSON.stringify(purchasesData));
+      await safeSetItem('iap_purchases', JSON.stringify(purchasesData));
     } catch (error) {
       log.error('Failed to save purchases to storage:', error);
     }
@@ -696,7 +744,7 @@ class IAPService {
   // Load purchases from AsyncStorage
   async loadPurchasesFromStorage(): Promise<any[]> {
     try {
-      const purchasesJson = await AsyncStorage.getItem('iap_purchases');
+      const purchasesJson = await safeGetItem('iap_purchases');
       if (purchasesJson) {
         return JSON.parse(purchasesJson);
       }
@@ -776,7 +824,7 @@ class IAPService {
       log.info('=== Starting Purchase Restoration ===');
       this.setState({ isLoading: true, error: null });
 
-      if (!InAppPurchases) {
+      if (!loadInAppPurchasesModule() || !InAppPurchases) {
         log.warn('❌ IAP module not available');
         this.setState({ isLoading: false });
         // Don't show alert here - let calling component handle it

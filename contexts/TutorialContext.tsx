@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Dimensions } from 'react-native';
 import InteractiveTutorial, { TutorialStep } from '@/components/InteractiveTutorial';
 import { scale, verticalScale } from '@/utils/scaling';
+import { logger } from '@/utils/logger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -95,9 +96,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         setCompletedTutorials(new Set(completed));
       }
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error loading tutorials:', error);
-      }
+      logger.error('Error loading tutorials:', error);
     }
   };
 
@@ -105,9 +104,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     try {
       await AsyncStorage.setItem(TUTORIAL_STORAGE_KEY, JSON.stringify(Array.from(completed)));
     } catch (error) {
-      if (__DEV__) {
-        console.error('Error saving tutorials:', error);
-      }
+      logger.error('Error saving tutorials:', error);
     }
   };
 

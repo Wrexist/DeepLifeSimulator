@@ -29,10 +29,13 @@ try {
         stack: error?.stack || '',
       };
       
-      // Log to console for debugging
-      console.error('[EARLY ERROR HANDLER] Error caught:', error?.message);
-      console.error('[EARLY ERROR HANDLER] Stack:', error?.stack);
-      console.error('[EARLY ERROR HANDLER] IsFatal:', isFatal);
+      // RC-0 FIX: Use logger instead of console for production safety
+      // Log to console for debugging (only in dev)
+      if (__DEV__) {
+        console.error('[EARLY ERROR HANDLER] Error caught:', error?.message);
+        console.error('[EARLY ERROR HANDLER] Stack:', error?.stack);
+        console.error('[EARLY ERROR HANDLER] IsFatal:', isFatal);
+      }
       
       // CRITICAL FIX: In production, we MUST prevent the native crash
       // by NOT calling the original handler, which would trigger RCTFatal
@@ -43,7 +46,9 @@ try {
           try {
             originalHandler(error, isFatal);
           } catch (handlerError) {
-            console.error('[EARLY ERROR HANDLER] Original handler failed:', handlerError);
+            if (__DEV__) {
+              console.error('[EARLY ERROR HANDLER] Original handler failed:', handlerError);
+            }
           }
         }
       } else {
@@ -76,11 +81,15 @@ try {
     });
     
     errorHandlerSet = true;
-    console.log('[EARLY ERROR HANDLER] Successfully set up global error handler');
+    if (__DEV__) {
+      console.log('[EARLY ERROR HANDLER] Successfully set up global error handler');
+    }
   }
 } catch (e) {
   // Silently ignore if ErrorUtils isn't available yet
-  console.warn('[EARLY ERROR HANDLER] Could not set up:', e);
+  if (__DEV__) {
+    console.warn('[EARLY ERROR HANDLER] Could not set up:', e);
+  }
 }
 
 /**
@@ -107,7 +116,9 @@ try {
         // Override reportException to prevent native crash
         if (originalReportException) {
           NativeModules.ExceptionsManager.reportException = function(data: any) {
-            console.error('[EXCEPTIONS MANAGER INTERCEPT] reportException called:', data);
+            if (__DEV__) {
+              console.error('[EXCEPTIONS MANAGER INTERCEPT] reportException called:', data);
+            }
             // Store the error but don't report to native
             if (data && (data.message || data.originalMessage)) {
               earlyInitError = {
@@ -132,7 +143,9 @@ try {
         // Override reportFatalException to prevent native crash
         if (originalReportFatalException) {
           NativeModules.ExceptionsManager.reportFatalException = function(data: any) {
-            console.error('[EXCEPTIONS MANAGER INTERCEPT] reportFatalException called:', data);
+            if (__DEV__) {
+              console.error('[EXCEPTIONS MANAGER INTERCEPT] reportFatalException called:', data);
+            }
             // Store the error but don't report to native
             if (data && (data.message || data.originalMessage)) {
               earlyInitError = {
@@ -154,21 +167,30 @@ try {
           };
         }
         
-        console.log('[EXCEPTIONS MANAGER INTERCEPT] Successfully intercepted ExceptionsManager');
+        if (__DEV__) {
+          console.log('[EXCEPTIONS MANAGER INTERCEPT] Successfully intercepted ExceptionsManager');
+        }
       } else {
-        console.warn('[EXCEPTIONS MANAGER INTERCEPT] ExceptionsManager not found in NativeModules');
+        if (__DEV__) {
+          console.warn('[EXCEPTIONS MANAGER INTERCEPT] ExceptionsManager not found in NativeModules');
+        }
       }
     } catch (interceptError: any) {
-      console.warn('[EXCEPTIONS MANAGER INTERCEPT] Could not intercept:', interceptError?.message || interceptError);
+      if (__DEV__) {
+        console.warn('[EXCEPTIONS MANAGER INTERCEPT] Could not intercept:', interceptError?.message || interceptError);
+      }
     }
   }, 0); // Run in next tick, after React Native is loaded
 } catch (setupError: any) {
-  console.warn('[EXCEPTIONS MANAGER INTERCEPT] Setup failed:', setupError?.message || setupError);
+  if (__DEV__) {
+    console.warn('[EXCEPTIONS MANAGER INTERCEPT] Setup failed:', setupError?.message || setupError);
+  }
 }
 
 // CRITICAL: Intercept React Native's ExceptionsManager to prevent native crashes
 // This must be done AFTER React Native is loaded but BEFORE it's used
 // We use a setTimeout to ensure React Native modules are fully initialized
+// RC-0 FIX: This is a duplicate block for redundancy - both blocks now guard console statements
 try {
   // Use setTimeout to defer until after React Native is loaded
   // This runs in the next tick, after all imports are processed
@@ -184,7 +206,9 @@ try {
         // Override reportException to prevent native crash
         if (originalReportException) {
           NativeModules.ExceptionsManager.reportException = function(data: any) {
-            console.error('[EXCEPTIONS MANAGER INTERCEPT] reportException called:', data);
+            if (__DEV__) {
+              console.error('[EXCEPTIONS MANAGER INTERCEPT] reportException called:', data);
+            }
             // Store the error but don't report to native
             if (data && (data.message || data.originalMessage)) {
               earlyInitError = {
@@ -209,7 +233,9 @@ try {
         // Override reportFatalException to prevent native crash
         if (originalReportFatalException) {
           NativeModules.ExceptionsManager.reportFatalException = function(data: any) {
-            console.error('[EXCEPTIONS MANAGER INTERCEPT] reportFatalException called:', data);
+            if (__DEV__) {
+              console.error('[EXCEPTIONS MANAGER INTERCEPT] reportFatalException called:', data);
+            }
             // Store the error but don't report to native
             if (data && (data.message || data.originalMessage)) {
               earlyInitError = {
@@ -231,23 +257,59 @@ try {
           };
         }
         
-        console.log('[EXCEPTIONS MANAGER INTERCEPT] Successfully intercepted ExceptionsManager');
+        if (__DEV__) {
+          console.log('[EXCEPTIONS MANAGER INTERCEPT] Successfully intercepted ExceptionsManager');
+        }
       } else {
-        console.warn('[EXCEPTIONS MANAGER INTERCEPT] ExceptionsManager not found in NativeModules');
+        if (__DEV__) {
+          console.warn('[EXCEPTIONS MANAGER INTERCEPT] ExceptionsManager not found in NativeModules');
+        }
       }
     } catch (interceptError: any) {
-      console.warn('[EXCEPTIONS MANAGER INTERCEPT] Could not intercept:', interceptError?.message || interceptError);
+      if (__DEV__) {
+        console.warn('[EXCEPTIONS MANAGER INTERCEPT] Could not intercept:', interceptError?.message || interceptError);
+      }
     }
   }, 0); // Run in next tick, after React Native is loaded
 } catch (setupError: any) {
-  console.warn('[EXCEPTIONS MANAGER INTERCEPT] Setup failed:', setupError?.message || setupError);
+  if (__DEV__) {
+    console.warn('[EXCEPTIONS MANAGER INTERCEPT] Setup failed:', setupError?.message || setupError);
+  }
 }
 
+// #region agent log - Hypothesis C: Track module imports
+fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:280',message:'Starting imports',data:{stage:'before_expo_router'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+// #endregion
+
 import { useSegments, Slot } from 'expo-router';
+
+// #region agent log - Hypothesis C: After expo-router import
+fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:284',message:'After expo-router',data:{stage:'imported_expo_router'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+// #endregion
+
 import { StatusBar } from 'expo-status-bar';
+
+// #region agent log - Hypothesis C: After StatusBar import
+fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:289',message:'After StatusBar',data:{stage:'imported_status_bar'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+// #endregion
+
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// #region agent log - Hypothesis C: After safe-area-context import
+fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:294',message:'After safe-area-context',data:{stage:'imported_safe_area'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+// #endregion
+
 import { View, StyleSheet, Platform, TouchableOpacity, Text, ScrollView, NativeModules } from 'react-native';
+
+// #region agent log - Hypothesis C: After react-native import
+fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:299',message:'After react-native',data:{stage:'imported_react_native'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+// #endregion
+
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+// #region agent log - Hypothesis C: After gesture-handler import
+fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:304',message:'After gesture-handler',data:{stage:'imported_gesture_handler'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+// #endregion
 
 // CRITICAL: Immediately intercept ExceptionsManager after React Native is imported
 // This runs synchronously at module load time, before any components render
@@ -256,11 +318,13 @@ try {
     const originalReportException = NativeModules.ExceptionsManager.reportException;
     const originalReportFatalException = NativeModules.ExceptionsManager.reportFatalException;
     
-    // Override reportException to prevent native crash
-    if (originalReportException) {
-      NativeModules.ExceptionsManager.reportException = function(data: any) {
-        console.error('[EXCEPTIONS MANAGER INTERCEPT SYNC] reportException called:', data);
-        // Store the error but don't report to native
+        // Override reportException to prevent native crash
+        if (originalReportException) {
+          NativeModules.ExceptionsManager.reportException = function(data: any) {
+            if (__DEV__) {
+              console.error('[EXCEPTIONS MANAGER INTERCEPT SYNC] reportException called:', data);
+            }
+            // Store the error but don't report to native
         if (data && (data.message || data.originalMessage)) {
           earlyInitError = {
             message: data.message || data.originalMessage || 'Unknown error',
@@ -281,11 +345,13 @@ try {
       };
     }
     
-    // Override reportFatalException to prevent native crash
-    if (originalReportFatalException) {
-      NativeModules.ExceptionsManager.reportFatalException = function(data: any) {
-        console.error('[EXCEPTIONS MANAGER INTERCEPT SYNC] reportFatalException called:', data);
-        // Store the error but don't report to native
+        // Override reportFatalException to prevent native crash
+        if (originalReportFatalException) {
+          NativeModules.ExceptionsManager.reportFatalException = function(data: any) {
+            if (__DEV__) {
+              console.error('[EXCEPTIONS MANAGER INTERCEPT SYNC] reportFatalException called:', data);
+            }
+            // Store the error but don't report to native
         if (data && (data.message || data.originalMessage)) {
           earlyInitError = {
             message: data.message || data.originalMessage || 'Unknown error',
@@ -306,10 +372,14 @@ try {
       };
     }
     
-    console.log('[EXCEPTIONS MANAGER INTERCEPT SYNC] Successfully intercepted ExceptionsManager synchronously');
+    if (__DEV__) {
+      console.log('[EXCEPTIONS MANAGER INTERCEPT SYNC] Successfully intercepted ExceptionsManager synchronously');
+    }
   }
 } catch (syncInterceptError: any) {
-  console.warn('[EXCEPTIONS MANAGER INTERCEPT SYNC] Could not intercept synchronously:', syncInterceptError?.message || syncInterceptError);
+  if (__DEV__) {
+    console.warn('[EXCEPTIONS MANAGER INTERCEPT SYNC] Could not intercept synchronously:', syncInterceptError?.message || syncInterceptError);
+  }
 }
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { GameProvider, useGameState } from '@/contexts/GameContext';
@@ -518,56 +588,88 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
   // Initialize IAP service, AdMob, and request ATT permission
   // DELAYED: Initialize after app is fully loaded to prevent startup crashes
   useEffect(() => {
-    // Delay initialization to ensure app is fully loaded first
+    // CRITICAL FIX: Increased delay to 5 seconds to ensure native modules are fully initialized
+    // This prevents crashes during app startup (especially on iOS)
+    // The crash report shows AdMob accessing native modules too early
     const initTimeout = setTimeout(() => {
       const initializeServices = async () => {
         try {
+          // CRITICAL: ATT & IAP EMERGENCY DISABLED
+          // One of these native modules is causing TurboModule crashes
+          // Temporarily disable to identify the culprit
+          logger.info('ATT permission request DISABLED - testing TurboModule crash fix');
+          
+          // ORIGINAL CODE - DISABLED FOR TESTING:
+          /*
           // CRITICAL: Request ATT permission FIRST, before any tracking occurs (iOS only)
+          // Wrap in try-catch to prevent crashes if native module fails to initialize
           if (Platform.OS === 'ios') {
-            logger.info('Requesting App Tracking Transparency permission...');
-            const hasPermission = await requestTrackingPermission();
-            
-            if (!hasPermission) {
-              logger.warn('Tracking permission denied - ads will be shown without personalization');
-            } else {
-              logger.info('Tracking permission granted - personalized ads enabled');
-            }
-          }
-
-          // Initialize AdMob service (works on both iOS and Android, not web)
-          // Skip in Expo Go as native modules aren't available
-          if (Platform.OS !== 'web') {
             try {
-            // Check if we're in Expo Go before trying to load AdMob
-            let isExpoGo = false;
-            try {
-              const { default: Constants } = await import('expo-constants');
-              isExpoGo = Constants?.executionEnvironment === 'storeClient';
-            } catch {
-              // Not Expo, continue
-            }
+              logger.info('Requesting App Tracking Transparency permission...');
+              const hasPermission = await requestTrackingPermission();
               
-              if (isExpoGo) {
-                logger.info('AdMob skipped - running in Expo Go (native modules not available)');
+              if (!hasPermission) {
+                logger.warn('Tracking permission denied - ads will be shown without personalization');
               } else {
-                // Dynamic import to avoid bundling on web
-                const { adMobService } = await import('@/services/AdMobService');
-                logger.info('Initializing AdMob service...');
-                await adMobService.initialize();
-                logger.info('AdMob service initialized successfully');
+                logger.info('Tracking permission granted - personalized ads enabled');
               }
-            } catch (adError: any) {
-              // Check if it's a native module error (common in Expo Go)
-              if (adError?.message?.includes('TurboModuleRegistry') || 
-                  adError?.message?.includes('RNGoogleMobileAdsModule') ||
-                  adError?.message?.includes('could not be found')) {
-                logger.info('AdMob native module not available (likely Expo Go) - ads will be disabled');
-              } else {
-                logger.warn('AdMob service initialization failed - ads will be disabled:', adError);
-              }
+            } catch (attError: any) {
+              // Don't let ATT errors crash the app - ads will work without personalization
+              logger.warn('ATT permission request failed - continuing without personalization:', attError?.message || attError);
             }
           }
+          */
 
+        // CRITICAL: AdMob EMERGENCY DISABLED
+        // AdMob is causing native TurboModule crashes during initialization
+        // that cannot be caught by JavaScript error handlers
+        // This is a temporary fix for TestFlight stability
+        // AdMob initialization has been disabled in AdMobService.ts via ADMOB_EMERGENCY_DISABLE flag
+        logger.info('AdMob initialization skipped - emergency disabled for TestFlight stability');
+        
+        // NOTE: To re-enable AdMob, set ADMOB_EMERGENCY_DISABLE = false in services/AdMobService.ts
+        // and uncomment the code below:
+        
+        // Initialize AdMob service (works on both iOS and Android, not web)
+        // Skip in Expo Go as native modules aren't available
+        // if (Platform.OS !== 'web') {
+        //   try {
+        //   // Check if we're in Expo Go before trying to load AdMob
+        //   let isExpoGo = false;
+        //   try {
+        //     const { default: Constants } = await import('expo-constants');
+        //     isExpoGo = Constants?.executionEnvironment === 'storeClient';
+        //   } catch {
+        //     // Not Expo, continue
+        //   }
+        //     
+        //     if (isExpoGo) {
+        //       logger.info('AdMob skipped - running in Expo Go (native modules not available)');
+        //     } else {
+        //       // Dynamic import to avoid bundling on web
+        //       const { adMobService } = await import('@/services/AdMobService');
+        //       logger.info('Initializing AdMob service...');
+        //       await adMobService.initialize();
+        //       logger.info('AdMob service initialized successfully');
+        //     }
+        //   } catch (adError: any) {
+        //     // Check if it's a native module error (common in Expo Go)
+        //     if (adError?.message?.includes('TurboModuleRegistry') || 
+        //         adError?.message?.includes('RNGoogleMobileAdsModule') ||
+        //         adError?.message?.includes('could not be found')) {
+        //       logger.info('AdMob native module not available (likely Expo Go) - ads will be disabled');
+        //     } else {
+        //       logger.warn('AdMob service initialization failed - ads will be disabled:', adError);
+        //     }
+        //   }
+        // }
+
+          // CRITICAL: IAP EMERGENCY DISABLED
+          // IAP service may be causing TurboModule crash - disable for testing
+          logger.info('IAP initialization DISABLED - testing TurboModule crash fix');
+          
+          // ORIGINAL CODE - DISABLED FOR TESTING:
+          /*
           // Initialize IAP service
           logger.info('Initializing IAP service...');
           const success = await iapService.initialize();
@@ -576,13 +678,14 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
           } else {
             logger.warn('IAP service initialization failed - running in simulation mode');
           }
+          */
         } catch (error) {
           logger.error('Service initialization error:', error);
         }
       };
 
       initializeServices();
-    }, 2000); // Delay 2 seconds to ensure app is fully loaded
+    }, 5000); // CRITICAL FIX: Delay maintained to ensure native modules are initialized
 
     return () => {
       clearTimeout(initTimeout);

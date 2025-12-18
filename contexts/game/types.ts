@@ -9,6 +9,8 @@ import { PrestigeData } from '@/lib/prestige/prestigeTypes';
 
 import { SocialState } from '@/lib/social/relations';
 import { WeeklyEvent } from '@/lib/events/engine';
+import { DiscoveredSystem } from '@/lib/depth/discoverySystem';
+import { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
 
 export interface GameStats {
   health: number;
@@ -64,6 +66,14 @@ export interface Pet {
   health: number;
   toys?: string[]; // Array of toy IDs owned by this pet
   ownedToys?: string[];
+  weeksAtZeroHealth?: number; // Track weeks at 0 health for death logic
+  isDead?: boolean; // Flag for pet death
+  vaccinated?: boolean; // Vaccination status
+  isSick?: boolean; // Sickness status
+  sickness?: string; // Current sickness type
+  lastVetVisit?: number; // Timestamp of last vet visit
+  energy?: number; // Pet energy level
+  competitionWins?: number; // Number of competition wins
 }
 
 export type CrimeSkillId = 'stealth' | 'hacking' | 'lockpicking';
@@ -128,6 +138,7 @@ export interface Career {
   progress: number;
   applied: boolean;
   accepted: boolean;
+  applicationAttempts?: number; // Track job application attempts (for pity system - guaranteed acceptance after 3 attempts)
 }
 
 export interface Hobby {
@@ -166,12 +177,16 @@ export interface Song {
   id: string;
   grade: 'Terrible Song' | 'Bad Song' | 'Normal' | 'Good' | 'Great' | 'Incredible';
   weeklyIncome: number;
+  uploadWeek?: number; // Week when song was uploaded (for backward compatibility, deprecated)
+  uploadWeeksLived?: number; // MONEY FLOW FIX: Weeks lived when song was uploaded (for correct decay calculation)
 }
 
 export interface Artwork {
   id: string;
   grade: 'Terrible Art' | 'Bad Art' | 'Normal' | 'Good' | 'Great' | 'Incredible';
   weeklyIncome: number;
+  uploadWeek?: number; // Week when artwork was uploaded (for backward compatibility, deprecated)
+  uploadWeeksLived?: number; // MONEY FLOW FIX: Weeks lived when artwork was uploaded (for correct decay calculation)
 }
 
 export interface Contract {
@@ -297,6 +312,64 @@ export interface Relationship {
   familyHappiness?: number;
   expenses?: number;
   weeksAtZero?: number;
+  weeksAtLowRelationship?: number; // Track weeks at critically low relationship (for automatic breakups/divorces)
+  childAttempts?: number; // Track attempts to have a child (for pity system - guaranteed success after 15 attempts)
+  moneyRequestAttempts?: number; // Track attempts to ask for money (for pity system - guaranteed success after 5 attempts)
+  // NOTE: These counters are optional for backward compatibility with old saves
+  // Default to 0 if undefined (fresh start for old saves is acceptable)
+  // Wedding & Engagement properties
+  datesCount?: number;
+  lastDateWeek?: number;
+  giftsReceived?: number;
+  engagementWeek?: number;
+  engagementRing?: EngagementRing;
+  weddingPlanned?: WeddingPlan;
+  marriageWeek?: number;
+  anniversaryWeek?: number;
+}
+
+// Wedding & Engagement Types
+export interface EngagementRing {
+  id: string;
+  name: string;
+  price: number;
+  qualityTier: 'simple' | 'elegant' | 'luxury' | 'extravagant';
+  acceptanceBonus: number;
+  description: string;
+}
+
+export interface WeddingVenue {
+  id: string;
+  name: string;
+  type: 'courthouse' | 'church' | 'beach' | 'garden' | 'luxury_hotel' | 'destination';
+  baseCost: number;
+  guestCapacity: number;
+  happinessBonus: number;
+  reputationBonus: number;
+  description: string;
+}
+
+export interface WeddingPlan {
+  venueId: string;
+  venueName: string;
+  venueType: 'courthouse' | 'church' | 'beach' | 'garden' | 'luxury_hotel' | 'destination';
+  partnerId: string;
+  guestCount: number;
+  scheduledWeek: number;
+  budget: number;
+  catering: boolean;
+  photography: boolean;
+  music: boolean;
+  decorations: boolean;
+}
+
+export interface LifeMilestone {
+  id: string;
+  type: 'first_date' | 'engagement' | 'wedding' | 'anniversary' | 'child_birth' | 'promotion' | 'retirement';
+  week: number;
+  year: number;
+  partnerId?: string;
+  details?: Record<string, any>;
 }
 
 export interface Education {
@@ -322,6 +395,8 @@ export interface CompanyUpgrade {
 export interface Warehouse {
   level: number;
   miners: Record<string, number>;
+  // BUG FIX: Track miner durability (average durability per miner type, 0-100)
+  minerDurability?: Record<string, number>;
   selectedCrypto?: string;
   autoRepairEnabled?: boolean;
   autoRepairWeeklyCost?: number;
@@ -441,6 +516,7 @@ export interface GameSettings {
   maxStats: boolean;
   weeklySummaryEnabled: boolean;
   showDecimalsInStats: boolean;
+  autoProgression?: boolean; // Auto-progression for progressive disclosure
   premiumCreditCard?: boolean;
   premiumCreditCardExpiry?: string;
   financialPlanning?: boolean;
@@ -777,12 +853,16 @@ export interface GameState {
   criminalXp: number;
   weeklyJailActivities?: Record<string, number>;
   weeklyStreetJobs?: Record<string, number>; // Track how many times each street job was done this week
+  streetJobFailureCount?: Record<string, number>; // Track consecutive failures per job (for pity system - guaranteed success after 5 failures)
+  // NOTE: streetJobFailureCount persists across weeks (unlike weeklyStreetJobs which resets)
+  // This allows pity system to work over multiple weeks
   criminalLevel: number;
   crimeSkills: Record<CrimeSkillId, CrimeSkill>;
   version: number;
   progress: GameProgress;
   journal: JournalEntry[];
   scenarioId?: string;
+  challengeScenarioId?: string; // CRITICAL FIX: Track challenge scenario ID for completion tracking and gem rewards
   bankSavings?: number;
   loans?: Loan[];
   stocksOwned?: { [key: string]: number };
@@ -840,7 +920,13 @@ export interface GameState {
   zeroStatType?: 'happiness' | 'health';
   showDeathPopup: boolean;
   deathReason?: 'happiness' | 'health';
+  debtWeeks?: number; // STABILITY FIX: Track weeks in debt for bankruptcy system
+  bankruptcyTriggered?: boolean; // STABILITY FIX: Track if bankruptcy has been triggered
+  weeksInPoverty?: number; // STABILITY FIX: Track weeks in poverty for scholarship event
   showSicknessModal: boolean;
+  lastEventWeek?: number; // Track last week an event occurred (for pity system) - DEPRECATED, use lastEventWeeksLived
+  lastEventWeeksLived?: number; // TIME PROGRESSION FIX: Track weeksLived for pity system to handle year boundaries correctly
+  lastDiseaseWeek?: number; // Track last week a disease was contracted (for bounds - max 1 per 4 weeks)
   showCureSuccessModal: boolean;
   curedDiseases: string[];
   goals: Goal[];
@@ -900,6 +986,8 @@ export interface GameState {
   };
   _checksum?: string;
   _saveVersion?: number;
+  _appVersion?: string; // TESTFLIGHT FIX: App version when save was created (for compatibility tracking)
+  _buildNumber?: string | number; // TESTFLIGHT FIX: Build number when save was created (for compatibility tracking)
   travel?: TravelState;
   politics?: PoliticsState;
   // Statistics & Analytics
@@ -915,6 +1003,56 @@ export interface GameState {
   // Vehicle system
   vehicles?: Vehicle[];
   activeVehicleId?: string;
+  // Life Skills System
+  unlockedLifeSkills?: string[];
+  // DM System for Social App
+  dmConversations?: DMConversation[];
+  revealedDMClues?: string[];
+  // Life Milestones (wedding, engagement, etc.)
+  lifeMilestones?: LifeMilestone[];
+  // Activity Commitment System - tracks focus areas and provides bonuses/penalties
+  activityCommitments?: {
+    primary?: 'career' | 'hobbies' | 'relationships' | 'health';
+    secondary?: 'career' | 'hobbies' | 'relationships' | 'health';
+    lastChangedWeek?: number;
+    commitmentLevels?: {
+      career: number; // 0-100, increases with work, decays when neglected
+      hobbies: number; // 0-100, increases with hobby activities, decays when neglected
+      relationships: number; // 0-100, increases with social activities, decays when neglected
+      health: number; // 0-100, increases with health activities, decays when neglected
+    };
+  };
+  // Depth Enhancement System - tracks discovered systems and depth metrics
+  discoveredSystems?: DiscoveredSystem[];
+  depthMetrics?: {
+    depthScore: number; // 0-100 score of game depth engagement
+    systemsEngaged: number;
+    lastCalculated: number; // timestamp
+  };
+  progressiveDisclosureLevel?: 'simple' | 'standard' | 'advanced';
+  systemStatistics?: Record<string, SystemStatistics>;
+}
+
+export interface DMConversation {
+  id: string;
+  senderName: string;
+  senderHandle: string;
+  senderAvatar: string;
+  isVerified: boolean;
+  isMysterious: boolean;
+  lastMessage: string;
+  timestamp: number;
+  unreadCount: number;
+  isPinned: boolean;
+  clueType?: 'location' | 'money' | 'career' | 'relationship' | 'item' | 'secret' | 'quest';
+  clueData?: {
+    hint: string;
+    reward?: string;
+    action?: string;
+    destination?: string;
+    requirement?: string;
+    completed?: boolean;
+  };
 }
 
 export interface BusinessOpportunity {

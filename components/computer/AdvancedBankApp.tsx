@@ -42,6 +42,7 @@ import {
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
+import { validateMoney } from '@/utils/validation';
 
 interface AdvancedBankAppProps {
   onBack: () => void;
@@ -66,6 +67,9 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
   const [newLoanType, setNewLoanType] = useState<'personal' | 'business'>('personal');
   const [repayAmount, setRepayAmount] = useState('');
   const [repaySource, setRepaySource] = useState<'cash' | 'savings'>('cash');
+  const [loanAmountError, setLoanAmountError] = useState<string | undefined>();
+  const [repayAmountError, setRepayAmountError] = useState<string | undefined>();
+  const [savingsAmountError, setSavingsAmountError] = useState<string | undefined>();
   
   // Savings state
   const [savingsAmount, setSavingsAmount] = useState('');
@@ -165,7 +169,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     }
   }, [hasFinancialPlanning, handleIAP]);
 
-  const handleBusinessBanking = () => {
+  const handleBusinessBanking = useCallback(() => {
     if (!hasBusinessAccount) {
       handleIAP(IAP_PRODUCTS.BUSINESS_BANKING);
     } else if (!hasCompanies) {
@@ -173,15 +177,15 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     } else {
       setShowBusinessBankingModal(true);
     }
-  };
+  }, [hasBusinessAccount, hasCompanies, handleIAP]);
 
-  const handlePrivateBanking = () => {
+  const handlePrivateBanking = useCallback(() => {
     if (!hasPrivateBanking) {
       handleIAP(IAP_PRODUCTS.PRIVATE_BANKING);
     } else {
       Alert.alert('Private Banking', 'VIP services active! You have access to 3% APR loans up to $200,000.');
     }
-  };
+  }, [hasPrivateBanking, handleIAP]);
 
   const confirmIAP = () => {
     let serviceId = '';
@@ -206,7 +210,7 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     setShowIAPModal(false);
   };
 
-  const handleCompanyLoan = (companyId: string, amount: number) => {
+  const handleCompanyLoan = useCallback((companyId: string, amount: number) => {
     setGameState(prev => ({
       ...prev,
       companies: prev.companies.map(company => 
@@ -217,12 +221,12 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     }));
     setShowBusinessBankingModal(false);
     Alert.alert('Company Loan Approved!', `Your company received ${formatMoney(amount)}`);
-  };
+  }, [setGameState]);
 
-  const handleCompanyUpgrade = (companyId: string, upgradeId: string) => {
+  const handleCompanyUpgrade = useCallback((_companyId: string, _upgradeId: string) => {
     // This would trigger a real IAP in production
     Alert.alert('Company Upgrade', 'This would open the App Store for purchase in the real app.');
-  };
+  }, []);
 
   // Calculate company value including upgrades - memoized
   const calculateCompanyValue = useCallback((company: { weeklyIncome: number; upgrades?: CompanyUpgrade[] }) => {
@@ -285,17 +289,41 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
     const weeklyRate = apr / 52;
     const totalPayments = term;
     
-    const weeklyPayment = amount > 0 ? 
-      (amount * weeklyRate * Math.pow(1 + weeklyRate, totalPayments)) / 
-      (Math.pow(1 + weeklyRate, totalPayments) - 1) : 0;
+    // BUG FIX: Calculate weekly payment using more stable formula for long terms
+    // For very long terms (520 weeks), use alternative formula to avoid precision issues
+    let weeklyPayment = 0;
+    
+    if (amount > 0 && totalPayments > 0) {
+      if (weeklyRate <= 0 || totalPayments > 400) {
+        // For very long terms or zero interest, use simple division
+        // Minimum payment ensures debt is paid down
+        weeklyPayment = Math.max(amount / totalPayments, amount * 0.001); // At least 0.1% of principal per week
+      } else {
+        // Standard amortization formula: A = P * r / (1 - (1 + r)^-n)
+        // This formula is more stable for long terms
+        const r = weeklyRate;
+        const n = totalPayments;
+        const denom = 1 - Math.pow(1 + r, -n);
+        
+        if (denom > 0.0001) { // Avoid division by very small numbers
+          weeklyPayment = (amount * r) / denom;
+        } else {
+          // Fallback for very small denominators (very long terms)
+          weeklyPayment = Math.max(amount / totalPayments, amount * 0.001);
+        }
+        
+        // Ensure minimum payment to prevent zero debt issue
+        weeklyPayment = Math.max(weeklyPayment, amount * 0.001); // At least 0.1% of principal per week
+      }
+    }
     
     const totalCost = weeklyPayment * totalPayments;
     const totalInterest = totalCost - amount;
     
     return {
-      weeklyPayment,
-      totalCost,
-      totalInterest,
+      weeklyPayment: isFinite(weeklyPayment) && weeklyPayment > 0 ? weeklyPayment : Math.max(amount / totalPayments, amount * 0.001),
+      totalCost: isFinite(totalCost) ? totalCost : amount,
+      totalInterest: isFinite(totalInterest) ? totalInterest : 0,
       interestRate: apr * 100,
     };
   }, [calculateMarketAPR]);
@@ -609,13 +637,29 @@ export default function AdvancedBankApp({ onBack }: AdvancedBankAppProps) {
           <View style={styles.loanAmountSection}>
             <Text style={styles.inputLabel}>Loan Amount</Text>
             <TextInput
-              style={styles.loanAmountInput}
+              style={[styles.loanAmountInput, loanAmountError && styles.inputError]}
               value={newLoanAmount}
-              onChangeText={setNewLoanAmount}
+              onChangeText={(text) => {
+                setNewLoanAmount(text);
+                if (text) {
+                  const maxAmount = Math.min(100000, (money + bankSavings) * 2);
+                  const validation = validateMoney(text, 1000, maxAmount);
+                  if (!validation.valid) {
+                    setLoanAmountError(validation.error);
+                  } else {
+                    setLoanAmountError(undefined);
+                  }
+                } else {
+                  setLoanAmountError(undefined);
+                }
+              }}
               placeholder="Enter amount"
               placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#6B7280"}
               keyboardType="numeric"
             />
+            {loanAmountError && (
+              <Text style={styles.errorText}>{loanAmountError}</Text>
+            )}
             <Text style={[styles.loanAmountHint, settings?.darkMode && styles.loanAmountHintDark]}>
               Max: {(() => {
                 const maxAmount = Math.min(100000, (money + bankSavings) * 2);
@@ -2839,5 +2883,15 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: -1, height: 1 },
     textShadowRadius: 2,
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });

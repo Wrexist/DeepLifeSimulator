@@ -3,6 +3,7 @@ import { marketCrash, sideGig, earningsReport } from './economy';
 import { getSeasonalEvents } from './seasonalEvents';
 import { POLICIES } from '@/lib/politics/policies';
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
+import { logger } from '@/utils/logger';
 
 export interface EventChoiceEffects {
   money?: number;
@@ -18,6 +19,7 @@ export interface EventChoice {
   id: string;
   text: string;
   effects: EventChoiceEffects;
+  special?: string; // STABILITY FIX: Special effects (e.g., 'grant_free_education')
 }
 
 export interface WeeklyEvent {
@@ -167,7 +169,8 @@ const weddingEvent: EventTemplate = {
   category: 'relationship',
   weight: 0.2,
   // Only allow wedding consideration after week 36 and if a partner exists
-  condition: state => (state.week ?? state.date?.week ?? 0) >= 36 && state.relationships.some(r => r.type === 'partner'),
+  // TESTFLIGHT FIX: Use weeksLived for deterministic behavior (week 1-4 resets monthly)
+  condition: state => (state.weeksLived || 0) >= 36 && state.relationships.some(r => r.type === 'partner'),
   generate: state => {
     const partner = state.relationships.find(r => r.type === 'partner')!;
     return {
@@ -402,7 +405,8 @@ const electionCampaign: EventTemplate = {
   id: 'election_campaign',
   category: 'economy',
   weight: 0.4,
-  condition: state => Boolean(state.politics && state.politics.careerLevel > 0 && state.politics.nextElectionWeek && state.week >= state.politics.nextElectionWeek - 4),
+  // TESTFLIGHT FIX: Use weeksLived for deterministic behavior (nextElectionWeek is continuous, not 1-4)
+  condition: state => Boolean(state.politics && state.politics.careerLevel > 0 && state.politics.nextElectionWeek && (state.weeksLived || 0) >= state.politics.nextElectionWeek - 4),
   generate: () => ({
     id: 'election_campaign',
     description: 'Election season is approaching! Time to ramp up your campaign efforts.',
@@ -496,7 +500,8 @@ const politicalDebate: EventTemplate = {
   id: 'political_debate',
   category: 'general',
   weight: 0.15,
-  condition: state => Boolean(state.politics && state.politics.careerLevel >= 2 && state.politics.nextElectionWeek && state.week >= state.politics.nextElectionWeek - 2),
+  // TESTFLIGHT FIX: Use weeksLived for deterministic behavior (nextElectionWeek is continuous, not 1-4)
+  condition: state => Boolean(state.politics && state.politics.careerLevel >= 2 && state.politics.nextElectionWeek && (state.weeksLived || 0) >= state.politics.nextElectionWeek - 2),
   generate: () => ({
     id: 'political_debate',
     description: 'A televised political debate is scheduled. Your opponent is well-prepared.',
@@ -782,7 +787,8 @@ const endorsement: EventTemplate = {
   id: 'endorsement',
   category: 'general',
   weight: 0.2,
-  condition: state => Boolean(state.politics && state.politics.careerLevel >= 2 && state.politics.nextElectionWeek && state.week >= state.politics.nextElectionWeek - 8),
+  // TESTFLIGHT FIX: Use weeksLived for deterministic behavior (nextElectionWeek is continuous, not 1-4)
+  condition: state => Boolean(state.politics && state.politics.careerLevel >= 2 && state.politics.nextElectionWeek && (state.weeksLived || 0) >= state.politics.nextElectionWeek - 8),
   generate: () => ({
     id: 'endorsement',
     description: 'A major political figure offers to endorse your campaign.',
@@ -1200,15 +1206,34 @@ const investmentTip: EventTemplate = {
   category: 'economy',
   weight: 0.35,
   condition: state => state.stats.money >= 5000,
-  generate: () => ({
-    id: 'investment_tip',
-    description: 'A successful investor shares a tip about an undervalued stock. It could double or lose 50%.',
-    choices: [
-      { id: 'invest_big', text: 'Invest $5,000', effects: { money: Math.random() > 0.5 ? 5000 : -2500 } },
-      { id: 'invest_small', text: 'Invest $1,000', effects: { money: Math.random() > 0.5 ? 1000 : -500 } },
-      { id: 'pass', text: 'Pass on the opportunity', effects: {} },
-    ],
-  }),
+  generate: (state) => {
+    // ECONOMY FIX: Scale investment amounts with net worth
+    // At low net worth: Use fixed amounts ($1K/$5K)
+    // At high net worth: Scale to 0.1-0.5% of net worth
+    // Cap at $25K/$50K to prevent excessive risk/reward
+    const { netWorth } = require('@/lib/progress/achievements');
+    const currentNetWorth = netWorth(state);
+    
+    // Small investment: 0.1-0.2% of net worth, floor $1K, cap $25K
+    const smallPercentage = 0.001 + (Math.random() * 0.001); // 0.1-0.2%
+    const baseSmall = Math.floor(currentNetWorth * smallPercentage);
+    const smallAmount = Math.max(1000, Math.min(25000, baseSmall));
+    
+    // Big investment: 0.3-0.5% of net worth, floor $5K, cap $50K
+    const bigPercentage = 0.003 + (Math.random() * 0.002); // 0.3-0.5%
+    const baseBig = Math.floor(currentNetWorth * bigPercentage);
+    const bigAmount = Math.max(5000, Math.min(50000, baseBig));
+    
+    return {
+      id: 'investment_tip',
+      description: 'A successful investor shares a tip about an undervalued stock. It could double or lose 50%.',
+      choices: [
+        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, effects: { money: Math.random() > 0.5 ? bigAmount : -Math.floor(bigAmount * 0.5) } },
+        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, effects: { money: Math.random() > 0.5 ? smallAmount : -Math.floor(smallAmount * 0.5) } },
+        { id: 'pass', text: 'Pass on the opportunity', effects: {} },
+      ],
+    };
+  },
 };
 
 const businessPartnership: EventTemplate = {
@@ -1216,23 +1241,47 @@ const businessPartnership: EventTemplate = {
   category: 'economy',
   weight: 0.25,
   condition: state => state.companies && state.companies.length > 0,
-  generate: () => ({
-    id: 'business_partnership',
-    description: 'A successful entrepreneur wants to partner with your business. They offer capital for equity.',
-    choices: [
-      { id: 'accept', text: 'Accept the partnership', effects: { money: 50000, stats: { reputation: 10 } } },
-      { id: 'negotiate', text: 'Negotiate better terms', effects: { money: 75000, stats: { reputation: 5 } } },
-      { id: 'decline', text: 'Keep full ownership', effects: { stats: { reputation: -5 } } },
-    ],
-  }),
+  generate: (state) => {
+    // ECONOMY FIX: Scale partnership offer with net worth to prevent exploit
+    // At low net worth: Floor ensures minimum $10K (same as before)
+    // At high net worth: Cap ensures maximum $100K (prevents excessive rewards)
+    // Scales proportionally: 2-5% of net worth (maintains usefulness at all levels)
+    const { netWorth } = require('@/lib/progress/achievements');
+    const currentNetWorth = netWorth(state);
+    const percentage = 0.02 + (Math.random() * 0.03); // 2-5% of net worth
+    const baseOffer = Math.floor(currentNetWorth * percentage);
+    const scaledOffer = Math.max(10000, Math.min(100000, baseOffer)); // Floor $10K, cap $100K
+    
+    // Negotiate option gives 50% more (same ratio as before)
+    const negotiateOffer = Math.floor(scaledOffer * 1.5);
+    
+    return {
+      id: 'business_partnership',
+      description: `A successful entrepreneur wants to partner with your business. They offer $${scaledOffer.toLocaleString()} capital for equity.`,
+      choices: [
+        { id: 'accept', text: 'Accept the partnership', effects: { money: scaledOffer, stats: { reputation: 10 } } },
+        { id: 'negotiate', text: 'Negotiate better terms', effects: { money: negotiateOffer, stats: { reputation: 5 } } },
+        { id: 'decline', text: 'Keep full ownership', effects: { stats: { reputation: -5 } } },
+      ],
+    };
+  },
 };
 
 const distantRelativeInheritance: EventTemplate = {
   id: 'distant_relative_inheritance',
   category: 'economy',
   weight: 0.15,
-  generate: () => {
-    const inheritance = Math.floor(Math.random() * 10000) + 5000;
+  generate: (state) => {
+    // ECONOMY FIX: Scale inheritance with net worth to prevent exploit
+    // At low net worth: Floor ensures minimum $5K (same as before)
+    // At high net worth: Cap ensures maximum $50K (prevents excessive rewards)
+    // Scales proportionally: 0.1-0.3% of net worth (maintains usefulness at all levels)
+    const { netWorth } = require('@/lib/progress/achievements');
+    const currentNetWorth = netWorth(state);
+    const percentage = 0.001 + (Math.random() * 0.002); // 0.1-0.3% of net worth
+    const baseInheritance = Math.floor(currentNetWorth * percentage);
+    const inheritance = Math.max(5000, Math.min(50000, baseInheritance)); // Floor $5K, cap $50K
+    
     return {
       id: 'distant_relative_inheritance',
       description: `You receive news that a distant relative passed away and left you $${inheritance.toLocaleString()} in their will.`,
@@ -1442,6 +1491,30 @@ const communityService: EventTemplate = {
       { id: 'volunteer', text: 'Volunteer your time', effects: { stats: { happiness: 15, reputation: 10, energy: -15 } } },
       { id: 'donate', text: 'Donate money instead', effects: { money: -200, stats: { reputation: 8 } } },
       { id: 'skip', text: "You're too busy", effects: {} },
+    ],
+  }),
+};
+
+// STABILITY FIX: Scholarship event for poverty recovery path
+// Triggers when player has <$500 for 20+ weeks and no education
+const scholarshipOpportunity: EventTemplate = {
+  id: 'scholarship_opportunity',
+  category: 'economy',
+  weight: 0.15,
+  condition: state => {
+    // Only trigger if player has been in poverty (low money) for extended period
+    // STABILITY FIX: Reduced from 20 weeks to 12 weeks for faster recovery
+    const weeksInPoverty = (state as any).weeksInPoverty || 0; // Type assertion for new field
+    const hasLowMoney = state.stats.money < 500;
+    const hasNoEducation = !state.educations?.some(e => e.completed);
+    return weeksInPoverty >= 12 && hasLowMoney && hasNoEducation; // Reduced from 20 to 12 weeks
+  },
+  generate: () => ({
+    id: 'scholarship_opportunity',
+    description: "A scholarship opportunity has come your way! A local organization noticed your financial struggles and is offering to cover your education costs.",
+    choices: [
+      { id: 'accept', text: 'Accept the scholarship (Free education!)', effects: { stats: { happiness: 20, reputation: 10 } }, special: 'grant_free_education' },
+      { id: 'decline', text: 'Decline (you want to earn it yourself)', effects: { stats: { reputation: 5 } } },
     ],
   }),
 };
@@ -1958,6 +2031,109 @@ const wineSurvey: EventTemplate = {
   }),
 };
 
+// Vehicle Events
+const speedingTicket: EventTemplate = {
+  id: 'speeding_ticket',
+  category: 'economy',
+  weight: 0.15,
+  condition: state => !!(state.vehicles || []).length && !!state.activeVehicleId,
+  generate: state => {
+    const vehicle = (state.vehicles || []).find(v => v.id === state.activeVehicleId);
+    const fine = 150 + Math.floor(Math.random() * 100);
+    return {
+      id: 'speeding_ticket',
+      description: `You got pulled over for speeding in your ${vehicle?.name || 'vehicle'}. The officer issues a ticket.`,
+      choices: [
+        { id: 'pay', text: `Pay the $${fine} fine`, effects: { money: -fine, stats: { reputation: -2 } } },
+        { id: 'contest', text: 'Contest the ticket ($50 court fee)', effects: { money: Math.random() > 0.3 ? -50 : -fine, stats: { reputation: -1 } } },
+      ],
+    };
+  },
+};
+
+const vehicleTheft: EventTemplate = {
+  id: 'vehicle_theft',
+  category: 'economy',
+  weight: 0.05,
+  condition: state => (state.vehicles || []).length > 0,
+  generate: state => {
+    const vehicles = state.vehicles || [];
+    const vehicle = vehicles[Math.floor(Math.random() * vehicles.length)];
+    const hasInsurance = vehicle.insurance?.active;
+    const recoveryChance = Math.random();
+    
+    return {
+      id: 'vehicle_theft',
+      description: `Your ${vehicle.name} was stolen! ${recoveryChance > 0.3 ? 'Police found it, but it needs repairs.' : 'It\'s gone for good.'}`,
+      choices: recoveryChance > 0.3
+        ? [
+            { 
+              id: 'repair', 
+              text: hasInsurance ? 'File insurance claim (covers most costs)' : `Pay $${Math.floor(vehicle.price * 0.3)} for repairs`, 
+              effects: { money: hasInsurance ? -Math.floor(vehicle.price * 0.05) : -Math.floor(vehicle.price * 0.3), stats: { happiness: -10 } } 
+            },
+          ]
+        : [
+            { 
+              id: 'accept', 
+              text: hasInsurance ? 'File insurance claim (get partial reimbursement)' : 'Accept the loss', 
+              effects: { money: hasInsurance ? Math.floor(vehicle.price * 0.5) : 0, stats: { happiness: -20, reputation: -5 } } 
+            },
+          ],
+    };
+  },
+};
+
+const vehicleBreakdown: EventTemplate = {
+  id: 'vehicle_breakdown',
+  category: 'economy',
+  weight: 0.2,
+  condition: state => !!(state.vehicles || []).length && !!state.activeVehicleId,
+  generate: state => {
+    const vehicle = (state.vehicles || []).find(v => v.id === state.activeVehicleId);
+    if (!vehicle) return { id: 'vehicle_breakdown', description: '', choices: [] };
+    
+    const repairCost = vehicle.condition < 30 ? 500 : vehicle.condition < 60 ? 300 : 150;
+    const hasInsurance = vehicle.insurance?.active;
+    const coveredCost = hasInsurance ? Math.floor(repairCost * (1 - (vehicle.insurance?.coveragePercent || 0) / 100)) : repairCost;
+    
+    return {
+      id: 'vehicle_breakdown',
+      description: `Your ${vehicle.name} broke down on the highway! ${vehicle.condition < 30 ? 'The engine needs major repairs.' : 'It needs immediate attention.'}`,
+      choices: [
+        { 
+          id: 'repair', 
+          text: hasInsurance ? `Get it repaired (insurance covers ${vehicle.insurance?.coveragePercent || 0}%, pay $${coveredCost})` : `Pay $${repairCost} for repairs`, 
+          effects: { money: -coveredCost, stats: { happiness: -5 } } 
+        },
+        { 
+          id: 'delay', 
+          text: 'Wait and see (condition will worsen)', 
+          effects: { stats: { happiness: -10, energy: -5 } } 
+        },
+      ],
+    };
+  },
+};
+
+const parkingTicket: EventTemplate = {
+  id: 'parking_ticket',
+  category: 'economy',
+  weight: 0.25,
+  condition: state => !!(state.vehicles || []).length && !!state.activeVehicleId,
+  generate: () => {
+    const fine = 50 + Math.floor(Math.random() * 50);
+    return {
+      id: 'parking_ticket',
+      description: 'You find a parking ticket on your windshield. Expired meter!',
+      choices: [
+        { id: 'pay', text: `Pay the $${fine} fine`, effects: { money: -fine } },
+        { id: 'ignore', text: 'Ignore it (risk higher fine)', effects: { money: Math.random() > 0.5 ? -fine * 2 : -fine, stats: { reputation: -2 } } },
+      ],
+    };
+  },
+};
+
 export const eventTemplates: EventTemplate[] = [
   jobBonus,
   sickDay,
@@ -2049,6 +2225,11 @@ export const eventTemplates: EventTemplate[] = [
   naturalDisaster,
   healthScare,
   carAccident,
+  // Vehicle Events
+  speedingTicket,
+  vehicleTheft,
+  vehicleBreakdown,
+  parkingTicket,
   // NEW Fame Events
   interviewRequest,
   scandalRumor,
@@ -2060,6 +2241,7 @@ export const eventTemplates: EventTemplate[] = [
   communityService,
   onlineCourse,
   neighborConflict,
+  scholarshipOpportunity, // STABILITY FIX: Poverty recovery path
   randomActKindness,
   unexpectedGift,
   bookClubInvite,
@@ -2120,16 +2302,45 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     return events;
   }
   
+  // RANDOMNESS FIX: Pity system for weekly events - guaranteed event after 6 weeks without
+  // MIGRATION NOTE: For old saves without lastEventWeek, default to 0 (treats as "just had event")
+  // This prevents immediate guaranteed event on first load of old saves
+  // PRIORITY 2 FIX: Use constant from randomnessConstants
+  // TIME PROGRESSION FIX: Use weeksLived for pity calculation to handle year boundaries correctly
+  const { PITY_THRESHOLD_WEEKLY_EVENTS } = require('@/lib/randomness/randomnessConstants');
+  const currentWeeksLived = state.weeksLived || 0;
+  const lastEventWeeksLived = state.lastEventWeeksLived !== undefined
+    ? state.lastEventWeeksLived
+    : (state.lastEventWeek !== undefined ? state.lastEventWeek : 0); // Fallback for old saves
+  const weeksSinceLastEvent = currentWeeksLived - lastEventWeeksLived;
+  const pityThreshold = PITY_THRESHOLD_WEEKLY_EVENTS; // Guaranteed event after 6 weeks
+  // Seasonal events count as events, so they reset the pity counter (guaranteedEvent only triggers if NO events)
+  const guaranteedEvent = weeksSinceLastEvent >= pityThreshold && seasonalEvents.length === 0;
+  
+  // TESTFLIGHT FIX: Deterministic random based on week number for consistency on resume
+  // Use a simple seeded random function based on week number
+  // TIME PROGRESSION FIX: Use weeksLived for deterministic seeding to handle year boundaries correctly
+  const seededRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  };
+  const weekSeed = (state.weeksLived || 0) * 1000 + (state.date?.year || 2025) * 100;
+  
   // Base random chance for any event to occur (approximately 1 in 4 weeks)
   // Add some variation: 20-30% chance to make it feel more natural
-  let baseEventChance = 0.2 + (Math.random() * 0.1); // 20-30% chance
+  // TESTFLIGHT FIX: Use deterministic random for consistency
+  let baseEventChance = 0.2 + (seededRandom(weekSeed) * 0.1); // 20-30% chance (deterministic)
   
   // Apply prestige event frequency reduction (QoL bonus)
   const unlockedBonuses = state.prestige?.unlockedBonuses || [];
   const eventFrequencyModifier = getEventFrequencyModifier(unlockedBonuses);
   baseEventChance = baseEventChance * eventFrequencyModifier;
   
-  if (Math.random() > baseEventChance) {
+  // Force event if pity threshold reached
+  // TESTFLIGHT FIX: Use deterministic random for consistency
+  if (guaranteedEvent || seededRandom(weekSeed + 1) < baseEventChance) {
+    // Event will occur - continue to event selection
+  } else {
     return events; // Return seasonal events if any, otherwise empty
   }
 
@@ -2148,13 +2359,47 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     general: 0.3,
   } as const;
 
-  for (const template of eventTemplates) {
-    if (events.length >= MAX_EVENTS_PER_WEEK) break;
-    if (template.condition && !template.condition(state)) continue;
-    const weight = typeof template.weight === 'function' ? template.weight(state) : template.weight;
-    const chance = weight * riskByCategory[template.category] * EVENT_FREQUENCY_MODIFIER;
-    if (Math.random() < chance) {
-      events.push(template.generate(state));
+  // RANDOMNESS FIX: If guaranteed event (pity system), force at least one event
+  // EDGE CASE: If no eligible events (all have unmet conditions), fallback to general event
+  let eventForced = false;
+  if (guaranteedEvent && events.length === 0) {
+    // Force the highest weight event that meets conditions
+    const eligibleEvents = eventTemplates
+      .filter(t => !t.condition || t.condition(state))
+      .sort((a, b) => {
+        const weightA = typeof a.weight === 'function' ? a.weight(state) : a.weight;
+        const weightB = typeof b.weight === 'function' ? b.weight(state) : b.weight;
+        return weightB - weightA;
+      });
+    
+    if (eligibleEvents.length > 0) {
+      events.push(eligibleEvents[0].generate(state));
+      eventForced = true;
+    } else {
+      // Fallback: Force a general event if no eligible events (should never happen, but defensive)
+      const generalEvent = eventTemplates.find(t => t.category === 'general');
+      if (generalEvent) {
+        events.push(generalEvent.generate(state));
+        eventForced = true;
+      } else {
+        // Last resort: Log warning if even general events are unavailable
+        logger.warn('Event pity system: No eligible events found, including general events');
+      }
+    }
+  }
+  
+  // If event was forced, skip random selection
+  if (!eventForced) {
+    for (const template of eventTemplates) {
+      if (events.length >= MAX_EVENTS_PER_WEEK) break;
+      if (template.condition && !template.condition(state)) continue;
+      const weight = typeof template.weight === 'function' ? template.weight(state) : template.weight;
+      const chance = weight * riskByCategory[template.category] * EVENT_FREQUENCY_MODIFIER;
+      // TESTFLIGHT FIX: Use deterministic random based on template index for consistency
+      const templateSeed = weekSeed + 100 + eventTemplates.indexOf(template);
+      if (seededRandom(templateSeed) < chance) {
+        events.push(template.generate(state));
+      }
     }
   }
 

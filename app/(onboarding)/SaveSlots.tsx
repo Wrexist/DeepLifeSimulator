@@ -8,11 +8,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { useGame } from '@/contexts/GameContext';
 import { logger } from '@/utils/logger';
-import { ArrowLeft, Save, Trash2, Play } from 'lucide-react-native';
+import { ArrowLeft, Save, Trash2, Play, Archive } from 'lucide-react-native';
 import { responsiveFontSize, responsivePadding, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import { createBackupBeforeMajorAction } from '@/utils/saveBackup';
+import { createBackupBeforeMajorAction, listBackups, clearProtectedState } from '@/utils/saveBackup';
+import BackupRecoveryModal from '@/components/BackupRecoveryModal';
+import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -25,6 +27,8 @@ export default function SaveSlots() {
   const [slots, setSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  const [showBackupManager, setShowBackupManager] = useState<number | null>(null);
+  const [backupCounts, setBackupCounts] = useState<{ [slot: number]: number }>({});
 
   // Animations
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -152,13 +156,28 @@ export default function SaveSlots() {
     setSlots(slotData);
   }, [log]);
 
+  const loadBackupCounts = useCallback(async () => {
+    try {
+      const counts: { [slot: number]: number } = {};
+      for (let i = 1; i <= 3; i++) {
+        const backups = await listBackups(i);
+        counts[i] = backups.length;
+      }
+      setBackupCounts(counts);
+    } catch (error) {
+      log.error('Failed to load backup counts', error);
+    }
+  }, [log]);
+
   useEffect(() => {
     loadSlots();
-  }, [loadSlots]);
+    loadBackupCounts();
+  }, [loadSlots, loadBackupCounts]);
 
   useFocusEffect(
     useCallback(() => {
       loadSlots();
+      loadBackupCounts();
     }, [loadSlots])
   );
 
@@ -218,9 +237,168 @@ export default function SaveSlots() {
       // Navigate to Scenarios for new game
       router.push('/(onboarding)/Scenarios');
     } else {
-      // Load the existing save and navigate to game
+      // CRITICAL: Validate save slot before loading
+      const slotValidation = await validateSaveSlot(slotId);
+      
+      if (!slotValidation.valid) {
+        log.error('Save slot validation failed', {
+          slot: slotId,
+          errors: slotValidation.errors,
+          version: slotValidation.version,
+        });
+
+        // TESTFLIGHT FIX: Offer backup restoration for incompatible/corrupted saves
+        const errorMessage = slotValidation.errors.find(e => e.includes('version')) || 
+          slotValidation.errors.find(e => e.includes('corrupted')) ||
+          slotValidation.errors[0] ||
+          'This save file cannot be loaded.';
+        
+        if (slotValidation.errors.some(e => e.includes('version'))) {
+          Alert.alert(
+            'Version Incompatible',
+            `${errorMessage}\n\nWould you like to try restoring from a backup?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'View Backups', 
+                onPress: () => {
+                  // Import and show backup recovery modal
+                  import('@/components/BackupRecoveryModal').then(({ default: BackupRecoveryModal }) => {
+                    // We'll need to add state for this modal - for now, show alert with instructions
+                    Alert.alert(
+                      'Backup Recovery',
+                      'To restore from a backup, go to Settings > Backup & Recovery and select this save slot.',
+                      [{ text: 'OK' }]
+                    );
+                  });
+                }
+              }
+            ]
+          );
+        } else if (slotValidation.errors.some(e => e.includes('corrupted'))) {
+          Alert.alert(
+            'Corrupted Save',
+            `${errorMessage}\n\nWould you like to try restoring from a backup?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'View Backups', 
+                onPress: () => {
+                  Alert.alert(
+                    'Backup Recovery',
+                    'To restore from a backup, go to Settings > Backup & Recovery and select this save slot.',
+                    [{ text: 'OK' }]
+                  );
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Invalid Save',
+            `${errorMessage}\n\nWould you like to try restoring from a backup?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'View Backups', 
+                onPress: () => {
+                  Alert.alert(
+                    'Backup Recovery',
+                    'To restore from a backup, go to Settings > Backup & Recovery and select this save slot.',
+                    [{ text: 'OK' }]
+                  );
+                }
+              }
+            ]
+          );
+        }
+        return;
+      }
+
+      // Load the existing save
       await loadGame(slotId);
-      router.push('/(tabs)');
+      
+      // CRITICAL: Validate loaded state before navigation
+      setTimeout(async () => {
+        try {
+          const loadedData = await AsyncStorage.getItem(`save_slot_${slotId}`);
+          if (!loadedData) {
+            log.error('Failed to load game state after loadGame call');
+            Alert.alert(
+              'Load Failed',
+              'Failed to load your game. The save file may be corrupted or missing.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+
+          let loadedState;
+          try {
+            loadedState = JSON.parse(loadedData);
+          } catch (parseError) {
+            log.error('Failed to parse loaded game state:', parseError);
+            Alert.alert(
+              'Corrupted Save',
+              'Your save file is corrupted and cannot be loaded. Please try loading from a backup or start a new game.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+
+          // CRITICAL: Validate state before entering gameplay
+          const validation = validateGameEntry(loadedState);
+          
+          if (!validation.canEnter) {
+            log.error('Game entry validation failed', {
+              reason: validation.reason,
+              errors: validation.errors,
+              warnings: validation.warnings,
+              versionCompatible: validation.versionCompatible,
+              stateComplete: validation.stateComplete,
+            });
+
+            // Show appropriate error message
+            if (!validation.versionCompatible) {
+              Alert.alert(
+                'Version Incompatible',
+                validation.errors.find(e => e.includes('version')) || 
+                'This save is from an incompatible game version and cannot be loaded.',
+                [{ text: 'OK' }]
+              );
+            } else if (!validation.stateComplete) {
+              Alert.alert(
+                'Incomplete Save',
+                validation.errors[0] || 
+                'Your save file is incomplete and cannot be loaded. Please try loading from a backup.',
+                [{ text: 'OK' }]
+              );
+            } else {
+              Alert.alert(
+                'Invalid Save',
+                validation.errors[0] || 
+                'Your save file is invalid and cannot be loaded.',
+                [{ text: 'OK' }]
+              );
+            }
+            return;
+          }
+
+          if (validation.warnings.length > 0) {
+            log.warn('Game entry validation warnings', validation.warnings);
+          }
+
+          // CRITICAL: Only navigate if validation passed
+          log.info('Game entry validation passed, navigating to gameplay');
+          router.push('/(tabs)');
+        } catch (validationError) {
+          log.error('Error during game entry validation:', validationError);
+          Alert.alert(
+            'Validation Error',
+            'An error occurred while validating your save. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
+      }, 500); // Small delay to allow loadGame to complete
     }
   };
 
@@ -239,6 +417,9 @@ export default function SaveSlots() {
       }
       
       await AsyncStorage.removeItem(`save_slot_${slotId}`);
+      
+      // Clear protected state so new games start fresh
+      await clearProtectedState(slotId);
       await loadSlots();
       if (selectedSlot === slotId) {
         setSelectedSlot(null);
@@ -250,9 +431,87 @@ export default function SaveSlots() {
     }
   };
 
-  const continueToGame = () => {
-    if (selectedSlot) {
+  const continueToGame = async () => {
+    if (!selectedSlot) {
+      return;
+    }
+
+    // CRITICAL: Validate before entering gameplay
+    try {
+      const loadedData = await AsyncStorage.getItem(`save_slot_${selectedSlot}`);
+      if (!loadedData) {
+        log.error('No save data found for selected slot:', selectedSlot);
+        Alert.alert(
+          'No Save Found',
+          'No save data found for this slot. Please select a different slot or start a new game.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      let loadedState;
+      try {
+        loadedState = JSON.parse(loadedData);
+      } catch (parseError) {
+        log.error('Failed to parse save data:', parseError);
+        Alert.alert(
+          'Corrupted Save',
+          'Your save file is corrupted and cannot be loaded. Please try loading from a backup.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // CRITICAL: Validate state before entering gameplay
+      const validation = validateGameEntry(loadedState);
+      
+      if (!validation.canEnter) {
+        log.error('Game entry validation failed', {
+          reason: validation.reason,
+          errors: validation.errors,
+          warnings: validation.warnings,
+        });
+
+        // Show appropriate error message
+        if (!validation.versionCompatible) {
+          Alert.alert(
+            'Version Incompatible',
+            validation.errors.find(e => e.includes('version')) || 
+            'This save is from an incompatible game version and cannot be loaded.',
+            [{ text: 'OK' }]
+          );
+        } else if (!validation.stateComplete) {
+          Alert.alert(
+            'Incomplete Save',
+            validation.errors[0] || 
+            'Your save file is incomplete and cannot be loaded.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Invalid Save',
+            validation.errors[0] || 
+            'Your save file is invalid and cannot be loaded.',
+            [{ text: 'OK' }]
+          );
+        }
+        return;
+      }
+
+      if (validation.warnings.length > 0) {
+        log.warn('Game entry validation warnings', validation.warnings);
+      }
+
+      // CRITICAL: Only navigate if validation passed
+      log.info('Game entry validation passed, navigating to gameplay');
       router.push('/(tabs)');
+    } catch (error) {
+      log.error('Error validating game entry:', error);
+      Alert.alert(
+        'Validation Error',
+        'An error occurred while validating your save. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -393,16 +652,36 @@ export default function SaveSlots() {
 
                         <View style={styles.slotActions}>
                           {isOccupied && (
-                            <TouchableOpacity
-                              style={styles.glassDeleteButton}
-                              onPress={() => setShowDeleteConfirm(slot.id)}
-                              accessibilityLabel="Delete save slot"
-                              accessibilityRole="button"
-                            >
-                              <View style={styles.glassOverlay} />
-                              <Trash2 size={16} color="#EF4444" />
-                              <Text style={styles.deleteButtonText}>Delete</Text>
-                            </TouchableOpacity>
+                            <>
+                              {/* Backups Button - Opens full backup manager */}
+                              <TouchableOpacity
+                                style={styles.glassBackupButton}
+                                onPress={() => setShowBackupManager(slot.id)}
+                                accessibilityLabel="Manage backups"
+                                accessibilityRole="button"
+                              >
+                                <View style={styles.glassOverlay} />
+                                <Archive size={16} color="#3B82F6" />
+                                <Text style={styles.backupButtonText}>Backups</Text>
+                                {backupCounts[slot.id] > 0 && (
+                                  <View style={styles.backupCountBadge}>
+                                    <Text style={styles.backupCountText}>{backupCounts[slot.id]}</Text>
+                                  </View>
+                                )}
+                              </TouchableOpacity>
+
+                              {/* Delete Button */}
+                              <TouchableOpacity
+                                style={styles.glassDeleteButton}
+                                onPress={() => setShowDeleteConfirm(slot.id)}
+                                accessibilityLabel="Delete save slot"
+                                accessibilityRole="button"
+                              >
+                                <View style={styles.glassOverlay} />
+                                <Trash2 size={16} color="#EF4444" />
+                                <Text style={styles.deleteButtonText}>Delete</Text>
+                              </TouchableOpacity>
+                            </>
                           )}
                         </View>
                     </View>
@@ -481,6 +760,7 @@ export default function SaveSlots() {
       </Animated.View>
 
       {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         visible={showDeleteConfirm !== null}
         title="Delete Save?"
@@ -495,6 +775,22 @@ export default function SaveSlots() {
         onCancel={() => setShowDeleteConfirm(null)}
         type="error"
       />
+
+      {/* Backup Manager Modal */}
+      {showBackupManager !== null && (
+        <BackupRecoveryModal
+          visible={true}
+          slot={showBackupManager}
+          onClose={() => {
+            setShowBackupManager(null);
+            loadBackupCounts();
+          }}
+          onRestoreComplete={() => {
+            loadSlots();
+            loadBackupCounts();
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -756,7 +1052,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   slotActions: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  glassBackupButton: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    position: 'relative',
+    overflow: 'hidden',
+    gap: 4,
+  },
+  backupButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+  },
+  backupCountBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    marginLeft: 2,
+  },
+  backupCountText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   glassDeleteButton: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
@@ -769,6 +1104,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     position: 'relative',
     overflow: 'hidden',
+    gap: 4,
   },
   deleteButtonText: {
     fontSize: 12,

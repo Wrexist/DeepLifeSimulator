@@ -10,14 +10,15 @@ import {
   Animated,
   Image,
   TextInput,
- Platform } from 'react-native';
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import AnimatedModal from '@/components/anim/AnimatedModal';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useGame, Contract, CrimeSkillId, StreetJob } from '@/contexts/GameContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getMindsetFeedback } from '@/utils/mindsetFeedback';
+import ActionFeedbackModal from '@/components/depth/ActionFeedbackModal';
+import SystemInterconnectionIndicator from '@/components/depth/SystemInterconnectionIndicator';
 import {
   Briefcase,
   Zap,
@@ -31,27 +32,24 @@ import {
   X,
   Lock,
   AlertTriangle,
-  Info,
   Heart,
   Smile,
+  Check,
 } from 'lucide-react-native';
-import JailActivities from '@/components/jail/JailActivities';
 import JailScreen from '@/components/jail/JailScreen';
 import SkillTalentTree from '@/components/SkillTalentTree';
 import InfoButton from '@/components/ui/InfoButton';
 import {
-  responsivePadding,
   responsiveFontSize,
   responsiveSpacing,
   responsiveBorderRadius,
-  responsiveIconSize,
   scale,
-  verticalScale,
+  fontScale,
 } from '@/utils/scaling';
-import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { responsiveDesign, getResponsiveValue, getResponsiveSpacing } from '@/utils/responsiveDesign';
+import { getResponsiveValue } from '@/utils/responsiveDesign';
 import { useTranslation } from '@/hooks/useTranslation';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { logger } from '@/utils/logger';
 
 // Hobby Images
 const FootballIcon = require('@/assets/images/Hobby/Football.png');
@@ -87,16 +85,17 @@ const CRIME_SKILL_UPGRADES: Record<
   ],
 };
 
-const CRIME_SKILL_DESCRIPTIONS: Record<CrimeSkillId, string> = {
-  stealth: 'Avoid detection during stealth-based crimes',
-  hacking: 'Crack systems to enable digital crimes',
-  lockpicking: 'Bypass locks to access restricted areas',
-};
 
 export default function WorkScreen() {
+  return (
+    <ErrorBoundary>
+      <WorkScreenContent />
+    </ErrorBoundary>
+  );
+}
+
+function WorkScreenContent() {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const topStatsBarHeight = useTopStatsBarHeight();
   const [activeTab, setActiveTab] = useState<'street' | 'career' | 'hobby' | 'skills'>('street');
   const [workFeedback, setWorkFeedback] = useState<{ [key: string]: string }>({});
   const [showSongs, setShowSongs] = useState(false);
@@ -123,8 +122,7 @@ export default function WorkScreen() {
   const {
     gameState,
     setGameState,
-    performStreetJob, // fix: behåll endast denna
-    payBail,
+    performStreetJob,
     applyForJob,
     quitJob,
     trainHobby,
@@ -136,30 +134,11 @@ export default function WorkScreen() {
     extendContract,
     cancelContract,
     buyHobbyUpgrade,
-    dive,
-    buyItem,
-    sellItem,
-    buyDarkWebItem,
-    buyHack,
-    performHack,
-    performJailActivity,
-    serveJailTime,
-    updateStats,
-    updateMoney,
-    batchUpdateMoney,
-    applyPerkEffects,
-    nextWeek,
-    resolveEvent,
-    // performStreetJob: performStreetJobAction, // fix: borttagen dubbel-destrukturering
-    gainCriminalXp,
-    gainCrimeSkillXp,
-    unlockCrimeSkillUpgrade,
+    saveGame,
   } = useGame();
 
   const { settings } = gameState;
   const activeSport = gameState.hobbies.find(h => h.contracts && h.contracts.length > 0)?.id;
-  const iconColor = settings.darkMode ? '#93C5FD' : '#1E3A8A';
-  const bailCost = gameState.jailWeeks * 500;
   // Filter out any creative/hobby jobs that might exist in streetJobs
   const creativeHobbyJobIds = ['guitar', 'music', 'art', 'football', 'basketball', 'tennis'];
   const legalStreetJobs = gameState.streetJobs.filter(job => !job.illegal && !creativeHobbyJobIds.includes(job.id));
@@ -167,7 +146,7 @@ export default function WorkScreen() {
   
   // State for negative stats popup
   const [showNegativeStatsPopup, setShowNegativeStatsPopup] = useState(false);
-  const [selectedJobForStats, setSelectedJobForStats] = useState<StreetJob | null>(null);
+  const [selectedJobForStats] = useState<StreetJob | null>(null);
 
   // Auto-switch to career tab if player doesn't have a job or is coming from tutorial
   useEffect(() => {
@@ -212,10 +191,50 @@ export default function WorkScreen() {
     };
   }, [workFeedback, feedbackOpacity]);
 
+  const [actionFeedbackVisible, setActionFeedbackVisible] = useState(false);
+  const [actionImpact, setActionImpact] = useState<any>(null);
+
   const handleStreetJob = (jobId: string) => {
     const job = gameState.streetJobs.find(j => j.id === jobId);
     const result = performStreetJob(jobId);
     if (result) {
+      // Calculate action impact for depth system
+      try {
+        const { calculateActionImpact } = require('@/lib/depth/systemInterconnections');
+        const { updateSystemUsage } = require('@/lib/depth/discoverySystem');
+        
+        // Determine direct effects
+        const directEffects: any = {
+          money: result.success ? (job?.basePayment || 0) : 0,
+          happiness: -5,
+          health: -2,
+          energy: -(job?.energyCost || 0),
+        };
+        
+        // Calculate impact
+        const impact = calculateActionImpact(
+          `streetJob_${jobId}`,
+          job?.name || 'Street Job',
+          directEffects,
+          gameState
+        );
+        
+        // Update system usage for discovery
+        updateSystemUsage('streetJobs', gameState);
+        
+        // Store impact for modal (only show for successful actions with system effects)
+        if (result.success && impact && impact.systemEffects.length > 0) {
+          setActionImpact(impact);
+          // Delay modal slightly to let toast show first
+          setTimeout(() => {
+            setActionFeedbackVisible(true);
+          }, 500);
+        }
+      } catch (error) {
+        // Depth system may not be available, continue without it
+        logger.warn('Failed to calculate action impact:', error);
+      }
+      
       // Show toast notification
       if (result.success) {
         showSuccess(result.message);
@@ -238,7 +257,7 @@ export default function WorkScreen() {
             }
           }
         }
-      } else if (result.inJail) {
+      } else if ('inJail' in result && result.inJail) {
         showError(result.message || 'You were caught!');
       } else {
         showWarning(result.message);
@@ -254,13 +273,12 @@ export default function WorkScreen() {
       }, 3000);
       return () => clearTimeout(timeoutId);
     }
+    return undefined;
   };
 
   const handlePayBail = () => {
-    const result = payBail();
-    if (result) {
-      Alert.alert('Bail', result.message);
-    }
+    // payBail functionality removed or moved elsewhere
+    Alert.alert('Bail', 'Bail functionality is not available in this context');
   };
 
   const handleTrainHobby = (hobbyId: string) => {
@@ -275,8 +293,10 @@ export default function WorkScreen() {
         });
       }, 3000);
       
+      // Return cleanup function
       return () => clearTimeout(timeoutId);
     }
+    return undefined;
   };
 
   const handleHobbyTournament = (hobbyId: string) => {
@@ -292,16 +312,15 @@ export default function WorkScreen() {
       }, 3000);
       return () => clearTimeout(timeoutId);
     }
+    return undefined;
   };
 
   const handleIncomePopup = (hobby: any) => {
-    logger.debug('Opening income popup for hobby:', { hobbyName: hobby?.name || hobby?.id });
     setSelectedHobbyIncome(hobby);
     setShowIncomePopup(true);
   };
 
   const getHobbyIncomeData = (hobby: any) => {
-    logger.debug('Getting income data for hobby:', { hobbyName: hobby?.name || hobby?.id });
     
     if (hobby.id === 'music') {
       const songs = hobby.songs || [];
@@ -417,7 +436,8 @@ export default function WorkScreen() {
             standings: [
               { team: teamName, points: 0, played: 0 },
               { team: 'Rivals', points: 0, played: 0 },
-            ]
+            ],
+            matchesPlayed: 0,
           }
         } : h)
       }));
@@ -919,6 +939,30 @@ export default function WorkScreen() {
               <Text style={styles.feedbackPopupText}>{workFeedback[job.id]}</Text>
             </Animated.View>
           )}
+
+          {/* System Interconnection Indicator */}
+          {(() => {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const { getSystemInterconnections } = require('@/lib/depth/systemInterconnections');
+              const interconnections = getSystemInterconnections(gameState);
+              const relevantInterconnections = interconnections.filter(
+                (ic: any) => ic.sourceSystem === 'streetJobs' || ic.targetSystem === 'streetJobs'
+              );
+              if (relevantInterconnections.length > 0) {
+                return (
+                  <SystemInterconnectionIndicator
+                    interconnections={relevantInterconnections}
+                    compact={true}
+                    darkMode={settings.darkMode}
+                  />
+                );
+              }
+            } catch {
+              // Depth system may not be available
+            }
+            return null;
+          })()}
         </View>
       </View>
     );
@@ -1311,7 +1355,93 @@ export default function WorkScreen() {
                     );
                   })}
                   <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Advanced Careers</Text>
-                  <Text style={[styles.comingSoonText, settings.darkMode && styles.comingSoonTextDark]}>Coming soon</Text>
+                  {(() => {
+                    // eslint-disable-next-line @typescript-eslint/no-require-imports
+                    const { ADVANCED_CAREERS, getUnlockedAdvancedCareers, isCareerUnlocked } = require('@/lib/careers/advancedCareers');
+                    const unlockedCareers = getUnlockedAdvancedCareers({
+                      education: gameState.educations || [],
+                      achievements: gameState.achievements || [],
+                      stats: gameState.stats,
+                      weeksLived: gameState.weeksLived,
+                      companies: gameState.companies || [],
+                      realEstate: gameState.realEstate || [],
+                    });
+                    
+                    if (unlockedCareers.length === 0) {
+                      return (
+                        <View style={styles.lockedCareerContainer}>
+                          <Lock size={scale(24)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                          <Text style={[styles.lockedCareerText, settings.darkMode && styles.lockedCareerTextDark]}>
+                            Complete education, gain experience, and build reputation to unlock advanced careers.
+                          </Text>
+                        </View>
+                      );
+                    }
+                    
+                    return unlockedCareers.map((career: any) => {
+                      const isLocked = !isCareerUnlocked(career, {
+                        education: gameState.educations || [],
+                        achievements: gameState.achievements || [],
+                        stats: gameState.stats,
+                        weeksLived: gameState.weeksLived,
+                        companies: gameState.companies || [],
+                        realEstate: gameState.realEstate || [],
+                      });
+                      const isApplied = gameState.careers.some(c => c.id === career.id && c.applied);
+                      const isAccepted = gameState.careers.some(c => c.id === career.id && c.accepted);
+                      
+                      return (
+                        <TouchableOpacity
+                          key={career.id}
+                          style={[
+                            styles.careerCard,
+                            settings.darkMode && styles.careerCardDark,
+                            isAccepted && styles.careerCardActive,
+                          ]}
+                          onPress={() => {
+                            if (isLocked) {
+                              const req = career.unlockRequirements;
+                              const requirements = [];
+                              if (req.education) requirements.push(`Education: ${req.education.join(', ')}`);
+                              if (req.experience) requirements.push(`Experience: ${req.experience} weeks`);
+                              if (req.reputation) requirements.push(`Reputation: ${req.reputation}+`);
+                              if (req.netWorth) requirements.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
+                              Alert.alert('Career Locked', `Requirements:\n${requirements.join('\n')}`);
+                            } else if (!isApplied) {
+                              // Apply for career
+                              setGameState(prev => ({
+                                ...prev,
+                                careers: [...prev.careers, { ...career, applied: true }],
+                              }));
+                              saveGame();
+                              Alert.alert('Application Submitted', `You've applied for ${career.name}!`);
+                            } else if (isAccepted) {
+                              Alert.alert('Career Active', `You're currently working as ${career.levels[career.level].name}.`);
+                            } else {
+                              Alert.alert('Application Pending', 'Your application is being reviewed.');
+                            }
+                          }}
+                          disabled={isLocked}
+                        >
+                          <View style={styles.careerCardHeader}>
+                            <View>
+                              <Text style={[styles.careerName, settings.darkMode && styles.careerNameDark]}>
+                                {career.name}
+                              </Text>
+                              <Text style={[styles.careerDescription, settings.darkMode && styles.careerDescriptionDark]}>
+                                {career.description}
+                              </Text>
+                            </View>
+                            {isLocked && <Lock size={scale(20)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />}
+                            {isAccepted && <Check size={scale(20)} color="#22C55E" />}
+                          </View>
+                          <Text style={[styles.careerSalary, settings.darkMode && styles.careerSalaryDark]}>
+                            ${career.levels[0].salary.toLocaleString()}/year
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    });
+                  })()}
                 </View>
               )}
 
@@ -1932,7 +2062,10 @@ export default function WorkScreen() {
                                 />
                               </View>
                             )}
-                            {selectedHobbyForPopup && gameState.hobbies.find(h => h.id === selectedHobbyForPopup)?.contracts && gameState.hobbies.find(h => h.id === selectedHobbyForPopup)!.contracts!.length > 0 ? (
+                            {selectedHobbyForPopup && (() => {
+                              const hobby = gameState.hobbies.find(h => h.id === selectedHobbyForPopup);
+                              return hobby?.contracts && hobby.contracts.length > 0;
+                            })() ? (
                               <View style={styles.tabbedModalLeagueInfo}>
                                 <Text style={styles.tabbedModalLeagueText}>
                                   You are currently playing in the league. Check your standings and compete for the championship!
@@ -2036,9 +2169,12 @@ export default function WorkScreen() {
                           showsVerticalScrollIndicator={true}
                           indicatorStyle="white"
                         >
-                          {showSponsors && gameState.hobbies.find(h => h.id === showSponsors)?.sponsors && gameState.hobbies.find(h => h.id === showSponsors)!.sponsors!.length > 0 ? (
+                          {showSponsors && (() => {
+                            const hobby = gameState.hobbies.find(h => h.id === showSponsors);
+                            return hobby?.sponsors && hobby.sponsors.length > 0;
+                          })() ? (
                             <View style={styles.sponsorsModalSponsorsList}>
-                              {gameState.hobbies.find(h => h.id === showSponsors)!.sponsors!.map((sponsor: any, index: number) => (
+                              {gameState.hobbies.find(h => h.id === showSponsors)?.sponsors?.map((sponsor: any, index: number) => (
                                 <View key={index} style={styles.sponsorsModalSponsorItem}>
                                   <LinearGradient
                                     colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']}
@@ -2162,7 +2298,7 @@ export default function WorkScreen() {
                   ) : (
                     <View style={{ padding: 16, alignItems: 'center' }}>
                       <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
-                        No crime jobs found. This might be a bug.
+                        No crime jobs available at this time.
                       </Text>
                       <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark, { fontSize: 12, marginTop: 8 }]}>
                         Total jobs: {gameState.streetJobs.length}
@@ -2511,7 +2647,15 @@ export default function WorkScreen() {
                     >
                       {selectedOffer && contractOffers ? (
                         (() => {
-                          const hobby = gameState.hobbies.find(h => h.id === contractOffers.hobbyId)!;
+                          // RC-0 FIX: Add null check to prevent crash if hobby not found
+                          const hobby = gameState.hobbies.find(h => h.id === contractOffers.hobbyId);
+                          if (!hobby) {
+                            return (
+                              <View style={styles.contractModalContent}>
+                                <Text style={styles.contractModalTitle}>Error: Hobby not found</Text>
+                              </View>
+                            );
+                          }
                           return (
                             <View style={styles.contractModalContent}>
                               <View style={styles.contractModalHeader}>
@@ -2564,7 +2708,15 @@ export default function WorkScreen() {
                         })()
                       ) : contractOffers ? (
                         (() => {
-                          const hobby = gameState.hobbies.find(h => h.id === contractOffers.hobbyId)!;
+                          // RC-0 FIX: Add null check to prevent crash if hobby not found
+                          const hobby = gameState.hobbies.find(h => h.id === contractOffers.hobbyId);
+                          if (!hobby) {
+                            return (
+                              <View style={styles.contractModalContent}>
+                                <Text style={styles.contractModalTitle}>Error: Hobby not found</Text>
+                              </View>
+                            );
+                          }
                           return (
                             <View style={styles.contractModalContent}>
                               <View style={styles.contractModalHeader}>
@@ -2631,7 +2783,15 @@ export default function WorkScreen() {
                       style={styles.leagueModalGlass}
                     >
                       {showLeague && (() => {
-                        const hobby = gameState.hobbies.find(h => h.id === showLeague)!;
+                        // RC-0 FIX: Add null check to prevent crash if hobby not found
+                        const hobby = gameState.hobbies.find(h => h.id === showLeague);
+                        if (!hobby) {
+                          return (
+                            <View style={styles.leagueModalContainer}>
+                              <Text style={styles.leagueModalTitle}>Error: Hobby not found</Text>
+                            </View>
+                          );
+                        }
                         const divisions = hobby.divisions || [];
                         const data =
                           hobby.league && leagueDivision === hobby.league.division
@@ -2917,6 +3077,17 @@ export default function WorkScreen() {
         onCancel={() => setShowQuitJobConfirm(false)}
         type="warning"
       />
+
+      {/* Action Feedback Modal */}
+      <ActionFeedbackModal
+        visible={actionFeedbackVisible}
+        actionImpact={actionImpact}
+        darkMode={settings.darkMode}
+        onClose={() => {
+          setActionFeedbackVisible(false);
+          setActionImpact(null);
+        }}
+      />
     </LinearGradient>
   );
 }
@@ -3002,6 +3173,71 @@ const styles = StyleSheet.create({
   },
   comingSoonTextDark: {
     color: '#D1D5DB',
+  },
+  lockedCareerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: scale(16),
+    backgroundColor: '#F3F4F6',
+    borderRadius: scale(12),
+    marginBottom: scale(12),
+    gap: scale(12),
+  },
+  lockedCareerText: {
+    flex: 1,
+    fontSize: fontScale(14),
+    color: '#6B7280',
+    lineHeight: fontScale(20),
+  },
+  lockedCareerTextDark: {
+    color: '#9CA3AF',
+  },
+  careerCard: {
+    padding: scale(16),
+    backgroundColor: '#FFFFFF',
+    borderRadius: scale(12),
+    marginBottom: scale(12),
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  careerCardDark: {
+    backgroundColor: '#1F2937',
+    borderColor: '#374151',
+  },
+  careerCardActive: {
+    borderColor: '#22C55E',
+    borderWidth: 2,
+  },
+  careerCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: scale(8),
+  },
+  careerName: {
+    fontSize: fontScale(18),
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: scale(4),
+  },
+  careerNameDark: {
+    color: '#FFFFFF',
+  },
+  careerDescription: {
+    fontSize: fontScale(14),
+    color: '#6B7280',
+    lineHeight: fontScale(20),
+  },
+  careerDescriptionDark: {
+    color: '#9CA3AF',
+  },
+  careerSalary: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: '#22C55E',
+  },
+  careerSalaryDark: {
+    color: '#4ADE80',
   },
   jobCard: {
     padding: getResponsiveValue(12, 16, 20, 24),

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions, Animated, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useGame, CrimeSkillId } from '@/contexts/GameContext';
 import { X, Star, Zap, Shield, TrendingUp, Lock, Users, BookOpen, Leaf, Wrench, DollarSign, Gavel, Check, Sparkles, Crown, Flame, Eye, Brain, Target, Sword } from 'lucide-react-native';
 

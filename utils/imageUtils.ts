@@ -1,4 +1,4 @@
-import * as ImagePicker from 'expo-image-picker';
+// import * as ImagePicker from 'expo-image-picker'; // REMOVED
 import { Alert, Platform } from 'react-native';
 
 // Maximum image size in bytes (500KB for profile/post images)
@@ -26,7 +26,7 @@ export async function requestMediaLibraryPermission(): Promise<boolean> {
     return true; // Web doesn't need permissions
   }
 
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const { status } = await // ImagePicker.requestMediaLibraryPermissionsAsync();
   
   if (status !== 'granted') {
     Alert.alert(
@@ -48,7 +48,7 @@ export async function requestCameraPermission(): Promise<boolean> {
     return true;
   }
 
-  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  const { status } = await // ImagePicker.requestCameraPermissionsAsync();
   
   if (status !== 'granted') {
     Alert.alert(
@@ -78,8 +78,8 @@ export async function pickImageFromGallery(
       return { success: false, error: 'Permission denied' };
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const result = await // ImagePicker.launchImageLibraryAsync({
+      mediaTypes: // ImagePicker.MediaTypeOptions.Images,
       allowsEditing: options?.allowsEditing ?? true,
       aspect: options?.aspect ?? [1, 1],
       quality: options?.quality ?? IMAGE_QUALITY,
@@ -166,8 +166,8 @@ export async function takePhoto(
       return { success: false, error: 'Permission denied' };
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const result = await // ImagePicker.launchCameraAsync({
+      mediaTypes: // ImagePicker.MediaTypeOptions.Images,
       allowsEditing: options?.allowsEditing ?? true,
       aspect: options?.aspect ?? [1, 1],
       quality: options?.quality ?? IMAGE_QUALITY,

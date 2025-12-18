@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,25 +33,95 @@ export default function Scenarios() {
   });
 
   // Convert challenge scenarios to the same format as life path scenarios
+  // CRITICAL FIX: Handle missing properties and undefined functions to prevent crashes
   const challengeScenarios = useMemo(() => {
-    return CHALLENGE_SCENARIOS.map(cs => ({
-      id: cs.id,
-      title: cs.name,
-      difficulty: getDifficultyLabel(cs.difficulty),
-      lifeGoal: cs.primaryGoal.description,
-      description: cs.description,
-      bonus: `Rewards: ${cs.rewards.gems} gems`,
-      start: {
-        age: cs.startingAge,
-        cash: cs.startingMoney,
-        education: cs.startingEducation?.[0],
-        items: cs.startingItems,
-        traits: [],
-      },
-      icon: cs.icon,
-      isChallenge: true,
-      challengeData: cs,
-    }));
+    // CRITICAL FIX: Validate CHALLENGE_SCENARIOS exists and is an array
+    if (!CHALLENGE_SCENARIOS || !Array.isArray(CHALLENGE_SCENARIOS)) {
+      log.warn('CHALLENGE_SCENARIOS is not available or not an array');
+      return [];
+    }
+    
+    // CRITICAL FIX: Validate getDifficultyLabel exists (should be fixed by adding to scenarioDefinitions.ts)
+    const safeGetDifficultyLabel = typeof getDifficultyLabel === 'function' 
+      ? getDifficultyLabel 
+      : (difficulty: string) => {
+          if (!difficulty || typeof difficulty !== 'string') {
+            return 'Unknown';
+          }
+          return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+        };
+    
+    // CRITICAL FIX: Validate getDifficultyColor exists
+    const safeGetDifficultyColor = typeof getDifficultyColor === 'function'
+      ? getDifficultyColor
+      : () => '#6B7280'; // Fallback gray color
+    
+    try {
+      return CHALLENGE_SCENARIOS.map(cs => {
+        // CRITICAL FIX: Validate cs is an object
+        if (!cs || typeof cs !== 'object') {
+          log.warn('Invalid scenario object found:', cs);
+          return null;
+        }
+        
+        // CRITICAL FIX: Handle missing properties gracefully
+        // The Scenario interface uses startingConditions, not direct properties
+        const startingConditions = (cs.startingConditions && typeof cs.startingConditions === 'object') 
+          ? cs.startingConditions 
+          : {};
+        const rewards = (cs.rewards && typeof cs.rewards === 'object') 
+          ? cs.rewards 
+          : {};
+        
+        // CRITICAL FIX: Validate winConditions is an array before accessing
+        const winConditions = Array.isArray(cs.winConditions) ? cs.winConditions : [];
+        
+        // Extract primary goal from winConditions (first condition description)
+        const primaryGoalDescription = winConditions.length > 0 && winConditions[0] && typeof winConditions[0] === 'object'
+          ? (winConditions[0].description || 'Complete the challenge')
+          : 'Complete the challenge';
+        
+        // CRITICAL FIX: Validate difficulty before calling function
+        const difficulty = (cs.difficulty && typeof cs.difficulty === 'string') 
+          ? cs.difficulty 
+          : 'unknown';
+        
+        // CRITICAL FIX: Validate education is an array before accessing [0]
+        const education = Array.isArray(startingConditions.education) && startingConditions.education.length > 0
+          ? startingConditions.education[0]
+          : undefined;
+        
+        // CRITICAL FIX: Validate items is an array
+        const items = Array.isArray(startingConditions.items) 
+          ? startingConditions.items 
+          : [];
+        
+        return {
+          id: cs.id || 'unknown',
+          title: cs.name || 'Unknown Scenario',
+          difficulty: safeGetDifficultyLabel(difficulty),
+          lifeGoal: primaryGoalDescription,
+          description: cs.description || 'No description available',
+          bonus: `Rewards: ${rewards.gems || 0} gems`,
+          start: {
+            age: typeof startingConditions.age === 'number' ? startingConditions.age : 18,
+            cash: typeof startingConditions.money === 'number' ? startingConditions.money : 0,
+            education: education,
+            items: items,
+            traits: [],
+          },
+          // CRITICAL FIX: Handle icon type mismatch - challenge scenarios have string icon paths,
+          // but Scenario interface expects ImageSourcePropType. Use default icon for now.
+          // TODO: Map challenge scenario icon strings to actual image resources if needed
+          icon: require('@/assets/images/Scenarios/Street Hustler.png'), // Default icon for challenges
+          isChallenge: true,
+          challengeData: cs,
+        };
+      }).filter((scenario): scenario is NonNullable<typeof scenario> => scenario !== null);
+    } catch (error) {
+      log.error('Error mapping challenge scenarios:', error);
+      return [];
+    }
   }, []);
 
   // Safe back navigation - goes to MainMenu if there's no screen to go back to
@@ -166,7 +236,14 @@ export default function Scenarios() {
         }));
       }
     } else {
-      setState(prev => ({ ...prev, scenario: scenarios.find(s => s.id === id)!, challengeScenarioId: undefined }));
+      // RC-0 FIX: Add null check to prevent crash if scenario not found
+      const selectedScenario = scenarios.find(s => s.id === id);
+      if (!selectedScenario) {
+        log.error('Scenario not found', { scenarioId: id });
+        Alert.alert('Error', 'Selected scenario not found. Please try again.');
+        return;
+      }
+      setState(prev => ({ ...prev, scenario: selectedScenario, challengeScenarioId: undefined }));
     }
   };
 
@@ -333,20 +410,28 @@ export default function Scenarios() {
                         style={styles.scenarioCard}
                       >
                         <View style={styles.scenarioHeader}>
-                          <View style={styles.iconContainer}>
-                            <Image source={scenario.icon} style={styles.scenarioIcon} />
-                          </View>
+                          {scenario.icon && (
+                            <View style={styles.iconContainer}>
+                              <Image source={scenario.icon} style={styles.scenarioIcon} />
+                            </View>
+                          )}
                           <View style={styles.scenarioInfo}>
                             <View style={styles.titleRow}>
-                              <Text style={styles.scenarioTitle}>{scenario.title}</Text>
+                              <Text style={styles.scenarioTitle}>{scenario.title || 'Unknown Scenario'}</Text>
                               {/* Difficulty Badge for Challenges */}
                               {isChallenge && scenario.challengeData && (
-                                <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(scenario.challengeData.difficulty) }]}>
-                                  <Text style={styles.difficultyBadgeText}>{scenario.difficulty.toUpperCase()}</Text>
+                                <View style={[styles.difficultyBadge, { 
+                                  backgroundColor: (typeof getDifficultyColor === 'function' && scenario.challengeData.difficulty)
+                                    ? getDifficultyColor(scenario.challengeData.difficulty) 
+                                    : '#6B7280' // Fallback gray color
+                                }]}>
+                                  <Text style={styles.difficultyBadgeText}>
+                                    {(scenario.difficulty || 'Unknown').toUpperCase()}
+                                  </Text>
                                 </View>
                               )}
                             </View>
-                            <Text style={styles.scenarioDescription}>{scenario.description}</Text>
+                            <Text style={styles.scenarioDescription}>{scenario.description || 'No description available'}</Text>
                           </View>
                           {isSelected && (
                             <View style={styles.selectedIndicator}>
@@ -362,27 +447,27 @@ export default function Scenarios() {
                           <View style={styles.glassStatItem}>
                             <View style={styles.glassOverlay} />
                             <Text style={styles.statLabel}>Age</Text>
-                            <Text style={styles.statValue}>{scenario.start.age}</Text>
+                            <Text style={styles.statValue}>{scenario.start?.age ?? 18}</Text>
                           </View>
                           <View style={styles.glassStatItem}>
                             <View style={styles.glassOverlay} />
                             <Text style={styles.statLabel}>Cash</Text>
-                            <Text style={styles.statValue}>${scenario.start.cash.toLocaleString()}</Text>
+                            <Text style={styles.statValue}>${(scenario.start?.cash ?? 0).toLocaleString()}</Text>
                           </View>
                           <View style={styles.glassStatItem}>
                             <View style={styles.glassOverlay} />
                             <Text style={styles.statLabel}>Study</Text>
-                            <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
+                            <Text style={styles.statValue}>{scenario.start?.education || 'None'}</Text>
                           </View>
                           {/* Gem Reward for Challenges */}
-                          {isChallenge && scenario.challengeData && (
+                          {isChallenge && scenario.challengeData && scenario.challengeData.rewards && (
                             <View style={[styles.glassStatItem, styles.gemRewardItem]}>
                               <View style={styles.glassOverlay} />
                               <Gem size={18} color="#FFD700" />
                               <View style={styles.gemRewardTextContainer}>
                                 <Text style={styles.statLabel}>Reward</Text>
                                 <Text style={[styles.statValue, styles.gemRewardValue]}>
-                                  {scenario.challengeData.rewards.gems} Gems
+                                  {scenario.challengeData.rewards.gems || 0} Gems
                                 </Text>
                               </View>
                             </View>
@@ -390,7 +475,7 @@ export default function Scenarios() {
                         </View>
 
                         {/* Items and Traits */}
-                        {(scenario.start.items && scenario.start.items.length > 0) || (scenario.start.traits && scenario.start.traits.length > 0) ? (
+                        {(scenario.start?.items && scenario.start.items.length > 0) || (scenario.start?.traits && scenario.start.traits.length > 0) ? (
                           <View style={styles.itemsContainer}>
                             <Text style={styles.itemsTitle}>Starting Items & Traits</Text>
                             <View style={styles.itemsList}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, TextInput, Switch } from 'react-native';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useGame } from '@/contexts/GameContext';
 import { X, DollarSign, Heart, Zap, Clock, Shield, Briefcase, Gift, Skull, Database, RefreshCw, Save, FileText, Package, Users, Building2, GraduationCap, CreditCard, Star, Award, Bug } from 'lucide-react-native';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -237,6 +237,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
         },
       };
     });
+    saveGame();
     Alert.alert('Age Set', `Age set to ${age}`);
   };
 
@@ -247,6 +248,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
       showDeathPopup: true,
       deathReason: 'health',
     }));
+    saveGame();
     onClose();
   };
 
@@ -337,6 +339,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
       ...prev,
       bankSavings: amount,
     }));
+    saveGame();
     Alert.alert('Success', `Bank savings set to $${amount.toLocaleString()}`);
   };
 

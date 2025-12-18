@@ -1,6 +1,10 @@
 // Type declarations for optional dependencies
 // These modules may not be installed, so we declare them as optional
 
+// CRITICAL: AdMob type declarations COMMENTED OUT
+// AdMob native module causes TurboModule crashes - completely disabled
+// DO NOT UNCOMMENT until AdMob native crash is resolved
+/*
 declare module 'react-native-google-mobile-ads' {
   export const BannerAd: any;
   export const InterstitialAd: any;
@@ -12,6 +16,7 @@ declare module 'react-native-google-mobile-ads' {
   const defaultExport: any;
   export default defaultExport;
 }
+*/
 
 declare module '@react-native-firebase/analytics' {
   const defaultExport: any;
@@ -43,4 +48,3 @@ declare module 'expo-localization' {
   export function getCalendars(): string[];
   export function getCurrencies(): string[];
 }
-

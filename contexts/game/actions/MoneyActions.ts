@@ -19,7 +19,11 @@ export const updateMoney = (
       return prev;
     }
 
-    const newMoney = Math.max(0, prev.stats.money + amount);
+    // CRITICAL FIX: Validate prev.stats.money before calculation
+    const currentMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) 
+      ? prev.stats.money 
+      : 0;
+    const newMoney = Math.max(0, currentMoney + amount);
     const moneyChange = newMoney - prev.stats.money;
 
     if (moneyChange !== 0 && updateDailySummary) {
@@ -59,15 +63,19 @@ export const batchUpdateMoney = (
     let totalChange = 0;
     
     transactions.forEach(t => {
-      if (!isNaN(t.amount)) {
+      if (!isNaN(t.amount) && isFinite(t.amount)) {
         totalChange += t.amount;
       } else {
         log.error(`Invalid transaction amount in batch update: ${t.reason}`);
       }
     });
 
-    const newMoney = Math.max(0, prev.stats.money + totalChange);
-    const actualChange = newMoney - prev.stats.money;
+    // CRITICAL FIX: Validate prev.stats.money before calculation
+    const currentMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) && isFinite(prev.stats.money)
+      ? prev.stats.money
+      : 0;
+    const newMoney = Math.max(0, currentMoney + totalChange);
+    const actualChange = newMoney - currentMoney;
 
     if (actualChange !== 0) {
       log.info(`Batch money update: ${actualChange > 0 ? '+' : ''}${actualChange} (${transactions.length} transactions)`);

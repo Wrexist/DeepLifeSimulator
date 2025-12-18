@@ -649,6 +649,7 @@ export default function TopStatsBar() {
 function RightSide() {
   const { gameState, nextWeek } = useGame();
   const { width } = useWindowDimensions();
+  const isExtraLargeDevice = width > 428; // iPhone 15 Pro Max and similar large phones
   const { AnimatedView, animatedStyle, onPressIn, onPressOut, onHaptic } = usePressableScale();
   const { buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
   const { addCleanup } = useMemoryCleanup();
@@ -702,24 +703,39 @@ function RightSide() {
   const leftSectionMinWidth = isSmallDevice() && width < 340 ? width * 0.65 : width * 0.6;
   const availableRightWidth = width - containerPadding - leftSectionMinWidth;
   
+  // Handle extra large devices (iPhone 15 Pro Max, etc.) - limit date box size
+  const maxDateBoxWidth = isIPad() 
+    ? scale(170) 
+    : isExtraLargeDevice
+      ? scale(95) // Smaller max width for extra large phones to prevent overlap
+      : isSmallDevice() && width < 340 
+        ? scale(90) 
+        : scale(105); // Reduced from 110 to 105 for better fit
+  
   const dateBoxWidth = isIPad() 
     ? scale(170) 
-    : isSmallDevice() && width < 340
-      ? Math.min(scale(90), Math.max(scale(70), availableRightWidth * 0.9)) // Extra small constraint
-      : Math.min(scale(110), Math.max(scale(85), availableRightWidth * 0.95));
-  const dateBoxMaxWidth = isIPad() 
-    ? scale(170) 
-    : isSmallDevice() && width < 340 
-      ? scale(90) 
-      : scale(110);
+    : isExtraLargeDevice
+      ? Math.min(maxDateBoxWidth, Math.max(scale(80), availableRightWidth * 0.75)) // More conservative for large screens
+      : isSmallDevice() && width < 340
+        ? Math.min(scale(90), Math.max(scale(70), availableRightWidth * 0.9)) // Extra small constraint
+        : Math.min(maxDateBoxWidth, Math.max(scale(85), availableRightWidth * 0.85)); // Reduced from 0.95 to 0.85
+  
+  const dateBoxMaxWidth = maxDateBoxWidth;
+  
   const dateBoxHeight = isIPad() 
     ? scale(140) 
-    : isSmallDevice() && width < 340
-      ? scale(80) // Extra small height
-      : isSmallDevice() 
-        ? scale(90) 
-        : scale(100);
-  const dateBoxMinHeight = isIPad() ? scale(140) : (isSmallDevice() && width < 340 ? scale(75) : scale(85));
+    : isExtraLargeDevice
+      ? scale(95) // Slightly smaller height for large screens
+      : isSmallDevice() && width < 340
+        ? scale(80) // Extra small height
+        : isSmallDevice() 
+          ? scale(90) 
+          : scale(100);
+  const dateBoxMinHeight = isIPad() 
+    ? scale(140) 
+    : isExtraLargeDevice
+      ? scale(90)
+      : (isSmallDevice() && width < 340 ? scale(75) : scale(85));
 
   return (
       <View style={styles.rightSection}>
@@ -739,20 +755,50 @@ function RightSide() {
         >
           <View style={styles.dateInner}>
             <View style={styles.dateHeader}>
-              <Text style={styles.yearText}>{Math.floor(gameState.date.year || 2025)}</Text>
+              <Text style={[
+                styles.yearText,
+                isExtraLargeDevice && {
+                  fontSize: responsiveFontSize.md,
+                  lineHeight: scale(18),
+                }
+              ]}>{Math.floor(gameState.date.year || 2025)}</Text>
             </View>
             <Text 
-              style={styles.monthText}
+              style={[
+                styles.monthText,
+                isExtraLargeDevice && {
+                  fontSize: responsiveFontSize.sm,
+                  lineHeight: scale(15),
+                }
+              ]}
               numberOfLines={1}
               adjustsFontSizeToFit={true}
               minimumFontScale={0.7}
             >
               {gameState.date.month}
             </Text>
-            <Text style={styles.ageText}>Age {Math.floor(gameState.date.age)}</Text>
+            <Text style={[
+              styles.ageText,
+              isExtraLargeDevice && {
+                fontSize: responsiveFontSize.xs,
+                lineHeight: scale(13),
+              }
+            ]}>Age {Math.floor(gameState.date.age)}</Text>
             <View style={styles.weekDots}>
               {[1, 2, 3, 4].map((w, idx) => (
-                <Animated.View key={w} style={[styles.weekDot, { transform: [{ scale: weekAnimations[idx] }] }]} />
+                <Animated.View 
+                  key={w} 
+                  style={[
+                    styles.weekDot, 
+                    isExtraLargeDevice && {
+                      width: scale(6),
+                      height: scale(6),
+                      borderRadius: scale(3),
+                      marginHorizontal: 1.5,
+                    },
+                    { transform: [{ scale: weekAnimations[idx] }] }
+                  ]} 
+                />
               ))}
             </View>
           </View>

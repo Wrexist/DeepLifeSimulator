@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Text, StyleSheet, View, Dimensions, Platform } from 'react-native';
-import { MotiView } from 'moti';
+import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 

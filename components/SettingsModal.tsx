@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Switch, Alert, TextInput, Linking, Image, Animated, Platform, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, RotateCcw, Bug, HelpCircle, Calendar, Settings, Target, Sparkles, Star, Zap, Shield, Heart, RefreshCw, MessageCircle, Users, Code } from 'lucide-react-native';
+import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, RotateCcw, Bug, HelpCircle, Calendar, Settings, Target, Sparkles, Star, Zap, Shield, Heart, RefreshCw, MessageCircle, Users, Code, HardDrive } from 'lucide-react-native';
+import BackupRecoveryModal from './BackupRecoveryModal';
 import { perks } from '@/src/features/onboarding/perksData';
 import LeaderboardModal from './LeaderboardModal';
 import LegacyOverviewTab from './LegacyOverviewTab';
@@ -13,6 +14,7 @@ import DevToolsModal from './DevToolsModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { setSoundEnabled, setSoundVolume, isSoundEnabled, getSoundVolume } from '@/utils/soundManager';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
@@ -43,6 +45,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
   const [showDevTools, setShowDevTools] = useState(false);
+  const [showBackupManager, setShowBackupManager] = useState(false);
   
   // Animation for Discord button
   const discordGlowAnim = useRef(new Animated.Value(0)).current;
@@ -50,12 +53,8 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
   // Check if Discord reward has been claimed
   useEffect(() => {
     const checkDiscordReward = async () => {
-      try {
-        const claimed = await AsyncStorage.getItem('discord_reward_claimed');
+      const claimed = await safeGetItem('discord_reward_claimed');
         setDiscordRewardClaimed(claimed === 'true');
-      } catch (error) {
-        logger.error('Error checking Discord reward:', error);
-      }
     };
     checkDiscordReward();
   }, []);
@@ -138,6 +137,14 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       icon: Target,
       type: 'toggle' as const,
       value: settings.showDecimalsInStats,
+    },
+    {
+      id: 'autoProgression',
+      title: 'Auto Information Progression',
+      description: 'Automatically reveal more detailed information as you play',
+      icon: Sparkles,
+      type: 'toggle' as const,
+      value: settings.autoProgression !== false, // Default to true
     },
   ];
 
@@ -247,7 +254,10 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       }));
       
       // Mark as claimed
-      await AsyncStorage.setItem('discord_reward_claimed', 'true');
+      const saved = await safeSetItem('discord_reward_claimed', 'true');
+      if (!saved) {
+        logger.warn('Could not save discord reward claim status');
+      }
       setDiscordRewardClaimed(true);
       
       // Save game to persist the gems
@@ -412,6 +422,72 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   </View>
                 ))}
 
+                {/* Progressive Disclosure Level */}
+                {!settings.autoProgression && (
+                  <View style={[styles.settingItem, settings.darkMode && styles.settingItemDark]}>
+                    <BlurView intensity={10} style={styles.settingItemBlur}>
+                      <LinearGradient
+                        colors={settings.darkMode ? ['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)'] : ['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.9)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.settingItemGradient}
+                      >
+                        <View style={styles.settingInfo}>
+                          <View style={styles.settingHeader}>
+                            <LinearGradient
+                              colors={['#8B5CF6', '#7C3AED']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={styles.settingIconContainer}
+                            >
+                              <Sparkles size={18} color="#FFFFFF" />
+                            </LinearGradient>
+                            <View style={styles.settingTextContainer}>
+                              <Text style={[styles.settingTitle, settings.darkMode && styles.settingTitleDark]}>
+                                Information Detail Level
+                              </Text>
+                              <Text style={[styles.settingDescription, settings.darkMode && styles.settingDescriptionDark]}>
+                                Choose how much detail to show in tooltips and information
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                        <View style={styles.disclosureLevelSelector}>
+                          {(['simple', 'standard', 'advanced'] as const).map((level) => {
+                            const isSelected = gameState.progressiveDisclosureLevel === level;
+                            return (
+                              <TouchableOpacity
+                                key={level}
+                                onPress={() => {
+                                  setGameState(prev => ({
+                                    ...prev,
+                                    progressiveDisclosureLevel: level,
+                                  }));
+                                  saveGame();
+                                }}
+                                style={[
+                                  styles.disclosureLevelButton,
+                                  isSelected && styles.disclosureLevelButtonActive,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.disclosureLevelText,
+                                    isSelected && styles.disclosureLevelTextActive,
+                                    settings.darkMode && !isSelected && styles.disclosureLevelTextDark,
+                                  ]}
+                                >
+                                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </LinearGradient>
+                    </BlurView>
+                  </View>
+                )}
+
                 {/* Enhanced Language Selection */}
                 <View style={[styles.settingItem, settings.darkMode && styles.settingItemDark]}>
                   <BlurView intensity={10} style={styles.settingItemBlur}>
@@ -505,6 +581,22 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   >
                     <Save size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
                     <Text style={styles.actionButtonText}>{t('settings.switchSaveSlot')}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                {/* Backup & Recovery Section */}
+                <TouchableOpacity
+                  style={styles.actionButtonContainer}
+                  onPress={() => setShowBackupManager(true)}
+                >
+                  <LinearGradient
+                    colors={['#6366F1', '#4F46E5']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionButton}
+                  >
+                    <HardDrive size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
+                    <Text style={styles.actionButtonText}>Backups & Recovery</Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -846,8 +938,13 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                 Please describe the bug you encountered. Include steps to reproduce it if possible.
               </Text>
 
+              {/* BUG FIX: Ensure TextInput is visible and accessible */}
               <TextInput
-                style={[styles.bugReportInput, settings.darkMode && styles.bugReportInputDark]}
+                style={[
+                  styles.bugReportInput, 
+                  settings.darkMode && styles.bugReportInputDark,
+                  { minHeight: 120 } // Ensure minimum height for visibility
+                ]}
                 placeholder="Describe the bug here..."
                 placeholderTextColor={settings.darkMode ? '#9CA3AF' : '#6B7280'}
                 value={bugReportText}
@@ -856,6 +953,8 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                 numberOfLines={6}
                 textAlignVertical="top"
                 maxLength={1000}
+                editable={true}
+                autoFocus={false}
               />
             </ScrollView>
 
@@ -887,6 +986,11 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       <LeaderboardModal visible={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       <LegacyOverviewTab visible={showLegacyOverview} onClose={() => setShowLegacyOverview(false)} />
       <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
+      <BackupRecoveryModal 
+        visible={showBackupManager} 
+        slot={gameState.currentSlot || 1} 
+        onClose={() => setShowBackupManager(false)} 
+      />
     </Modal>
   );
 }
@@ -1740,5 +1844,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: responsiveFontSize.xs,
     letterSpacing: 0.5,
+  },
+  disclosureLevelSelector: {
+    flexDirection: 'row',
+    gap: responsiveSpacing.xs,
+    marginTop: responsiveSpacing.sm,
+  },
+  disclosureLevelButton: {
+    flex: 1,
+    paddingVertical: responsiveSpacing.xs,
+    paddingHorizontal: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.md,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  disclosureLevelButtonActive: {
+    backgroundColor: '#8B5CF6',
+  },
+  disclosureLevelText: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    color: '#374151',
+  },
+  disclosureLevelTextActive: {
+    color: '#FFFFFF',
+  },
+  disclosureLevelTextDark: {
+    color: '#9CA3AF',
   },
 });

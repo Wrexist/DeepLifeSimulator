@@ -26,6 +26,7 @@ import {
   Plane,
   Vote,
   BarChart3,
+  Car,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
@@ -49,6 +50,7 @@ import AdvancedBankApp from '@/components/computer/AdvancedBankApp';
 import TravelApp from '@/components/computer/TravelApp';
 import PoliticalApp from '@/components/computer/PoliticalApp';
 import StatisticsApp from '@/components/computer/StatisticsApp';
+import VehicleApp from '@/components/computer/VehicleApp';
 
 import { 
   responsivePadding, 
@@ -242,11 +244,20 @@ function ComputerScreenContent() {
       iconGradient: ['#10B981', '#059669'],
       available: true,
     },
+    {
+      id: 'vehicle',
+      name: 'Garage',
+      description: 'Manage your vehicles and garage',
+      icon: Car,
+      gradient: ['#6366F1', '#8B5CF6'], // Indigo-purple gradient for vehicles
+      iconGradient: ['#6366F1', '#8B5CF6'],
+      available: true,
+    },
   ], [t, gameState.careers]);
 
   // Separate apps into categories
   const desktopApps = useMemo(() => appsList.filter(app => 
-    ['bitcoin', 'realestate', 'onion', 'gaming', 'travel', 'political', 'statistics'].includes(app.id)
+    ['bitcoin', 'realestate', 'onion', 'gaming', 'travel', 'political', 'statistics', 'vehicle'].includes(app.id)
   ), [appsList]);
   
   const mobileApps = useMemo(() => appsList.filter(app => 
@@ -294,6 +305,7 @@ function ComputerScreenContent() {
       travel: TravelApp,
       political: PoliticalApp,
       statistics: StatisticsApp,
+      vehicle: VehicleApp,
     };
 
     const AppComponent = apps[activeApp as keyof typeof apps];

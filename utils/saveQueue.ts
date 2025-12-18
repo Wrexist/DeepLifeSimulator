@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '@/utils/logger';
 import { listBackups } from '@/utils/saveBackup';
+import { safeSetItem, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKeys } from '@/utils/safeStorage';
 
 interface SaveOperation {
   id: string;
@@ -117,10 +118,10 @@ class SaveQueue {
       }
       
       // Also save the last slot reference (non-critical, can use regular save)
-      await AsyncStorage.setItem('lastSlot', operation.slot.toString());
+      await safeSetItem('lastSlot', operation.slot.toString());
       
       // Save timestamp for auto-save indicator (non-critical, can use regular save)
-      await AsyncStorage.setItem('lastSaveTime', Date.now().toString());
+      await safeSetItem('lastSaveTime', Date.now().toString());
     } catch (error: any) {
       // Handle quota exceeded error
       if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
@@ -134,11 +135,15 @@ class SaveQueue {
           
           try {
             // Retry the save after cleanup
-            await AsyncStorage.setItem(key, serializedData);
-            await AsyncStorage.setItem('lastSlot', operation.slot.toString());
-            await AsyncStorage.setItem('lastSaveTime', Date.now().toString());
-            this.log.info('Save succeeded after cleanup');
-            return; // Success after cleanup
+            const retrySuccess = await safeSetItem(key, serializedData);
+            if (retrySuccess) {
+              await safeSetItem('lastSlot', operation.slot.toString());
+              await safeSetItem('lastSaveTime', Date.now().toString());
+              this.log.info('Save succeeded after cleanup');
+              return; // Success after cleanup
+            } else {
+              this.log.error('Save failed even after comprehensive cleanup');
+            }
           } catch (retryError) {
             this.log.error('Save failed even after comprehensive cleanup');
           }
@@ -182,11 +187,14 @@ class SaveQueue {
         }
       }
       
-      await AsyncStorage.setItem(key, serializedData);
-      await AsyncStorage.setItem('lastSlot', slot.toString());
+      const saveSuccess = await safeSetItem(key, serializedData);
+      if (!saveSuccess) {
+        throw new Error('Failed to save game data');
+      }
+      await safeSetItem('lastSlot', slot.toString());
       
       // Save timestamp for auto-save indicator
-      await AsyncStorage.setItem('lastSaveTime', Date.now().toString());
+      await safeSetItem('lastSaveTime', Date.now().toString());
       
       this.log.debug(`Force save successful for slot ${slot}`);
       
@@ -204,11 +212,15 @@ class SaveQueue {
           
           try {
             // Retry the save after cleanup
-            await AsyncStorage.setItem(key, serializedData);
-            await AsyncStorage.setItem('lastSlot', slot.toString());
-            await AsyncStorage.setItem('lastSaveTime', Date.now().toString());
-            this.log.info('Force save succeeded after cleanup');
-            return; // Success after cleanup
+            const retrySuccess = await safeSetItem(key, serializedData);
+            if (retrySuccess) {
+              await safeSetItem('lastSlot', slot.toString());
+              await safeSetItem('lastSaveTime', Date.now().toString());
+              this.log.info('Force save succeeded after cleanup');
+              return; // Success after cleanup
+            } else {
+              this.log.error(`Force save failed for slot ${slot} even after comprehensive cleanup`);
+            }
           } catch (retryError) {
             this.log.error(`Force save failed for slot ${slot} even after comprehensive cleanup:`, retryError);
           }
@@ -262,7 +274,7 @@ class SaveQueue {
         const toDelete = backups.slice(2);
         const keysToDelete = toDelete.map(b => b.id);
         if (keysToDelete.length > 0) {
-          await AsyncStorage.multiRemove(keysToDelete);
+          await safeMultiRemove(keysToDelete);
           cleanedCount = keysToDelete.length;
           this.log.info(`Cleaned up ${cleanedCount} old backups for slot ${slot}`);
         }
@@ -279,7 +291,7 @@ class SaveQueue {
   private async cleanupCacheData(): Promise<number> {
     let cleanedCount = 0;
     try {
-      const keys = await AsyncStorage.getAllKeys();
+      const keys = await safeGetAllKeys();
       const cacheKeys = keys.filter(key => 
         key.includes('_cache') ||
         key === 'unsynced_logs' ||
@@ -289,7 +301,7 @@ class SaveQueue {
       );
       
       if (cacheKeys.length > 0) {
-        await AsyncStorage.multiRemove(cacheKeys);
+        await safeMultiRemove(cacheKeys);
         cleanedCount = cacheKeys.length;
         this.log.info(`Cleaned up ${cleanedCount} cache entries`);
       }
@@ -307,14 +319,29 @@ class SaveQueue {
     try {
       const pruned = { ...data };
       
-      // Remove very old event logs (keep only last 100)
-      if (pruned.eventLog && Array.isArray(pruned.eventLog) && pruned.eventLog.length > 100) {
-        pruned.eventLog = pruned.eventLog.slice(-100);
+      // PERFORMANCE FIX: Enforce event log limit (keep only last 500 events)
+      if (pruned.eventLog && Array.isArray(pruned.eventLog) && pruned.eventLog.length > 500) {
+        pruned.eventLog = pruned.eventLog.slice(-500);
       }
       
-      // Remove old journal entries (keep only last 50)
+      // PERFORMANCE FIX: Enforce journal limit (keep only last 50 entries)
       if (pruned.journal && Array.isArray(pruned.journal) && pruned.journal.length > 50) {
         pruned.journal = pruned.journal.slice(-50);
+      }
+      
+      // PERFORMANCE FIX: Cap memories to last 200 (prevent unbounded growth)
+      if (pruned.memories && Array.isArray(pruned.memories) && pruned.memories.length > 200) {
+        pruned.memories = pruned.memories.slice(-200);
+      }
+      
+      // PERFORMANCE FIX: Cap ancestors to last 50 generations (older ancestors rarely accessed)
+      if (pruned.ancestors && Array.isArray(pruned.ancestors) && pruned.ancestors.length > 50) {
+        pruned.ancestors = pruned.ancestors.slice(-50);
+      }
+      
+      // LONG-TERM DEGRADATION FIX: Cap life milestones to last 200 (older milestones rarely displayed)
+      if (pruned.lifeMilestones && Array.isArray(pruned.lifeMilestones) && pruned.lifeMilestones.length > 200) {
+        pruned.lifeMilestones = pruned.lifeMilestones.slice(-200);
       }
       
       // Remove old pending events if they're too old
@@ -349,14 +376,14 @@ class SaveQueue {
       
       // 3. Clean up old cloud sync metadata
       try {
-        const keys = await AsyncStorage.getAllKeys();
+        const keys = await safeGetAllKeys();
         const cloudKeys = keys.filter(key => 
           key.startsWith('cloud_save_slot_') && 
           !key.includes('_backup') &&
           !key.endsWith(`_${slot}`)
         );
         if (cloudKeys.length > 0) {
-          await AsyncStorage.multiRemove(cloudKeys);
+          await safeMultiRemove(cloudKeys);
           totalCleaned += cloudKeys.length;
           this.log.info(`Cleaned up ${cloudKeys.length} old cloud sync entries`);
         }

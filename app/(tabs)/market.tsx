@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { ShoppingBag, Dumbbell, Apple, Smartphone, Skull, Heart, Layers } from 'lucide-react-native';
+import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers } from 'lucide-react-native';
 import { OptimizedFlatList } from '@/components/OptimizedFlatList';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
@@ -38,7 +38,6 @@ const ITEM_CATEGORIES: Record<string, 'electronics' | 'crime' | 'lifestyle'> = {
 const FILTER_CATEGORIES = [
   { id: 'all', label: 'All', icon: Layers, color: '#6366F1' },
   { id: 'electronics', label: 'Electronics', icon: Smartphone, color: '#3B82F6' },
-  { id: 'crime', label: 'Crime', icon: Skull, color: '#EF4444' },
   { id: 'lifestyle', label: 'Lifestyle', icon: Heart, color: '#10B981' },
 ] as const;
 
@@ -62,7 +61,7 @@ export default function MarketScreen() {
   const [showSellConfirm, setShowSellConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
   const [showPurchaseConfirm, setShowPurchaseConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
-  const [activeFilter, setActiveFilter] = useState<'all' | 'electronics' | 'crime' | 'lifestyle'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'electronics' | 'lifestyle'>('all');
 
   const setLoading = (key: string, loading: boolean) => {
     setLoadingStates(prev => ({ ...prev, [key]: loading }));
@@ -681,22 +680,25 @@ const styles = StyleSheet.create({
   // Filter bar styles
   filterContainer: {
     marginBottom: 16,
-    maxHeight: 44,
+    flexGrow: 0,
+    flexShrink: 0,
   },
   filterContent: {
-    paddingHorizontal: 0,
-    gap: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    gap: 10,
+    alignItems: 'center',
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 22,
     backgroundColor: '#F3F4F6',
     borderWidth: 1.5,
     borderColor: '#E5E7EB',
-    gap: 6,
+    gap: 8,
   },
   filterButtonDark: {
     backgroundColor: '#374151',

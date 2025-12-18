@@ -45,6 +45,7 @@ import {
   formatCooldownTime,
 } from '@/utils/enhancedSocial';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { Relationship, GameState } from '@/contexts/game/types';
 
 interface EnhancedSocialManagerProps {
   visible: boolean;

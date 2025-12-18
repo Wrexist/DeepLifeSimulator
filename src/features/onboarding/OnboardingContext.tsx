@@ -4,6 +4,7 @@ import { Scenario } from './scenarioData';
 interface OnboardingState {
   slot: number;
   scenario?: Scenario;
+  challengeScenarioId?: string; // CRITICAL FIX: Track challenge scenario ID separately from regular scenario
   firstName: string;
   lastName: string;
   sex: 'male' | 'female' | 'random';

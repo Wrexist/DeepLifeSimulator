@@ -34,8 +34,39 @@ function readViewportOverride() {
 
 // Removed unused getWindowSize function
 
-// Get screen dimensions
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// CRITICAL FIX: Defer Dimensions.get('window') until first use to prevent startup crashes
+// This runs at module load time, BEFORE React Native is fully initialized
+// If Dimensions.get('window') throws or returns undefined, destructuring fails and app crashes
+// Solution: Use lazy initialization with defensive fallbacks
+let SCREEN_WIDTH: number | null = null;
+let SCREEN_HEIGHT: number | null = null;
+
+// Lazy getter for screen dimensions with defensive fallbacks
+function getScreenDimensions(): { width: number; height: number } {
+  if (SCREEN_WIDTH === null || SCREEN_HEIGHT === null) {
+    try {
+      const dimensions = Dimensions.get('window');
+      // CRITICAL: Use fallbacks if Dimensions.get() fails or returns invalid values
+      // This ensures the app can still render even if React Native isn't ready
+      SCREEN_WIDTH = dimensions?.width ?? 375; // Fallback to iPhone standard width
+      SCREEN_HEIGHT = dimensions?.height ?? 812; // Fallback to iPhone standard height
+      
+      // Validate dimensions are positive numbers
+      if (!Number.isFinite(SCREEN_WIDTH) || SCREEN_WIDTH <= 0) {
+        SCREEN_WIDTH = 375;
+      }
+      if (!Number.isFinite(SCREEN_HEIGHT) || SCREEN_HEIGHT <= 0) {
+        SCREEN_HEIGHT = 812;
+      }
+    } catch (error) {
+      // CRITICAL: If Dimensions.get() throws, use safe fallbacks
+      // This ensures the app can still render even if React Native isn't ready
+      SCREEN_WIDTH = 375;
+      SCREEN_HEIGHT = 812;
+    }
+  }
+  return { width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
+}
 
 // Base dimensions for scaling calculations
 const baseWidth = 375; // iPhone standard width
@@ -43,10 +74,11 @@ const baseHeight = 812; // iPhone standard height
 
 // Simple device type detection
 export const getDeviceType = (): 'small' | 'medium' | 'large' | 'xlarge' => {
-  if (SCREEN_WIDTH <= 375) return 'small';
-  if (SCREEN_WIDTH <= 414) return 'medium';
-  if (SCREEN_WIDTH <= 428) return 'large';
-    return 'xlarge';
+  const { width } = getScreenDimensions();
+  if (width <= 375) return 'small';
+  if (width <= 414) return 'medium';
+  if (width <= 428) return 'large';
+  return 'xlarge';
 };
 
 // Simple device checks
@@ -58,43 +90,67 @@ export const isExtraLargeDevice = () => getDeviceType() === 'xlarge';
 // Platform checks
 export const isIOS = () => Platform.OS === 'ios';
 export const isAndroid = () => Platform.OS === 'android';
-export const isIPhone = () => Platform.OS === 'ios' && SCREEN_HEIGHT <= 926;
-export const isIPad = () => Platform.OS === 'ios' && SCREEN_HEIGHT > 926;
-export const isLatestIPhone = () => Platform.OS === 'ios' && SCREEN_HEIGHT > 800;
+export const isIPhone = () => Platform.OS === 'ios' && getScreenDimensions().height <= 926;
+export const isIPad = () => Platform.OS === 'ios' && getScreenDimensions().height > 926;
+export const isLatestIPhone = () => Platform.OS === 'ios' && getScreenDimensions().height > 800;
 
 // Android-specific checks
-export const isAndroidSmall = () => Platform.OS === 'android' && SCREEN_WIDTH <= 360;
-export const isAndroidMedium = () => Platform.OS === 'android' && SCREEN_WIDTH > 360 && SCREEN_WIDTH <= 480;
-export const isAndroidLarge = () => Platform.OS === 'android' && SCREEN_WIDTH > 480 && SCREEN_WIDTH <= 600;
-export const isAndroidXLarge = () => Platform.OS === 'android' && SCREEN_WIDTH > 600;
-export const isAndroidTablet = () => Platform.OS === 'android' && SCREEN_WIDTH >= 600;
-export const isAndroidFoldable = () => Platform.OS === 'android' && SCREEN_WIDTH >= 600;
+export const isAndroidSmall = () => {
+  const { width } = getScreenDimensions();
+  return Platform.OS === 'android' && width <= 360;
+};
+export const isAndroidMedium = () => {
+  const { width } = getScreenDimensions();
+  return Platform.OS === 'android' && width > 360 && width <= 480;
+};
+export const isAndroidLarge = () => {
+  const { width } = getScreenDimensions();
+  return Platform.OS === 'android' && width > 480 && width <= 600;
+};
+export const isAndroidXLarge = () => {
+  const { width } = getScreenDimensions();
+  return Platform.OS === 'android' && width > 600;
+};
+export const isAndroidTablet = () => {
+  const { width } = getScreenDimensions();
+  return Platform.OS === 'android' && width >= 600;
+};
+export const isAndroidFoldable = () => {
+  const { width } = getScreenDimensions();
+  return Platform.OS === 'android' && width >= 600;
+};
 
 // Web tablet heuristic (treat iPad-like viewports as tablet)
-export const isWebTablet = () => Platform.OS === 'web' && Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 768;
+export const isWebTablet = () => {
+  const { width, height } = getScreenDimensions();
+  return Platform.OS === 'web' && Math.min(width, height) >= 768;
+};
 
 // Unified tablet check across platforms (iPad, Android tablet, or web tablet)
 export const isTablet = () => isIPad() || isAndroidTablet() || isWebTablet();
 
 // Core scaling functions with tablet-aware limits
 export const scale = (size: number): number => {
+  const { width } = getScreenDimensions();
   const maxClamp = isTablet() ? 1.8 : 1.3;
-  const scaleFactor = Math.min(Math.max(SCREEN_WIDTH / baseWidth, 0.7), maxClamp);
+  const scaleFactor = Math.min(Math.max(width / baseWidth, 0.7), maxClamp);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
 
 export const verticalScale = (size: number): number => {
+  const { height } = getScreenDimensions();
   const maxClamp = isTablet() ? 1.8 : 1.3;
-  const scaleFactor = Math.min(Math.max(SCREEN_HEIGHT / baseHeight, 0.7), maxClamp);
+  const scaleFactor = Math.min(Math.max(height / baseHeight, 0.7), maxClamp);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
 
 export const fontScale = (size: number): number => {
+  const { width } = getScreenDimensions();
   const maxClamp = isTablet() ? 1.6 : 1.25;
   const minClamp = 0.75;
-  const base = SCREEN_WIDTH / baseWidth;
+  const base = width / baseWidth;
   const scaleFactor = Math.min(Math.max(base, minClamp), maxClamp);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
@@ -177,31 +233,34 @@ export const responsivePadding = {
 };
 
 // Screen dimensions with comprehensive device detection
-export const screenDimensions = {
-  width: SCREEN_WIDTH,
-  height: SCREEN_HEIGHT,
-  isSmallDevice: isSmallDevice(),
-  isMediumDevice: isMediumDevice(),
-  isLargeDevice: isLargeDevice(),
-  isExtraLargeDevice: isExtraLargeDevice(),
-  isIPhone: isIPhone(),
-  isLatestIPhone: isLatestIPhone(),
-  isIPad: isIPad(),
-  isAndroid: isAndroid(),
-  isAndroidSmall: isAndroidSmall(),
-  isAndroidMedium: isAndroidMedium(),
-  isAndroidLarge: isAndroidLarge(),
-  isAndroidXLarge: isAndroidXLarge(),
-  isAndroidTablet: isAndroidTablet(),
-  isAndroidFoldable: isAndroidFoldable(),
-  isTablet: isTablet(),
-  deviceType: getDeviceType(),
-  pixelDensity: PixelRatio.get(),
-  baseWidth,
-  baseHeight,
-  scaleFactor: SCREEN_WIDTH / baseWidth,
-  verticalScaleFactor: SCREEN_HEIGHT / baseHeight,
-};
+export const screenDimensions = (() => {
+  const { width, height } = getScreenDimensions();
+  return {
+    width,
+    height,
+    isSmallDevice: isSmallDevice(),
+    isMediumDevice: isMediumDevice(),
+    isLargeDevice: isLargeDevice(),
+    isExtraLargeDevice: isExtraLargeDevice(),
+    isIPhone: isIPhone(),
+    isLatestIPhone: isLatestIPhone(),
+    isIPad: isIPad(),
+    isAndroid: isAndroid(),
+    isAndroidSmall: isAndroidSmall(),
+    isAndroidMedium: isAndroidMedium(),
+    isAndroidLarge: isAndroidLarge(),
+    isAndroidXLarge: isAndroidXLarge(),
+    isAndroidTablet: isAndroidTablet(),
+    isAndroidFoldable: isAndroidFoldable(),
+    isTablet: isTablet(),
+    deviceType: getDeviceType(),
+    pixelDensity: PixelRatio.get(),
+    baseWidth,
+    baseHeight,
+    scaleFactor: width / baseWidth,
+    verticalScaleFactor: height / baseHeight,
+  };
+})();
 
 // Enhanced responsive design utilities
 export const responsiveDesign = {
@@ -388,7 +447,8 @@ export const responsiveScale = (size: number, options: {
     platform = Platform.OS
   } = options;
   
-  let scaleFactor = SCREEN_WIDTH / baseWidth;
+  const { width } = getScreenDimensions();
+  let scaleFactor = width / baseWidth;
   
   // Apply limits
   scaleFactor = Math.min(Math.max(scaleFactor, minScale), maxScale);
@@ -420,12 +480,14 @@ export const responsiveScale = (size: number, options: {
 
 // Responsive width percentage
 export const responsiveWidth = (percentage: number): number => {
-  return (SCREEN_WIDTH * percentage) / 100;
+  const { width } = getScreenDimensions();
+  return (width * percentage) / 100;
 };
 
 // Responsive height percentage
 export const responsiveHeight = (percentage: number): number => {
-  return (SCREEN_HEIGHT * percentage) / 100;
+  const { height } = getScreenDimensions();
+  return (height * percentage) / 100;
 };
 
 // Grid system for responsive layouts
@@ -465,9 +527,10 @@ export const responsiveButton = {
 
 // Comprehensive device information for both platforms
 export const getDeviceInfo = () => {
+  const { width, height } = getScreenDimensions();
   const deviceInfo = {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width,
+    height,
     deviceType: getDeviceType(),
     platform: Platform.OS,
     isIPad: isIPad(),
@@ -480,25 +543,25 @@ export const getDeviceInfo = () => {
     // Specific iPhone model detection
     iPhoneModel: (() => {
       if (Platform.OS !== 'ios') return null;
-      if (SCREEN_WIDTH === 375 && SCREEN_HEIGHT === 667) return 'iPhone SE (2nd/3rd gen)';
-      if (SCREEN_WIDTH === 375 && SCREEN_HEIGHT === 812) return 'iPhone X/XS';
-      if (SCREEN_WIDTH === 414 && SCREEN_HEIGHT === 736) return 'iPhone 6/7/8 Plus';
-      if (SCREEN_WIDTH === 414 && SCREEN_HEIGHT === 896) return 'iPhone XR/XS Max';
-      if (SCREEN_WIDTH === 390 && SCREEN_HEIGHT === 844) return 'iPhone 11/12/13';
-      if (SCREEN_WIDTH === 428 && SCREEN_HEIGHT === 926) return 'iPhone 11/12/13 Pro Max';
-      if (SCREEN_WIDTH === 393 && SCREEN_HEIGHT === 852) return 'iPhone 14/15/16/17';
-      if (SCREEN_WIDTH === 430 && SCREEN_HEIGHT === 932) return 'iPhone 14/15/16/17 Plus';
-      if (SCREEN_WIDTH === 393 && SCREEN_HEIGHT === 852) return 'iPhone 14/15/16/17 Pro';
-      if (SCREEN_WIDTH === 430 && SCREEN_HEIGHT === 932) return 'iPhone 14/15/16/17 Pro Max';
+      if (width === 375 && height === 667) return 'iPhone SE (2nd/3rd gen)';
+      if (width === 375 && height === 812) return 'iPhone X/XS';
+      if (width === 414 && height === 736) return 'iPhone 6/7/8 Plus';
+      if (width === 414 && height === 896) return 'iPhone XR/XS Max';
+      if (width === 390 && height === 844) return 'iPhone 11/12/13';
+      if (width === 428 && height === 926) return 'iPhone 11/12/13 Pro Max';
+      if (width === 393 && height === 852) return 'iPhone 14/15/16/17';
+      if (width === 430 && height === 932) return 'iPhone 14/15/16/17 Plus';
+      if (width === 393 && height === 852) return 'iPhone 14/15/16/17 Pro';
+      if (width === 430 && height === 932) return 'iPhone 14/15/16/17 Pro Max';
       return 'Unknown iPhone';
     })(),
     
     // iPad model detection
     iPadModel: (() => {
       if (Platform.OS !== 'ios' || !isIPad()) return null;
-      if (SCREEN_WIDTH === 768 && SCREEN_HEIGHT === 1024) return 'iPad';
-      if (SCREEN_WIDTH === 834 && SCREEN_HEIGHT === 1194) return 'iPad Pro 11"';
-      if (SCREEN_WIDTH === 1024 && SCREEN_HEIGHT === 1366) return 'iPad Pro 12.9"';
+      if (width === 768 && height === 1024) return 'iPad';
+      if (width === 834 && height === 1194) return 'iPad Pro 11"';
+      if (width === 1024 && height === 1366) return 'iPad Pro 12.9"';
       return 'iPad (Unknown Model)';
     })(),
     
@@ -507,45 +570,45 @@ export const getDeviceInfo = () => {
       if (Platform.OS !== 'android') return null;
       
       // Small Android devices
-      if (SCREEN_WIDTH <= 360) {
-        if (SCREEN_WIDTH === 320) return 'Small Android (320dp)';
+      if (width <= 360) {
+        if (width === 320) return 'Small Android (320dp)';
         return 'Small Android (360dp)';
       }
       
       // Medium Android devices
-      if (SCREEN_WIDTH <= 480) {
-        if (SCREEN_WIDTH === 360) return 'Medium Android (360dp)';
-        if (SCREEN_WIDTH === 375) return 'Medium Android (375dp)';
+      if (width <= 480) {
+        if (width === 360) return 'Medium Android (360dp)';
+        if (width === 375) return 'Medium Android (375dp)';
         return 'Medium Android (384dp)';
       }
       
       // Large Android devices
-      if (SCREEN_WIDTH <= 600) {
-        if (SCREEN_WIDTH === 400) return 'Large Android (400dp)';
-        if (SCREEN_WIDTH === 412) return 'Large Android (412dp)';
+      if (width <= 600) {
+        if (width === 400) return 'Large Android (400dp)';
+        if (width === 412) return 'Large Android (412dp)';
         return 'Large Android (430dp)';
       }
       
       // Extra large Android devices
-      if (SCREEN_WIDTH <= 600) { // Assuming 600 is the threshold for xlarge
-        if (SCREEN_WIDTH === 450) return 'Extra Large Android (450dp)';
+      if (width <= 600) { // Assuming 600 is the threshold for xlarge
+        if (width === 450) return 'Extra Large Android (450dp)';
         return 'Extra Large Android (480dp)';
       }
       
       // Android tablets
-      if (SCREEN_WIDTH >= 600) {
-        if (SCREEN_WIDTH === 600) return 'Android Tablet 7"';
-        if (SCREEN_WIDTH === 768) return 'Android Tablet 8"';
-        if (SCREEN_WIDTH === 800) return 'Android Tablet 10"';
-        if (SCREEN_WIDTH === 1024) return 'Android Tablet 12"';
+      if (width >= 600) {
+        if (width === 600) return 'Android Tablet 7"';
+        if (width === 768) return 'Android Tablet 8"';
+        if (width === 800) return 'Android Tablet 10"';
+        if (width === 1024) return 'Android Tablet 12"';
         return 'Android Tablet (Unknown Size)';
       }
       
       // Foldable devices
-      if (SCREEN_WIDTH === 280) return 'Android Fold (Closed)';
-      if (SCREEN_WIDTH === 717) return 'Android Fold (Open)';
-      if (SCREEN_WIDTH === 84) return 'Android Flip (Closed)';
-      if (SCREEN_WIDTH === 360) return 'Android Flip (Open)';
+      if (width === 280) return 'Android Fold (Closed)';
+      if (width === 717) return 'Android Fold (Open)';
+      if (width === 84) return 'Android Flip (Closed)';
+      if (width === 360) return 'Android Flip (Open)';
       
       return 'Unknown Android Device';
     })(),

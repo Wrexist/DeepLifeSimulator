@@ -4,24 +4,25 @@
   },
   "build": {
     "production": {
-      "channel": "production",
       "ios": { 
         "resourceClass": "m-medium",
         "autoIncrement": false,
         "buildConfiguration": "Release",
         "env": {
-          "RCT_NEW_ARCH_ENABLED": "0",
+          "RCT_NEW_ARCH_ENABLED": "1",
           "FOLLY_NO_CONFIG": "1",
           "FOLLY_MOBILE": "1",
-          "FOLLY_USE_LIBCPP": "1",
-          "FOLLY_CFG_NO_COROUTINES": "1"
+          "FOLLY_USE_LIBCPP": "1"
         },
         "simulator": false
       },
       "android": {
         "resourceClass": "medium",
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease"
+        "gradleCommand": ":app:bundleRelease",
+        "env": {
+          "RCT_NEW_ARCH_ENABLED": "1"
+        }
       }
     },
     "preview": {

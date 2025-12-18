@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGame } from '@/contexts/GameContext';
-import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+// MAIN MENU STATE GATE FIX: Removed unused useOnboarding import to ensure no state mutations
 import SettingsModal from '@/components/SettingsModal';
 import { Play, Plus, Save, Settings } from 'lucide-react-native';
 import {
@@ -21,6 +21,7 @@ import {
 
 import { useTranslation } from '@/hooks/useTranslation';
 import { logger } from '@/utils/logger';
+import { validateGameEntry } from '@/utils/gameEntryValidation';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -29,7 +30,8 @@ export default function MainMenu() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { loadGame } = useGame();
-  const { setState } = useOnboarding();
+  // MAIN MENU STATE GATE FIX: setState imported but never used - removed to ensure no state mutations
+  // Onboarding state is managed by individual onboarding screens, not Main Menu
   const [hasSave, setHasSave] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const { t } = useTranslation();
@@ -53,14 +55,27 @@ export default function MainMenu() {
     
     (async () => {
       try {
-        // Check if there's actual game data, not just a save slot
-        const gameState = await AsyncStorage.getItem('gameState');
+        // MAIN MENU STATE GATE FIX: Check save slots directly (not legacy 'gameState' key)
+        // This ensures the Continue button only shows when there's an actual save
         const lastSlot = await AsyncStorage.getItem('lastSlot');
         
-        if (isMounted && gameState && lastSlot) {
+        if (isMounted && lastSlot) {
           try {
-            // Parse the game state to check if it has meaningful progress
-            const parsedGameState = JSON.parse(gameState);
+            const slotNumber = parseInt(lastSlot, 10);
+            if (isNaN(slotNumber) || slotNumber < 1 || slotNumber > 3) {
+              setHasSave(false);
+              return;
+            }
+            
+            // Check the actual save slot for game data
+            const saveData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+            if (!saveData) {
+              setHasSave(false);
+              return;
+            }
+            
+            // Parse the save data to check if it has meaningful progress
+            const parsedGameState = JSON.parse(saveData);
             
             // Validate that the parsed data has the expected structure
             if (!parsedGameState || typeof parsedGameState !== 'object') {
@@ -77,7 +92,7 @@ export default function MainMenu() {
             
             setHasSave(hasProgress);
           } catch (parseError) {
-            log.error('Failed to parse game state:', parseError);
+            log.error('Failed to parse save data:', parseError);
             setHasSave(false);
           }
         } else {
@@ -120,27 +135,161 @@ export default function MainMenu() {
 
   const continueGame = async () => {
     try {
-      // Ensure we have valid game data before continuing
-      const gameState = await AsyncStorage.getItem('gameState');
-      if (!gameState) {
-        log.error('No game state found when trying to continue');
+      // CRITICAL: Validate save exists before attempting load
+      const lastSlot = await AsyncStorage.getItem('lastSlot');
+      if (!lastSlot) {
+        log.error('No lastSlot found when trying to continue');
+        Alert.alert(
+          'No Save Found',
+          'No save game found. Please start a new game.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const slotNumber = parseInt(lastSlot, 10);
+      if (isNaN(slotNumber) || slotNumber < 1 || slotNumber > 3) {
+        log.error('Invalid lastSlot value:', lastSlot);
+        Alert.alert(
+          'Invalid Save Slot',
+          'The save slot information is invalid. Please select a save slot from the Save Slots menu.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // CRITICAL: Load the game data and verify success
+      try {
+        await loadGame(slotNumber);
+      } catch (loadError) {
+        log.error('loadGame threw an error:', loadError);
+        Alert.alert(
+          'Load Error',
+          'An error occurred while loading your game. Please try again or start a new game.',
+          [{ text: 'OK' }]
+        );
         return;
       }
       
-      // Load the game data properly
-      await loadGame();
+      // CRITICAL: Verify loadGame succeeded by checking storage
+      // This ensures the state was actually loaded, not just that loadGame() returned
+      const loadedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+      if (!loadedData) {
+        log.error('loadGame returned but no data found in storage - load failed silently');
+        Alert.alert(
+          'Load Failed',
+          'Failed to load your game. The save file may be corrupted or missing. Please try loading from Save Slots or start a new game.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       
-      // Navigate to the main game with error handling
-      if (router && typeof router.replace === 'function') {
-        router.replace('/(tabs)');
-      } else {
-        log.error('Router not available for navigation');
-        startNew();
+      // CRITICAL: Validate state before entering gameplay
+      // No setTimeout needed - we've already verified loadGame completed
+      try {
+
+        let loadedState;
+        try {
+          loadedState = JSON.parse(loadedData);
+        } catch (parseError) {
+          log.error('Failed to parse loaded game state:', parseError);
+          Alert.alert(
+            'Corrupted Save',
+            'Your save file is corrupted and cannot be loaded. Please try loading from a backup or start a new game.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        // CRITICAL: Verify loaded state structure before validation
+        if (!loadedState || typeof loadedState !== 'object') {
+          log.error('Loaded state is not a valid object', { loadedState });
+          Alert.alert(
+            'Invalid Save',
+            'The loaded game state is invalid. Please try loading from a backup or start a new game.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        // CRITICAL: Validate state before entering gameplay
+        const validation = validateGameEntry(loadedState);
+        
+        if (!validation.canEnter) {
+          log.error('Game entry validation failed', {
+            reason: validation.reason,
+            errors: validation.errors,
+            warnings: validation.warnings,
+            versionCompatible: validation.versionCompatible,
+            stateComplete: validation.stateComplete,
+            slot: slotNumber,
+            version: loadedState.version,
+          });
+
+          // Show appropriate error message based on failure type
+          if (!validation.versionCompatible) {
+            const versionError = validation.errors.find(e => e.includes('version')) || 
+              `This save is from version ${loadedState.version || 'unknown'}, which is incompatible with the current game version.`;
+            Alert.alert(
+              'Version Incompatible',
+              versionError + '\n\nPlease update the game or start a new game.',
+              [{ text: 'OK' }]
+            );
+          } else if (!validation.stateComplete) {
+            Alert.alert(
+              'Incomplete Save',
+              validation.errors[0] || 
+              'Your save file is incomplete and cannot be loaded. Please try loading from a backup or start a new game.',
+              [{ text: 'OK' }]
+            );
+          } else {
+            Alert.alert(
+              'Invalid Save',
+              validation.errors[0] || 
+              'Your save file is invalid and cannot be loaded. Please try loading from a backup or start a new game.',
+              [{ text: 'OK' }]
+            );
+          }
+          return;
+        }
+
+        if (validation.warnings.length > 0) {
+          log.warn('Game entry validation warnings', {
+            warnings: validation.warnings,
+            slot: slotNumber,
+          });
+        }
+
+        // CRITICAL: Only navigate if validation passed
+        if (router && typeof router.replace === 'function') {
+          log.info('Game entry validation passed, navigating to gameplay', {
+            slot: slotNumber,
+            version: loadedState.version,
+          });
+          router.replace('/(tabs)');
+        } else {
+          log.error('Router not available for navigation');
+          Alert.alert(
+            'Navigation Error',
+            'Unable to navigate to the game. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
+      } catch (validationError) {
+        log.error('Error during game entry validation:', validationError);
+        Alert.alert(
+          'Validation Error',
+          'An error occurred while validating your save. Please try again.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
-      log.error('Navigation error:', error);
-      // If there's an error, fall back to new game
-      startNew();
+      log.error('Error in continueGame:', error);
+      Alert.alert(
+        'Load Error',
+        'An error occurred while loading your game. Please try again or start a new game.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -189,14 +338,26 @@ export default function MainMenu() {
         return;
       }
 
-      setState(prev => ({ ...prev, slot: 1, scenario: undefined, perks: [], firstName: '', lastName: '' }));
+      // CRITICAL: Main Menu must NOT mutate game state
+      // Only reset onboarding state (which is separate from game state)
+      // Navigation to Scenarios will handle onboarding state initialization
       if (router && typeof router.push === 'function') {
         router.push('/(onboarding)/Scenarios');
       } else {
         log.error('Router not available for navigation');
+        Alert.alert(
+          'Navigation Error',
+          'Unable to start a new game. Please try again.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
       log.error('Error starting new game:', error);
+      Alert.alert(
+        'Error',
+        'An error occurred while starting a new game. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 

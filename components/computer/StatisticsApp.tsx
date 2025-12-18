@@ -32,6 +32,10 @@ import {
   Zap,
   Star,
   Crown,
+  Network,
+  Compass,
+  Activity,
+  Link,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
@@ -42,6 +46,10 @@ import {
   getCareerSummary,
   getAchievementProgress,
 } from '@/lib/statistics/statisticsTracker';
+import { getEnhancedLifetimeStatistics } from '@/lib/statistics/enhancedStatistics';
+import { getSystemHealth } from '@/lib/depth/systemInterconnections';
+import { getDiscoveryProgress } from '@/lib/depth/discoverySystem';
+import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -49,7 +57,7 @@ interface StatisticsAppProps {
   onBack: () => void;
 }
 
-type TabType = 'overview' | 'career' | 'relationships' | 'achievements' | 'comparison';
+type TabType = 'overview' | 'career' | 'relationships' | 'achievements' | 'comparison' | 'systems' | 'interconnections' | 'discovery' | 'trends';
 
 // Simple line chart component using View elements
 const SimpleLineChart = ({ 
@@ -243,6 +251,10 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
     { id: 'relationships', label: 'Life', icon: Heart },
     { id: 'achievements', label: 'Achievements', icon: Trophy },
     { id: 'comparison', label: 'Ranking', icon: Crown },
+    { id: 'systems', label: 'Systems', icon: Network },
+    { id: 'interconnections', label: 'Connections', icon: Link },
+    { id: 'discovery', label: 'Discovery', icon: Compass },
+    { id: 'trends', label: 'Trends', icon: Activity },
   ];
   
   const renderOverviewTab = useCallback(() => (
@@ -713,9 +725,101 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
             </LinearGradient>
           </View>
         </View>
+
+        {/* Past Lives Comparison */}
+        {gameState.pastLives && gameState.pastLives.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Past Lives Comparison</Text>
+            <Text style={styles.sectionSubtitle}>Compare your current life to previous ones</Text>
+            
+            <View style={styles.pastLivesGrid}>
+              <View style={[styles.pastLifeCard, styles.currentLifeCard]}>
+                <LinearGradient
+                  colors={['#10B981', '#059669']}
+                  style={styles.pastLifeGradient}
+                >
+                  <Text style={styles.pastLifeLabel}>Current Life</Text>
+                  <Text style={styles.pastLifeValue}>{formatStatMoney(currentNetWorth)}</Text>
+                  <Text style={styles.pastLifeWeeks}>Week {gameState.week || 0}</Text>
+                </LinearGradient>
+              </View>
+
+              {(gameState.pastLives || []).slice(-3).reverse().map((pastLife: any, index: number) => (
+                <View key={index} style={styles.pastLifeCard}>
+                  <LinearGradient
+                    colors={['#1F2937', '#111827']}
+                    style={styles.pastLifeGradient}
+                  >
+                    <Text style={styles.pastLifeLabel}>Life #{gameState.pastLives!.length - index}</Text>
+                    <Text style={styles.pastLifeValue}>
+                      {formatStatMoney(pastLife.finalNetWorth || pastLife.peakNetWorth || 0)}
+                    </Text>
+                    <Text style={styles.pastLifeWeeks}>
+                      {pastLife.weeksLived || 0} weeks
+                    </Text>
+                  </LinearGradient>
+                </View>
+              ))}
+            </View>
+
+            {/* Improvement indicator */}
+            {gameState.pastLives && gameState.pastLives.length > 0 && (
+              <View style={styles.improvementCard}>
+                <TrendingUp size={scale(20)} color={currentNetWorth > (gameState.pastLives[gameState.pastLives.length - 1]?.finalNetWorth || 0) ? '#10B981' : '#EF4444'} />
+                <Text style={[
+                  styles.improvementText,
+                  { color: currentNetWorth > (gameState.pastLives[gameState.pastLives.length - 1]?.finalNetWorth || 0) ? '#10B981' : '#EF4444' }
+                ]}>
+                  {currentNetWorth > (gameState.pastLives[gameState.pastLives.length - 1]?.finalNetWorth || 0) 
+                    ? 'Doing better than your last life!' 
+                    : 'Keep going to surpass your last life!'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Export Statistics */}
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.exportButton}
+            onPress={() => {
+              const statsText = `
+🎮 DeepLifeSim Statistics
+━━━━━━━━━━━━━━━━━━━━
+💰 Net Worth: ${formatStatMoney(currentNetWorth)}
+📈 Peak: ${formatStatMoney(stats.peakNetWorth)}
+💵 Total Earned: ${formatStatMoney(stats.totalMoneyEarned)}
+💸 Total Spent: ${formatStatMoney(stats.totalMoneySpent)}
+━━━━━━━━━━━━━━━━━━━━
+🏢 Companies: ${stats.totalCompaniesOwned}
+🏠 Properties: ${stats.totalPropertiesOwned}
+✈️ Destinations: ${stats.totalTravelDestinations}
+👥 Relationships: ${stats.totalRelationships}
+🏆 Achievements: ${achievementProgress.unlocked}/${achievementProgress.total}
+━━━━━━━━━━━━━━━━━━━━
+Week ${gameState.week || 0}
+              `.trim();
+              
+              // Copy to clipboard (simplified - in production would use Clipboard API)
+              // Statistics text prepared for clipboard (would use Clipboard API in production)
+              // Could add a toast notification here
+            }}
+          >
+            <LinearGradient
+              colors={['#6366F1', '#8B5CF6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.exportButtonGradient}
+            >
+              <BarChart3 size={scale(18)} color="#FFFFFF" />
+              <Text style={styles.exportButtonText}>Copy Statistics</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     );
-  }, [currentNetWorth, stats, careerSummary, achievementProgress]);
+  }, [currentNetWorth, stats, careerSummary, achievementProgress, gameState.pastLives, gameState.week]);
   
   const renderContent = useCallback(() => {
     switch (activeTab) {
@@ -1223,6 +1327,165 @@ const styles = StyleSheet.create({
     fontSize: fontScale(14),
     color: 'rgba(255,255,255,0.8)',
     marginTop: scale(4),
+  },
+  pastLivesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: scale(12),
+    marginTop: scale(12),
+  },
+  pastLifeCard: {
+    width: (screenWidth - scale(88)) / 2,
+    borderRadius: scale(16),
+    overflow: 'hidden',
+  },
+  currentLifeCard: {
+    width: '100%',
+  },
+  pastLifeGradient: {
+    padding: scale(16),
+    alignItems: 'center',
+  },
+  pastLifeLabel: {
+    fontSize: fontScale(12),
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: scale(4),
+  },
+  pastLifeValue: {
+    fontSize: fontScale(18),
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  pastLifeWeeks: {
+    fontSize: fontScale(11),
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: scale(4),
+  },
+  improvementCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    padding: scale(12),
+    borderRadius: scale(12),
+    marginTop: scale(12),
+  },
+  improvementText: {
+    fontSize: fontScale(14),
+    fontWeight: '500',
+    flex: 1,
+  },
+  exportButton: {
+    borderRadius: scale(12),
+    overflow: 'hidden',
+  },
+  exportButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(8),
+    paddingVertical: scale(14),
+  },
+  exportButtonText: {
+    fontSize: fontScale(15),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  systemHealthCard: {
+    borderRadius: scale(12),
+    overflow: 'hidden',
+    marginBottom: scale(12),
+  },
+  systemHealthGradient: {
+    padding: scale(16),
+  },
+  systemHealthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: scale(8),
+  },
+  systemHealthName: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  systemHealthBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(4),
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    borderRadius: scale(12),
+  },
+  systemHealthTrend: {
+    fontSize: fontScale(11),
+    color: '#FFFFFF',
+    textTransform: 'capitalize',
+  },
+  systemHealthBar: {
+    height: scale(8),
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: scale(4),
+    overflow: 'hidden',
+    marginBottom: scale(8),
+  },
+  systemHealthFill: {
+    height: '100%',
+    borderRadius: scale(4),
+  },
+  systemHealthValue: {
+    fontSize: fontScale(14),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  systemStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: scale(8),
+    paddingTop: scale(8),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  systemStatText: {
+    fontSize: fontScale(11),
+    color: 'rgba(255,255,255,0.7)',
+  },
+  interconnectionCard: {
+    borderRadius: scale(12),
+    overflow: 'hidden',
+    marginBottom: scale(12),
+  },
+  interconnectionGradient: {
+    padding: scale(16),
+  },
+  interconnectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    marginBottom: scale(8),
+  },
+  interconnectionSource: {
+    fontSize: fontScale(14),
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  interconnectionTarget: {
+    fontSize: fontScale(14),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  interconnectionDesc: {
+    fontSize: fontScale(12),
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: fontScale(16),
+  },
+  sectionSubtitle: {
+    fontSize: fontScale(12),
+    color: '#9CA3AF',
+    marginBottom: scale(16),
   },
 });
 

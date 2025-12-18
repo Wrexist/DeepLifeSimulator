@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import appConfig from '../app.config.js';
 import { logger } from './logger';
 import { saveBackupManager } from './saveBackup';
+import { safeSetItem, safeGetItem, safeMultiRemove, safeGetAllKeys } from './safeStorage';
 const appJson = appConfig.expo;
 
 // Cache management utility for automatic version-based cache clearing
@@ -46,7 +47,7 @@ export class CacheManager {
     hasData: boolean;
   }> {
     try {
-      const allKeys = await AsyncStorage.getAllKeys();
+      const allKeys = await safeGetAllKeys();
       const saveSlots = allKeys.filter(key => this.SAVE_SLOT_PATTERN.test(key));
       const backups = allKeys.filter(key => 
         this.BACKUP_PATTERN.test(key) || 
@@ -160,7 +161,7 @@ export class CacheManager {
       // Wrap AsyncStorage call in try-catch to handle QuotaExceededError
       let storedVersion: string | null = null;
       try {
-        storedVersion = await AsyncStorage.getItem(this.VERSION_KEY);
+        storedVersion = await safeGetItem(this.VERSION_KEY);
       } catch (storageError: any) {
         // Handle QuotaExceededError or other storage errors
         if (storageError?.name === 'QuotaExceededError' || storageError?.message?.includes('quota')) {
@@ -233,7 +234,7 @@ export class CacheManager {
             
             // Update version after recovery attempt - wrap in try-catch
             try {
-              await AsyncStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
+              await safeSetItem(this.VERSION_KEY, this.CURRENT_VERSION);
             } catch (setError: any) {
               logger.error('[CacheManager] Failed to update version after recovery:', setError);
             }
@@ -277,7 +278,7 @@ export class CacheManager {
   static async clearAllCache(): Promise<void> {
     try {
       // Get all keys from AsyncStorage
-      const allKeys = await AsyncStorage.getAllKeys();
+      const allKeys = await safeGetAllKeys();
       
       // Filter keys that should be cleared
       // EXCLUDE save slots, backups, cloud saves, and protected keys - these contain player data!
@@ -340,7 +341,7 @@ export class CacheManager {
       logger.info(`[CacheManager] - Will preserve ${keysPreserved.length} protected keys (save data, backups, etc.)`);
       
       if (keysToClear.length > 0) {
-        await AsyncStorage.multiRemove(keysToClear);
+        await safeMultiRemove(keysToClear);
         logger.info(`[CacheManager] Successfully cleared ${keysToClear.length} cache keys`);
       } else {
         logger.info(`[CacheManager] No cache keys to clear`);
@@ -385,7 +386,7 @@ export class CacheManager {
     lastCleared?: string;
   }> {
     try {
-      const allKeys = await AsyncStorage.getAllKeys();
+      const allKeys = await safeGetAllKeys();
       // Only count actual cache keys, not save slots
       const cacheKeys = allKeys.filter(key => 
         this.CACHE_KEYS.includes(key)
@@ -440,7 +441,7 @@ export class CacheManager {
    */
   static async checkVersionUpdate(): Promise<boolean> {
     try {
-      const storedVersion = await AsyncStorage.getItem(this.VERSION_KEY);
+      const storedVersion = await safeGetItem(this.VERSION_KEY);
       return storedVersion !== this.CURRENT_VERSION;
     } catch (error) {
       if (__DEV__) {

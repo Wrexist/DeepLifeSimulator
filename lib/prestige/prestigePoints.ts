@@ -1,5 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { PrestigeData } from './prestigeTypes';
+import { MAX_MULTIPLIER_LEVEL } from './prestigeConstants';
 
 /**
  * Breakdown of prestige points calculation
@@ -67,8 +68,17 @@ export function calculatePrestigePoints(
   // Child path bonus: +25% if choosing child path
   const childPathBonus = chosenPath === 'child' ? 0.25 : 0;
 
-  // Multiplier: 1.1^(prestigeLevel) - 10% more points per prestige level
-  const multiplier = Math.pow(1.1, prestigeData.prestigeLevel);
+  // STABILITY FIX: Cap prestige multiplier growth to prevent exponential trivialization
+  // After MAX_MULTIPLIER_LEVEL, multiplier stops growing (prevents later prestiges from becoming trivial)
+  // Multiplier: 1.1^(min(prestigeLevel, MAX_MULTIPLIER_LEVEL)) - 10% more points per prestige level
+  //
+  // SAFETY: This is safe because:
+  // - Multiplier calculation is isolated to this function
+  // - No other code depends on unbounded multiplier growth
+  // - Capping at MAX_MULTIPLIER_LEVEL still provides 2.59x multiplier (significant but not exponential)
+  // - Constant extracted to prestigeConstants.ts for easy tuning
+  const cappedLevel = Math.min(prestigeData.prestigeLevel, MAX_MULTIPLIER_LEVEL);
+  const multiplier = Math.pow(1.1, cappedLevel);
 
   // Calculate total before child path bonus
   const subtotal = basePoints + achievementBonus + generationBonus + ageBonus + 

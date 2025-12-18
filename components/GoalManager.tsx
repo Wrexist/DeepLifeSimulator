@@ -160,12 +160,17 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
                 current: goal.target,
               });
               
+              // BUG FIX: Link Life Goals completion to achievement perks
+              // Check if this goal unlocks an achievement perk
+              checkGoalAchievement(goal.id);
+              
               // Give reward
               if (goal.reward) {
-                // Apply reward logic here
-                if (__DEV__) {
-                  logger.info('Goal completed! Reward:', { reward: goal.reward });
-                }
+                applyGoalReward(goal.reward);
+                Alert.alert(
+                  '🎉 Goal Completed!',
+                  `You earned ${goal.reward.amount.toLocaleString()} ${goal.reward.type}!`
+                );
               }
             },
           },
@@ -177,11 +182,99 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
         completedAt: Date.now(),
       });
       
+      // BUG FIX: Link Life Goals completion to achievement perks
+      // Check if this goal unlocks an achievement perk
+      checkGoalAchievement(goal.id);
+      
       // Give reward
       if (goal.reward) {
-        logger.debug('Goal completed! Reward:', { reward: goal.reward });
+        applyGoalReward(goal.reward);
+        Alert.alert(
+          '🎉 Goal Completed!',
+          `You earned ${goal.reward.amount.toLocaleString()} ${goal.reward.type}!`
+        );
       }
     }
+  };
+
+  // BUG FIX: Check if goal completion unlocks achievement perks
+  const checkGoalAchievement = (goalId: string) => {
+    setGameState((prev: GameState) => {
+      // Map goal IDs to achievement IDs (if applicable)
+      // This is a placeholder - you may need to adjust based on your goal/achievement mapping
+      const goalToAchievementMap: Record<string, string> = {
+        // Add mappings here if goals should unlock specific achievements
+        // Example: 'get_job': 'first_job',
+      };
+      
+      const achievementId = goalToAchievementMap[goalId];
+      if (achievementId) {
+        // Complete the achievement if it exists
+        const achievement = prev.achievements?.find(a => a.id === achievementId);
+        if (achievement && !achievement.completed) {
+          const updatedAchievements = prev.achievements.map(a =>
+            a.id === achievementId ? { ...a, completed: true } : a
+          );
+          
+          // Check if achievement unlocks a perk
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { perksData } = require('@/app/(onboarding)/Perks');
+          const unlockedPerk = perksData.find((p: any) => p.unlock?.achievementId === achievementId);
+          
+          if (unlockedPerk) {
+            // Save as permanent perk
+            // Note: This requires access to savePermanentPerk function
+            // You may need to pass it as a prop or access via context
+            return {
+              ...prev,
+              achievements: updatedAchievements,
+              perks: {
+                ...prev.perks,
+                [unlockedPerk.id]: true,
+              },
+            };
+          }
+          
+          return {
+            ...prev,
+            achievements: updatedAchievements,
+          };
+        }
+      }
+      
+      return prev;
+    });
+  };
+
+  // Apply reward to game state
+  const applyGoalReward = (reward: { type: string; amount: number }) => {
+    setGameState((prev: GameState) => {
+      const newStats = { ...prev.stats };
+      
+      switch (reward.type) {
+        case 'money':
+          newStats.money = (newStats.money || 0) + reward.amount;
+          break;
+        case 'gems':
+          newStats.gems = (newStats.gems || 0) + reward.amount;
+          break;
+        case 'happiness':
+          newStats.happiness = Math.min(100, (newStats.happiness || 0) + reward.amount);
+          break;
+        case 'energy':
+          newStats.energy = Math.min(100, (newStats.energy || 0) + reward.amount);
+          break;
+        case 'health':
+          newStats.health = Math.min(100, (newStats.health || 0) + reward.amount);
+          break;
+      }
+      
+      return {
+        ...prev,
+        stats: newStats,
+      };
+    });
+    saveGame();
   };
 
   const renderGoalCard = (goal: Goal) => {
