@@ -16,6 +16,7 @@
           "FOLLY_USE_LIBCPP": "1",
           "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES": "YES"
         },
+        "prebuildCommand": "chmod +x hooks/eas-build-post-install.sh && hooks/eas-build-post-install.sh",
         "simulator": false
       },
       "android": {
