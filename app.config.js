@@ -34,8 +34,8 @@ module.exports = {
       bundleIdentifier: "com.deeplife.simulator",
       // Build number - increment for each App Store submission
       buildNumber: "65",
-      // Minimum iOS version - set to 13.0 to support iOS 26 beta and older devices
-      deploymentTarget: "13.0",
+      // Minimum iOS version - set to 13.4 for better Xcode 15 compatibility
+      deploymentTarget: "13.4",
       infoPlist: {
         NSUserTrackingUsageDescription: "This app would like to track your activity to provide personalized ads and improve your experience.",
         ITSAppUsesNonExemptEncryption: false
@@ -83,17 +83,18 @@ module.exports = {
           root: "./app"
         }
       ],
-      // CRITICAL: Fix for iOS 26 SDK strict header requirements
-      // React Native 0.81.5 headers are not fully modularized for iOS 26
-      // Use expo-build-properties instead of custom plugin for better reliability
+      // CRITICAL: iOS build compatibility settings
+      // Force Xcode 15 compatibility and suppress strict iOS 26 warnings
       [
         "expo-build-properties",
         {
           ios: {
-            // Allow non-modular includes in framework modules
-            // This fixes the iOS 26 SDK compilation error
+            deploymentTarget: "13.4",
+            // Suppress strict module header warnings for Xcode 15/16 compatibility
             extraPodfileProperties: {
-              "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES": "YES"
+              "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES": "YES",
+              "GCC_WARN_INHIBIT_ALL_WARNINGS": "NO",
+              "WARNING_CFLAGS": "-Wno-error=non-modular-include-in-framework-module"
             }
           }
         }

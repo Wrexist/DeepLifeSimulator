@@ -8,6 +8,7 @@
         "resourceClass": "m-medium",
         "autoIncrement": false,
         "buildConfiguration": "Release",
+        "image": "latest",
         "env": {
           "RCT_NEW_ARCH_ENABLED": "0",
           "FOLLY_NO_CONFIG": "1",
