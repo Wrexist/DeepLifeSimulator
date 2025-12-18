@@ -8,7 +8,28 @@ import {
   TouchableOpacityProps,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
+// CRITICAL: Lazy-load expo-haptics to prevent TurboModule crash at module load
+// import * as Haptics from 'expo-haptics'; // REMOVED - lazy load instead
+
+// Lazy-loaded Haptics module
+let Haptics: any = null;
+let hapticsLoadAttempted = false;
+
+function loadHapticsModule(): boolean {
+  if (hapticsLoadAttempted) {
+    return Haptics !== null;
+  }
+  
+  hapticsLoadAttempted = true;
+  
+  try {
+    Haptics = require('expo-haptics');
+    return true;
+  } catch (error) {
+    // Module not available - will skip haptics
+    return false;
+  }
+}
 
 interface AnimatedButtonProps extends TouchableOpacityProps {
   children: React.ReactNode;
@@ -53,7 +74,7 @@ export default function AnimatedButton({
       }),
     ]).start();
 
-    if (hapticFeedback) {
+    if (hapticFeedback && loadHapticsModule()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
@@ -79,7 +100,7 @@ export default function AnimatedButton({
   const handlePress = (event: any) => {
     if (disabled) return;
     
-    if (hapticFeedback) {
+    if (hapticFeedback && loadHapticsModule()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     

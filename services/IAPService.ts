@@ -20,9 +20,18 @@ function loadInAppPurchasesModule(): boolean {
   inAppPurchasesLoadAttempted = true;
   
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/IAPService.ts:24',message:'Before expo-in-app-purchases require',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     InAppPurchases = require('expo-in-app-purchases');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/IAPService.ts:28',message:'After expo-in-app-purchases require success',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     return true;
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/IAPService.ts:33',message:'expo-in-app-purchases require failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     // Module not available - will use simulation mode
     // Do NOT log here as logger may not be initialized
     return false;

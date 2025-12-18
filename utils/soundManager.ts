@@ -1,6 +1,27 @@
 import { Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
+// CRITICAL: Lazy-load expo-haptics to prevent TurboModule crash at module load
+// import * as Haptics from 'expo-haptics'; // REMOVED - lazy load instead
 import { logger } from '@/utils/logger';
+
+// Lazy-loaded Haptics module
+let Haptics: any = null;
+let hapticsLoadAttempted = false;
+
+function loadHapticsModule(): boolean {
+  if (hapticsLoadAttempted) {
+    return Haptics !== null;
+  }
+  
+  hapticsLoadAttempted = true;
+  
+  try {
+    Haptics = require('expo-haptics');
+    return true;
+  } catch (error) {
+    // Module not available - will skip haptics
+    return false;
+  }
+}
 
 // Optional import for expo-av - fallback to haptics if not available
 let Audio: typeof import('expo-av').Audio | null = null;
@@ -54,7 +75,7 @@ class SoundManager {
       }
 
       // Test haptics to ensure it's working
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== 'web' && loadHapticsModule()) {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
 
