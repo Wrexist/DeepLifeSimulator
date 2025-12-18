@@ -82,7 +82,10 @@ module.exports = {
         {
           root: "./app"
         }
-      ]
+      ],
+      // CRITICAL: Fix for iOS 26 SDK strict header requirements
+      // React Native 0.81.5 headers are not fully modularized for iOS 26
+      "./plugins/withXcodeWarnings"
       // REMOVED: expo-font, expo-web-browser, expo-tracking-transparency
       // REMOVED: ./plugins/withFollyCoroutinesFix.js
       // All removed to eliminate TurboModule crash suspects
