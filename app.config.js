@@ -84,21 +84,18 @@ module.exports = {
         }
       ],
       // CRITICAL: iOS build compatibility settings
-      // Force Xcode 15 compatibility and suppress strict iOS 26 warnings
+      // Suppress strict iOS 26 SDK warnings for Xcode 16.1
       [
         "expo-build-properties",
         {
           ios: {
-            deploymentTarget: "15.1",
-            // Suppress strict module header warnings for Xcode 15/16 compatibility
-            extraPodfileProperties: {
-              "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES": "YES",
-              "GCC_WARN_INHIBIT_ALL_WARNINGS": "NO",
-              "WARNING_CFLAGS": "-Wno-error=non-modular-include-in-framework-module"
-            }
+            deploymentTarget: "15.1"
           }
         }
-      ]
+      ],
+      // CRITICAL: Add Podfile post_install hook for iOS 26 SDK compatibility
+      // This applies warning suppressions to ALL pods after prebuild
+      "./plugins/withPodfileWarningSuppression.js"
       // REMOVED: expo-font, expo-web-browser, expo-tracking-transparency
       // REMOVED: ./plugins/withFollyCoroutinesFix.js
       // REMOVED: ./plugins/withXcodeWarnings (replaced with expo-build-properties)
