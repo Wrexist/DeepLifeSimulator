@@ -85,9 +85,22 @@ module.exports = {
       ],
       // CRITICAL: Fix for iOS 26 SDK strict header requirements
       // React Native 0.81.5 headers are not fully modularized for iOS 26
-      "./plugins/withXcodeWarnings"
+      // Use expo-build-properties instead of custom plugin for better reliability
+      [
+        "expo-build-properties",
+        {
+          ios: {
+            // Allow non-modular includes in framework modules
+            // This fixes the iOS 26 SDK compilation error
+            extraPodfileProperties: {
+              "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES": "YES"
+            }
+          }
+        }
+      ]
       // REMOVED: expo-font, expo-web-browser, expo-tracking-transparency
       // REMOVED: ./plugins/withFollyCoroutinesFix.js
+      // REMOVED: ./plugins/withXcodeWarnings (replaced with expo-build-properties)
       // All removed to eliminate TurboModule crash suspects
     ],
     experiments: {
