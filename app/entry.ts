@@ -115,6 +115,31 @@ const reanimatedLoaded = false;
 // Expose reanimated status for downstream code (always false now)
 (global as any).__REANIMATED_LOADED__ = reanimatedLoaded;
 
+// 7) CRITICAL: Keep splash screen visible until app is ready
+// Prevent auto-hide so we can control when it disappears
+try {
+  const { Platform } = require('react-native');
+  if (Platform.OS !== 'web') {
+    try {
+      const SplashScreen = require('expo-splash-screen');
+      if (SplashScreen && typeof SplashScreen.preventAutoHideAsync === 'function') {
+        SplashScreen.preventAutoHideAsync().catch(() => {
+          // Ignore errors - splash screen will auto-hide by default
+        });
+        if (__DEV__) {
+          console.log('[entry.ts] Splash screen auto-hide prevented');
+        }
+      }
+    } catch (splashError) {
+      // Splash screen module not available - continue without it
+      if (__DEV__) {
+        console.warn('[entry.ts] expo-splash-screen not available:', splashError);
+      }
+    }
+  }
+} catch (platformError) {
+  // Ignore - continue loading
+}
+
 // Finally, load the Expo Router entry
 import 'expo-router/entry';
-
