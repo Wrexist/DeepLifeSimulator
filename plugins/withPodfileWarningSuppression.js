@@ -22,21 +22,17 @@ module.exports = function withPodfileWarningSuppression(config) {
 
       let podfileContent = fs.readFileSync(podfilePath, 'utf8');
       
-      // Check if the post_install hook is already added
+      // Check if the warning suppression code is already added
       if (podfileContent.includes('iOS 26 SDK Compatibility Fix')) {
-        console.log('✅ Podfile already has warning suppression hook');
+        console.log('✅ Podfile already has warning suppression code');
         return config;
       }
 
-      // Find the end of the file or existing post_install block
-      const postInstallPattern = /post_install do \|installer\|[\s\S]*?^end\s*$/m;
-      const hasPostInstall = postInstallPattern.test(podfileContent);
-
-      const warningSuppressionHook = `
-# CRITICAL: iOS 26 SDK Compatibility Fix
-# React Native 0.81.5 headers are not fully modularized
-# This post_install hook applies build settings to ALL pods
-post_install do |installer|
+      // Code to insert INSIDE existing post_install block
+      const warningSuppressionCode = `
+  # CRITICAL: iOS 26 SDK Compatibility Fix
+  # React Native 0.81.5 headers are not fully modularized
+  # This applies build settings to ALL pods
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
       # Layer 1: Allow non-modular includes in framework modules
@@ -50,20 +46,27 @@ post_install do |installer|
       config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'NO'
     end
   end
-  
   puts "✅ iOS 26 SDK compatibility fixes applied to \#{installer.pods_project.targets.count} pods"
-end
 `;
 
-      if (hasPostInstall) {
-        // Append to existing post_install block
+      // Find existing post_install block and insert code BEFORE the final 'end'
+      const postInstallPattern = /(post_install do \|installer\|[\s\S]*?)(^\s*end\s*$)/m;
+      const match = podfileContent.match(postInstallPattern);
+      
+      if (match) {
+        // Insert code before the final 'end' of existing post_install block
         podfileContent = podfileContent.replace(
-          /(post_install do \|installer\|[\s\S]*?)(^end\s*$)/m,
-          `$1${warningSuppressionHook}$2`
+          postInstallPattern,
+          `$1${warningSuppressionCode}$2`
         );
       } else {
-        // Add new post_install block at the end
-        podfileContent += warningSuppressionHook;
+        // No existing post_install block, create a new one
+        const newPostInstall = `
+# CRITICAL: iOS 26 SDK Compatibility Fix
+post_install do |installer|
+${warningSuppressionCode}end
+`;
+        podfileContent += newPostInstall;
       }
 
       fs.writeFileSync(podfilePath, podfileContent, 'utf8');
