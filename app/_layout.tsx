@@ -403,11 +403,15 @@ import { useEffect, useState } from 'react';
 import { iapService } from '@/services/IAPService';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
-import { requestTrackingPermission } from '@/utils/trackingTransparency';
+// REMOVED: expo-tracking-transparency not in package.json, causes require() failure
+// import { requestTrackingPermission } from '@/utils/trackingTransparency';
 import { logger } from '@/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function RootLayout() {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:410',message:'RootLayout entry',data:{platform:Platform.OS},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
   useFrameworkReady();
   const segments = useSegments();
   const [fatalError, setFatalError] = useState<{ message: string; stack?: string } | null>(
@@ -436,8 +440,14 @@ export default function RootLayout() {
   // Check for previous crash and clear it on successful launch
   // Also check for errors queued by the early error handler
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:438',message:'useEffect checkPreviousCrash start',data:{platform:Platform.OS},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     const checkPreviousCrash = async () => {
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:442',message:'Before errorQueue check',data:{hasQueue:!!((global as any).__errorQueue)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
         // First, check for errors queued by the early error handler
         if ((global as any).__errorQueue && Array.isArray((global as any).__errorQueue)) {
           const queuedErrors = (global as any).__errorQueue;
@@ -455,7 +465,13 @@ export default function RootLayout() {
         }
         
         // Then check AsyncStorage for persisted errors
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:458',message:'Before AsyncStorage.getItem',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
         const lastError = await AsyncStorage.getItem('last_fatal_error');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:463',message:'After AsyncStorage.getItem',data:{hasError:!!lastError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
         if (lastError && !fatalError) {
           const parsed = JSON.parse(lastError);
           // Only show if it's recent (within last 30 seconds)

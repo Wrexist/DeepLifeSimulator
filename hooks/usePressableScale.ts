@@ -45,10 +45,19 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
     if (!haptic || !hapticEnabled) return;
     
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePressableScale.ts:48',message:'Before Haptics.impactAsync',data:{platform:Platform.OS},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePressableScale.ts:53',message:'After Haptics.impactAsync',data:{success:true},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePressableScale.ts:57',message:'Haptics error',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       if (__DEV__) {
         logger.warn('Haptic feedback not available:', error);
       }
