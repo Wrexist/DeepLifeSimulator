@@ -1,38 +1,20 @@
 {
   "cli": {
-    "version": ">= 9.0.0"
+    "version": ">= 9.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "production": {
-      "ios": { 
+      "ios": {
         "resourceClass": "m-medium",
         "autoIncrement": false,
         "buildConfiguration": "Release",
-        "image": "macos-sonoma-14.6-xcode-16.1",
-        "node": "20.18.0",
-        "env": {
-          "RCT_NEW_ARCH_ENABLED": "0",
-          "FOLLY_NO_CONFIG": "1",
-          "FOLLY_MOBILE": "1",
-          "FOLLY_USE_LIBCPP": "1"
-        },
         "simulator": false
-      },
-      "android": {
-        "resourceClass": "medium",
-        "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease",
-        "env": {
-          "RCT_NEW_ARCH_ENABLED": "1"
-        }
       }
     },
     "preview": {
       "developmentClient": true,
-      "channel": "preview",
-      "android": {
-        "buildType": "apk"
-      }
+      "channel": "preview"
     }
   },
   "submit": {
@@ -41,10 +23,6 @@
         "appleTeamId": "S3U8B8HH96",
         "ascAppId": "6749675615",
         "language": "en-US"
-      },
-      "android": {
-        "serviceAccountKeyPath": "./google-play-service-account.json",
-        "track": "internal"
       }
     }
   }
