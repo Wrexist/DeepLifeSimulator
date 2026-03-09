@@ -41,6 +41,27 @@ type ScenarioCard = OnboardingScenario | ChallengeScenarioCard;
 const BACKGROUND = require('@/assets/images/Main_Menu_3.png');
 const CHALLENGE_FALLBACK_ICON = require('@/assets/images/Scenarios/Street Hustler.png');
 
+const isChallengeDifficulty = (
+  difficulty: unknown
+): difficulty is ChallengeScenarioDefinition['difficulty'] => {
+  return difficulty === 'easy' || difficulty === 'medium' || difficulty === 'hard' || difficulty === 'expert';
+};
+
+const fallbackDifficultyLabel = (difficulty: ChallengeScenarioDefinition['difficulty']): string => {
+  switch (difficulty) {
+    case 'easy':
+      return 'Easy';
+    case 'medium':
+      return 'Medium';
+    case 'hard':
+      return 'Hard';
+    case 'expert':
+      return 'Expert';
+    default:
+      return 'Unknown';
+  }
+};
+
 const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['difficulty']): string => {
   switch (difficulty) {
     case 'easy':
@@ -80,6 +101,28 @@ const formatTokenLabel = (token: string): string => {
   return token.replace(/_/g, ' ').replace(/\b\w/g, (value) => value.toUpperCase());
 };
 
+const safeGetDifficultyLabel = (difficulty: ChallengeScenarioDefinition['difficulty']): string => {
+  try {
+    if (typeof getDifficultyLabel === 'function') {
+      return getDifficultyLabel(difficulty);
+    }
+  } catch {
+    // Fallback below.
+  }
+  return fallbackDifficultyLabel(difficulty);
+};
+
+const safeGetDifficultyColor = (difficulty: ChallengeScenarioDefinition['difficulty']): string => {
+  try {
+    if (typeof getDifficultyColor === 'function') {
+      return getDifficultyColor(difficulty);
+    }
+  } catch {
+    // Fallback below.
+  }
+  return fallbackDifficultyColor(difficulty);
+};
+
 export default function Scenarios() {
   const log = logger.scope('Scenarios');
   const router = useRouter();
@@ -98,44 +141,62 @@ export default function Scenarios() {
       return [];
     }
 
-    const safeDifficultyLabel =
-      typeof getDifficultyLabel === 'function'
-        ? getDifficultyLabel
-        : (difficulty: string) =>
-            difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1) : 'Unknown';
+    return CHALLENGE_SCENARIOS.map((challenge, index) => {
+      if (!challenge || typeof challenge !== 'object') {
+        log.warn('Skipping invalid challenge scenario entry.', { index });
+        return null;
+      }
 
-    return CHALLENGE_SCENARIOS.map((challenge) => {
-      const firstCondition = challenge.winConditions[0];
-      const education = Array.isArray(challenge.startingConditions.education)
-        ? challenge.startingConditions.education[0]
+      const difficultyKey = isChallengeDifficulty(challenge.difficulty) ? challenge.difficulty : 'medium';
+      const startingConditions =
+        challenge.startingConditions && typeof challenge.startingConditions === 'object'
+          ? challenge.startingConditions
+          : {};
+      const firstCondition = Array.isArray(challenge.winConditions)
+        ? challenge.winConditions.find((condition) => typeof condition?.description === 'string')
         : undefined;
-      const startItems = Array.isArray(challenge.startingConditions.items) ? challenge.startingConditions.items : [];
+      const educationList = Array.isArray(startingConditions.education)
+        ? startingConditions.education.filter((entry): entry is string => typeof entry === 'string')
+        : [];
+      const startItems = Array.isArray(startingConditions.items)
+        ? startingConditions.items.filter((entry): entry is string => typeof entry === 'string')
+        : [];
       const challengeIcon = typeof challenge.icon === 'string' ? challenge.icon : undefined;
+      const challengeId =
+        typeof challenge.id === 'string' && challenge.id.trim().length > 0
+          ? challenge.id
+          : `challenge-${index + 1}`;
+      const challengeTitle =
+        typeof challenge.name === 'string' && challenge.name.trim().length > 0
+          ? challenge.name
+          : `Challenge ${index + 1}`;
+      const description =
+        typeof challenge.description === 'string' && challenge.description.trim().length > 0
+          ? challenge.description
+          : 'Complete this challenge to earn bonus rewards.';
+      const rewardGems = typeof challenge.rewards?.gems === 'number' ? challenge.rewards.gems : 0;
 
       return {
-        id: challenge.id,
-        title: challenge.name,
-        difficulty: safeDifficultyLabel(challenge.difficulty),
-        lifeGoal:
-          firstCondition && typeof firstCondition.description === 'string'
-            ? firstCondition.description
-            : 'Complete the challenge',
-        description: challenge.description,
-        bonus: `Rewards: ${challenge.rewards?.gems ?? 0} gems`,
+        id: challengeId,
+        title: challengeTitle,
+        difficulty: safeGetDifficultyLabel(difficultyKey),
+        lifeGoal: firstCondition?.description || 'Complete the challenge',
+        description,
+        bonus: `Rewards: ${rewardGems} gems`,
         start: {
-          age: challenge.startingConditions.age ?? 18,
-          cash: challenge.startingConditions.money ?? 0,
-          education,
+          age: typeof startingConditions.age === 'number' ? startingConditions.age : 18,
+          cash: typeof startingConditions.money === 'number' ? startingConditions.money : 0,
+          education: educationList[0],
           items: startItems,
           traits: [],
         },
         icon: CHALLENGE_FALLBACK_ICON,
         isChallenge: true,
-        difficultyKey: challenge.difficulty,
+        difficultyKey,
         iconEmoji: challengeIcon,
-        rewardGems: challenge.rewards?.gems ?? 0,
+        rewardGems,
       };
-    });
+    }).filter((scenario): scenario is ChallengeScenarioCard => scenario !== null);
   }, [log]);
 
   const currentScenarios: ScenarioCard[] = activeTab === 'life_paths' ? LIFE_PATH_SCENARIOS : challengeScenarios;
@@ -262,17 +323,7 @@ export default function Scenarios() {
           const isSelected = scenario.id === selectedId;
           const isChallenge = 'isChallenge' in scenario && scenario.isChallenge;
           const rewardGems = isChallenge ? scenario.rewardGems : 0;
-          const difficultyBadgeColor = isChallenge
-            ? (() => {
-                try {
-                  return typeof getDifficultyColor === 'function'
-                    ? getDifficultyColor(scenario.difficultyKey)
-                    : fallbackDifficultyColor(scenario.difficultyKey);
-                } catch {
-                  return fallbackDifficultyColor(scenario.difficultyKey);
-                }
-              })()
-            : theme.glassBorder;
+          const difficultyBadgeColor = isChallenge ? safeGetDifficultyColor(scenario.difficultyKey) : theme.glassBorder;
 
           return (
             <TouchableOpacity

@@ -27,8 +27,8 @@
 ### Phase 3: Smooth UX Flow Redesign (5-7 days)
 - [ ] Redesign `MainMenu` into a clear two-path entry (`Continue` and `New Life`) with save health indicators.
 - [ ] Redesign `SaveSlots` with state chips (`Empty`, `Playable`, `Corrupted`, `Version mismatch`) and one-tap recommended action.
-- [ ] Redesign `Scenarios` with stronger card hierarchy, clearer difficulty communication, and reduced cognitive load.
-- [ ] Redesign `Customize` with inline validation, auto-suggestions, and instant preview of identity impact.
+- [x] Redesign `Scenarios` with stronger card hierarchy, clearer difficulty communication, and reduced cognitive load.
+- [x] Redesign `Customize` with inline validation, auto-suggestions, and instant preview of identity impact.
 - [ ] Redesign `Perks` with guided presets + advanced mode toggle to reduce first-time overwhelm.
 - [ ] Add a compact onboarding progress rail and estimated time per step.
 

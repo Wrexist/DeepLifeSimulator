@@ -159,6 +159,17 @@ jest.mock('expo-notifications', () => ({
   requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
 }), { virtual: true });
 
+jest.mock('@/services/RemoteLoggingService', () => ({
+  remoteLogger: {
+    log: jest.fn(),
+    configure: jest.fn(),
+    getLogs: jest.fn(() => []),
+    clearLogs: jest.fn(),
+    subscribe: jest.fn(() => jest.fn()),
+    cleanup: jest.fn(),
+  },
+}));
+
 // Mock React Native components without requiring the real package (ESM parse issues in Jest).
 jest.mock('react-native', () => {
   const componentNames = [
