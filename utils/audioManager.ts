@@ -20,10 +20,6 @@ export interface MusicTrack {
 
 class AudioManager {
   private static instance: AudioManager;
-  private masterVolume: number = 1.0;
-  private sfxVolume: number = 1.0;
-  private musicVolume: number = 1.0;
-  private enabled: boolean = true;
 
   private constructor() {
     log.info('AudioManager initialized (stubbed - no audio)');
@@ -36,33 +32,33 @@ class AudioManager {
     return AudioManager.instance;
   }
 
-  setMasterVolume(volume: number): void {
-    this.masterVolume = Math.max(0, Math.min(1, volume));
+  setMasterVolume(_volume: number): void {
+    // No-op - audio disabled
   }
 
-  setSFXVolume(volume: number): void {
-    this.sfxVolume = Math.max(0, Math.min(1, volume));
+  setSFXVolume(_volume: number): void {
+    // No-op - audio disabled
   }
 
-  setMusicVolume(volume: number): void {
-    this.musicVolume = Math.max(0, Math.min(1, volume));
+  setMusicVolume(_volume: number): void {
+    // No-op - audio disabled
   }
 
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
+  setEnabled(_enabled: boolean): void {
+    // No-op - audio disabled
   }
 
-  async playSFX(soundId: string, volume?: number): Promise<void> {
+  async playSFX(_soundId: string, _volume?: number): Promise<void> {
     // No-op - audio disabled
     return Promise.resolve();
   }
 
-  async playMusic(musicId: string, volume?: number): Promise<void> {
+  async playMusic(_musicId: string, _volume?: number): Promise<void> {
     // No-op - audio disabled
     return Promise.resolve();
   }
 
-  stopSFX(soundId: string): void {
+  stopSFX(_soundId: string): void {
     // No-op
   }
 
@@ -82,12 +78,12 @@ class AudioManager {
     // No-op
   }
 
-  async preloadSFX(soundEffects: SoundEffect[]): Promise<void> {
+  async preloadSFX(_soundEffects: SoundEffect[]): Promise<void> {
     // No-op
     return Promise.resolve();
   }
 
-  async preloadMusic(musicTracks: MusicTrack[]): Promise<void> {
+  async preloadMusic(_musicTracks: MusicTrack[]): Promise<void> {
     // No-op
     return Promise.resolve();
   }

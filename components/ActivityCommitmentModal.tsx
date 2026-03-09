@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const BlurView = BlurViewFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { X, Target, Briefcase, Heart, Dumbbell, Music, Clock, TrendingUp, Zap, AlertCircle } from 'lucide-react-native';
@@ -246,11 +248,11 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                   How It Works
                 </Text>
                 <Text style={[styles.infoText, settings.darkMode && styles.textDarkSecondary]}>
-                  • Choose up to 2 focus areas (Primary & Secondary){'\n'}
-                  • Committed areas get bonuses: +30-50% progress, -20-30% energy cost{'\n'}
-                  • Neglected areas get penalties: -15% progress, +15% energy cost{'\n'}
-                  • Commitment levels increase with activity, decay when neglected{'\n'}
-                  • You can change commitments once every 4 weeks
+                  â€¢ Choose up to 2 focus areas (Primary & Secondary){'\n'}
+                  â€¢ Committed areas get bonuses: +30-50% progress, -20-30% energy cost{'\n'}
+                  â€¢ Neglected areas get penalties: -15% progress, +15% energy cost{'\n'}
+                  â€¢ Commitment levels increase with activity, decay when neglected{'\n'}
+                  â€¢ You can change commitments once every 4 weeks
                 </Text>
               </View>
 
@@ -323,8 +325,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: responsivePadding.horizontal,
-    paddingTop: scale(20),
-    paddingBottom: scale(16),
+    paddingTop: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -334,15 +336,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerIcon: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: scale(12),
+    marginRight: 12,
   },
   title: {
-    fontSize: fontScale(24),
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#1F2937',
   },
@@ -537,3 +539,4 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
 });
+

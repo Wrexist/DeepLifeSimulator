@@ -66,7 +66,7 @@ export function getLabUpgradeCost(currentType: LabType | null, targetType: LabTy
     return LAB_TYPES[targetType].cost;
   }
   
-  const upgradeCosts: Record<string, Record<LabType, number>> = {
+  const upgradeCosts: Record<string, Partial<Record<LabType, number>>> = {
     basic: {
       advanced: 150000, // Cost to upgrade from basic to advanced
       cutting_edge: 950000, // Cost to upgrade from basic to cutting-edge

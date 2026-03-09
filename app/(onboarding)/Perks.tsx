@@ -12,14 +12,16 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const BlurView = BlurViewFallback;
 import { useRouter, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
-import { useGame, initialGameState } from '@/contexts/GameContext';
+import { useGame, initialGameState, STATE_VERSION } from '@/contexts/GameContext';
 import { PERSONALITY_TRAITS, FINANCIAL_TRAITS, MindsetId, MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset/config';
 import {
   Lock,
@@ -44,6 +46,10 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { logger } from '@/utils/logger';
 import { validateOnboardingState, applySafeDefaults } from '@/utils/onboardingValidation';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
+import { forceSave } from '@/utils/saveQueue';
+import { createBackupFromState } from '@/utils/saveBackup';
+import { isSaveSigningConfigError } from '@/utils/saveValidation';
+import { IAPService } from '@/services/IAPService';
 
 const { width: screenWidth } = Dimensions.get('window');
 const NATIVE_OK = Platform.OS !== 'web';
@@ -73,10 +79,9 @@ export default function Perks() {
   useEffect(() => {
     const loadPermanentPerks = async () => {
       try {
-        const perksJson = await AsyncStorage.getItem('permanent_perks');
-        if (perksJson) {
-          const perks = JSON.parse(perksJson);
-          setPermanentPerks(perks);
+        const perks = await IAPService.loadPermanentPerks();
+        setPermanentPerks(perks);
+        if (perks.length > 0) {
           log.info('Loaded permanent perks', { perks });
         }
       } catch (error) {
@@ -326,11 +331,9 @@ export default function Perks() {
 
     const scenarioItems = scenario.start.items || [];
 
-    // Calculate weeksLived based on starting age (base age is 18)
-    const baseAge = 18;
-    const weeksPerYear = 52;
+    // Calculate weeksLived based on starting age
     const startingAge = scenario.start.age;
-    const weeksLived = Math.max(0, Math.floor((startingAge - baseAge) * weeksPerYear));
+    const weeksLived = Math.max(0, Math.floor((startingAge - ADULTHOOD_AGE) * WEEKS_PER_YEAR));
     
     const newState: any = {
       ...initialGameState,
@@ -341,8 +344,8 @@ export default function Perks() {
         energy: initialGameState.stats.energy + (selected.includes('astute_planner') ? 10 : 0),
       },
       weeksLived, // Set weeksLived to match starting age
-      week: weeksLived + 1, // Week counter should also match
-      date: { ...initialGameState.date, age: scenario.start.age, week: (weeksLived % 52) + 1 },
+      week: ((weeksLived % WEEKS_PER_MONTH) + 1), // Week-of-month (1-4), NOT absolute week
+      date: { ...initialGameState.date, age: scenario.start.age, week: (weeksLived % WEEKS_PER_YEAR) + 1 },
       educations: initialGameState.educations.map(e => {
         const eduFromScenario = (scenario.start as any).education;
         if (!eduFromScenario) return e;
@@ -396,12 +399,74 @@ export default function Perks() {
         const mappedIds = scenarioItems.map(sid => itemIdMap[sid] || sid).filter(Boolean);
         return scenarioItems.includes('smartphone') || mappedIds.includes('smartphone');
       })(),
-      // Ensure family.children is empty for single parent scenario (and others that specify noChildren)
-      family: {
-        ...initialGameState.family,
-        children: scenario.id === 'single_parent' ? [] : initialGameState.family.children,
-      },
-      version: 5, // Ensure version is set
+      // CRITICAL: Create child once and use in both family.children and relationships
+      // This ensures the child appears in both the Family tab and Contacts app
+      ...((): { family: any; relationships: any[] } => {
+        const baseFamily = { ...initialGameState.family };
+        const baseRelationships = [...(initialGameState.relationships || [])];
+        
+        // If scenario specifies noChildren, ensure children array is empty
+        if (scenario.start.noChildren) {
+          return {
+            family: { ...baseFamily, children: [] },
+            relationships: baseRelationships.filter(rel => rel.type !== 'child'),
+          };
+        }
+        
+        // If scenario specifies hasChild (like single_parent), create a child
+        if ((scenario.start as any).hasChild) {
+          const childAge = (scenario.start as any).childAge || 3;
+          const childNames = ['Alex', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Avery', 'Quinn', 'Sage', 'River'];
+          const childGenders: ('male' | 'female')[] = ['male', 'female'];
+          const randomName = childNames[Math.floor(Math.random() * childNames.length)];
+          const randomGender = childGenders[Math.floor(Math.random() * childGenders.length)];
+          const randomPersonality = ['Playful', 'Curious', 'Energetic', 'Sweet', 'Adventurous'][Math.floor(Math.random() * 5)];
+          const childId = `child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          // CRITICAL: Create child object matching exactly how haveChild() creates it
+          // This ensures it works identically to when you have a child with a partner
+          const startingChild: any = {
+            id: childId,
+            name: randomName,
+            type: 'child' as const,
+            relationshipScore: 100, // Children start with perfect relationship
+            personality: randomPersonality,
+            gender: randomGender,
+            age: childAge,
+            datesCount: 0,
+            // Additional ChildInfo properties (ChildInfo extends Relationship)
+            educationLevel: 'none',
+            careerPath: undefined,
+            savings: 0,
+          };
+          
+          // CRITICAL: Add to both family.children and relationships array
+          // This matches exactly how haveChild() does it in SocialActionsContext.tsx
+          // The same object is used in both places (ChildInfo extends Relationship)
+          log.info('[SINGLE_PARENT] Creating child for single parent scenario', {
+            childId: childId,
+            childName: randomName,
+            childAge: childAge,
+            willAddToRelationships: true,
+            willAddToFamily: true,
+          });
+          
+          return {
+            family: {
+              ...baseFamily,
+              children: [startingChild],
+            },
+            relationships: [...baseRelationships, startingChild],
+          };
+        }
+        
+        // Default: use initial state children (usually empty)
+        return {
+          family: baseFamily,
+          relationships: baseRelationships,
+        };
+      })(),
+      version: STATE_VERSION, // Use current state version
     };
 
     // CRITICAL: Validate the complete game state before saving
@@ -459,17 +524,50 @@ export default function Perks() {
     const slotToUse = state.slot || 1;
     
     try {
-      // Save the validated game state (version already set above)
-      await AsyncStorage.setItem(`save_slot_${slotToUse}`, JSON.stringify(newState));
-      await AsyncStorage.setItem('lastSlot', String(slotToUse));
+      // Create backup before initial save (critical for recovery)
+      await createBackupFromState(slotToUse, newState, 'before_onboarding').catch(err => {
+        log.warn('Backup creation failed during onboarding (non-critical):', err);
+      });
+      
+      // Use forceSave for initial save (immediate, but still uses atomic save)
+      await forceSave(slotToUse, newState);
       
       log.info('Game state saved successfully', { slot: slotToUse });
       
+      // DEBUG: Log child information if single parent scenario
+      if ((scenario.start as any).hasChild) {
+        const childInRelationships = newState.relationships?.find((r: any) => r.type === 'child');
+        const childInFamily = newState.family?.children?.[0];
+        log.info('[SINGLE_PARENT] Saved game state with child', {
+          relationshipsCount: newState.relationships?.length || 0,
+          childrenCount: newState.family?.children?.length || 0,
+          childInRelationships: !!childInRelationships,
+          childInFamily: !!childInFamily,
+          childIdInRelationships: childInRelationships?.id,
+          childIdInFamily: childInFamily?.id,
+          childName: childInRelationships?.name || childInFamily?.name,
+          relationshipTypes: newState.relationships?.map((r: any) => r.type) || [],
+        });
+        
+        // CRITICAL: Verify child is in both arrays
+        if (!childInRelationships) {
+          log.error('[SINGLE_PARENT] ERROR: Child not found in relationships array!', {
+            relationships: newState.relationships,
+          });
+        }
+        if (!childInFamily) {
+          log.error('[SINGLE_PARENT] ERROR: Child not found in family.children array!', {
+            familyChildren: newState.family?.children,
+          });
+        }
+      }
+      
       setState(prev => ({ ...prev, perks: selected }));
       
-      // ONBOARDING FIX: Load game and validate before navigation
+      // ONBOARDING FIX: Load game - this updates the game state
+      let loadedState;
       try {
-        await loadGame(slotToUse);
+        loadedState = await loadGame(slotToUse);
       } catch (loadError) {
         log.error('loadGame failed:', loadError);
         Alert.alert(
@@ -480,48 +578,20 @@ export default function Perks() {
         return;
       }
       
-      // ONBOARDING FIX: Wait for state to update, then validate before navigation
-      // This ensures the loaded state is valid before entering gameplay
-      setTimeout(async () => {
-        try {
-          // CRITICAL: Verify loadGame succeeded by checking storage
-          const loadedData = await AsyncStorage.getItem(`save_slot_${slotToUse}`);
-          if (!loadedData) {
-            log.error('Failed to load game state after save - no data in storage');
-            Alert.alert(
-              'Load Failed',
-              'Failed to load your game after saving. The save file may not have been created properly. Please try again.',
-              [{ text: 'OK' }]
-            );
-            return;
-          }
-
-          let loadedState;
-          try {
-            loadedState = JSON.parse(loadedData);
-          } catch (parseError) {
-            log.error('Failed to parse loaded game state:', parseError);
-            Alert.alert(
-              'Corrupted Save',
-              'Your save file is corrupted and cannot be loaded. Please try again.',
-              [{ text: 'OK' }]
-            );
-            return;
-          }
-
-          // CRITICAL: Verify loaded state has required structure
-          if (!loadedState || typeof loadedState !== 'object') {
-            log.error('Loaded state is not a valid object', { loadedState });
-            Alert.alert(
-              'Invalid Save',
-              'The loaded game state is invalid. Please try again.',
-              [{ text: 'OK' }]
-            );
-            return;
-          }
-
-          // ONBOARDING FIX: Validate state before entering gameplay (using static import)
-          const validation = validateGameEntry(loadedState);
+      if (!loadedState) {
+        log.error('loadGame returned null - save may not have been created properly');
+        Alert.alert(
+          'Load Failed',
+          'Failed to load your game after saving. The save file may not have been created properly. Please try again.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // ONBOARDING FIX: Validate state before entering gameplay
+      try {
+        // CRITICAL: Validate state before entering gameplay
+        const validation = validateGameEntry(loadedState);
           
           if (!validation.canEnter) {
             log.error('Game entry validation failed after onboarding', {
@@ -557,20 +627,33 @@ export default function Perks() {
             log.warn('Game entry validation warnings after onboarding', validation.warnings);
           }
 
-          // ONBOARDING FIX: Only navigate if validation passed
-          log.info('Game entry validation passed after onboarding, navigating to gameplay');
+        // ONBOARDING FIX: Only navigate if validation passed
+        log.info('Game entry validation passed after onboarding, navigating to gameplay');
+        
+        // Small delay to ensure state update has propagated
+        setTimeout(() => {
           router.replace('/(tabs)');
-        } catch (validationError) {
-          log.error('Error during post-load validation:', validationError);
-          Alert.alert(
-            'Validation Error',
-            'An error occurred while validating your game. Please try again.',
-            [{ text: 'OK' }]
-          );
-        }
-      }, 500); // Small delay to allow loadGame to complete
+        }, 100);
+      } catch (validationError) {
+        log.error('Error during post-load validation:', validationError);
+        Alert.alert(
+          'Validation Error',
+          'An error occurred while validating your game. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
     } catch (error) {
       log.error('Failed to save game state', error);
+
+      if (isSaveSigningConfigError(error)) {
+        Alert.alert(
+          'Build Configuration Error',
+          'This app build is missing required save security configuration. Please update to the latest version.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       Alert.alert(
         'Save Failed',
         'Failed to save your game. Please try again.',
@@ -766,7 +849,7 @@ export default function Perks() {
                           {/* Permanent badge */}
                           {isPermanent && (
                             <View style={styles.permanentBadge}>
-                              <Text style={styles.permanentBadgeText}>⭐ PERMANENT</Text>
+                              <Text style={styles.permanentBadgeText}>â­ PERMANENT</Text>
                             </View>
                           )}
                           <View style={styles.perkHeader}>
@@ -821,7 +904,7 @@ export default function Perks() {
                               </Text>
                               {perk.unlock && isLocked && (
                                 <Text style={styles.requirementText}>
-                                  🔒 Requires achievement: {perk.unlock.achievementId}
+                                  🔑 Requires achievement: {perk.unlock.achievementId}
                                 </Text>
                               )}
                             </View>
@@ -1135,7 +1218,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   iconContainer: {
-    width: scale(80), height: scale(80), borderRadius: scale(16), overflow: 'hidden',
+    width: 80, height: 80, borderRadius: 16, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 6,
   },
   statusIconContainer: {
@@ -1150,7 +1233,7 @@ const styles = StyleSheet.create({
     width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  perkIcon: { width: scale(80), height: scale(80), borderRadius: scale(16), resizeMode: 'cover' },
+  perkIcon: { width: 80, height: 80, borderRadius: 16, resizeMode: 'cover' },
   perkInfo: { flex: 1 },
   perkTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   perkTitle: { fontSize: responsiveFontSize.xl, fontWeight: 'bold', color: '#FFFFFF', flex: 1, numberOfLines: 2, ellipsizeMode: 'tail' },
@@ -1270,9 +1353,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   mindsetIconContainer: {
-    width: scale(80),
-    height: scale(80),
-    borderRadius: scale(16),
+    width: 80,
+    height: 80,
+    borderRadius: 16,
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1397,4 +1480,3 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
 });
-

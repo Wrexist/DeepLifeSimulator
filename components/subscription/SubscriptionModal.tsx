@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { X, Crown, Check, Star, Zap } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import { X, Crown, Check, Star } from 'lucide-react-native';
 import { subscriptionService, Subscription, SubscriptionTier } from '@/services/SubscriptionService';
-import { IAP_PRODUCTS } from '@/utils/iapConfig';
+import { SUBSCRIPTION_PRODUCTS, SUBSCRIPTION_CONFIGS } from '@/utils/iapConfig';
 import LoadingButton from '@/components/ui/LoadingButton';
 
 interface SubscriptionModalProps {
@@ -57,9 +58,16 @@ export default function SubscriptionModal({ visible, onClose }: SubscriptionModa
     }
   };
 
-  const subscriptionProducts = Object.values(IAP_PRODUCTS).filter(
-    product => product.type === 'subscription'
-  );
+  const subscriptionProducts = Object.values(SUBSCRIPTION_PRODUCTS).map(productId => {
+    const config = SUBSCRIPTION_CONFIGS[productId];
+    return {
+      id: productId,
+      name: config?.name || productId,
+      price: config?.price || '$0.00',
+      description: config?.description,
+      type: 'subscription' as const,
+    };
+  });
 
   const features = {
     free: [
@@ -329,4 +337,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 

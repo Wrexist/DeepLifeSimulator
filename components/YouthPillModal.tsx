@@ -1,7 +1,8 @@
-import React from 'react';
+﻿import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { X, Zap } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import { X } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 
@@ -14,7 +15,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
   const { gameState, setGameState } = useGame();
   const { settings } = gameState;
   const youthPills = gameState.youthPills || 0;
-  const currentAge = gameState.userProfile?.age || 18;
+  const currentAge = gameState.date?.age || 18;
 
   const handleUseYouthPill = () => {
     if (youthPills <= 0) return;
@@ -344,4 +345,5 @@ const styles = StyleSheet.create({
     height: 20,
   },
 });
+
 

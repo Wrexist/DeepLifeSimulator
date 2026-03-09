@@ -2,50 +2,15 @@
 
 A comprehensive life simulation game with career progression, underground economy, skill trees, and social interactions.
 
-## Recent Updates (Latest)
+## Latest Release (v2.2.8)
 
-### Code Quality Improvements (v1.8.6+)
-- **Logger Integration**: Replaced all `console.log` statements with centralized logger utility for better log management
-- **Type Safety**: Reduced `as any` usage by 80%+ with proper TypeScript types throughout the codebase
-- **Error Handling**: Enhanced async error handling with QuotaExceededError support and user-friendly error messages
-- **Array Safety**: Added defensive null checks for all array operations to prevent runtime errors
+See [RELEASE_NOTES.md](RELEASE_NOTES.md) for full details.
 
-### Feature Completions
-- **R&D Competitions**: Fully implemented competition system with entry, scoring, AI competitors, and prize distribution
-- **Pet Toy System**: Complete pet toy purchase and usage system with happiness effects
-- **Settings Cleanup**: Removed "Coming Soon" tab and cleaned up settings UI
-
-## Recent Updates (Previous)
-
-### Underground Economy & Skill Trees
-- **Complete Street Jobs System**: Added 9 underground jobs with progression from beginner to expert level
-- **Talent Trees**: Implemented skill trees for Stealth, Technology, and Lockpicking with unlockable talents
-- **Talent Bonuses**: Each talent provides +5% success rate and +10% payment bonus for related jobs
-- **Underground Skills**: Stealth, Technology, and Lockpicking skills that level up through activities
-- **Special Items**: Added items purchasable with BTC that unlock higher-tier jobs
-
-### Underground Jobs Progression
-1. **Beginner (Level 1)**: Find Lost Items - $35, no requirements
-2. **Basic (Level 1)**: Street Hustle, Network Testing, Street Vending - requires special items
-3. **Intermediate (Level 2)**: Property Acquisition, Security Testing, Vehicle Relocation - requires items + level
-4. **Expert (Level 3)**: High-Stakes Scheme - $5000, requires advanced tools + level 3
-
-### UI/UX Improvements
-- **Compact Skills Display**: Reduced skills section height by 50% for better navigation
-- **Street Jobs Visibility**: Fixed street jobs not showing in new games
-- **Save Slot Management**: Fixed save slot deletion and navigation issues
-- **Talent Tree UI**: Interactive talent trees with visual connections and unlock requirements
-
-### Game State Management
-- **New Game Creation**: Fixed street jobs not appearing in new games via onboarding
-- **Save Migration**: Added automatic migration for missing street jobs, skills, and special items
-- **State Validation**: Enhanced game state validation and error handling
-
-### Bug Fixes
-- **Computer Data Persistence**: Fixed computer data loss when selling/buying computer
-- **Weekly Summary**: Fixed unexpected weekly summary modal appearing during item transactions
-- **Street Jobs Loading**: Fixed street jobs not loading in existing save files
-- **Save Slot Navigation**: Fixed save slots not updating after deletion or new game creation
+### Highlights
+- Fairness improvements and relationship consequences
+- Performance optimizations and economy balance
+- Comprehensive stability and crash fixes
+- Save system integrity improvements
 
 ## Web Preview
 
@@ -72,19 +37,17 @@ You can also set custom viewport dimensions via URL parameters:
 - Presets are automatically saved to localStorage and persist across page reloads
 - Use the "Reset" button to clear viewport overrides
 
-## Previous Features
+## Key Features
 
-- Added passive income utilities for stocks and real estate.
-- Introduced inflation system with weekly price index.
-- Added social relations with friends and romance influencing happiness.
-- Implemented weekly event system with modal choices and logging.
-- Introduced animated net worth display, smooth stat bars, and a finance overview.
-- Added achievement progress tracking and journal logging.
-- Introduced dynamic stock market with weekly simulations and economic events.
-- Expanded careers with politician, celebrity, and athlete paths plus new achievements.
-- Added cloud-backed leaderboard accessible from Settings.
-- Added hobby minigames to train skills via a progression tab.
-- Deferred travel system for a future update.
+- Career progression with 20+ career paths including politician, celebrity, and athlete
+- Dynamic stock market and crypto trading with weekly simulations
+- Family tree system with inheritance, marriage, and generational prestige
+- Underground economy with skill trees (Stealth, Technology, Lockpicking)
+- Real estate, vehicles, and property management
+- Social media simulation with NPC interactions
+- Cloud save with conflict resolution
+- Achievements, leaderboards, and daily challenges
+- In-app purchases and subscription system
 
 ## Cloud Save
 

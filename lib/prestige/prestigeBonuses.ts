@@ -1,4 +1,3 @@
-import { GameState } from '@/contexts/game/types';
 
 /**
  * Prestige bonus category
@@ -302,6 +301,187 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     rarity: 'epic',
     maxLevel: 1, // BUG FIX: Prevent purchasing multiple times
   },
+
+  // NEW: Starting Assets Bonuses
+  {
+    id: 'starting_investment_portfolio',
+    name: 'Investment Portfolio',
+    description: 'Start with $50,000 in diversified stocks',
+    category: 'starting',
+    cost: 8000,
+    rarity: 'rare',
+    maxLevel: 1,
+  },
+  {
+    id: 'starting_real_estate',
+    name: 'Starter Property',
+    description: 'Start with one rental property',
+    category: 'starting',
+    cost: 12000,
+    rarity: 'epic',
+    maxLevel: 1,
+  },
+  {
+    id: 'starting_company',
+    name: 'Family Business',
+    description: 'Start with a small company',
+    category: 'starting',
+    cost: 15000,
+    rarity: 'epic',
+    maxLevel: 1,
+  },
+  {
+    id: 'starting_vehicle',
+    name: 'First Car',
+    description: 'Start with a basic vehicle',
+    category: 'starting',
+    cost: 3000,
+    rarity: 'uncommon',
+    maxLevel: 1,
+  },
+
+  // NEW: Event & Achievement Modifiers
+  {
+    id: 'event_frequency_boost',
+    name: 'Eventful Life',
+    description: '+25% positive event frequency',
+    category: 'multiplier',
+    cost: 5000,
+    rarity: 'rare',
+    maxLevel: 2,
+  },
+  {
+    id: 'achievement_progress_multiplier',
+    name: 'Achievement Hunter',
+    description: '+20% achievement progress rate',
+    category: 'multiplier',
+    cost: 4000,
+    rarity: 'rare',
+    maxLevel: 2,
+  },
+  {
+    id: 'reputation_gain_multiplier',
+    name: 'Reputation Builder',
+    description: '+30% reputation gain',
+    category: 'multiplier',
+    cost: 3500,
+    rarity: 'uncommon',
+    maxLevel: 2,
+  },
+
+  // NEW: Automation Upgrades (as per plan)
+  {
+    id: 'automation_auto_invest',
+    name: 'Auto-Invest',
+    description: 'Unlock automatic stock and crypto investing',
+    category: 'qol',
+    cost: 5000,
+    rarity: 'rare',
+    maxLevel: 1,
+  },
+  {
+    id: 'automation_auto_save',
+    name: 'Auto-Save',
+    description: 'Unlock automatic savings deposits',
+    category: 'qol',
+    cost: 3000,
+    rarity: 'uncommon',
+    maxLevel: 1,
+  },
+  {
+    id: 'automation_auto_pay',
+    name: 'Auto-Pay',
+    description: 'Unlock automatic loan and bill payments',
+    category: 'qol',
+    cost: 4000,
+    rarity: 'rare',
+    maxLevel: 1,
+  },
+  {
+    id: 'automation_auto_renew',
+    name: 'Auto-Renew',
+    description: 'Unlock automatic subscription renewals',
+    category: 'qol',
+    cost: 2500,
+    rarity: 'uncommon',
+    maxLevel: 1,
+  },
+  {
+    id: 'automation_slot_1',
+    name: 'Additional Automation Slot',
+    description: 'Unlock one additional concurrent automation rule',
+    category: 'qol',
+    cost: 2000,
+    rarity: 'uncommon',
+    maxLevel: 5, // Can buy up to 5 additional slots
+  },
+
+  // NEW: Legacy Bonuses (affect future generations)
+  {
+    id: 'legacy_wealth',
+    name: 'Generational Wealth',
+    description: 'Future generations start with +10% of your final net worth',
+    category: 'special',
+    cost: 25000,
+    rarity: 'legendary',
+    maxLevel: 1,
+  },
+  {
+    id: 'legacy_education',
+    name: 'Educational Legacy',
+    description: 'Future generations start with all educations',
+    category: 'special',
+    cost: 15000,
+    rarity: 'epic',
+    maxLevel: 1,
+  },
+  {
+    id: 'legacy_reputation',
+    name: 'Family Reputation',
+    description: 'Future generations start with +20 reputation',
+    category: 'special',
+    cost: 10000,
+    rarity: 'rare',
+    maxLevel: 1,
+  },
+  {
+    id: 'legacy_business',
+    name: 'Family Business Legacy',
+    description: 'Future generations inherit family businesses',
+    category: 'special',
+    cost: 30000,
+    rarity: 'legendary',
+    maxLevel: 1,
+  },
+
+  // NEW: Synergy Bonuses (combine with others)
+  {
+    id: 'synergy_wealth_master',
+    name: 'Wealth Master Synergy',
+    description: 'Combines with income multipliers for +15% bonus (requires 2+ income bonuses)',
+    category: 'special',
+    cost: 18000,
+    rarity: 'epic',
+    maxLevel: 1,
+  },
+  {
+    id: 'synergy_learning_master',
+    name: 'Learning Master Synergy',
+    description: 'Combines with experience multipliers for +20% bonus (requires 2+ experience bonuses)',
+    category: 'special',
+    cost: 16000,
+    rarity: 'epic',
+    maxLevel: 1,
+  },
+  {
+    id: 'synergy_life_master',
+    name: 'Life Master Synergy',
+    description: 'Combines starting bonuses for +25% effectiveness (requires 3+ starting bonuses)',
+    category: 'special',
+    cost: 20000,
+    rarity: 'epic',
+    maxLevel: 1,
+  },
 ];
 
 /**
@@ -340,9 +520,10 @@ export function canPurchaseBonus(bonus: PrestigeBonus, unlockedBonuses: string[]
  */
 export function getBonusPurchaseCost(bonus: PrestigeBonus, unlockedBonuses: string[]): number {
   const currentLevel = getBonusLevel(bonus.id, unlockedBonuses);
-  // For stackable bonuses, cost increases with level (1.5x per level)
+  // ANTI-EXPLOIT: Increased from 1.5x to 2.5x per level to prevent cheap stacking
+  // Level 1: base cost, Level 2: 2.5x, Level 3: 6.25x
   if (bonus.maxLevel && currentLevel > 0) {
-    return Math.floor(bonus.cost * Math.pow(1.5, currentLevel));
+    return Math.floor(bonus.cost * Math.pow(2.5, currentLevel));
   }
   return bonus.cost;
 }

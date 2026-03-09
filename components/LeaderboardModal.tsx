@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, ScrollView , Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Trophy, Star, Zap, X, Clock, Users, TrendingUp, Medal } from 'lucide-react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, ScrollView , Platform } from 'react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import { Trophy, Star, X, Medal } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { fetchLeaderboard, uploadLeaderboardScore, LeaderboardEntry } from '@/lib/progress/cloud';
 import { netWorth } from '@/lib/progress/achievements';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { logger } from '@/utils/logger';
+import { calculateChecksum, calculateHmacSignature } from '@/utils/saveValidation';
 
 interface Props {
   visible: boolean;
@@ -15,7 +17,7 @@ interface Props {
 
 export default function LeaderboardModal({ visible, onClose }: Props) {
   const { gameState } = useGame();
-  const { width: screenWidth } = Dimensions.get('window');
+  // screenWidth removed - unused
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -27,9 +29,9 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
   const [playerRank, setPlayerRank] = useState<number>(-1);
   
   const categories = [
-    { id: 'networth', name: 'Net Worth', icon: '💰' },
-    { id: 'money', name: 'Money', icon: '💵' },
-    { id: 'age', name: 'Age', icon: '🎂' },
+    { id: 'networth', name: 'Net Worth', icon: 'ðŸ’°' },
+    { id: 'money', name: 'Money', icon: 'ðŸ’µ' },
+    { id: 'age', name: 'Age', icon: 'ðŸŽ‚' },
   ];
 
   useEffect(() => {
@@ -106,6 +108,17 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
   const submitPlayerScore = async () => {
     try {
       const playerName = gameState.userProfile.name;
+      const userId = gameState.userProfile.username || gameState.userProfile.handle;
+      const revision = gameState.weeksLived || 0;
+
+      if (!userId || userId.trim().length < 3 || revision <= 0) {
+        logger.warn('Skipping leaderboard submit: missing trusted user identity or revision', {
+          userIdPresent: Boolean(userId),
+          revision,
+        });
+        return;
+      }
+
       let score = 0;
       
       switch (selectedCategory) {
@@ -119,11 +132,23 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
           score = gameState.date.age;
           break;
       }
+
+      const runPayload = JSON.stringify({
+        userId: userId.trim(),
+        category: selectedCategory,
+        score,
+        revision,
+      });
+      const runHash = calculateChecksum(runPayload);
+      const runSignature = calculateHmacSignature(`${userId.trim()}:${revision}:${runHash}`);
       
       await uploadLeaderboardScore({
         name: playerName,
         score,
         category: selectedCategory,
+        userId: userId.trim(),
+        revision,
+        runSignature,
       });
     } catch (error) {
       logger.error('Failed to submit score:', error);
@@ -139,7 +164,7 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-          colors={['#1E293B', '#0F172A', '#020617']}
+          colors={['#1E293B', '#0F172A', '#020617'] as const}
           style={styles.backgroundGradient}
         >
           {/* Close Button */}
@@ -160,7 +185,7 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
             {/* Trophy Icon with Pulse Animation */}
             <Animated.View style={[styles.trophyContainer, { transform: [{ scale: pulseAnim }] }]}>
               <LinearGradient
-                colors={['#FFD700', '#FFA500', '#FF8C00']}
+                colors={['#FFD700', '#FFA500', '#FF8C00'] as const}
                 style={styles.trophyGradient}
               >
                 <Trophy size={60} color="#FFFFFF" />
@@ -207,7 +232,7 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
             {playerRank > 0 && (
               <View style={styles.playerRankContainer}>
                 <LinearGradient
-                  colors={['#3B82F6', '#1D4ED8']}
+                  colors={['#3B82F6', '#1D4ED8'] as const}
                   style={styles.playerRankGradient}
                 >
                   <Medal size={20} color="#FFFFFF" />
@@ -230,7 +255,11 @@ export default function LeaderboardModal({ visible, onClose }: Props) {
                 leaderboard.map((entry, index) => {
                   const isPlayer = entry.name === gameState.userProfile.name;
                   const rank = index + 1;
-                  const medalColors = rank === 1 ? ['#FFD700', '#FFA500'] : rank === 2 ? ['#C0C0C0', '#A0A0A0'] : rank === 3 ? ['#CD7F32', '#B87333'] : ['#3B82F6', '#1D4ED8'];
+                  const medalColors: string[] = 
+                    rank === 1 ? ['#FFD700', '#FFA500'] :
+                    rank === 2 ? ['#C0C0C0', '#A0A0A0'] :
+                    rank === 3 ? ['#CD7F32', '#B87333'] :
+                    ['#3B82F6', '#1D4ED8'];
                   
                   return (
                     <View
@@ -334,7 +363,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 20,
     textAlign: 'center',
-    textShadow: '0px 2px 4px rgba(0, 0, 0, 0.5)',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   categoryContainer: {
     flexDirection: 'row',
@@ -453,3 +484,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+

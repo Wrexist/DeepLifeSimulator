@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,21 @@ import {
   ImageSourcePropType,
   Dimensions,
   Platform,
-  Animated,
+  TextInput,
+  Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
-import { ArrowLeft, Home, MapPin, DollarSign, TrendingUp, Heart, Shield, Zap, Users, Star, Award, Building2, BarChart3, Calendar, Settings, Eye, Filter, Search, X } from 'lucide-react-native';
+import { MotiView } from '@/components/anim/MotiStub';
+import { ArrowLeft, Home, MapPin, TrendingUp, Heart, Shield, Zap, Building2, BarChart3, Settings, Search, X } from 'lucide-react-native';
 import { useGame, RealEstate as GameRealEstate } from '@/contexts/GameContext';
-import { getInflatedPrice } from '@/lib/economy/inflation';
+import EmptyState from '@/components/ui/EmptyState';
 import { logger } from '@/utils/logger';
 import { useMemoryCleanup } from '@/utils/performanceOptimization';
 import { scale, fontScale } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
+import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
+import { RENT_INCOME_RATE } from '@/lib/config/gameConstants';
+import { resolveAbsoluteWeek } from '@/utils/weekCounters';
+import { updateTenantSatisfactionForWeek } from '@/utils/realEstateWeekly';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -48,12 +52,11 @@ interface Property {
   upgrades: Upgrade[];
   traits: { happiness?: number; health?: number; energy?: number };
   traitDescription: string;
-  // New management properties
   currentValue: number;
   managementLevel: number;
-  lastMaintenance: number; // Week number
-  tenantSatisfaction: number; // 0-100
-  marketDemand: number; // 0-100
+  lastMaintenance: number;
+  tenantSatisfaction: number;
+  marketDemand: number;
 }
 
 const defaultUpgrades: Upgrade[] = [
@@ -66,7 +69,31 @@ const defaultUpgrades: Upgrade[] = [
 
 const placeholderImage = require('@/assets/images/Real Estate.png');
 
-// Default properties that should be available in every game
+// Type guard helpers for RealEstate properties
+function hasStatus(prop: GameRealEstate | Property): prop is GameRealEstate & { status: 'vacant' | 'owner' | 'rented' } {
+  return 'status' in prop && (prop.status === 'vacant' || prop.status === 'owner' || prop.status === 'rented');
+}
+
+function hasCurrentResidence(prop: GameRealEstate | Property): prop is GameRealEstate & { currentResidence: boolean } {
+  return 'currentResidence' in prop && typeof prop.currentResidence === 'boolean';
+}
+
+function hasCurrentValue(prop: GameRealEstate | Property): prop is GameRealEstate & { currentValue: number } {
+  return 'currentValue' in prop && typeof prop.currentValue === 'number';
+}
+
+function hasLastMaintenance(prop: GameRealEstate | Property): prop is GameRealEstate & { lastMaintenance: number } {
+  return 'lastMaintenance' in prop && typeof prop.lastMaintenance === 'number';
+}
+
+function hasTenantSatisfaction(prop: GameRealEstate | Property): prop is GameRealEstate & { tenantSatisfaction: number } {
+  return 'tenantSatisfaction' in prop && typeof prop.tenantSatisfaction === 'number';
+}
+
+function hasMarketDemand(prop: GameRealEstate | Property): prop is GameRealEstate & { marketDemand: number } {
+  return 'marketDemand' in prop && typeof prop.marketDemand === 'number';
+}
+
 const defaultProperties: Property[] = [
   {
     id: 'apartment1',
@@ -277,15 +304,14 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
   const playerAge = gameState.date?.age || 18;
   const { addCleanup } = useMemoryCleanup();
   
-  // Extract frequently used values from gameState to avoid unnecessary re-renders
   const realEstate = gameState.realEstate || [];
   const money = gameState.stats.money;
-  const week = gameState.week;
+  const currentWeekOfMonth = gameState.week;
+  const absoluteWeek = resolveAbsoluteWeek(gameState.weeksLived, currentWeekOfMonth);
+  const darkMode = !!gameState.settings?.darkMode;
   
-  // Get real estate policy effects
   const realEstateEffects = gameState.politics?.activePolicyEffects?.realEstate;
   
-  // Helper function to get adjusted property price and rent
   const getAdjustedProperty = useCallback((property: Property) => {
     const priceModifier = realEstateEffects?.priceModifier ?? 1;
     const rentModifier = realEstateEffects?.rentModifier ?? 1;
@@ -307,30 +333,33 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
   const [showSellModal, setShowSellModal] = useState(false);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showRentOutModal, setShowRentOutModal] = useState(false);
+  const [showMoveInModal, setShowMoveInModal] = useState(false);
+  const [showEndRentalModal, setShowEndRentalModal] = useState(false);
+  const [showKickTenantsModal, setShowKickTenantsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'price' | 'income' | 'value'>('price');
+  
+  // Get current residence from game state - find property where player is living
+  const currentResidenceId = useMemo(() => {
+    const ownedProps = (gameState.realEstate || []).filter(p => p.owned && hasStatus(p) && p.status === 'owner');
+    // Find property marked as currentResidence
+    const currentResidence = ownedProps.find(p => hasCurrentResidence(p) && p.currentResidence === true);
+    return currentResidence?.id;
+  }, [gameState.realEstate]);
   const [filterBy, setFilterBy] = useState<'all' | 'affordable' | 'luxury'>('all');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settings, setSettings] = useState({
     showROI: true,
     showMarketMetrics: true,
     autoSortByROI: false,
-    showPriceHistory: false,
-    notifications: true,
   });
   
-  // Refs to prevent infinite loops
-  const isInitializingRef = useRef(false);
-  const lastWeekRef = useRef(week);
-  const lastRealEstateRef = useRef<string>(JSON.stringify(realEstate));
-  const hasInitializedRef = useRef(false);
-  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
+  const lastWeekRef = useRef(absoluteWeek);
+  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   
-  // Helper to create setTimeout with automatic cleanup
   const createTimeout = useCallback((callback: () => void, delay: number) => {
     const timeoutId = setTimeout(() => {
       callback();
-      // Remove from refs after execution
       timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
     }, delay);
     timeoutRefs.current.push(timeoutId);
@@ -341,7 +370,6 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     return timeoutId;
   }, [addCleanup]);
   
-  // Platform-specific alert function for simple messages - memoized
   const showAlert = useCallback((title: string, message: string) => {
     if (Platform.OS === 'web') {
       window.alert(`${title}\n\n${message}`);
@@ -350,11 +378,7 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     }
   }, []);
 
-  const handleImageError = useCallback((id: string) => {
-    setProperties(prev => prev.map(p => (p.id === id ? { ...p, image: placeholderImage } : p)));
-  }, []);
 
-  // Helper function to convert Property to RealEstate format for game state
   const propertyToGameState = useCallback((prop: Property) => {
     return {
       id: prop.id,
@@ -365,20 +389,17 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
       owned: prop.owned,
       interior: [],
       upgradeLevel: prop.managementLevel || 0,
-      rent: prop.dailyIncome * 7,
+      rent: Math.round(prop.currentValue * RENT_INCOME_RATE),
       upkeep: 0,
-      // Store additional management data
-      currentValue: prop.currentValue || prop.price,
-      lastMaintenance: prop.lastMaintenance || 0,
-      tenantSatisfaction: prop.tenantSatisfaction || 75,
-      marketDemand: prop.marketDemand || 80,
+      status: hasStatus(prop) ? prop.status : (prop.owned ? 'owner' : 'vacant'),
+      currentValue: hasCurrentValue(prop) ? prop.currentValue : prop.price,
+      lastMaintenance: hasLastMaintenance(prop) ? prop.lastMaintenance : 0,
+      tenantSatisfaction: hasTenantSatisfaction(prop) ? prop.tenantSatisfaction : 75,
+      marketDemand: hasMarketDemand(prop) ? prop.marketDemand : 80,
     };
   }, []);
 
-  // Helper function to convert RealEstate from game state to Property format
   const gameStateToProperty = useCallback((gameProp: GameRealEstate, defaultProp: Property): Property => {
-    // BUG FIX: Preserve property name from game state if it exists and is valid
-    // Prevent name corruption (e.g., "Realestatte something crazy")
     const preservedName = gameProp.name && 
       gameProp.name !== 'Realestatte' && 
       !gameProp.name.toLowerCase().includes('realestatte') &&
@@ -388,24 +409,28 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     
     return {
       ...defaultProp,
-      name: preservedName, // Use preserved name or fallback to default
+      name: preservedName,
       owned: gameProp.owned || false,
-      currentValue: gameProp.currentValue || defaultProp.currentValue,
+      status: hasStatus(gameProp) ? gameProp.status : (gameProp.owned ? 'owner' : 'vacant'),
+      currentValue: hasCurrentValue(gameProp) ? gameProp.currentValue : defaultProp.currentValue,
       managementLevel: gameProp.upgradeLevel || defaultProp.managementLevel,
-      lastMaintenance: gameProp.lastMaintenance ?? defaultProp.lastMaintenance,
-      tenantSatisfaction: gameProp.tenantSatisfaction ?? defaultProp.tenantSatisfaction,
-      marketDemand: gameProp.marketDemand ?? defaultProp.marketDemand,
+      lastMaintenance: hasLastMaintenance(gameProp) ? gameProp.lastMaintenance : defaultProp.lastMaintenance,
+      tenantSatisfaction: hasTenantSatisfaction(gameProp) ? gameProp.tenantSatisfaction : defaultProp.tenantSatisfaction,
+      marketDemand: hasMarketDemand(gameProp) ? gameProp.marketDemand : defaultProp.marketDemand,
       dailyIncome: defaultProp.dailyIncome + (Math.floor(defaultProp.dailyIncome * 0.2) * (gameProp.upgradeLevel || 0)),
     };
   }, []);
 
-  // Function to sync local properties from game state - this is the source of truth
   const syncPropertiesFromGameState = useCallback(() => {
-    // Convert game state properties to local Property format
     const syncedProperties = defaultProperties.map(defaultProp => {
       const gameProp = realEstate.find(p => p.id === defaultProp.id);
       if (gameProp) {
-        return gameStateToProperty(gameProp, defaultProp);
+        const property = gameStateToProperty(gameProp, defaultProp);
+        // Preserve currentResidence flag if it exists
+        if (hasCurrentResidence(gameProp) && gameProp.currentResidence === true) {
+          (property as Property & { currentResidence?: boolean }).currentResidence = true;
+        }
+        return property;
       }
       return defaultProp;
     });
@@ -414,68 +439,90 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     return syncedProperties;
   }, [realEstate, gameStateToProperty]);
 
-  // Initialize properties from game state on mount and when game state changes
   useEffect(() => {
-    // Sync properties from game state - game state is always the source of truth
     syncPropertiesFromGameState();
   }, [realEstate, syncPropertiesFromGameState]);
 
-  // Weekly property updates
   useEffect(() => {
-    // Only update if week actually changed
-    if (week > 0 && week !== lastWeekRef.current) {
-      lastWeekRef.current = week;
+    if (absoluteWeek > 0 && absoluteWeek !== lastWeekRef.current) {
+      lastWeekRef.current = absoluteWeek;
       
-      // Update properties in game state directly
       setGameState(prev => {
+        const prevAbsoluteWeek = resolveAbsoluteWeek(prev.weeksLived, prev.week);
+        const prevWeekOfMonth = typeof prev.week === 'number' ? prev.week : currentWeekOfMonth;
+        let totalRentIncome = 0;
+        let healthBoost = 0;
+        let happinessBoost = 0;
+        
         const updatedRealEstate = (prev.realEstate || []).map(gameProp => {
-          if (!gameProp.owned) return gameProp;
-          
-          let newValue = gameProp.currentValue || gameProp.price;
-          let newSatisfaction = gameProp.tenantSatisfaction || 75;
-          let newDemand = gameProp.marketDemand || 80;
-          
-          // Market value changes based on demand and satisfaction
-          const marketChange = (newDemand - 50) * 0.001; // -0.05% to +0.05% per week
-          const satisfactionChange = (newSatisfaction - 50) * 0.0005; // -0.025% to +0.025% per week
-          
-          newValue = Math.floor(newValue * (1 + marketChange + satisfactionChange));
-          
-          // Tenant satisfaction changes based on maintenance
-          const weeksSinceMaintenance = week - (gameProp.lastMaintenance || 0);
-          if (weeksSinceMaintenance > 4) {
-            newSatisfaction = Math.max(0, newSatisfaction - 5);
-          } else if (weeksSinceMaintenance <= 2) {
-            newSatisfaction = Math.min(100, newSatisfaction + 2);
+          // Handle owned properties (rented out to tenants)
+          if (gameProp.owned) {
+            // Add weekly rent income for rented out properties
+            if (gameProp.status === 'rented' && gameProp.rent) {
+              totalRentIncome += gameProp.rent;
+            }
+            
+            let newValue = hasCurrentValue(gameProp) ? gameProp.currentValue : gameProp.price;
+            let newSatisfaction = hasTenantSatisfaction(gameProp) ? gameProp.tenantSatisfaction : 75;
+            let newDemand = hasMarketDemand(gameProp) ? gameProp.marketDemand : 80;
+            
+            const marketChange = (newDemand - 50) * 0.001;
+            const satisfactionChange = (newSatisfaction - 50) * 0.0005;
+            
+            newValue = Math.floor(newValue * (1 + marketChange + satisfactionChange));
+            
+            newSatisfaction = updateTenantSatisfactionForWeek({
+              tenantSatisfaction: newSatisfaction,
+              lastMaintenance: hasLastMaintenance(gameProp) ? gameProp.lastMaintenance : 0,
+              currentAbsoluteWeek: prevAbsoluteWeek,
+              currentWeekOfMonth: prevWeekOfMonth,
+            });
+            
+            const marketTrend = Math.random() > 0.5 ? 1 : -1;
+            newDemand = Math.max(0, Math.min(100, newDemand + (marketTrend * Math.floor(Math.random() * 3))));
+            
+            return {
+              ...gameProp,
+              currentValue: newValue,
+              tenantSatisfaction: newSatisfaction,
+              marketDemand: newDemand,
+            };
           }
           
-          // Market demand changes based on overall market conditions
-          const marketTrend = Math.random() > 0.5 ? 1 : -1;
-          newDemand = Math.max(0, Math.min(100, newDemand + (marketTrend * Math.floor(Math.random() * 3))));
+          // Handle properties player is renting (not owned, status is 'rented')
+          if (!gameProp.owned && hasStatus(gameProp) && gameProp.status === 'rented') {
+            // Apply small weekly health and happiness boosts for rented properties
+            // Base boost: +2 health, +3 happiness per week
+            healthBoost += 2;
+            happinessBoost += 3;
+          }
           
-          return {
-            ...gameProp,
-            currentValue: newValue,
-            tenantSatisfaction: newSatisfaction,
-            marketDemand: newDemand,
-          };
+          return gameProp;
         });
+        
+        // Apply boosts (capped at 100)
+        const newHealth = Math.min(100, prev.stats.health + healthBoost);
+        const newHappiness = Math.min(100, prev.stats.happiness + happinessBoost);
         
         return {
           ...prev,
+          stats: { 
+            ...prev.stats, 
+            money: prev.stats.money + totalRentIncome,
+            health: newHealth,
+            happiness: newHappiness,
+          },
           realEstate: updatedRealEstate,
         };
       });
       
-      // Sync local properties and save with cleanup
       createTimeout(() => {
         syncPropertiesFromGameState();
-        saveGame(); // Save weekly property updates
+        saveGame();
       }, 0);
     }
-  }, [week, saveGame, syncPropertiesFromGameState, addCleanup]);
+  }, [absoluteWeek, currentWeekOfMonth, saveGame, syncPropertiesFromGameState, createTimeout, setGameState]);
 
-  // Memoize helper functions
   const getTraitIcon = useCallback((trait: string) => {
     switch (trait) {
       case 'happiness': return Heart;
@@ -487,261 +534,340 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
 
   const getTraitColor = useCallback((trait: string) => {
     switch (trait) {
-      case 'happiness': return '#EF4444';
-      case 'health': return '#10B981';
-      case 'energy': return '#F59E0B';
-      default: return '#6B7280';
+      case 'happiness': return '#F472B6';
+      case 'health': return '#34D399';
+      case 'energy': return '#FBBF24';
+      default: return '#94A3B8';
     }
   }, []);
 
   const renderTrait = useCallback((trait: string, value: number, key: string) => {
     const IconComponent = getTraitIcon(trait);
     const color = getTraitColor(trait);
-    const traitName = trait.charAt(0).toUpperCase() + trait.slice(1);
     
     return (
-      <View key={key} style={styles.traitItem}>
-        <View style={[styles.traitIcon, { backgroundColor: color + '20' }]}>
-          <IconComponent size={14} color={color} />
-        </View>
-        <Text style={styles.traitText}>+{value} {traitName}</Text>
+      <View key={key} style={[styles.traitBadge, { borderColor: color + '40', backgroundColor: color + '10' }]}>
+        <IconComponent size={12} color={color} />
+        <Text style={[styles.traitText, { color }]}>+{value}</Text>
       </View>
     );
   }, [getTraitIcon, getTraitColor]);
 
-  // Memoize renderPropertyCard to prevent unnecessary re-renders
+  const handleBuyProperty = useCallback((property: Property) => {
+    if (!hasEarlyAccess && playerAge < 25) {
+      showAlert('Age Restriction', 'You must be at least 25 years old to purchase real estate.');
+      return;
+    }
+    
+    if (money < property.price) {
+      showAlert('Insufficient Funds', 'You need more money to purchase this property.');
+      return;
+    }
+
+    setSelectedProperty(property);
+    setShowPurchaseModal(true);
+  }, [money, showAlert, hasEarlyAccess, playerAge]);
+
+  const handleRentProperty = useCallback((property: Property) => {
+    const adjusted = getAdjustedProperty(property);
+    const weeklyRent = Math.round(adjusted.price * PLAYER_RENT_RATE_WEEKLY);
+    
+    // Check if player is already renting another property
+    const alreadyRenting = (realEstate || []).some(p => 
+      !p.owned && hasStatus(p) && p.status === 'rented'
+    );
+    
+    if (alreadyRenting) {
+      showAlert('Already Renting', 'You can only rent one property at a time. Please end your current rental first.');
+      return;
+    }
+    
+    if (money < weeklyRent) {
+      showAlert('Insufficient Funds', `You need ${formatMoney(weeklyRent)} for the first week's rent.`);
+      return;
+    }
+    
+    Alert.alert(
+      'Rent Property',
+      `Rent ${property.name} for ${formatMoney(weeklyRent)} per week?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Rent',
+          onPress: async () => {
+            const existingPropIndex = realEstate.findIndex(p => p.id === property.id);
+            const propertyGameState = propertyToGameState({
+              ...adjusted,
+              owned: false,
+              status: 'rented' as const,
+            });
+            
+            setGameState(prev => {
+              const updatedRealEstate = [...(prev.realEstate || [])];
+              
+              if (existingPropIndex >= 0) {
+                updatedRealEstate[existingPropIndex] = {
+                  ...propertyGameState,
+                  status: 'rented' as const,
+                };
+              } else {
+                updatedRealEstate.push({
+                  ...propertyGameState,
+                  status: 'rented' as const,
+                });
+              }
+              
+              return {
+                ...prev,
+                stats: { ...prev.stats, money: prev.stats.money - weeklyRent },
+                realEstate: updatedRealEstate,
+              };
+            });
+            
+            setProperties(prevProperties => 
+              prevProperties.map(prop => 
+                prop.id === property.id ? { ...prop, status: 'rented' as const } : prop
+              )
+            );
+            
+            await saveGame();
+            setSuccessMessage(`You're now renting ${property.name} for ${formatMoney(weeklyRent)}/week! You'll receive small health and happiness boosts each week.`);
+            setShowSuccessModal(true);
+          },
+        },
+      ]
+    );
+  }, [money, realEstate, setGameState, saveGame, propertyToGameState, getAdjustedProperty, showAlert]);
+
+  const handleManageProperty = useCallback((property: Property) => {
+    setSelectedProperty(property);
+    setShowManagementModal(true);
+  }, []);
+
   const renderPropertyCard = useCallback((property: Property, index: number) => {
     const adjusted = getAdjustedProperty(property);
     const canAfford = money >= adjusted.price;
-    // Check age restriction (typically 25, but bypassed with early real estate access)
     const ageRestriction = hasEarlyAccess || playerAge >= 25;
     const canPurchase = canAfford && ageRestriction;
-    const totalIncome = adjusted.dailyIncome * 7; // Weekly income
-    const roi = ((totalIncome / adjusted.price) * 100).toFixed(1);
+    const totalIncome = Math.round(adjusted.price * RENT_INCOME_RATE);
+    const roi = (RENT_INCOME_RATE * 100).toFixed(1);
     
     return (
       <MotiView
         key={property.id}
-        from={{ opacity: 0, translateY: 50, scale: 0.9 }}
-        animate={{ opacity: 1, translateY: 0, scale: 1 }}
-        transition={{ 
-          type: 'timing', 
-          duration: 600, 
-          delay: index * 100 
-        }}
+        from={{ opacity: 0, translateY: 20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 400, delay: index * 50 }}
         style={styles.propertyCard}
       >
-        <LinearGradient
-          colors={property.owned ? ['#0F766E', '#064E3B', '#022C22'] : ['#1F2937', '#111827', '#0F172A']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.propertyCardGradient}
-        >
-          <View style={styles.propertyImageContainer}>
+        <View style={[styles.cardContent, property.owned && styles.cardContentOwned, darkMode && styles.cardContentDark]}>
+          <View style={styles.imageContainer}>
             <Image source={property.image} style={styles.propertyImage} />
             {property.owned && (
               <View style={styles.ownedBadge}>
-                <LinearGradient
-                  colors={['#059669', '#047857']}
-                  style={styles.ownedBadgeGradient}
-                >
-                  <Text style={styles.ownedText}>OWNED</Text>
-                </LinearGradient>
+                <Text style={styles.ownedBadgeText}>Owned</Text>
+              </View>
+            )}
+            {property.status === 'rented' && (
+              <View style={styles.rentedBadge}>
+                <Text style={styles.rentedBadgeText}>Rented</Text>
               </View>
             )}
           </View>
 
-          <View style={styles.propertyInfo}>
-            <View style={styles.propertyHeader}>
-              <Text style={styles.propertyName}>{property.name}</Text>
-              <View style={styles.locationContainer}>
-                <MapPin size={14} color={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"} />
-                <Text style={styles.locationText}>{property.location}</Text>
+          <View style={styles.cardBody}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.propertyName, darkMode && styles.propertyNameDark]}>{property.name}</Text>
+              <View style={styles.locationRow}>
+                <MapPin size={14} color="#94A3B8" />
+                <Text style={[styles.locationText, darkMode && styles.locationTextDark]}>{property.location}</Text>
               </View>
             </View>
 
-            <View style={styles.propertyStats}>
-              <View style={styles.statItem}>
-                <DollarSign size={16} color="#F7931A" />
-                <Text style={styles.statText}>
-                  {property.owned ? `$${property.currentValue.toLocaleString()}` : `$${adjusted.price.toLocaleString()}`}
-                  {!property.owned && adjusted.price !== property.price && (
-                    <Text style={styles.discountText}> (was ${property.price.toLocaleString()})</Text>
-                  )}
-                </Text>
-              </View>
-              <View style={styles.statItem}>
-                <TrendingUp size={16} color="#10B981" />
-                <Text style={styles.statText}>${totalIncome.toLocaleString()}/week</Text>
+            <View style={styles.priceRow}>
+              <Text style={[styles.price, darkMode && styles.priceDark]}>
+                {property.owned ? formatMoney(property.currentValue) : formatMoney(adjusted.price)}
+              </Text>
+              {property.owned && (
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelText}>Lv.{property.managementLevel}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={[styles.stat, darkMode && styles.statDark]}>
+                <TrendingUp size={14} color="#60A5FA" />
+                <Text style={[styles.statText, darkMode && styles.statTextDark]}>{formatMoney(totalIncome)}/week</Text>
               </View>
               {settings.showROI && (
-                <View style={styles.statItem}>
-                  <BarChart3 size={16} color="#3B82F6" />
-                  <Text style={styles.statText}>{roi}% ROI</Text>
-                </View>
-              )}
-              {property.owned && (
-                <View style={styles.statItem}>
-                  <Award size={16} color="#8B5CF6" />
-                  <Text style={styles.statText}>Lv.{property.managementLevel}</Text>
+                <View style={[styles.stat, darkMode && styles.statDark]}>
+                  <BarChart3 size={14} color="#A78BFA" />
+                  <Text style={[styles.statText, darkMode && styles.statTextDark]}>{roi}% ROI</Text>
                 </View>
               )}
             </View>
 
-            {/* Enhanced Property Metrics */}
-            {settings.showMarketMetrics && (
-              <View style={styles.propertyMetrics}>
-                <View style={styles.metricItem}>
-                  <View style={styles.metricIcon}>
-                    <Star size={14} color="#FCD34D" />
-                  </View>
-                  <Text style={[styles.metricLabel, settings?.darkMode && styles.metricLabelDark]}>Market Demand</Text>
-                  <Text style={styles.metricValue}>{property.marketDemand}%</Text>
+            {settings.showMarketMetrics && property.owned && (
+              <View style={styles.metricsRow}>
+                <View style={[styles.metric, darkMode && styles.metricDark]}>
+                  <Text style={[styles.metricLabel, darkMode && styles.metricLabelDark]}>Demand</Text>
+                  <Text style={[styles.metricValue, darkMode && styles.metricValueDark]}>{property.marketDemand}%</Text>
                 </View>
-                <View style={styles.metricItem}>
-                  <View style={styles.metricIcon}>
-                    <Heart size={14} color="#EF4444" />
-                  </View>
-                  <Text style={[styles.metricLabel, settings?.darkMode && styles.metricLabelDark]}>Tenant Satisfaction</Text>
-                  <Text style={styles.metricValue}>{property.tenantSatisfaction}%</Text>
+                <View style={[styles.metric, darkMode && styles.metricDark]}>
+                  <Text style={[styles.metricLabel, darkMode && styles.metricLabelDark]}>Satisfaction</Text>
+                  <Text style={[styles.metricValue, darkMode && styles.metricValueDark]}>{property.tenantSatisfaction}%</Text>
                 </View>
               </View>
             )}
 
             {Object.entries(property.traits).length > 0 && (
-              <View style={styles.traitsContainer}>
-                <Text style={styles.traitsTitle}>Traits:</Text>
-                <View style={styles.traitsList}>
-                  {Object.entries(property.traits).map(([trait, value]) => 
-                    renderTrait(trait, value, trait)
-                  )}
-                </View>
+              <View style={styles.traitsRow}>
+                {Object.entries(property.traits).map(([trait, value]) => 
+                  renderTrait(trait, value, trait)
+                )}
               </View>
             )}
 
-            {!property.owned && (
-              <TouchableOpacity
-                style={[styles.buyButton, !canPurchase && styles.disabledButton]}
-                onPress={() => {
-                  logger.debug('Button pressed for property:', { propertyName: property.name });
-                  handleBuyProperty(property);
-                }}
-                // onPressIn={() => logger.debug('Button pressed in for:', { propertyName: property.name })}
-                // onPressOut={() => logger.debug('Button pressed out for:', { propertyName: property.name })}
-                disabled={!canPurchase}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <LinearGradient
-                  colors={canPurchase ? ['#3B82F6', '#1D4ED8'] : ['#6B7280', '#4B5563']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.buyButtonGradient}
-                >
-                  <Home size={16} color="#FFFFFF" />
-                  <Text style={styles.buyButtonText}>
-                    {!ageRestriction ? 'Age 25+ Required' : canAfford ? 'Purchase Property' : 'Insufficient Funds'}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-            
-
-
-            {property.owned && (
-              <View style={styles.ownedActions}>
+            {!property.owned && property.status !== 'rented' && (
+              <View style={styles.actionButtons}>
                 <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleManageProperty(property)}
+                  style={[styles.buyButton, !canPurchase && styles.buyButtonDisabled]}
+                  onPress={() => handleBuyProperty(property)}
+                  disabled={!canPurchase}
+                  activeOpacity={0.7}
                 >
-                  <LinearGradient
-                    colors={['#8B5CF6', '#7C3AED']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButtonGradient}
-                  >
-                    <Text style={styles.actionButtonText}>Manage</Text>
-                  </LinearGradient>
+                  <Text style={[styles.buyButtonText, !canPurchase && styles.buyButtonTextDisabled]}>
+                    {!ageRestriction ? 'Age 25+ Required' : canAfford ? 'Purchase' : 'Insufficient Funds'}
+                  </Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => {
-                    setSelectedProperty(property);
-                    setShowSellModal(true);
-                  }}
+                  style={[styles.rentButton, money < (adjusted.price * PLAYER_RENT_RATE_WEEKLY) && styles.rentButtonDisabled]}
+                  onPress={() => handleRentProperty(property)}
+                  disabled={money < (adjusted.price * PLAYER_RENT_RATE_WEEKLY)}
+                  activeOpacity={0.7}
                 >
-                  <LinearGradient
-                    colors={['#EF4444', '#DC2626']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButtonGradient}
-                  >
-                    <Text style={styles.actionButtonText}>Sell</Text>
-                  </LinearGradient>
+                  <Text style={[styles.rentButtonText, money < (adjusted.price * PLAYER_RENT_RATE_WEEKLY) && styles.rentButtonTextDisabled]}>
+                    Rent {formatMoney(Math.round(adjusted.price * PLAYER_RENT_RATE_WEEKLY))}/week
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
+
+            {!property.owned && property.status === 'rented' && (
+              <View style={styles.rentedActions}>
+                <View style={[styles.rentedBadgeInfo, darkMode && styles.rentedBadgeInfoDark]}>
+                  <Text style={[styles.rentedInfoText, darkMode && styles.rentedInfoTextDark]}>
+                    You're renting this property
+                  </Text>
+                  <Text style={[styles.rentedInfoSubtext, darkMode && styles.rentedInfoSubtextDark]}>
+                    Weekly boosts: +2 health, +3 happiness
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.endRentalButton}
+                  onPress={() => {
+                    setSelectedProperty(property);
+                    setShowEndRentalModal(true);
+                  }}
+                >
+                  <Text style={styles.endRentalButtonText}>End Rental</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {property.owned && (
+              <View style={styles.ownedActions}>
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={styles.manageButton}
+                    onPress={() => handleManageProperty(property)}
+                  >
+                    <Text style={styles.manageButtonText}>Manage</Text>
+                  </TouchableOpacity>
+                  {property.status !== 'rented' && currentResidenceId !== property.id && !('currentResidence' in property && property.currentResidence) && (
+                    <TouchableOpacity
+                      style={styles.moveInButton}
+                      onPress={() => {
+                        setSelectedProperty(property);
+                        setShowMoveInModal(true);
+                      }}
+                    >
+                      <Text style={styles.moveInButtonText}>Move In</Text>
+                    </TouchableOpacity>
+                  )}
+                  {property.status !== 'rented' && currentResidenceId !== property.id && !('currentResidence' in property && property.currentResidence) && (
+                    <TouchableOpacity
+                      style={styles.rentOutButton}
+                      onPress={() => {
+                        setSelectedProperty(property);
+                        setShowRentOutModal(true);
+                      }}
+                    >
+                      <Text style={styles.rentOutButtonText}>Rent Out</Text>
+                    </TouchableOpacity>
+                  )}
+                  {property.status === 'rented' && (
+                    <TouchableOpacity
+                      style={styles.kickTenantsButton}
+                      onPress={() => {
+                        setSelectedProperty(property);
+                        setShowKickTenantsModal(true);
+                      }}
+                    >
+                      <Text style={styles.kickTenantsButtonText}>Kick Out</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={styles.sellButton}
+                    onPress={() => {
+                      setSelectedProperty(property);
+                      setShowSellModal(true);
+                    }}
+                  >
+                    <Text style={styles.sellButtonText}>Sell</Text>
+                  </TouchableOpacity>
+                </View>
+                {((('currentResidence' in property && property.currentResidence === true) || currentResidenceId === property.id) && property.owned && property.status === 'owner') && (
+                  <View style={styles.livingBadge}>
+                    <Text style={styles.livingBadgeText}>🏠 Living Here</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
-        </LinearGradient>
+        </View>
       </MotiView>
     );
-  }, [money, renderTrait, showAlert]);
-
-  const handleBuyProperty = useCallback((property: Property) => {
-    logger.debug('handleBuyProperty called for:', { propertyName: property.name });
-    logger.debug('Current money:', { money });
-    logger.debug('Property price:', { price: property.price });
-    
-    // Check age restriction
-    if (!hasEarlyAccess && playerAge < 25) {
-      showAlert('Age Restriction', 'You must be at least 25 years old to purchase real estate. (Or unlock Early Real Estate Access prestige bonus)');
-      return;
-    }
-    
-    if (money < property.price) {
-      logger.debug('Insufficient funds, showing alert...');
-      showAlert('Insufficient Funds', 'You need more money to purchase this property.');
-      return;
-    }
-
-    logger.debug('Showing purchase confirmation modal...');
-    setSelectedProperty(property);
-    setShowPurchaseModal(true);
-  }, [money, showAlert, hasEarlyAccess, playerAge]);
+  }, [money, renderTrait, getAdjustedProperty, hasEarlyAccess, playerAge, settings, darkMode, handleBuyProperty, handleManageProperty, handleRentProperty]);
 
   const confirmPurchase = useCallback(async () => {
     if (!selectedProperty) return;
     
     const adjusted = getAdjustedProperty(selectedProperty);
     
-    // Check if player has enough money
     if (money < adjusted.price) {
-      Alert.alert('Insufficient Funds', `You need $${adjusted.price.toLocaleString()} to purchase this property.`);
+      Alert.alert('Insufficient Funds', `You need ${formatMoney(adjusted.price)} to purchase this property.`);
       return;
     }
     
-    // Find or create the property in game state
     const existingPropIndex = realEstate.findIndex(p => p.id === selectedProperty.id);
     const propertyGameState = propertyToGameState({
       ...adjusted,
-      owned: true, // Mark as owned
+      owned: true,
     });
     
-    // Update game state directly - this is the source of truth
     let updatedRealEstate: GameRealEstate[] = [];
     setGameState(prev => {
       updatedRealEstate = [...(prev.realEstate || [])];
       
       if (existingPropIndex >= 0) {
-        // Update existing property
         updatedRealEstate[existingPropIndex] = propertyGameState;
       } else {
-        // Add new property
         updatedRealEstate.push(propertyGameState);
       }
       
-      // Ensure all default properties are in the array
       defaultProperties.forEach(defaultProp => {
         if (!updatedRealEstate.find(p => p.id === defaultProp.id)) {
           updatedRealEstate.push(propertyToGameState(defaultProp));
@@ -755,11 +881,9 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
       };
     });
     
-    // Update local state IMMEDIATELY so it shows in portfolio right away
     setProperties(prevProperties => {
       return prevProperties.map(prop => {
         if (prop.id === selectedProperty.id) {
-          // Convert the game state property back to Property format
           const gameProp = updatedRealEstate.find(p => p.id === selectedProperty.id);
           if (gameProp) {
             return gameStateToProperty(gameProp, prop);
@@ -770,7 +894,6 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
       });
     });
     
-    // Save immediately and wait for it to complete
     try {
       await saveGame();
     } catch (error) {
@@ -779,33 +902,31 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     
     setShowPurchaseModal(false);
     setSelectedProperty(null);
-    
     setSuccessMessage(`You now own ${selectedProperty.name}!`);
     setShowSuccessModal(true);
-  }, [selectedProperty, money, realEstate, setGameState, saveGame, propertyToGameState, gameStateToProperty]);
+  }, [selectedProperty, money, realEstate, setGameState, saveGame, propertyToGameState, gameStateToProperty, getAdjustedProperty]);
 
-  // Property management functions
   const performMaintenance = useCallback(async (property: Property) => {
-    const maintenanceCost = Math.floor(property.currentValue * 0.02); // 2% of property value
+    const maintenanceCost = Math.floor(property.currentValue * 0.02);
     const satisfactionIncrease = 15;
-    const valueIncrease = Math.floor(property.currentValue * 0.05); // 5% value increase
+    const valueIncrease = Math.floor(property.currentValue * 0.05);
     
     if (money < maintenanceCost) {
       setShowMaintenanceModal(false);
-      setSuccessMessage(`Insufficient funds! Maintenance costs $${maintenanceCost.toLocaleString()}`);
+      setSuccessMessage(`Insufficient funds! Maintenance costs ${formatMoney(maintenanceCost)}`);
       setShowSuccessModal(true);
       return;
     }
     
-    // Update property in game state directly
     setGameState(prev => {
+      const prevAbsoluteWeek = resolveAbsoluteWeek(prev.weeksLived, prev.week);
       const updatedRealEstate = (prev.realEstate || []).map(p => {
         if (p.id === property.id) {
           return {
             ...p,
-            lastMaintenance: week,
-            tenantSatisfaction: Math.min(100, (p.tenantSatisfaction || 75) + satisfactionIncrease),
-            currentValue: (p.currentValue || p.price) + valueIncrease,
+            lastMaintenance: prevAbsoluteWeek,
+            tenantSatisfaction: Math.min(100, (hasTenantSatisfaction(p) ? p.tenantSatisfaction : 75) + satisfactionIncrease),
+            currentValue: (hasCurrentValue(p) ? p.currentValue : p.price) + valueIncrease,
           };
         }
         return p;
@@ -818,12 +939,10 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
       };
     });
     
-    // Sync local properties from game state
     createTimeout(() => {
       syncPropertiesFromGameState();
     }, 0);
     
-    // Save immediately
     try {
       await saveGame();
     } catch (error) {
@@ -831,32 +950,32 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     }
     
     setShowMaintenanceModal(false);
-    setSuccessMessage(`Maintenance completed! Property value increased by $${valueIncrease.toLocaleString()}`);
+    setSuccessMessage(`Maintenance completed! Property value increased by ${formatMoney(valueIncrease)}`);
     setShowSuccessModal(true);
-  }, [money, realEstate, setGameState, saveGame, syncPropertiesFromGameState, createTimeout]);
+  }, [money, setGameState, saveGame, syncPropertiesFromGameState, createTimeout]);
 
   const upgradeManagement = useCallback(async (property: Property) => {
-    const upgradeCost = Math.floor(property.currentValue * 0.1); // 10% of property value
-    const incomeIncrease = Math.floor(property.dailyIncome * 0.2); // 20% income increase
-    const valueIncrease = Math.floor(property.currentValue * 0.08); // 8% value increase
+    const upgradeCost = Math.floor(property.currentValue * 0.1);
+    const incomeIncrease = Math.floor(property.dailyIncome * 0.2);
+    const valueIncrease = Math.floor(property.currentValue * 0.08);
     
     if (money < upgradeCost) {
       setShowUpgradeModal(false);
-      setSuccessMessage(`Insufficient funds! Management upgrade costs $${upgradeCost.toLocaleString()}`);
+      setSuccessMessage(`Insufficient funds! Management upgrade costs ${formatMoney(upgradeCost)}`);
       setShowSuccessModal(true);
       return;
     }
     
-    // Update property in game state directly
     setGameState(prev => {
       const updatedRealEstate = (prev.realEstate || []).map(p => {
         if (p.id === property.id) {
           const newUpgradeLevel = (p.upgradeLevel || 0) + 1;
+          const newValue = (hasCurrentValue(p) ? p.currentValue : p.price) + valueIncrease;
           return {
             ...p,
             upgradeLevel: newUpgradeLevel,
-            rent: (p.rent || property.dailyIncome * 7) + (incomeIncrease * 7),
-            currentValue: (p.currentValue || p.price) + valueIncrease,
+            rent: Math.round(newValue * RENT_INCOME_RATE),
+            currentValue: newValue,
           };
         }
         return p;
@@ -869,12 +988,10 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
       };
     });
     
-    // Sync local properties from game state
     createTimeout(() => {
       syncPropertiesFromGameState();
     }, 0);
     
-    // Save immediately
     try {
       await saveGame();
     } catch (error) {
@@ -882,12 +999,228 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     }
     
     setShowUpgradeModal(false);
-    setSuccessMessage(`Management upgraded! Daily income increased by $${incomeIncrease}`);
+    setSuccessMessage(`Management upgraded! Daily income increased by ${formatMoney(incomeIncrease)}`);
     setShowSuccessModal(true);
-  }, [money, realEstate, setGameState, saveGame, syncPropertiesFromGameState, createTimeout]);
+  }, [money, setGameState, saveGame, syncPropertiesFromGameState, createTimeout]);
+
+  const handleMoveIn = useCallback(async (property: Property) => {
+    if (!property.owned) {
+      setShowMoveInModal(false);
+      setSuccessMessage('You must own this property to move in.');
+      setShowSuccessModal(true);
+      return;
+    }
+
+    if (property.status === 'rented') {
+      setShowMoveInModal(false);
+      setSuccessMessage('You cannot move into a property that is rented out.');
+      setShowSuccessModal(true);
+      return;
+    }
+
+    // Calculate health and happiness boosts from property traits
+    const healthBoost = property.traits.health || 0;
+    const happinessBoost = property.traits.happiness || 0;
+    
+    // Set property as current residence
+    setGameState(prev => {
+      // Update all properties - set the selected one as current residence, others stay as owned but not current residence
+      const updatedRealEstate = (prev.realEstate || []).map(p => {
+        if (p.id === property.id && p.owned) {
+          return {
+            ...p,
+            status: 'owner' as const,
+            // Mark this as the current residence
+            currentResidence: true,
+          };
+        }
+        // Remove currentResidence flag from other properties
+        if (p.owned && p.id !== property.id) {
+          const rest = hasCurrentResidence(p) ? (() => {
+            const { currentResidence, ...rest } = p;
+            return rest;
+          })() : p;
+          return {
+            ...rest,
+            status: hasStatus(p) && p.status === 'rented' ? 'rented' as const : 'owner' as const,
+          };
+        }
+        return p;
+      });
+      
+      // Apply health and happiness boosts
+      const newHealth = Math.min(100, prev.stats.health + healthBoost);
+      const newHappiness = Math.min(100, prev.stats.happiness + happinessBoost);
+      
+      return {
+        ...prev,
+        realEstate: updatedRealEstate,
+        stats: {
+          ...prev.stats,
+          health: newHealth,
+          happiness: newHappiness,
+        },
+      };
+    });
+    
+    syncPropertiesFromGameState();
+    
+    try {
+      await saveGame();
+    } catch (error) {
+      logger.error('Failed to save game after moving in:', error);
+    }
+    
+    setShowMoveInModal(false);
+    setSelectedProperty(null);
+    const boostText = [];
+    if (healthBoost > 0) boostText.push(`+${healthBoost} health`);
+    if (happinessBoost > 0) boostText.push(`+${happinessBoost} happiness`);
+    setSuccessMessage(`Moved into ${property.name}!${boostText.length > 0 ? ` (${boostText.join(', ')})` : ''}`);
+    setShowSuccessModal(true);
+  }, [setGameState, saveGame, syncPropertiesFromGameState]);
+
+  const handleEndRental = useCallback(async (property: Property) => {
+    if (property.owned || property.status !== 'rented') {
+      setShowEndRentalModal(false);
+      setSuccessMessage('This property is not being rented.');
+      setShowSuccessModal(true);
+      return;
+    }
+
+    setGameState(prev => {
+      const updatedRealEstate = (prev.realEstate || []).filter(p => 
+        !(p.id === property.id && !p.owned && hasStatus(p) && p.status === 'rented')
+      );
+      
+      return {
+        ...prev,
+        realEstate: updatedRealEstate,
+      };
+    });
+    
+    setProperties(prevProperties => 
+      prevProperties.map(prop => 
+        prop.id === property.id ? { ...prop, status: 'vacant' as const } : prop
+      )
+    );
+    
+    try {
+      await saveGame();
+    } catch (error) {
+      logger.error('Failed to save game after ending rental:', error);
+    }
+    
+    setShowEndRentalModal(false);
+    setSelectedProperty(null);
+    setSuccessMessage(`Rental ended for ${property.name}.`);
+    setShowSuccessModal(true);
+  }, [setGameState, saveGame]);
+
+  const handleKickTenantsOut = useCallback(async (property: Property) => {
+    if (!property.owned || property.status !== 'rented') {
+      setShowKickTenantsModal(false);
+      setSuccessMessage('This property is not rented out.');
+      setShowSuccessModal(true);
+      return;
+    }
+
+    setGameState(prev => {
+      const updatedRealEstate = (prev.realEstate || []).map(p => {
+        if (p.id === property.id && p.owned && hasStatus(p) && p.status === 'rented') {
+          return {
+            ...p,
+            status: 'owner' as const,
+            rent: undefined,
+          };
+        }
+        return p;
+      });
+      
+      return {
+        ...prev,
+        realEstate: updatedRealEstate,
+      };
+    });
+    
+    syncPropertiesFromGameState();
+    
+    try {
+      await saveGame();
+    } catch (error) {
+      logger.error('Failed to save game after kicking tenants out:', error);
+    }
+    
+    setShowKickTenantsModal(false);
+    setSelectedProperty(null);
+    setSuccessMessage(`Tenants have been kicked out of ${property.name}.`);
+    setShowSuccessModal(true);
+  }, [setGameState, saveGame, syncPropertiesFromGameState, currentResidenceId]);
+
+  const handleRentOutProperty = useCallback(async (property: Property) => {
+    if (!property.owned) {
+      setShowRentOutModal(false);
+      setSuccessMessage('You must own this property to rent it out.');
+      setShowSuccessModal(true);
+      return;
+    }
+
+    if (property.status === 'rented') {
+      setShowRentOutModal(false);
+      setSuccessMessage('This property is already rented out.');
+      setShowSuccessModal(true);
+      return;
+    }
+
+    // Check if this is the current residence
+    const isCurrentResidence = currentResidenceId === property.id || ('currentResidence' in property && property.currentResidence === true);
+    if (isCurrentResidence) {
+      setShowRentOutModal(false);
+      setSuccessMessage('You cannot rent out a property you are currently living in. Move out first.');
+      setShowSuccessModal(true);
+      return;
+    }
+
+    const weeklyRent = Math.round(property.currentValue * RENT_INCOME_RATE);
+
+    setGameState(prev => {
+      const updatedRealEstate = (prev.realEstate || []).map(p => {
+        if (p.id === property.id && p.owned) {
+          // Remove currentResidence flag when renting out
+          const rest = hasCurrentResidence(p) ? (() => {
+            const { currentResidence, ...rest } = p;
+            return rest;
+          })() : p;
+          return {
+            ...rest,
+            status: 'rented' as const,
+            rent: weeklyRent,
+          };
+        }
+        return p;
+      });
+      
+      return {
+        ...prev,
+        realEstate: updatedRealEstate,
+      };
+    });
+    
+    syncPropertiesFromGameState();
+    
+    try {
+      await saveGame();
+    } catch (error) {
+      logger.error('Failed to save game after renting out:', error);
+    }
+    
+    setShowRentOutModal(false);
+    setSelectedProperty(null);
+    setSuccessMessage(`${property.name} is now rented out! You'll earn ${formatMoney(weeklyRent)}/week.`);
+    setShowSuccessModal(true);
+  }, [setGameState, saveGame, syncPropertiesFromGameState]);
 
   const sellProperty = useCallback(async (property: Property) => {
-    // Prevent selling if property is not owned
     if (!property.owned) {
       setShowSellModal(false);
       setSuccessMessage('This property is not owned and cannot be sold.');
@@ -895,18 +1228,17 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
       return;
     }
     
-    const sellPrice = Math.floor(property.currentValue * 0.75); // 75% of current value
+    const sellPrice = Math.floor(property.currentValue * 0.75);
     
-    // Update property in game state directly - mark as not owned and reset income/expenses
     setGameState(prev => {
       const updatedRealEstate = (prev.realEstate || []).map(p => {
         if (p.id === property.id && p.owned) {
           return {
             ...p,
             owned: false,
-            currentValue: p.price, // Reset to original price
-            rent: 0, // Reset rent to 0 so it doesn't contribute to income
-            upkeep: 0, // Reset upkeep to 0 so it doesn't contribute to expenses
+            currentValue: p.price,
+            rent: 0,
+            upkeep: 0,
           };
         }
         return p;
@@ -919,10 +1251,8 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
       };
     });
     
-    // Sync local properties from game state immediately
     syncPropertiesFromGameState();
     
-    // Save immediately
     try {
       await saveGame();
     } catch (error) {
@@ -931,31 +1261,16 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     
     setShowSellModal(false);
     setSelectedProperty(null);
-    setSuccessMessage(`Property sold for $${sellPrice.toLocaleString()}!`);
+    setSuccessMessage(`Property sold for ${formatMoney(sellPrice)}!`);
     setShowSuccessModal(true);
   }, [setGameState, saveGame, syncPropertiesFromGameState]);
 
-  const handleManageProperty = useCallback((property: Property) => {
-    setSelectedProperty(property);
-    setShowManagementModal(true);
-  }, []);
-
-  // Memoize portfolio stats calculations
   const ownedProperties = useMemo(() => properties.filter(p => p.owned), [properties]);
   const totalPortfolioValue = useMemo(() => 
     ownedProperties.reduce((sum, p) => sum + p.currentValue, 0), 
     [ownedProperties]
   );
-  const totalWeeklyIncome = useMemo(() => 
-    ownedProperties.reduce((sum, p) => sum + (p.dailyIncome * 7), 0), 
-    [ownedProperties]
-  );
-  const averageROI = useMemo(() => 
-    ownedProperties.length > 0 ? (totalWeeklyIncome / totalPortfolioValue) * 100 : 0,
-    [ownedProperties, totalWeeklyIncome, totalPortfolioValue]
-  );
 
-  // Filter and sort properties
   const filteredProperties = properties.filter(property => {
     const matchesSearch = property.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          property.location.toLowerCase().includes(searchQuery.toLowerCase());
@@ -965,643 +1280,682 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
     const matchesTab = activeTab === 'owned' ? property.owned : !property.owned;
     return matchesSearch && matchesFilter && matchesTab;
   }).sort((a, b) => {
-    // Auto sort by ROI if enabled
     if (settings.autoSortByROI) {
-      const aROI = (a.dailyIncome * 7) / a.price;
-      const bROI = (b.dailyIncome * 7) / b.price;
+      const aROI = (a.currentValue * RENT_INCOME_RATE) / a.price;
+      const bROI = (b.currentValue * RENT_INCOME_RATE) / b.price;
       return bROI - aROI;
     }
-    
-    switch (sortBy) {
-      case 'price': return a.price - b.price;
-      case 'income': return b.dailyIncome - a.dailyIncome;
-      case 'value': return b.currentValue - a.currentValue;
-      default: return 0;
-    }
+    return a.price - b.price;
   });
 
   return (
-    <View style={styles.container}>
-      {/* Enhanced Header with Portfolio Stats */}
-      <MotiView
-        from={{ opacity: 0, translateY: -20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 600 }}
+    <View style={[styles.container, darkMode && styles.containerDark]}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
       >
-        <LinearGradient
-          colors={['#0F172A', '#1E293B', '#334155']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
+      <View style={[styles.header, darkMode && styles.headerDark]}>
+        <TouchableOpacity onPress={onBack} style={[styles.backButton, darkMode && styles.backButtonDark]}>
+          <ArrowLeft size={24} color={darkMode ? "#E5E7EB" : "#475569"} />
+        </TouchableOpacity>
+        
+        <View style={styles.headerCenter}>
+          <Text style={[styles.title, darkMode && styles.titleDark]}>Real Estate</Text>
+          {ownedProperties.length > 0 && (
+            <View style={styles.portfolioSummary}>
+              <Text style={[styles.portfolioText, darkMode && styles.portfolioTextDark]}>
+                {ownedProperties.length} properties • {formatMoney(totalPortfolioValue)}
+              </Text>
+            </View>
+          )}
+        </View>
+        
+        <TouchableOpacity 
+          style={[styles.settingsButton, darkMode && styles.settingsButtonDark]}
+          onPress={() => setShowSettingsModal(true)}
         >
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <LinearGradient
-              colors={['#6366F1', '#4F46E5']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.backButtonGradient}
-            >
-              <ArrowLeft size={24} color="#FFFFFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-          
-          <View style={styles.headerCenter}>
-            <Text style={styles.title}>Real Estate Portfolio</Text>
-            {ownedProperties.length > 0 && (
-              <View style={styles.portfolioStats}>
-                <View style={styles.portfolioStat}>
-                  <Building2 size={16} color="#10B981" />
-                  <Text style={styles.portfolioStatText}>{ownedProperties.length} Properties</Text>
-                </View>
-                <View style={styles.portfolioStat}>
-                  <DollarSign size={16} color="#F59E0B" />
-                  <Text style={styles.portfolioStatText}>${totalPortfolioValue.toLocaleString()}</Text>
-                </View>
-                <View style={styles.portfolioStat}>
-                  <TrendingUp size={16} color="#3B82F6" />
-                  <Text style={styles.portfolioStatText}>{averageROI.toFixed(1)}% ROI</Text>
-                </View>
-              </View>
+          <Settings size={22} color={darkMode ? "#E5E7EB" : "#475569"} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.tabBar, darkMode && styles.tabBarDark]}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'browse' && styles.tabActive]}
+          onPress={() => setActiveTab('browse')}
+        >
+          <Home size={20} color={activeTab === 'browse' ? '#3B82F6' : '#94A3B8'} />
+          <Text style={[styles.tabText, darkMode && styles.tabTextDark, activeTab === 'browse' && styles.tabTextActive]}>Browse</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'owned' && styles.tabActive]}
+          onPress={() => setActiveTab('owned')}
+        >
+          <Building2 size={20} color={activeTab === 'owned' ? '#3B82F6' : '#94A3B8'} />
+          <Text style={[styles.tabText, darkMode && styles.tabTextDark, activeTab === 'owned' && styles.tabTextActive]}>Owned</Text>
+          {ownedProperties.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{ownedProperties.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'market' && styles.tabActive]}
+          onPress={() => setActiveTab('market')}
+        >
+          <BarChart3 size={20} color={activeTab === 'market' ? '#3B82F6' : '#94A3B8'} />
+          <Text style={[styles.tabText, darkMode && styles.tabTextDark, activeTab === 'market' && styles.tabTextActive]}>Market</Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab !== 'market' && (
+        <View style={[styles.searchSection, darkMode && styles.searchSectionDark]}>
+          <View style={[styles.searchBar, darkMode && styles.searchBarDark]}>
+            <Search size={18} color={darkMode ? "#94A3B8" : "#94A3B8"} />
+            <TextInput
+              style={[styles.searchInput, darkMode && styles.searchInputDark]}
+              placeholder="Search properties..."
+              placeholderTextColor={darkMode ? "#64748B" : "#CBD5E1"}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={18} color={darkMode ? "#94A3B8" : "#94A3B8"} />
+              </TouchableOpacity>
             )}
           </View>
           
-          <TouchableOpacity 
-            style={styles.settingsButton}
-            onPress={() => setShowSettingsModal(true)}
-          >
-            <LinearGradient
-              colors={['#6B7280', '#4B5563']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.settingsButtonGradient}
-            >
-              <Settings size={20} color="#FFFFFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </LinearGradient>
-      </MotiView>
-
-      {/* Enhanced Tabs with Market Tab */}
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 600, delay: 200 }}
-        style={styles.tabContainer}
-      >
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'browse' && styles.activeTab]}
-          onPress={() => setActiveTab('browse')}
-        >
-          <LinearGradient
-            colors={activeTab === 'browse' ? ['#3B82F6', '#1D4ED8'] : ['#374151', '#4B5563']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tabGradient}
-          >
-            <Home size={18} color="#FFFFFF" />
-            <Text style={[styles.tabText, activeTab === 'browse' && styles.activeTabText]}>
-              Browse
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'owned' && styles.activeTab]}
-          onPress={() => setActiveTab('owned')}
-        >
-          <LinearGradient
-            colors={activeTab === 'owned' ? ['#10B981', '#059669'] : ['#374151', '#4B5563']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tabGradient}
-          >
-            <Building2 size={18} color="#FFFFFF" />
-            <Text style={[styles.tabText, activeTab === 'owned' && styles.activeTabText]}>
-              Portfolio ({ownedProperties.length})
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'market' && styles.activeTab]}
-          onPress={() => setActiveTab('market')}
-        >
-          <LinearGradient
-            colors={activeTab === 'market' ? ['#F59E0B', '#D97706'] : ['#374151', '#4B5563']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tabGradient}
-          >
-            <BarChart3 size={18} color="#FFFFFF" />
-            <Text style={[styles.tabText, activeTab === 'market' && styles.activeTabText]}>
-              Market
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </MotiView>
-
-      {/* Search and Filter Bar */}
-      {activeTab !== 'market' && (
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 600, delay: 400 }}
-          style={styles.searchContainer}
-        >
-          <View style={styles.searchBar}>
-            <Search size={20} color={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"} />
-            <Text style={[styles.searchPlaceholder, settings?.darkMode && styles.searchPlaceholderDark]}>Search properties...</Text>
-          </View>
-          
-          <View style={styles.filterContainer}>
+          <View style={styles.filterBar}>
             <TouchableOpacity
-              style={[styles.filterButton, filterBy === 'all' && styles.activeFilter]}
+              style={[
+                styles.filterChip, 
+                darkMode && styles.filterChipDark,
+                filterBy === 'all' && styles.filterChipActive,
+                darkMode && filterBy === 'all' && styles.filterChipActiveDark
+              ]}
               onPress={() => setFilterBy('all')}
             >
-              <Text style={[styles.filterText, filterBy === 'all' && styles.activeFilterText]}>All</Text>
+              <Text style={[
+                styles.filterText, 
+                darkMode && styles.filterTextDark,
+                filterBy === 'all' && styles.filterTextActive
+              ]}>All</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterButton, filterBy === 'affordable' && styles.activeFilter]}
+              style={[
+                styles.filterChip, 
+                darkMode && styles.filterChipDark,
+                filterBy === 'affordable' && styles.filterChipActive,
+                darkMode && filterBy === 'affordable' && styles.filterChipActiveDark
+              ]}
               onPress={() => setFilterBy('affordable')}
             >
-              <Text style={[styles.filterText, filterBy === 'affordable' && styles.activeFilterText]}>Affordable</Text>
+              <Text style={[
+                styles.filterText, 
+                darkMode && styles.filterTextDark,
+                filterBy === 'affordable' && styles.filterTextActive
+              ]}>Affordable</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.filterButton, filterBy === 'luxury' && styles.activeFilter]}
+              style={[
+                styles.filterChip, 
+                darkMode && styles.filterChipDark,
+                filterBy === 'luxury' && styles.filterChipActive,
+                darkMode && filterBy === 'luxury' && styles.filterChipActiveDark
+              ]}
               onPress={() => setFilterBy('luxury')}
             >
-              <Text style={[styles.filterText, filterBy === 'luxury' && styles.activeFilterText]}>Luxury</Text>
+              <Text style={[
+                styles.filterText, 
+                darkMode && styles.filterTextDark,
+                filterBy === 'luxury' && styles.filterTextActive
+              ]}>Luxury</Text>
             </TouchableOpacity>
           </View>
-        </MotiView>
+        </View>
       )}
 
-      <ScrollView 
-        style={styles.content} 
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={true}
-        bounces={true}
-        nestedScrollEnabled={true}
-      >
+      <View style={styles.content}>
         {activeTab === 'market' ? (
-          <View style={styles.marketContainer}>
-            <MotiView
-              from={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'timing', duration: 600 }}
-              style={styles.marketCard}
-            >
-              <LinearGradient
-                colors={['#1F2937', '#111827', '#0F172A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.marketCardGradient}
-              >
-                <View style={styles.marketHeader}>
-                  <BarChart3 size={24} color="#F59E0B" />
-                  <Text style={styles.marketTitle}>Market Analysis</Text>
+          <View style={styles.marketView}>
+            <View style={[styles.marketCard, darkMode && styles.marketCardDark]}>
+              <BarChart3 size={32} color="#3B82F6" />
+              <Text style={[styles.marketTitle, darkMode && styles.marketTitleDark]}>Market Overview</Text>
+              <View style={styles.marketStats}>
+                <View style={styles.marketStatItem}>
+                  <Text style={[styles.marketStatLabel, darkMode && styles.marketStatLabelDark]}>Avg. Property Value</Text>
+                  <Text style={[styles.marketStatValue, darkMode && styles.marketStatValueDark]}>
+                    {formatMoney(Math.round(properties.reduce((sum, p) => sum + p.currentValue, 0) / properties.length))}
+                  </Text>
                 </View>
-                
-                <View style={styles.marketStats}>
-                  <View style={styles.marketStat}>
-                    <Text style={styles.marketStatLabel}>Average Property Value</Text>
-                    <Text style={styles.marketStatValue}>
-                      ${Math.round(properties.reduce((sum, p) => sum + p.currentValue, 0) / properties.length).toLocaleString()}
-                    </Text>
-                  </View>
-                  <View style={styles.marketStat}>
-                    <Text style={styles.marketStatLabel}>Market Growth Rate</Text>
-                    <Text style={styles.marketStatValue}>+12.5%</Text>
-                  </View>
-                  <View style={styles.marketStat}>
-                    <Text style={styles.marketStatLabel}>Hot Locations</Text>
-                    <Text style={styles.marketStatValue}>Uptown, Hills</Text>
-                  </View>
+                <View style={styles.marketStatItem}>
+                  <Text style={[styles.marketStatLabel, darkMode && styles.marketStatLabelDark]}>Market Growth</Text>
+                  <Text style={[styles.marketStatValue, darkMode && styles.marketStatValueDark]}>+12.5%</Text>
                 </View>
-                
-                <View style={styles.marketInsights}>
-                  <Text style={styles.insightsTitle}>Market Insights</Text>
-                  <View style={styles.insightItem}>
-                    <TrendingUp size={16} color="#10B981" />
-                    <Text style={styles.insightText}>Luxury properties showing 15% growth</Text>
-                  </View>
-                  <View style={styles.insightItem}>
-                    <Star size={16} color="#FCD34D" />
-                    <Text style={styles.insightText}>High demand in suburban areas</Text>
-                  </View>
-                  <View style={styles.insightItem}>
-                    <Building2 size={16} color="#3B82F6" />
-                    <Text style={styles.insightText}>Commercial real estate trending up</Text>
-                  </View>
-                </View>
-              </LinearGradient>
-            </MotiView>
+              </View>
+            </View>
           </View>
         ) : (
-          <View style={styles.propertiesGrid}>
-            {filteredProperties.map((property, index) => renderPropertyCard(property, index))}
+          <View style={styles.propertiesList}>
+            {activeTab === 'owned' && filteredProperties.length === 0 ? (
+              <EmptyState
+                icon="🏠"
+                title="No Properties"
+                description="Browse available properties and invest in real estate to build your portfolio."
+                darkMode={settings?.darkMode ?? true}
+              />
+            ) : (
+              filteredProperties.map((property, index) => renderPropertyCard(property, index))
+            )}
           </View>
         )}
+      </View>
       </ScrollView>
 
-      {/* Purchase Confirmation Modal */}
-      {showPurchaseModal && selectedProperty && (
+      {/* Modals - Using React Native Modal component */}
+      <Modal
+        visible={showPurchaseModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowPurchaseModal(false);
+          setSelectedProperty(null);
+        }}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={['#1F2937', '#111827']}
-              style={styles.modalGradient}
-            >
-              <Text style={styles.modalTitle}>Purchase Property</Text>
-              <Text style={styles.modalMessage}>
-                Are you sure you want to purchase {selectedProperty.name} for ${(() => {
-                  const adjusted = getAdjustedProperty(selectedProperty);
-                  return adjusted.price.toLocaleString();
-                })()}?
-              </Text>
-              
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => {
-                    setShowPurchaseModal(false);
-                    setSelectedProperty(null);
-                  }}
-                >
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={confirmPurchase}
-                >
-                  <LinearGradient
-                    colors={['#3B82F6', '#1D4ED8']}
-                    style={styles.modalButtonGradient}
-                  >
-                    <Text style={styles.modalButtonText}>Purchase</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={['#10B981', '#059669']}
-              style={styles.modalGradient}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Success!</Text>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setShowSuccessModal(false)}
-                >
-                  <X size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-              
-              <Text style={styles.modalMessage}>{successMessage}</Text>
-              
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setShowSuccessModal(false)}
-              >
-                <Text style={styles.modalButtonText}>OK</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Property Management Modal */}
-      {showManagementModal && selectedProperty && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={['#1F2937', '#111827']}
-              style={styles.modalGradient}
-            >
-              <Text style={styles.modalTitle}>Property Management</Text>
-              
-              <View style={styles.managementInfo}>
-                <Text style={styles.managementPropertyName}>{selectedProperty.name}</Text>
-                
-                <View style={styles.managementStats}>
-                  <View style={styles.managementStat}>
-                    <Text style={styles.managementStatLabel}>Current Value:</Text>
-                    <Text style={styles.managementStatValue}>${selectedProperty.currentValue.toLocaleString()}</Text>
-                  </View>
-                  
-                  <View style={styles.managementStat}>
-                    <Text style={styles.managementStatLabel}>Weekly Income:</Text>
-                    <Text style={styles.managementStatValue}>${(selectedProperty.dailyIncome * 7).toLocaleString()}</Text>
-                  </View>
-                  
-                  <View style={styles.managementStat}>
-                    <Text style={styles.managementStatLabel}>Management Level:</Text>
-                    <Text style={styles.managementStatValue}>Level {selectedProperty.managementLevel}</Text>
-                  </View>
-                  
-                  <View style={styles.managementStat}>
-                    <Text style={styles.managementStatLabel}>Tenant Satisfaction:</Text>
-                    <Text style={styles.managementStatValue}>{selectedProperty.tenantSatisfaction}%</Text>
-                  </View>
-                  
-                  <View style={styles.managementStat}>
-                    <Text style={styles.managementStatLabel}>Market Demand:</Text>
-                    <Text style={styles.managementStatValue}>{selectedProperty.marketDemand}%</Text>
-                  </View>
-                </View>
-              </View>
-              
-              <View style={styles.managementActions}>
-                <TouchableOpacity
-                  style={styles.managementActionButton}
-                  onPress={() => {
-                    setShowManagementModal(false);
-                    setShowMaintenanceModal(true);
-                  }}
-                >
-                  <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.managementActionGradient}
-                  >
-                    <Text style={styles.managementActionText}>
-                      Maintenance (${Math.floor(selectedProperty.currentValue * 0.02).toLocaleString()})
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.managementActionButton}
-                  onPress={() => {
-                    setShowManagementModal(false);
-                    setShowUpgradeModal(true);
-                  }}
-                >
-                  <LinearGradient
-                    colors={['#3B82F6', '#1D4ED8']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.managementActionGradient}
-                  >
-                    <Text style={styles.managementActionText}>
-                      Upgrade Management (${Math.floor(selectedProperty.currentValue * 0.1).toLocaleString()})
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-              
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setShowManagementModal(false)}
-              >
-                <Text style={styles.modalButtonText}>Close</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Sell Property Modal */}
-      {showSellModal && selectedProperty && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={['#DC2626', '#B91C1C']}
-              style={styles.modalGradient}
-            >
-              <Text style={styles.modalTitle}>Sell Property</Text>
-              <Text style={styles.modalMessage}>
-                Are you sure you want to sell {selectedProperty.name} for ${Math.floor(selectedProperty.currentValue * 0.75).toLocaleString()}?
-              </Text>
-              <Text style={styles.modalSubMessage}>
-                (75% of current value: ${selectedProperty.currentValue.toLocaleString()})
-              </Text>
-              
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => {
-                    setShowSellModal(false);
-                    setSelectedProperty(null);
-                  }}
-                >
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => sellProperty(selectedProperty)}
-                >
-                  <LinearGradient
-                    colors={['#EF4444', '#DC2626']}
-                    style={styles.modalButtonGradient}
-                  >
-                    <Text style={styles.modalButtonText}>Sell</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Maintenance Confirmation Modal */}
-      {showMaintenanceModal && selectedProperty && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={['#F59E0B', '#D97706']}
-              style={styles.modalGradient}
-            >
-              <Text style={styles.modalTitle}>Property Maintenance</Text>
-              <Text style={styles.modalMessage}>
-                Perform maintenance on {selectedProperty.name} for ${Math.floor(selectedProperty.currentValue * 0.02).toLocaleString()}?
-              </Text>
-              <Text style={styles.modalSubMessage}>
-                Benefits: +15% tenant satisfaction, +5% property value
-              </Text>
-              
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => {
-                    setShowMaintenanceModal(false);
-                    setShowManagementModal(true);
-                  }}
-                >
-                  <Text style={styles.modalButtonText}>Back</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => performMaintenance(selectedProperty)}
-                >
-                  <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    style={styles.modalButtonGradient}
-                  >
-                    <Text style={styles.modalButtonText}>Perform Maintenance</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Management Upgrade Confirmation Modal */}
-      {showUpgradeModal && selectedProperty && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={['#3B82F6', '#1D4ED8']}
-              style={styles.modalGradient}
-            >
-            <Text style={styles.modalTitle}>Management Upgrade</Text>
-            <Text style={styles.modalMessage}>
-              Upgrade management for {selectedProperty.name} for ${Math.floor(selectedProperty.currentValue * 0.1).toLocaleString()}?
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Purchase Property</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              Purchase {selectedProperty?.name} for {selectedProperty ? formatMoney(getAdjustedProperty(selectedProperty).price) : ''}?
             </Text>
-            <Text style={styles.modalSubMessage}>
-              Benefits: +20% daily income, +8% property value, +1 management level
-            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowPurchaseModal(false);
+                  setSelectedProperty(null);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                onPress={confirmPurchase}
+              >
+                <Text style={styles.modalButtonPrimaryText}>Purchase</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Success!</Text>
+              <TouchableOpacity onPress={() => setShowSuccessModal(false)}>
+                <X size={20} color={darkMode ? "#E5E7EB" : "#64748B"} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>{successMessage}</Text>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonPrimary, styles.modalButtonFullWidth]}
+              onPress={() => setShowSuccessModal(false)}
+            >
+              <Text style={styles.modalButtonPrimaryText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showManagementModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowManagementModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Manage Property</Text>
+            <Text style={[styles.propertyNameInModal, darkMode && styles.propertyNameInModalDark]}>{selectedProperty?.name}</Text>
             
-                          <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => {
-                    setShowUpgradeModal(false);
-                    setShowManagementModal(true);
-                  }}
-                >
-                  <Text style={styles.modalButtonText}>Back</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => upgradeManagement(selectedProperty)}
-                >
-                  <LinearGradient
-                    colors={['#3B82F6', '#1D4ED8']}
-                    style={styles.modalButtonGradient}
-                  >
-                    <Text style={styles.modalButtonText}>Upgrade Management</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+            <View style={styles.managementStats}>
+              <View style={[styles.managementStatRow, darkMode && styles.managementStatRowDark]}>
+                <Text style={[styles.managementLabel, darkMode && styles.managementLabelDark]}>Current Value</Text>
+                <Text style={[styles.managementValue, darkMode && styles.managementValueDark]}>{selectedProperty ? formatMoney(selectedProperty.currentValue) : ''}</Text>
               </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Settings Modal */}
-      {showSettingsModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={['#1F2937', '#111827', '#0F172A']}
-              style={styles.modalGradient}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Real Estate Settings</Text>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setShowSettingsModal(false)}
-                >
-                  <X size={24} color="#FFFFFF" />
-                </TouchableOpacity>
+              <View style={[styles.managementStatRow, darkMode && styles.managementStatRowDark]}>
+                <Text style={[styles.managementLabel, darkMode && styles.managementLabelDark]}>Weekly Income</Text>
+                <Text style={[styles.managementValue, darkMode && styles.managementValueDark]}>{selectedProperty ? formatMoney(Math.round(selectedProperty.currentValue * RENT_INCOME_RATE)) : ''}</Text>
               </View>
-              
-              <ScrollView 
-                style={styles.settingsScrollView}
-                showsVerticalScrollIndicator={true}
-                contentContainerStyle={styles.settingsContainer}
+              <View style={[styles.managementStatRow, darkMode && styles.managementStatRowDark]}>
+                <Text style={[styles.managementLabel, darkMode && styles.managementLabelDark]}>Management Level</Text>
+                <Text style={[styles.managementValue, darkMode && styles.managementValueDark]}>Level {selectedProperty?.managementLevel || 0}</Text>
+              </View>
+              {selectedProperty?.status === 'rented' && (
+                <View style={[styles.managementStatRow, darkMode && styles.managementStatRowDark]}>
+                  <Text style={[styles.managementLabel, darkMode && styles.managementLabelDark]}>Status</Text>
+                  <Text style={[styles.managementValue, darkMode && styles.managementValueDark]}>Rented Out</Text>
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.managementActions}>
+              <TouchableOpacity
+                style={[styles.managementActionButton, styles.maintenanceButton]}
+                onPress={() => {
+                  setShowManagementModal(false);
+                  setShowMaintenanceModal(true);
+                }}
               >
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingLabel}>Show ROI</Text>
-                    <Text style={[styles.settingDescription, settings?.darkMode && styles.settingDescriptionDark]}>Display return on investment for properties</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.toggleButton, settings.showROI && styles.toggleButtonActive]}
-                    onPress={() => setSettings(prev => ({ ...prev, showROI: !prev.showROI }))}
-                  >
-                    <View style={[styles.toggleCircle, settings.showROI && styles.toggleCircleActive]} />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingLabel}>Market Metrics</Text>
-                    <Text style={styles.settingDescription}>Show market demand and tenant satisfaction</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.toggleButton, settings.showMarketMetrics && styles.toggleButtonActive]}
-                    onPress={() => setSettings(prev => ({ ...prev, showMarketMetrics: !prev.showMarketMetrics }))}
-                  >
-                    <View style={[styles.toggleCircle, settings.showMarketMetrics && styles.toggleCircleActive]} />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingLabel}>Auto Sort by ROI</Text>
-                    <Text style={styles.settingDescription}>Automatically sort properties by return on investment</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.toggleButton, settings.autoSortByROI && styles.toggleButtonActive]}
-                    onPress={() => setSettings(prev => ({ ...prev, autoSortByROI: !prev.autoSortByROI }))}
-                  >
-                    <View style={[styles.toggleCircle, settings.autoSortByROI && styles.toggleCircleActive]} />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingLabel}>Price History</Text>
-                    <Text style={styles.settingDescription}>Show property price change history</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.toggleButton, settings.showPriceHistory && styles.toggleButtonActive]}
-                    onPress={() => setSettings(prev => ({ ...prev, showPriceHistory: !prev.showPriceHistory }))}
-                  >
-                    <View style={[styles.toggleCircle, settings.showPriceHistory && styles.toggleCircleActive]} />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Text style={styles.settingLabel}>Notifications</Text>
-                    <Text style={styles.settingDescription}>Receive notifications for property updates</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.toggleButton, settings.notifications && styles.toggleButtonActive]}
-                    onPress={() => setSettings(prev => ({ ...prev, notifications: !prev.notifications }))}
-                  >
-                    <View style={[styles.toggleCircle, settings.notifications && styles.toggleCircleActive]} />
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
+                <Text style={styles.managementActionText}>
+                  Maintenance ({selectedProperty ? formatMoney(Math.floor(selectedProperty.currentValue * 0.02)) : ''})
+                </Text>
+              </TouchableOpacity>
               
               <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setShowSettingsModal(false)}
+                style={[styles.managementActionButton, styles.upgradeButton]}
+                onPress={() => {
+                  setShowManagementModal(false);
+                  setShowUpgradeModal(true);
+                }}
               >
-                <Text style={styles.modalButtonText}>Done</Text>
+                <Text style={styles.managementActionText}>
+                  Upgrade ({selectedProperty ? formatMoney(Math.floor(selectedProperty.currentValue * 0.1)) : ''})
+                </Text>
               </TouchableOpacity>
-            </LinearGradient>
+            </View>
+            
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+              onPress={() => setShowManagementModal(false)}
+            >
+              <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      )}
+      </Modal>
+
+      <Modal
+        visible={showSellModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowSellModal(false);
+          setSelectedProperty(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Sell Property</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              Sell {selectedProperty?.name} for {selectedProperty ? formatMoney(Math.floor(selectedProperty.currentValue * 0.75)) : ''}?
+            </Text>
+            <Text style={[styles.modalSubtext, darkMode && styles.modalSubtextDark]}>
+              (75% of current value: {selectedProperty ? formatMoney(selectedProperty.currentValue) : ''})
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowSellModal(false);
+                  setSelectedProperty(null);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonDanger]}
+                onPress={() => selectedProperty && sellProperty(selectedProperty)}
+              >
+                <Text style={styles.modalButtonDangerText}>Sell</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showMaintenanceModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowMaintenanceModal(false);
+          setShowManagementModal(true);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Property Maintenance</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              Perform maintenance for {selectedProperty ? formatMoney(Math.floor(selectedProperty.currentValue * 0.02)) : ''}?
+            </Text>
+            <Text style={[styles.modalSubtext, darkMode && styles.modalSubtextDark]}>
+              Benefits: +15% satisfaction, +5% value
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowMaintenanceModal(false);
+                  setShowManagementModal(true);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.maintenanceButton]}
+                onPress={() => selectedProperty && performMaintenance(selectedProperty)}
+              >
+                <Text style={styles.managementActionText}>Perform Maintenance</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showUpgradeModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowUpgradeModal(false);
+          setShowManagementModal(true);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Management Upgrade</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              Upgrade for {selectedProperty ? formatMoney(Math.floor(selectedProperty.currentValue * 0.1)) : ''}?
+            </Text>
+            <Text style={[styles.modalSubtext, darkMode && styles.modalSubtextDark]}>
+              Benefits: +20% income, +8% value, +1 level
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowUpgradeModal(false);
+                  setShowManagementModal(true);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.upgradeButton]}
+                onPress={() => selectedProperty && upgradeManagement(selectedProperty)}
+              >
+                <Text style={styles.managementActionText}>Upgrade</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showMoveInModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowMoveInModal(false);
+          setSelectedProperty(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Move In</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              Move into {selectedProperty?.name}?
+            </Text>
+            {selectedProperty && (selectedProperty.traits.health || selectedProperty.traits.happiness) && (
+              <Text style={[styles.modalSubtext, darkMode && styles.modalSubtextDark]}>
+                Benefits: {selectedProperty.traits.health ? `+${selectedProperty.traits.health} health` : ''}{selectedProperty.traits.health && selectedProperty.traits.happiness ? ', ' : ''}{selectedProperty.traits.happiness ? `+${selectedProperty.traits.happiness} happiness` : ''}
+              </Text>
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowMoveInModal(false);
+                  setSelectedProperty(null);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.moveInButton]}
+                onPress={() => selectedProperty && handleMoveIn(selectedProperty)}
+              >
+                <Text style={styles.moveInButtonText}>Move In</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showEndRentalModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowEndRentalModal(false);
+          setSelectedProperty(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>End Rental</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              End your rental of {selectedProperty?.name}?
+            </Text>
+            <Text style={[styles.modalSubtext, darkMode && styles.modalSubtextDark]}>
+              You will no longer receive weekly health and happiness boosts from this property.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowEndRentalModal(false);
+                  setSelectedProperty(null);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.sellButton]}
+                onPress={() => selectedProperty && handleEndRental(selectedProperty)}
+              >
+                <Text style={styles.sellButtonText}>End Rental</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showRentOutModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowRentOutModal(false);
+          setSelectedProperty(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Rent Out Property</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              Rent out {selectedProperty?.name} to tenants?
+            </Text>
+            <Text style={[styles.modalSubtext, darkMode && styles.modalSubtextDark]}>
+              Weekly income: {selectedProperty ? formatMoney(Math.round(selectedProperty.currentValue * RENT_INCOME_RATE)) : ''}
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowRentOutModal(false);
+                  setSelectedProperty(null);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.rentOutButton]}
+                onPress={() => selectedProperty && handleRentOutProperty(selectedProperty)}
+              >
+                <Text style={styles.rentOutButtonText}>Rent Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showKickTenantsModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowKickTenantsModal(false);
+          setSelectedProperty(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Kick Tenants Out</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              Kick tenants out of {selectedProperty?.name}?
+            </Text>
+            <Text style={[styles.modalSubtext, darkMode && styles.modalSubtextDark]}>
+              You will stop receiving rental income from this property.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowKickTenantsModal(false);
+                  setSelectedProperty(null);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.kickTenantsButton]}
+                onPress={() => selectedProperty && handleKickTenantsOut(selectedProperty)}
+              >
+                <Text style={styles.kickTenantsButtonText}>Kick Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showKickTenantsModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowKickTenantsModal(false);
+          setSelectedProperty(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Kick Tenants Out</Text>
+            <Text style={[styles.modalMessage, darkMode && styles.modalMessageDark]}>
+              Kick tenants out of {selectedProperty?.name}?
+            </Text>
+            <Text style={[styles.modalSubtext, darkMode && styles.modalSubtextDark]}>
+              You will stop receiving rental income from this property.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, darkMode && styles.modalButtonSecondaryDark]}
+                onPress={() => {
+                  setShowKickTenantsModal(false);
+                  setSelectedProperty(null);
+                }}
+              >
+                <Text style={[styles.modalButtonSecondaryText, darkMode && styles.modalButtonSecondaryTextDark]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.kickTenantsButton]}
+                onPress={() => selectedProperty && handleKickTenantsOut(selectedProperty)}
+              >
+                <Text style={styles.kickTenantsButtonText}>Kick Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSettingsModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modal, darkMode && styles.modalDark]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Settings</Text>
+              <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
+                <X size={20} color={darkMode ? "#E5E7EB" : "#64748B"} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.settingsList}>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => setSettings(prev => ({ ...prev, showROI: !prev.showROI }))}
+              >
+                <Text style={[styles.settingLabel, darkMode && styles.settingLabelDark]}>Show ROI</Text>
+                <View style={[styles.toggle, settings.showROI && styles.toggleActive]}>
+                  <View style={[styles.toggleCircle, settings.showROI && styles.toggleCircleActive]} />
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => setSettings(prev => ({ ...prev, showMarketMetrics: !prev.showMarketMetrics }))}
+              >
+                <Text style={[styles.settingLabel, darkMode && styles.settingLabelDark]}>Market Metrics</Text>
+                <View style={[styles.toggle, settings.showMarketMetrics && styles.toggleActive]}>
+                  <View style={[styles.toggleCircle, settings.showMarketMetrics && styles.toggleCircleActive]} />
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => setSettings(prev => ({ ...prev, autoSortByROI: !prev.autoSortByROI }))}
+              >
+                <Text style={[styles.settingLabel, darkMode && styles.settingLabelDark]}>Auto Sort by ROI</Text>
+                <View style={[styles.toggle, settings.autoSortByROI && styles.toggleActive]}>
+                  <View style={[styles.toggleCircle, settings.autoSortByROI && styles.toggleCircleActive]} />
+                </View>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonPrimary]}
+              onPress={() => setShowSettingsModal(false)}
+            >
+              <Text style={styles.modalButtonPrimaryText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1609,38 +1963,38 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0F1A',
+    backgroundColor: '#FFFFFF',
   },
-  
-  // Liquid Glass Header
+  containerDark: {
+    backgroundColor: '#0F172A',
+  },
+  scrollView: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: scale(20),
     paddingTop: scale(16),
     paddingBottom: scale(16),
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: '#E2E8F0',
+  },
+  headerDark: {
+    backgroundColor: '#0F172A',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   backButton: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: scale(22),
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
+    alignItems: 'center',
   },
-  backButtonGradient: {
-    width: scale(44),
-    height: scale(44),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: scale(22),
+  backButtonDark: {
+    backgroundColor: '#1E293B',
   },
   headerCenter: {
     flex: 1,
@@ -1648,464 +2002,754 @@ const styles = StyleSheet.create({
     marginHorizontal: scale(12),
   },
   title: {
-    fontSize: fontScale(18),
+    fontSize: fontScale(24),
     fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    color: '#1E293B',
+    letterSpacing: -0.5,
   },
-  portfolioStats: {
-    flexDirection: 'row',
-    marginTop: scale(8),
-    gap: scale(12),
+  titleDark: {
+    color: '#E5E7EB',
   },
-  portfolioStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(4),
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(5),
-    borderRadius: scale(12),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+  portfolioSummary: {
+    marginTop: scale(4),
   },
-  portfolioStatText: {
-    fontSize: fontScale(11),
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontWeight: '600',
+  portfolioText: {
+    fontSize: fontScale(12),
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  portfolioTextDark: {
+    color: '#94A3B8',
   },
   settingsButton: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: scale(22),
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-  },
-  settingsButtonGradient: {
-    width: scale(44),
-    height: scale(44),
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: scale(22),
   },
-  
-  // Liquid Glass Tabs
-  tabContainer: {
+  settingsButtonDark: {
+    backgroundColor: '#1E293B',
+  },
+  tabBar: {
     flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
     paddingHorizontal: scale(16),
-    paddingVertical: scale(12),
-    gap: scale(10),
+  },
+  tabBarDark: {
+    backgroundColor: '#0F172A',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   tab: {
     flex: 1,
-    borderRadius: scale(14),
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  activeTab: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  tabGradient: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: scale(14),
-    paddingHorizontal: scale(12),
+    paddingVertical: scale(16),
     gap: scale(6),
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: '#3B82F6',
   },
   tabText: {
-    fontSize: fontScale(13),
+    fontSize: fontScale(14),
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: '#94A3B8',
   },
-  activeTabText: {
+  tabTextDark: {
+    color: '#64748B',
+  },
+  tabTextActive: {
+    color: '#3B82F6',
+  },
+  tabBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: scale(10),
+    minWidth: scale(18),
+    height: scale(18),
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scale(4),
+  },
+  tabBadgeText: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
     color: '#FFFFFF',
   },
-  
-  // Glass Card Search
-  searchContainer: {
+  searchSection: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: scale(16),
-    marginBottom: scale(12),
-    gap: scale(10),
+    paddingTop: scale(12),
+    paddingBottom: scale(12),
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  searchSectionDark: {
+    backgroundColor: '#0F172A',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: scale(14),
+    backgroundColor: '#F1F5F9',
+    borderRadius: scale(12),
     paddingHorizontal: scale(16),
-    paddingVertical: scale(14),
-    gap: scale(12),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: scale(12),
+    gap: scale(10),
+    marginBottom: scale(10),
   },
-  searchPlaceholder: {
-    color: 'rgba(255, 255, 255, 0.4)',
+  searchBarDark: {
+    backgroundColor: '#1E293B',
+  },
+  searchInput: {
+    flex: 1,
     fontSize: fontScale(15),
+    color: '#1E293B',
   },
-  searchPlaceholderDark: {
-    color: 'rgba(255, 255, 255, 0.6)',
+  searchInputDark: {
+    color: '#E5E7EB',
   },
-  filterContainer: {
+  filterBar: {
     flexDirection: 'row',
     gap: scale(8),
   },
-  filterButton: {
+  filterChip: {
     paddingHorizontal: scale(16),
-    paddingVertical: scale(9),
+    paddingVertical: scale(8),
     borderRadius: scale(20),
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#F1F5F9',
   },
-  activeFilter: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'rgba(59, 130, 246, 0.35)',
+  filterChipDark: {
+    backgroundColor: '#1E293B',
+  },
+  filterChipActive: {
+    backgroundColor: '#DBEAFE',
+  },
+  filterChipActiveDark: {
+    backgroundColor: '#1E3A8A',
   },
   filterText: {
-    color: 'rgba(255, 255, 255, 0.5)',
     fontSize: fontScale(13),
     fontWeight: '600',
+    color: '#64748B',
   },
-  activeFilterText: {
+  filterTextDark: {
+    color: '#94A3B8',
+  },
+  filterTextActive: {
     color: '#3B82F6',
   },
-  
-  // Content Area
+  scrollContent: {
+    paddingBottom: scale(100),
+  },
   content: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: scale(16),
-    paddingTop: scale(8),
-    paddingBottom: scale(120),
-    flexGrow: 1,
-  },
-  propertiesGrid: {
-    gap: scale(14),
-  },
-  
-  // Glass Property Cards
-  propertyCard: {
-    marginBottom: scale(4),
-    borderRadius: scale(20),
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  propertyCardGradient: {
     padding: scale(16),
   },
-  propertyImageContainer: {
-    position: 'relative',
-    marginBottom: scale(14),
-    borderRadius: scale(14),
+  propertiesList: {
+    gap: scale(16),
+  },
+  propertyCard: {
+    marginBottom: scale(16),
+  },
+  cardContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: scale(16),
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  cardContentDark: {
+    backgroundColor: '#1E293B',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowOpacity: 0.2,
+  },
+  cardContentOwned: {
+    borderColor: '#3B82F6',
+    borderWidth: 2,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: scale(200),
   },
   propertyImage: {
     width: '100%',
-    height: scale(160),
-    borderRadius: scale(14),
+    height: '100%',
     resizeMode: 'cover',
   },
   ownedBadge: {
     position: 'absolute',
-    top: scale(10),
-    right: scale(10),
-    borderRadius: scale(10),
-    overflow: 'hidden',
-    backgroundColor: 'rgba(16, 185, 129, 0.9)',
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(5),
+    top: scale(12),
+    right: scale(12),
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(6),
+    borderRadius: scale(20),
   },
-  ownedBadgeGradient: {
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(5),
-  },
-  ownedText: {
-    fontSize: fontScale(10),
+  ownedBadgeText: {
+    fontSize: fontScale(11),
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
   },
-  propertyInfo: {
-    gap: scale(10),
+  rentedBadge: {
+    position: 'absolute',
+    top: scale(12),
+    right: scale(12),
+    backgroundColor: '#10B981',
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(6),
+    borderRadius: scale(20),
   },
-  propertyHeader: {
-    marginBottom: scale(4),
+  rentedBadgeText: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  cardBody: {
+    padding: scale(16),
+  },
+  cardHeader: {
+    marginBottom: scale(8),
   },
   propertyName: {
-    fontSize: fontScale(17),
+    fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#1E293B',
     marginBottom: scale(4),
-    letterSpacing: 0.2,
   },
-  locationContainer: {
+  propertyNameDark: {
+    color: '#E5E7EB',
+  },
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(4),
   },
   locationText: {
     fontSize: fontScale(13),
-    color: 'rgba(255, 255, 255, 0.55)',
+    color: '#64748B',
     fontWeight: '500',
   },
-  propertyStats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: scale(10),
-    marginBottom: scale(8),
+  locationTextDark: {
+    color: '#94A3B8',
   },
-  statItem: {
+  priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(5),
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'space-between',
+    marginBottom: scale(12),
+  },
+  price: {
+    fontSize: fontScale(24),
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  priceDark: {
+    color: '#E5E7EB',
+  },
+  levelBadge: {
+    backgroundColor: '#F1F5F9',
     paddingHorizontal: scale(10),
+    paddingVertical: scale(4),
+    borderRadius: scale(12),
+  },
+  levelText: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: '#475569',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: scale(12),
+    marginBottom: scale(12),
+  },
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: scale(12),
     paddingVertical: scale(6),
-    borderRadius: scale(10),
+    borderRadius: scale(8),
+  },
+  statDark: {
+    backgroundColor: '#1E293B',
   },
   statText: {
-    fontSize: fontScale(12),
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: fontScale(13),
     fontWeight: '600',
+    color: '#475569',
   },
-  discountText: {
-    fontSize: fontScale(9),
-    color: '#10B981',
-    fontStyle: 'italic',
-    marginLeft: scale(3),
+  statTextDark: {
+    color: '#CBD5E1',
   },
-  
-  // Traits with Glass Effect
-  traitsContainer: {
-    marginBottom: scale(10),
+  metricsRow: {
+    flexDirection: 'row',
+    gap: scale(12),
+    marginBottom: scale(12),
   },
-  traitsTitle: {
-    fontSize: fontScale(12),
-    fontWeight: '600',
-    color: 'rgba(252, 211, 77, 0.9)',
-    marginBottom: scale(6),
+  metric: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    padding: scale(10),
+    borderRadius: scale(8),
   },
-  traitsList: {
+  metricDark: {
+    backgroundColor: '#1E293B',
+  },
+  metricLabel: {
+    fontSize: fontScale(11),
+    color: '#94A3B8',
+    marginBottom: scale(4),
+  },
+  metricLabelDark: {
+    color: '#64748B',
+  },
+  metricValue: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  metricValueDark: {
+    color: '#E5E7EB',
+  },
+  traitsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: scale(6),
+    gap: scale(8),
+    marginBottom: scale(12),
   },
-  traitItem: {
+  traitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    gap: scale(4),
     paddingHorizontal: scale(10),
     paddingVertical: scale(6),
-    borderRadius: scale(10),
+    borderRadius: scale(12),
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  traitIcon: {
-    width: scale(22),
-    height: scale(22),
-    borderRadius: scale(11),
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   traitText: {
     fontSize: fontScale(12),
-    color: 'rgba(255, 255, 255, 0.85)',
     fontWeight: '600',
   },
-  
-  // Metrics with Glass
-  propertyMetrics: {
-    flexDirection: 'row',
-    gap: scale(10),
-    marginBottom: scale(10),
-  },
-  metricItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(8),
-    borderRadius: scale(12),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    gap: scale(6),
-  },
-  metricIcon: {
-    width: scale(20),
-    height: scale(20),
-    borderRadius: scale(10),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
+  buyButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
     alignItems: 'center',
   },
-  metricLabel: {
-    fontSize: fontScale(10),
-    color: 'rgba(255, 255, 255, 0.45)',
-    fontWeight: '500',
-    flex: 1,
+  buyButtonDisabled: {
+    backgroundColor: '#E2E8F0',
   },
-  metricLabelDark: {
-    color: 'rgba(255, 255, 255, 0.65)',
-  },
-  metricValue: {
-    fontSize: fontScale(11),
+  buyButtonText: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
-  // Market Tab Glass Design
-  marketContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  buyButtonTextDisabled: {
+    color: '#94A3B8',
+  },
+  actionButtons: {
+    gap: scale(10),
+  },
+  rentButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
     alignItems: 'center',
-    paddingHorizontal: scale(16),
+  },
+  rentButtonDisabled: {
+    backgroundColor: '#E2E8F0',
+  },
+  rentButtonText: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  rentButtonTextDisabled: {
+    color: '#94A3B8',
+  },
+  ownedActions: {
+    flexDirection: 'column',
+    gap: scale(8),
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: scale(6),
+    flexWrap: 'wrap',
+  },
+  manageButton: {
+    backgroundColor: '#8B5CF6',
+    paddingVertical: scale(6),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(6),
+    alignItems: 'center',
+  },
+  manageButtonText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  moveInButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: scale(6),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(6),
+    alignItems: 'center',
+  },
+  moveInButtonText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  rentOutButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: scale(6),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(6),
+    alignItems: 'center',
+  },
+  rentOutButtonText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  sellButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: scale(6),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(6),
+    alignItems: 'center',
+  },
+  sellButtonText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  kickTenantsButton: {
+    backgroundColor: '#DC2626',
+    paddingVertical: scale(6),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(6),
+    alignItems: 'center',
+  },
+  kickTenantsButtonText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  rentedActions: {
+    flexDirection: 'column',
+    gap: scale(10),
+    marginTop: scale(8),
+  },
+  rentedBadgeInfo: {
+    backgroundColor: '#F0FDF4',
+    padding: scale(12),
+    borderRadius: scale(8),
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  rentedBadgeInfoDark: {
+    backgroundColor: '#064E3B',
+    borderColor: '#10B981',
+  },
+  rentedInfoText: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: '#166534',
+    marginBottom: scale(4),
+  },
+  rentedInfoTextDark: {
+    color: '#86EFAC',
+  },
+  rentedInfoSubtext: {
+    fontSize: fontScale(11),
+    color: '#15803D',
+  },
+  rentedInfoSubtextDark: {
+    color: '#4ADE80',
+  },
+  endRentalButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
+    alignItems: 'center',
+  },
+  endRentalButtonText: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  marketView: {
+    alignItems: 'center',
   },
   marketCard: {
-    width: '100%',
-    maxWidth: scale(380),
-    borderRadius: scale(24),
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  marketCardGradient: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: scale(16),
     padding: scale(24),
-  },
-  marketHeader: {
-    flexDirection: 'row',
+    width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: scale(10),
-    marginBottom: scale(24),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  marketCardDark: {
+    backgroundColor: '#1E293B',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   marketTitle: {
-    fontSize: fontScale(22),
+    fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    color: '#1E293B',
+    marginTop: scale(12),
+    marginBottom: scale(20),
+  },
+  marketTitleDark: {
+    color: '#E5E7EB',
   },
   marketStats: {
-    gap: scale(12),
-    marginBottom: scale(24),
+    width: '100%',
+    gap: scale(16),
   },
-  marketStat: {
+  marketStatItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(14),
-    borderRadius: scale(14),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    paddingVertical: scale(12),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   marketStatLabel: {
-    fontSize: fontScale(13),
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontWeight: '500',
+    fontSize: fontScale(14),
+    color: '#64748B',
+  },
+  marketStatLabelDark: {
+    color: '#94A3B8',
   },
   marketStatValue: {
-    fontSize: fontScale(15),
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  marketInsights: {
-    gap: scale(10),
-  },
-  insightsTitle: {
     fontSize: fontScale(16),
     fontWeight: '700',
-    color: 'rgba(252, 211, 77, 0.9)',
-    marginBottom: scale(8),
+    color: '#1E293B',
   },
-  insightItem: {
-    flexDirection: 'row',
+  marketStatValueDark: {
+    color: '#E5E7EB',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: scale(10),
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(10),
-    borderRadius: scale(12),
+    zIndex: 1000,
   },
-  insightText: {
-    fontSize: fontScale(13),
-    color: 'rgba(255, 255, 255, 0.75)',
-    fontWeight: '500',
-    flex: 1,
+  modal: {
+    width: screenWidth * 0.9,
+    maxWidth: scale(400),
+    backgroundColor: '#FFFFFF',
+    borderRadius: scale(24),
+    padding: scale(28),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  
-  // Settings Modal Glass
-  settingsScrollView: {
-    maxHeight: scale(280),
+  modalDark: {
+    backgroundColor: '#1E293B',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: scale(16),
   },
-  settingsContainer: {
+  modalTitle: {
+    fontSize: fontScale(24),
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: scale(20),
+    textAlign: 'center',
+  },
+  modalTitleDark: {
+    color: '#E5E7EB',
+  },
+  modalMessage: {
+    fontSize: fontScale(16),
+    color: '#475569',
+    lineHeight: fontScale(24),
+    marginBottom: scale(24),
+    textAlign: 'center',
+  },
+  modalMessageDark: {
+    color: '#CBD5E1',
+  },
+  modalSubtext: {
+    fontSize: fontScale(14),
+    color: '#94A3B8',
+    marginBottom: scale(24),
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  modalSubtextDark: {
+    color: '#64748B',
+  },
+  modalButtons: {
+    flexDirection: 'row',
     gap: scale(12),
-    paddingBottom: scale(8),
+    marginTop: scale(8),
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: scale(16),
+    borderRadius: scale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(50),
+  },
+  modalButtonFullWidth: {
+    flex: 1,
+    width: '100%',
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#3B82F6',
+  },
+  modalButtonSecondary: {
+    backgroundColor: '#F1F5F9',
+  },
+  modalButtonSecondaryDark: {
+    backgroundColor: '#1E293B',
+  },
+  modalButtonDanger: {
+    backgroundColor: '#EF4444',
+  },
+  modalButtonPrimaryText: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalButtonSecondaryText: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: '#475569',
+  },
+  modalButtonSecondaryTextDark: {
+    color: '#E5E7EB',
+  },
+  modalButtonDangerText: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  propertyNameInModal: {
+    fontSize: fontScale(18),
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: scale(20),
+    textAlign: 'center',
+  },
+  propertyNameInModalDark: {
+    color: '#E5E7EB',
+  },
+  managementStats: {
+    marginBottom: scale(24),
+    gap: scale(12),
+  },
+  managementStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(12),
+    backgroundColor: '#F8FAFC',
+    borderRadius: scale(12),
+  },
+  managementStatRowDark: {
+    backgroundColor: '#0F172A',
+  },
+  managementLabel: {
+    fontSize: fontScale(14),
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  managementLabelDark: {
+    color: '#94A3B8',
+  },
+  managementValue: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  managementValueDark: {
+    color: '#E5E7EB',
+  },
+  managementActions: {
+    gap: scale(12),
+    marginBottom: scale(24),
+  },
+  managementActionButton: {
+    paddingVertical: scale(16),
+    borderRadius: scale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(50),
+  },
+  maintenanceButton: {
+    backgroundColor: '#F59E0B',
+  },
+  upgradeButton: {
+    backgroundColor: '#3B82F6',
+  },
+  managementActionText: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  settingsList: {
+    marginBottom: scale(20),
+    gap: scale(12),
   },
   settingItem: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(14),
-    borderRadius: scale(14),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  settingInfo: {
-    flex: 1,
-    marginRight: scale(16),
+    alignItems: 'center',
+    paddingVertical: scale(12),
   },
   settingLabel: {
     fontSize: fontScale(15),
-    color: '#FFFFFF',
     fontWeight: '600',
-    marginBottom: scale(3),
+    color: '#1E293B',
   },
-  settingDescription: {
-    fontSize: fontScale(12),
-    color: 'rgba(255, 255, 255, 0.45)',
-    fontWeight: '400',
+  settingLabelDark: {
+    color: '#E5E7EB',
   },
-  settingDescriptionDark: {
-    color: 'rgba(255, 255, 255, 0.55)',
-  },
-  toggleButton: {
-    width: scale(52),
-    height: scale(30),
-    borderRadius: scale(15),
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  toggle: {
+    width: scale(50),
+    height: scale(28),
+    borderRadius: scale(14),
+    backgroundColor: '#E2E8F0',
     justifyContent: 'center',
-    paddingHorizontal: scale(3),
+    paddingHorizontal: scale(2),
   },
-  toggleButtonActive: {
-    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+  toggleActive: {
+    backgroundColor: '#3B82F6',
   },
   toggleCircle: {
     width: scale(24),
@@ -2113,199 +2757,8 @@ const styles = StyleSheet.create({
     borderRadius: scale(12),
     backgroundColor: '#FFFFFF',
     alignSelf: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
   },
   toggleCircleActive: {
     alignSelf: 'flex-end',
-  },
-  
-  // Glass Buttons
-  buyButton: {
-    borderRadius: scale(14),
-    overflow: 'hidden',
-  },
-  disabledButton: {
-    opacity: 0.4,
-  },
-  buyButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: scale(14),
-    gap: scale(8),
-    borderRadius: scale(14),
-  },
-  buyButtonText: {
-    fontSize: fontScale(14),
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  ownedActions: {
-    flexDirection: 'row',
-    gap: scale(10),
-  },
-  actionButton: {
-    flex: 1,
-    borderRadius: scale(12),
-    overflow: 'hidden',
-  },
-  actionButtonGradient: {
-    paddingVertical: scale(12),
-    alignItems: 'center',
-    borderRadius: scale(12),
-  },
-  actionButtonText: {
-    fontSize: fontScale(13),
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  
-  // Glass Modal Overlay
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modalContent: {
-    width: screenWidth * 0.88,
-    maxWidth: scale(380),
-    borderRadius: scale(24),
-    overflow: 'hidden',
-    backgroundColor: 'rgba(30, 41, 59, 0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.4,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  modalGradient: {
-    padding: scale(24),
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: scale(16),
-  },
-  modalTitle: {
-    fontSize: fontScale(20),
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    flex: 1,
-    letterSpacing: 0.3,
-  },
-  closeButton: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalMessage: {
-    fontSize: fontScale(15),
-    color: 'rgba(255, 255, 255, 0.75)',
-    textAlign: 'center',
-    marginBottom: scale(24),
-    lineHeight: fontScale(22),
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: scale(12),
-    justifyContent: 'center',
-  },
-  modalButton: {
-    flex: 1,
-    borderRadius: scale(14),
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingVertical: scale(14),
-  },
-  modalButtonGradient: {
-    paddingVertical: scale(14),
-    alignItems: 'center',
-    borderRadius: scale(14),
-  },
-  modalButtonText: {
-    fontSize: fontScale(15),
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  modalSubMessage: {
-    fontSize: fontScale(13),
-    color: 'rgba(255, 255, 255, 0.5)',
-    textAlign: 'center',
-    marginBottom: scale(20),
-    fontStyle: 'italic',
-  },
-  
-  // Management Modal Glass Style
-  managementInfo: {
-    marginBottom: scale(20),
-  },
-  managementPropertyName: {
-    fontSize: fontScale(17),
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: scale(16),
-  },
-  managementStats: {
-    gap: scale(8),
-    marginBottom: scale(16),
-  },
-  managementStat: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(10),
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: scale(12),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  managementStatLabel: {
-    fontSize: fontScale(13),
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontWeight: '500',
-  },
-  managementStatValue: {
-    fontSize: fontScale(13),
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  managementActions: {
-    gap: scale(10),
-    marginBottom: scale(20),
-  },
-  managementActionButton: {
-    borderRadius: scale(14),
-    overflow: 'hidden',
-  },
-  managementActionGradient: {
-    paddingVertical: scale(14),
-    alignItems: 'center',
-    borderRadius: scale(14),
-  },
-  managementActionText: {
-    fontSize: fontScale(14),
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
   },
 });

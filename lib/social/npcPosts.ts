@@ -143,8 +143,7 @@ export function generateNPCPost(
     isBookmarked: false,
     isPlayerPost: false,
     contentType: Math.random() > 0.7 ? 'photo' : 'text',
-    likedBy: [],
-    repostedBy: [],
+    // likedBy and repostedBy removed - use likes/reposts counts instead
   };
 }
 
@@ -186,8 +185,7 @@ export function generateDatingProfilePost(
     isBookmarked: false,
     isPlayerPost: false,
     contentType: Math.random() > 0.6 ? 'photo' : 'text',
-    likedBy: [],
-    repostedBy: [],
+    // likedBy and repostedBy removed - use likes/reposts counts instead
   };
 }
 
@@ -257,7 +255,9 @@ export function generateWeeklyNPCPosts(
       }
     } catch (error) {
       // Log error but don't fail completely
-      console.warn('Error generating random profile posts:', error);
+      if (__DEV__) {
+        console.warn('Error generating random profile posts:', error);
+      }
     }
   }
   
@@ -277,7 +277,7 @@ export function getAvailableDatingProfiles(
     const { DATING_PROFILES } = require('@/lib/dating/datingProfiles');
     
     if (!playerGender || !playerSeekingGender) {
-      return DATING_PROFILES.map(p => ({
+      return DATING_PROFILES.map((p: any) => ({
         name: p.name,
         id: p.id,
         bio: p.bio,
@@ -287,11 +287,11 @@ export function getAvailableDatingProfiles(
     
     // Filter profiles that match player's preferences
     return DATING_PROFILES
-      .filter(profile => 
+      .filter((profile: any) => 
         profile.gender === playerSeekingGender && 
         profile.seekingGender === playerGender
       )
-      .map(p => ({
+      .map((p: any) => ({
         name: p.name,
         id: p.id,
         bio: p.bio,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   Bell,
@@ -39,7 +40,7 @@ interface SmartNotificationCenterProps {
   onClose: () => void;
 }
 
-const { width, height } = Dimensions.get('window');
+const { width: _width, height } = Dimensions.get('window');
 
 export default function SmartNotificationCenter({
   visible,
@@ -191,7 +192,7 @@ export default function SmartNotificationCenter({
       onRequestClose={onClose}
     >
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <BlurView intensity={20} style={styles.blur}>
+        <View style={[styles.blur, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
           <Animated.View
             style={[
               styles.container,
@@ -414,7 +415,7 @@ export default function SmartNotificationCenter({
               </ScrollView>
             </LinearGradient>
           </Animated.View>
-        </BlurView>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -682,3 +683,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

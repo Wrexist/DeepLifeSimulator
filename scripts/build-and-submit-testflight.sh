@@ -48,6 +48,15 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
+# Run preflight checks before starting any release build
+echo "Running mandatory preflight checks..."
+if ! npm run preflight -- --platform ios; then
+    echo "ERROR: Preflight checks failed. Aborting TestFlight build."
+    exit 1
+fi
+echo "✓ Preflight checks passed"
+echo ""
+
 # Step 1: Build iOS app
 echo "========================================"
 echo "Step 1: Building iOS app..."
@@ -182,4 +191,3 @@ fi
 echo "========================================"
 echo "Done!"
 echo "========================================"
-

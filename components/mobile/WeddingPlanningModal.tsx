@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+﻿import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Alert, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { X, Calendar, Users, DollarSign, Check, MapPin } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import { X, Calendar, Users, DollarSign, Check, MapPin, Heart, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { planWedding } from '@/contexts/game/actions/DatingActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -22,6 +23,13 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
   const { gameState, setGameState, saveGame } = useGame();
   const { settings } = gameState;
   const isDarkMode = settings?.darkMode ?? false;
+
+  // Debug: Log venues on mount
+  React.useEffect(() => {
+    if (__DEV__ && visible) {
+      console.log('[WeddingPlanningModal] Venues count:', WEDDING_VENUES.length);
+    }
+  }, [visible]);
 
   const [selectedVenueId, setSelectedVenueId] = useState<string>('');
   const [guestCount, setGuestCount] = useState<string>('50');
@@ -97,31 +105,81 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
   }, [selectedVenueId, guestCountNum, catering, photography, music, decorations, canAfford, deposit, gameState, setGameState, partnerId, selectedVenue, saveGame, onClose]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <LinearGradient
-          colors={isDarkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFC']}
-          style={styles.modalContainer}
-        >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={[styles.container, isDarkMode && styles.containerDark]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
-              <Calendar size={scale(24)} color={isDarkMode ? '#FFFFFF' : '#1F2937'} />
-              <Text style={[styles.headerTitle, isDarkMode && styles.headerTitleDark]}>
-                Plan Wedding with {partnerName}
-              </Text>
+              <Heart size={scale(24)} color={isDarkMode ? '#F472B6' : '#EC4899'} />
+              <Text style={[styles.title, isDarkMode && styles.titleDark]}>Plan Wedding</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={scale(24)} color={isDarkMode ? '#FFFFFF' : '#1F2937'} />
+            <TouchableOpacity 
+              onPress={onClose} 
+              style={styles.closeButton}
+              accessibilityLabel="Close wedding planning modal"
+              accessibilityRole="button"
+            >
+              <X size={scale(24)} color={isDarkMode ? '#fff' : '#000'} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
+          {/* Stats Bar */}
+          <View style={[styles.statsBar, isDarkMode && styles.statsBarDark]}>
+            <View style={styles.statItem}>
+              <DollarSign size={scale(16)} color="#10B981" />
+              <Text style={[styles.moneyText, isDarkMode && styles.textMuted]}>
+                ${gameState.stats.money.toLocaleString()}
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Calendar size={scale(16)} color="#8B5CF6" />
+              <Text style={[styles.statText, isDarkMode && styles.textMuted]}>
+                Wedding in 4 weeks
+              </Text>
+            </View>
+            {!canAfford && deposit > 0 && (
+              <View style={[styles.warningBadge, isDarkMode && styles.warningBadgeDark]}>
+                <Text style={styles.warningText}>
+                  Need ${(deposit - gameState.stats.money).toLocaleString()} more
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <ScrollView 
+            style={styles.content} 
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.contentContainer}
+            nestedScrollEnabled={true}
+          >
+            {/* Partner Info */}
+            <View style={[styles.partnerCard, isDarkMode && styles.partnerCardDark]}>
+              <Heart size={scale(20)} color="#EC4899" />
+              <Text style={[styles.partnerName, isDarkMode && styles.textDark]}>
+                Planning with {partnerName}
+              </Text>
+            </View>
+
             {/* Venue Selection */}
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>Select Venue</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.venueScroll}>
-                {WEDDING_VENUES.map(venue => {
+              <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+                Select Venue
+              </Text>
+              {WEDDING_VENUES.length === 0 ? (
+                <View style={[styles.emptyState, isDarkMode && styles.emptyStateDark]}>
+                  <Text style={[styles.emptyStateText, isDarkMode && styles.emptyStateTextDark]}>
+                    No venues available
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={true} 
+                  style={styles.venueScroll}
+                  contentContainerStyle={styles.venueScrollContent}
+                >
+                  {WEDDING_VENUES.map(venue => {
                   const isSelected = selectedVenueId === venue.id;
                   const venueColor = getVenueTypeColor(venue.type);
                   return (
@@ -130,42 +188,52 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                       onPress={() => setSelectedVenueId(venue.id)}
                       style={[styles.venueCard, isSelected && styles.venueCardSelected]}
                     >
-                      <LinearGradient
-                        colors={isSelected ? [venueColor, venueColor] : isDarkMode ? ['#374151', '#1F2937'] : ['#F3F4F6', '#E5E7EB']}
-                        style={styles.venueCardGradient}
-                      >
-                        <MapPin size={scale(20)} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#9CA3AF' : '#6B7280')} />
-                        <Text style={[styles.venueName, isSelected && styles.venueNameSelected]}>
+                      <View style={[
+                        styles.venueCardContent,
+                        isDarkMode && styles.venueCardContentDark,
+                        isSelected && { borderColor: venueColor, borderWidth: 2 }
+                      ]}>
+                        <MapPin size={scale(20)} color={isSelected ? venueColor : (isDarkMode ? '#9CA3AF' : '#6B7280')} />
+                        <Text style={[
+                          styles.venueName, 
+                          isDarkMode && styles.venueNameDark,
+                          isSelected && { color: venueColor }
+                        ]}>
                           {venue.name}
                         </Text>
-                        <Text style={[styles.venueCapacity, isSelected && styles.venueCapacitySelected]}>
+                        <Text style={[styles.venueCapacity, isDarkMode && styles.venueCapacityDark]}>
                           Up to {venue.guestCapacity} guests
                         </Text>
-                        <Text style={[styles.venueCost, isSelected && styles.venueCostSelected]}>
+                        <Text style={[styles.venueCost, isDarkMode && styles.venueCostDark]}>
                           ${venue.baseCost.toLocaleString()}
                         </Text>
                         {isSelected && (
-                          <View style={styles.selectedBadge}>
-                            <Check size={scale(16)} color="#FFFFFF" />
+                          <View style={[styles.selectedBadge, { backgroundColor: venueColor }]}>
+                            <Check size={scale(14)} color="#FFFFFF" />
                           </View>
                         )}
-                      </LinearGradient>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+                </ScrollView>
+              )}
               {selectedVenue && (
-                <Text style={[styles.venueDescription, isDarkMode && styles.venueDescriptionDark]}>
-                  {selectedVenue.description}
-                </Text>
+                <View style={[styles.venueDescriptionCard, isDarkMode && styles.venueDescriptionCardDark]}>
+                  <Text style={[styles.venueDescription, isDarkMode && styles.venueDescriptionDark]}>
+                    {selectedVenue.description}
+                  </Text>
+                </View>
               )}
             </View>
 
             {/* Guest Count */}
             {selectedVenueId && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>Guest Count</Text>
-                <View style={styles.guestInputContainer}>
+                <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+                  Guest Count
+                </Text>
+                <View style={[styles.guestInputContainer, isDarkMode && styles.guestInputContainerDark]}>
                   <Users size={scale(20)} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
                   <TextInput
                     style={[styles.guestInput, isDarkMode && styles.guestInputDark]}
@@ -186,94 +254,46 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
             {/* Optional Services */}
             {selectedVenueId && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>Optional Services</Text>
+                <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+                  Optional Services
+                </Text>
                 
-                <TouchableOpacity
-                  style={[styles.serviceOption, isDarkMode && styles.serviceOptionDark]}
-                  onPress={() => setCatering(!catering)}
-                >
-                  <View style={[styles.checkbox, catering && styles.checkboxChecked]}>
-                    {catering && <Check size={scale(14)} color="#FFFFFF" />}
-                  </View>
-                  <View style={styles.serviceInfo}>
-                    <Text style={[styles.serviceName, isDarkMode && styles.serviceNameDark]}>
-                      {WEDDING_ADDONS.catering.name}
-                    </Text>
-                    <Text style={[styles.serviceDescription, isDarkMode && styles.serviceDescriptionDark]}>
-                      {WEDDING_ADDONS.catering.description}
-                    </Text>
+                {[
+                  { key: 'catering', state: catering, setState: setCatering, addon: WEDDING_ADDONS.catering, cost: WEDDING_ADDONS.catering.baseCostPerGuest * guestCountNum },
+                  { key: 'photography', state: photography, setState: setPhotography, addon: WEDDING_ADDONS.photography, cost: WEDDING_ADDONS.photography.cost },
+                  { key: 'music', state: music, setState: setMusic, addon: WEDDING_ADDONS.music, cost: WEDDING_ADDONS.music.cost },
+                  { key: 'decorations', state: decorations, setState: setDecorations, addon: WEDDING_ADDONS.decorations, cost: WEDDING_ADDONS.decorations.cost },
+                ].map(({ key, state, setState, addon, cost }) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.serviceOption, isDarkMode && styles.serviceOptionDark]}
+                    onPress={() => setState(!state)}
+                  >
+                    <View style={[styles.checkbox, state && styles.checkboxChecked]}>
+                      {state && <Check size={scale(12)} color="#FFFFFF" />}
+                    </View>
+                    <View style={styles.serviceInfo}>
+                      <Text style={[styles.serviceName, isDarkMode && styles.serviceNameDark]}>
+                        {addon.name}
+                      </Text>
+                      <Text style={[styles.serviceDescription, isDarkMode && styles.serviceDescriptionDark]}>
+                        {addon.description}
+                      </Text>
+                    </View>
                     <Text style={[styles.serviceCost, isDarkMode && styles.serviceCostDark]}>
-                      ${(WEDDING_ADDONS.catering.baseCostPerGuest * guestCountNum).toLocaleString()}
+                      ${cost.toLocaleString()}
                     </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.serviceOption, isDarkMode && styles.serviceOptionDark]}
-                  onPress={() => setPhotography(!photography)}
-                >
-                  <View style={[styles.checkbox, photography && styles.checkboxChecked]}>
-                    {photography && <Check size={scale(14)} color="#FFFFFF" />}
-                  </View>
-                  <View style={styles.serviceInfo}>
-                    <Text style={[styles.serviceName, isDarkMode && styles.serviceNameDark]}>
-                      {WEDDING_ADDONS.photography.name}
-                    </Text>
-                    <Text style={[styles.serviceDescription, isDarkMode && styles.serviceDescriptionDark]}>
-                      {WEDDING_ADDONS.photography.description}
-                    </Text>
-                    <Text style={[styles.serviceCost, isDarkMode && styles.serviceCostDark]}>
-                      ${WEDDING_ADDONS.photography.cost.toLocaleString()}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.serviceOption, isDarkMode && styles.serviceOptionDark]}
-                  onPress={() => setMusic(!music)}
-                >
-                  <View style={[styles.checkbox, music && styles.checkboxChecked]}>
-                    {music && <Check size={scale(14)} color="#FFFFFF" />}
-                  </View>
-                  <View style={styles.serviceInfo}>
-                    <Text style={[styles.serviceName, isDarkMode && styles.serviceNameDark]}>
-                      {WEDDING_ADDONS.music.name}
-                    </Text>
-                    <Text style={[styles.serviceDescription, isDarkMode && styles.serviceDescriptionDark]}>
-                      {WEDDING_ADDONS.music.description}
-                    </Text>
-                    <Text style={[styles.serviceCost, isDarkMode && styles.serviceCostDark]}>
-                      ${WEDDING_ADDONS.music.cost.toLocaleString()}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.serviceOption, isDarkMode && styles.serviceOptionDark]}
-                  onPress={() => setDecorations(!decorations)}
-                >
-                  <View style={[styles.checkbox, decorations && styles.checkboxChecked]}>
-                    {decorations && <Check size={scale(14)} color="#FFFFFF" />}
-                  </View>
-                  <View style={styles.serviceInfo}>
-                    <Text style={[styles.serviceName, isDarkMode && styles.serviceNameDark]}>
-                      {WEDDING_ADDONS.decorations.name}
-                    </Text>
-                    <Text style={[styles.serviceDescription, isDarkMode && styles.serviceDescriptionDark]}>
-                      {WEDDING_ADDONS.decorations.description}
-                    </Text>
-                    <Text style={[styles.serviceCost, isDarkMode && styles.serviceCostDark]}>
-                      ${WEDDING_ADDONS.decorations.cost.toLocaleString()}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
 
             {/* Cost Breakdown */}
             {selectedVenueId && totalCost > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>Cost Breakdown</Text>
+                <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+                  Cost Breakdown
+                </Text>
                 <View style={[styles.costBreakdown, isDarkMode && styles.costBreakdownDark]}>
                   <View style={styles.costRow}>
                     <Text style={[styles.costLabel, isDarkMode && styles.costLabelDark]}>Total Cost:</Text>
@@ -287,12 +307,6 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                       ${deposit.toLocaleString()}
                     </Text>
                   </View>
-                  <View style={styles.costRow}>
-                    <Text style={[styles.costLabel, isDarkMode && styles.costLabelDark]}>Remaining (75%):</Text>
-                    <Text style={[styles.costValue, isDarkMode && styles.costValueDark]}>
-                      ${(totalCost - deposit).toLocaleString()}
-                    </Text>
-                  </View>
                   <View style={[styles.costRow, styles.costRowTotal]}>
                     <Text style={[styles.costLabel, isDarkMode && styles.costLabelDark]}>Due at Wedding:</Text>
                     <Text style={[styles.costValue, isDarkMode && styles.costValueDark]}>
@@ -300,17 +314,12 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                     </Text>
                   </View>
                 </View>
-                {!canAfford && (
-                  <Text style={styles.insufficientFunds}>
-                    Insufficient funds for deposit. You need ${(deposit - gameState.stats.money).toLocaleString()} more.
-                  </Text>
-                )}
               </View>
             )}
           </ScrollView>
 
           {/* Footer */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, isDarkMode && styles.footerDark]}>
             <TouchableOpacity
               style={[styles.cancelButton, isDarkMode && styles.cancelButtonDark]}
               onPress={onClose}
@@ -323,69 +332,135 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
               disabled={!selectedVenueId || !canAfford}
             >
               <LinearGradient
-                colors={(!selectedVenueId || !canAfford) ? ['#9CA3AF', '#6B7280'] : ['#22C55E', '#16A34A']}
+                colors={(!selectedVenueId || !canAfford) ? ['#9CA3AF', '#6B7280'] : ['#EC4899', '#DB2777']}
                 style={styles.confirmButtonGradient}
               >
-                <Calendar size={scale(18)} color="#FFFFFF" />
+                <Heart size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.confirmButtonText}>Plan Wedding</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: scale(20),
   },
-  modalContainer: {
-    maxHeight: '90%',
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    ...Platform.select({
-      ios: {
-        ...getShadow(20, '#000'),
-      },
-      android: {
-        elevation: 10,
-      },
-      web: {
-        ...getShadow(20, '#000'),
-      },
-    }),
+  container: {
+    width: '100%',
+    maxWidth: scale(500),
+    height: '90%',
+    maxHeight: scale(700),
+    backgroundColor: '#fff',
+    borderRadius: scale(20),
+    overflow: 'hidden',
+    ...getShadow(20, '#000'),
+  },
+  containerDark: {
+    backgroundColor: '#1F2937',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: responsivePadding.large,
+    padding: scale(16),
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
+    gap: scale(10),
   },
-  headerTitle: {
+  title: {
     fontSize: fontScale(20),
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: 'bold',
+    color: '#111827',
   },
-  headerTitleDark: {
-    color: '#FFFFFF',
+  titleDark: {
+    color: '#F9FAFB',
   },
   closeButton: {
-    padding: scale(8),
+    padding: scale(4),
+  },
+  statsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    backgroundColor: '#F3F4F6',
+  },
+  statsBarDark: {
+    backgroundColor: '#374151',
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(4),
+  },
+  statText: {
+    fontSize: fontScale(12),
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  textMuted: {
+    color: '#9CA3AF',
+  },
+  moneyText: {
+    fontSize: fontScale(13),
+    color: '#10B981',
+    fontWeight: 'bold',
+  },
+  warningBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    borderRadius: scale(8),
+  },
+  warningBadgeDark: {
+    backgroundColor: '#7F1D1D',
+  },
+  warningText: {
+    fontSize: fontScale(11),
+    color: '#DC2626',
+    fontWeight: '600',
   },
   content: {
     flex: 1,
-    padding: responsivePadding.large,
+  },
+  contentContainer: {
+    padding: scale(16),
+    paddingBottom: scale(20),
+    flexGrow: 1,
+  },
+  partnerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    padding: scale(12),
+    borderRadius: scale(12),
+    backgroundColor: '#FEF3C7',
+    marginBottom: scale(16),
+  },
+  partnerCardDark: {
+    backgroundColor: '#78350F',
+  },
+  partnerName: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  textDark: {
+    color: '#F9FAFB',
   },
   section: {
     marginBottom: scale(24),
@@ -393,7 +468,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: scale(12),
   },
   sectionTitleDark: {
@@ -401,23 +476,47 @@ const styles = StyleSheet.create({
   },
   venueScroll: {
     marginHorizontal: scale(-16),
+    marginVertical: scale(8),
+  },
+  venueScrollContent: {
     paddingHorizontal: scale(16),
+    paddingVertical: scale(4),
+  },
+  emptyState: {
+    padding: scale(20),
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: scale(12),
+  },
+  emptyStateDark: {
+    backgroundColor: '#374151',
+  },
+  emptyStateText: {
+    fontSize: fontScale(14),
+    color: '#6B7280',
+  },
+  emptyStateTextDark: {
+    color: '#9CA3AF',
   },
   venueCard: {
-    width: scale(200),
+    width: scale(180),
     marginRight: scale(12),
-    borderRadius: scale(16),
-    overflow: 'hidden',
   },
   venueCardSelected: {
-    borderWidth: 2,
-    borderColor: '#22C55E',
+    // Selection handled by border
   },
-  venueCardGradient: {
+  venueCardContent: {
     padding: scale(16),
+    borderRadius: scale(12),
+    backgroundColor: '#F9FAFB',
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
     minHeight: scale(140),
     justifyContent: 'center',
+  },
+  venueCardContentDark: {
+    backgroundColor: '#374151',
   },
   venueName: {
     fontSize: fontScale(16),
@@ -426,7 +525,7 @@ const styles = StyleSheet.create({
     marginTop: scale(8),
     textAlign: 'center',
   },
-  venueNameSelected: {
+  venueNameDark: {
     color: '#FFFFFF',
   },
   venueCapacity: {
@@ -434,17 +533,17 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: scale(4),
   },
-  venueCapacitySelected: {
-    color: 'rgba(255, 255, 255, 0.8)',
+  venueCapacityDark: {
+    color: '#9CA3AF',
   },
   venueCost: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#10B981',
     marginTop: scale(8),
   },
-  venueCostSelected: {
-    color: '#FFFFFF',
+  venueCostDark: {
+    color: '#34D399',
   },
   selectedBadge: {
     position: 'absolute',
@@ -453,15 +552,23 @@ const styles = StyleSheet.create({
     width: scale(24),
     height: scale(24),
     borderRadius: scale(12),
-    backgroundColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  venueDescriptionCard: {
+    marginTop: scale(12),
+    padding: scale(12),
+    borderRadius: scale(10),
+    backgroundColor: '#F3F4F6',
+  },
+  venueDescriptionCardDark: {
+    backgroundColor: '#374151',
   },
   venueDescription: {
     fontSize: fontScale(14),
     color: '#6B7280',
-    marginTop: scale(8),
     fontStyle: 'italic',
+    lineHeight: fontScale(20),
   },
   venueDescriptionDark: {
     color: '#9CA3AF',
@@ -476,13 +583,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  guestInputContainerDark: {
+    backgroundColor: '#374151',
+    borderColor: '#4B5563',
+  },
   guestInput: {
     flex: 1,
     fontSize: fontScale(16),
     color: '#1F2937',
   },
   guestInputDark: {
-    backgroundColor: '#374151',
     color: '#FFFFFF',
   },
   guestHint: {
@@ -494,38 +604,40 @@ const styles = StyleSheet.create({
   },
   serviceOption: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     padding: scale(12),
     borderRadius: scale(12),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F9FAFB',
     marginBottom: scale(8),
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   serviceOptionDark: {
     backgroundColor: '#374151',
+    borderColor: '#4B5563',
   },
   checkbox: {
-    width: scale(24),
-    height: scale(24),
+    width: scale(20),
+    height: scale(20),
     borderRadius: scale(6),
     borderWidth: 2,
     borderColor: '#9CA3AF',
     marginRight: scale(12),
-    marginTop: scale(2),
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#22C55E',
-    borderColor: '#22C55E',
+    backgroundColor: '#EC4899',
+    borderColor: '#EC4899',
   },
   serviceInfo: {
     flex: 1,
   },
   serviceName: {
-    fontSize: fontScale(16),
+    fontSize: fontScale(15),
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: scale(4),
+    marginBottom: scale(2),
   },
   serviceNameDark: {
     color: '#FFFFFF',
@@ -533,7 +645,6 @@ const styles = StyleSheet.create({
   serviceDescription: {
     fontSize: fontScale(12),
     color: '#6B7280',
-    marginBottom: scale(4),
   },
   serviceDescriptionDark: {
     color: '#9CA3AF',
@@ -541,10 +652,10 @@ const styles = StyleSheet.create({
   serviceCost: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#22C55E',
+    color: '#10B981',
   },
   serviceCostDark: {
-    color: '#4ADE80',
+    color: '#34D399',
   },
   costBreakdown: {
     padding: scale(16),
@@ -580,18 +691,15 @@ const styles = StyleSheet.create({
   costValueDark: {
     color: '#FFFFFF',
   },
-  insufficientFunds: {
-    fontSize: fontScale(12),
-    color: '#EF4444',
-    marginTop: scale(8),
-    fontStyle: 'italic',
-  },
   footer: {
     flexDirection: 'row',
     gap: scale(12),
-    padding: responsivePadding.large,
+    padding: scale(16),
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  footerDark: {
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   cancelButton: {
     flex: 1,
@@ -632,4 +740,3 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
-

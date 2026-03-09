@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+﻿import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import {
   Trophy,
@@ -951,3 +952,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

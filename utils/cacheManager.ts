@@ -24,6 +24,7 @@ export class CacheManager {
   // Save slot keys pattern - DO NOT CLEAR THESE!
   // These contain actual player save data and should be preserved
   private static readonly SAVE_SLOT_PATTERN = /^save_slot_\d+$/;
+  private static readonly SAVE_DOUBLE_BUFFER_PATTERN = /^save_slot_\d+_(A|B|active)$/;
   private static readonly SAVE_BACKUP_PATTERN = /^save_slot_\d+_(backup|temp)$/;
   private static readonly CLOUD_SAVE_PATTERN = /^cloud_save_slot_\d+/;
   // Backup system keys - also NEVER clear these!
@@ -304,6 +305,12 @@ export class CacheManager {
           continue;
         }
         
+        // NEVER clear double-buffer save keys (_A, _B, _active)
+        if (this.SAVE_DOUBLE_BUFFER_PATTERN.test(key)) {
+          keysPreserved.push(key);
+          continue;
+        }
+
         // NEVER clear save slot backups/temp files
         if (this.SAVE_BACKUP_PATTERN.test(key)) {
           keysPreserved.push(key);

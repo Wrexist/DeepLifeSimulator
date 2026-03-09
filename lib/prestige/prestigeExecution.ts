@@ -1,11 +1,12 @@
 import { GameState } from '@/contexts/game/types';
-import { PrestigeData, PrestigeRecord, PRESTIGE_THRESHOLD, defaultPrestigeData } from './prestigeTypes';
+import { PrestigeData, PrestigeRecord, defaultPrestigeData } from './prestigeTypes';
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
+import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 
 
 /**
@@ -84,8 +85,19 @@ export function executePrestige(
   if (isFirstPrestige) {
     // Check all challenge scenarios and award gems for completed ones
     SCENARIOS.forEach(scenario => {
-      if (isScenarioCompleted(scenario.id, gameState)) {
-        gemsToAward += scenario.rewards.gems || 0;
+      const scenarioState = {
+        stats: { money: gameState.stats.money, reputation: gameState.stats.reputation },
+        age: gameState.date?.age || 18,
+        education: (gameState.educations || []).map(e => ({ id: e.id, completed: e.completed })),
+        careers: (gameState.careers || []).map(c => ({ id: c.id, accepted: c.accepted })),
+        relationships: (gameState.relationships || []).map(r => ({ type: r.type })),
+        achievements: (gameState.achievements || []).map(a => ({ id: a.id, completed: a.completed })),
+        companies: (gameState.companies || []).map(c => ({ weeklyIncome: c.weeklyIncome || 0 })),
+        realEstate: (gameState.realEstate || []).map(r => ({ owned: r.owned, value: r.price || 0 })),
+        weeksLived: gameState.weeksLived || 0,
+      };
+      if (isScenarioCompleted(scenario.id, scenarioState)) {
+        gemsToAward += scenario.rewards?.gems || 0;
       }
     });
   }
@@ -96,6 +108,17 @@ export function executePrestige(
   if (chosenPath === 'reset') {
     newGameState = createResetGameState(gameState, updatedPrestigeData);
   } else {
+    // Validate childId for child prestige path
+    if (!childId) {
+      throw new Error('childId is required when choosing child prestige path');
+    }
+    const children = gameState.family?.children || [];
+    if (!children.find(c => c.id === childId)) {
+      throw new Error(
+        `Child with ID "${childId}" not found in family. ` +
+        `Available children: ${children.map(c => c.id).join(', ') || 'none'}`
+      );
+    }
     newGameState = createChildGameState(gameState, updatedPrestigeData, childId);
   }
 
@@ -114,8 +137,15 @@ function createResetGameState(
   oldState: GameState,
   prestigeData: PrestigeData
 ): GameState {
-  // Start with initial state
-  const newState: GameState = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+  // Start with initial state - use spread operator for proper type safety
+  // initialGameState is a proper GameState, so spreading it maintains type safety
+  const newState: GameState = {
+    ...initialGameState,
+    // Deep clone nested objects that need to be independent
+    stats: { ...initialGameState.stats },
+    date: { ...initialGameState.date },
+    settings: { ...initialGameState.settings },
+  };
 
   // Preserve prestige data
   newState.prestige = prestigeData;
@@ -131,7 +161,9 @@ function createResetGameState(
   newState.progress = JSON.parse(JSON.stringify(oldState.progress || { achievements: [] }));
 
   // Preserve lineage data
-  newState.generationNumber = (oldState.generationNumber || 1) + 1; // Increment generation
+  // NOTE: Generation is NOT incremented on prestige reset - only when continuing as child
+  // This allows players to prestige multiple times without increasing generation
+  newState.generationNumber = oldState.generationNumber || 1; // Keep same generation on prestige reset
   newState.lineageId = oldState.lineageId || 'initial-lineage';
   newState.ancestors = [...(oldState.ancestors || [])];
   
@@ -156,6 +188,12 @@ function createResetGameState(
 
   // Preserve previous lives
   newState.previousLives = [...(oldState.previousLives || [])];
+
+  // Preserve ribbon collection across prestiges
+  newState.ribbonCollection = oldState.ribbonCollection;
+
+  // Preserve discovered secrets across prestiges
+  newState.discoveredSecrets = oldState.discoveredSecrets;
 
   // BUG FIX: Calculate and set legacy bonuses for lineage display
   // Legacy bonuses should be calculated from previous life's net worth and achievements
@@ -213,9 +251,47 @@ function createResetGameState(
     week: 1,
     age: 18,
   };
-  newState.week = 1;
 
-  return newState;
+  // BUG FIX: Apply starting bonuses and unlock bonuses after creating new state
+  const { applyStartingBonuses, applyLegacyBonuses } = require('@/lib/prestige/applyBonuses');
+  const { applyUnlockBonuses } = require('@/lib/prestige/applyUnlocks');
+  const unlockedBonuses = prestigeData.unlockedBonuses || [];
+  let finalState = applyStartingBonuses(newState, unlockedBonuses);
+  finalState = applyUnlockBonuses(finalState, unlockedBonuses);
+  
+  // Apply legacy bonuses (from previous generations)
+  // Note: previousNetWorth is already calculated above on line 183
+  finalState = applyLegacyBonuses(finalState, unlockedBonuses, previousNetWorth, oldState);
+
+  return finalState;
+}
+
+/**
+ * Continue as child without prestiging (only increment generation)
+ * Used when continuing legacy from death popup
+ */
+export function continueAsChild(
+  gameState: GameState,
+  childId: string
+): GameState {
+  const children = gameState.family?.children || [];
+  let selectedChild = children.find(c => c.id === childId);
+
+  if (!selectedChild) {
+    throw new Error(`Child ${childId} not found`);
+  }
+
+  // Simulate child to age 18 if they're younger
+  const { simulateChildToAge } = require('@/lib/legacy/childSimulation');
+  if ((selectedChild.age || 0) < ADULTHOOD_AGE) {
+    selectedChild = simulateChildToAge(selectedChild, gameState, ADULTHOOD_AGE);
+  }
+
+  // Preserve prestige data WITHOUT incrementing it
+  const prestigeData = gameState.prestige || defaultPrestigeData;
+
+  // Create new state using createChildGameState but with preserved prestige
+  return createChildGameState(gameState, prestigeData, childId);
 }
 
 /**
@@ -227,7 +303,7 @@ function createChildGameState(
   childId?: string
 ): GameState {
   const children = oldState.family?.children || [];
-  const selectedChild = childId 
+  let selectedChild = childId 
     ? children.find(c => c.id === childId)
     : children[0];
 
@@ -236,8 +312,22 @@ function createChildGameState(
     return createResetGameState(oldState, prestigeData);
   }
 
+  // Simulate child to age 18 if they're younger
+  const { simulateChildToAge } = require('@/lib/legacy/childSimulation');
+  if ((selectedChild.age || 0) < ADULTHOOD_AGE) {
+    selectedChild = simulateChildToAge(selectedChild, oldState, ADULTHOOD_AGE);
+  }
+
   // Start with initial state
-  const newState: GameState = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+  // Clone initialGameState properly - use spread operator for type safety
+  // initialGameState is a proper GameState, so spreading it maintains type safety
+  const newState: GameState = {
+    ...initialGameState,
+    // Deep clone nested objects that need to be independent
+    stats: { ...initialGameState.stats },
+    date: { ...initialGameState.date },
+    settings: { ...initialGameState.settings },
+  };
 
   // Preserve prestige data
   newState.prestige = prestigeData;
@@ -318,36 +408,58 @@ function createChildGameState(
     avatarSeed: `${oldState.userProfile?.firstName}_${oldState.userProfile?.lastName}_${birthYear}`,
   };
   
-  // Add to family tree
+  // Add parent to family tree
   familyTree.addMember(prestigedCharacter);
+  
+  // CRITICAL: Create child node in family tree with proper parent relationship
+  const childAge = Math.max(ADULTHOOD_AGE, Math.floor(selectedChild.age || ADULTHOOD_AGE));
+  const childBirthYear = currentYear - childAge;
+  const childNodeId = selectedChild.id;
+  
+  const childNode: FamilyMemberNode = {
+    id: childNodeId,
+    firstName: selectedChild.name.split(' ')[0] || selectedChild.name,
+    lastName: oldState.userProfile?.lastName || 'Unknown',
+    generation: (oldState.generationNumber || 1) + 1,
+    birthYear: childBirthYear,
+    parents: [prestigedCharacterId], // Link to parent
+    children: [],
+    spouse: undefined,
+    traits: selectedChild.geneticTraits || oldState.activeTraits || [],
+    finalStats: undefined, // Will be set when this child dies/prestiges
+    occupation: selectedChild.careerPath || (selectedChild.educationLevel === 'university' ? 'Student' : 'Unknown'),
+    netWorth: selectedChild.savings || 0,
+    achievements: [],
+    gender: (selectedChild.gender || 'male') as 'male' | 'female',
+    avatarSeed: `${selectedChild.name}_${childBirthYear}`,
+  };
+  
+  // Add child to family tree
+  familyTree.addMember(childNode);
+  
+  // Update parent's children array to include this child
+  const updatedParent = familyTree.getMember(prestigedCharacterId);
+  if (updatedParent && !updatedParent.children.includes(childNodeId)) {
+    updatedParent.children.push(childNodeId);
+    familyTree.addMember(updatedParent);
+  }
   
   // Update family tree data
   newState.familyTreeData = familyTree.toJSON();
 
-  // Preserve memories
-  newState.memories = [...(oldState.memories || [])];
+  // Preserve memories and add child-specific memories
+  const { generateChildMemories } = require('./childStats');
+  const childMemories = generateChildMemories(selectedChild, oldState, newState.generationNumber);
+  newState.memories = [...(oldState.memories || []), ...childMemories];
 
   // Preserve previous lives
   newState.previousLives = [...(oldState.previousLives || [])];
 
-  // BUG FIX: Calculate and set legacy bonuses for lineage display (child path)
-  // Legacy bonuses should be calculated from previous life's net worth and achievements
-  // This ensures the "Inherited Bonuses" section shows correct values
-  const previousNetWorth = currentNetWorth;
-  const completedAchievements = (oldState.achievements || []).filter(a => a.completed).length;
-  
-  const incomeMultiplier = 1 + Math.min(Math.max(previousNetWorth, 0), 10_000_000) / 10_000_000 / 10; // up to +10%
-  const learningMultiplier = 1 + Math.min(completedAchievements, 20) / 200; // up to +10%
-  const reputationBonus = Math.min(Math.floor((oldState.stats?.reputation || 0) / 10), 20);
-  
-  newState.legacyBonuses = {
-    incomeMultiplier,
-    learningMultiplier,
-    reputationBonus,
-  };
+  // Preserve ribbon collection and discovered secrets across legacy transitions
+  newState.ribbonCollection = oldState.ribbonCollection;
+  newState.discoveredSecrets = oldState.discoveredSecrets;
 
-  // Set character to child
-  const childAge = Math.max(18, Math.floor(selectedChild.age || 18));
+  // Set character to child (age already calculated above)
   newState.userProfile = {
     ...newState.userProfile,
     firstName: selectedChild.name.split(' ')[0] || selectedChild.name,
@@ -359,11 +471,7 @@ function createChildGameState(
 
   // BUG FIX: Continue year progression instead of resetting to 2025
   // Calculate new year based on previous year + time progression
-  const previousYear = oldState.date?.year || 2025;
-  const previousAge = Math.floor(oldState.date?.age || 18);
-  const yearsLived = previousAge - 18; // Years lived in previous life
-  // Continue time progression: new year = previous year + years lived + child age difference
-  const childBirthYear = currentYear - childAge;
+  // childBirthYear is already calculated above (line 365)
   const newYear = Math.max(currentYear, childBirthYear + 18); // Ensure child is at least 18 in new year
 
   // Set age
@@ -373,17 +481,41 @@ function createChildGameState(
     week: 1,
     age: childAge,
   };
-  newState.week = 1;
 
-  // BUG FIX: Remove hardcoded $1M inheritance cap - use 10% of net worth (can exceed $1M)
-  // Only cap at $1M if net worth is very low to prevent excessive inheritance from bugs
-  const inheritancePercent = 0.1; // 10% inheritance
-  const baseInheritance = Math.floor(currentNetWorth * inheritancePercent);
-  // Cap only if net worth is suspiciously low (< $100K) to prevent inheritance bugs
-  const inheritance = currentNetWorth < 100_000 
-    ? Math.min(1_000_000, baseInheritance)
-    : baseInheritance;
-  newState.stats.money = inheritance;
+  // Calculate inheritance using computeInheritance for proper calculation
+  // This includes heirloom bonuses and proper net worth calculation
+  const { computeInheritance } = require('@/lib/legacy/inheritance');
+  const { calculateChildInheritance } = require('./childStats');
+  const inheritanceSummary = computeInheritance(oldState);
+  
+  // CRITICAL FIX: Use inheritanceSummary.totalNetWorth instead of currentNetWorth
+  // inheritanceSummary.totalNetWorth is the correct value calculated by computeInheritance
+  // which includes cash, bank savings, real estate, companies, and debts properly
+  const parentNetWorth = inheritanceSummary.totalNetWorth;
+  
+  // Calculate child-specific inheritance with education/career bonuses
+  // This gives 10% of net worth (with bonuses for educated children)
+  const childInheritance = calculateChildInheritance(parentNetWorth, selectedChild);
+  
+  // Add child's personal savings to inheritance
+  const totalInheritance = childInheritance + (selectedChild.savings || 0);
+  
+  // Use inheritance summary's legacy bonuses (includes heirloom bonuses)
+  newState.legacyBonuses = inheritanceSummary.legacyBonuses;
+  
+  // Update dynasty stats if available
+  if (inheritanceSummary.updatedDynastyStats) {
+    newState.dynastyStats = inheritanceSummary.updatedDynastyStats;
+  }
+  
+  // Add new heirlooms if generated
+  if (inheritanceSummary.newHeirloom && newState.dynastyStats) {
+    newState.dynastyStats.heirlooms = inheritanceSummary.updatedHeirlooms;
+  }
+  
+  // CRITICAL FIX: Set money to inheritance amount
+  // This ensures the child receives the calculated inheritance
+  newState.stats.money = totalInheritance;
 
   // Inherit family relationships (siblings, extended family)
   // Keep family tree but reset immediate family
@@ -417,6 +549,22 @@ function createChildGameState(
       const newCompanies = familyBusinessCompanies.filter(c => !existingCompanyIds.has(c.id));
       newState.companies = [...(newState.companies || []), ...newCompanies];
     }
+
+    // ANTI-EXPLOIT: Transfer loans associated with family business companies
+    // Prevents prestige debt-shedding: take max loans against company assets, prestige as child,
+    // keep companies but shed all debt = free money each prestige cycle
+    if (Array.isArray(oldState.loans) && oldState.loans.length > 0) {
+      // Transfer business-type loans AND any loans taken while owning family businesses
+      const transferredLoans = oldState.loans.filter(loan =>
+        loan && loan.remaining > 0 && (
+          loan.type === 'business' ||
+          familyBusinessCompanyIds.some(id => loan.id?.includes(id) || loan.name?.includes('Business'))
+        )
+      );
+      if (transferredLoans.length > 0) {
+        newState.loans = [...(newState.loans || []), ...transferredLoans];
+      }
+    }
   }
 
   // BUG FIX: Use calculateChildStats for proper stat calculation with percentages
@@ -428,9 +576,22 @@ function createChildGameState(
   newState.stats = {
     ...newState.stats,
     ...childStats,
-    money: inheritance, // Override money with inheritance
+    money: totalInheritance, // Override money with inheritance
   };
 
-  return newState;
+  // BUG FIX: Apply starting bonuses and unlock bonuses after creating new state (child path)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { applyStartingBonuses, applyLegacyBonuses } = require('@/lib/prestige/applyBonuses');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { applyUnlockBonuses } = require('@/lib/prestige/applyUnlocks');
+  const unlockedBonuses = prestigeData.unlockedBonuses || [];
+  let finalState = applyStartingBonuses(newState, unlockedBonuses);
+  finalState = applyUnlockBonuses(finalState, unlockedBonuses);
+  
+  // Apply legacy bonuses (from previous generations)
+  // Note: currentNetWorth is already calculated above on line 344
+  finalState = applyLegacyBonuses(finalState, unlockedBonuses, currentNetWorth, oldState);
+
+  return finalState;
 }
 

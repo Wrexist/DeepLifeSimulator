@@ -1,5 +1,5 @@
 import { ImageSourcePropType } from 'react-native';
-import { Company, GameState } from '@/contexts/game/types';
+import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 
 const socialIcon = require('@/assets/images/Achivements/Career Titan.png');
@@ -687,7 +687,7 @@ export const achievements: Achievement[] = [
     id: 'crime_skill_master',
     title: 'Crime Master',
     description: 'Max out a crime skill to level 10',
-    progressSpec: { kind: 'boolean', met: gs => Object.values(gs.crimeSkills || {}).some((skill: { level: number }) => skill.level >= 10) },
+    progressSpec: { kind: 'boolean', met: gs => Object.values(gs.crimeSkills || {}).some((skill: any) => (skill as { level: number }).level >= 10) },
     goldReward: 150,
     group: 'crime',
   },
@@ -712,32 +712,6 @@ export const achievements: Achievement[] = [
     group: 'crime',
   },
 
-  // Company Achievements
-  {
-    id: 'company_first',
-    title: 'Entrepreneur',
-    description: 'Start your first company',
-    progressSpec: { kind: 'counter', current: gs => gs.companies?.length ?? 0, goal: 1 },
-    goldReward: 75,
-    group: 'career',
-  },
-  {
-    id: 'company_tycoon',
-    title: 'Business Tycoon',
-    description: 'Own 5 companies',
-    progressSpec: { kind: 'counter', current: gs => gs.companies?.length ?? 0, goal: 5 },
-    goldReward: 500,
-    group: 'career',
-  },
-  {
-    id: 'company_empire',
-    title: 'Business Empire',
-    description: 'Have 10 employees across all companies',
-    progressSpec: { kind: 'counter', current: gs => gs.companies?.reduce((total: number, c: Company) => total + (c.employees || 0), 0) ?? 0, goal: 10 },
-    goldReward: 200,
-    group: 'career',
-  },
-
   // Milestone Achievements
   {
     id: 'milestone_100_weeks',
@@ -755,6 +729,313 @@ export const achievements: Achievement[] = [
     goldReward: 500,
     group: 'milestone',
   },
+  // ── Travel Achievements ──────────────────────────────────────────────
+  {
+    id: 'travel_passport',
+    title: 'Passport Holder',
+    description: 'Purchase a passport.',
+    progressSpec: { kind: 'boolean', met: gs => !!gs.travel?.passportOwned },
+    goldReward: 10,
+    group: 'travel',
+  },
+  {
+    id: 'travel_first_trip',
+    title: 'First Voyage',
+    description: 'Take your first trip.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.travel?.travelHistory?.length ?? 0,
+      goal: 1,
+    },
+    goldReward: 15,
+    group: 'travel',
+  },
+  {
+    id: 'travel_explorer',
+    title: 'World Explorer',
+    description: 'Visit 10 unique destinations.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.travel?.visitedDestinations?.length ?? 0,
+      goal: 10,
+    },
+    goldReward: 75,
+    group: 'travel',
+  },
+  {
+    id: 'travel_globetrotter',
+    title: 'Globetrotter',
+    description: 'Visit 25 unique destinations.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.travel?.visitedDestinations?.length ?? 0,
+      goal: 25,
+    },
+    goldReward: 200,
+    group: 'travel',
+  },
+  {
+    id: 'travel_frequent_flyer',
+    title: 'Frequent Flyer',
+    description: 'Take 50 total trips.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.travel?.travelHistory?.length ?? 0,
+      goal: 50,
+    },
+    goldReward: 300,
+    group: 'travel',
+  },
+
+  // ── Health Achievements ─────────────────────────────────────────────
+  {
+    id: 'health_disease_survivor',
+    title: 'Disease Survivor',
+    description: 'Cure 3 diseases.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.diseaseHistory?.totalCured ?? gs.curedDiseases?.length ?? 0,
+      goal: 3,
+    },
+    goldReward: 50,
+    group: 'health',
+  },
+  {
+    id: 'health_vaccinated',
+    title: 'Fully Vaccinated',
+    description: 'Get 5 vaccinations.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.vaccinations?.length ?? 0,
+      goal: 5,
+    },
+    goldReward: 40,
+    group: 'health',
+  },
+  {
+    id: 'health_peak_condition',
+    title: 'Peak Condition',
+    description: 'Have health, fitness, and happiness all above 90.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs =>
+        (gs.stats?.health ?? 0) > 90 &&
+        (gs.stats?.fitness ?? 0) > 90 &&
+        (gs.stats?.happiness ?? 0) > 90,
+    },
+    goldReward: 75,
+    group: 'health',
+  },
+  {
+    id: 'health_near_death',
+    title: 'Near Death',
+    description: 'Survive at 0 health for 3 consecutive weeks.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.healthZeroWeeks ?? 0,
+      goal: 3,
+    },
+    goldReward: 30,
+    group: 'health',
+  },
+  {
+    id: 'health_iron_will',
+    title: 'Iron Will',
+    description: 'Reach age 80 with health above 70.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => (gs.date?.age ?? 0) >= 80 && (gs.stats?.health ?? 0) > 70,
+    },
+    goldReward: 100,
+    group: 'health',
+  },
+
+  // ── Relationship Achievements ───────────────────────────────────────
+  {
+    id: 'relationship_soulmate',
+    title: 'Soulmate',
+    description: 'Max out relationship score with your spouse.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => {
+        const spouse = gs.relationships?.find((r: any) => r.type === 'spouse');
+        return !!spouse && (spouse.relationshipScore ?? 0) >= 100;
+      },
+    },
+    goldReward: 75,
+    group: 'relationship',
+  },
+  {
+    id: 'relationship_big_family',
+    title: 'Big Family',
+    description: 'Have 5 children.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.family?.children?.length ?? gs.relationships?.filter((r: any) => r.type === 'child').length ?? 0,
+      goal: 5,
+    },
+    goldReward: 75,
+    group: 'relationship',
+  },
+  {
+    id: 'relationship_cohabitation',
+    title: 'Moving In Together',
+    description: 'Move in with a partner.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => gs.relationships?.some((r: any) => r.livingTogether) ?? false,
+    },
+    goldReward: 20,
+    group: 'relationship',
+  },
+  {
+    id: 'relationship_serial_dater',
+    title: 'Serial Dater',
+    description: 'Get 50 dating matches.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.datingMatches?.length ?? 0,
+      goal: 50,
+    },
+    goldReward: 100,
+    group: 'relationship',
+  },
+  {
+    id: 'relationship_social_network',
+    title: 'Social Network',
+    description: 'Form 25 total relationships in your lifetime.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.lifetimeStatistics?.totalRelationships ?? gs.relationships?.length ?? 0,
+      goal: 25,
+    },
+    goldReward: 50,
+    group: 'relationship',
+  },
+
+  // ── Crime Progression Achievements ──────────────────────────────────
+  {
+    id: 'crime_first_offense',
+    title: 'First Offense',
+    description: 'Serve your first week in jail.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => (gs.totalPrisonWeeks ?? 0) >= 1 || (gs.lifetimeStatistics?.totalJailTime ?? 0) >= 1,
+    },
+    goldReward: 10,
+    group: 'crime',
+  },
+  {
+    id: 'crime_most_wanted',
+    title: 'Most Wanted',
+    description: 'Reach wanted level 5.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.wantedLevel ?? 0,
+      goal: 5,
+    },
+    goldReward: 75,
+    group: 'crime',
+  },
+  {
+    id: 'crime_kingpin',
+    title: 'Crime Kingpin',
+    description: 'Reach criminal level 10.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.criminalLevel ?? 0,
+      goal: 10,
+    },
+    goldReward: 150,
+    group: 'crime',
+  },
+  {
+    id: 'crime_hacker_elite',
+    title: 'Elite Hacker',
+    description: 'Max out the hacking skill.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => (gs.crimeSkills?.hacking?.level ?? 0) >= 10,
+    },
+    goldReward: 100,
+    group: 'crime',
+  },
+  {
+    id: 'crime_life_of_crime',
+    title: 'Life of Crime',
+    description: 'Commit 50 crimes.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.lifetimeStatistics?.totalCrimesCommitted ?? 0,
+      goal: 50,
+    },
+    goldReward: 100,
+    group: 'crime',
+  },
+
+  // ── Career Milestone Achievements ───────────────────────────────────
+  {
+    id: 'career_first_job',
+    title: 'First Paycheck',
+    description: 'Get hired at your first job.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => gs.careers?.some((c: any) => c.accepted) ?? false,
+    },
+    goldReward: 10,
+    group: 'career',
+  },
+  {
+    id: 'career_promotion',
+    title: 'Moving Up',
+    description: 'Get promoted for the first time.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => gs.careers?.some((c: any) => c.accepted && (c.level ?? 0) >= 1) ?? false,
+    },
+    goldReward: 25,
+    group: 'career',
+  },
+  {
+    id: 'career_high_earner',
+    title: 'High Earner',
+    description: 'Earn a weekly salary of $10,000 or more.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => {
+        const active = gs.careers?.find((c: any) => c.accepted);
+        if (!active) return false;
+        const salary = active.levels?.[active.level]?.salary ?? 0;
+        return salary >= 10_000;
+      },
+    },
+    goldReward: 75,
+    group: 'career',
+  },
+  {
+    id: 'career_workaholic',
+    title: 'Workaholic',
+    description: 'Work for 200 weeks.',
+    progressSpec: {
+      kind: 'counter',
+      current: gs => gs.lifetimeStatistics?.totalWeeksWorked ?? 0,
+      goal: 200,
+    },
+    goldReward: 100,
+    group: 'career',
+  },
+  {
+    id: 'career_top_performer',
+    title: 'Top Performer',
+    description: 'Achieve 100% job performance.',
+    progressSpec: {
+      kind: 'boolean',
+      met: gs => gs.careers?.some((c: any) => c.accepted && (c.performance ?? 0) >= 100) ?? false,
+    },
+    goldReward: 50,
+    group: 'career',
+  },
+
   // Legacy achievements from lib/progress/achievements.ts - consolidated
   {
     id: 'first_million',
@@ -886,15 +1167,10 @@ export const achievements: Achievement[] = [
   {
     id: 'popular_politician',
     title: 'Popular Politician',
-    description: 'Maintain 80%+ approval rating for 52 weeks.',
-    progressSpec: { 
-      kind: 'counter', 
-      current: (gs: GameState) => {
-        // This would need to be tracked in game state
-        // For now, check if current approval is 80+
-        return (gs.politics?.approvalRating || 0) >= 80 ? 1 : 0;
-      },
-      goal: 1
+    description: 'Reach 80%+ approval rating.',
+    progressSpec: {
+      kind: 'boolean',
+      met: (gs: GameState) => (gs.politics?.approvalRating || 0) >= 80,
     },
     goldReward: 150,
     group: 'politics',
@@ -932,7 +1208,7 @@ export const achievements: Achievement[] = [
       kind: 'boolean', 
       met: (gs: GameState) => {
         const career = (gs.careers || []).find((c: any) => c.id === 'political');
-        return career && career.level >= 5; // President level
+        return !!(career && career.level >= 5); // President level
       }
     },
     goldReward: 100,
@@ -942,11 +1218,11 @@ export const achievements: Achievement[] = [
     id: 'celebrity_icon',
     title: 'Celebrity Icon',
     description: 'Reach the highest level in the celebrity career.',
-    progressSpec: { 
-      kind: 'boolean', 
+    progressSpec: {
+      kind: 'boolean',
       met: (gs: GameState) => {
         const career = (gs.careers || []).find((c: any) => c.id === 'celebrity');
-        return career && career.level >= (career.levels?.length || 0);
+        return !!(career && career.levels?.length && career.level >= career.levels.length - 1);
       }
     },
     goldReward: 100,
@@ -956,11 +1232,11 @@ export const achievements: Achievement[] = [
     id: 'athletic_champion',
     title: 'Athletic Champion',
     description: 'Reach the highest level in the athlete career.',
-    progressSpec: { 
-      kind: 'boolean', 
+    progressSpec: {
+      kind: 'boolean',
       met: (gs: GameState) => {
         const career = (gs.careers || []).find((c: any) => c.id === 'athlete');
-        return career && career.level >= (career.levels?.length || 0);
+        return !!(career && career.levels?.length && career.level >= career.levels.length - 1);
       }
     },
     goldReward: 100,

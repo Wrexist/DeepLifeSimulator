@@ -53,12 +53,13 @@ export const getDriversLicense = (
     return { success: false, message: `You need $${DRIVERS_LICENSE.cost.toLocaleString()} to get a driver's license.` };
   }
 
-  // Deduct cost
-  deps.updateMoney(setGameState, -DRIVERS_LICENSE.cost, "Driver's License");
-
-  // Update state
+  // Atomic: merge money deduction + license grant into single update
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, prev.stats.money - DRIVERS_LICENSE.cost),
+    },
     hasDriversLicense: true,
   }));
 
@@ -87,14 +88,26 @@ export const purchaseVehicle = (
     return { success: false, message: 'Vehicle not found.' };
   }
 
-  // Check reputation requirement
-  if (template.requiredReputation && gameState.stats.reputation < template.requiredReputation) {
-    return { success: false, message: `You need ${template.requiredReputation} reputation to purchase this vehicle.` };
+  // CRITICAL: Validate template price before comparison
+  const vehiclePrice = typeof template.price === 'number' && isFinite(template.price) && template.price >= 0 ? template.price : 0;
+  if (vehiclePrice === 0) {
+    log.error(`Invalid price for vehicle ${vehicleId}: ${template.price}`);
+    return { success: false, message: 'Invalid vehicle price' };
   }
 
+  // Check reputation requirement
+  const requiredReputation = typeof template.requiredReputation === 'number' && isFinite(template.requiredReputation) && template.requiredReputation >= 0 ? template.requiredReputation : 0;
+  const currentReputation = typeof gameState.stats.reputation === 'number' && isFinite(gameState.stats.reputation) && gameState.stats.reputation >= 0 ? gameState.stats.reputation : 0;
+  if (requiredReputation > 0 && currentReputation < requiredReputation) {
+    return { success: false, message: `You need ${requiredReputation} reputation to purchase this vehicle.` };
+  }
+
+  // CRITICAL: Validate money before comparison
+  const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
+  
   // Check if can afford
-  if (gameState.stats.money < template.price) {
-    return { success: false, message: `You need $${template.price.toLocaleString()} to purchase this vehicle.` };
+  if (currentMoney < vehiclePrice) {
+    return { success: false, message: `You need $${vehiclePrice.toLocaleString()} to purchase this vehicle.` };
   }
 
   // Check if already owns this vehicle
@@ -103,28 +116,55 @@ export const purchaseVehicle = (
     return { success: false, message: 'You already own this vehicle!' };
   }
 
-  // Deduct cost
-  deps.updateMoney(setGameState, -template.price, `Vehicle Purchase: ${template.name}`);
-
   // Create vehicle and add to state
-  const newVehicle = createVehicleFromTemplate(template, gameState.week);
+  const newVehicle = createVehicleFromTemplate(template, gameState.weeksLived || 0);
 
+  // CRITICAL FIX: Combine money update and vehicle update into a single atomic state update
+  // This prevents race conditions where the second setGameState might overwrite the money update
   setGameState(prev => {
+    // Validate and calculate new money value
+    const prevMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) 
+      ? prev.stats.money 
+      : 0;
+    const newMoney = Math.max(0, prevMoney - vehiclePrice);
+    const moneyChange = newMoney - prevMoney;
+
+    // Update vehicles
     const vehicles = [...(prev.vehicles || []), newVehicle];
     // Set as active if it's the first vehicle
     const activeVehicleId = prev.activeVehicleId || newVehicle.id;
-    
+
+    // Update daily summary
+    let dailySummary = prev.dailySummary;
+    if (dailySummary) {
+      dailySummary = {
+        ...dailySummary,
+        moneyChange: (dailySummary.moneyChange || 0) + moneyChange,
+        totalMoneySpent: (dailySummary.totalMoneySpent || 0) + Math.max(0, -moneyChange),
+        statsChange: { ...(dailySummary.statsChange || {}) },
+        events: [...(dailySummary.events || [])],
+      };
+    }
+
+    // Log significant transactions
+    if (Math.abs(moneyChange) > 1000) {
+      log.info(`Vehicle purchase: ${moneyChange > 0 ? '+' : ''}${moneyChange} (Vehicle Purchase: ${template.name})`);
+    }
+
     return {
       ...prev,
+      stats: {
+        ...prev.stats,
+        money: newMoney,
+        reputation: template.reputationBonus > 0
+          ? Math.min(100, (prev.stats.reputation || 0) + template.reputationBonus)
+          : (prev.stats.reputation || 0),
+      },
       vehicles,
       activeVehicleId,
+      dailySummary,
     };
   });
-
-  // Apply reputation bonus
-  if (template.reputationBonus > 0) {
-    deps.updateStats(setGameState, { reputation: template.reputationBonus });
-  }
 
   log.info(`Player purchased vehicle: ${template.name}`);
   return { success: true, message: `Congratulations! You are now the proud owner of a ${template.name}!` };
@@ -146,29 +186,29 @@ export const sellVehicle = (
 
   const sellPrice = calculateVehicleSellPrice(vehicle);
 
-  // Add money from sale
-  deps.updateMoney(setGameState, sellPrice, `Vehicle Sale: ${vehicle.name}`);
+  // Atomic: merge money gain + vehicle removal + reputation loss into single update
+  const template = VEHICLE_TEMPLATES.find(t => t.id === vehicleId);
+  const repLoss = (template && template.reputationBonus > 0)
+    ? -Math.floor(template.reputationBonus / 2)
+    : 0;
 
-  // Remove vehicle from state
   setGameState(prev => {
     const vehicles = (prev.vehicles || []).filter(v => v.id !== vehicleId);
-    // If selling active vehicle, set new active to first vehicle or null
     const activeVehicleId = prev.activeVehicleId === vehicleId
       ? (vehicles.length > 0 ? vehicles[0].id : undefined)
       : prev.activeVehicleId;
 
     return {
       ...prev,
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money + sellPrice,
+        reputation: Math.max(0, (prev.stats.reputation || 0) + repLoss),
+      },
       vehicles,
       activeVehicleId,
     };
   });
-
-  // Remove reputation bonus
-  const template = VEHICLE_TEMPLATES.find(t => t.id === vehicleId);
-  if (template && template.reputationBonus > 0) {
-    deps.updateStats(setGameState, { reputation: -Math.floor(template.reputationBonus / 2) }); // Lose half the rep bonus
-  }
 
   log.info(`Player sold vehicle: ${vehicle.name} for $${sellPrice}`);
   return { success: true, message: `Sold ${vehicle.name} for $${sellPrice.toLocaleString()}!`, sellPrice };
@@ -198,12 +238,13 @@ export const refuelVehicle = (
     return { success: false, message: `You need $${fuelCost.toLocaleString()} to fill up.` };
   }
 
-  // Deduct cost
-  deps.updateMoney(setGameState, -fuelCost, `Fuel: ${vehicle.name}`);
-
-  // Update vehicle fuel level
+  // Atomic: merge fuel cost + fuel level update into single update
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, prev.stats.money - fuelCost),
+    },
     vehicles: (prev.vehicles || []).map(v =>
       v.id === vehicleId ? { ...v, fuelLevel: 100 } : v
     ),
@@ -243,14 +284,15 @@ export const repairVehicle = (
     return { success: false, message: `You need $${repairCost.toLocaleString()} to repair this vehicle.` };
   }
 
-  // Deduct cost
-  deps.updateMoney(setGameState, -repairCost, `Repair: ${vehicle.name}`);
-
-  // Update vehicle condition
+  // Atomic: merge repair cost + condition update into single update
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, prev.stats.money - repairCost),
+    },
     vehicles: (prev.vehicles || []).map(v =>
-      v.id === vehicleId ? { ...v, condition: 100, lastServiceWeek: prev.week } : v
+      v.id === vehicleId ? { ...v, condition: 100, lastServiceWeek: prev.weeksLived || 0 } : v
     ),
   }));
 
@@ -273,41 +315,71 @@ export const purchaseInsurance = (
     return { success: false, message: 'Vehicle not found.' };
   }
 
+  if (!insuranceType) {
+    return { success: false, message: 'Insurance type is required.' };
+  }
+
   const plan = getInsurancePlan(insuranceType);
-  if (!plan) {
+  if (!plan || plan.monthlyCost === undefined) {
     return { success: false, message: 'Insurance plan not found.' };
   }
 
-  // Calculate 6-month premium (26 weeks)
-  const premiumCost = plan.monthlyCost * 6; // 6 months upfront
+  // CRITICAL: Validate monthlyCost before calculation
+  const monthlyCost = typeof plan.monthlyCost === 'number' && isFinite(plan.monthlyCost) && plan.monthlyCost >= 0 ? plan.monthlyCost : 0;
+  if (monthlyCost === 0) {
+    return { success: false, message: 'Invalid insurance plan cost' };
+  }
   
-  if (gameState.stats.money < premiumCost) {
+  // Calculate 6-month premium (26 weeks)
+  const premiumCost = monthlyCost * 6; // 6 months upfront
+  
+  // CRITICAL: Validate result before comparison
+  if (!isFinite(premiumCost) || premiumCost < 0) {
+    log.error(`Invalid premium cost calculated: ${premiumCost}`, { monthlyCost });
+    return { success: false, message: 'Invalid insurance cost calculation' };
+  }
+  
+  // CRITICAL: Validate money before comparison
+  const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
+  
+  if (currentMoney < premiumCost) {
     return { success: false, message: `You need $${premiumCost.toLocaleString()} for 6 months of ${insuranceType} insurance.` };
   }
 
-  // Deduct cost
-  deps.updateMoney(setGameState, -premiumCost, `${insuranceType.charAt(0).toUpperCase() + insuranceType.slice(1)} Insurance: ${vehicle.name}`);
+  // Safe string operations - ensure insuranceType is not empty
+  const safeInsuranceType = insuranceType || 'insurance';
+  const capitalizedType = safeInsuranceType.length > 0
+    ? safeInsuranceType.charAt(0).toUpperCase() + safeInsuranceType.slice(1)
+    : 'Insurance';
+  
+  // Atomic: merge insurance cost + insurance creation into single update
+  setGameState(prev => {
+    const currentWeeksLived = typeof prev.weeksLived === 'number' && !isNaN(prev.weeksLived) && isFinite(prev.weeksLived) && prev.weeksLived >= 0 ? prev.weeksLived : 0;
 
-  // Create insurance
-  const insurance: VehicleInsurance = {
-    id: `${vehicleId}_${insuranceType}`,
-    type: insuranceType,
-    monthlyCost: plan.monthlyCost,
-    coveragePercent: plan.coveragePercent,
-    active: true,
-    expiresWeek: gameState.week + 26, // 6 months
-  };
+    const insurance: VehicleInsurance = {
+      id: `${vehicleId}_${insuranceType}`,
+      type: insuranceType,
+      monthlyCost: monthlyCost,
+      coveragePercent: plan.coveragePercent,
+      active: true,
+      expiresWeek: currentWeeksLived + 26, // 6 months (~26 weeks)
+    };
 
-  // Update vehicle with insurance
-  setGameState(prev => ({
-    ...prev,
-    vehicles: (prev.vehicles || []).map(v =>
-      v.id === vehicleId ? { ...v, insurance } : v
-    ),
-  }));
+    return {
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, prev.stats.money - premiumCost),
+      },
+      vehicles: (prev.vehicles || []).map(v =>
+        v.id === vehicleId ? { ...v, insurance } : v
+      ),
+    };
+  });
 
   log.info(`Player purchased ${insuranceType} insurance for: ${vehicle.name}`);
-  return { success: true, message: `${insuranceType.charAt(0).toUpperCase() + insuranceType.slice(1)} insurance active for 6 months!` };
+  
+  return { success: true, message: `${capitalizedType} insurance active for 6 months!` };
 };
 
 /**
@@ -331,7 +403,7 @@ export const cancelInsurance = (
   setGameState(prev => ({
     ...prev,
     vehicles: (prev.vehicles || []).map(v =>
-      v.id === vehicleId ? { ...v, insurance: null } : v
+      v.id === vehicleId ? { ...v, insurance: undefined } : v
     ),
   }));
 
@@ -379,21 +451,20 @@ export const processAccident = (
   const damage = calculateAccidentDamage(severity);
   const newCondition = Math.max(0, vehicle.condition - damage);
 
-  // Health damage based on severity
+  // Health damage based on severity (fallback 10 for unknown severity)
   const healthLoss = {
     minor: 5 + Math.floor(Math.random() * 5),
     moderate: 15 + Math.floor(Math.random() * 10),
     severe: 30 + Math.floor(Math.random() * 20),
     total: 50 + Math.floor(Math.random() * 30),
-  }[severity];
+  }[severity] ?? 10;
 
-  // Apply health damage
-  deps.updateStats(setGameState, { health: -healthLoss });
+  // Atomic: merge health damage + vehicle condition into single update
+  setGameState(prev => {
+    const newHealth = Math.max(0, Math.min(100, (prev.stats.health || 0) - healthLoss));
 
-  // Update vehicle condition
-  if (severity === 'total') {
-    // Total loss - remove vehicle
-    setGameState(prev => {
+    if (severity === 'total') {
+      // Total loss - remove vehicle
       const vehicles = (prev.vehicles || []).filter(v => v.id !== vehicleId);
       const activeVehicleId = prev.activeVehicleId === vehicleId
         ? (vehicles.length > 0 ? vehicles[0].id : undefined)
@@ -401,19 +472,21 @@ export const processAccident = (
 
       return {
         ...prev,
+        stats: { ...prev.stats, health: newHealth },
         vehicles,
         activeVehicleId,
       };
-    });
-  } else {
-    // Apply damage
-    setGameState(prev => ({
-      ...prev,
-      vehicles: (prev.vehicles || []).map(v =>
-        v.id === vehicleId ? { ...v, condition: newCondition } : v
-      ),
-    }));
-  }
+    } else {
+      // Apply damage
+      return {
+        ...prev,
+        stats: { ...prev.stats, health: newHealth },
+        vehicles: (prev.vehicles || []).map(v =>
+          v.id === vehicleId ? { ...v, condition: newCondition } : v
+        ),
+      };
+    }
+  });
 
   const messages = {
     minor: `Minor fender bender! ${vehicle.name} took ${damage}% damage.`,
@@ -433,64 +506,89 @@ export const processAccident = (
 export const processVehicleWeekly = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
-  deps: { updateMoney: typeof updateMoney }
 ): { totalCosts: number; expiredInsurance: string[] } => {
-  const vehicles = gameState.vehicles || [];
+  // CRITICAL: Validate vehicles array exists
+  const vehicles = Array.isArray(gameState.vehicles) ? gameState.vehicles : [];
   if (vehicles.length === 0) {
     return { totalCosts: 0, expiredInsurance: [] };
   }
 
-  let totalCosts = 0;
-  const expiredInsurance: string[] = [];
-  const currentWeek = gameState.week;
+  // Pre-roll random values outside updater for React StrictMode safety
+  const vehRolls = {
+    fuelUsed: Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)),
+    mileageExtra: Array.from({ length: 10 }, () => Math.floor(Math.random() * 100)),
+    wear: Array.from({ length: 10 }, () => 1 + Math.floor(Math.random() * 2)),
+  };
 
-  // Process each vehicle
-  const updatedVehicles = vehicles.map(vehicle => {
-    let updatedVehicle = { ...vehicle };
+  // NOTE: These are written from inside the updater to return results to callers.
+  // Safe under StrictMode because both invocations produce identical values.
+  let resultTotalCosts = 0;
+  const resultExpiredInsurance: string[] = [];
 
-    // Deduct weekly fuel cost (based on usage)
-    const fuelUsed = Math.min(vehicle.fuelLevel, 15 + Math.floor(Math.random() * 10)); // Use 15-25% fuel per week
-    updatedVehicle.fuelLevel = Math.max(0, vehicle.fuelLevel - fuelUsed);
+  // Process vehicles inside updater to use fresh prev.vehicles (avoids stale closure)
+  setGameState(prev => {
+    const prevVehicles = Array.isArray(prev.vehicles) ? prev.vehicles : [];
+    const currentWeeksLived = typeof prev.weeksLived === 'number' && !isNaN(prev.weeksLived) && isFinite(prev.weeksLived) && prev.weeksLived >= 0
+      ? prev.weeksLived
+      : 0;
+    let totalCosts = 0;
 
-    // Add weekly maintenance cost
-    totalCosts += vehicle.weeklyMaintenanceCost;
+    const updatedVehicles = prevVehicles.map((vehicle, vIdx) => {
+      if (!vehicle) return vehicle;
+      const updatedVehicle = { ...vehicle };
 
-    // Add weekly fuel cost if using vehicle
-    if (gameState.activeVehicleId === vehicle.id) {
-      totalCosts += vehicle.weeklyFuelCost;
-      // Add mileage
-      updatedVehicle.mileage = (vehicle.mileage || 0) + 200 + Math.floor(Math.random() * 100);
-    }
+      // Fuel consumption
+      const fuelLevel = typeof vehicle.fuelLevel === 'number' && isFinite(vehicle.fuelLevel) && vehicle.fuelLevel >= 0 && vehicle.fuelLevel <= 100 ? vehicle.fuelLevel : 100;
+      const fuelUsed = Math.min(fuelLevel, 15 + (vehRolls.fuelUsed[vIdx] || 0));
+      updatedVehicle.fuelLevel = Math.max(0, fuelLevel - fuelUsed);
 
-    // Natural wear: condition decreases 1-2% per week
-    const wear = 1 + Math.floor(Math.random() * 2);
-    updatedVehicle.condition = Math.max(0, vehicle.condition - wear);
+      // Maintenance cost
+      const maintenanceCost = typeof vehicle.weeklyMaintenanceCost === 'number' && isFinite(vehicle.weeklyMaintenanceCost) && vehicle.weeklyMaintenanceCost >= 0 ? vehicle.weeklyMaintenanceCost : 0;
+      if (maintenanceCost > 0) totalCosts += maintenanceCost;
 
-    // Check insurance expiry
-    if (vehicle.insurance?.active && currentWeek >= vehicle.insurance.expiresWeek) {
-      expiredInsurance.push(vehicle.name);
-      updatedVehicle.insurance = { ...vehicle.insurance, active: false };
-    }
+      // Fuel cost & mileage for active vehicle
+      if (prev.activeVehicleId === vehicle.id) {
+        const fuelCost = typeof vehicle.weeklyFuelCost === 'number' && isFinite(vehicle.weeklyFuelCost) && vehicle.weeklyFuelCost >= 0 ? vehicle.weeklyFuelCost : 0;
+        if (fuelCost > 0) totalCosts += fuelCost;
+        const currentMileage = typeof vehicle.mileage === 'number' && isFinite(vehicle.mileage) && vehicle.mileage >= 0 ? vehicle.mileage : 0;
+        updatedVehicle.mileage = currentMileage + 200 + (vehRolls.mileageExtra[vIdx] || 0);
+      }
 
-    return updatedVehicle;
+      // Natural wear
+      const currentCondition = typeof vehicle.condition === 'number' && isFinite(vehicle.condition) && vehicle.condition >= 0 && vehicle.condition <= 100 ? vehicle.condition : 100;
+      updatedVehicle.condition = Math.max(0, currentCondition - (vehRolls.wear[vIdx] || 1));
+
+      // Insurance expiry
+      if (vehicle.insurance?.active) {
+        const expiresWeek = typeof vehicle.insurance.expiresWeek === 'number' && !isNaN(vehicle.insurance.expiresWeek) && isFinite(vehicle.insurance.expiresWeek) ? vehicle.insurance.expiresWeek : 0;
+        if (expiresWeek > 0 && currentWeeksLived >= expiresWeek) {
+          const vehicleName = typeof vehicle.name === 'string' && vehicle.name.length > 0 ? vehicle.name : 'Unknown Vehicle';
+          resultExpiredInsurance.push(vehicleName);
+          updatedVehicle.insurance = { ...vehicle.insurance, active: false };
+        }
+      }
+
+      return updatedVehicle;
+    });
+
+    const safeTotalCosts = isFinite(totalCosts) && totalCosts > 0 ? totalCosts : 0;
+    resultTotalCosts = safeTotalCosts;
+
+    return {
+      ...prev,
+      vehicles: updatedVehicles,
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, prev.stats.money - safeTotalCosts),
+      },
+    };
   });
 
-  // Deduct total costs
-  if (totalCosts > 0) {
-    deps.updateMoney(setGameState, -totalCosts, 'Vehicle Maintenance & Fuel');
+  if (resultExpiredInsurance.length > 0) {
+    log.info(`Insurance expired for: ${resultExpiredInsurance.join(', ')}`);
   }
 
-  // Update vehicles
-  setGameState(prev => ({
-    ...prev,
-    vehicles: updatedVehicles,
-  }));
-
-  if (expiredInsurance.length > 0) {
-    log.info(`Insurance expired for: ${expiredInsurance.join(', ')}`);
-  }
-
-  return { totalCosts, expiredInsurance };
+  return { totalCosts: resultTotalCosts, expiredInsurance: resultExpiredInsurance };
 };
 
 /**
@@ -498,7 +596,7 @@ export const processVehicleWeekly = (
  */
 export const getTotalVehicleReputationBonus = (gameState: GameState): number => {
   const vehicles = gameState.vehicles || [];
-  return vehicles.reduce((total, vehicle) => total + vehicle.reputationBonus, 0);
+  return vehicles.reduce((total, vehicle) => total + (vehicle.reputationBonus || 0), 0);
 };
 
 /**
@@ -508,6 +606,6 @@ export const getActiveVehicleSpeedBonus = (gameState: GameState): number => {
   if (!gameState.activeVehicleId) return 0;
   const vehicle = (gameState.vehicles || []).find(v => v.id === gameState.activeVehicleId);
   if (!vehicle || vehicle.condition < 20 || vehicle.fuelLevel < 10) return 0; // Must be in usable condition
-  return vehicle.speedBonus;
+  return vehicle.speedBonus || 0;
 };
 

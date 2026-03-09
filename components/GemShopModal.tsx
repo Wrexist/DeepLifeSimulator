@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image } from 'react-native';
+﻿import React, { useState, useRef, useEffect } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image, Animated } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star, Zap, Shield, Crown, CheckCircle, Sparkles, Diamond, Coins, Award, Heart, RefreshCw } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
@@ -16,11 +16,25 @@ interface GemShopModalProps {
 }
 
 
-export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
+function GemShopModal({ visible, onClose }: GemShopModalProps) {
   const { gameState, buyGoldUpgrade, setGameState, saveGame } = useGame();
   const { settings } = gameState;
   const [tab, setTab] = useState<'upgrades' | 'store' | 'perks' | 'gems'>('upgrades');
   const [iapLoading, setIapLoading] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const isDarkMode = settings.darkMode ?? false;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      fadeAnim.setValue(0);
+    }
+  }, [visible, fadeAnim]);
 
   const items = [
     {
@@ -263,11 +277,11 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.UNLOCK_ALL_PERKS,
       name: 'Unlock All Perks',
-      description: 'All 4 perks - Save 12%',
+      description: 'All perks included - Best value',
       price: '$6.99',
       icon: Crown,
       value: 'allPerks',
-      owned: gameState.goldUpgrades?.work_boost && gameState.goldUpgrades?.mindset && gameState.goldUpgrades?.fast_learner && gameState.goldUpgrades?.good_credit || false,
+      owned: gameState.perks?.workBoost && gameState.perks?.fastLearner && gameState.perks?.goodCredit || false,
       gradient: ['#FBBF24', '#F59E0B'],
       image: require('@/assets/images/iap/premium/unlock_all_perks.png'),
       popular: true,
@@ -280,20 +294,9 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$1.99',
       icon: TrendingUp,
       value: 'workBoost',
-      owned: gameState.goldUpgrades?.work_boost || false,
+      owned: gameState.perks?.workBoost || false,
       gradient: ['#10B981', '#059669'],
       image: require('@/assets/images/iap/perks/work_pay_boost.png'),
-    },
-    {
-      id: IAP_PRODUCTS.MINDSET,
-      name: 'Mindset',
-      description: '50% faster promotions',
-      price: '$1.99',
-      icon: Zap,
-      value: 'mindset',
-      owned: gameState.goldUpgrades?.mindset || false,
-      gradient: ['#F59E0B', '#D97706'],
-      image: require('@/assets/images/iap/perks/mindset.png'),
     },
     {
       id: IAP_PRODUCTS.FAST_LEARNER,
@@ -302,7 +305,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$1.99',
       icon: Star,
       value: 'fastLearner',
-      owned: gameState.goldUpgrades?.fast_learner || false,
+      owned: gameState.perks?.fastLearner || false,
       gradient: ['#8B5CF6', '#7C3AED'],
       image: require('@/assets/images/iap/perks/fast_learner.png'),
     },
@@ -313,7 +316,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$1.99',
       icon: Shield,
       value: 'goodCredit',
-      owned: gameState.goldUpgrades?.good_credit || false,
+      owned: gameState.perks?.goodCredit || false,
       gradient: ['#6366F1', '#4F46E5'],
       image: require('@/assets/images/iap/perks/good_credit_score.png'),
     },
@@ -324,9 +327,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$2.99',
       icon: CheckCircle,
       value: 'removeAds',
-      // Use the correct way to check ad removal: typically this is 'adsRemoved' on GameProgress, not in settings.
-      // If your state puts this in a top-level key, update accordingly.
-      owned: gameState.progress?.adsRemoved || false,
+      owned: gameState.settings?.adsRemoved || false,
       gradient: ['#06B6D4', '#0891B2'],
       image: require('@/assets/images/iap/premium/remove_ads.png'),
     },
@@ -337,8 +338,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$2.99',
       icon: Heart,
       value: 'revival',
-      // Revival pack should check goldUpgrades.revival_pack, not settings.hasRevivalPack
-      owned: gameState.goldUpgrades?.revival_pack || false,
+      owned: gameState.settings?.hasRevivalPack || false,
       gradient: ['#EF4444', '#DC2626'],
       image: require('@/assets/images/iap/items/youth_pill_single.png'),
       popular: true,
@@ -356,12 +356,21 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     },
   ];
 
-  const handleBuy = (id: string, price: number) => {
-    if (gameState.stats.gems < price) {
+  const handleBuy = async (id: string, price: number) => {
+    if ((gameState?.stats?.gems ?? 0) < price) {
       Alert.alert('Insufficient Gems', 'You need more gems to purchase this upgrade.');
       return;
     }
+    
+    // Check if already owned
+    const isOwned = gameState.goldUpgrades?.[id as keyof typeof gameState.goldUpgrades];
+    if (isOwned) {
+      Alert.alert('Already Owned', 'You already own this upgrade.');
+      return;
+    }
+    
     buyGoldUpgrade(id);
+    await saveGame(); // Save after purchase
     Alert.alert('Purchase Successful', 'Your upgrade has been activated!');
   };
 
@@ -396,12 +405,12 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
               const result = await iapService.purchaseProduct(id);
               
               if (result.success) {
-                // Apply the purchase benefits locally for immediate feedback
-                await applyPurchaseBenefits(id);
+                // IAPService already applies benefits - no need to apply again
+                // This prevents double application of benefits
                 
                 // Show success message with more details
                 const successMessage = result.message || 'Purchase completed! Your items have been added to your account.';
-                Alert.alert('Purchase Successful! 🎉', successMessage);
+                Alert.alert('Purchase Successful!', successMessage);
               } else {
                 // Show detailed error message from IAP service
                 const errorMessage = result.message || 'Unable to complete purchase. Please try again.';
@@ -430,85 +439,8 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     );
   };
 
-  const applyPurchaseBenefits = async (productId: string) => {
-    try {
-    const config = getProductConfig(productId);
-      if (!config) {
-        logger.warn('Product config not found for:', { productId });
-        return;
-      }
-
-    // Apply benefits based on product type
-    if (config.gems) {
-      setGameState(prev => ({
-        ...prev,
-        stats: {
-          ...prev.stats,
-          gems: prev.stats.gems + config.gems
-        }
-      }));
-    }
-
-    if (config.youthPills) {
-      setGameState(prev => ({
-        ...prev,
-        youthPills: (prev.youthPills || 0) + config.youthPills
-      }));
-    }
-
-    if (config.moneyMultiplier) {
-      setGameState(prev => ({
-        ...prev,
-        settings: { ...prev.settings, moneyMultiplier: true }
-      }));
-    }
-
-    if (config.allUpgrades) {
-      setGameState(prev => ({
-        ...prev,
-        goldUpgrades: {
-          ...prev.goldUpgrades,
-          multiplier: true,
-          energy_boost: true,
-          happiness_boost: true,
-          fitness_boost: true,
-          skill_mastery: true,
-          time_machine: true,
-          immortality: true,
-        }
-      }));
-    }
-
-    if (config.everythingUnlocked) {
-      setGameState(prev => ({
-        ...prev,
-        settings: { 
-          ...prev.settings, 
-          everythingUnlocked: true,
-          adsRemoved: true,
-          lifetimePremium: true
-        },
-        goldUpgrades: {
-          ...prev.goldUpgrades,
-          multiplier: true,
-          energy_boost: true,
-          happiness_boost: true,
-          fitness_boost: true,
-          skill_mastery: true,
-          time_machine: true,
-          immortality: true,
-        }
-      }));
-    }
-
-    // Save the game state
-    await saveGame();
-    } catch (error) {
-      logger.error('Error applying purchase benefits:', error);
-      // Re-throw to let the caller handle it
-      throw error;
-    }
-  };
+  // NOTE: applyPurchaseBenefits removed - IAPService handles all benefit application
+  // This prevents double application of benefits and ensures consistency
 
   const handleRestorePurchases = async () => {
     if (iapLoading) {
@@ -525,11 +457,16 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
       if (success) {
         // Reload IAP state to refresh purchases
         await iapService.loadPurchases();
-        
-        // Show success message
+
         Alert.alert(
           'Purchases Restored',
           'Your previous purchases have been restored successfully!',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert(
+          'Could Not Restore',
+          'Purchases could not be restored at this time. Make sure you are signed in to the App Store and try again.',
           [{ text: 'OK', style: 'default' }]
         );
       }
@@ -546,19 +483,19 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
   };
 
   const tabs = [
-    { id: 'upgrades' as const, label: 'Upgrades', icon: TrendingUp },
-    { id: 'gems' as const, label: 'Gems', icon: Gem },
-    { id: 'store' as const, label: 'Packs', icon: Gift },
-    { id: 'perks' as const, label: 'Perks', icon: Star },
+    { id: 'upgrades' as const, label: 'Upgrades', icon: TrendingUp, colors: ['#10B981', '#059669'] },
+    { id: 'gems' as const, label: 'Gems', icon: Gem, colors: ['#6366F1', '#4F46E5'] },
+    { id: 'store' as const, label: 'Packs', icon: Gift, colors: ['#8B5CF6', '#7C3AED'] },
+    { id: 'perks' as const, label: 'Perks', icon: Star, colors: ['#F59E0B', '#D97706'] },
   ];
 
   const renderUpgradeCard = (item: any) => {
     const Icon = item.icon;
-    const afford = gameState.stats.gems >= item.price;
+    const afford = (gameState?.stats?.gems ?? 0) >= item.price;
     const isOwned = item.owned;
     
     return (
-      <View key={item.id} style={[styles.upgradeCard, settings.darkMode && styles.upgradeCardDark]}>
+      <View key={item.id} style={[styles.upgradeCard, isDarkMode && styles.upgradeCardDark]}>
         <LinearGradient
           colors={item.gradient}
           start={{ x: 0, y: 0 }}
@@ -627,7 +564,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     const hasSavings = item.originalPrice && item.savings;
     
     return (
-      <View key={item.id} style={[styles.storeCard, settings.darkMode && styles.storeCardDark]}>
+      <View key={item.id} style={[styles.storeCard, isDarkMode && styles.storeCardDark]}>
         <LinearGradient
           colors={item.gradient}
           start={{ x: 0, y: 0 }}
@@ -684,7 +621,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     const isOwned = item.owned;
     
     return (
-      <View key={item.id} style={[styles.perkCard, settings.darkMode && styles.perkCardDark]}>
+      <View key={item.id} style={[styles.perkCard, isDarkMode && styles.perkCardDark]}>
         <LinearGradient
           colors={item.gradient}
           start={{ x: 0, y: 0 }}
@@ -732,7 +669,7 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     const isBestValue = item.bestValue;
     
     return (
-      <View key={item.id} style={[styles.gemPackCard, settings.darkMode && styles.gemPackCardDark]}>
+      <View key={item.id} style={[styles.gemPackCard, isDarkMode && styles.gemPackCardDark]}>
         <LinearGradient
           colors={item.gradient}
           start={{ x: 0, y: 0 }}
@@ -789,115 +726,158 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
     );
   };
 
+  if (!visible) return null;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
-          {/* Header */}
-          <BlurView intensity={20} style={styles.headerBlur}>
-            <LinearGradient
-              colors={settings.darkMode ? ['rgba(99, 102, 241, 0.1)', 'rgba(79, 70, 229, 0.1)'] : ['rgba(99, 102, 241, 0.05)', 'rgba(79, 70, 229, 0.05)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.headerGradient}
-            >
-              <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                  <View style={styles.headerIconContainer}>
-                    <Gem size={24} color="#6366F1" />
-                    <Sparkles size={12} color="#6366F1" style={styles.sparkleIcon} />
+        <TouchableOpacity 
+          style={StyleSheet.absoluteFill} 
+          activeOpacity={1} 
+          onPress={onClose}
+        >
+          <View 
+            style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)' }]}
+          />
+        </TouchableOpacity>
+        
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              opacity: fadeAnim,
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={isDarkMode 
+              ? ['rgba(31, 41, 55, 0.95)', 'rgba(17, 24, 39, 0.98)'] 
+              : ['rgba(255, 255, 255, 0.95)', 'rgba(243, 244, 246, 0.98)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.content}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.gemBalanceContainer}>
+                  <View style={styles.gemIconContainer}>
+                    <Gem size={20} color="#6366F1" />
                   </View>
                   <View>
-                    <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Gem Shop</Text>
-                    <View style={styles.gemBalance}>
-                      <Gem size={16} color="#6366F1" />
-                      <Text style={[styles.gemBalanceText, settings.darkMode && styles.gemBalanceTextDark]}>
-                        {gameState.stats.gems.toLocaleString()}
-                      </Text>
-                    </View>
+                    <Text style={[styles.balanceLabel, isDarkMode && styles.balanceLabelDark]}>
+                      Gems
+                    </Text>
+                    <Text style={[styles.balanceText, isDarkMode && styles.balanceTextDark]}>
+                      {(gameState?.stats?.gems ?? 0).toLocaleString()}
+                    </Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
-                </TouchableOpacity>
               </View>
-            </LinearGradient>
-          </BlurView>
-
-          {/* Tabs */}
-          <View style={[styles.tabsContainer, settings.darkMode && styles.tabsContainerDark]}>
-            {tabs.map((tabItem) => {
-              const Icon = tabItem.icon;
-              const isActive = tab === tabItem.id;
-              
-              return (
-                <TouchableOpacity
-                  key={tabItem.id}
-                  style={[styles.tab, isActive && styles.activeTab]}
-                  onPress={() => setTab(tabItem.id)}
+              <View style={styles.headerRight}>
+                <Text style={[styles.title, isDarkMode && styles.titleDark]}>Gem Shop</Text>
+                <TouchableOpacity 
+                  onPress={onClose} 
+                  style={styles.closeButton}
+                  activeOpacity={0.7}
                 >
-                  <Icon size={20} color={isActive ? '#6366F1' : (settings.darkMode ? '#9CA3AF' : '#6B7280')} />
-                  <Text style={[
-                    styles.tabText,
-                    isActive && styles.activeTabText,
-                    settings.darkMode && styles.tabTextDark
-                  ]}>
-                    {tabItem.label}
-                  </Text>
+                  <View style={[styles.closeButtonInner, isDarkMode && styles.closeButtonInnerDark]}>
+                    <X size={18} color={isDarkMode ? '#FFFFFF' : '#1F2937'} />
+                  </View>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+              </View>
+            </View>
 
-          {/* Content */}
-          <ScrollView 
-            style={styles.content}
-            showsVerticalScrollIndicator={true}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {tab === 'upgrades' && (
-              <View style={styles.upgradesGrid}>
-                {items.map(renderUpgradeCard)}
-              </View>
-            )}
-            
-            {tab === 'gems' && (
-              <View style={styles.gemPacksGrid}>
-                {gemPackItems.map(renderGemPackCard)}
-              </View>
-            )}
-            
-            {tab === 'store' && (
-              <View style={styles.storeGrid}>
-                {storeItems.map(renderStoreCard)}
-              </View>
-            )}
-            
-            {tab === 'perks' && (
-              <View style={styles.perksGrid}>
-                {perksItems.map(renderPerkCard)}
-              </View>
-            )}
-          </ScrollView>
+            {/* Category Tabs */}
+            <View style={styles.categoryTabsContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.categoryTabs}
+                contentContainerStyle={styles.categoryTabsContent}
+              >
+                {tabs.map(tabItem => {
+                  const Icon = tabItem.icon;
+                  const isSelected = tab === tabItem.id;
+                  return (
+                    <TouchableOpacity
+                      key={tabItem.id}
+                      style={styles.categoryTabWrapper}
+                      onPress={() => setTab(tabItem.id)}
+                      activeOpacity={0.7}
+                    >
+                      <LinearGradient
+                        colors={isSelected 
+                          ? tabItem.colors
+                          : isDarkMode 
+                          ? ['rgba(55, 65, 81, 0.6)', 'rgba(31, 41, 55, 0.7)'] 
+                          : ['rgba(243, 244, 246, 0.8)', 'rgba(229, 231, 235, 0.9)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[styles.categoryTab, isSelected && styles.categoryTabSelected]}
+                      >
+                        <Icon size={16} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#D1D5DB' : '#6B7280')} />
+                        <Text style={[styles.categoryTabText, isSelected && styles.categoryTabTextSelected, !isSelected && isDarkMode && styles.categoryTabTextDark]}>
+                          {tabItem.label}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
-          {/* Footer with Restore Purchases Button */}
-          <View style={[styles.footer, settings.darkMode && styles.footerDark]}>
-            <TouchableOpacity
-              style={styles.restoreButton}
-              onPress={handleRestorePurchases}
-              disabled={iapLoading}
+            {/* Content */}
+            <ScrollView 
+              style={styles.scrollView}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
             >
-              {iapLoading ? (
-                <LoadingSpinner visible size="small" color="#9CA3AF" variant="compact" />
-              ) : (
-                <RefreshCw size={18} color="#6B7280" />
+              {tab === 'upgrades' && (
+                <View style={styles.upgradesGrid}>
+                  {items.map(renderUpgradeCard)}
+                </View>
               )}
-              <Text style={[styles.restoreButtonText, iapLoading && styles.restoreButtonTextDisabled]}>
-                {iapLoading ? 'Restoring...' : 'Restore Purchases'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+              
+              {tab === 'gems' && (
+                <View style={styles.gemPacksGrid}>
+                  {gemPackItems.map(renderGemPackCard)}
+                </View>
+              )}
+              
+              {tab === 'store' && (
+                <View style={styles.storeGrid}>
+                  {storeItems.map(renderStoreCard)}
+                </View>
+              )}
+              
+              {tab === 'perks' && (
+                <View style={styles.perksGrid}>
+                  {perksItems.map(renderPerkCard)}
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Footer with Restore Purchases Button */}
+            <View style={[styles.footer, isDarkMode && styles.footerDark]}>
+              <TouchableOpacity
+                style={styles.restoreButton}
+                onPress={handleRestorePurchases}
+                disabled={iapLoading}
+                activeOpacity={0.7}
+              >
+                {iapLoading ? (
+                  <LoadingSpinner visible size="small" color={isDarkMode ? '#9CA3AF' : '#6B7280'} variant="compact" />
+                ) : (
+                  <RefreshCw size={18} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
+                )}
+                <Text style={[styles.restoreButtonText, iapLoading && styles.restoreButtonTextDisabled, isDarkMode && styles.restoreButtonTextDark]}>
+                  {iapLoading ? 'Restoring...' : 'Restore Purchases'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -906,145 +886,174 @@ export default function GemShopModal({ visible, onClose }: GemShopModalProps) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    padding: responsivePadding.horizontal,
+    padding: scale(12),
+    paddingBottom: scale(40),
   },
-  modal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: responsiveBorderRadius.lg,
-    width: '95%',
-    height: '90%',
-    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalDark: {
-    backgroundColor: '#1F2937',
-  },
-  headerBlur: {
-    borderTopLeftRadius: responsiveBorderRadius.lg,
-    borderTopRightRadius: responsiveBorderRadius.lg,
+  container: {
+    width: '100%',
+    maxWidth: scale(700),
+    height: '85%',
+    maxHeight: '85%',
+    borderRadius: scale(24),
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: scale(20) },
+    shadowOpacity: 0.4,
+    shadowRadius: scale(30),
+    elevation: 20,
   },
-  headerGradient: {
-    padding: responsiveSpacing.lg,
+  content: {
+    flex: 1,
+    borderRadius: scale(24),
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: scale(20),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: scale(12),
   },
-  headerIconContainer: {
-    position: 'relative',
-    marginRight: responsiveSpacing.md,
+  gemBalanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(12),
   },
-  sparkleIcon: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 2,
+  gemIconContainer: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+  },
+  balanceLabel: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: scale(2),
+  },
+  balanceLabelDark: {
+    color: '#9CA3AF',
+  },
+  balanceText: {
+    fontSize: fontScale(24),
+    fontWeight: '800',
+    color: '#1F2937',
+  },
+  balanceTextDark: {
+    color: '#FFFFFF',
   },
   title: {
-    fontSize: responsiveFontSize.xl,
+    fontSize: fontScale(24),
     fontWeight: '700',
     color: '#1F2937',
+    letterSpacing: -0.5,
   },
   titleDark: {
     color: '#FFFFFF',
   },
-  gemBalance: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: responsiveSpacing.xs,
-  },
-  gemBalanceText: {
-    fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
-    marginLeft: responsiveSpacing.xs,
-    fontWeight: '600',
-  },
-  gemBalanceTextDark: {
-    color: '#9CA3AF',
-  },
   closeButton: {
-    padding: responsiveSpacing.sm,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
+    overflow: 'hidden',
   },
-  tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F9FAFB',
+  closeButtonInner: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  closeButtonInnerDark: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  categoryTabsContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
-  tabsContainerDark: {
-    backgroundColor: '#374151',
-    borderBottomColor: '#4B5563',
+  categoryTabs: {
+    maxHeight: scale(70),
   },
-  tab: {
-    flex: 1,
+  categoryTabsContent: {
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(12),
+    gap: scale(10),
+  },
+  categoryTabWrapper: {
+    marginRight: scale(8),
+  },
+  categoryTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.xs,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    gap: scale(8),
+    borderRadius: scale(12),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  activeTab: {
-    borderBottomColor: '#6366F1',
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+  categoryTabSelected: {
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: scale(4) },
+    shadowOpacity: 0.4,
+    shadowRadius: scale(8),
+    elevation: 8,
   },
-  tabText: {
-    fontSize: responsiveFontSize.sm,
+  categoryTabText: {
+    fontSize: fontScale(13),
     fontWeight: '600',
     color: '#6B7280',
-    marginLeft: responsiveSpacing.xs,
-    flexShrink: 1,
-    textAlign: 'center',
   },
-  tabTextDark: {
-    color: '#9CA3AF',
+  categoryTabTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
-  activeTabText: {
-    color: '#6366F1',
+  categoryTabTextDark: {
+    color: '#D1D5DB',
   },
-  content: {
+  scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: responsiveSpacing.lg,
+    padding: scale(20),
+    paddingBottom: scale(40),
   },
   
   // Upgrades Grid
   upgradesGrid: {
-    gap: responsiveSpacing.md,
+    gap: scale(14),
   },
   upgradeCard: {
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: scale(16),
     overflow: 'hidden',
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   upgradeCardDark: {
-    shadowColor: '#6366F1',
-    shadowOpacity: 0.2,
+    // Additional dark mode styles if needed
   },
   upgradeCardGradient: {
-    padding: responsiveSpacing.lg,
+    padding: scale(18),
   },
   upgradeCardContent: {
     flex: 1,
@@ -1052,23 +1061,23 @@ const styles = StyleSheet.create({
   upgradeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.md,
+    marginBottom: scale(12),
   },
   upgradeTitleContainer: {
     flex: 1,
-    marginLeft: responsiveSpacing.md,
+    marginLeft: scale(12),
   },
   upgradeIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   upgradeImage: {
-    width: 32,
-    height: 32,
+    width: scale(32),
+    height: scale(32),
     resizeMode: 'contain',
   },
   upgradeActions: {
@@ -1077,81 +1086,85 @@ const styles = StyleSheet.create({
   },
   permanentBadgeTopLeft: {
     position: 'absolute',
-    top: responsiveSpacing.sm,
-    left: responsiveSpacing.md,
+    top: scale(12),
+    left: scale(18),
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: responsiveSpacing.sm,
+    paddingHorizontal: scale(8),
     paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.sm,
+    borderRadius: scale(6),
     zIndex: 10,
   },
   permanentText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(10),
     fontWeight: '700',
   },
   ownedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    paddingHorizontal: responsiveSpacing.xs,
+    paddingHorizontal: scale(8),
     paddingVertical: 2,
-    borderRadius: responsiveBorderRadius.sm,
+    borderRadius: scale(6),
   },
   ownedText: {
     color: '#10B981',
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(10),
     fontWeight: '700',
     marginLeft: 4,
   },
   upgradeName: {
-    fontSize: responsiveFontSize.lg,
+    fontSize: fontScale(18),
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: responsiveSpacing.xs,
+    marginBottom: scale(4),
   },
   upgradeDescription: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(14),
     color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: responsiveFontSize.sm * 1.4,
+    lineHeight: fontScale(20),
   },
   upgradeCategory: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: responsiveSpacing.sm,
+    paddingHorizontal: scale(8),
     paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.sm,
+    borderRadius: scale(6),
   },
   upgradeCategoryText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(11),
     fontWeight: '600',
   },
   upgradeFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: scale(12),
+    paddingTop: scale(12),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   price: {
-    fontSize: responsiveFontSize.base,
+    fontSize: fontScale(16),
     fontWeight: '700',
-    marginLeft: responsiveSpacing.xs,
+    marginLeft: scale(6),
   },
   buyButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.md,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderRadius: scale(10),
   },
   buyButtonDisabled: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   buyButtonText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(13),
     fontWeight: '600',
   },
   buyButtonTextDisabled: {
@@ -1160,38 +1173,34 @@ const styles = StyleSheet.create({
   
   // Store Grid
   storeGrid: {
-    gap: responsiveSpacing.md,
+    gap: scale(14),
   },
   storeCard: {
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: scale(16),
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   storeCardDark: {
-    shadowColor: '#6366F1',
-    shadowOpacity: 0.2,
+    // Additional dark mode styles if needed
   },
   storeCardGradient: {
-    padding: responsiveSpacing.lg,
+    padding: scale(18),
     position: 'relative',
   },
   savingsBadgeTopLeft: {
     position: 'absolute',
-    top: responsiveSpacing.sm,
-    left: responsiveSpacing.md,
+    top: scale(12),
+    left: scale(18),
     backgroundColor: '#EF4444',
-    paddingHorizontal: responsiveSpacing.sm,
+    paddingHorizontal: scale(8),
     paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.sm,
+    borderRadius: scale(6),
     zIndex: 10,
   },
   savingsText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(10),
     fontWeight: '700',
   },
   storeCardContent: {
@@ -1200,38 +1209,38 @@ const styles = StyleSheet.create({
   storeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.md,
+    marginBottom: scale(12),
   },
   storeIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: responsiveSpacing.md,
+    marginRight: scale(12),
   },
   storeTitleContainer: {
     flex: 1,
   },
   storeName: {
-    fontSize: responsiveFontSize.xl,
+    fontSize: fontScale(18),
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: responsiveSpacing.xs,
+    marginBottom: scale(4),
   },
   storeDescription: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(14),
     color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: responsiveSpacing.xs,
+    marginBottom: scale(4),
   },
   storeImage: {
-    width: 48,
-    height: 48,
+    width: scale(48),
+    height: scale(48),
     resizeMode: 'contain',
   },
   storeFeatures: {
-    marginTop: responsiveSpacing.xs,
+    marginTop: scale(4),
   },
   featureItem: {
     flexDirection: 'row',
@@ -1240,58 +1249,58 @@ const styles = StyleSheet.create({
   },
   featureText: {
     color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: responsiveFontSize.xs,
-    marginLeft: responsiveSpacing.xs,
+    fontSize: fontScale(12),
+    marginLeft: scale(6),
   },
   storeFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: scale(12),
+    paddingTop: scale(12),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   storePriceContainer: {
     flex: 1,
   },
   originalPrice: {
     color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(12),
     textDecorationLine: 'line-through',
   },
   storePrice: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize['2xl'],
+    fontSize: fontScale(20),
     fontWeight: '700',
   },
   storeBuyButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: responsiveSpacing.lg,
-    paddingVertical: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.md,
+    paddingHorizontal: scale(18),
+    paddingVertical: scale(10),
+    borderRadius: scale(10),
   },
   storeBuyButtonText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.base,
+    fontSize: fontScale(13),
     fontWeight: '600',
   },
   
   // Perks Grid
   perksGrid: {
-    gap: responsiveSpacing.md,
+    gap: scale(14),
   },
   perkCard: {
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: scale(16),
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   perkCardDark: {
-    shadowColor: '#6366F1',
-    shadowOpacity: 0.2,
+    // Additional dark mode styles if needed
   },
   perkCardGradient: {
-    padding: responsiveSpacing.lg,
+    padding: scale(18),
   },
   perkCardContent: {
     flex: 1,
@@ -1299,131 +1308,131 @@ const styles = StyleSheet.create({
   perkHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.md,
+    marginBottom: scale(12),
   },
   perkTitleContainer: {
     flex: 1,
   },
   perkIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: responsiveSpacing.md,
+    marginRight: scale(12),
   },
   perkImage: {
-    width: 48,
-    height: 48,
+    width: scale(48),
+    height: scale(48),
     resizeMode: 'contain',
   },
   perkOwnedBadgeTopRight: {
     position: 'absolute',
-    top: responsiveSpacing.sm,
-    right: responsiveSpacing.md,
+    top: scale(12),
+    right: scale(18),
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    paddingHorizontal: responsiveSpacing.xs,
+    paddingHorizontal: scale(8),
     paddingVertical: 2,
-    borderRadius: responsiveBorderRadius.sm,
+    borderRadius: scale(6),
     zIndex: 10,
   },
   perkOwnedText: {
     color: '#10B981',
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(10),
     fontWeight: '700',
     marginLeft: 4,
   },
   perkName: {
-    fontSize: responsiveFontSize.xl,
+    fontSize: fontScale(18),
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: responsiveSpacing.xs,
+    marginBottom: scale(4),
   },
   perkDescription: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(14),
     color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: responsiveFontSize.sm * 1.4,
+    lineHeight: fontScale(20),
   },
   perkFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: scale(12),
+    paddingTop: scale(12),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   perkPrice: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize['2xl'],
+    fontSize: fontScale(20),
     fontWeight: '700',
     flex: 1,
   },
   perkBuyButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: responsiveSpacing.lg,
-    paddingVertical: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.md,
+    paddingHorizontal: scale(18),
+    paddingVertical: scale(10),
+    borderRadius: scale(10),
   },
   perkBuyButtonText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.base,
+    fontSize: fontScale(13),
     fontWeight: '600',
   },
   
   // Gem Packs Grid
   gemPacksGrid: {
-    gap: responsiveSpacing.md,
+    gap: scale(14),
   },
   gemPackCard: {
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: scale(16),
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   gemPackCardDark: {
-    shadowColor: '#6366F1',
-    shadowOpacity: 0.2,
+    // Additional dark mode styles if needed
   },
   gemPackCardGradient: {
-    padding: responsiveSpacing.lg,
+    padding: scale(18),
     position: 'relative',
   },
   popularBadgeTopLeft: {
     position: 'absolute',
-    top: responsiveSpacing.sm,
-    left: responsiveSpacing.md,
+    top: scale(12),
+    left: scale(18),
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#8B5CF6',
-    paddingHorizontal: responsiveSpacing.sm,
+    paddingHorizontal: scale(8),
     paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.sm,
+    borderRadius: scale(6),
     zIndex: 10,
   },
   popularText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(10),
     fontWeight: '700',
     marginLeft: 4,
   },
   bestValueBadgeTopLeft: {
     position: 'absolute',
-    top: responsiveSpacing.sm,
-    left: responsiveSpacing.md,
+    top: scale(12),
+    left: scale(18),
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F59E0B',
-    paddingHorizontal: responsiveSpacing.sm,
+    paddingHorizontal: scale(8),
     paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.sm,
+    borderRadius: scale(6),
     zIndex: 10,
   },
   bestValueText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(10),
     fontWeight: '700',
     marginLeft: 4,
   },
@@ -1433,49 +1442,53 @@ const styles = StyleSheet.create({
   gemPackHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.md,
+    marginBottom: scale(12),
   },
   gemPackIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: responsiveSpacing.md,
+    marginRight: scale(12),
   },
   gemPackImageIcon: {
-    width: 48,
-    height: 48,
+    width: scale(48),
+    height: scale(48),
     resizeMode: 'contain',
   },
   gemPackInfo: {
     flex: 1,
   },
   gemPackName: {
-    fontSize: responsiveFontSize.xl,
+    fontSize: fontScale(18),
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: responsiveSpacing.xs,
+    marginBottom: scale(4),
   },
   gemPackDescription: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(14),
     color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: responsiveFontSize.sm * 1.4,
+    lineHeight: fontScale(20),
   },
   gemPackFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: scale(12),
+    paddingTop: scale(12),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   gemPackPriceContainer: {
     flex: 1,
   },
   gemPackPrice: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize['2xl'],
+    fontSize: fontScale(20),
     fontWeight: '700',
-    marginBottom: responsiveSpacing.xs,
+    marginBottom: scale(4),
   },
   gemPackGemsDisplay: {
     flexDirection: 'row',
@@ -1483,19 +1496,19 @@ const styles = StyleSheet.create({
   },
   gemPackGemsText: {
     color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(12),
     fontWeight: '600',
-    marginLeft: responsiveSpacing.xs,
+    marginLeft: scale(6),
   },
   gemPackBuyButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: responsiveSpacing.lg,
-    paddingVertical: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.md,
+    paddingHorizontal: scale(18),
+    paddingVertical: scale(10),
+    borderRadius: scale(10),
   },
   gemPackBuyButtonText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.base,
+    fontSize: fontScale(13),
     fontWeight: '600',
   },
   storeBuyButtonDisabled: {
@@ -1513,30 +1526,33 @@ const styles = StyleSheet.create({
   
   // Footer and Restore Button
   footer: {
-    paddingHorizontal: responsivePadding.large,
-    paddingVertical: responsivePadding.medium,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(16),
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   footerDark: {
-    borderTopColor: '#374151',
-    backgroundColor: '#1F2937',
+    // Additional dark mode styles if needed
   },
   restoreButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: responsivePadding.small,
-    gap: responsiveSpacing.sm,
+    paddingVertical: scale(12),
+    gap: scale(8),
   },
   restoreButtonText: {
     color: '#6B7280',
-    fontSize: responsiveFontSize.sm,
+    fontSize: fontScale(14),
     fontWeight: '500',
-    marginLeft: responsiveSpacing.xs,
   },
   restoreButtonTextDisabled: {
     color: '#9CA3AF',
   },
+  restoreButtonTextDark: {
+    color: '#9CA3AF',
+  },
 });
+
+export default React.memo(GemShopModal);
+

@@ -1,5 +1,5 @@
 /**
- * Travel App Component
+ * Travel App Component - Beautiful Modern Redesign
  * 
  * Complete travel booking platform with destinations, trips, business opportunities, and travel history
  */
@@ -13,7 +13,9 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import {
   ArrowLeft,
   Plane,
@@ -29,6 +31,9 @@ import {
   XCircle,
   Brain,
   Wind,
+  Sparkles,
+  TrendingUp,
+  Star,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
@@ -61,7 +66,8 @@ export default function TravelApp({ onBack }: TravelAppProps) {
   const ownsPassport = travel.passportOwned || passportItem?.owned || false;
 
   const currentTrip = travel.currentTrip;
-  const weeksUntilReturn = currentTrip ? Math.max(0, currentTrip.returnWeek - gameState.week) : 0;
+  const currentAbsoluteWeek = gameState.weeksLived || 0;
+  const weeksUntilReturn = currentTrip ? Math.max(0, (currentTrip.returnWeek || 0) - currentAbsoluteWeek) : 0;
 
   // Get transportation policy effects
   const transportPolicyEffects = gameState.politics?.activePolicyEffects?.transportation;
@@ -76,10 +82,10 @@ export default function TravelApp({ onBack }: TravelAppProps) {
   const availableDestinations = useMemo(() => {
     return DESTINATIONS.filter(dest => {
       if (dest.requirements) {
-        if (dest.requirements.items?.includes('passport') && !ownsPassport) {
+        if ('items' in dest.requirements && dest.requirements.items?.includes('passport') && !ownsPassport) {
           return false;
         }
-        if (dest.requirements.money && gameState.stats.money < dest.requirements.money) {
+        if ('money' in dest.requirements && dest.requirements.money && gameState.stats.money < dest.requirements.money) {
           return false;
         }
         if (dest.requirements.happiness && gameState.stats.happiness < dest.requirements.happiness) {
@@ -126,7 +132,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         },
       ]
     );
-  }, [gameState, setGameState, currentTrip]);
+  }, [gameState, setGameState, currentTrip, getAdjustedTravelCost, saveGame]);
 
   const handleReturn = useCallback(() => {
     if (!currentTrip) return;
@@ -154,7 +160,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         },
       ]
     );
-  }, [gameState, setGameState, currentTrip]);
+  }, [gameState, setGameState, currentTrip, saveGame]);
 
   const handlePurchasePassport = useCallback(() => {
     if (ownsPassport) {
@@ -220,117 +226,168 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
   const renderDestinations = () => {
     return (
-      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={true}>
+      <ScrollView 
+        style={styles.tabContent} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {!ownsPassport && (
-          <TouchableOpacity
-            style={[styles.passportCard, settings.darkMode && styles.passportCardDark]}
-            onPress={handlePurchasePassport}
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'timing', duration: 400 }}
           >
-            <LinearGradient
-              colors={settings.darkMode ? ['#1E40AF', '#1E3A8A'] : ['#3B82F6', '#2563EB']}
-              style={styles.passportGradient}
-            >
-              <Globe size={24} color="#FFF" />
-              <View style={styles.passportContent}>
-                <Text style={styles.passportTitle}>Purchase Passport</Text>
-                <Text style={styles.passportDescription}>
-                  Unlock international destinations for $500
-                </Text>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-
-        <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
-          Available Destinations
-        </Text>
-
-        {availableDestinations.map((dest) => {
-          const isVisited = travel.visitedDestinations.includes(dest.id);
-          return (
             <TouchableOpacity
-              key={dest.id}
-              style={[styles.destinationCard, settings.darkMode && styles.destinationCardDark]}
-              onPress={() => handleTravel(dest)}
-              disabled={!!currentTrip}
+              style={styles.passportCard}
+              onPress={handlePurchasePassport}
+              activeOpacity={0.8}
             >
               <LinearGradient
-                colors={settings.darkMode ? ['#374151', '#1F2937'] : ['#F9FAFB', '#F3F4F6']}
-                style={styles.cardGradient}
+                colors={['#6366F1', '#4F46E5', '#4338CA']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.passportGradient}
               >
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardHeaderLeft}>
-                    <Text style={[styles.destName, settings.darkMode && styles.destNameDark]}>
-                      {dest.name}
-                    </Text>
-                    <View style={styles.locationRow}>
-                      <MapPin size={14} color={settings.darkMode ? '#FFFFFF' : '#6B7280'} />
-                      <Text style={[styles.destCountry, settings.darkMode && styles.destCountryDark]}>
-                        {dest.country}
-                      </Text>
-                      {dest.requirements?.items?.includes('passport') && !ownsPassport && (
-                        <Globe size={14} color="#F59E0B" style={{ marginLeft: 8 }} />
-                      )}
-                      {isVisited && (
-                        <CheckCircle size={14} color="#10B981" style={{ marginLeft: 8 }} />
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.priceTag}>
-                    <Text style={styles.priceText}>
-                      ${getAdjustedTravelCost(dest.cost).toLocaleString()}
-                      {getAdjustedTravelCost(dest.cost) < dest.cost && (
-                        <Text style={styles.discountText}> (was ${dest.cost.toLocaleString()})</Text>
-                      )}
-                    </Text>
-                  </View>
+                <View style={styles.passportIconContainer}>
+                  <Globe size={32} color="#FFF" />
+                  <Sparkles size={20} color="#FCD34D" style={styles.sparkleIcon} />
                 </View>
-
-                <Text style={[styles.description, settings.darkMode && styles.descriptionDark]}>
-                  {dest.description}
-                </Text>
-
-                <View style={styles.benefitsRow}>
-                  {dest.benefits.happiness > 0 && (
-                    <View style={styles.benefit}>
-                      <Heart size={14} color="#EF4444" />
-                      <Text style={styles.benefitText}>+{dest.benefits.happiness}</Text>
-                    </View>
-                  )}
-                  {dest.benefits.health > 0 && (
-                    <View style={styles.benefit}>
-                      <Battery size={14} color="#10B981" />
-                      <Text style={styles.benefitText}>+{dest.benefits.health}</Text>
-                    </View>
-                  )}
-                  {dest.benefits.energy > 0 && (
-                    <View style={styles.benefit}>
-                      <Zap size={14} color="#F59E0B" />
-                      <Text style={styles.benefitText}>+{dest.benefits.energy}</Text>
-                    </View>
-                  )}
-                  {dest.benefits.intelligence && dest.benefits.intelligence > 0 && (
-                    <View style={styles.benefit}>
-                      <Brain size={14} color="#8B5CF6" />
-                      <Text style={styles.benefitText}>+{dest.benefits.intelligence}</Text>
-                    </View>
-                  )}
-                  {dest.benefits.stress && dest.benefits.stress < 0 && (
-                    <View style={styles.benefit}>
-                      <Wind size={14} color="#06B6D4" />
-                      <Text style={styles.benefitText}>Stress: {dest.benefits.stress}</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.durationRow}>
-                  <Clock size={12} color={settings.darkMode ? '#FFFFFF' : '#6B7280'} />
-                  <Text style={[styles.durationText, settings.darkMode && styles.durationTextDark]}>
-                    {dest.duration} week{dest.duration > 1 ? 's' : ''}
+                <View style={styles.passportContent}>
+                  <Text style={styles.passportTitle}>Unlock World Travel</Text>
+                  <Text style={styles.passportDescription}>
+                    Purchase a passport for $500 to access international destinations
                   </Text>
+                  <View style={styles.passportPrice}>
+                    <Text style={styles.passportPriceText}>$500</Text>
+                  </View>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
+          </MotiView>
+        )}
+
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+            Explore Destinations
+          </Text>
+          <Text style={[styles.sectionSubtitle, settings.darkMode && styles.sectionSubtitleDark]}>
+            {availableDestinations.length} destinations available
+          </Text>
+        </View>
+
+        {availableDestinations.map((dest, index) => {
+          const isVisited = travel.visitedDestinations.includes(dest.id);
+          const adjustedCost = getAdjustedTravelCost(dest.cost);
+          const hasDiscount = adjustedCost < dest.cost;
+          
+          return (
+            <MotiView
+              key={dest.id}
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 400, delay: index * 50 }}
+            >
+              <TouchableOpacity
+                style={[styles.destinationCard, settings.darkMode && styles.destinationCardDark]}
+                onPress={() => handleTravel(dest)}
+                disabled={!!currentTrip}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={settings.darkMode 
+                    ? ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.9)']
+                    : ['rgba(255, 255, 255, 0.95)', 'rgba(249, 250, 251, 0.95)']
+                  }
+                  style={styles.cardGradient}
+                >
+                  <View style={styles.cardHeader}>
+                    <View style={styles.cardHeaderLeft}>
+                      <View style={styles.destNameRow}>
+                        <Text style={[styles.destName, settings.darkMode && styles.destNameDark]}>
+                          {dest.name}
+                        </Text>
+                        {isVisited && (
+                          <View style={styles.visitedBadge}>
+                            <CheckCircle size={14} color="#10B981" />
+                            <Text style={styles.visitedText}>Visited</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.locationRow}>
+                        <MapPin size={14} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+                        <Text style={[styles.destCountry, settings.darkMode && styles.destCountryDark]}>
+                          {dest.country}
+                        </Text>
+                        {dest.requirements?.items?.includes('passport') && !ownsPassport && (
+                          <View style={styles.passportRequired}>
+                            <Globe size={12} color="#F59E0B" />
+                            <Text style={styles.passportRequiredText}>Passport</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <View style={[styles.priceTag, hasDiscount && styles.priceTagDiscount]}>
+                      <Text style={styles.priceText}>
+                        ${adjustedCost.toLocaleString()}
+                      </Text>
+                      {hasDiscount && (
+                        <Text style={styles.discountBadge}>SAVE</Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <Text style={[styles.description, settings.darkMode && styles.descriptionDark]}>
+                    {dest.description}
+                  </Text>
+
+                  <View style={styles.benefitsContainer}>
+                    {dest.benefits.happiness > 0 && (
+                      <View style={[styles.benefitBadge, styles.benefitHappiness]}>
+                        <Heart size={12} color="#EF4444" />
+                        <Text style={styles.benefitText}>+{dest.benefits.happiness}</Text>
+                      </View>
+                    )}
+                    {dest.benefits.health > 0 && (
+                      <View style={[styles.benefitBadge, styles.benefitHealth]}>
+                        <Battery size={12} color="#10B981" />
+                        <Text style={styles.benefitText}>+{dest.benefits.health}</Text>
+                      </View>
+                    )}
+                    {dest.benefits.energy > 0 && (
+                      <View style={[styles.benefitBadge, styles.benefitEnergy]}>
+                        <Zap size={12} color="#F59E0B" />
+                        <Text style={styles.benefitText}>+{dest.benefits.energy}</Text>
+                      </View>
+                    )}
+                    {dest.benefits.intelligence && dest.benefits.intelligence > 0 && (
+                      <View style={[styles.benefitBadge, styles.benefitIntelligence]}>
+                        <Brain size={12} color="#8B5CF6" />
+                        <Text style={styles.benefitText}>+{dest.benefits.intelligence}</Text>
+                      </View>
+                    )}
+                    {dest.benefits.stress && dest.benefits.stress < 0 && (
+                      <View style={[styles.benefitBadge, styles.benefitStress]}>
+                        <Wind size={12} color="#06B6D4" />
+                        <Text style={styles.benefitText}>{dest.benefits.stress}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.cardFooter}>
+                    <View style={styles.durationBadge}>
+                      <Clock size={12} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                      <Text style={[styles.durationText, settings.darkMode && styles.durationTextDark]}>
+                        {dest.duration} week{dest.duration > 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.bookButton}>
+                      <Text style={styles.bookButtonText}>Book Now</Text>
+                      <Plane size={14} color="#FFF" style={{ marginLeft: 6 }} />
+                    </View>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </MotiView>
           );
         })}
       </ScrollView>
@@ -341,9 +398,17 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (!currentTrip) {
       return (
         <View style={styles.emptyState}>
-          <Plane size={48} color={settings.darkMode ? '#FFFFFF' : '#9CA3AF'} />
+          <MotiView
+            from={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 10 }}
+          >
+            <View style={styles.emptyIconContainer}>
+              <Plane size={64} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+            </View>
+          </MotiView>
           <Text style={[styles.emptyStateText, settings.darkMode && styles.emptyStateTextDark]}>
-            No active trips
+            No Active Trips
           </Text>
           <Text style={[styles.emptyStateSubtext, settings.darkMode && styles.emptyStateSubtextDark]}>
             Book a destination to start your journey!
@@ -355,45 +420,68 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const destination = DESTINATIONS.find(d => d.id === currentTrip.destinationId);
 
     return (
-      <ScrollView style={styles.tabContent}>
-        <View style={[styles.tripCard, settings.darkMode && styles.tripCardDark]}>
-          <LinearGradient
-            colors={settings.darkMode ? ['#1E40AF', '#1E3A8A'] : ['#3B82F6', '#2563EB']}
-            style={styles.tripGradient}
-          >
-            <View style={styles.tripHeader}>
-              <Plane size={32} color="#FFF" />
-              <View style={styles.tripInfo}>
-                <Text style={styles.tripDestination}>{destination?.name || 'Unknown'}</Text>
-                <Text style={styles.tripLocation}>{destination?.country || ''}</Text>
-              </View>
-            </View>
-
-            <View style={styles.tripDetails}>
-              <View style={styles.tripDetailRow}>
-                <Clock size={16} color="#FFF" />
-                <Text style={styles.tripDetailText}>
-                  {weeksUntilReturn} week{weeksUntilReturn !== 1 ? 's' : ''} until return
-                </Text>
-              </View>
-              <View style={styles.tripDetailRow}>
-                <Text style={styles.tripDetailLabel}>Started:</Text>
-                <Text style={styles.tripDetailText}>Week {currentTrip.startWeek}</Text>
-              </View>
-              <View style={styles.tripDetailRow}>
-                <Text style={styles.tripDetailLabel}>Returns:</Text>
-                <Text style={styles.tripDetailText}>Week {currentTrip.returnWeek}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.returnButton}
-              onPress={handleReturn}
+      <ScrollView style={styles.tabContent} contentContainerStyle={styles.scrollContent}>
+        <MotiView
+          from={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15 }}
+        >
+          <View style={styles.tripCard}>
+            <LinearGradient
+              colors={['#6366F1', '#4F46E5', '#4338CA']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.tripGradient}
             >
-              <Text style={styles.returnButtonText}>Return Early</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
+              <View style={styles.tripHeader}>
+                <View style={styles.tripIconContainer}>
+                  <Plane size={40} color="#FFF" />
+                </View>
+                <View style={styles.tripInfo}>
+                  <Text style={styles.tripDestination}>{destination?.name || 'Unknown'}</Text>
+                  <View style={styles.tripLocationRow}>
+                    <MapPin size={14} color="#E0E7FF" />
+                    <Text style={styles.tripLocation}>{destination?.country || ''}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.tripDetails}>
+                <View style={styles.tripDetailCard}>
+                  <Clock size={20} color="#E0E7FF" />
+                  <View style={styles.tripDetailContent}>
+                    <Text style={styles.tripDetailLabel}>Time Remaining</Text>
+                    <Text style={styles.tripDetailValue}>
+                      {weeksUntilReturn} week{weeksUntilReturn !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.tripDetailCard}>
+                  <Star size={20} color="#FCD34D" />
+                  <View style={styles.tripDetailContent}>
+                    <Text style={styles.tripDetailLabel}>Started</Text>
+                    <Text style={styles.tripDetailValue}>Week {currentTrip.startWeek}</Text>
+                  </View>
+                </View>
+                <View style={styles.tripDetailCard}>
+                  <TrendingUp size={20} color="#10B981" />
+                  <View style={styles.tripDetailContent}>
+                    <Text style={styles.tripDetailLabel}>Returns</Text>
+                    <Text style={styles.tripDetailValue}>Week {currentTrip.returnWeek}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.returnButton}
+                onPress={handleReturn}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.returnButtonText}>Return Early</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </MotiView>
       </ScrollView>
     );
   };
@@ -404,9 +492,17 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (opportunities.length === 0) {
       return (
         <View style={styles.emptyState}>
-          <Briefcase size={48} color={settings.darkMode ? '#FFFFFF' : '#9CA3AF'} />
+          <MotiView
+            from={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 10 }}
+          >
+            <View style={styles.emptyIconContainer}>
+              <Briefcase size={64} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+            </View>
+          </MotiView>
           <Text style={[styles.emptyStateText, settings.darkMode && styles.emptyStateTextDark]}>
-            No business opportunities yet
+            No Business Opportunities Yet
           </Text>
           <Text style={[styles.emptyStateSubtext, settings.darkMode && styles.emptyStateSubtextDark]}>
             Visit destinations to unlock business opportunities!
@@ -416,64 +512,89 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     }
 
     return (
-      <ScrollView style={styles.tabContent}>
-        {opportunities.map((opp) => (
-          <View
+      <ScrollView style={styles.tabContent} contentContainerStyle={styles.scrollContent}>
+        {opportunities.map((opp, index) => (
+          <MotiView
             key={opp.id}
-            style={[styles.businessCard, settings.darkMode && styles.businessCardDark]}
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 400, delay: index * 100 }}
           >
-            <LinearGradient
-              colors={settings.darkMode ? ['#374151', '#1F2937'] : ['#F9FAFB', '#F3F4F6']}
-              style={styles.cardGradient}
-            >
-              <View style={styles.businessHeader}>
-                <Briefcase size={20} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
-                <Text style={[styles.businessName, settings.darkMode && styles.businessNameDark]}>
-                  {opp.name}
+            <View style={[styles.businessCard, settings.darkMode && styles.businessCardDark]}>
+              <LinearGradient
+                colors={settings.darkMode 
+                  ? ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.9)']
+                  : ['rgba(255, 255, 255, 0.95)', 'rgba(249, 250, 251, 0.95)']
+                }
+                style={styles.cardGradient}
+              >
+                <View style={styles.businessHeader}>
+                  <View style={styles.businessIconContainer}>
+                    <Briefcase size={24} color="#3B82F6" />
+                  </View>
+                  <View style={styles.businessHeaderText}>
+                    <Text style={[styles.businessName, settings.darkMode && styles.businessNameDark]}>
+                      {opp.name}
+                    </Text>
+                    {opp.invested && (
+                      <View style={styles.investedBadge}>
+                        <CheckCircle size={14} color="#10B981" />
+                        <Text style={styles.investedText}>Invested</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <Text style={[styles.businessDescription, settings.darkMode && styles.businessDescriptionDark]}>
+                  {opp.description}
                 </Text>
-              </View>
-              <Text style={[styles.businessDescription, settings.darkMode && styles.businessDescriptionDark]}>
-                {opp.description}
-              </Text>
-              <View style={styles.businessStats}>
-                <View style={styles.businessStat}>
-                  <Text style={[styles.businessStatLabel, settings.darkMode && styles.businessStatLabelDark]}>
-                    Investment:
-                  </Text>
-                  <Text style={[styles.businessStatValue, settings.darkMode && styles.businessStatValueDark]}>
-                    ${opp.cost.toLocaleString()}
-                  </Text>
+                <View style={styles.businessStats}>
+                  <View style={styles.businessStatCard}>
+                    <Text style={[styles.businessStatLabel, settings.darkMode && styles.businessStatLabelDark]}>
+                      Investment
+                    </Text>
+                    <Text style={[styles.businessStatValue, settings.darkMode && styles.businessStatValueDark]}>
+                      ${opp.cost.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.businessStatCard}>
+                    <Text style={[styles.businessStatLabel, settings.darkMode && styles.businessStatLabelDark]}>
+                      Weekly Income
+                    </Text>
+                    <Text style={[styles.businessStatValue, styles.businessStatValueIncome, settings.darkMode && styles.businessStatValueDark]}>
+                      ${opp.weeklyIncome.toLocaleString()}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.businessStat}>
-                  <Text style={[styles.businessStatLabel, settings.darkMode && styles.businessStatLabelDark]}>
-                    Weekly Income:
-                  </Text>
-                  <Text style={[styles.businessStatValue, settings.darkMode && styles.businessStatValueDark]}>
-                    ${opp.weeklyIncome.toLocaleString()}
-                  </Text>
-                </View>
-              </View>
-              {opp.invested ? (
-                <View style={styles.investedBadge}>
-                  <CheckCircle size={16} color="#10B981" />
-                  <Text style={styles.investedText}>Invested</Text>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.investButton, gameState.stats.money < opp.cost && styles.investButtonDisabled]}
-                  onPress={() => handleInvestInOpportunity(opp.id)}
-                  disabled={gameState.stats.money < opp.cost}
-                >
-                  <LinearGradient
-                    colors={gameState.stats.money < opp.cost ? ['#9CA3AF', '#6B7280'] : ['#10B981', '#059669']}
-                    style={styles.investButtonGradient}
+                {opp.invested ? (
+                  <View style={styles.investedContainer}>
+                    <LinearGradient
+                      colors={['#10B981', '#059669']}
+                      style={styles.investedContainerGradient}
+                    >
+                      <CheckCircle size={20} color="#FFF" />
+                      <Text style={styles.investedContainerText}>Already Invested</Text>
+                    </LinearGradient>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.investButton, gameState.stats.money < opp.cost && styles.investButtonDisabled]}
+                    onPress={() => handleInvestInOpportunity(opp.id)}
+                    disabled={gameState.stats.money < opp.cost}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.investButtonText}>Invest ${opp.cost.toLocaleString()}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )}
-            </LinearGradient>
-          </View>
+                    <LinearGradient
+                      colors={gameState.stats.money < opp.cost ? ['#9CA3AF', '#6B7280'] : ['#10B981', '#059669']}
+                      style={styles.investButtonGradient}
+                    >
+                      <Text style={styles.investButtonText}>
+                        Invest ${opp.cost.toLocaleString()}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              </LinearGradient>
+            </View>
+          </MotiView>
         ))}
       </ScrollView>
     );
@@ -483,9 +604,17 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (travel.travelHistory.length === 0) {
       return (
         <View style={styles.emptyState}>
-          <History size={48} color={settings.darkMode ? '#FFFFFF' : '#9CA3AF'} />
+          <MotiView
+            from={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 10 }}
+          >
+            <View style={styles.emptyIconContainer}>
+              <History size={64} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+            </View>
+          </MotiView>
           <Text style={[styles.emptyStateText, settings.darkMode && styles.emptyStateTextDark]}>
-            No travel history
+            No Travel History
           </Text>
           <Text style={[styles.emptyStateSubtext, settings.darkMode && styles.emptyStateSubtextDark]}>
             Your travel history will appear here after you visit destinations.
@@ -495,35 +624,46 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     }
 
     return (
-      <ScrollView style={styles.tabContent}>
+      <ScrollView style={styles.tabContent} contentContainerStyle={styles.scrollContent}>
         {travel.travelHistory
           .slice()
           .reverse()
           .map((trip, index) => {
             const destination = DESTINATIONS.find(d => d.id === trip.destinationId);
             return (
-              <View
+              <MotiView
                 key={`${trip.destinationId}-${trip.week}-${index}`}
-                style={[styles.historyCard, settings.darkMode && styles.historyCardDark]}
+                from={{ opacity: 0, translateX: -20 }}
+                animate={{ opacity: 1, translateX: 0 }}
+                transition={{ type: 'timing', duration: 400, delay: index * 50 }}
               >
-                <LinearGradient
-                  colors={settings.darkMode ? ['#374151', '#1F2937'] : ['#F9FAFB', '#F3F4F6']}
-                  style={styles.cardGradient}
-                >
-                  <View style={styles.historyHeader}>
-                    <MapPin size={16} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
-                    <Text style={[styles.historyDestination, settings.darkMode && styles.historyDestinationDark]}>
-                      {destination?.name || 'Unknown'}
-                    </Text>
-                  </View>
-                  <Text style={[styles.historyLocation, settings.darkMode && styles.historyLocationDark]}>
-                    {destination?.country || ''}
-                  </Text>
-                  <Text style={[styles.historyDate, settings.darkMode && styles.historyDateDark]}>
-                    Week {trip.week}, {trip.year}
-                  </Text>
-                </LinearGradient>
-              </View>
+                <View style={[styles.historyCard, settings.darkMode && styles.historyCardDark]}>
+                  <LinearGradient
+                    colors={settings.darkMode 
+                      ? ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.9)']
+                      : ['rgba(255, 255, 255, 0.95)', 'rgba(249, 250, 251, 0.95)']
+                    }
+                    style={styles.cardGradient}
+                  >
+                    <View style={styles.historyHeader}>
+                      <View style={styles.historyIconContainer}>
+                        <MapPin size={20} color="#3B82F6" />
+                      </View>
+                      <View style={styles.historyContent}>
+                        <Text style={[styles.historyDestination, settings.darkMode && styles.historyDestinationDark]}>
+                          {destination?.name || 'Unknown'}
+                        </Text>
+                        <Text style={[styles.historyLocation, settings.darkMode && styles.historyLocationDark]}>
+                          {destination?.country || ''}
+                        </Text>
+                        <Text style={[styles.historyDate, settings.darkMode && styles.historyDateDark]}>
+                          Week {trip.week}, {trip.year}
+                        </Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </View>
+              </MotiView>
             );
           })}
       </ScrollView>
@@ -532,82 +672,51 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
   return (
     <LinearGradient
-      colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
+      colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F8FAFC', '#FFFFFF', '#F1F5F9']}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+      <View style={[styles.header, settings.darkMode && styles.headerDark]}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
           <ArrowLeft size={24} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Plane size={28} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+          <View style={styles.headerIconContainer}>
+            <Plane size={28} color={settings.darkMode ? '#60A5FA' : '#3B82F6'} />
+          </View>
           <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
             Travel Agency
           </Text>
         </View>
       </View>
 
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'destinations' && styles.activeTab]}
-          onPress={() => setActiveTab('destinations')}
-        >
-          <Globe size={18} color={activeTab === 'destinations' ? '#3B82F6' : (settings.darkMode ? '#FFFFFF' : '#6B7280')} />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'destinations' && styles.activeTabText,
-              settings.darkMode && styles.tabTextDark,
-            ]}
-          >
-            Destinations
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'trips' && styles.activeTab]}
-          onPress={() => setActiveTab('trips')}
-        >
-          <Plane size={18} color={activeTab === 'trips' ? '#3B82F6' : (settings.darkMode ? '#FFFFFF' : '#6B7280')} />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'trips' && styles.activeTabText,
-              settings.darkMode && styles.tabTextDark,
-            ]}
-          >
-            My Trips
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'business' && styles.activeTab]}
-          onPress={() => setActiveTab('business')}
-        >
-          <Briefcase size={18} color={activeTab === 'business' ? '#3B82F6' : (settings.darkMode ? '#FFFFFF' : '#6B7280')} />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'business' && styles.activeTabText,
-              settings.darkMode && styles.tabTextDark,
-            ]}
-          >
-            Business
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'history' && styles.activeTab]}
-          onPress={() => setActiveTab('history')}
-        >
-          <History size={18} color={activeTab === 'history' ? '#3B82F6' : (settings.darkMode ? '#FFFFFF' : '#6B7280')} />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'history' && styles.activeTabText,
-              settings.darkMode && styles.tabTextDark,
-            ]}
-          >
-            History
-          </Text>
-        </TouchableOpacity>
+      <View style={[styles.tabs, settings.darkMode && styles.tabsDark]}>
+        {(['destinations', 'trips', 'business', 'history'] as TabType[]).map((tab) => {
+          const icons = {
+            destinations: Globe,
+            trips: Plane,
+            business: Briefcase,
+            history: History,
+          };
+          const Icon = icons[tab];
+          const isActive = activeTab === tab;
+          
+          return (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, isActive && styles.activeTab]}
+              onPress={() => setActiveTab(tab)}
+              activeOpacity={0.7}
+            >
+              <Icon 
+                size={24} 
+                color={isActive 
+                  ? '#3B82F6' 
+                  : (settings.darkMode ? '#9CA3AF' : '#6B7280')
+                } 
+              />
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {activeTab === 'destinations' && renderDestinations()}
@@ -625,23 +734,38 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: scale(16),
+    paddingHorizontal: scale(20),
     paddingTop: scale(16),
-    paddingBottom: scale(12),
+    paddingBottom: scale(16),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  headerDark: {
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   backButton: {
     marginRight: scale(12),
+    padding: scale(4),
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  headerIconContainer: {
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(12),
+  },
   headerTitle: {
-    fontSize: fontScale(24),
-    fontWeight: 'bold',
-    marginLeft: scale(12),
+    fontSize: fontScale(28),
+    fontWeight: '700',
     color: '#111827',
+    letterSpacing: -0.5,
   },
   headerTitleDark: {
     color: '#F9FAFB',
@@ -651,198 +775,316 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(16),
     paddingVertical: scale(8),
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    gap: scale(8),
+  },
+  tabsDark: {
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: scale(8),
-    paddingHorizontal: scale(8),
-    borderRadius: scale(8),
-    marginHorizontal: scale(4),
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(16),
+    borderRadius: scale(12),
   },
   activeTab: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
   },
   tabText: {
-    fontSize: fontScale(12),
-    marginLeft: scale(4),
+    fontSize: fontScale(13),
+    fontWeight: '600',
     color: '#6B7280',
   },
   tabTextDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    color: '#9CA3AF',
   },
   activeTabText: {
     color: '#3B82F6',
-    fontWeight: '600',
   },
   tabContent: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: scale(16),
-    paddingTop: scale(16),
+    paddingTop: scale(20),
+    paddingBottom: scale(32),
   },
   passportCard: {
-    borderRadius: scale(12),
-    marginBottom: scale(16),
+    borderRadius: scale(16),
+    marginBottom: scale(24),
     overflow: 'hidden',
-  },
-  passportCardDark: {
-    // Dark mode handled by gradient
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   passportGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: scale(16),
+    padding: scale(20),
+  },
+  passportIconContainer: {
+    position: 'relative',
+    marginRight: scale(16),
+  },
+  sparkleIcon: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
   },
   passportContent: {
-    marginLeft: scale(12),
     flex: 1,
   },
   passportTitle: {
-    fontSize: fontScale(16),
-    fontWeight: '600',
+    fontSize: fontScale(20),
+    fontWeight: '700',
     color: '#FFF',
-    marginBottom: scale(4),
+    marginBottom: scale(6),
   },
   passportDescription: {
-    fontSize: fontScale(12),
+    fontSize: fontScale(14),
     color: '#E0E7FF',
+    marginBottom: scale(12),
+    lineHeight: fontScale(20),
+  },
+  passportPrice: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(8),
+    borderRadius: scale(8),
+  },
+  passportPriceText: {
+    fontSize: fontScale(18),
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  sectionHeader: {
+    marginBottom: scale(20),
   },
   sectionTitle: {
-    fontSize: fontScale(18),
-    fontWeight: '600',
-    marginBottom: scale(12),
+    fontSize: fontScale(24),
+    fontWeight: '700',
     color: '#111827',
+    marginBottom: scale(4),
   },
   sectionTitleDark: {
     color: '#F9FAFB',
   },
+  sectionSubtitle: {
+    fontSize: fontScale(14),
+    color: '#6B7280',
+  },
+  sectionSubtitleDark: {
+    color: '#9CA3AF',
+  },
   destinationCard: {
-    borderRadius: scale(12),
-    marginBottom: scale(12),
+    borderRadius: scale(16),
+    marginBottom: scale(16),
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   destinationCardDark: {
-    borderColor: '#374151',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   cardGradient: {
-    padding: scale(16),
+    padding: scale(20),
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: scale(8),
+    marginBottom: scale(12),
   },
   cardHeaderLeft: {
     flex: 1,
   },
+  destNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: scale(8),
+    marginBottom: scale(6),
+  },
   destName: {
-    fontSize: fontScale(18),
-    fontWeight: '600',
+    fontSize: fontScale(20),
+    fontWeight: '700',
     color: '#111827',
-    marginBottom: scale(4),
   },
   destNameDark: {
     color: '#F9FAFB',
   },
+  visitedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    borderRadius: scale(6),
+    gap: scale(4),
+  },
+  visitedText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#10B981',
+  },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: scale(6),
   },
   destCountry: {
-    fontSize: fontScale(12),
+    fontSize: fontScale(14),
     color: '#6B7280',
-    marginLeft: scale(4),
+    fontWeight: '500',
   },
   destCountryDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    color: '#9CA3AF',
+  },
+  passportRequired: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(2),
+    borderRadius: scale(4),
+    gap: scale(4),
+  },
+  passportRequiredText: {
+    fontSize: fontScale(10),
+    fontWeight: '600',
+    color: '#F59E0B',
   },
   priceTag: {
     backgroundColor: '#10B981',
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(6),
-    borderRadius: scale(8),
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(8),
+    borderRadius: scale(10),
+    alignItems: 'center',
   },
-  discountText: {
-    fontSize: fontScale(10),
-    color: '#10B981',
-    fontStyle: 'italic',
-    marginLeft: scale(4),
+  priceTagDiscount: {
+    backgroundColor: '#F59E0B',
   },
   priceText: {
     color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: fontScale(14),
+    fontWeight: '700',
+    fontSize: fontScale(16),
+  },
+  discountBadge: {
+    fontSize: fontScale(9),
+    fontWeight: '700',
+    color: '#FFF',
+    marginTop: scale(2),
   },
   description: {
     fontSize: fontScale(14),
     color: '#6B7280',
-    marginBottom: scale(12),
+    marginBottom: scale(16),
     lineHeight: fontScale(20),
   },
   descriptionDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    color: '#D1D5DB',
   },
-  benefitsRow: {
+  benefitsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: scale(8),
-    marginBottom: scale(8),
+    marginBottom: scale(16),
   },
-  benefit: {
+  benefitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(4),
-    borderRadius: scale(6),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(6),
+    borderRadius: scale(8),
+    gap: scale(6),
+  },
+  benefitHappiness: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  benefitHealth: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+  },
+  benefitEnergy: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+  },
+  benefitIntelligence: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  benefitStress: {
+    backgroundColor: 'rgba(6, 182, 212, 0.1)',
   },
   benefitText: {
     fontSize: fontScale(12),
     fontWeight: '600',
     color: '#374151',
-    marginLeft: scale(4),
   },
-  durationRow: {
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  durationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scale(4),
+    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(6),
+    borderRadius: scale(8),
+    gap: scale(6),
   },
   durationText: {
     fontSize: fontScale(12),
+    fontWeight: '600',
     color: '#6B7280',
-    marginLeft: scale(4),
   },
   durationTextDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    color: '#9CA3AF',
+  },
+  bookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderRadius: scale(10),
+  },
+  bookButtonText: {
+    color: '#FFF',
+    fontSize: fontScale(14),
+    fontWeight: '700',
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: scale(64),
+    paddingVertical: scale(80),
+    paddingHorizontal: scale(32),
+  },
+  emptyIconContainer: {
+    width: scale(120),
+    height: scale(120),
+    borderRadius: scale(60),
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: scale(24),
   },
   emptyStateText: {
-    fontSize: fontScale(18),
-    fontWeight: '600',
+    fontSize: fontScale(22),
+    fontWeight: '700',
     color: '#111827',
-    marginTop: scale(16),
+    marginBottom: scale(8),
+    textAlign: 'center',
   },
   emptyStateTextDark: {
     color: '#F9FAFB',
@@ -850,95 +1092,136 @@ const styles = StyleSheet.create({
   emptyStateSubtext: {
     fontSize: fontScale(14),
     color: '#6B7280',
-    marginTop: scale(8),
     textAlign: 'center',
-    paddingHorizontal: scale(32),
+    lineHeight: fontScale(20),
   },
   emptyStateSubtextDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    color: '#9CA3AF',
   },
   tripCard: {
-    borderRadius: scale(12),
+    borderRadius: scale(20),
     overflow: 'hidden',
     marginBottom: scale(16),
-  },
-  tripCardDark: {
-    // Dark mode handled by gradient
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
   tripGradient: {
-    padding: scale(20),
+    padding: scale(24),
   },
   tripHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: scale(16),
+    marginBottom: scale(24),
+  },
+  tripIconContainer: {
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(16),
   },
   tripInfo: {
-    marginLeft: scale(12),
     flex: 1,
   },
   tripDestination: {
-    fontSize: fontScale(20),
-    fontWeight: 'bold',
+    fontSize: fontScale(28),
+    fontWeight: '700',
     color: '#FFF',
-    marginBottom: scale(4),
+    marginBottom: scale(6),
   },
-  tripLocation: {
-    fontSize: fontScale(14),
-    color: '#E0E7FF',
-  },
-  tripDetails: {
-    marginBottom: scale(16),
-  },
-  tripDetailRow: {
+  tripLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: scale(8),
+    gap: scale(6),
+  },
+  tripLocation: {
+    fontSize: fontScale(16),
+    color: '#E0E7FF',
+    fontWeight: '500',
+  },
+  tripDetails: {
+    gap: scale(12),
+    marginBottom: scale(24),
+  },
+  tripDetailCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    padding: scale(16),
+    borderRadius: scale(12),
+    gap: scale(12),
+  },
+  tripDetailContent: {
+    flex: 1,
   },
   tripDetailLabel: {
-    fontSize: fontScale(14),
+    fontSize: fontScale(12),
     color: '#E0E7FF',
-    marginRight: scale(8),
+    marginBottom: scale(4),
   },
-  tripDetailText: {
-    fontSize: fontScale(14),
+  tripDetailValue: {
+    fontSize: fontScale(18),
+    fontWeight: '700',
     color: '#FFF',
-    fontWeight: '600',
   },
   returnButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: scale(12),
-    borderRadius: scale(8),
+    paddingVertical: scale(16),
+    borderRadius: scale(12),
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   returnButtonText: {
     color: '#FFF',
-    fontSize: fontScale(14),
-    fontWeight: '600',
+    fontSize: fontScale(16),
+    fontWeight: '700',
   },
   businessCard: {
-    borderRadius: scale(12),
-    marginBottom: scale(12),
+    borderRadius: scale(16),
+    marginBottom: scale(16),
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   businessCardDark: {
-    borderColor: '#374151',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   businessHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: scale(12),
+  },
+  businessIconContainer: {
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(24),
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: scale(8),
+    marginRight: scale(12),
+  },
+  businessHeaderText: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: scale(8),
   },
   businessName: {
-    fontSize: fontScale(16),
-    fontWeight: '600',
+    fontSize: fontScale(20),
+    fontWeight: '700',
     color: '#111827',
-    marginLeft: scale(8),
   },
   businessNameDark: {
     color: '#F9FAFB',
@@ -946,60 +1229,129 @@ const styles = StyleSheet.create({
   businessDescription: {
     fontSize: fontScale(14),
     color: '#6B7280',
-    marginBottom: scale(12),
+    marginBottom: scale(16),
+    lineHeight: fontScale(20),
   },
   businessDescriptionDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    color: '#D1D5DB',
   },
   businessStats: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: scale(12),
+    marginBottom: scale(16),
   },
-  businessStat: {
+  businessStatCard: {
     flex: 1,
+    backgroundColor: 'rgba(107, 114, 128, 0.05)',
+    padding: scale(12),
+    borderRadius: scale(10),
   },
   businessStatLabel: {
-    fontSize: fontScale(12),
+    fontSize: fontScale(11),
     color: '#6B7280',
     marginBottom: scale(4),
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   businessStatLabelDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    color: '#9CA3AF',
   },
   businessStatValue: {
-    fontSize: fontScale(16),
-    fontWeight: '600',
+    fontSize: fontScale(18),
+    fontWeight: '700',
     color: '#111827',
+  },
+  businessStatValueIncome: {
+    color: '#10B981',
   },
   businessStatValueDark: {
     color: '#F9FAFB',
   },
-  historyCard: {
+  investedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    borderRadius: scale(6),
+    gap: scale(4),
+  },
+  investedText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  investedContainer: {
     borderRadius: scale(12),
+    overflow: 'hidden',
+  },
+  investedContainerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: scale(14),
+    gap: scale(8),
+  },
+  investedContainerText: {
+    color: '#FFF',
+    fontSize: fontScale(14),
+    fontWeight: '700',
+  },
+  investButton: {
+    borderRadius: scale(12),
+    overflow: 'hidden',
+    marginTop: scale(4),
+  },
+  investButtonDisabled: {
+    opacity: 0.5,
+  },
+  investButtonGradient: {
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(16),
+    alignItems: 'center',
+  },
+  investButtonText: {
+    color: '#FFF',
+    fontSize: fontScale(16),
+    fontWeight: '700',
+  },
+  historyCard: {
+    borderRadius: scale(16),
     marginBottom: scale(12),
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   historyCardDark: {
-    borderColor: '#374151',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   historyHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  historyIconContainer: {
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: scale(4),
+    marginRight: scale(12),
+  },
+  historyContent: {
+    flex: 1,
   },
   historyDestination: {
-    fontSize: fontScale(16),
-    fontWeight: '600',
+    fontSize: fontScale(18),
+    fontWeight: '700',
     color: '#111827',
-    marginLeft: scale(8),
+    marginBottom: scale(4),
   },
   historyDestinationDark: {
     color: '#F9FAFB',
@@ -1008,58 +1360,16 @@ const styles = StyleSheet.create({
     fontSize: fontScale(14),
     color: '#6B7280',
     marginBottom: scale(4),
-    marginLeft: scale(28),
+    fontWeight: '500',
   },
   historyLocationDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    color: '#9CA3AF',
   },
   historyDate: {
     fontSize: fontScale(12),
-    color: '#6B7280',
-    marginLeft: scale(28),
+    color: '#9CA3AF',
   },
   historyDateDark: {
-    color: '#FFFFFF',
-    textShadowColor: '#000000',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  investButton: {
-    borderRadius: scale(8),
-    overflow: 'hidden',
-    marginTop: scale(12),
-  },
-  investButtonDisabled: {
-    opacity: 0.5,
-  },
-  investButtonGradient: {
-    paddingVertical: scale(10),
-    paddingHorizontal: scale(16),
-    alignItems: 'center',
-  },
-  investButtonText: {
-    color: '#FFF',
-    fontSize: fontScale(14),
-    fontWeight: '600',
-  },
-  investedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: scale(12),
-    paddingVertical: scale(8),
-    paddingHorizontal: scale(12),
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderRadius: scale(8),
-  },
-  investedText: {
-    color: '#10B981',
-    fontSize: fontScale(14),
-    fontWeight: '600',
-    marginLeft: scale(6),
+    color: '#6B7280',
   },
 });
-

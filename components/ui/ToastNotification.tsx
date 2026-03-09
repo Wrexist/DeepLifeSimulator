@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+﻿import React, { useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   Easing,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react-native';
 import { DesignSystem } from '@/utils/designSystem';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -21,6 +22,8 @@ interface ToastNotificationProps {
   onDismiss: (id: string) => void;
   position?: 'top' | 'bottom';
   hapticEnabled?: boolean;
+  action?: { label: string; onPress: () => void };
+  persistent?: boolean;
 }
 
 export default function ToastNotification({
@@ -130,6 +133,7 @@ export default function ToastNotification({
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [slideAnim, opacityAnim, scaleAnim, duration, dismiss, persistent]);
 
   const handleDismiss = () => {
@@ -157,7 +161,7 @@ export default function ToastNotification({
       accessibilityLiveRegion="polite"
     >
       <LinearGradient
-        colors={typeStyles.gradient}
+        colors={typeStyles.gradient as unknown as readonly [string, string]}
         style={styles.toast}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -204,7 +208,7 @@ export default function ToastNotification({
   );
 }
 
-const { width } = Dimensions.get('window');
+// Width not used - removed to fix TS6133
 
 const styles = StyleSheet.create({
   container: {
@@ -250,3 +254,4 @@ const styles = StyleSheet.create({
     padding: DesignSystem.spacing.xs,
   },
 });
+

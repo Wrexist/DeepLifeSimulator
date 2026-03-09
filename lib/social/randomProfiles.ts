@@ -67,7 +67,7 @@ let randomPostCounter = 0;
 /**
  * Generate a random profile post with realistic engagement
  */
-export function generateRandomProfilePost(week: number, index?: number): SocialPost {
+export function generateRandomProfilePost(week: number, _index?: number): SocialPost {
   const nameIndex = Math.floor(Math.random() * RANDOM_PROFILE_NAMES.length);
   const name = RANDOM_PROFILE_NAMES[nameIndex];
   const handle = RANDOM_HANDLES[nameIndex] || name.toLowerCase().replace(/\s+/g, '');
@@ -136,8 +136,7 @@ export function generateRandomProfilePost(week: number, index?: number): SocialP
     isBookmarked: false,
     isPlayerPost: false,
     contentType: Math.random() > 0.7 ? 'photo' : 'text',
-    likedBy: [],
-    repostedBy: [],
+    // likedBy and repostedBy removed - use likes/reposts counts instead
   };
 }
 

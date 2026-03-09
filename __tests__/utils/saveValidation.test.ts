@@ -1,167 +1,87 @@
-import { 
-  calculateChecksum, 
-  validateGameState, 
-  createSaveData, 
+import {
+  calculateChecksum,
+  validateGameState,
+  createSaveData,
   verifySaveData,
-  parseSaveData 
+  parseSaveData,
 } from '@/utils/saveValidation';
-import { GameState } from '@/contexts/GameContext';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 describe('saveValidation', () => {
   describe('calculateChecksum', () => {
-    it('should calculate consistent checksums', () => {
+    it('calculates stable checksums for equal payloads', () => {
       const data = 'test data';
-      const checksum1 = calculateChecksum(data);
-      const checksum2 = calculateChecksum(data);
-      expect(checksum1).toBe(checksum2);
+      expect(calculateChecksum(data)).toBe(calculateChecksum(data));
     });
 
-    it('should produce different checksums for different data', () => {
-      const checksum1 = calculateChecksum('data1');
-      const checksum2 = calculateChecksum('data2');
-      expect(checksum1).not.toBe(checksum2);
+    it('produces different checksums for different payloads', () => {
+      expect(calculateChecksum('data1')).not.toBe(calculateChecksum('data2'));
     });
   });
 
   describe('validateGameState', () => {
-    const validState: Partial<GameState> = {
-      stats: {
-        health: 50,
-        happiness: 50,
-        energy: 50,
-        fitness: 50,
-        money: 1000,
-        reputation: 50,
-        gems: 0,
-      },
-      date: {
-        year: 2024,
-        month: 'January',
-        week: 1,
-        age: 25,
-      },
-      settings: {
-        darkMode: false,
-        soundEnabled: true,
-        hapticFeedback: true,
-        notificationsEnabled: false,
-        autoSave: true,
-        maxStats: false,
-      },
-      careers: [],
-      hobbies: [],
-      items: [],
-      relationships: [],
-    };
-
-    it('should validate correct game state', () => {
-      const result = validateGameState(validState);
+    it('accepts a valid game state from factory', () => {
+      const state = createTestGameState();
+      const result = validateGameState(state);
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should reject state without stats', () => {
-      const invalidState = { ...validState };
-      delete invalidState.stats;
-      const result = validateGameState(invalidState);
+    it('rejects states without stats', () => {
+      const stateWithoutStats = { ...createTestGameState(), stats: undefined } as any;
+      const result = validateGameState(stateWithoutStats);
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
-    it('should reject invalid stat ranges', () => {
-      const invalidState = {
-        ...validState,
+    it('reports out-of-range stat values as warnings (non-critical)', () => {
+      const invalidState = createTestGameState({
         stats: {
-          ...validState.stats!,
-          health: 150, // Out of range
+          ...createTestGameState().stats,
+          health: 150,
         },
-      };
+      });
       const result = validateGameState(invalidState);
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Health out of range'))).toBe(true);
+      expect(result.valid).toBe(true);
+      expect(result.warnings.some((w) => w.toLowerCase().includes('health'))).toBe(true);
     });
   });
 
   describe('createSaveData', () => {
-    it('should create save data with checksum', () => {
-      const state = {
-        stats: {
-          health: 50,
-          happiness: 50,
-          energy: 50,
-          fitness: 50,
-          money: 1000,
-          reputation: 50,
-          gems: 0,
-        },
-      } as GameState;
-
-      const { data, checksum } = createSaveData(state, 1);
-      expect(data).toBeTruthy();
-      expect(checksum).toBeTruthy();
-      expect(typeof checksum).toBe('string');
+    it('creates save data with checksum and signature material', () => {
+      const state = createTestGameState();
+      const save = createSaveData(state, 1);
+      expect(save.data).toBeTruthy();
+      expect(save.checksum).toBeTruthy();
+      expect(typeof save.checksum).toBe('string');
+      expect(save.hmac).toBeTruthy();
     });
   });
 
   describe('verifySaveData', () => {
-    it('should verify correct checksum', () => {
-      const data = 'test data';
-      const checksum = calculateChecksum(data);
-      expect(verifySaveData(data, checksum)).toBe(true);
+    it('verifies created save data', () => {
+      const save = createSaveData(createTestGameState(), 1);
+      expect(verifySaveData(save.data, save.checksum, save.signature, save.hmac)).toBe(true);
     });
 
-    it('should reject incorrect checksum', () => {
-      const data = 'test data';
-      const wrongChecksum = 'wrong';
-      expect(verifySaveData(data, wrongChecksum)).toBe(false);
+    it('rejects incorrect checksums', () => {
+      const save = createSaveData(createTestGameState(), 1);
+      expect(verifySaveData(save.data, 'wrong', save.signature, save.hmac)).toBe(false);
     });
   });
 
   describe('parseSaveData', () => {
-    it('should parse valid save data', () => {
-      const state = {
-        stats: {
-          health: 50,
-          happiness: 50,
-          energy: 50,
-          fitness: 50,
-          money: 1000,
-          reputation: 50,
-          gems: 0,
-        },
-        date: {
-          year: 2024,
-          month: 'January',
-          week: 1,
-          age: 25,
-        },
-        settings: {
-          darkMode: false,
-          soundEnabled: true,
-          hapticFeedback: true,
-          notificationsEnabled: false,
-          autoSave: true,
-          maxStats: false,
-        },
-        careers: [],
-        hobbies: [],
-        items: [],
-        relationships: [],
-      } as GameState;
-
-      const { data, checksum } = createSaveData(state, 1);
-      const result = parseSaveData(data, checksum);
-      
+    it('parses valid save payloads', () => {
+      const save = createSaveData(createTestGameState(), 1);
+      const result = parseSaveData(save.data, save.checksum, save.signature, save.hmac);
       expect(result.valid).toBe(true);
       expect(result.state).toBeTruthy();
     });
 
-    it('should reject corrupted data', () => {
-      const corruptedData = 'invalid json';
-      const result = parseSaveData(corruptedData);
+    it('rejects corrupted payloads', () => {
+      const result = parseSaveData('invalid json');
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
   });
 });
-

@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 // CRITICAL: Lazy-load expo-haptics to prevent TurboModule crash at module load
 // import * as Haptics from 'expo-haptics'; // REMOVED - lazy load instead
 import { useGame } from '@/contexts/GameContext';
 import { logger } from '@/utils/logger';
+import { setHapticsEnabled } from '@/utils/haptics';
 
 // Lazy-loaded Haptics module
 let Haptics: any = null;
@@ -16,18 +17,9 @@ function loadHapticsModule(): boolean {
   hapticsLoadAttempted = true;
   
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hooks/useHapticFeedback.ts:18',message:'Before expo-haptics require',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     Haptics = require('expo-haptics');
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hooks/useHapticFeedback.ts:22',message:'After expo-haptics require success',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     return true;
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hooks/useHapticFeedback.ts:27',message:'expo-haptics require failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     // Module not available - will skip haptics
     return false;
   }
@@ -38,6 +30,11 @@ export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 
 export function useHapticFeedback() {
   const { gameState } = useGame();
   
+  // Keep standalone haptic utility in sync with settings
+  useEffect(() => {
+    setHapticsEnabled(gameState.settings.hapticFeedback);
+  }, [gameState.settings.hapticFeedback]);
+
   const triggerHaptic = useCallback((type: HapticType) => {
     // Check if haptic feedback is enabled in settings
     if (!gameState.settings.hapticFeedback) {
@@ -79,7 +76,7 @@ export function useHapticFeedback() {
     } catch (error) {
       // Haptics not available on this device - fail silently
       if (__DEV__) {
-        logger.debug('Haptic feedback not available:', error);
+        logger.debug('Haptic feedback not available:', { error: String(error) });
       }
     }
   }, [gameState.settings.hapticFeedback]);

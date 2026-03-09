@@ -1,5 +1,4 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-import { View } from 'react-native';
 import { debounce } from '@/utils/debounce';
 import { logger } from '@/utils/logger';
 
@@ -56,14 +55,14 @@ export function useExpensiveCalculation<T>(
 ): T | null {
   const { enabled = true, debounceMs = 0 } = options;
   const [result, setResult] = useState<T | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
+  const [_isCalculating, _setIsCalculating] = useState(false);
 
   const debouncedCalculation = useMemo(
     () => {
       if (debounceMs > 0) {
         return debounce(() => {
           if (!enabled) return;
-          setIsCalculating(true);
+          _setIsCalculating(true);
           try {
             const value = calculation();
             setResult(value);
@@ -73,13 +72,13 @@ export function useExpensiveCalculation<T>(
             }
             setResult(null);
           } finally {
-            setIsCalculating(false);
+            _setIsCalculating(false);
           }
         }, debounceMs);
       } else {
         return () => {
           if (!enabled) return;
-          setIsCalculating(true);
+          _setIsCalculating(true);
           try {
             const value = calculation();
             setResult(value);
@@ -89,7 +88,7 @@ export function useExpensiveCalculation<T>(
             }
             setResult(null);
           } finally {
-            setIsCalculating(false);
+            _setIsCalculating(false);
           }
         };
       }
@@ -111,7 +110,8 @@ export function useExpensiveCalculation<T>(
 export function useLazyLoading(threshold: number = 0.1) {
   const [isVisible, setIsVisible] = useState(false);
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
-  const ref = useRef<View>(null);
+  // Note: IntersectionObserver is web-only API, this hook may not work on native
+  const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(

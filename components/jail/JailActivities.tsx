@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
 import { Zap, DollarSign, Heart, Shield, AlertTriangle, BookOpen, Wrench, Gavel, TrendingUp } from 'lucide-react-native';
 
@@ -19,7 +20,7 @@ export default function JailActivities() {
     const result = performJailActivity(id);
     if (result) {
       // Enhanced popup with more details
-      const title = result.success ? '✅ Success!' : '❌ Failed';
+      const title = result.success ? 'âœ… Success!' : 'âŒ Failed';
       const message = result.message;
       
       // Showing activity result alert
@@ -309,4 +310,5 @@ const styles = StyleSheet.create({
   },
 
 });
+
 

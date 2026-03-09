@@ -4,7 +4,7 @@
  */
 
 import { GameState, LifetimeStatistics } from '@/contexts/game/types';
-import { SystemInterconnection, SystemHealth } from '@/lib/depth/systemInterconnections';
+import { SystemInterconnection } from '@/lib/depth/systemInterconnections';
 import { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 
 export interface SystemStatistics {
@@ -64,7 +64,7 @@ export function calculateSystemStatistics(gameState: GameState): Record<string, 
 function calculateSystemStats(
   systemId: string,
   gameState: GameState,
-  lifetimeStats?: LifetimeStatistics
+  _lifetimeStats?: LifetimeStatistics
 ): SystemStatistics | null {
   const discoveredSystem = gameState.discoveredSystems?.find(s => s.systemId === systemId);
   if (!discoveredSystem) {
@@ -142,7 +142,7 @@ export function getEnhancedLifetimeStatistics(gameState: GameState): EnhancedLif
 function calculateDepthMetrics(gameState: GameState): EnhancedLifetimeStatistics['depthMetrics'] {
   const { calculateDepthScore } = require('@/lib/depth/discoverySystem');
   const currentScore = calculateDepthScore(gameState);
-  const discoveredSystems = gameState.discoveredSystems || [];
+  const _discoveredSystems = gameState.discoveredSystems || [];
   const activeSystems = getActiveSystems(gameState);
 
   // Calculate depth score history (simplified - can be enhanced with actual tracking)
@@ -292,7 +292,7 @@ function calculateTrend(systemId: string, gameState: GameState): 'improving' | '
   return 'stable';
 }
 
-function getSystemInterconnections(systemId: string, gameState: GameState): {
+function getSystemInterconnections(systemId: string, _gameState: GameState): {
   affects: string[];
   affectedBy: string[];
 } {
@@ -304,7 +304,7 @@ function getSystemInterconnections(systemId: string, gameState: GameState): {
   }
 
   return {
-    affects: systemDef.affects.map(a => a.system),
+    affects: systemDef.affects.map((a: any) => a.system),
     affectedBy: systemDef.affectedBy || [],
   };
 }

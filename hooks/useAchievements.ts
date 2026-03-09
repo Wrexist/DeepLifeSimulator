@@ -56,10 +56,14 @@ export const useAchievements = () => {
         progress = a.progressSpec.met(gameState) ? 1 : 0;
       } else if (a.progressSpec.kind === 'counter') {
         const current = a.progressSpec.current(gameState);
-        progress = current / a.progressSpec.goal;
+        const goal = a.progressSpec.goal;
+        // Ensure progress is calculated correctly, allowing values > 1.0 for claim detection
+        // but we'll cap it at 1.0 for display purposes in the component
+        progress = goal > 0 ? Math.max(0, current / goal) : 0;
       }
       const group = a.group ?? a.id.split('_')[0];
-      return { ...a, progress, claimed: claimed.has(a.id), group };
+      const isClaimed = claimed.has(a.id);
+      return { ...a, progress, claimed: isClaimed, group };
     });
 
     const grouped: Record<string, EnrichedAchievement[]> = {};
@@ -68,21 +72,37 @@ export const useAchievements = () => {
       grouped[a.group].push(a);
     });
 
+    // Return ALL achievements, not just the first unclaimed one per group
+    // This allows users to see all their progress, including completed achievements
     const result: GroupedAchievement[] = [];
     Object.values(grouped).forEach(groupList => {
-      const firstIdx = groupList.findIndex(a => !a.claimed);
-      if (firstIdx === -1) return;
-      const current = groupList[firstIdx];
-      const next = groupList.slice(firstIdx + 1).find(a => !a.claimed);
-      result.push({
-        ...current,
-        stackIndex: firstIdx,
-        stackSize: groupList.length,
-        nextTitle: next?.title,
+      // Sort by order in original achievements array to maintain proper sequence
+      const sortedGroup = [...groupList].sort((a, b) => {
+        const aIdx = achievements.findIndex(ach => ach.id === a.id);
+        const bIdx = achievements.findIndex(ach => ach.id === b.id);
+        return aIdx - bIdx;
+      });
+      
+      // Add ALL achievements in the group, not just the first unclaimed one
+      sortedGroup.forEach((achievement, index) => {
+        const next = sortedGroup.slice(index + 1).find(a => !a.claimed);
+        result.push({
+          ...achievement,
+          stackIndex: index,
+          stackSize: sortedGroup.length,
+          nextTitle: next?.title,
+        });
       });
     });
 
-    return result;
+    // Sort all achievements by their original order in the achievements array
+    const sortedResult = result.sort((a, b) => {
+      const aIdx = achievements.findIndex(ach => ach.id === a.id);
+      const bIdx = achievements.findIndex(ach => ach.id === b.id);
+      return aIdx - bIdx;
+    });
+
+    return sortedResult;
   }, [gameState, globalClaimedAchievements]);
   return { achievements: list };
 };

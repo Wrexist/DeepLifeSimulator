@@ -24,7 +24,7 @@ export default function LongPressMenu({
 }: LongPressMenuProps) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLongPress = (event: any) => {
     if (disabled || options.length === 0) return;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+﻿import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useGame, Loan } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getShadow } from '@/utils/shadow';
-import { formatMoney } from '@/utils/formatMoney';
+import { formatMoney } from '@/utils/moneyFormatting';
 import {
   CreditCard,
   TrendingUp,
@@ -36,7 +38,7 @@ const TERM_OPTIONS = [32, 64, 104, 156, 260, 520] as const;
 const MAX_DEBT_TO_INCOME_RATIO = 0.4; // 40% of monthly income
 const EARLY_PAYOFF_DISCOUNT = 0.05; // 5% discount for early payoff
 
-export default function LoanManager() {
+function LoanManager() {
   const { gameState, setGameState, saveGame } = useGame();
   const { buttonPress, haptic, success } = useFeedback(gameState.settings.hapticFeedback);
   const [showLoanModal, setShowLoanModal] = useState(false);
@@ -104,14 +106,14 @@ export default function LoanManager() {
   // Calculate loan eligibility
   const loanEligibility = useMemo(() => {
     const totalDebt = loans.reduce((sum, loan) => sum + loan.remaining, 0);
-    const maxDebt = weeklyIncome * 52 * MAX_DEBT_TO_INCOME_RATIO; // 40% of annual income
+    const maxDebt = weeklyIncome * WEEKS_PER_YEAR * MAX_DEBT_TO_INCOME_RATIO; // 40% of annual income
     const availableCredit = Math.max(0, maxDebt - totalDebt);
     const maxLoanAmount = Math.min(availableCredit, (cash + savings) * 2); // Max 2x liquid assets
     
     return {
       maxLoanAmount,
       availableCredit,
-      debtToIncomeRatio: totalDebt / (weeklyIncome * 52),
+      debtToIncomeRatio: totalDebt / (weeklyIncome * WEEKS_PER_YEAR),
       canBorrow: availableCredit > 1000,
     };
   }, [loans, weeklyIncome, cash, savings]);
@@ -119,7 +121,7 @@ export default function LoanManager() {
   // Calculate loan details
   const loanDetails = useMemo(() => {
     const amount = parseFloat(loanAmount) || 0;
-    const weeklyRate = marketAPR / 52;
+    const weeklyRate = marketAPR / WEEKS_PER_YEAR;
     const totalPayments = selectedTerm;
     
     // BUG FIX: Calculate weekly payment using more stable formula for long terms
@@ -161,23 +163,46 @@ export default function LoanManager() {
     };
   }, [loanAmount, selectedTerm, marketAPR]);
 
+  // ANTI-EXPLOIT: Maximum concurrent loans and cooldown between applications
+  const MAX_CONCURRENT_LOANS = 5;
+  const LOAN_COOLDOWN_WEEKS = 4; // Minimum 4 weeks between loan applications
+
   const takeLoan = useCallback(() => {
     buttonPress();
     haptic('light');
-    
+
     const amount = parseFloat(loanAmount);
-    
+
     // Validate amount is a valid number
     if (!amount || isNaN(amount) || !isFinite(amount) || amount < 1000) {
       Alert.alert('Invalid Amount', 'Please enter a valid loan amount of at least $1,000.');
       return;
     }
-    
+
     if (amount > loanEligibility.maxLoanAmount) {
       Alert.alert('Loan Denied', `Maximum loan amount is ${formatMoney(loanEligibility.maxLoanAmount)}.`);
       return;
     }
-    
+
+    // ANTI-EXPLOIT: Check concurrent loan cap
+    const activeLoans = (gameState.loans || []).filter(l => l.remaining > 0);
+    if (activeLoans.length >= MAX_CONCURRENT_LOANS) {
+      Alert.alert('Loan Denied', `You already have ${MAX_CONCURRENT_LOANS} active loans. Pay off existing loans before applying for new ones.`);
+      return;
+    }
+
+    // ANTI-EXPLOIT: Check cooldown since last loan application
+    const currentWeeksLived = gameState.weeksLived || 0;
+    const lastLoanWeek = activeLoans.reduce((max, loan) => {
+      const startWeek = typeof loan.startWeek === 'number' ? loan.startWeek : 0;
+      return Math.max(max, startWeek);
+    }, 0);
+    if (activeLoans.length > 0 && lastLoanWeek > 0 && (currentWeeksLived - lastLoanWeek) < LOAN_COOLDOWN_WEEKS) {
+      const weeksToWait = LOAN_COOLDOWN_WEEKS - (currentWeeksLived - lastLoanWeek);
+      Alert.alert('Loan Denied', `You must wait ${weeksToWait} more week(s) before applying for another loan.`);
+      return;
+    }
+
     const newLoan: Loan = {
       id: `loan_${Date.now()}`,
       name: `${LOAN_TYPES.find(t => t.id === selectedType)?.name} - ${selectedTerm}w`,
@@ -186,25 +211,25 @@ export default function LoanManager() {
       rateAPR: marketAPR,
       termWeeks: selectedTerm,
       weeklyPayment: loanDetails.weeklyPayment,
-      startWeek: gameState.week,
+      startWeek: gameState.weeksLived || 0, // ANTI-EXPLOIT: Use absolute week counter, not cyclic state.week
       autoPay: true,
       type: selectedType,
       weeksRemaining: selectedTerm,
       interestRate: marketAPR,
     };
-    
+
     setGameState(prev => ({
       ...prev,
       stats: { ...prev.stats, money: prev.stats.money + amount },
       loans: [...(prev.loans || []), newLoan],
     }));
-    
+
     saveGame();
     setShowLoanModal(false);
     setLoanAmount('');
     success('Loan approved and funds transferred!');
     Alert.alert('Loan Approved!', `You received ${formatMoney(amount)} at ${loanDetails.interestRate.toFixed(2)}% APR.`);
-  }, [loanAmount, loanEligibility.maxLoanAmount, selectedType, selectedTerm, marketAPR, loanDetails, gameState.week, setGameState, saveGame, buttonPress, haptic, success]);
+  }, [loanAmount, loanEligibility.maxLoanAmount, selectedType, selectedTerm, marketAPR, loanDetails, gameState.week, gameState.weeksLived, gameState.loans, setGameState, saveGame, buttonPress, haptic, success]);
 
   const repayLoan = useCallback((loanId: string, amount: number) => {
     buttonPress();
@@ -475,7 +500,7 @@ export default function LoanManager() {
                         {loan.name}
                       </Text>
                       <Text style={[styles.loanMeta, gameState.settings.darkMode && styles.loanMetaDark]}>
-                        {loan.rateAPR.toFixed(1)}% APR • {loan.termWeeks}w term
+                        {loan.rateAPR.toFixed(1)}% APR â€¢ {loan.termWeeks}w term
                       </Text>
                     </View>
                   </View>
@@ -1216,3 +1241,6 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
 });
+
+export default React.memo(LoanManager);
+

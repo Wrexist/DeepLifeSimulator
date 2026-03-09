@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SeasonalEventModal Component
  * 
  * Enhanced seasonal event modal with countdown timer, animations,
@@ -14,7 +14,8 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   X,
   Gift,
@@ -30,6 +31,7 @@ import {
 import { SeasonalEvent } from '@/lib/events/seasonal';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 interface SeasonalEventModalProps {
   visible: boolean;
@@ -123,9 +125,9 @@ export default function SeasonalEventModal({
   const countdown = useMemo(() => {
     if (!event) return null;
 
-    const currentWeek = gameState.week || 0;
-    const currentMonth = Math.floor(currentWeek / 4) + 1;
-    const weekInMonth = (currentWeek % 4) + 1;
+    const absoluteWeek = gameState.weeksLived || 0;
+    const currentMonth = Math.floor(absoluteWeek / 4) + 1;
+    const weekInMonth = (absoluteWeek % 4) + 1;
 
     // Calculate weeks remaining
     const endWeekTotal = (event.endDate.month - 1) * 4 + event.endDate.week;
@@ -137,27 +139,27 @@ export default function SeasonalEventModal({
       isEnding: weeksRemaining <= 2,
       hasEnded: weeksRemaining < 0,
     };
-  }, [event, gameState.week]);
+  }, [event, gameState.weeksLived]);
 
-  // Get participation history (simulated)
+  // Get participation history (deterministic from year — avoids random re-rolls on each render)
   const participationHistory = useMemo(() => {
     if (!event) return [];
-    
-    // This would come from game state in a real implementation
+
     const history: { year: number; participated: boolean; rewardsClaimed: boolean }[] = [];
-    const currentYear = Math.floor((gameState.week || 0) / 52) + 1;
-    
-    // Simulated history for past years
+    const currentYear = Math.floor((gameState.weeksLived || 0) / WEEKS_PER_YEAR) + 1;
+
+    // Deterministic pseudo-random based on year (stable across renders)
     for (let i = Math.max(1, currentYear - 3); i < currentYear; i++) {
+      const seed = (i * 2654435761) >>> 0; // Knuth multiplicative hash
       history.push({
         year: i,
-        participated: Math.random() > 0.3,
-        rewardsClaimed: Math.random() > 0.2,
+        participated: (seed % 10) > 2,         // ~70% chance
+        rewardsClaimed: ((seed >>> 8) % 10) > 1, // ~80% chance
       });
     }
-    
+
     return history;
-  }, [event, gameState.week]);
+  }, [event, gameState.weeksLived]);
 
   if (!event) return null;
 
@@ -267,7 +269,7 @@ export default function SeasonalEventModal({
                   {event.rewards.money && (
                     <View style={styles.rewardItem}>
                       <View style={styles.rewardIconContainer}>
-                        <Text style={styles.rewardEmoji}>💰</Text>
+                        <Text style={styles.rewardEmoji}>ðŸ’°</Text>
                       </View>
                       <View style={styles.rewardInfo}>
                         <Text style={[styles.rewardLabel, darkMode && styles.textMuted]}>Money</Text>
@@ -280,7 +282,7 @@ export default function SeasonalEventModal({
                   {event.rewards.gems && (
                     <View style={styles.rewardItem}>
                       <View style={styles.rewardIconContainer}>
-                        <Text style={styles.rewardEmoji}>💎</Text>
+                        <Text style={styles.rewardEmoji}>ðŸ’Ž</Text>
                       </View>
                       <View style={styles.rewardInfo}>
                         <Text style={[styles.rewardLabel, darkMode && styles.textMuted]}>Gems</Text>
@@ -293,7 +295,7 @@ export default function SeasonalEventModal({
                   {event.rewards.items && event.rewards.items.length > 0 && (
                     <View style={styles.rewardItem}>
                       <View style={styles.rewardIconContainer}>
-                        <Text style={styles.rewardEmoji}>🎁</Text>
+                        <Text style={styles.rewardEmoji}>ðŸŽ</Text>
                       </View>
                       <View style={styles.rewardInfo}>
                         <Text style={[styles.rewardLabel, darkMode && styles.textMuted]}>Items</Text>
@@ -729,3 +731,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

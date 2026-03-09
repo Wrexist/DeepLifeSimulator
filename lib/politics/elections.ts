@@ -4,13 +4,15 @@
  * Manages election timing and scheduling for political offices
  */
 
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+
 export type OfficeLevel = 0 | 1 | 2 | 3 | 4 | 5;
 
 // Election timing constants (in weeks)
 export const ELECTION_TIMING = {
-  LOCAL: 52,      // Every 1 year (52 weeks)
-  STATE: 104,     // Every 2 years (104 weeks)
-  NATIONAL: 208,  // Every 4 years (208 weeks)
+  LOCAL: WEEKS_PER_YEAR,      // Every 1 year
+  STATE: WEEKS_PER_YEAR * 2,  // Every 2 years
+  NATIONAL: WEEKS_PER_YEAR * 4, // Every 4 years
 };
 
 /**

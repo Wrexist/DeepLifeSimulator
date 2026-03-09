@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 
 interface GameUIContextType {
   isLoading: boolean;
@@ -34,7 +34,7 @@ export function GameUIProvider({ children }: GameUIProviderProps) {
   const [isCacheClearing, setIsCacheClearing] = useState<boolean>(false);
   const [cacheUpdateInfo, setCacheUpdateInfo] = useState<{ oldVersion?: string; newVersion?: string }>({});
 
-  const value: GameUIContextType = {
+  const value = useMemo<GameUIContextType>(() => ({
     isLoading,
     setIsLoading,
     loadingProgress,
@@ -45,7 +45,7 @@ export function GameUIProvider({ children }: GameUIProviderProps) {
     setIsCacheClearing,
     cacheUpdateInfo,
     setCacheUpdateInfo,
-  };
+  }), [isLoading, loadingProgress, loadingMessage, isCacheClearing, cacheUpdateInfo]);
 
   return (
     <GameUIContext.Provider value={value}>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   TrendingUp,
@@ -989,3 +990,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Skill Tree Modal Component
  * 
  * General life skills and career skill tree system
@@ -16,7 +16,8 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   X,
@@ -458,10 +459,17 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
       );
       glow.start();
 
-      return () => glow.stop();
+      return () => {
+        // Cleanup animations
+        glow.stop();
+        fadeAnim.setValue(0);
+        scaleAnim.setValue(0);
+        glowAnim.setValue(0);
+      };
     } else {
       fadeAnim.setValue(0);
       scaleAnim.setValue(0.9);
+      return undefined;
     }
   }, [visible, fadeAnim, scaleAnim, glowAnim]);
 
@@ -545,7 +553,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
             onPress={() => setSelectedCategory(category.id)}
           >
             <LinearGradient
-              colors={isActive ? category.color : ['transparent', 'transparent']}
+              colors={(isActive ? category.color : ['transparent', 'transparent']) as unknown as readonly [string, string, ...string[]]}
               style={styles.categoryTabGradient}
             >
               <CategoryIcon size={20} color={isActive ? '#FFF' : settings.darkMode ? '#9CA3AF' : '#6B7280'} />
@@ -589,9 +597,9 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
       >
         <LinearGradient
           colors={
-            status === 'unlocked' ? node.color :
+            (status === 'unlocked' ? node.color :
             status === 'available' ? ['#374151', '#1F2937'] :
-            ['#1F2937', '#111827']
+            ['#1F2937', '#111827']) as unknown as readonly [string, string, ...string[]]
           }
           style={[
             styles.node,
@@ -664,7 +672,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     return (
       <View style={[styles.detailsPanel, settings.darkMode && styles.detailsPanelDark]}>
         <LinearGradient
-          colors={selectedNode.color}
+          colors={selectedNode.color as unknown as readonly [string, string, ...string[]]}
           style={styles.detailsHeader}
         >
           <NodeIcon size={32} color="#FFF" />
@@ -1075,3 +1083,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

@@ -1,6 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from './logger';
-import { calculateChecksum } from './saveValidation';
+import {
+  atomicSave,
+  calculateHmacSignature,
+  calculateChecksum,
+  createSaveEnvelope,
+  decodePersistedSaveEnvelope,
+  shouldAllowUnsignedLegacySaves,
+  verifySaveData,
+} from './saveValidation';
 import { safeSetItem, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKeys } from './safeStorage';
 
 const BACKUP_PREFIX = 'save_backup_';
@@ -73,17 +80,77 @@ export interface ExploitCheckResult {
   exploitType?: 'death_reversal' | 'jail_escape' | 'age_regression' | 'criminal_reset' | 'rate_limit' | 'invalid_state';
 }
 
+interface NormalizedBackupPayload {
+  state: any;
+  canonicalSaveData: string;
+}
+
+function normalizeBackupPayload(rawSaveData: string): NormalizedBackupPayload {
+  const decoded = decodePersistedSaveEnvelope(rawSaveData, { allowLegacy: shouldAllowUnsignedLegacySaves() });
+  if (!decoded.valid || typeof decoded.data !== 'string') {
+    throw new Error(decoded.error || 'Failed to decode save payload');
+  }
+
+  const state = JSON.parse(decoded.data);
+  const canonicalSaveData = createSaveEnvelope(decoded.data);
+  return { state, canonicalSaveData };
+}
+
+// ANTI-EXPLOIT: Redundant storage key for protected state.
+// Even if a player deletes the primary key, the redundant copy still protects.
+const PROTECTED_STATE_REDUNDANT_PREFIX = 'ps_mirror_';
+
 /**
- * Get protected state for a slot
+ * Get protected state for a slot.
+ * ANTI-EXPLOIT: Reads from both primary and redundant storage keys.
+ * Returns the MORE restrictive state (higher age, isDead=true wins, etc.)
+ * to prevent bypass by deleting one key.
  */
 export async function getProtectedState(slot: number): Promise<ProtectedState | null> {
   try {
-    const key = `${PROTECTED_STATE_PREFIX}${slot}`;
-    const data = await safeGetItem(key);
-    if (data) {
-      return JSON.parse(data);
+    const primaryKey = `${PROTECTED_STATE_PREFIX}${slot}`;
+    const redundantKey = `${PROTECTED_STATE_REDUNDANT_PREFIX}${slot}`;
+
+    let primary: ProtectedState | null = null;
+    let redundant: ProtectedState | null = null;
+
+    const [primaryData, redundantData] = await Promise.all([
+      safeGetItem(primaryKey),
+      safeGetItem(redundantKey),
+    ]);
+
+    if (primaryData) {
+      try { primary = JSON.parse(primaryData); } catch { /* corrupted */ }
     }
-    return null;
+    if (redundantData) {
+      try { redundant = JSON.parse(redundantData); } catch { /* corrupted */ }
+    }
+
+    if (!primary && !redundant) return null;
+    if (!primary) return redundant;
+    if (!redundant) return primary;
+
+    // Merge: take the MORE restrictive value for each field
+    return {
+      slot,
+      isDead: primary.isDead || redundant.isDead,
+      deathTimestamp: primary.deathTimestamp || redundant.deathTimestamp,
+      deathReason: primary.deathReason || redundant.deathReason,
+      generationNumber: Math.max(primary.generationNumber || 1, redundant.generationNumber || 1),
+      isInJail: primary.isInJail || redundant.isInJail,
+      jailStartTimestamp: primary.jailStartTimestamp || redundant.jailStartTimestamp,
+      jailWeeksRemaining: Math.max(primary.jailWeeksRemaining || 0, redundant.jailWeeksRemaining || 0),
+      highestWantedLevel: Math.max(primary.highestWantedLevel || 0, redundant.highestWantedLevel || 0),
+      totalCrimesCommitted: Math.max(primary.totalCrimesCommitted || 0, redundant.totalCrimesCommitted || 0),
+      totalJailTime: Math.max(primary.totalJailTime || 0, redundant.totalJailTime || 0),
+      highestAgeReached: Math.max(primary.highestAgeReached || 0, redundant.highestAgeReached || 0),
+      totalGemsSpent: Math.max(primary.totalGemsSpent || 0, redundant.totalGemsSpent || 0),
+      permanentAchievements: [
+        ...(primary.permanentAchievements || []),
+        ...(redundant.permanentAchievements || []),
+      ].filter((v, i, a) => a.indexOf(v) === i),
+      lastUpdated: Math.max(primary.lastUpdated || 0, redundant.lastUpdated || 0),
+    };
   } catch (error) {
     logger.error(`Failed to get protected state for slot ${slot}`, error);
     return null;
@@ -126,8 +193,15 @@ export async function updateProtectedState(slot: number, gameState: any): Promis
       lastUpdated: now,
     };
     
-    const key = `${PROTECTED_STATE_PREFIX}${slot}`;
-    await safeSetItem(key, JSON.stringify(newProtected));
+    // ANTI-EXPLOIT: Write to both primary and redundant keys
+    // Player must delete BOTH keys to bypass protection
+    const primaryKey = `${PROTECTED_STATE_PREFIX}${slot}`;
+    const redundantKey = `${PROTECTED_STATE_REDUNDANT_PREFIX}${slot}`;
+    const serialized = JSON.stringify(newProtected);
+    await Promise.all([
+      safeSetItem(primaryKey, serialized),
+      safeSetItem(redundantKey, serialized),
+    ]);
     logger.debug(`Updated protected state for slot ${slot}`);
   } catch (error) {
     logger.error(`Failed to update protected state for slot ${slot}`, error);
@@ -139,8 +213,12 @@ export async function updateProtectedState(slot: number, gameState: any): Promis
  */
 export async function clearProtectedState(slot: number): Promise<void> {
   try {
-    const key = `${PROTECTED_STATE_PREFIX}${slot}`;
-    await safeRemoveItem(key);
+    const primaryKey = `${PROTECTED_STATE_PREFIX}${slot}`;
+    const redundantKey = `${PROTECTED_STATE_REDUNDANT_PREFIX}${slot}`;
+    await Promise.all([
+      safeRemoveItem(primaryKey),
+      safeRemoveItem(redundantKey),
+    ]);
     logger.info(`Cleared protected state for slot ${slot}`);
   } catch (error) {
     logger.error(`Failed to clear protected state for slot ${slot}`, error);
@@ -188,8 +266,11 @@ export async function canCreateBackup(slot: number, gameState: any): Promise<Exp
     return { allowed: true };
   } catch (error) {
     logger.error('Error checking backup permission', error);
-    // Allow backup if check fails (fail-open for user experience)
-    return { allowed: true };
+    return {
+      allowed: false,
+      reason: 'Unable to verify backup safety. Please try again.',
+      exploitType: 'invalid_state',
+    };
   }
 }
 
@@ -223,7 +304,7 @@ export async function canRestoreBackup(
     }
     
     // Check 2: Jail escape - cannot restore to escape jail
-    const playerInJail = (protectedState?.isInJail && protectedState.jailWeeksRemaining > 0) || currentInJail;
+    const playerInJail = (protectedState?.isInJail && (protectedState.jailWeeksRemaining ?? 0) > 0) || currentInJail;
     if (playerInJail) {
       const backupInJail = backupState.jailWeeks > 0;
       if (!backupInJail) {
@@ -325,7 +406,7 @@ function extractGameInfo(state: any): BackupGameInfo | undefined {
       weeksLived: state.weeksLived || 0,
     };
   } catch (error) {
-    logger.warn('Failed to extract game info for backup', error);
+    logger.warn('Failed to extract game info for backup', { error: error instanceof Error ? error.message : String(error) });
     return undefined;
   }
 }
@@ -336,30 +417,27 @@ function extractGameInfo(state: any): BackupGameInfo | undefined {
 export async function createBackup(
   slot: number, 
   data: string, 
-  checksum: string, 
+  _checksum: string, 
   reason: BackupReason | string = 'auto_save'
 ): Promise<string | null> {
   try {
+    const { state, canonicalSaveData } = normalizeBackupPayload(data);
+    const canonicalChecksum = calculateChecksum(canonicalSaveData);
+    const canonicalHmac = calculateHmacSignature(canonicalSaveData);
     const timestamp = Date.now();
     const backupId = `${BACKUP_PREFIX}${slot}_${timestamp}`;
     
-    // Extract game info from data
-    let gameInfo: BackupGameInfo | undefined;
-    try {
-      const state = JSON.parse(data);
-      gameInfo = extractGameInfo(state);
-    } catch (e) {
-      // Data might not be valid JSON, skip game info
-    }
+    const gameInfo = extractGameInfo(state);
     
     const backupData = {
-      data,
-      checksum,
+      data: canonicalSaveData,
+      checksum: canonicalChecksum,
+      hmac: canonicalHmac,
       metadata: {
         id: backupId,
         slot,
         timestamp,
-        size: data.length,
+        size: canonicalSaveData.length,
         reason,
         gameInfo,
       } as BackupMetadata
@@ -417,7 +495,7 @@ export async function createBackup(
           
           // Clean up old backups from all slots (keep only 1 per slot)
           let totalCleaned = 0;
-          for (const [slotNum, slotBackups] of Object.entries(backupsBySlot)) {
+          for (const [_slotNum, slotBackups] of Object.entries(backupsBySlot)) {
             if (slotBackups.length > 1) {
               const sorted = slotBackups.sort((a, b) => b.timestamp - a.timestamp);
               const toDelete = sorted.slice(1).map(b => b.id);
@@ -437,8 +515,31 @@ export async function createBackup(
         
         // Retry creating the backup after cleanup
         try {
-          const retryBackupId = `${BACKUP_PREFIX}${slot}_${timestamp}`;
-          await safeSetItem(retryBackupId, JSON.stringify(backupData));
+          const retryTimestamp = Date.now();
+          const retryBackupId = `${BACKUP_PREFIX}${slot}_${retryTimestamp}`;
+
+          // Re-derive from the original data parameter (same as outer scope)
+          const retryPayload = normalizeBackupPayload(data);
+          const retryCanonicalSaveData = retryPayload.canonicalSaveData;
+          const retryCanonicalChecksum = calculateChecksum(retryCanonicalSaveData);
+          const retryCanonicalHmac = calculateHmacSignature(retryCanonicalSaveData);
+          const retryGameInfo = extractGameInfo(retryPayload.state);
+
+          const retryBackupData = {
+            data: retryCanonicalSaveData,
+            checksum: retryCanonicalChecksum,
+            hmac: retryCanonicalHmac,
+            metadata: {
+              id: retryBackupId,
+              slot,
+              timestamp: retryTimestamp,
+              size: retryCanonicalSaveData.length,
+              reason,
+              gameInfo: retryGameInfo,
+            } as BackupMetadata
+          };
+
+          await safeSetItem(retryBackupId, JSON.stringify(retryBackupData));
           logger.info(`Created backup for slot ${slot} after cleanup: ${retryBackupId} (${reason})`);
           return retryBackupId;
         } catch (retryError) {
@@ -479,14 +580,14 @@ export async function createBackupFromState(
  */
 export async function listBackups(slot: number): Promise<BackupMetadata[]> {
   try {
-    const keys = await AsyncStorage.getAllKeys();
+    const keys = await safeGetAllKeys();
     const backupKeys = keys.filter(key => key.startsWith(`${BACKUP_PREFIX}${slot}_`));
-    
+
     const backups: BackupMetadata[] = [];
-    
+
     for (const key of backupKeys) {
       try {
-        const item = await AsyncStorage.getItem(key);
+        const item = await safeGetItem(key);
         if (item) {
           const parsed = JSON.parse(item);
           if (parsed.metadata) {
@@ -512,10 +613,21 @@ export async function listBackups(slot: number): Promise<BackupMetadata[]> {
  */
 export async function loadBackup(backupId: string): Promise<{ data: string; checksum: string } | null> {
   try {
-    const item = await AsyncStorage.getItem(backupId);
+    const item = await safeGetItem(backupId);
     if (!item) return null;
-    
+
     const parsed = JSON.parse(item);
+    if (!parsed || typeof parsed.data !== 'string' || typeof parsed.checksum !== 'string') {
+      logger.warn(`Backup envelope malformed: ${backupId}`);
+      return null;
+    }
+
+    const expectedHmac = typeof parsed.hmac === 'string' ? parsed.hmac : undefined;
+    const valid = verifySaveData(parsed.data, parsed.checksum, undefined, expectedHmac);
+    if (!valid) {
+      logger.warn(`Backup checksum verification failed: ${backupId}`);
+      return null;
+    }
     return {
       data: parsed.data,
       checksum: parsed.checksum
@@ -541,24 +653,30 @@ export async function restoreFromBackup(
       return { success: false, error: 'Backup not found' };
     }
     
-    // Parse backup state
+    // Parse backup payload
     let backupState: any;
+    let canonicalBackupData = '';
     try {
-      backupState = JSON.parse(backup.data);
+      const normalized = normalizeBackupPayload(backup.data);
+      backupState = normalized.state;
+      canonicalBackupData = normalized.canonicalSaveData;
     } catch (e) {
       logger.error(`Backup data corrupted: ${backupId}`);
       return { success: false, error: 'Backup data is corrupted' };
     }
     
-    // Get current state for comparison
-    const mainSaveKey = `save_slot_${slot}`;
-    const currentData = await safeGetItem(mainSaveKey);
+    // CRASH FIX (A-1): Read from double-buffer system
+    const { readSaveSlot } = await import('@/utils/saveValidation');
+    const currentData = await readSaveSlot(slot);
     let currentState: any = {};
     if (currentData) {
       try {
-        currentState = JSON.parse(currentData);
+        const decodedCurrent = decodePersistedSaveEnvelope(currentData, { allowLegacy: shouldAllowUnsignedLegacySaves() });
+        if (decodedCurrent.valid && typeof decodedCurrent.data === 'string') {
+          currentState = JSON.parse(decodedCurrent.data);
+        }
       } catch (e) {
-        // Current state corrupted, allow restore
+        // Current state corrupted, allow restore.
       }
     }
     
@@ -569,8 +687,13 @@ export async function restoreFromBackup(
       return { success: false, error: exploitCheck.reason };
     }
     
-    // Perform the restore
-    await safeSetItem(mainSaveKey, backup.data);
+    // Perform the restore using canonical save payload and atomic write+verify.
+    const mainSaveKey = `save_slot_${slot}`;
+    const restoreResult = await atomicSave(mainSaveKey, canonicalBackupData);
+    if (!restoreResult.success) {
+      logger.error(`Atomic restore failed for slot ${slot}: ${restoreResult.error}`);
+      return { success: false, error: restoreResult.error || 'Failed to restore backup atomically' };
+    }
     
     // Update protected state with restored state
     await updateProtectedState(slot, backupState);
@@ -613,9 +736,9 @@ export async function createManualBackup(
   label?: string
 ): Promise<{ success: boolean; backupId?: string; error?: string }> {
   try {
-    // Get current save data
-    const saveKey = `save_slot_${slot}`;
-    const saveData = await safeGetItem(saveKey);
+    // CRASH FIX (A-1): Read from double-buffer system
+    const { readSaveSlot } = await import('@/utils/saveValidation');
+    const saveData = await readSaveSlot(slot);
     
     if (!saveData) {
       return { success: false, error: 'No save data found for this slot' };
@@ -623,9 +746,12 @@ export async function createManualBackup(
     
     // Parse state to check for exploits and extract game info
     let gameState: any;
+    let canonicalSaveData = '';
     let gameInfo: BackupGameInfo | undefined;
     try {
-      gameState = JSON.parse(saveData);
+      const normalized = normalizeBackupPayload(saveData);
+      gameState = normalized.state;
+      canonicalSaveData = normalized.canonicalSaveData;
       gameInfo = extractGameInfo(gameState);
     } catch (e) {
       logger.warn('Could not parse save data for game info extraction');
@@ -642,26 +768,28 @@ export async function createManualBackup(
     // Update protected state before creating backup
     await updateProtectedState(slot, gameState);
     
-    const checksum = calculateChecksum(saveData);
+    const checksum = calculateChecksum(canonicalSaveData);
+    const hmac = calculateHmacSignature(canonicalSaveData);
     const timestamp = Date.now();
     const backupId = `${BACKUP_PREFIX}${slot}_${timestamp}`;
     
     const backupData = {
-      data: saveData,
+      data: canonicalSaveData,
       checksum,
+      hmac,
       metadata: {
         id: backupId,
         slot,
         timestamp,
-        size: saveData.length,
+        size: canonicalSaveData.length,
         reason: 'manual' as BackupReason,
         label: label || undefined,
         gameInfo,
       }
     };
     
-    await AsyncStorage.setItem(backupId, JSON.stringify(backupData));
-    
+    await safeSetItem(backupId, JSON.stringify(backupData));
+
     // Record backup time for rate limiting
     await recordBackupTime(slot);
     logger.info(`Created manual backup for slot ${slot}: ${backupId}${label ? ` (${label})` : ''}`);
@@ -682,13 +810,13 @@ export async function createManualBackup(
 export async function deleteBackup(backupId: string): Promise<boolean> {
   try {
     // Verify the backup exists
-    const item = await AsyncStorage.getItem(backupId);
+    const item = await safeGetItem(backupId);
     if (!item) {
       logger.warn(`Backup not found for deletion: ${backupId}`);
       return false;
     }
-    
-    await AsyncStorage.removeItem(backupId);
+
+    await safeRemoveItem(backupId);
     logger.info(`Deleted backup: ${backupId}`);
     return true;
   } catch (error) {
@@ -710,8 +838,8 @@ export async function deleteAllBackupsForSlot(slot: number): Promise<number> {
     }
     
     const keysToDelete = backups.map(b => b.id);
-    await AsyncStorage.multiRemove(keysToDelete);
-    
+    await safeMultiRemove(keysToDelete);
+
     logger.info(`Deleted all ${keysToDelete.length} backups for slot ${slot}`);
     return keysToDelete.length;
   } catch (error) {
@@ -725,20 +853,20 @@ export async function deleteAllBackupsForSlot(slot: number): Promise<number> {
  */
 export async function getBackupStorageInfo(): Promise<BackupStorageInfo> {
   try {
-    const keys = await AsyncStorage.getAllKeys();
+    const keys = await safeGetAllKeys();
     const backupKeys = keys.filter(key => key.startsWith(BACKUP_PREFIX));
-    
+
     let totalSize = 0;
     const backupsBySlot: { [slot: number]: { count: number; size: number } } = {};
-    
+
     // Initialize slots 1-3
     for (let i = 1; i <= 3; i++) {
       backupsBySlot[i] = { count: 0, size: 0 };
     }
-    
+
     for (const key of backupKeys) {
       try {
-        const item = await AsyncStorage.getItem(key);
+        const item = await safeGetItem(key);
         if (item) {
           const parsed = JSON.parse(item);
           const size = item.length;
@@ -780,14 +908,14 @@ export async function getBackupStorageInfo(): Promise<BackupStorageInfo> {
  */
 export async function listAllBackups(): Promise<BackupMetadata[]> {
   try {
-    const keys = await AsyncStorage.getAllKeys();
+    const keys = await safeGetAllKeys();
     const backupKeys = keys.filter(key => key.startsWith(BACKUP_PREFIX));
-    
+
     const backups: BackupMetadata[] = [];
-    
+
     for (const key of backupKeys) {
       try {
-        const item = await AsyncStorage.getItem(key);
+        const item = await safeGetItem(key);
         if (item) {
           const parsed = JSON.parse(item);
           if (parsed.metadata) {

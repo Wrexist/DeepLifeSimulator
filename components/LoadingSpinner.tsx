@@ -1,6 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import { Loader } from 'lucide-react-native';
 
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 1000,
+    zIndex: 500, // Z_INDEX.LOADING
   },
   overlayGradient: {
     flex: 1,
@@ -94,7 +95,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 12,
     padding: 24,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
@@ -126,3 +126,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+

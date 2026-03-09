@@ -84,18 +84,22 @@ export const decayLayout = (
   extra: Partial<Animated.DecayAnimationConfig> = {}
 ) =>
   Animated.decay(value, {
-    ...extra,
+    ...(extra.velocity !== undefined ? { velocity: extra.velocity } : {}),
+    ...(extra.deceleration !== undefined ? { deceleration: extra.deceleration } : {}),
+    ...(extra.isInteraction !== undefined ? { isInteraction: extra.isInteraction } : {}),
     useNativeDriver: false,
-  });
+  } as Animated.DecayAnimationConfig);
 
 export const decayNative = (
   value: Animated.Value,
   extra: Partial<Animated.DecayAnimationConfig> = {}
 ) =>
   Animated.decay(value, {
-    ...extra,
+    ...(extra.velocity !== undefined ? { velocity: extra.velocity } : {}),
+    ...(extra.deceleration !== undefined ? { deceleration: extra.deceleration } : {}),
+    ...(extra.isInteraction !== undefined ? { isInteraction: extra.isInteraction } : {}),
     useNativeDriver: NATIVE_OK,
-  });
+  } as Animated.DecayAnimationConfig);
 
 /* -------------------------------------------------------------------------- */
 /*                              SMALL CONVENIENCE                             */

@@ -2,50 +2,60 @@ import { useEffect, useRef, useCallback } from 'react';
 
 /**
  * Helper to manage multiple timers and ensure they are cleaned up on unmount
+ * Tracks timer types separately for precise cleanup
  */
 export function useTimerManager() {
-  const timers = useRef<Set<NodeJS.Timeout | number>>(new Set());
+  const intervals = useRef<Set<NodeJS.Timeout | number>>(new Set());
+  const timeouts = useRef<Set<NodeJS.Timeout | number>>(new Set());
 
   const addInterval = useCallback((callback: () => void, ms: number) => {
     const id = setInterval(callback, ms);
-    timers.current.add(id);
+    intervals.current.add(id);
     return id;
   }, []);
 
   const addTimeout = useCallback((callback: () => void, ms: number) => {
     const id = setTimeout(() => {
-      timers.current.delete(id);
+      timeouts.current.delete(id);
       callback();
     }, ms);
-    timers.current.add(id);
+    timeouts.current.add(id);
     return id;
   }, []);
 
   const clearIntervalId = useCallback((id: NodeJS.Timeout | number | null) => {
     if (id !== null) {
-      clearInterval(id as any); // Cast for compatibility
-      timers.current.delete(id);
+      // NOTE: `as any` cast is necessary for cross-platform compatibility
+      // Node.js returns NodeJS.Timeout, but browser/React Native may return number
+      // This is a known TypeScript limitation with timer types
+      clearInterval(id as any);
+      intervals.current.delete(id);
     }
   }, []);
 
   const clearTimeoutId = useCallback((id: NodeJS.Timeout | number | null) => {
     if (id !== null) {
+      // NOTE: `as any` cast is necessary for cross-platform compatibility
+      // Node.js returns NodeJS.Timeout, but browser/React Native may return number
       clearTimeout(id as any);
-      timers.current.delete(id);
+      timeouts.current.delete(id);
     }
   }, []);
 
   const clearAll = useCallback(() => {
-    timers.current.forEach((id) => {
-      // Try clearing both, as we don't track type separately in the Set
-      // This is safe in most environments but checking type would be better if possible
-      // Since IDs are unique, we can just try clearing.
-      // However, strictly speaking, we should differentiate. 
-      // For simplicity in this utility, we assume standard behavior.
+    // Clear intervals using the correct function
+    intervals.current.forEach((id) => {
+      // NOTE: `as any` cast is necessary for cross-platform timer type compatibility
       clearInterval(id as any);
+    });
+    intervals.current.clear();
+    
+    // Clear timeouts using the correct function
+    timeouts.current.forEach((id) => {
+      // NOTE: `as any` cast is necessary for cross-platform timer type compatibility
       clearTimeout(id as any);
     });
-    timers.current.clear();
+    timeouts.current.clear();
   }, []);
 
   // Cleanup on unmount

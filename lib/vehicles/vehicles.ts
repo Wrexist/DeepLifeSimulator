@@ -245,21 +245,30 @@ export function createVehicleFromTemplate(
   template: VehicleTemplate, 
   purchaseWeek: number
 ): Vehicle {
+  // Map template types to Vehicle types (luxury and sports are cars)
+  const vehicleType: Vehicle['type'] = 
+    template.type === 'luxury' || template.type === 'sports' ? 'car' : template.type;
+  
   return {
     id: template.id,
     name: template.name,
-    type: template.type,
+    type: vehicleType,
+    brand: template.name.split(' ')[0] || 'Unknown',
+    model: template.name,
+    year: new Date().getFullYear(),
     price: template.price,
     condition: 100, // New vehicles start at 100%
     fuelLevel: 100, // Full tank
-    insurance: null,
+    fuelCapacity: 50, // Default fuel capacity
+    fuelEfficiency: 25, // Default MPG
+    maxSpeed: 120, // Default max speed
+    insurance: undefined,
     weeklyMaintenanceCost: template.weeklyMaintenanceCost,
     weeklyFuelCost: template.weeklyFuelCost,
     reputationBonus: template.reputationBonus,
     speedBonus: template.speedBonus,
     owned: true,
     mileage: 0,
-    purchaseWeek,
     lastServiceWeek: purchaseWeek,
   };
 }
@@ -275,7 +284,7 @@ export function calculateVehicleSellPrice(vehicle: Vehicle): number {
   const mileagePenalty = Math.min(0.3, vehicle.mileage / 500000);
   
   const sellPrice = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
-  return Math.floor(sellPrice);
+  return Math.max(0, Math.floor(sellPrice));
 }
 
 export function calculateRepairCost(vehicle: Vehicle): number {
@@ -292,7 +301,7 @@ export function calculateFuelCost(vehicle: Vehicle): number {
   return Math.floor(tankCost * emptyPercent);
 }
 
-export function getInsurancePlan(type: VehicleInsurance['type']): typeof INSURANCE_PLANS[0] | undefined {
+export function getInsurancePlan(type: 'basic' | 'comprehensive' | 'premium'): typeof INSURANCE_PLANS[0] | undefined {
   return INSURANCE_PLANS.find(p => p.type === type);
 }
 

@@ -1,12 +1,56 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, Share, Linking } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+// CRITICAL: Use fallback instead of direct expo-linear-gradient import to prevent crashes
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { RefreshCw, AlertTriangle, Home, Download, MessageCircle, FileText } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// CRITICAL: Lazy load AsyncStorage to prevent TurboModule crash on iOS 26 Beta
+// This creates a proxy that loads the real module on first use
+let _realAsyncStorage: typeof import('@react-native-async-storage/async-storage').default | null = null;
+let _loadAttempted = false;
+
+function getRealAsyncStorage() {
+  if (_realAsyncStorage) return _realAsyncStorage;
+  if (_loadAttempted) return null;
+  _loadAttempted = true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _realAsyncStorage = require('@react-native-async-storage/async-storage').default;
+    return _realAsyncStorage;
+  } catch {
+    return null;
+  }
+}
+
+// Lazy-loaded AsyncStorage wrapper - same interface as real AsyncStorage
+const AsyncStorage = {
+  getItem: async (key: string) => {
+    const storage = getRealAsyncStorage();
+    return storage ? storage.getItem(key) : null;
+  },
+  setItem: async (key: string, value: string) => {
+    const storage = getRealAsyncStorage();
+    if (storage) await storage.setItem(key, value);
+  },
+  removeItem: async (key: string) => {
+    const storage = getRealAsyncStorage();
+    if (storage) await storage.removeItem(key);
+  },
+  getAllKeys: async () => {
+    const storage = getRealAsyncStorage();
+    return storage ? storage.getAllKeys() : [];
+  },
+  multiRemove: async (keys: readonly string[]) => {
+    const storage = getRealAsyncStorage();
+    if (storage) await storage.multiRemove(keys);
+  },
+};
 import { remoteLogger } from '@/services/RemoteLoggingService';
 import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
 import { validateGameState } from '@/utils/saveValidation';
+import { DISCORD_URL } from '@/lib/config/appConfig';
 
 interface Props {
   children: ReactNode;
@@ -48,11 +92,11 @@ class ErrorBoundary extends Component<Props, State> {
 
   async componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logger.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+
     // Categorize error
     const category = this.categorizeError(error);
     const recoverySuggestion = this.getRecoverySuggestion(category);
-    
+
     // Try to backup game state before showing error
     let gameStateBackedUp = false;
     try {
@@ -60,7 +104,7 @@ class ErrorBoundary extends Component<Props, State> {
     } catch (backupError) {
       logger.error('Failed to backup game state on error:', backupError);
     }
-    
+
     this.setState({
       error,
       errorInfo,
@@ -126,7 +170,9 @@ class ErrorBoundary extends Component<Props, State> {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (lastSlot) {
         const slotNumber = parseInt(lastSlot, 10);
-        const savedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+        // CRASH FIX (A-1): Read from double-buffer system
+        const { readSaveSlot } = require('@/utils/saveValidation');
+        const savedData = await readSaveSlot(slotNumber);
         if (savedData) {
           // Create emergency backup
           const backupKey = `error_backup_${Date.now()}`;
@@ -143,11 +189,11 @@ class ErrorBoundary extends Component<Props, State> {
                   .filter(key => key.startsWith('error_backup_'))
                   .sort()
                   .slice(0, -5); // Keep only the 5 most recent error backups
-                
+
                 if (errorBackupKeys.length > 0) {
                   await AsyncStorage.multiRemove(errorBackupKeys);
                   logger.info(`Cleaned up ${errorBackupKeys.length} old error backups`);
-                  
+
                   // Retry backup after cleanup
                   try {
                     await AsyncStorage.setItem(backupKey, savedData);
@@ -181,7 +227,9 @@ class ErrorBoundary extends Component<Props, State> {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (lastSlot) {
         const slotNumber = parseInt(lastSlot, 10);
-        const savedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+        // CRASH FIX (A-1): Read from double-buffer system
+        const { readSaveSlot } = require('@/utils/saveValidation');
+        const savedData = await readSaveSlot(slotNumber);
         if (savedData) {
           try {
             const parsed = JSON.parse(savedData);
@@ -212,24 +260,6 @@ class ErrorBoundary extends Component<Props, State> {
       gameContext, // Sanitized game context
     };
 
-    // Log to analytics service
-    try {
-      const { analyticsService } = await import('@/services/AnalyticsService');
-      await analyticsService.logCrash(
-        category || 'unknown',
-        error,
-        {
-          component_stack: errorInfo.componentStack?.substring(0, 500),
-          retry_count: this.state.retryCount,
-          game_context: gameContext,
-          platform: Platform.OS,
-          platform_version: Platform.Version,
-        }
-      );
-    } catch (analyticsError) {
-      logger.warn('Failed to log crash to analytics:', analyticsError);
-    }
-
     // In production, send to crash reporting service
     if (!__DEV__) {
       // Send to crash reporting service (Sentry integration)
@@ -240,7 +270,7 @@ class ErrorBoundary extends Component<Props, State> {
           Sentry.captureException(error, {
             contexts: {
               react: {
-                componentStack: errorInfo.componentStack,
+                componentStack: errorInfo?.componentStack,
               },
             },
             extra: {
@@ -287,7 +317,9 @@ class ErrorBoundary extends Component<Props, State> {
         const lastSlot = await AsyncStorage.getItem('lastSlot');
         if (lastSlot) {
           const slotNumber = parseInt(lastSlot, 10);
-          const savedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+          // CRASH FIX (A-1): Read from double-buffer system
+          const { readSaveSlot } = require('@/utils/saveValidation');
+          const savedData = await readSaveSlot(slotNumber);
           if (savedData) {
             try {
               const parsed = JSON.parse(savedData);
@@ -318,20 +350,7 @@ class ErrorBoundary extends Component<Props, State> {
         platform: Platform.OS,
         version: Platform.Version,
       };
-      
-      // Log to analytics service
-      try {
-        const { analyticsService } = await import('@/services/AnalyticsService');
-        await analyticsService.logEvent('user_reported_bug', {
-          category: errorCategory || 'unknown',
-          error_message: error.message,
-          platform: Platform.OS,
-          has_game_context: !!gameContext,
-        });
-      } catch (analyticsError) {
-        logger.warn('Failed to log bug report to analytics:', analyticsError);
-      }
-      
+
       // Try to send to Sentry if available
       try {
         const Sentry = require('@sentry/react-native');
@@ -348,9 +367,9 @@ class ErrorBoundary extends Component<Props, State> {
         // Sentry not available, log to console
         logger.info('Bug report:', bugReport);
       }
-      
+
       Alert.alert(
-        'Bug Report', 
+        'Bug Report',
         'Thank you for reporting this issue. We will investigate. Your game state has been saved.'
       );
     }
@@ -364,7 +383,7 @@ class ErrorBoundary extends Component<Props, State> {
       errorInfo: null,
       retryCount: 0,
     });
-    
+
     // Navigate to home screen
     // This will be handled by the parent component
   };
@@ -376,7 +395,7 @@ class ErrorBoundary extends Component<Props, State> {
   private handleExportLog = async () => {
     try {
       const { error, errorInfo, errorCategory } = this.state;
-      
+
       // Get error logs (only errors and warnings, last 20 entries)
       let errorLogs: any[] = [];
       try {
@@ -390,8 +409,8 @@ class ErrorBoundary extends Component<Props, State> {
             level: log.level,
             message: log.message,
             // Only include context if it's relevant (not full state dumps)
-            context: log.context && typeof log.context === 'object' 
-              ? Object.keys(log.context).length <= 5 
+            context: log.context && typeof log.context === 'object'
+              ? Object.keys(log.context).length <= 5
                 ? JSON.stringify(log.context).substring(0, 150)
                 : undefined
               : undefined,
@@ -399,28 +418,30 @@ class ErrorBoundary extends Component<Props, State> {
       } catch (logError) {
         logger.warn('Failed to get logs from remoteLogger:', logError);
       }
-      
+
       // Get essential game state information
       let gameStateInfo: any = null;
       let saveValidation: any = null;
       let entryValidation: any = null;
       let stateValidation: any = null;
-      
+
       try {
         const lastSlot = await AsyncStorage.getItem('lastSlot');
         if (lastSlot) {
           const slotNumber = parseInt(lastSlot, 10);
-          
+
           // Validate save slot
           if (!isNaN(slotNumber) && slotNumber >= 1 && slotNumber <= 3) {
             saveValidation = await validateSaveSlot(slotNumber);
           }
-          
-          const savedData = await AsyncStorage.getItem(`save_slot_${slotNumber}`);
+
+          // CRASH FIX (A-1): Read from double-buffer system
+          const { readSaveSlot } = require('@/utils/saveValidation');
+          const savedData = await readSaveSlot(slotNumber);
           if (savedData) {
             try {
               const parsed = JSON.parse(savedData);
-              
+
               // Essential game state info only
               gameStateInfo = {
                 slot: slotNumber,
@@ -447,10 +468,10 @@ class ErrorBoundary extends Component<Props, State> {
                   educations: parsed.educations?.length || 0,
                 },
               };
-              
+
               // Validate game entry (critical for debugging entry point issues)
               entryValidation = validateGameEntry(parsed);
-              
+
               // Validate state structure (for debugging state corruption)
               stateValidation = validateGameState(parsed, false);
             } catch (parseError: any) {
@@ -482,7 +503,7 @@ class ErrorBoundary extends Component<Props, State> {
           componentStack: errorInfo?.componentStack?.split('\n').slice(0, 10).join('\n') || 'No component stack', // Limit component stack
           category: errorCategory || 'unknown',
         },
-        
+
         // System information (essential)
         system: {
           platform: Platform.OS,
@@ -491,10 +512,10 @@ class ErrorBoundary extends Component<Props, State> {
           retryCount: this.state.retryCount,
           gameStateBackedUp: this.state.gameStateBackedUp || false,
         },
-        
+
         // Game state (essential only)
         gameState: gameStateInfo,
-        
+
         // Validation results (NEW - critical for debugging)
         validation: {
           saveSlot: saveValidation,
@@ -515,7 +536,7 @@ class ErrorBoundary extends Component<Props, State> {
             errors: stateValidation.errors.slice(0, 3),
           } : null,
         },
-        
+
         // Error logs (only errors/warnings, last 20)
         errorLogs: errorLogs.slice(0, 20),
       };
@@ -549,9 +570,9 @@ State Structure:
   - Date: ${gameStateInfo.hasDate ? '✓' : '✗'}
   - User Profile: ${gameStateInfo.hasUserProfile ? '✓' : '✗'}
   - Settings: ${gameStateInfo.hasSettings ? '✓' : '✗'}
-  - Arrays: Careers(${gameStateInfo.arrayCounts?.careers || 0}) Items(${gameStateInfo.arrayCounts?.items || 0}) Relationships(${gameStateInfo.arrayCounts?.relationships || 0})` 
-  : gameStateInfo?.error ? `ERROR: ${gameStateInfo.error}${gameStateInfo.parseError ? `\n  Parse Error: ${gameStateInfo.parseError}` : ''}${gameStateInfo.errorMessage ? `\n  Error: ${gameStateInfo.errorMessage}` : ''}`
-  : 'No game state available'}
+  - Arrays: Careers(${gameStateInfo.arrayCounts?.careers || 0}) Items(${gameStateInfo.arrayCounts?.items || 0}) Relationships(${gameStateInfo.arrayCounts?.relationships || 0})`
+          : gameStateInfo?.error ? `ERROR: ${gameStateInfo.error}${gameStateInfo.parseError ? `\n  Parse Error: ${gameStateInfo.parseError}` : ''}${gameStateInfo.errorMessage ? `\n  Error: ${gameStateInfo.errorMessage}` : ''}`
+            : 'No game state available'}
 
 --- VALIDATION RESULTS (NEW) ---
 ${crashReport.validation.saveSlot ? `Save Slot Validation:
@@ -584,14 +605,14 @@ ${crashReport.error.stack}
 ${crashReport.error.componentStack}
 
 --- ERROR LOGS (Last 20 Errors/Warnings) ---
-${crashReport.errorLogs.length > 0 
-  ? crashReport.errorLogs.map(log => `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.message}${log.context ? `\n  ${log.context}` : ''}`).join('\n\n')
-  : 'No error logs available'}
+${crashReport.errorLogs.length > 0
+          ? crashReport.errorLogs.map(log => `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.message}${log.context ? `\n  ${log.context}` : ''}`).join('\n\n')
+          : 'No error logs available'}
 
 === END OF REPORT ===
 
 Please share this report in our Discord server to help us fix this issue!
-Discord: https://discord.gg/JaJhS2RVu9`;
+Discord: ${DISCORD_URL}`;
 
       // Also create JSON version for technical analysis (focused, no verbose logs)
       const reportJson = JSON.stringify(crashReport, null, 2);
@@ -606,7 +627,7 @@ Discord: https://discord.gg/JaJhS2RVu9`;
         if (result.action === Share.sharedAction) {
           Alert.alert(
             'Report Exported!',
-            'Thank you for helping us improve the game! Please share this report in our Discord server.\n\nDiscord: https://discord.gg/JaJhS2RVu9',
+            `Thank you for helping us improve the game! Please share this report in our Discord server.\n\nDiscord: ${DISCORD_URL}`,
             [
               { text: 'Open Discord', onPress: () => this.handleOpenDiscord() },
               { text: 'OK', style: 'default' },
@@ -642,7 +663,7 @@ Discord: https://discord.gg/JaJhS2RVu9`;
    * Open Discord server invite link
    */
   private handleOpenDiscord = async () => {
-    const discordUrl = 'https://discord.gg/JaJhS2RVu9';
+    const discordUrl = DISCORD_URL;
     try {
       const canOpen = await Linking.canOpenURL(discordUrl);
       if (canOpen) {
@@ -684,13 +705,13 @@ Discord: https://discord.gg/JaJhS2RVu9`;
               <View style={styles.iconContainer}>
                 <AlertTriangle size={48} color="#DC2626" />
               </View>
-              
+
               <Text style={styles.title}>Something went wrong</Text>
               <Text style={styles.subtitle}>
                 We're sorry, but something unexpected happened.
                 {this.state.gameStateBackedUp && '\n\nYour game state has been backed up.'}
               </Text>
-              
+
               {this.state.recoverySuggestion && (
                 <View style={styles.recoveryContainer}>
                   <Text style={styles.recoveryTitle}>Suggestion:</Text>
@@ -708,7 +729,7 @@ Discord: https://discord.gg/JaJhS2RVu9`;
                   Exporting your crash log helps us identify and fix bugs faster. Your report includes error details, system info, and recent logs (no personal data).
                 </Text>
               </View>
-              
+
               {__DEV__ && this.state.error && (
                 <View style={styles.errorDetails}>
                   <Text style={styles.errorTitle}>Error Details:</Text>
@@ -722,7 +743,7 @@ Discord: https://discord.gg/JaJhS2RVu9`;
                   )}
                 </View>
               )}
-              
+
               {/* Primary Action Buttons */}
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
@@ -735,7 +756,7 @@ Discord: https://discord.gg/JaJhS2RVu9`;
                     {this.state.retryCount >= this.maxRetries ? 'Max Retries' : 'Try Again'}
                   </Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={[styles.button, styles.homeButton]}
                   onPress={this.handleGoHome}
@@ -754,7 +775,7 @@ Discord: https://discord.gg/JaJhS2RVu9`;
                   <Download size={20} color="#FFFFFF" />
                   <Text style={styles.buttonText}>Export Crash Log</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={[styles.button, styles.discordButton]}
                   onPress={this.handleOpenDiscord}
@@ -767,7 +788,7 @@ Discord: https://discord.gg/JaJhS2RVu9`;
               <Text style={styles.helpText}>
                 💡 Export your crash log and share it in our Discord server to help us debug this issue!
               </Text>
-              
+
               <Text style={styles.retryInfo}>
                 Retry attempt: {this.state.retryCount + 1} of {this.maxRetries + 1}
               </Text>

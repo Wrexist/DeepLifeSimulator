@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DM System Component for Social App
  * 
  * Features mysterious messages with clues, discoveries, and secrets
@@ -22,7 +22,8 @@ import {
   Animated,
   TextInput,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   Mail,
@@ -97,7 +98,7 @@ const MYSTERIOUS_CONTACTS: Omit<DMConversation, 'id' | 'lastMessage' | 'timestam
   {
     senderName: 'The Informant',
     senderHandle: 'shadow_info',
-    senderAvatar: '🕵️',
+    senderAvatar: '🕵️',
     isVerified: false,
     isMysterious: true,
     clueType: 'money',
@@ -113,7 +114,7 @@ const MYSTERIOUS_CONTACTS: Omit<DMConversation, 'id' | 'lastMessage' | 'timestam
   {
     senderName: 'Anonymous Traveler',
     senderHandle: 'world_seeker',
-    senderAvatar: '🌍',
+    senderAvatar: '🌍',
     isVerified: false,
     isMysterious: true,
     clueType: 'location',
@@ -121,7 +122,7 @@ const MYSTERIOUS_CONTACTS: Omit<DMConversation, 'id' | 'lastMessage' | 'timestam
   {
     senderName: 'Love Oracle',
     senderHandle: 'heart_guide',
-    senderAvatar: '💕',
+    senderAvatar: '💖',
     isVerified: false,
     isMysterious: true,
     clueType: 'relationship',
@@ -129,7 +130,7 @@ const MYSTERIOUS_CONTACTS: Omit<DMConversation, 'id' | 'lastMessage' | 'timestam
   {
     senderName: 'Treasure Hunter',
     senderHandle: 'finder_keeper',
-    senderAvatar: '🗝️',
+    senderAvatar: 'ðŸ—ï¸',
     isVerified: true,
     isMysterious: true,
     clueType: 'item',
@@ -145,7 +146,7 @@ const MYSTERIOUS_CONTACTS: Omit<DMConversation, 'id' | 'lastMessage' | 'timestam
   {
     senderName: 'Quest Master',
     senderHandle: 'adventure_awaits',
-    senderAvatar: '⚔️',
+    senderAvatar: '⚔️',
     isVerified: true,
     isMysterious: true,
     clueType: 'quest',
@@ -182,7 +183,7 @@ const CLUE_TEMPLATES: Record<ClueType, Array<{ message: string; hint: string; re
   ],
   career: [
     { 
-      message: "Your boss is retiring next month. If your relationship with them is good, you might get promoted automatically. 🎯",
+      message: "Your boss is retiring next month. If your relationship with them is good, you might get promoted automatically. 🏆",
       hint: "Upcoming promotion opportunity",
       reward: "Automatic promotion",
       action: "Improve boss relationship"
@@ -228,7 +229,7 @@ const CLUE_TEMPLATES: Record<ClueType, Array<{ message: string; hint: string; re
   ],
   relationship: [
     { 
-      message: "I noticed someone has been checking your profile... They seem interested. Maybe reach out? 💫",
+      message: "I noticed someone has been checking your profile... They seem interested. Maybe reach out? 💕",
       hint: "Potential new connection",
       reward: "New relationship opportunity",
       action: "Check Contacts app"
@@ -248,7 +249,7 @@ const CLUE_TEMPLATES: Record<ClueType, Array<{ message: string; hint: string; re
   ],
   item: [
     { 
-      message: "The dark web has items you won't find anywhere else. Be careful, but the rewards are worth the risk. 🖤",
+      message: "The dark web has items you won't find anywhere else. Be careful, but the rewards are worth the risk. 🕳️",
       hint: "Dark web special items",
       reward: "Unique items",
       action: "Check Onion browser"
@@ -475,7 +476,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
         "Use this information wisely.",
         "There's more where that came from... stay tuned.",
         "The path to success is paved with secrets.",
-        "You're smarter than I thought! 💫",
+        "You're smarter than I thought! 💕",
       ];
       
       const responseMessage: DMMessage = {
@@ -766,12 +767,12 @@ export default function DMSystem({ onBack }: DMSystemProps) {
 
               {/* Content */}
               <View style={styles.clueModalContent}>
-                <Text style={styles.clueModalHint}>💡 {currentClue.data.hint}</Text>
+                <Text style={styles.clueModalHint}>ðŸ’¡ {currentClue.data.hint}</Text>
                 
                 {currentClue.data.reward && (
                   <View style={styles.clueRewardSection}>
                     <Text style={styles.clueRewardLabel}>Potential Reward:</Text>
-                    <Text style={styles.clueRewardValue}>🎁 {currentClue.data.reward}</Text>
+                    <Text style={styles.clueRewardValue}>ðŸŽ {currentClue.data.reward}</Text>
                   </View>
                 )}
                 
@@ -1195,4 +1196,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
 

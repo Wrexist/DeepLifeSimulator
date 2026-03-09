@@ -1,6 +1,7 @@
 /**
  * Money & Economy Actions
  */
+import React from 'react';
 import { GameState } from '../types';
 import { logger } from '@/utils/logger';
 
@@ -14,15 +15,24 @@ export const updateMoney = (
 ) => {
   setGameState(prev => {
     // Prevent money from going below 0 or NaN
-    if (isNaN(amount)) {
-      log.error(`Attempted to update money with NaN amount. Reason: ${reason}`);
+    if (isNaN(amount) || !isFinite(amount)) {
+      log.error(`Attempted to update money with invalid amount: ${amount}. Reason: ${reason}`);
       return prev;
     }
 
     // CRITICAL FIX: Validate prev.stats.money before calculation
-    const currentMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) 
-      ? prev.stats.money 
+    const currentMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) && isFinite(prev.stats.money)
+      ? prev.stats.money
       : 0;
+
+    // CRASH FIX (B-1): Atomic affordability check — reject purchases that exceed balance
+    // This prevents double-spend from button spam: if two taps read stale gameState,
+    // the second one is rejected here because the functional updater reads fresh state.
+    if (amount < 0 && currentMoney + amount < -0.01) {
+      log.warn(`Rejected purchase: insufficient funds. Has: ${currentMoney}, Needs: ${Math.abs(amount)}. Reason: ${reason}`);
+      return prev; // REJECT — don't allow this deduction
+    }
+
     const newMoney = Math.max(0, currentMoney + amount);
     const moneyChange = newMoney - prev.stats.money;
 
@@ -39,8 +49,8 @@ export const updateMoney = (
       dailySummary = {
         ...prev.dailySummary,
         moneyChange: (prev.dailySummary?.moneyChange || 0) + moneyChange,
-        statsChange: prev.dailySummary?.statsChange || {},
-        events: prev.dailySummary?.events || [],
+        statsChange: { ...(prev.dailySummary?.statsChange || {}) },
+        events: [...(prev.dailySummary?.events || [])],
       };
     }
 

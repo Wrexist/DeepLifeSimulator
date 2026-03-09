@@ -21,12 +21,12 @@ export function formatMoney(amount: number, showDollarSign: boolean = true): str
   } else if (absAmount >= 1_000_000) {
     // Millions (M)
     formatted = `${(absAmount / 1_000_000).toFixed(2)}M`;
-  } else if (absAmount >= 1_000) {
-    // Thousands (K)
+  } else if (absAmount > 10_000) {
+    // Thousands (K) - only for numbers above 10,000
     formatted = `${(absAmount / 1_000).toFixed(2)}K`;
   } else {
-    // Regular numbers
-    formatted = Math.floor(absAmount).toString();
+    // Regular numbers (0-10,000) - show full number
+    formatted = Math.floor(absAmount).toLocaleString();
   }
   
   // Remove trailing zeros and decimal point if not needed
@@ -62,12 +62,12 @@ export function formatCurrency(amount: number, currency: string = ''): string {
   } else if (absAmount >= 1_000_000) {
     // Millions (M)
     formatted = `${(absAmount / 1_000_000).toFixed(2)}M`;
-  } else if (absAmount >= 1_000) {
-    // Thousands (K)
+  } else if (absAmount > 10_000) {
+    // Thousands (K) - only for numbers above 10,000
     formatted = `${(absAmount / 1_000).toFixed(2)}K`;
   } else {
-    // Regular numbers
-    formatted = Math.floor(absAmount).toString();
+    // Regular numbers (0-10,000) - show full number
+    formatted = Math.floor(absAmount).toLocaleString();
   }
   
   // Remove trailing zeros and decimal point if not needed

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useUIUX } from '@/contexts/UIUXContext';
+import { useGameState } from '@/contexts/GameContext';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 
@@ -10,6 +11,9 @@ export default function UIUXOverlay() {
     errorStates,
     hideError,
   } = useUIUX();
+  
+  // Get game state to check for death popup
+  const { gameState } = useGameState();
 
   // Find the highest priority loading state (overlay > default > inline)
   const getHighestPriorityLoading = () => {
@@ -23,11 +27,15 @@ export default function UIUXOverlay() {
   };
 
   const highestPriorityLoading = getHighestPriorityLoading();
+  
+  // CRITICAL: Don't show loading overlay if death popup is showing
+  // This ensures the death popup can render on top
+  const shouldShowLoading = highestPriorityLoading && !gameState?.showDeathPopup;
 
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* Loading Overlay */}
-      {highestPriorityLoading && (
+      {shouldShowLoading && (
         <LoadingSpinner
           visible={true}
           message={highestPriorityLoading.message}

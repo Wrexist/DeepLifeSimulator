@@ -32,13 +32,21 @@ chmod +x scripts/build-and-submit-testflight.sh
    eas credentials
    ```
 
+4. **Save-signing key configured for production (required)**
+   ```bash
+   eas secret:create --scope project --name EXPO_PUBLIC_SAVE_HMAC_KEY --value "<long-random-secret>"
+   ```
+   Keep this value stable across releases. Rotating it can invalidate signature verification for existing saves.
+   For local preflight runs, also export `EXPO_PUBLIC_SAVE_HMAC_KEY` in your shell or `.env.local`.
+
 ## What the Scripts Do
 
 1. **Check prerequisites** - Verifies EAS CLI is installed and you're logged in
-2. **Display current version** - Shows version and build number from `app.config.js`
-3. **Build iOS app** - Starts EAS build for iOS production
-4. **Wait for build** (optional) - Monitors build progress and waits for completion
-5. **Submit to TestFlight** - Automatically submits the build to App Store Connect
+2. **Run release preflight** - Blocks build if required production checks fail (including save-signing env validation)
+3. **Display current version** - Shows version and build number from `app.config.js`
+4. **Build iOS app** - Starts EAS build for iOS production
+5. **Wait for build** (optional) - Monitors build progress and waits for completion
+6. **Submit to TestFlight** - Automatically submits the build to App Store Connect
 
 ## Usage
 
@@ -93,8 +101,8 @@ eas submit --platform ios --profile production --latest
 
 ## Current Configuration
 
-- **Version**: 2.2.7
-- **Build Number**: 56
+- **Version**: 2.2.8
+- **Build Number**: 83+
 - **Bundle ID**: com.deeplife.simulator
 - **Apple Team ID**: S3U8B8HH96
 - **App Store Connect App ID**: 6749675615

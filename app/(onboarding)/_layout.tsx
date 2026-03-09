@@ -1,20 +1,20 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
+import { getThemeColors } from '@/lib/config/theme';
 
 export default function OnboardingLayout() {
   const { gameState } = useGame();
-  const isDarkMode = gameState.settings.darkMode;
+  const isDarkMode = gameState?.settings?.darkMode ?? true;
+  const colors = getThemeColors(isDarkMode);
 
   return (
     <Stack
       screenOptions={{
         headerTitle: '',
-        headerStyle: { 
-          backgroundColor: isDarkMode ? '#111827' : '#f3f4f6' 
-        },
+        headerStyle: { backgroundColor: colors.surfaceElevated },
         headerShadowVisible: false,
-        headerTintColor: isDarkMode ? '#F9FAFB' : '#1f2937',
+        headerTintColor: colors.text,
       }}
     >
       <Stack.Screen name="MainMenu" options={{ headerShown: false }} />

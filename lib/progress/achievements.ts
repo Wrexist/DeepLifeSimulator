@@ -1,5 +1,5 @@
-import { GameState, Relationship } from '@/contexts/game/types';
-import { logger } from '@/utils/logger';
+import { GameState } from '@/contexts/game/types';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 export interface AchievementProgress {
   id: string;
@@ -48,9 +48,6 @@ export const ACHIEVEMENTS: AchievementProgress[] = [
 
 const hasAchievement = (progress: AchievementProgress[], id: string): boolean =>
   progress.some(a => a.id === id);
-
-const countHighRelations = (relations: Relationship[]): number =>
-  relations.filter(r => r.relationshipScore > 70).length;
 
 // Memoization cache for net worth
 interface NetWorthCacheKey {
@@ -135,7 +132,7 @@ export const netWorth = (state: GameState): number => {
   // CRITICAL FIX: Add overflow protection for weeklyIncome * 52
   const companyValue = state.companies?.reduce((total, company) => {
     const weeklyIncome = company.weeklyIncome || 0;
-    const annualIncome = weeklyIncome * 52;
+    const annualIncome = weeklyIncome * WEEKS_PER_YEAR;
     // Prevent overflow: if calculation would exceed safe limit, clamp it
     if (!isFinite(annualIncome) || annualIncome > MAX_SAFE_VALUE) {
       return MAX_SAFE_VALUE;
@@ -146,16 +143,31 @@ export const netWorth = (state: GameState): number => {
 
   // Calculate vehicle value (depreciated)
   let vehicleValue = 0;
-  if (state.vehicles) {
+  if (state.vehicles && Array.isArray(state.vehicles)) {
     state.vehicles.forEach(vehicle => {
-      // Use same depreciation logic as sell price
-      const baseSellPercent = 0.8;
-      const conditionMultiplier = 0.2 + (vehicle.condition / 100) * 0.8;
-      const mileagePenalty = Math.min(0.3, (vehicle.mileage || 0) / 500000);
-      const depreciatedValue = vehicle.price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
-      vehicleValue += Math.floor(depreciatedValue);
+      if (!vehicle) return; // Skip invalid vehicles
+      
+      // CRITICAL: Validate all vehicle values before calculation
+      const price = typeof vehicle.price === 'number' && isFinite(vehicle.price) && vehicle.price >= 0 ? vehicle.price : 0;
+      const condition = typeof vehicle.condition === 'number' && isFinite(vehicle.condition) && vehicle.condition >= 0 && vehicle.condition <= 100 ? vehicle.condition : 100;
+      const mileage = typeof vehicle.mileage === 'number' && isFinite(vehicle.mileage) && vehicle.mileage >= 0 ? vehicle.mileage : 0;
+      
+      if (price > 0) {
+        // Use same depreciation logic as sell price
+        const baseSellPercent = 0.8;
+        const conditionMultiplier = 0.2 + (condition / 100) * 0.8;
+        const mileagePenalty = Math.min(0.3, mileage / 500000);
+        const depreciatedValue = price * baseSellPercent * conditionMultiplier * (1 - mileagePenalty);
+        
+        // CRITICAL: Validate result before adding
+        if (isFinite(depreciatedValue) && depreciatedValue > 0) {
+          vehicleValue += Math.floor(depreciatedValue);
+        }
+      }
     });
   }
+  // Final validation
+  if (!isFinite(vehicleValue) || vehicleValue < 0) vehicleValue = 0;
 
   // Calculate loans (liabilities)
   const loansValue = state.loans?.reduce((total, loan) => {

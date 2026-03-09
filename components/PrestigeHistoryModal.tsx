@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+﻿import React, { useRef, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -9,7 +9,8 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, Crown, Calendar, DollarSign, TrendingUp, Users, RotateCcw } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { PrestigeRecord } from '@/lib/prestige/prestigeTypes';
@@ -53,8 +54,8 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
   const formatMoney = (amount: number) => {
     if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
     if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-    if (amount >= 1_000) return `$${(amount / 1_000).toFixed(2)}K`;
-    return `$${amount}`;
+    if (amount > 10_000) return `$${(amount / 1_000).toFixed(2)}K`;
+    return `$${Math.floor(amount).toLocaleString()}`;
   };
 
   const formatDate = (timestamp: number) => {
@@ -235,7 +236,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                                 gameState.settings.darkMode && styles.statLabelDark,
                               ]}
                             >
-                              Age: {record.ageAtPrestige} • Weeks: {record.weeksLived}
+                              Age: {record.ageAtPrestige} â€¢ Weeks: {record.weeksLived}
                             </Text>
                           </View>
                         </View>
@@ -504,4 +505,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+
 

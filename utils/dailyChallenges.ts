@@ -10,6 +10,42 @@ export interface DailyChallenge {
   maxProgress: number;
 }
 
+export interface DailyChallengeClockContext {
+  weeksLived?: number;
+  day?: number;
+  now?: Date;
+}
+
+const toUtcDayKey = (date: Date): string => {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Authoritative challenge key:
+ * - Prefer simulation clock (`weeksLived`/`day`) to prevent device clock abuse.
+ * - Fallback to UTC day key (not local timezone) for legacy call sites.
+ */
+export const getDailyChallengeDayKey = (
+  context?: DailyChallengeClockContext
+): string => {
+  const safeWeeksLived = typeof context?.weeksLived === 'number' && isFinite(context.weeksLived)
+    ? Math.max(0, Math.floor(context.weeksLived))
+    : null;
+  const safeDay = typeof context?.day === 'number' && isFinite(context.day)
+    ? Math.max(0, Math.floor(context.day))
+    : 0;
+
+  if (safeWeeksLived !== null) {
+    return `W${safeWeeksLived}:D${safeDay}`;
+  }
+
+  const now = context?.now instanceof Date ? context.now : new Date();
+  return toUtcDayKey(now);
+};
+
 // Easy Challenges (10 gems)
 const easyChallenges: DailyChallenge[] = [
   {
@@ -58,7 +94,7 @@ const easyChallenges: DailyChallenge[] = [
     difficulty: 'easy',
     reward: 10,
     checkProgress: (state, initial) => {
-      const weeksAdvanced = state.week - initial.week;
+      const weeksAdvanced = (state.weeksLived || 0) - (initial.weeksLived || 0);
       return Math.min(weeksAdvanced, 1);
     },
     maxProgress: 1,
@@ -243,15 +279,19 @@ const hardChallenges: DailyChallenge[] = [
   },
 ];
 
-// Generate daily challenges (seeded by date for consistency)
-export function generateDailyChallenges(date: Date = new Date()): {
+// Generate daily challenges with an authoritative day key.
+export function generateDailyChallenges(
+  clockContext?: Date | DailyChallengeClockContext
+): {
   easy: DailyChallenge;
   medium: DailyChallenge;
   hard: DailyChallenge;
 } {
-  // Use date as seed for consistent daily challenges
-  const dateString = date.toDateString();
-  const seed = dateString.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const normalizedContext = clockContext instanceof Date
+    ? { now: clockContext }
+    : clockContext;
+  const dayKey = getDailyChallengeDayKey(normalizedContext);
+  const seed = dayKey.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   
   // Simple seeded random
   const seededRandom = (index: number) => {
@@ -270,13 +310,43 @@ export function generateDailyChallenges(date: Date = new Date()): {
   };
 }
 
-// Check if challenges should reset (new day)
-export function shouldResetChallenges(lastRefresh: number): boolean {
+interface ShouldResetChallengeOptions {
+  lastRefreshDayKey?: string;
+  currentClock?: DailyChallengeClockContext;
+}
+
+// Check if challenges should reset based on authoritative day key.
+export function shouldResetChallenges(
+  lastRefresh: number,
+  options?: ShouldResetChallengeOptions
+): boolean {
+  const currentDayKey = getDailyChallengeDayKey(options?.currentClock);
+
+  // Preferred path: persisted key comparison (immune to timezone changes).
+  if (options?.lastRefreshDayKey) {
+    return options.lastRefreshDayKey !== currentDayKey;
+  }
+
+  // Legacy fallback: compare UTC day keys from timestamps.
   const lastDate = new Date(lastRefresh);
-  const now = new Date();
-  
-  // Reset at midnight UTC
-  return lastDate.toDateString() !== now.toDateString();
+  const lastDayKey = getDailyChallengeDayKey({ now: lastDate });
+  return lastDayKey !== currentDayKey;
+}
+
+// ── ENGAGEMENT: Challenge Streak Multiplier ──
+// Completing all 3 challenges in a day increments the streak.
+// Streak provides gem multiplier: 2=1.5x, 3=2x, 5=3x, 7=5x
+export function getChallengeStreakMultiplier(streakCount: number): number {
+  if (streakCount >= 7) return 5.0;
+  if (streakCount >= 5) return 3.0;
+  if (streakCount >= 3) return 2.0;
+  if (streakCount >= 2) return 1.5;
+  return 1.0;
+}
+
+// Calculate the gem reward for a challenge, applying streak multiplier
+export function getStreakAdjustedReward(baseReward: number, streakCount: number): number {
+  return Math.round(baseReward * getChallengeStreakMultiplier(streakCount));
 }
 
 // Calculate time until next reset
@@ -292,5 +362,4 @@ export function getTimeUntilReset(): { hours: number; minutes: number; seconds: 
   
   return { hours, minutes, seconds };
 }
-
 

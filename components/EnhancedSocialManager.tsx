@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,8 @@ import {
   Gift,
   HandHeart,
 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
 import {
   SocialEvent,
@@ -63,10 +64,17 @@ export default function EnhancedSocialManager({ visible, onClose }: EnhancedSoci
   const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
 
   // Get relationships and social data from game state
+  // Use type guards instead of intersection types for optional properties
   const relationships = gameState.relationships || [];
-  const socialEvents = (gameState as GameState & { socialEvents?: SocialEvent[] }).socialEvents || [];
-  const socialGroups = (gameState as GameState & { socialGroups?: typeof SOCIAL_GROUPS }).socialGroups || SOCIAL_GROUPS;
-  const socialInteractions = (gameState as GameState & { socialInteractions?: any[] }).socialInteractions || [];
+  const socialEvents = ('socialEvents' in gameState && Array.isArray(gameState.socialEvents)) 
+    ? gameState.socialEvents as SocialEvent[]
+    : [];
+  const socialGroups = ('socialGroups' in gameState && gameState.socialGroups) 
+    ? gameState.socialGroups as typeof SOCIAL_GROUPS
+    : SOCIAL_GROUPS;
+  const socialInteractions = ('socialInteractions' in gameState && Array.isArray(gameState.socialInteractions)) 
+    ? gameState.socialInteractions as SocialInteraction[]
+    : [];
 
   const filteredEvents = useMemo(() => {
     let filtered = SOCIAL_EVENTS.filter(event => {
@@ -183,11 +191,12 @@ export default function EnhancedSocialManager({ visible, onClose }: EnhancedSoci
       const newState = { ...prev };
       
       // Update relationship
+      const { clampRelationshipScore } = require('@/utils/stateValidation');
       newState.relationships = newState.relationships.map((rel: any) => {
         if (rel.id === relationship.id) {
           return {
             ...rel,
-            relationshipLevel: Math.min(100, rel.relationshipLevel + interaction.relationshipChange),
+            relationshipScore: clampRelationshipScore((rel.relationshipScore || 50) + interaction.relationshipChange),
             happiness: Math.min(100, (rel.happiness || 50) + interaction.happinessChange),
             lastInteraction: Date.now(),
           };
@@ -305,7 +314,7 @@ export default function EnhancedSocialManager({ visible, onClose }: EnhancedSoci
               Min Level: {event.requirements.minRelationshipLevel || 0}
             </Text>
             <Text style={[styles.requirementText, gameState.settings.darkMode && styles.requirementTextDark]}>
-              Participants: {event.requirements.minParticipants}-{event.requirements.maxParticipants || '∞'}
+              Participants: {event.requirements.minParticipants}-{event.requirements.maxParticipants || 'âˆž'}
             </Text>
           </View>
 
@@ -407,17 +416,17 @@ export default function EnhancedSocialManager({ visible, onClose }: EnhancedSoci
 
   const getCategoryIcon = (category: SocialEventCategory): string => {
     const icons = {
-      romantic: '💕',
-      friendship: '👥',
-      family: '👨‍👩‍👧‍👦',
-      professional: '💼',
-      casual: '😊',
-      adventure: '🏔️',
-      cultural: '🎭',
-      sports: '⚽',
-      entertainment: '🎬',
+      romantic: 'ðŸ’•',
+      friendship: 'ðŸ‘¥',
+      family: 'ðŸ‘¨â€ðŸ‘©â€ðŸ‘§â€ðŸ‘¦',
+      professional: 'ðŸ’¼',
+      casual: 'ðŸ˜Š',
+      adventure: 'ðŸ”ï¸',
+      cultural: 'ðŸŽ­',
+      sports: 'âš½',
+      entertainment: 'ðŸŽ¬',
     };
-    return icons[category] || '🎉';
+    return icons[category] || 'ðŸŽ‰';
   };
 
   return (
@@ -1095,3 +1104,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+

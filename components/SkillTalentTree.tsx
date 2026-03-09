@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions, Animated, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useGame, CrimeSkillId } from '@/contexts/GameContext';
-import { X, Star, Zap, Shield, TrendingUp, Lock, Users, BookOpen, Leaf, Wrench, DollarSign, Gavel, Check, Sparkles, Crown, Flame, Eye, Brain, Target, Sword } from 'lucide-react-native';
+import { X, Star, Zap, Shield, Lock, Check, Sparkles, Crown, Flame, Eye, Brain, Target, Sword, ChevronRight, AlertCircle } from 'lucide-react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -254,77 +254,13 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
   const { gameState, unlockCrimeSkillUpgrade } = useGame();
   const [selectedNode, setSelectedNode] = useState<TalentNode | null>(null);
   const [scaleAnim] = useState(new Animated.Value(1));
-  const [pulseAnim] = useState(new Animated.Value(1));
-  const [glowAnim] = useState(new Animated.Value(0));
-  const [connectionAnim] = useState(new Animated.Value(0));
-  
-  // Start animations when component mounts
-  useEffect(() => {
-    let isMounted = true;
-    
-    if (visible && isMounted) {
-      // Pulse animation for unlocked nodes
-      const pulseAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.1,
-            duration: 2000,
-            useNativeDriver: Platform.OS !== 'web',
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: Platform.OS !== 'web',
-          }),
-        ])
-      );
-      
-      // Glow animation for available nodes
-      const glowAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: Platform.OS !== 'web', // Changed to true for consistency
-          }),
-          Animated.timing(glowAnim, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: Platform.OS !== 'web', // Changed to true for consistency
-          }),
-        ])
-      );
-      
-      // Connection flow animation
-      const connectionAnimation = Animated.loop(
-        Animated.timing(connectionAnim, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: Platform.OS !== 'web', // Changed to true for consistency
-        })
-      );
-      
-      if (isMounted) {
-        pulseAnimation.start();
-        glowAnimation.start();
-        connectionAnimation.start();
-      }
-      
-      return () => {
-        isMounted = false;
-        pulseAnimation.stop();
-        glowAnimation.stop();
-        connectionAnimation.stop();
-      };
-    }
-  }, [visible, pulseAnim, glowAnim, connectionAnim]);
   
   const tree = TALENT_TREES[skillId];
   const skill = gameState.crimeSkills[skillId];
   const { settings } = gameState;
 
   // Calculate available talent points (1 point per level, starting from level 1)
-  const availablePoints = Math.max(0, skill.level - 1); // Start from level 1, so level 1 = 0 points, level 2 = 1 point, etc.
+  const availablePoints = Math.max(0, skill.level - 1);
   const spentPoints = skill.upgrades?.length || 0;
   const remainingPoints = availablePoints - spentPoints;
 
@@ -345,7 +281,6 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
   };
 
   const handleNodePress = (node: TalentNode) => {
-    // Animate the press
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.95,
@@ -360,11 +295,12 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
     ]).start();
 
     if (canUnlockNode(node)) {
-      // Convert points cost to money cost (1 point = 100 money)
       const moneyCost = node.pointsCost * 100;
       unlockCrimeSkillUpgrade(skillId, node.id, moneyCost, node.level);
+      setSelectedNode(null);
+    } else {
+      setSelectedNode(node);
     }
-    setSelectedNode(node);
   };
 
   const getNodeStatus = (node: TalentNode) => {
@@ -373,673 +309,841 @@ export default function SkillTalentTree({ skillId, visible, onClose }: SkillTale
     return 'locked';
   };
 
-  const renderNode = (node: TalentNode) => {
+  // Sort nodes by level for better display
+  const sortedNodes = [...tree.nodes].sort((a, b) => {
+    if (a.level !== b.level) return a.level - b.level;
+    return a.row - b.row;
+  });
+
+  const renderTalentCard = (node: TalentNode) => {
     const status = getNodeStatus(node);
     const Icon = node.icon;
-    const isSelected = selectedNode?.id === node.id;
-    
+    const isUnlocked = status === 'unlocked';
+    const isAvailable = status === 'available';
+    const isLocked = status === 'locked';
+
     return (
-      <Animated.View
+      <TouchableOpacity
         key={node.id}
         style={[
-          styles.nodeContainer,
-          {
-            top: node.row * 90 + 20,
-            left: node.column * 90 + 20,
-            transform: [{ scale: isSelected ? scaleAnim : status === 'unlocked' ? pulseAnim : 1 }],
-          },
+          styles.talentCard,
+          settings.darkMode && styles.talentCardDark,
+          isUnlocked && styles.talentCardUnlocked,
+          isAvailable && styles.talentCardAvailable,
+          isLocked && styles.talentCardLocked,
         ]}
+        onPress={() => handleNodePress(node)}
+        activeOpacity={0.7}
+        disabled={isLocked && !selectedNode}
       >
-        {/* Glow effect for available nodes */}
-        {status === 'available' && (
-          <Animated.View 
-            style={[
-              styles.nodeGlow,
-              {
-                opacity: glowAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.3, 0.8],
-                }),
-              }
-            ]}
-          >
-            <LinearGradient
-              colors={['rgba(59, 130, 246, 0.6)', 'rgba(29, 78, 216, 0.4)', 'transparent']}
-              style={styles.nodeGlowGradient}
-            />
-          </Animated.View>
-        )}
-        
-        <TouchableOpacity
-          style={[
-            styles.node,
-            status === 'unlocked' ? styles.nodeUnlocked : 
-            status === 'available' ? styles.nodeAvailable : 
-            styles.nodeLocked,
-            isSelected && styles.nodeSelected,
-          ]}
-          onPress={() => handleNodePress(node)}
-          disabled={status === 'locked'}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={
-              status === 'unlocked'
-                ? node.color.length >= 3 ? node.color : [node.color[0], node.color[1], '#047857']
-                : status === 'available'
-                ? ['#3B82F6', '#1D4ED8', '#1E40AF']
-                : ['#374151', '#1F2937', '#111827']
-            }
-            style={styles.nodeGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            {/* Inner glow effect */}
-            <View style={styles.nodeInnerGlow}>
+        <View style={styles.talentCardContent}>
+          {/* Icon Container */}
+          <View style={[
+            styles.iconContainer,
+            isUnlocked && styles.iconContainerUnlocked,
+            isAvailable && styles.iconContainerAvailable,
+            isLocked && styles.iconContainerLocked,
+          ]}>
+            {isLocked ? (
+              <Lock size={28} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+            ) : (
               <Icon size={28} color="#FFFFFF" />
+            )}
+          </View>
+
+          {/* Talent Info */}
+          <View style={styles.talentInfo}>
+            <View style={styles.talentHeader}>
+              <Text style={[
+                styles.talentName,
+                settings.darkMode && styles.talentNameDark,
+                isLocked && styles.talentNameLocked,
+              ]}>
+                {node.name}
+              </Text>
+              {isUnlocked && (
+                <View style={styles.unlockedBadge}>
+                  <Check size={14} color="#FFFFFF" />
+                </View>
+              )}
             </View>
             
-            <Text style={styles.nodeName}>{node.name}</Text>
-            <Text style={styles.nodeLevel}>Level {node.level}</Text>
-            {node.pointsCost > 1 && (
-              <Text style={styles.nodeCost}>{node.pointsCost} pts</Text>
-            )}
-            
-            {/* Check mark for unlocked talents */}
-            {status === 'unlocked' && (
-              <View style={styles.checkMark}>
-                <Check size={16} color="#FFFFFF" />
+            <Text style={[
+              styles.talentDescription,
+              settings.darkMode && styles.talentDescriptionDark,
+              isLocked && styles.talentDescriptionLocked,
+            ]} numberOfLines={2}>
+              {node.description}
+            </Text>
+
+            <View style={styles.talentMeta}>
+              <View style={styles.metaItem}>
+                <Star size={14} color={isLocked ? '#9CA3AF' : '#F59E0B'} />
+                <Text style={[
+                  styles.metaText,
+                  settings.darkMode && styles.metaTextDark,
+                  isLocked && styles.metaTextLocked,
+                ]}>
+                  Level {node.level}
+                </Text>
               </View>
-            )}
-            
-            {/* Sparkle effect for high-level nodes */}
-            {node.level >= 4 && status === 'unlocked' && (
-              <View style={styles.sparkleEffect}>
-                <Sparkles size={16} color="#FBBF24" />
+              
+              <View style={styles.metaItem}>
+                <Text style={[
+                  styles.metaText,
+                  settings.darkMode && styles.metaTextDark,
+                  isLocked && styles.metaTextLocked,
+                ]}>
+                  {node.pointsCost} point{node.pointsCost > 1 ? 's' : ''}
+                </Text>
               </View>
-            )}
-          </LinearGradient>
-          
-          {/* Selection indicator */}
-          {isSelected && (
-            <View style={styles.selectionRing}>
-              <View style={styles.selectionRingInner} />
             </View>
+
+            {/* Effect Badge */}
+            {!isLocked && (
+              <View style={[
+                styles.effectBadge,
+                isUnlocked && styles.effectBadgeUnlocked,
+                isAvailable && styles.effectBadgeAvailable,
+              ]}>
+                <Text style={styles.effectBadgeText}>{node.effect}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Arrow indicator */}
+          {!isLocked && (
+            <ChevronRight size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
           )}
-        </TouchableOpacity>
-      </Animated.View>
+        </View>
+
+        {/* Prerequisites indicator */}
+        {node.requires && node.requires.length > 0 && isLocked && (
+          <View style={styles.prerequisitesContainer}>
+            <Text style={[
+              styles.prerequisitesText,
+              settings.darkMode && styles.prerequisitesTextDark,
+            ]}>
+              Requires: {node.requires.map(r => {
+                const reqNode = tree.nodes.find(n => n.id === r);
+                return reqNode?.name || r;
+              }).join(', ')}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
     );
   };
 
-  const renderConnections = () => {
-    return tree.nodes.map(node => {
-      if (!node.requires) return null;
-      
-      return node.requires.map(reqId => {
-        const reqNode = tree.nodes.find(n => n.id === reqId);
-        if (!reqNode) return null;
-        
-        const isUnlocked = isNodeUnlocked(reqId) && isNodeUnlocked(node.id);
-        
-        // Calculate connection line properties - match node positioning
-        const startX = reqNode.column * 90 + 20 + 40; // node left + half node width (80/2 = 40)
-        const startY = reqNode.row * 90 + 20 + 40; // node top + half node height (80/2 = 40)
-        const endX = node.column * 90 + 20 + 40; // node left + half node width
-        const endY = node.row * 90 + 20 + 40; // node top + half node height
-        
-        // Calculate line length and angle
-        const deltaX = endX - startX;
-        const deltaY = endY - startY;
-        const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-        
-        return (
-          <View
-            key={`${reqId}-${node.id}`}
-            style={[
-              styles.connection,
-              isUnlocked && styles.connectionUnlocked,
-              {
-                position: 'absolute',
-                left: startX,
-                top: startY,
-                width: length,
-                height: 2,
-                transformOrigin: '0 0',
-                transform: [
-                  { rotate: `${angle}deg` },
-                ],
-              },
-            ]}
-          />
-        );
-      });
-    });
-  };
+  if (!visible) return null;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <BlurView intensity={20} style={styles.modalOverlay}>
-        <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
-          {/* Enhanced header with gradient background */}
-          <LinearGradient
-            colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#E2E8F0']}
-            style={styles.headerGradient}
-          >
-            <View style={styles.header}>
-              <View style={styles.titleContainer}>
-                <Text style={[styles.title, settings.darkMode && styles.titleDark]}>
+      <View style={styles.overlay}>
+        <View style={[
+          styles.container,
+          settings.darkMode && styles.containerDark,
+        ]}>
+          {/* Header */}
+          <View style={[
+            styles.header,
+            settings.darkMode && styles.headerDark,
+          ]}>
+            <View style={styles.headerLeft}>
+              <View style={[
+                styles.headerIconContainer,
+                { backgroundColor: `${tree.color[0]}20` },
+              ]}>
+                  {skillId === 'stealth' && <Eye size={28} color={tree.color[1]} />}
+                {skillId === 'hacking' && <Brain size={28} color={tree.color[1]} />}
+                {skillId === 'lockpicking' && <Target size={28} color={tree.color[1]} />}
+              </View>
+              <View style={styles.headerText}>
+                <Text style={[
+                  styles.title,
+                  settings.darkMode && styles.titleDark,
+                ]}>
                   {tree.name}
                 </Text>
-                <Text style={[styles.subtitle, settings.darkMode && styles.subtitleDark]}>
+                <Text style={[
+                  styles.subtitle,
+                  settings.darkMode && styles.subtitleDark,
+                ]}>
                   Talent Tree
                 </Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
-              </TouchableOpacity>
             </View>
-          </LinearGradient>
-          
-          <View style={styles.pointsDisplay}>
-            <View style={styles.pointsInfo}>
-              <Text style={[styles.pointsText, settings.darkMode && styles.pointsTextDark]}>
-                Talent Points: {remainingPoints}/{availablePoints}
-              </Text>
-              <Text style={[styles.levelText, settings.darkMode && styles.levelTextDark]}>
-                Skill Level: {skill.level}
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { width: `${(remainingPoints / availablePoints) * 100}%` }
-                ]} 
-              />
-            </View>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <X size={24} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+            </TouchableOpacity>
           </View>
-          
-          <Text style={[styles.description, settings.darkMode && styles.descriptionDark]}>
-            {tree.description}
-          </Text>
-          <Text style={[styles.description, settings.darkMode && styles.descriptionDark, { fontSize: 14, marginTop: 8, color: '#10B981' }]}>
-            💡 Each talent gives +5% success rate and +10% payment bonus for {skillId} jobs
-          </Text>
-          
-          <View style={styles.treeContainer}>
-            <View style={styles.treeArea}>
-              {renderConnections()}
-              {tree.nodes.map(renderNode)}
-            </View>
-          </View>
-          
-          {selectedNode && (
-            <View style={[styles.nodeInfo, settings.darkMode && styles.nodeInfoDark]}>
-              <View style={styles.nodeInfoHeader}>
-                <Text style={[styles.nodeInfoTitle, settings.darkMode && styles.nodeInfoTitleDark]}>
-                  {selectedNode.name}
-                </Text>
-                <View style={[
-                  styles.nodeInfoBadge,
-                  getNodeStatus(selectedNode) === 'unlocked' && styles.nodeInfoBadgeUnlocked,
-                  getNodeStatus(selectedNode) === 'available' && styles.nodeInfoBadgeAvailable,
-                  getNodeStatus(selectedNode) === 'locked' && styles.nodeInfoBadgeLocked,
+
+          {/* Stats Bar */}
+          <View style={[
+            styles.statsBar,
+            settings.darkMode && styles.statsBarDark,
+          ]}>
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Star size={16} color="#F59E0B" />
+              </View>
+              <View style={styles.statContent}>
+                <Text style={[
+                  styles.statLabel,
+                  settings.darkMode && styles.statLabelDark,
                 ]}>
-                  <Text style={styles.nodeInfoBadgeText}>
-                    {getNodeStatus(selectedNode).toUpperCase()}
+                  Talent Points
+                </Text>
+                <Text style={[
+                  styles.statValue,
+                  settings.darkMode && styles.statValueDark,
+                ]}>
+                  {remainingPoints} / {availablePoints}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Crown size={16} color="#8B5CF6" />
+              </View>
+              <View style={styles.statContent}>
+                <Text style={[
+                  styles.statLabel,
+                  settings.darkMode && styles.statLabelDark,
+                ]}>
+                  Skill Level
+                </Text>
+                <Text style={[
+                  styles.statValue,
+                  settings.darkMode && styles.statValueDark,
+                ]}>
+                  {skill.level}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Check size={16} color="#10B981" />
+              </View>
+              <View style={styles.statContent}>
+                <Text style={[
+                  styles.statLabel,
+                  settings.darkMode && styles.statLabelDark,
+                ]}>
+                  Unlocked
+                </Text>
+                <Text style={[
+                  styles.statValue,
+                  settings.darkMode && styles.statValueDark,
+                ]}>
+                  {spentPoints} / {tree.nodes.length}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Description */}
+          <View style={styles.descriptionContainer}>
+            <Text style={[
+              styles.description,
+              settings.darkMode && styles.descriptionDark,
+            ]}>
+              {tree.description}
+            </Text>
+            <View style={[
+              styles.benefitBox,
+              settings.darkMode && styles.benefitBoxDark,
+            ]}>
+              <Sparkles size={16} color="#10B981" />
+              <Text style={[
+                styles.benefitText,
+                settings.darkMode && styles.benefitTextDark,
+              ]}>
+                Each talent gives +5% success rate and +10% payment bonus
+              </Text>
+            </View>
+          </View>
+
+          {/* Talent List */}
+          <ScrollView
+            style={styles.talentsList}
+            contentContainerStyle={styles.talentsListContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {sortedNodes.map(renderTalentCard)}
+          </ScrollView>
+
+          {/* Selected Node Details */}
+          {selectedNode && (
+            <View style={[
+              styles.detailsPanel,
+              settings.darkMode && styles.detailsPanelDark,
+            ]}>
+              <View style={styles.detailsHeader}>
+                <View style={styles.detailsHeaderLeft}>
+                  <View style={[
+                    styles.detailsIconContainer,
+                    getNodeStatus(selectedNode) === 'locked' && styles.detailsIconContainerLocked,
+                  ]}>
+                    {getNodeStatus(selectedNode) === 'locked' ? (
+                      <Lock size={24} color={settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+                    ) : (
+                      <selectedNode.icon size={24} color="#FFFFFF" />
+                    )}
+                  </View>
+                  <Text style={[
+                    styles.detailsTitle,
+                    settings.darkMode && styles.detailsTitleDark,
+                  ]}>
+                    {selectedNode.name}
                   </Text>
                 </View>
+                <TouchableOpacity onPress={() => setSelectedNode(null)}>
+                  <X size={20} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                </TouchableOpacity>
               </View>
-              
-              <Text style={[styles.nodeInfoDesc, settings.darkMode && styles.nodeInfoDescDark]}>
+
+              <Text style={[
+                styles.detailsDescription,
+                settings.darkMode && styles.detailsDescriptionDark,
+              ]}>
                 {selectedNode.description}
               </Text>
-              
-              <View style={styles.nodeInfoStats}>
-                <View style={styles.nodeInfoStat}>
-                  <Text style={[styles.nodeInfoStatLabel, settings.darkMode && styles.nodeInfoStatLabelDark]}>
-                    Effect:
+
+              <View style={styles.detailsGrid}>
+                <View style={[
+                  styles.detailItem,
+                  settings.darkMode && styles.detailItemDark,
+                ]}>
+                  <Text style={[
+                    styles.detailLabel,
+                    settings.darkMode && styles.detailLabelDark,
+                  ]}>
+                    Effect
                   </Text>
-                  <Text style={[styles.nodeInfoEffect, settings.darkMode && styles.nodeInfoEffectDark]}>
+                  <Text style={[
+                    styles.detailValue,
+                    settings.darkMode && styles.detailValueDark,
+                  ]}>
                     {selectedNode.effect}
                   </Text>
                 </View>
-                
-                <View style={styles.nodeInfoStat}>
-                  <Text style={[styles.nodeInfoStatLabel, settings.darkMode && styles.nodeInfoStatLabelDark]}>
-                    Cost:
+
+                <View style={[
+                  styles.detailItem,
+                  settings.darkMode && styles.detailItemDark,
+                ]}>
+                  <Text style={[
+                    styles.detailLabel,
+                    settings.darkMode && styles.detailLabelDark,
+                  ]}>
+                    Cost
                   </Text>
-                  <Text style={[styles.nodeInfoCost, settings.darkMode && styles.nodeInfoCostDark]}>
-                    {selectedNode.pointsCost} talent point{selectedNode.pointsCost > 1 ? 's' : ''}
+                  <Text style={[
+                    styles.detailValue,
+                    settings.darkMode && styles.detailValueDark,
+                  ]}>
+                    {selectedNode.pointsCost} point{selectedNode.pointsCost > 1 ? 's' : ''}
                   </Text>
                 </View>
-                
-                <View style={styles.nodeInfoStat}>
-                  <Text style={[styles.nodeInfoStatLabel, settings.darkMode && styles.nodeInfoStatLabelDark]}>
-                    Required Level:
+
+                <View style={[
+                  styles.detailItem,
+                  settings.darkMode && styles.detailItemDark,
+                ]}>
+                  <Text style={[
+                    styles.detailLabel,
+                    settings.darkMode && styles.detailLabelDark,
+                  ]}>
+                    Required Level
                   </Text>
-                  <Text style={[styles.nodeInfoLevel, settings.darkMode && styles.nodeInfoLevelDark]}>
+                  <Text style={[
+                    styles.detailValue,
+                    settings.darkMode && styles.detailValueDark,
+                  ]}>
                     {selectedNode.level}
                   </Text>
                 </View>
               </View>
-              
+
               {getNodeStatus(selectedNode) === 'available' && (
                 <TouchableOpacity
                   style={styles.unlockButton}
                   onPress={() => handleNodePress(selectedNode)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.unlockButtonText}>Unlock Talent</Text>
+                  <LinearGradient
+                    colors={['#3B82F6', '#2563EB', '#1D4ED8']}
+                    style={styles.unlockButtonGradient}
+                  >
+                    <Text style={styles.unlockButtonText}>
+                      Unlock for {selectedNode.pointsCost * 100} money
+                    </Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               )}
-              
+
               {getNodeStatus(selectedNode) === 'locked' && (
-                <View style={styles.lockedInfo}>
-                  <Text style={[styles.lockedText, settings.darkMode && styles.lockedTextDark]}>
-                    Requires level {selectedNode.level} and prerequisites
-                  </Text>
-                </View>
-              )}
-              
-              {getNodeStatus(selectedNode) === 'unlocked' && (
-                <View style={styles.unlockedInfo}>
-                  <Text style={[styles.unlockedText, settings.darkMode && styles.unlockedTextDark]}>
-                    ✓ Talent unlocked and active
+                <View style={[
+                  styles.lockedMessage,
+                  settings.darkMode && styles.lockedMessageDark,
+                ]}>
+                  <AlertCircle size={16} color="#F59E0B" />
+                  <Text style={[
+                    styles.lockedMessageText,
+                    settings.darkMode && styles.lockedMessageTextDark,
+                  ]}>
+                    {remainingPoints < selectedNode.pointsCost && `Need ${selectedNode.pointsCost - remainingPoints} more point${selectedNode.pointsCost - remainingPoints > 1 ? 's' : ''}. `}
+                    {skill.level < selectedNode.level && `Reach level ${selectedNode.level}. `}
+                    {selectedNode.requires && selectedNode.requires.some(req => !isNodeUnlocked(req)) && 'Unlock prerequisites first.'}
                   </Text>
                 </View>
               )}
             </View>
           )}
         </View>
-      </BlurView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 8,
   },
-  modalContent: {
+  container: {
+    width: '100%',
+    maxWidth: screenWidth * 0.95,
+    maxHeight: '95%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    width: screenWidth * 0.95,
-    height: '90%',
-    padding: 0,
+    borderRadius: 24,
     overflow: 'hidden',
-    boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.3,
-    shadowRadius: 20,
+    shadowRadius: 30,
     elevation: 20,
   },
-  modalContentDark: {
+  containerDark: {
     backgroundColor: '#1F2937',
-  },
-  headerGradient: {
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  titleContainer: {
-    flex: 1,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  subtitleDark: {
-    color: '#9CA3AF',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 0,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    backgroundColor: '#FAFBFC',
+  },
+  headerDark: {
+    backgroundColor: '#111827',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#111827',
+    marginBottom: 4,
   },
   titleDark: {
     color: '#F9FAFB',
   },
-  closeButton: {
-    padding: 8,
-  },
-  pointsDisplay: {
-    backgroundColor: '#F3F4F6',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    marginHorizontal: 20,
-    marginTop: 20,
-  },
-  pointsInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  pointsText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3B82F6',
-  },
-  pointsTextDark: {
-    color: '#60A5FA',
-  },
-  levelText: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 15,
     color: '#6B7280',
+    fontWeight: '500',
   },
-  levelTextDark: {
+  subtitleDark: {
     color: '#9CA3AF',
   },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 3,
-    overflow: 'hidden',
+  closeButton: {
+    padding: 8,
+    borderRadius: 8,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#3B82F6',
-    borderRadius: 3,
+  statsBar: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  statsBarDark: {
+    backgroundColor: '#111827',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  statContent: {
+    flex: 1,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  statLabelDark: {
+    color: '#9CA3AF',
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  statValueDark: {
+    color: '#F9FAFB',
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    marginHorizontal: 12,
+  },
+  descriptionContainer: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
   },
   description: {
     fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 20,
+    color: '#4B5563',
+    lineHeight: 24,
+    marginBottom: 14,
   },
   descriptionDark: {
-    color: '#9CA3AF',
+    color: '#D1D5DB',
   },
-  treeContainer: {
-    flex: 1,
-    marginBottom: 20,
-  },
-
-  treeArea: {
-    width: screenWidth * 0.9,
-    height: 400,
-    position: 'relative',
-    alignSelf: 'center',
-  },
-  connection: {
-    position: 'absolute',
-    backgroundColor: '#9CA3AF',
-    opacity: 0.3,
-    height: 2,
-    borderRadius: 1,
-  },
-  connectionUnlocked: {
-    backgroundColor: '#10B981',
-    opacity: 0.8,
-  },
-  nodeContainer: {
-    position: 'absolute',
-  },
-  node: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    position: 'relative',
-  },
-  nodeGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 40,
-    justifyContent: 'center',
+  benefitBox: {
+    flexDirection: 'row',
     alignItems: 'center',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  nodeUnlocked: {
-    shadowColor: '#10B981',
-    shadowOpacity: 0.5,
-  },
-  nodeAvailable: {
-    shadowColor: '#3B82F6',
-    shadowOpacity: 0.5,
-  },
-  nodeLocked: {
-    opacity: 0.5,
-  },
-  nodeSelected: {
-    shadowColor: '#F59E0B',
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-  },
-  nodeName: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  nodeLevel: {
-    fontSize: 8,
-    color: '#FFFFFF',
-    opacity: 0.8,
-  },
-  nodeCost: {
-    fontSize: 8,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  checkMark: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  selectionRing: {
-    position: 'absolute',
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
-    borderRadius: 44,
-    borderWidth: 3,
-    borderColor: '#F59E0B',
-    borderStyle: 'dashed',
-  },
-  selectionRingInner: {
-    position: 'absolute',
-    top: 2,
-    left: 2,
-    right: 2,
-    bottom: 2,
-    borderRadius: 40,
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-  },
-  nodeInfo: {
-    backgroundColor: '#F3F4F6',
-    padding: 16,
+    backgroundColor: '#ECFDF5',
+    padding: 12,
     borderRadius: 12,
-    marginTop: 10,
+    gap: 8,
   },
-  nodeInfoDark: {
-    backgroundColor: '#374151',
+  benefitBoxDark: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
   },
-  nodeInfoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  nodeInfoTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-    flex: 1,
-  },
-  nodeInfoTitleDark: {
-    color: '#F9FAFB',
-  },
-  nodeInfoBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  nodeInfoBadgeUnlocked: {
-    backgroundColor: '#10B981',
-  },
-  nodeInfoBadgeAvailable: {
-    backgroundColor: '#3B82F6',
-  },
-  nodeInfoBadgeLocked: {
-    backgroundColor: '#6B7280',
-  },
-  nodeInfoBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  nodeInfoDesc: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  nodeInfoDescDark: {
-    color: '#9CA3AF',
-  },
-  nodeInfoStats: {
-    marginBottom: 16,
-  },
-  nodeInfoStat: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  nodeInfoStatLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  nodeInfoStatLabelDark: {
-    color: '#9CA3AF',
-  },
-  nodeInfoEffect: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  nodeInfoEffectDark: {
-    color: '#10B981',
-  },
-  nodeInfoCost: {
-    fontSize: 14,
-    color: '#F59E0B',
-    fontWeight: '600',
-  },
-  nodeInfoCostDark: {
-    color: '#FBBF24',
-  },
-  nodeInfoLevel: {
-    fontSize: 14,
-    color: '#3B82F6',
-    fontWeight: '600',
-  },
-  nodeInfoLevelDark: {
-    color: '#60A5FA',
-  },
-  unlockButton: {
-    backgroundColor: '#3B82F6',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  unlockButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  lockedInfo: {
-    backgroundColor: '#FEF3C7',
-    padding: 12,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
-  },
-  lockedText: {
-    fontSize: 14,
-    color: '#92400E',
-    fontStyle: 'italic',
-  },
-  lockedTextDark: {
-    color: '#FBBF24',
-  },
-  unlockedInfo: {
-    backgroundColor: '#D1FAE5',
-    padding: 12,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-  },
-  unlockedText: {
+  benefitText: {
     fontSize: 14,
     color: '#065F46',
     fontWeight: '500',
+    flex: 1,
   },
-  unlockedTextDark: {
+  benefitTextDark: {
     color: '#10B981',
   },
-  // Enhanced visual effects
-  nodeGlow: {
-    position: 'absolute',
-    top: -10,
-    left: -10,
-    right: -10,
-    bottom: -10,
-    borderRadius: 50,
-    zIndex: -1,
+  talentsList: {
+    flex: 1,
   },
-  nodeGlowGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 50,
+  talentsListContent: {
+    padding: 20,
+    gap: 16,
   },
-  nodeInnerGlow: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    padding: 4,
-    marginBottom: 4,
+  talentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  sparkleEffect: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
+  talentCardDark: {
+    backgroundColor: '#1F2937',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  talentCardUnlocked: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  talentCardAvailable: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  talentCardLocked: {
+    opacity: 0.6,
+    borderColor: '#D1D5DB',
+  },
+  talentCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    gap: 20,
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  iconContainerUnlocked: {
+    backgroundColor: '#10B981',
+  },
+  iconContainerAvailable: {
+    backgroundColor: '#3B82F6',
+  },
+  iconContainerLocked: {
+    backgroundColor: '#E5E7EB',
+  },
+  talentInfo: {
+    flex: 1,
+  },
+  talentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 8,
+  },
+  talentName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+  },
+  talentNameDark: {
+    color: '#F9FAFB',
+  },
+  talentNameLocked: {
+    color: '#6B7280',
+  },
+  unlockedBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  talentDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  talentDescriptionDark: {
+    color: '#9CA3AF',
+  },
+  talentDescriptionLocked: {
+    color: '#9CA3AF',
+  },
+  talentMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 8,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  metaTextDark: {
+    color: '#9CA3AF',
+  },
+  metaTextLocked: {
+    color: '#9CA3AF',
+  },
+  effectBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  effectBadgeUnlocked: {
+    backgroundColor: '#D1FAE5',
+  },
+  effectBadgeAvailable: {
+    backgroundColor: '#DBEAFE',
+  },
+  effectBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#065F46',
+  },
+  prerequisitesContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  prerequisitesText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  prerequisitesTextDark: {
+    color: '#9CA3AF',
+  },
+  detailsPanel: {
+    backgroundColor: '#F9FAFB',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.06)',
+    padding: 20,
+  },
+  detailsPanelDark: {
+    backgroundColor: '#111827',
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  detailsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  detailsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailsIconContainerLocked: {
+    backgroundColor: '#E5E7EB',
+  },
+  detailsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+  },
+  detailsTitleDark: {
+    color: '#F9FAFB',
+  },
+  detailsDescription: {
+    fontSize: 15,
+    color: '#4B5563',
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  detailsDescriptionDark: {
+    color: '#D1D5DB',
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 16,
+  },
+  detailItem: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  detailItemDark: {
+    backgroundColor: '#1F2937',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  detailLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  detailLabelDark: {
+    color: '#9CA3AF',
+  },
+  detailValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  detailValueDark: {
+    color: '#F9FAFB',
+  },
+  unlockButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  unlockButtonGradient: {
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unlockButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  lockedMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  lockedMessageDark: {
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+  },
+  lockedMessageText: {
+    fontSize: 13,
+    color: '#92400E',
+    flex: 1,
+    fontWeight: '500',
+  },
+  lockedMessageTextDark: {
+    color: '#FBBF24',
   },
 });

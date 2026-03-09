@@ -1,6 +1,10 @@
 /* eslint-env jest */
 // Jest setup file for global test configuration
 
+global.__DEV__ = false;
+process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = process.env.EXPO_PUBLIC_SAVE_HMAC_KEY || 'test-save-hmac-key-0123456789abcdef';
+process.env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES = process.env.EXPO_PUBLIC_REQUIRE_SIGNED_SAVES || 'true';
+
 // Mock performance API for performance tests
 global.performance = {
   now: () => Date.now(),
@@ -26,17 +30,59 @@ global.console = {
   log: jest.fn(),
 };
 
+// Startup globals expected by startup safety tests.
+if (!(global.ErrorUtils && typeof global.ErrorUtils.getGlobalHandler === 'function')) {
+  const defaultHandler = jest.fn();
+  global.ErrorUtils = {
+    getGlobalHandler: jest.fn(() => defaultHandler),
+    setGlobalHandler: jest.fn(),
+    reportFatalError: jest.fn(),
+  };
+}
+if (typeof global.RCTFatal !== 'function') {
+  global.RCTFatal = jest.fn();
+}
+if (typeof global.__EARLY_INIT_ERROR__ !== 'function') {
+  global.__EARLY_INIT_ERROR__ = jest.fn(() => null);
+}
+if (typeof global.__STARTUP_HEALTH_CHECK__ !== 'function') {
+  global.__STARTUP_HEALTH_CHECK__ = jest.fn(() => ({
+    criticalModules: ['expo-splash-screen'],
+    availableModules: ['expo-splash-screen'],
+    failedModules: [],
+    ready: true,
+  }));
+}
+if (!global.__MODULE_AUDIT_REPORT__) {
+  global.__MODULE_AUDIT_REPORT__ = {
+    iosVersion: '17.0',
+    isIOS26Beta: false,
+    modules: [],
+    summary: { incompatible: [] },
+  };
+}
+if (!Array.isArray(global.__errorQueue)) {
+  global.__errorQueue = [];
+}
+
 // Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  setItem: jest.fn(() => Promise.resolve()),
-  getItem: jest.fn(() => Promise.resolve(null)),
-  removeItem: jest.fn(() => Promise.resolve()),
-  clear: jest.fn(() => Promise.resolve()),
-  getAllKeys: jest.fn(() => Promise.resolve([])),
-  multiGet: jest.fn(() => Promise.resolve([])),
-  multiSet: jest.fn(() => Promise.resolve()),
-  multiRemove: jest.fn(() => Promise.resolve()),
-}));
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const asyncStorageMock = {
+    setItem: jest.fn(() => Promise.resolve()),
+    getItem: jest.fn(() => Promise.resolve(null)),
+    removeItem: jest.fn(() => Promise.resolve()),
+    clear: jest.fn(() => Promise.resolve()),
+    getAllKeys: jest.fn(() => Promise.resolve([])),
+    multiGet: jest.fn(() => Promise.resolve([])),
+    multiSet: jest.fn(() => Promise.resolve()),
+    multiRemove: jest.fn(() => Promise.resolve()),
+  };
+  return {
+    __esModule: true,
+    default: asyncStorageMock,
+    ...asyncStorageMock,
+  };
+});
 
 // Mock Expo modules
 jest.mock('expo-router', () => ({
@@ -56,26 +102,129 @@ jest.mock('expo-notifications', () => ({
   cancelScheduledNotificationAsync: jest.fn(() => Promise.resolve()),
   getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
   requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
-}));
+}), { virtual: true });
 
-// Mock React Native components
+// Mock React Native components without requiring the real package (ESM parse issues in Jest).
 jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native');
-  return {
-    ...RN,
-    Animated: {
-      ...RN.Animated,
-      timing: jest.fn(() => ({
-        start: jest.fn(),
-        stop: jest.fn(),
-      })),
-      Value: jest.fn(() => ({
-        setValue: jest.fn(),
-        addListener: jest.fn(),
-        removeListener: jest.fn(),
-      })),
+  const componentNames = [
+    'View',
+    'Text',
+    'Image',
+    'ScrollView',
+    'FlatList',
+    'SectionList',
+    'TextInput',
+    'TouchableOpacity',
+    'TouchableHighlight',
+    'TouchableWithoutFeedback',
+    'Pressable',
+    'Modal',
+    'Switch',
+    'SafeAreaView',
+    'KeyboardAvoidingView',
+    'StatusBar',
+  ];
+
+  const mockExports = {
+    Platform: {
+      OS: 'ios',
+      Version: 17,
+      select: (config) => {
+        if (config && typeof config === 'object') {
+          return config.ios ?? config.default ?? config.android;
+        }
+        return undefined;
+      },
+    },
+    Dimensions: {
+      get: jest.fn(() => ({ width: 390, height: 844, scale: 3, fontScale: 1 })),
+      addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+    },
+    StyleSheet: {
+      create: (styles) => styles,
+      flatten: (style) => style,
+      compose: (a, b) => ({ ...a, ...b }),
+      hairlineWidth: 1,
+    },
+    Alert: {
+      alert: jest.fn(),
+    },
+    Keyboard: {
+      dismiss: jest.fn(),
+      addListener: jest.fn(() => ({ remove: jest.fn() })),
+      removeAllListeners: jest.fn(),
+    },
+    AppState: {
+      currentState: 'active',
+      addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      removeEventListener: jest.fn(),
+    },
+    NativeModules: {},
+    PixelRatio: {
+      get: jest.fn(() => 3),
+      roundToNearestPixel: jest.fn((v) => v),
+    },
+    InteractionManager: {
+      runAfterInteractions: jest.fn((cb) => {
+        if (typeof cb === 'function') cb();
+        return { cancel: jest.fn() };
+      }),
+    },
+    LayoutAnimation: {
+      configureNext: jest.fn(),
+      create: jest.fn(),
+      Types: {},
+      Properties: {},
     },
   };
+
+  const AnimatedValue = jest.fn(() => ({
+    setValue: jest.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    removeAllListeners: jest.fn(),
+    stopAnimation: jest.fn(),
+    interpolate: jest.fn(() => 0),
+  }));
+
+  mockExports.Animated = {
+    Value: AnimatedValue,
+    ValueXY: jest.fn(() => ({
+      x: AnimatedValue(),
+      y: AnimatedValue(),
+      setValue: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      getLayout: jest.fn(() => ({})),
+      getTranslateTransform: jest.fn(() => []),
+    })),
+    timing: jest.fn(() => ({
+      start: jest.fn((cb) => cb && cb({ finished: true })),
+      stop: jest.fn(),
+    })),
+    spring: jest.fn(() => ({
+      start: jest.fn((cb) => cb && cb({ finished: true })),
+      stop: jest.fn(),
+    })),
+    decay: jest.fn(() => ({
+      start: jest.fn((cb) => cb && cb({ finished: true })),
+      stop: jest.fn(),
+    })),
+    sequence: jest.fn(() => ({
+      start: jest.fn((cb) => cb && cb({ finished: true })),
+    })),
+    parallel: jest.fn(() => ({
+      start: jest.fn((cb) => cb && cb({ finished: true })),
+    })),
+    event: jest.fn(),
+    createAnimatedComponent: jest.fn((component) => component),
+  };
+
+  for (const name of componentNames) {
+    mockExports[name] = name;
+  }
+
+  return mockExports;
 });
 
 // Mock Moti
@@ -83,7 +232,7 @@ jest.mock('moti', () => ({
   View: 'View',
   Text: 'Text',
   AnimatePresence: ({ children }) => children,
-}));
+}), { virtual: true });
 
 // Mock Lucide React Native
 jest.mock('lucide-react-native', () => ({
@@ -102,69 +251,13 @@ jest.mock('lucide-react-native', () => ({
 }));
 
 // Global test utilities
-global.createTestGameState = (overrides = {}) => ({
-  stats: { health: 50, happiness: 50, energy: 50, fitness: 50, money: 1000, reputation: 50, gems: 0 },
-  day: 1,
-  week: 1,
-  date: { year: 2025, month: 'January', week: 1, age: 18 },
-  totalHappiness: 50,
-  weeksLived: 0,
-  streetJobs: [],
-  careers: [],
-  hobbies: [],
-  items: [],
-  darkWebItems: [],
-  hacks: [],
-  relationships: [],
-  social: { relations: [] },
-  hasPhone: false,
-  foods: [],
-  healthActivities: [],
-  dietPlans: [],
-  educations: [],
-  companies: [],
-  userProfile: { name: 'Test', handle: 'test', bio: '', followers: 0, following: 0, gender: 'male', seekingGender: 'female' },
-  currentJob: undefined,
-  showWelcomePopup: true,
-  settings: { darkMode: false, soundEnabled: true, notificationsEnabled: true, autoSave: true, language: 'English', maxStats: false },
-  cryptos: [],
-  diseases: [],
-  realEstate: [],
-  family: { children: [] },
-  lifeStage: 'adult',
-  wantedLevel: 0,
-  jailWeeks: 0,
-  escapedFromJail: false,
-  jailActivities: [],
-  criminalXp: 0,
-  criminalLevel: 1,
-  crimeSkills: {
-    stealth: { xp: 0, level: 1 },
-    hacking: { xp: 0, level: 1 },
-    lockpicking: { xp: 0, level: 1 },
-  },
-  pets: [],
-  bankSavings: 0,
-  stocksOwned: {},
-  perks: {},
-  achievements: [],
-  claimedProgressAchievements: [],
-  lastLogin: Date.now(),
-  streetJobsCompleted: 0,
-  happinessZeroWeeks: 0,
-  healthZeroWeeks: 0,
-  showZeroStatPopup: false,
-  zeroStatType: undefined,
-  showDeathPopup: false,
-  deathReason: undefined,
-  economy: { inflationRateAnnual: 0.03, priceIndex: 1 },
-  version: 5,
-  pendingEvents: [],
-  eventLog: [],
-  progress: { achievements: [] },
-  journal: [],
-  ...overrides,
-});
+// NOTE: Use the proper createTestGameState from __tests__/helpers/createTestGameState.ts instead
+// This global is kept for backward compatibility but should be migrated
+// Import: import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+const { createTestGameState: createTestGameStateHelper } = require('./__tests__/helpers/createTestGameState');
+global.createTestGameState = (overrides = {}) => {
+  return createTestGameStateHelper(overrides);
+};
 
 // Test timeout
 jest.setTimeout(10000);

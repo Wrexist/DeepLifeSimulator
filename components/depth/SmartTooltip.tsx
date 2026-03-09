@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smart Tooltips & Contextual Help
  * Intelligent tooltips that explain mechanics with progressive disclosure
  */
@@ -12,7 +12,8 @@ import {
   Animated,
   Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   Info,
   X,
@@ -521,4 +522,5 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
 });
+
 

@@ -1,518 +1,802 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable import/first */
 /**
- * CRITICAL: Set up global error handler IMMEDIATELY before any other imports
- * This catches errors that occur during module initialization (before React renders)
- * 
- * The ESLint warnings about import order are INTENTIONAL - we must set up error
- * handling before native modules load to catch initialization failures.
+ * Root Layout Component
+ *
+ * CRITICAL: This file now contains ALL initialization logic that was previously in entry.ts
+ * to comply with Cursor Rule #1: "entry.ts stays dumb".
+ * Error handling, module loading, and app initialization all happen here.
  */
-const globalEarlyErrorGetter = (global as any).__EARLY_INIT_ERROR__;
-let earlyInitError: { message: string; stack?: string } | null =
-  typeof globalEarlyErrorGetter === 'function' ? globalEarlyErrorGetter() : null;
-let errorHandlerSet = false;
 
-// Set up early error handler before any native modules load
-// CRITICAL: This MUST be the ONLY error handler - no duplicates allowed
-try {
-  const errorUtils = (global as any)?.ErrorUtils;
-  if (errorUtils?.setGlobalHandler && !errorHandlerSet) {
-    const originalHandler = errorUtils.getGlobalHandler?.();
-    
-    // Store original handler reference for potential future use
-    (global as any).__originalErrorHandler = originalHandler;
-    
-    errorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
-      // Store the error for display
-      earlyInitError = {
-        message: error?.message || 'Unknown initialization error',
-        stack: error?.stack || '',
-      };
-      
-      // RC-0 FIX: Use logger instead of console for production safety
-      // Log to console for debugging (only in dev)
-      if (__DEV__) {
-        console.error('[EARLY ERROR HANDLER] Error caught:', error?.message);
-        console.error('[EARLY ERROR HANDLER] Stack:', error?.stack);
-        console.error('[EARLY ERROR HANDLER] IsFatal:', isFatal);
-      }
-      
-      // CRITICAL FIX: In production, we MUST prevent the native crash
-      // by NOT calling the original handler, which would trigger RCTFatal
-      // The error is stored in earlyInitError and will be shown in UI
-      if (__DEV__) {
-        // In dev, call original handler for debugging
-        if (typeof originalHandler === 'function') {
-          try {
-            originalHandler(error, isFatal);
-          } catch (handlerError) {
-            if (__DEV__) {
-              console.error('[EARLY ERROR HANDLER] Original handler failed:', handlerError);
-            }
-          }
-        }
-      } else {
-        // In production, DO NOT call original handler
-        // This prevents RCTFatal from being called on the native side
-        // The error is stored and will be displayed in the error UI
-        // We explicitly do nothing here to prevent the crash
-        
-        // Also try to persist the error for recovery
-        try {
-          // Use a simple storage mechanism that doesn't require AsyncStorage
-          // (which might not be available yet)
-          if (typeof (global as any).__errorQueue === 'undefined') {
-            (global as any).__errorQueue = [];
-          }
-          (global as any).__errorQueue.push({
-            message: error?.message || 'Unknown error',
-            stack: error?.stack || '',
-            isFatal: !!isFatal,
-            time: Date.now(),
-          });
-        } catch {
-          // Ignore storage errors - we'll handle it later
-        }
-      }
-      
-      // CRITICAL: Return undefined to prevent React Native from reporting to native
-      // This is the key to preventing RCTFatal
-      return undefined;
-    });
-    
-    errorHandlerSet = true;
+// Import error type definitions
+import type {
+  EarlyError,
+  QueuedError,
+  ErrorHandler,
+  UnhandledRejectionEvent,
+  ExceptionManagerData
+} from '@/lib/types/errors';
+import {
+  toErrorObject,
+  createErrorObject,
+  truncateError,
+  truncateStack
+} from '@/lib/types/errors';
+
+// Type alias for compatibility
+type EarlyInitError = EarlyError;
+
+interface IOSVersionInfo {
+  version: string | null;
+  isBeta: boolean;
+  isIOS26Beta: boolean;
+}
+
+interface StartupHealthCheck {
+  criticalModules: string[];
+  availableModules: string[];
+  failedModules: string[];
+  ready: boolean;
+}
+
+// Store any early errors so the app can surface them later
+let layoutEarlyError: EarlyError | null = null;
+
+// CRITICAL: iOS version detection and module audit
+let iosVersionInfo: IOSVersionInfo | null = null;
+
+// PHASE 1.1: Safe require helper for react-native
+function safeRequireReactNative(): { Platform?: any; NativeModules?: any } | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('react-native');
+  } catch (error) {
     if (__DEV__) {
-      console.log('[EARLY ERROR HANDLER] Successfully set up global error handler');
+      console.warn('[RootLayout] Failed to require react-native:', error);
     }
-  }
-} catch (e) {
-  // Silently ignore if ErrorUtils isn't available yet
-  if (__DEV__) {
-    console.warn('[EARLY ERROR HANDLER] Could not set up:', e);
+    return null;
   }
 }
 
-/**
- * React Native Reanimated is imported in app/entry.ts before expo-router loads.
- * Check if it loaded successfully from the global flag set in entry.ts
- */
-const reanimatedLoaded = (global as any).__REANIMATED_LOADED__ === true;
+// PHASE 1.2: Initialize global object if undefined
+if (typeof global === 'undefined') {
+  (global as any) = {}; // TypeScript requires this cast for global assignment
+}
 
-// CRITICAL: Intercept React Native's ExceptionsManager to prevent native crashes
-// This must be done AFTER React Native is loaded but BEFORE it's used
-// We use a setTimeout to ensure React Native modules are fully initialized
-try {
-  // Use setTimeout to defer until after React Native is loaded
-  // This runs in the next tick, after all imports are processed
+// Boot breadcrumbs for crash diagnosis
+import { markBootStage } from '@/lib/utils/bootBreadcrumbs';
+markBootStage('layout_init_start');
+
+// OPTIMIZATION: Defer circuit breaker initialization - not needed for first render
+// Circuit breaker is only needed for crash recovery, not critical for initial render
+// CRITICAL: Use requestAnimationFrame when available for better timing on iOS 26
+if (typeof requestAnimationFrame !== 'undefined') {
+  requestAnimationFrame(() => {
+    try {
+      startupCircuitBreaker.initialize().catch((error) => {
+        if (__DEV__) {
+          console.warn('[RootLayout] Failed to initialize circuit breaker:', error);
+        }
+      });
+    } catch (error) {
+      // Ignore - circuit breaker is not critical
+      if (__DEV__) {
+        console.warn('[RootLayout] Circuit breaker init error:', error);
+      }
+    }
+  });
+} else {
   setTimeout(() => {
     try {
-      const { NativeModules } = require('react-native');
-      
-      // Intercept ExceptionsManager if it exists
-      if (NativeModules?.ExceptionsManager) {
-        const originalReportException = NativeModules.ExceptionsManager.reportException;
-        const originalReportFatalException = NativeModules.ExceptionsManager.reportFatalException;
-        
-        // Override reportException to prevent native crash
-        if (originalReportException) {
-          NativeModules.ExceptionsManager.reportException = function(data: any) {
-            if (__DEV__) {
-              console.error('[EXCEPTIONS MANAGER INTERCEPT] reportException called:', data);
-            }
-            // Store the error but don't report to native
-            if (data && (data.message || data.originalMessage)) {
-              earlyInitError = {
-                message: data.message || data.originalMessage || 'Unknown error',
-                stack: data.stack || data.originalStack || '',
-              };
-              // Update error queue if available
-              if (typeof (global as any).__errorQueue !== 'undefined') {
-                (global as any).__errorQueue.push({
-                  message: data.message || data.originalMessage || 'Unknown error',
-                  stack: data.stack || data.originalStack || '',
-                  isFatal: false,
-                  time: Date.now(),
-                });
-              }
-            }
-            // DO NOT call original - this prevents native crash
-            return;
-          };
-        }
-        
-        // Override reportFatalException to prevent native crash
-        if (originalReportFatalException) {
-          NativeModules.ExceptionsManager.reportFatalException = function(data: any) {
-            if (__DEV__) {
-              console.error('[EXCEPTIONS MANAGER INTERCEPT] reportFatalException called:', data);
-            }
-            // Store the error but don't report to native
-            if (data && (data.message || data.originalMessage)) {
-              earlyInitError = {
-                message: data.message || data.originalMessage || 'Unknown error',
-                stack: data.stack || data.originalStack || '',
-              };
-              // Update error queue if available
-              if (typeof (global as any).__errorQueue !== 'undefined') {
-                (global as any).__errorQueue.push({
-                  message: data.message || data.originalMessage || 'Unknown error',
-                  stack: data.stack || data.originalStack || '',
-                  isFatal: true,
-                  time: Date.now(),
-                });
-              }
-            }
-            // DO NOT call original - this prevents native crash
-            return;
-          };
-        }
-        
-        if (__DEV__) {
-          console.log('[EXCEPTIONS MANAGER INTERCEPT] Successfully intercepted ExceptionsManager');
-        }
-      } else {
-        if (__DEV__) {
-          console.warn('[EXCEPTIONS MANAGER INTERCEPT] ExceptionsManager not found in NativeModules');
-        }
-      }
-    } catch (interceptError: any) {
-      if (__DEV__) {
-        console.warn('[EXCEPTIONS MANAGER INTERCEPT] Could not intercept:', interceptError?.message || interceptError);
-      }
+      startupCircuitBreaker.initialize().catch(() => { });
+    } catch {
+      // Ignore
     }
-  }, 0); // Run in next tick, after React Native is loaded
-} catch (setupError: any) {
-  if (__DEV__) {
-    console.warn('[EXCEPTIONS MANAGER INTERCEPT] Setup failed:', setupError?.message || setupError);
-  }
+  }, 100); // Slightly longer delay for fallback
 }
 
-// CRITICAL: Intercept React Native's ExceptionsManager to prevent native crashes
-// This must be done AFTER React Native is loaded but BEFORE it's used
-// We use a setTimeout to ensure React Native modules are fully initialized
-// RC-0 FIX: This is a duplicate block for redundancy - both blocks now guard console statements
+// PHASE 5.1: Early error detection for native crash indicators
+// Check for native crash state from previous launch
+let nativeCrashDetected = false;
 try {
-  // Use setTimeout to defer until after React Native is loaded
-  // This runs in the next tick, after all imports are processed
-  setTimeout(() => {
-    try {
-      const { NativeModules } = require('react-native');
-      
-      // Intercept ExceptionsManager if it exists
-      if (NativeModules?.ExceptionsManager) {
-        const originalReportException = NativeModules.ExceptionsManager.reportException;
-        const originalReportFatalException = NativeModules.ExceptionsManager.reportFatalException;
-        
-        // Override reportException to prevent native crash
-        if (originalReportException) {
-          NativeModules.ExceptionsManager.reportException = function(data: any) {
-            if (__DEV__) {
-              console.error('[EXCEPTIONS MANAGER INTERCEPT] reportException called:', data);
-            }
-            // Store the error but don't report to native
-            if (data && (data.message || data.originalMessage)) {
-              earlyInitError = {
-                message: data.message || data.originalMessage || 'Unknown error',
-                stack: data.stack || data.originalStack || '',
-              };
-              // Update error queue if available
-              if (typeof (global as any).__errorQueue !== 'undefined') {
-                (global as any).__errorQueue.push({
-                  message: data.message || data.originalMessage || 'Unknown error',
-                  stack: data.stack || data.originalStack || '',
-                  isFatal: false,
-                  time: Date.now(),
-                });
-              }
-            }
-            // DO NOT call original - this prevents native crash
-            return;
-          };
-        }
-        
-        // Override reportFatalException to prevent native crash
-        if (originalReportFatalException) {
-          NativeModules.ExceptionsManager.reportFatalException = function(data: any) {
-            if (__DEV__) {
-              console.error('[EXCEPTIONS MANAGER INTERCEPT] reportFatalException called:', data);
-            }
-            // Store the error but don't report to native
-            if (data && (data.message || data.originalMessage)) {
-              earlyInitError = {
-                message: data.message || data.originalMessage || 'Unknown error',
-                stack: data.stack || data.originalStack || '',
-              };
-              // Update error queue if available
-              if (typeof (global as any).__errorQueue !== 'undefined') {
-                (global as any).__errorQueue.push({
-                  message: data.message || data.originalMessage || 'Unknown error',
-                  stack: data.stack || data.originalStack || '',
-                  isFatal: true,
-                  time: Date.now(),
-                });
-              }
-            }
-            // DO NOT call original - this prevents native crash
-            return;
-          };
-        }
-        
-        if (__DEV__) {
-          console.log('[EXCEPTIONS MANAGER INTERCEPT] Successfully intercepted ExceptionsManager');
-        }
-      } else {
-        if (__DEV__) {
-          console.warn('[EXCEPTIONS MANAGER INTERCEPT] ExceptionsManager not found in NativeModules');
-        }
-      }
-    } catch (interceptError: any) {
-      if (__DEV__) {
-        console.warn('[EXCEPTIONS MANAGER INTERCEPT] Could not intercept:', interceptError?.message || interceptError);
+  // Check if there's a native crash indicator stored
+  if (typeof global !== 'undefined' && global.__NATIVE_CRASH_DETECTED__) {
+    nativeCrashDetected = true;
+    if (__DEV__) {
+      console.warn('[RootLayout] Native crash detected from previous launch');
+    }
+    // Clear the flag
+    global.__NATIVE_CRASH_DETECTED__ = false;
+  }
+} catch {
+  // Ignore errors checking for native crash state
+}
+
+// PHASE 5.2: Metro bundler connection health check
+let metroConnectionHealthy = true;
+let metroConnectionError: string | null = null;
+
+function checkMetroConnection(): boolean {
+  try {
+    // Only relevant in development mode
+    if (!__DEV__) return true;
+
+    // The ONLY reliable indicator of a missing Metro connection is if `require`
+    // is unavailable. All other globals (ErrorUtils, __METRO_GLOBAL_PREFIX__,
+    // nativeExtensions) are set inconsistently across emulators and React
+    // Native versions — checking for them causes false positives.
+    if (typeof require !== 'function') {
+      metroConnectionError = 'Metro require function not available — bundle may be corrupted';
+      return false;
+    }
+
+    // If require works, Metro is connected (or the pre-built bundle is valid).
+    // Log available indicators for diagnostics but don't block on their absence.
+    if (typeof global !== 'undefined') {
+      const indicators: string[] = [];
+      if (global.ErrorUtils) indicators.push('ErrorUtils');
+      if ((global as any).__METRO_GLOBAL_PREFIX__) indicators.push('METRO_PREFIX');
+      if ((global as any).nativeExtensions) indicators.push('nativeExtensions');
+      if (indicators.length === 0) {
+        // No Metro-specific globals found — unusual but not necessarily broken.
+        // Log for diagnostics, don't fail.
+        console.info('[RootLayout] No Metro-specific globals detected (this is normal for some configs)');
       }
     }
-  }, 0); // Run in next tick, after React Native is loaded
-} catch (setupError: any) {
-  if (__DEV__) {
-    console.warn('[EXCEPTIONS MANAGER INTERCEPT] Setup failed:', setupError?.message || setupError);
+
+    return true;
+  } catch (error) {
+    metroConnectionError = `Metro connection check failed: ${error instanceof Error ? error.message : String(error)}`;
+    if (__DEV__) {
+      console.warn('[RootLayout] Metro connection check failed:', error);
+    }
+    // Default to healthy — a failed check should not block the app
+    return true;
   }
 }
 
-// #region agent log - Hypothesis C: Track module imports
-fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:280',message:'Starting imports',data:{stage:'before_expo_router'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-// #endregion
+// OPTIMIZATION: Defer Metro connection check - dev-only diagnostic, not needed for production startup
+if (__DEV__) {
+  setTimeout(() => {
+    metroConnectionHealthy = checkMetroConnection();
+    if (!metroConnectionHealthy && __DEV__) {
+      console.error('[RootLayout] Metro bundler connection issue detected:', metroConnectionError);
+    }
+  }, 0);
+}
+
+// PHASE 5.1: Store crash recovery state for next launch
+if (typeof global !== 'undefined') {
+  global.__CRASH_RECOVERY_STATE__ = {
+    hasNativeCrash: nativeCrashDetected,
+    timestamp: Date.now(),
+    entryPoint: 'layout.tsx',
+  };
+}
+
+// PHASE 1.3: Wait for bridge to be ready
+async function waitForBridge(maxWait = 2000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    try {
+      const rn = safeRequireReactNative();
+      if (rn?.NativeModules && rn.NativeModules.ExceptionsManager) {
+        return true;
+      }
+    } catch {
+      // Bridge not ready yet
+    }
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return false;
+}
+
+// OPTIMIZATION: Defer iOS version detection - not needed for first render, only for compatibility checks
+setTimeout(() => {
+  try {
+    const rn = safeRequireReactNative();
+    const { Platform } = rn || {};
+    if (Platform?.OS === 'ios') {
+      const versionString = Platform.Version as string;
+      const parts = versionString.split('.').map(Number);
+      const major = parts[0] || 0;
+      const isBeta = major >= 26; // iOS 26+ is likely beta
+
+      iosVersionInfo = {
+        version: versionString,
+        isBeta,
+        isIOS26Beta: major === 26 && isBeta,
+      };
+
+      if (__DEV__) {
+        console.log(`[RootLayout] iOS Version detected: ${versionString} (Beta: ${isBeta})`);
+      }
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[RootLayout] Failed to detect iOS version:', error);
+    }
+  }
+
+  // Expose iOS version info globally after detection
+  if (typeof global !== 'undefined') {
+    global.__IOS_VERSION_INFO__ = () => iosVersionInfo;
+  }
+}, 0);
+
+// 1) Global ErrorUtils guard – force non-fatal behavior (CRITICAL PATH - optimized)
+// Defer markBootStage to avoid blocking
+setTimeout(() => markBootStage('layout_error_handlers_setup'), 0);
+
+try {
+  const errorUtils = typeof global !== 'undefined' ? global.ErrorUtils : null;
+  if (errorUtils?.setGlobalHandler) {
+    // Cache original handler lookup - only do it once
+    let cachedOriginalHandler: ErrorHandler | undefined;
+    const getOriginalHandler = () => {
+      if (cachedOriginalHandler === undefined) {
+        cachedOriginalHandler = errorUtils.getGlobalHandler?.() as ErrorHandler | undefined;
+      }
+      return cachedOriginalHandler;
+    };
+
+    // Ultra-lightweight error handler - minimal work in critical path
+    errorUtils.setGlobalHandler((error: unknown, isFatal?: boolean) => {
+      // Fast path: minimal synchronous work
+      try {
+        const message = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : undefined;
+        layoutEarlyError = {
+          message: message || 'Unknown initialization error',
+          stack: stack ? stack.substring(0, 200) : undefined, // Reduced truncation
+          isFatal: !!isFatal,
+        } as EarlyError;
+
+        // Defer ALL heavy operations
+        if (__DEV__) {
+          setTimeout(() => {
+            try {
+              const originalHandler = getOriginalHandler();
+              if (typeof originalHandler === 'function') {
+                const errorObj = toErrorObject(error);
+                originalHandler(errorObj, false);
+              }
+            } catch {
+              // ignore
+            }
+          }, 0);
+        }
+        return undefined;
+      } catch {
+        return undefined;
+      }
+    });
+  }
+} catch {
+  // ignore
+}
+
+// 2) Stub RCTFatal immediately to block native aborts
+if (typeof global !== 'undefined') {
+  global.RCTFatal = () => { };
+}
+
+// 3) Defer ExceptionsManager interception — single setup with bridge wait
+// Consolidated: was previously set twice (immediate + async), causing overwrites.
+// Now uses a single async handler that waits for bridge readiness.
+setTimeout(async () => {
+  try {
+    // Wait for bridge to be ready before intercepting
+    await waitForBridge(2000);
+
+    const rn = safeRequireReactNative();
+    const { NativeModules } = rn || {};
+    if (NativeModules?.ExceptionsManager) {
+      NativeModules.ExceptionsManager.reportException = (data: ExceptionManagerData | unknown) => {
+        try {
+          if (data && typeof data === 'object') {
+            const errorData = data as ExceptionManagerData;
+            const message = errorData.message || errorData.originalMessage || 'Unknown error';
+            const stack = errorData.stack || errorData.originalStack;
+            layoutEarlyError = {
+              message,
+              stack: stack ? stack.substring(0, 500) : undefined,
+              isFatal: false,
+            } as EarlyError;
+          }
+        } catch {
+          // ignore
+        }
+      };
+      NativeModules.ExceptionsManager.reportFatalException = (data: ExceptionManagerData | unknown) => {
+        try {
+          if (data && typeof data === 'object') {
+            const errorData = data as ExceptionManagerData;
+            const message = errorData.message || errorData.originalMessage || 'Unknown error';
+            const stack = errorData.stack || errorData.originalStack;
+            layoutEarlyError = {
+              message,
+              stack: stack ? stack.substring(0, 500) : undefined,
+              isFatal: true,
+            } as EarlyError;
+          }
+        } catch {
+          // ignore
+        }
+      };
+      NativeModules.ExceptionsManager.reportFatal = () => { };
+    }
+  } catch {
+    // ignore — ExceptionsManager interception is non-critical
+  }
+}, 0);
+
+// 5) Expose early error getter
+if (typeof global !== 'undefined') {
+  global.__EARLY_INIT_ERROR__ = () => layoutEarlyError;
+}
+
+// 6) React Native Reanimated status
+const reanimatedLoaded = false;
+if (typeof global !== 'undefined') {
+  global.__REANIMATED_LOADED__ = reanimatedLoaded;
+}
+
+// 7) Unhandled Promise Rejection Handler
+if (typeof global !== 'undefined' && typeof global.Promise !== 'undefined') {
+  const originalUnhandledRejection = global.onunhandledrejection;
+
+  function handleUnhandledRejection(event: UnhandledRejectionEvent | unknown): boolean {
+    try {
+      const rejectionEvent = (event && typeof event === 'object')
+        ? event as UnhandledRejectionEvent
+        : { reason: event };
+      const reason = rejectionEvent.reason || event;
+      const errorObj = toErrorObject(reason);
+
+      // Check if this is a splash screen error - silently ignore it
+      const errorMessage = errorObj.message || String(reason);
+      if (errorMessage.includes('No native splash screen registered') ||
+        errorMessage.includes('Call \'SplashScreen.show\'')) {
+        // This is a known iOS issue - splash screen will auto-hide
+        // Silently handle it to prevent error logs
+        if (rejectionEvent && typeof rejectionEvent.preventDefault === 'function') {
+          rejectionEvent.preventDefault();
+        }
+        return true; // Prevent default error handling
+      }
+
+      if (!layoutEarlyError) {
+        layoutEarlyError = createErrorObject(
+          truncateError(errorObj.message || 'Unhandled Promise Rejection'),
+          {
+            stack: truncateStack(errorObj.stack),
+            isFatal: false,
+          }
+        );
+      }
+
+      // OPTIMIZATION: Defer circuit breaker call - not critical for error handling
+      // Error is already captured in layoutEarlyError, circuit breaker is for crash recovery
+      setTimeout(() => {
+        startupCircuitBreaker.recordFailure('error', errorObj.message).catch(() => {
+          // Ignore circuit breaker errors to prevent cascading failures
+        });
+      }, 0);
+
+      if (__DEV__) {
+        console.error('[UNHANDLED PROMISE REJECTION]', reason);
+      }
+
+      if (typeof global !== 'undefined') {
+        if (typeof global.__errorQueue === 'undefined') {
+          global.__errorQueue = [] as QueuedError[];
+        }
+        const errorQueue = global.__errorQueue as QueuedError[];
+        const queuedError: QueuedError = {
+          message: truncateError(errorObj.message || 'Unhandled Promise Rejection'),
+          stack: truncateStack(errorObj.stack),
+          isFatal: false,
+          time: Date.now(),
+          type: 'unhandledRejection',
+        };
+        errorQueue.push(queuedError);
+
+        if (errorQueue.length > 50) {
+          errorQueue.shift();
+        }
+      }
+
+      if (typeof originalUnhandledRejection === 'function') {
+        try {
+          originalUnhandledRejection(event);
+        } catch {
+          // Ignore
+        }
+      }
+
+      if (rejectionEvent && typeof rejectionEvent.preventDefault === 'function') {
+        rejectionEvent.preventDefault();
+      }
+
+      return true;
+    } catch (handlerError) {
+      if (__DEV__) {
+        console.error('[RootLayout] Rejection handler threw an error:', handlerError);
+      }
+      return true;
+    }
+  }
+
+  global.onunhandledrejection = handleUnhandledRejection;
+}
+
+// 8) Initialize crash recovery system
+setTimeout(async () => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const crashRecoveryModule = require('../utils/crashRecovery');
+    if (crashRecoveryModule?.initializeCrashRecovery) {
+      await crashRecoveryModule.initializeCrashRecovery();
+      if (__DEV__) {
+        console.log('[RootLayout] Crash recovery system initialized');
+      }
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[RootLayout] Failed to initialize crash recovery:', error);
+    }
+  }
+}, 100);
+
+// 9) Native module audit
+setTimeout(async () => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const auditModule = require('../utils/nativeModuleAudit');
+    if (!auditModule) {
+      if (__DEV__) {
+        console.warn('[RootLayout] Native module audit module not available');
+      }
+      return;
+    }
+    if (__DEV__ && auditModule.logAuditReport) {
+      auditModule.logAuditReport();
+    }
+
+    const auditReport = auditModule.getAuditReport ? auditModule.getAuditReport() : null;
+    if (typeof global !== 'undefined' && auditReport) {
+      global.__MODULE_AUDIT_REPORT__ = auditReport;
+    }
+
+    if (auditReport?.isIOS26Beta && auditReport?.summary?.incompatible > 0) {
+      if (__DEV__) {
+        console.warn('[RootLayout] WARNING: Incompatible modules detected on iOS 26 beta');
+        auditReport.modules
+          ?.filter((m: { iosCompatible?: boolean }) => m.iosCompatible === false)
+          .forEach((m: { moduleName?: string; compatibilityReason?: string }) => {
+            console.warn(`  - ${m.moduleName || 'unknown'}: ${m.compatibilityReason || 'Unknown reason'}`);
+          });
+      }
+    }
+
+    // Store audit report globally
+    if (typeof global !== 'undefined') {
+      global.__MODULE_AUDIT_REPORT__ = auditReport;
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[RootLayout] Failed to run module audit:', error);
+    }
+  }
+}, 500);
+
+// 10) Startup health check
+let startupHealthCheck: StartupHealthCheck = {
+  criticalModules: [],
+  availableModules: [],
+  failedModules: [],
+  ready: false,
+};
+
+if (typeof global !== 'undefined') {
+  global.__STARTUP_HEALTH_CHECK__ = () => startupHealthCheck;
+}
+
+// OPTIMIZATION: Defer startup health check - diagnostic only, not critical for render
+setTimeout(() => {
+  try {
+    const rn = safeRequireReactNative();
+    startupHealthCheck.ready = true;
+  } catch (platformError) {
+    if (__DEV__) {
+      console.warn('[RootLayout] Platform check failed:', platformError);
+    }
+    startupHealthCheck.ready = true;
+  }
+}, 0);
+
+// Read early error from our initialization
+function getEarlyInitError(): EarlyInitError | null {
+  try {
+    const globalEarlyErrorGetter = typeof global !== 'undefined' ? global.__EARLY_INIT_ERROR__ : null;
+    if (typeof globalEarlyErrorGetter === 'function') {
+      return globalEarlyErrorGetter();
+    }
+  } catch {
+    // If reading global fails, return null (defensive)
+  }
+  return null;
+}
+const earlyInitError: EarlyInitError | null = getEarlyInitError();
 
 import { useSegments, Slot } from 'expo-router';
+import Constants from 'expo-constants';
 
-// #region agent log - Hypothesis C: After expo-router import
-fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:284',message:'After expo-router',data:{stage:'imported_expo_router'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-// #endregion
-
-import { StatusBar } from 'expo-status-bar';
-
-// #region agent log - Hypothesis C: After StatusBar import
-fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:289',message:'After StatusBar',data:{stage:'imported_status_bar'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-// #endregion
+// CRITICAL: Lazy load StatusBar to prevent TurboModule crash
+// import { StatusBar } from 'expo-status-bar'; // REMOVED - lazy load instead
+import StatusBarFallback from '@/components/fallbacks/StatusBarFallback';
 
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// #region agent log - Hypothesis C: After safe-area-context import
-fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:294',message:'After safe-area-context',data:{stage:'imported_safe_area'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-// #endregion
-
-import { View, StyleSheet, Platform, TouchableOpacity, Text, ScrollView, NativeModules } from 'react-native';
-
-// #region agent log - Hypothesis C: After react-native import
-fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:299',message:'After react-native',data:{stage:'imported_react_native'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-// #endregion
+import { View, StyleSheet, Platform, TouchableOpacity, Text, ScrollView, InteractionManager } from 'react-native';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
-// #region agent log - Hypothesis C: After gesture-handler import
-fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:304',message:'After gesture-handler',data:{stage:'imported_gesture_handler'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-// #endregion
-
-// CRITICAL: Immediately intercept ExceptionsManager after React Native is imported
-// This runs synchronously at module load time, before any components render
-try {
-  if (NativeModules?.ExceptionsManager) {
-    const originalReportException = NativeModules.ExceptionsManager.reportException;
-    const originalReportFatalException = NativeModules.ExceptionsManager.reportFatalException;
-    
-        // Override reportException to prevent native crash
-        if (originalReportException) {
-          NativeModules.ExceptionsManager.reportException = function(data: any) {
-            if (__DEV__) {
-              console.error('[EXCEPTIONS MANAGER INTERCEPT SYNC] reportException called:', data);
-            }
-            // Store the error but don't report to native
-        if (data && (data.message || data.originalMessage)) {
-          earlyInitError = {
-            message: data.message || data.originalMessage || 'Unknown error',
-            stack: data.stack || data.originalStack || '',
-          };
-          // Update error queue if available
-          if (typeof (global as any).__errorQueue !== 'undefined') {
-            (global as any).__errorQueue.push({
-              message: data.message || data.originalMessage || 'Unknown error',
-              stack: data.stack || data.originalStack || '',
-              isFatal: false,
-              time: Date.now(),
-            });
-          }
-        }
-        // DO NOT call original - this prevents native crash
-        return;
-      };
-    }
-    
-        // Override reportFatalException to prevent native crash
-        if (originalReportFatalException) {
-          NativeModules.ExceptionsManager.reportFatalException = function(data: any) {
-            if (__DEV__) {
-              console.error('[EXCEPTIONS MANAGER INTERCEPT SYNC] reportFatalException called:', data);
-            }
-            // Store the error but don't report to native
-        if (data && (data.message || data.originalMessage)) {
-          earlyInitError = {
-            message: data.message || data.originalMessage || 'Unknown error',
-            stack: data.stack || data.originalStack || '',
-          };
-          // Update error queue if available
-          if (typeof (global as any).__errorQueue !== 'undefined') {
-            (global as any).__errorQueue.push({
-              message: data.message || data.originalMessage || 'Unknown error',
-              stack: data.stack || data.originalStack || '',
-              isFatal: true,
-              time: Date.now(),
-            });
-          }
-        }
-        // DO NOT call original - this prevents native crash
-        return;
-      };
-    }
-    
-    if (__DEV__) {
-      console.log('[EXCEPTIONS MANAGER INTERCEPT SYNC] Successfully intercepted ExceptionsManager synchronously');
-    }
-  }
-} catch (syncInterceptError: any) {
-  if (__DEV__) {
-    console.warn('[EXCEPTIONS MANAGER INTERCEPT SYNC] Could not intercept synchronously:', syncInterceptError?.message || syncInterceptError);
-  }
-}
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { GameProvider, useGameState } from '@/contexts/GameContext';
-import { UIUXProvider } from '@/contexts/UIUXContext';
+import { useGameState } from '@/contexts/GameContext';
 import { initializeDebugContext, setStateGetter } from '@/src/debug/aiDebugConfig';
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import TopStatsBar from '@/components/TopStatsBar';
-import { OnboardingProvider } from '@/src/features/onboarding/OnboardingContext';
-import AchievementToast from '@/components/anim/AchievementToast';
-import UIUXOverlay from '@/components/UIUXOverlay';
 import TutorialManager from '@/components/TutorialManager';
-import { TutorialRefProvider } from '@/contexts/TutorialRefContext';
-import { TutorialHighlightProvider } from '@/contexts/TutorialHighlightContext';
-import SicknessModal from '@/components/SicknessModal';
-import CureSuccessModal from '@/components/CureSuccessModal';
-import DeathPopup from '@/components/DeathPopup';
-import ZeroStatPopup from '@/components/ZeroStatPopup';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineIndicator from '@/components/OfflineIndicator';
-import { useEffect, useState } from 'react';
+// Keep always-rendered components as eager imports to reduce bundler memory pressure
+import AchievementToast from '@/components/anim/AchievementToast';
+import UIUXOverlay from '@/components/UIUXOverlay';
+
+// OPTIMIZATION: Only lazy load conditional modal components that are rarely shown
+// This reduces bundler memory pressure while still optimizing startup
+const SicknessModal = lazy(() => import('@/components/SicknessModal'));
+const CureSuccessModal = lazy(() => import('@/components/CureSuccessModal'));
+const DeathPopup = lazy(() => import('@/components/DeathPopup'));
+const WeddingPopup = lazy(() => import('@/components/WeddingPopup'));
+const ZeroStatPopup = lazy(() => import('@/components/ZeroStatPopup'));
+import { useEffect, useState, lazy, Suspense } from 'react';
+
+// Expo Router Error Boundary Component
+function ExpoRouterErrorBoundary({ children }: { children: React.ReactNode }) {
+  const [routerError, setRouterError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    // Set up a global handler for Expo Router errors
+    if (typeof global !== 'undefined') {
+      global.__EXPO_ROUTER_ERROR_HANDLER__ = (error: Error) => {
+        if (__DEV__) {
+          console.error('[ExpoRouter] Router initialization error:', error);
+        }
+        setRouterError(error);
+      };
+    }
+  }, []);
+
+  if (routerError) {
+    return (
+      <SafeAreaView style={[styles.safeArea, styles.safeAreaFatal]} edges={['top', 'left', 'right', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.fatalScrollContainer}>
+          <View style={styles.fatalContainer}>
+            <Text style={styles.fatalTitle}>Router Initialization Error</Text>
+            <Text style={styles.fatalSubtitle}>
+              The app navigation system failed to initialize
+            </Text>
+            <View style={styles.fatalErrorBox}>
+              <Text style={styles.fatalMessage}>{routerError.message}</Text>
+              {routerError.stack ? (
+                <Text style={styles.fatalStack} numberOfLines={10} ellipsizeMode="tail">
+                  {routerError.stack}
+                </Text>
+              ) : null}
+            </View>
+            <Text style={styles.fatalHint}>
+              This usually indicates a routing configuration issue. Try restarting the app.
+            </Text>
+            <TouchableOpacity
+              style={[styles.fatalButton, { marginTop: 16 }]}
+              onPress={() => setRouterError(null)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.fatalButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        if (__DEV__) {
+          console.error('[ExpoRouterErrorBoundary] Router error:', error);
+          console.error('[ExpoRouterErrorBoundary] Error info:', errorInfo);
+        }
+        setRouterError(error);
+      }}
+    >
+      {children}
+    </ErrorBoundary>
+  );
+}
 import { iapService } from '@/services/IAPService';
-import { ToastProvider } from '@/contexts/ToastContext';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
-// REMOVED: expo-tracking-transparency not in package.json, causes require() failure
-// import { requestTrackingPermission } from '@/utils/trackingTransparency';
+// Re-enabled: expo-tracking-transparency added back to package.json
+import { requestTrackingPermission } from '@/utils/trackingTransparency';
 import { logger } from '@/utils/logger';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeAsyncStorage } from '@/utils/storageWrapper';
+import { AppProviders } from '@/contexts/AppProviders';
+import { markFirstFrameRendered } from '@/lib/utils/bootBreadcrumbs';
+import { isFeatureEnabled, logFeatureFlags } from '@/lib/config/featureFlags';
+import { startupOrchestrator, createSafeServiceTask } from '@/lib/utils/startupOrchestrator';
+import { startupCircuitBreaker } from '@/lib/utils/startupCircuitBreaker';
+
+// OPTIMIZATION: Defer feature flag logging - dev-only, not needed for production startup
+if (__DEV__) {
+  setTimeout(() => {
+    logFeatureFlags();
+  }, 0);
+}
 
 export default function RootLayout() {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:410',message:'RootLayout entry',data:{platform:Platform.OS},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
+  // Defer markBootStage to avoid blocking render
+  if (typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(() => markBootStage('layout_start'));
+  } else {
+    setTimeout(() => markBootStage('layout_start'), 0);
+  }
   useFrameworkReady();
   const segments = useSegments();
-  const [fatalError, setFatalError] = useState<{ message: string; stack?: string } | null>(
+  const [fatalError, setFatalError] = useState<EarlyInitError | null>(
     // Initialize with early init error if one occurred
-    earlyInitError
+    earlyInitError || (!metroConnectionHealthy ? {
+      message: 'Development Server Connection Lost',
+      stack: metroConnectionError || 'Metro bundler is not responding. Please restart the development server.',
+      name: 'MetroConnectionError'
+    } : null)
   );
+  const [circuitBreakerStatus, setCircuitBreakerStatus] = useState<any>(null);
   const [isRecovering, setIsRecovering] = useState(false);
-  
-  // Debug: log segments to see what we're getting
-  logger.debug('Current segments:', { segments });
-  logger.debug('Reanimated loaded:', { reanimatedLoaded });
-  
+
+  // Defer debug logging to avoid blocking critical path
+  if (__DEV__) {
+    setTimeout(() => {
+      logger.debug('Current segments:', { segments });
+      logger.debug('Reanimated loaded:', { reanimatedLoaded });
+    }, 0);
+  }
+
   // Only show TopStatsBar when we're in the main game tabs, not in onboarding or other screens
   const isOnboarding = segments[0] === '(onboarding)' || segments[0] === 'preview';
   const isMainGame = segments[0] === '(tabs)';
   const showStatsBar = isMainGame && !isOnboarding;
-  
+
   // Additional safety check: never show TopStatsBar if we're in onboarding routes
   const currentPath = segments.join('/');
   const isInOnboardingPath = currentPath.includes('(onboarding)') || currentPath.includes('MainMenu') || currentPath.includes('Scenarios') || currentPath.includes('Customize') || currentPath.includes('Perks') || currentPath.includes('SaveSlots');
   const finalShowStatsBar = showStatsBar && !isInOnboardingPath;
-  
-  // Debug: log the decision
-  logger.debug('Stats bar decision:', { showStatsBar, isOnboarding, isMainGame, currentPath, isInOnboardingPath, finalShowStatsBar });
 
-  // Check for previous crash and clear it on successful launch
-  // Also check for errors queued by the early error handler
+  // Defer debug logging to avoid blocking critical path
+  if (__DEV__) {
+    setTimeout(() => {
+      logger.debug('Stats bar decision:', { showStatsBar, isOnboarding, isMainGame, currentPath, isInOnboardingPath, finalShowStatsBar });
+    }, 0);
+  }
+
+  // Track first frame rendered state
+  const [isFirstFrameRendered, setIsFirstFrameRendered] = useState(false);
+
+  // Check circuit breaker status on mount
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:438',message:'useEffect checkPreviousCrash start',data:{platform:Platform.OS},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
+    const checkCircuitBreaker = async () => {
+      try {
+        const status = startupCircuitBreaker.shouldAllowStartup();
+        setCircuitBreakerStatus(status);
+
+        if (!status.allowed) {
+          if (__DEV__) {
+            console.warn('[RootLayout] Startup blocked by circuit breaker:', status);
+          }
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('[RootLayout] Error checking circuit breaker:', error);
+        }
+      }
+    };
+
+    checkCircuitBreaker();
+  }, []);
+
+  // Mark first frame rendered (safe to persist breadcrumbs now)
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure we're after first paint
+    requestAnimationFrame(() => {
+      markFirstFrameRendered();
+      markBootStage('app_ready');
+      setIsFirstFrameRendered(true);
+
+      // Record successful startup with circuit breaker
+      startupCircuitBreaker.recordSuccess().catch(() => {
+        // Ignore circuit breaker errors during success recording
+      });
+    });
+  }, []);
+
+  // RELEASE FIX: Check for previous crash AFTER first frame is rendered AND interactions complete
+  // This ensures AsyncStorage is only accessed after first frame and all interactions are complete (extra safe)
+  useEffect(() => {
+    // Only proceed if first frame is rendered
+    if (!isFirstFrameRendered) {
+      return;
+    }
+
     const checkPreviousCrash = async () => {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:442',message:'Before errorQueue check',data:{hasQueue:!!((global as any).__errorQueue)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
         // First, check for errors queued by the early error handler
-        if ((global as any).__errorQueue && Array.isArray((global as any).__errorQueue)) {
-          const queuedErrors = (global as any).__errorQueue;
+        if (global.__errorQueue && Array.isArray(global.__errorQueue)) {
+          const queuedErrors = global.__errorQueue;
           if (queuedErrors.length > 0) {
             const latestError = queuedErrors[queuedErrors.length - 1];
             logger.warn('Queued error from early handler:', latestError);
-            setFatalError({ 
-              message: latestError.message || 'Unknown error', 
-              stack: latestError.stack 
+            setFatalError({
+              message: latestError.message || 'Unknown error',
+              stack: latestError.stack
             });
             // Clear the queue
-            (global as any).__errorQueue = [];
+            global.__errorQueue = [];
             return;
           }
         }
-        
-        // Then check AsyncStorage for persisted errors
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:458',message:'Before AsyncStorage.getItem',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
-        const lastError = await AsyncStorage.getItem('last_fatal_error');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:463',message:'After AsyncStorage.getItem',data:{hasError:!!lastError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
+
+        // Then check AsyncStorage for persisted errors (safe now - first frame rendered + interactions complete)
+        // PHASE 2.2: Use safeAsyncStorage with retry logic
+        const lastError = await safeAsyncStorage.getItem('last_fatal_error', null);
         if (lastError && !fatalError) {
           try {
             // CRITICAL: Validate JSON before parsing to prevent crash
-            const parsed = JSON.parse(lastError);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:476',message:'After JSON.parse success',data:{hasTime:!!parsed?.time},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-            // #endregion
+            // safeAsyncStorage already parses JSON, so lastError is already parsed
+            const parsed = typeof lastError === 'string' ? JSON.parse(lastError) : lastError;
             // Validate parsed data structure
             if (parsed && typeof parsed === 'object') {
               // Only show if it's recent (within last 30 seconds)
               if (parsed.time && Date.now() - parsed.time < 30000) {
                 logger.warn('Previous fatal error detected:', parsed);
-                setFatalError({ 
-                  message: parsed.message || 'Unknown error', 
-                  stack: parsed.stack 
+                setFatalError({
+                  message: parsed.message || 'Unknown error',
+                  stack: parsed.stack
                 });
               }
             }
-          } catch (parseError) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/_layout.tsx:491',message:'JSON.parse error for lastError',data:{error:String(parseError)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-            // #endregion
+          } catch {
             logger.warn('Failed to parse last_fatal_error - corrupted data, ignoring');
             // Continue without showing error - data was corrupted
           }
           // Clear the stored error after successful launch (regardless of parse result)
-          await AsyncStorage.removeItem('last_fatal_error');
+          await safeAsyncStorage.removeItem('last_fatal_error');
         }
       } catch {
         // Ignore errors reading previous crash
       }
     };
-    
+
     // Only check if we didn't have an early init error
     if (!earlyInitError) {
-      checkPreviousCrash();
+      // HIGH PRIORITY FIX: Wait for InteractionManager to ensure all interactions are complete
+      // This provides extra safety margin for AsyncStorage access
+      InteractionManager.runAfterInteractions(() => {
+        checkPreviousCrash();
+      });
     } else {
       // If we have an early init error, make sure it's set in state
       setFatalError(earlyInitError);
     }
-  }, [fatalError]);
+  }, [fatalError, isFirstFrameRendered]);
 
   // CRITICAL: DO NOT set up another error handler here!
   // The early error handler (set up before imports) is the ONLY handler we need.
@@ -523,14 +807,19 @@ export default function RootLayout() {
     setIsRecovering(true);
     try {
       // Clear any stored errors
-      await AsyncStorage.removeItem('last_fatal_error');
-      // Clear early init error
-      earlyInitError = null;
+      await safeAsyncStorage.removeItem('last_fatal_error');
       // Clear error queue
-      if ((global as any).__errorQueue) {
-        (global as any).__errorQueue = [];
+      if (global.__errorQueue) {
+        global.__errorQueue = [];
       }
-      // Reset state
+
+      // Reset circuit breaker if it was blocking startup
+      if (circuitBreakerStatus && !circuitBreakerStatus.allowed) {
+        await startupCircuitBreaker.forceReset();
+        setCircuitBreakerStatus(null);
+      }
+
+      // Reset state (earlyInitError is const, cannot be reassigned)
       setFatalError(null);
     } catch {
       // ignore
@@ -539,34 +828,68 @@ export default function RootLayout() {
     }
   };
 
-  // Show error screen if there was an early init error or runtime error
-  if (fatalError) {
+  // Show error screen if there was an early init error, runtime error, or circuit breaker blocks startup
+  if (fatalError || (circuitBreakerStatus && !circuitBreakerStatus.allowed)) {
     return (
       <SafeAreaProvider>
         <SafeAreaView style={[styles.safeArea, styles.safeAreaFatal]} edges={['top', 'left', 'right', 'bottom']}>
           <ScrollView contentContainerStyle={styles.fatalScrollContainer}>
             <View style={styles.fatalContainer}>
-              <Text style={styles.fatalTitle}>App Initialization Error</Text>
-              <Text style={styles.fatalSubtitle}>
-                {earlyInitError ? 'The app failed to start properly' : 'An error occurred'}
-              </Text>
-              <View style={styles.fatalErrorBox}>
-                <Text style={styles.fatalMessage}>{fatalError.message}</Text>
-                {fatalError.stack ? (
-                  <Text style={styles.fatalStack} numberOfLines={10} ellipsizeMode="tail">
-                    {fatalError.stack}
-                  </Text>
-                ) : null}
-              </View>
-              <Text style={styles.fatalHint}>
-                {Platform.OS === 'ios' 
-                  ? 'This may be caused by an incompatible iOS version. Try updating the app or contact support.'
-                  : 'Try restarting the app. If the issue persists, please contact support.'
+              <Text style={styles.fatalTitle}>
+                {circuitBreakerStatus && !circuitBreakerStatus.allowed
+                  ? 'Startup Protection Active'
+                  : 'App Initialization Error'
                 }
               </Text>
-              <TouchableOpacity 
-                style={[styles.fatalButton, isRecovering && styles.fatalButtonDisabled]} 
-                onPress={clearFatalError} 
+              <Text style={styles.fatalSubtitle}>
+                {circuitBreakerStatus && !circuitBreakerStatus.allowed
+                  ? 'Multiple startup failures detected - protecting against crash loops'
+                  : earlyInitError
+                    ? 'The app failed to start properly'
+                    : 'An error occurred'
+                }
+              </Text>
+              {fatalError && (
+                <View style={styles.fatalErrorBox}>
+                  <Text style={styles.fatalMessage}>{fatalError.message}</Text>
+                  {fatalError.stack ? (
+                    <Text style={styles.fatalStack} numberOfLines={10} ellipsizeMode="tail">
+                      {fatalError.stack}
+                    </Text>
+                  ) : null}
+                </View>
+              )}
+              {circuitBreakerStatus && !circuitBreakerStatus.allowed && (
+                <View style={styles.fatalErrorBox}>
+                  <Text style={styles.fatalMessage}>
+                    Circuit Breaker: {circuitBreakerStatus.reason || 'Too many startup failures'}
+                  </Text>
+                  <Text style={styles.fatalStack}>
+                    Recommended action: {circuitBreakerStatus.recommendedAction}
+                    {circuitBreakerStatus.waitTimeMs
+                      ? `\nWait time: ${Math.ceil(circuitBreakerStatus.waitTimeMs / 1000)}s`
+                      : ''
+                    }
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.fatalHint}>
+                {circuitBreakerStatus && !circuitBreakerStatus.allowed
+                  ? circuitBreakerStatus.recommendedAction === 'nuclear'
+                    ? 'Critical failure pattern detected. Try clearing app data or reinstalling the app.'
+                    : circuitBreakerStatus.recommendedAction === 'escalate'
+                      ? 'Persistent issues detected. Try restarting your device or updating the app.'
+                      : 'The app is temporarily blocked to prevent crash loops. Please wait before retrying.'
+                  : fatalError?.name === 'MetroConnectionError'
+                    ? 'Development server connection lost. Please:\n1. Stop the Metro bundler (Ctrl+C)\n2. Restart with: npm start\n3. Rebuild the app'
+                    : Platform.OS === 'ios'
+                      ? 'This may be caused by an incompatible iOS version. Try updating the app or contact support.'
+                      : 'Try restarting the app. If the issue persists, please contact support.'
+                }
+              </Text>
+              <TouchableOpacity
+                style={[styles.fatalButton, isRecovering && styles.fatalButtonDisabled]}
+                onPress={clearFatalError}
                 activeOpacity={0.8}
                 disabled={isRecovering}
               >
@@ -585,10 +908,18 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary
         onError={(error, errorInfo) => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'_layout.tsx:588',message:'ErrorBoundary caught error',data:{message:error.message,component:errorInfo.componentStack?.split('\n')[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
-          // #endregion
-          logger.error('RootLayout ErrorBoundary triggered:', { error, errorInfo });
+          logger.error('RootLayout ErrorBoundary triggered:', {
+            error: error?.message || String(error),
+            errorStack: error?.stack,
+            componentStack: errorInfo?.componentStack,
+            errorName: error?.name,
+            fullError: error,
+            fullErrorInfo: errorInfo,
+          });
+          if (__DEV__) {
+            console.error('[RootLayout] Full error details:', error);
+            console.error('[RootLayout] Error info:', errorInfo);
+          }
         }}
       >
         <SafeAreaProvider>
@@ -597,7 +928,7 @@ export default function RootLayout() {
       </ErrorBoundary>
     </GestureHandlerRootView>
   );
-  
+
 }
 
 function NotificationHandler() {
@@ -611,180 +942,233 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
 
   // Initialize AI Debug Context
   useEffect(() => {
+    markBootStage('layout_providers_init');
+    const appVersion = Constants.expoConfig?.version || '2.2.7';
+    const buildNumber = Constants.expoConfig?.ios?.buildNumber || '51';
     initializeDebugContext({
-      appVersion: '2.2.5',
-      buildNumber: '45',
+      appVersion,
+      buildNumber,
       stateVersion: STATE_VERSION,
       environment: __DEV__ ? 'dev' : 'prod',
     });
-    
+
     if (__DEV__) {
       logger.info('[AI Debug] Context initialized');
     }
   }, []);
 
-  // Initialize IAP service, AdMob, and request ATT permission
-  // DELAYED: Initialize after app is fully loaded to prevent startup crashes
+  // Initialize optional services using StartupOrchestrator
+  // CRITICAL: Services initialize AFTER first frame renders (InteractionManager)
+  // Each service is wrapped in try/catch with timeout - failures don't crash app
   useEffect(() => {
-    // CRITICAL FIX: Increased delay to 5 seconds to ensure native modules are fully initialized
-    // This prevents crashes during app startup (especially on iOS)
-    // The crash report shows AdMob accessing native modules too early
-    const initTimeout = setTimeout(() => {
-      const initializeServices = async () => {
-        try {
-          // CRITICAL: ATT & IAP EMERGENCY DISABLED
-          // One of these native modules is causing TurboModule crashes
-          // Temporarily disable to identify the culprit
-          logger.info('ATT permission request DISABLED - testing TurboModule crash fix');
-          
-          // ORIGINAL CODE - DISABLED FOR TESTING:
-          /*
-          // CRITICAL: Request ATT permission FIRST, before any tracking occurs (iOS only)
-          // Wrap in try-catch to prevent crashes if native module fails to initialize
-          if (Platform.OS === 'ios') {
-            try {
-              logger.info('Requesting App Tracking Transparency permission...');
-              const hasPermission = await requestTrackingPermission();
-              
-              if (!hasPermission) {
-                logger.warn('Tracking permission denied - ads will be shown without personalization');
-              } else {
-                logger.info('Tracking permission granted - personalized ads enabled');
-              }
-            } catch (attError: any) {
-              // Don't let ATT errors crash the app - ads will work without personalization
-              logger.warn('ATT permission request failed - continuing without personalization:', attError?.message || attError);
-            }
-          }
-          */
 
-        // CRITICAL: AdMob EMERGENCY DISABLED
-        // AdMob is causing native TurboModule crashes during initialization
-        // that cannot be caught by JavaScript error handlers
-        // This is a temporary fix for TestFlight stability
-        // AdMob initialization has been disabled in AdMobService.ts via ADMOB_EMERGENCY_DISABLE flag
-        logger.info('AdMob initialization skipped - emergency disabled for TestFlight stability');
-        
-        // NOTE: To re-enable AdMob, set ADMOB_EMERGENCY_DISABLE = false in services/AdMobService.ts
-        // and uncomment the code below:
-        
-        // Initialize AdMob service (works on both iOS and Android, not web)
-        // Skip in Expo Go as native modules aren't available
-        // if (Platform.OS !== 'web') {
-        //   try {
-        //   // Check if we're in Expo Go before trying to load AdMob
-        //   let isExpoGo = false;
-        //   try {
-        //     const { default: Constants } = await import('expo-constants');
-        //     isExpoGo = Constants?.executionEnvironment === 'storeClient';
-        //   } catch {
-        //     // Not Expo, continue
-        //   }
-        //     
-        //     if (isExpoGo) {
-        //       logger.info('AdMob skipped - running in Expo Go (native modules not available)');
-        //     } else {
-        //       // Dynamic import to avoid bundling on web
-        //       const { adMobService } = await import('@/services/AdMobService');
-        //       logger.info('Initializing AdMob service...');
-        //       await adMobService.initialize();
-        //       logger.info('AdMob service initialized successfully');
-        //     }
-        //   } catch (adError: any) {
-        //     // Check if it's a native module error (common in Expo Go)
-        //     if (adError?.message?.includes('TurboModuleRegistry') || 
-        //         adError?.message?.includes('RNGoogleMobileAdsModule') ||
-        //         adError?.message?.includes('could not be found')) {
-        //       logger.info('AdMob native module not available (likely Expo Go) - ads will be disabled');
-        //     } else {
-        //       logger.warn('AdMob service initialization failed - ads will be disabled:', adError);
-        //     }
-        //   }
-        // }
+    // Clear any existing tasks
+    startupOrchestrator.clear();
 
-          // CRITICAL: IAP EMERGENCY DISABLED
-          // IAP service may be causing TurboModule crash - disable for testing
-          logger.info('IAP initialization DISABLED - testing TurboModule crash fix');
-          
-          // ORIGINAL CODE - DISABLED FOR TESTING:
-          /*
-          // Initialize IAP service
-          logger.info('Initializing IAP service...');
+    // Use feature flags to control optional systems
+    const enableAdMob = Platform.OS !== 'web' && isFeatureEnabled('adMob');
+    const enableIAP = isFeatureEnabled('iap');
+    const enableATT = Platform.OS === 'ios' && isFeatureEnabled('att');
+
+    if (!enableAdMob && !enableIAP && !enableATT) {
+      logger.info('[Boring Build] All optional systems disabled via feature flags');
+    }
+
+    // Add ATT task (if enabled)
+    if (enableATT) {
+      const attTask = createSafeServiceTask(
+        'ATT Permission',
+        async () => {
+          await requestTrackingPermission();
+        },
+        { timeout: 3000, critical: false, enabled: enableATT }
+      );
+      if (attTask) {
+        startupOrchestrator.addTask(attTask);
+      }
+    }
+
+    // Add AdMob task (if enabled)
+    if (enableAdMob) {
+      const adMobTask = createSafeServiceTask(
+        'AdMob Service',
+        async () => {
+          const { adMobService } = await import('@/services/AdMobService');
+          await adMobService.initialize();
+        },
+        { timeout: 5000, critical: false, enabled: enableAdMob }
+      );
+      if (adMobTask) {
+        startupOrchestrator.addTask(adMobTask);
+      }
+    }
+
+    // Add IAP task (if enabled)
+    if (enableIAP) {
+      const iapTask = createSafeServiceTask(
+        'IAP Service',
+        async () => {
           const success = await iapService.initialize();
-          if (success) {
-            logger.info('IAP service initialized successfully');
-          } else {
+          if (!success) {
             logger.warn('IAP service initialization failed - running in simulation mode');
           }
-          */
-        } catch (error) {
-          logger.error('Service initialization error:', error);
-        }
-      };
+        },
+        { timeout: 5000, critical: false, enabled: enableIAP }
+      );
+      if (iapTask) {
+        startupOrchestrator.addTask(iapTask);
+      }
+    }
 
-      initializeServices();
-    }, 5000); // CRITICAL FIX: Delay maintained to ensure native modules are initialized
+    // Run all tasks after first frame
+    startupOrchestrator.runAfterFirstFrame().catch((error: any) => {
+      // Orchestrator handles errors internally, but log if something goes wrong
+      logger.error('[StartupOrchestrator] Unexpected error:', error);
+    });
 
+    // Cleanup on unmount
     return () => {
-      clearTimeout(initTimeout);
+      startupOrchestrator.cancel();
     };
   }, []);
 
+  // PHASE 3.1: Provider error fallback component
+  const ProviderErrorFallback = () => (
+    <SafeAreaView style={[styles.safeArea, styles.safeAreaFatal]} edges={['top', 'left', 'right', 'bottom']}>
+      <View style={styles.fatalContainer}>
+        <Text style={styles.fatalTitle}>Provider Initialization Error</Text>
+        <Text style={styles.fatalSubtitle}>
+          The app failed to initialize properly. Please try restarting the app.
+        </Text>
+        <Text style={styles.fatalHint}>
+          If the issue persists, please contact support.
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+
   return (
-    <UIUXProvider>
-      <GameProvider>
-        <ToastProvider>
-          <NotificationHandler />
-          <OnboardingProvider>
-            <TutorialRefProvider>
-              <TutorialHighlightProvider>
-                <TutorialManager>
-                  <StatusBarWrapper showStatsBar={showStatsBar} insets={insets} />
-                </TutorialManager>
-              </TutorialHighlightProvider>
-            </TutorialRefProvider>
-          </OnboardingProvider>
-        </ToastProvider>
-      </GameProvider>
-    </UIUXProvider>
+    <ErrorBoundary
+      fallback={<ProviderErrorFallback />}
+      onError={(error, errorInfo) => {
+        logger.error('[RootLayout] Provider initialization error:', {
+          error: error?.message || String(error),
+          errorStack: error?.stack,
+          componentStack: errorInfo?.componentStack,
+          errorName: error?.name,
+          fullError: error,
+          fullErrorInfo: errorInfo,
+        });
+        if (__DEV__) {
+          console.error('[RootLayout] Full error details:', error);
+          console.error('[RootLayout] Error info:', errorInfo);
+        }
+      }}
+    >
+      <AppProviders>
+        <NotificationHandler />
+        <TutorialManager>
+          <StatusBarWrapper showStatsBar={showStatsBar} insets={insets} />
+        </TutorialManager>
+      </AppProviders>
+    </ErrorBoundary>
   );
 }
 
-function StatusBarWrapper({ showStatsBar, insets }: { showStatsBar: boolean; insets: any }) {
+interface StatusBarWrapperProps {
+  showStatsBar: boolean;
+  insets: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+}
+
+function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // Use useGameState directly instead of useGame to avoid GameActionsProvider dependency
   // This component only needs gameState, not actions
+  // Add defensive check - if hook fails, ErrorBoundary will catch it
   const { gameState } = useGameState();
-  const isDarkMode = gameState?.settings?.darkMode ?? false;
+  const isDarkMode = true; // Always use dark mode
+
+  // CRITICAL FIX: Always use StatusBarFallback - do NOT dynamically load StatusBar
+  // Dynamic loading causes React Hook violations because StatusBar uses hooks internally
+  // and cannot be loaded asynchronously. Since expo-status-bar is unavailable on iOS 26,
+  // we always use the fallback which is a safe no-op component.
+  const StatusBar = StatusBarFallback;
 
   // Register game state getter with AI Debug Context
   useEffect(() => {
-    // Create a closure that captures the current gameState
-    // This allows the debug system to access state outside of React
-    setStateGetter(() => gameState);
+    try {
+      // Create a closure that captures the current gameState
+      // This allows the debug system to access state outside of React
+      setStateGetter(() => gameState);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[StatusBarWrapper] Failed to set state getter:', error);
+      }
+    }
   }, [gameState]);
   return (
-    <SafeAreaView style={[styles.safeArea, isDarkMode && styles.safeAreaDark]} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.safeArea, gameState?.settings?.darkMode !== false && styles.safeAreaDark]} edges={['left', 'right', 'bottom']}>
       {/* Only show status bar space and TopStatsBar when in main game */}
-      {showStatsBar && <View style={[styles.statusBar, isDarkMode && styles.statusBarDark, { height: insets.top }]} />}
+      {showStatsBar && <View style={[styles.statusBar, gameState?.settings?.darkMode !== false && styles.statusBarDark, { height: insets.top }]} />}
       {/* Show TopStatsBar only in main game, not in onboarding */}
-      {showStatsBar && gameState?.stats && <TopStatsBar />}
-      
+      {/* TopStatsBar is wrapped in ErrorBoundary via AppProviders, so it's safe to render */}
+      {showStatsBar && gameState?.stats && (
+        <ErrorBoundary
+          fallback={null}
+          onError={(error) => {
+            if (__DEV__) {
+              console.warn('[StatusBarWrapper] TopStatsBar error (non-fatal):', error);
+            }
+          }}
+        >
+          <TopStatsBar />
+        </ErrorBoundary>
+      )}
+
       {/* Render the current route with proper spacing */}
       <View style={{ flex: 1 }}>
-        <Slot />
+        <ExpoRouterErrorBoundary>
+          <Slot />
+        </ExpoRouterErrorBoundary>
       </View>
       {/* Global popups & overlays */}
       <AchievementToast />
       {/* Only show game-related popups when in an active game session (not in main menu/onboarding) */}
-      {showStatsBar && gameState?.showZeroStatPopup && !gameState?.dailySummary && (
-        <ZeroStatPopup key={`zero-stat-${gameState?.showZeroStatPopup}-${gameState?.zeroStatType}`} />
+      {/* Lazy load conditional modals to reduce bundler memory pressure */}
+      {/* Modal priority: DeathPopup > ZeroStatPopup/WeddingPopup > SicknessModal/CureSuccessModal */}
+      {showStatsBar && gameState?.showDeathPopup && (
+        <Suspense fallback={null}>
+          <DeathPopup />
+        </Suspense>
       )}
-      {showStatsBar && gameState?.showDeathPopup && <DeathPopup />}
-      {showStatsBar && <SicknessModal />}
-      {showStatsBar && <CureSuccessModal />}
+      {showStatsBar && !gameState?.showDeathPopup && gameState?.showZeroStatPopup && !gameState?.dailySummary && (
+        <Suspense fallback={null}>
+          <ZeroStatPopup key={`zero-stat-${gameState?.showZeroStatPopup}-${gameState?.zeroStatType}`} />
+        </Suspense>
+      )}
+      {showStatsBar && !gameState?.showDeathPopup && gameState?.showWeddingPopup && (
+        <Suspense fallback={null}>
+          <WeddingPopup />
+        </Suspense>
+      )}
+      {showStatsBar && !gameState?.showDeathPopup && (
+        <Suspense fallback={null}>
+          <SicknessModal />
+        </Suspense>
+      )}
+      {showStatsBar && !gameState?.showDeathPopup && (
+        <Suspense fallback={null}>
+          <CureSuccessModal />
+        </Suspense>
+      )}
       <UIUXOverlay />
-      <StatusBar style={isDarkMode ? "light" : "dark"} />
-      
+      {/* StatusBar is always StatusBarFallback (safe no-op component) */}
+      <StatusBar style="light" />
+
       {/* Offline Indicator */}
       {showStatsBar && <OfflineIndicator />}
     </SafeAreaView>

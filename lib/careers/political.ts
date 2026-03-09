@@ -4,6 +4,8 @@
  * Career progression from local council member to president
  */
 import { Career } from '@/contexts/game/types';
+import { PoliticalOfficeRequirements } from '@/lib/types/requirements';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 export const POLITICAL_CAREER: Career = {
   id: 'political',
@@ -26,7 +28,7 @@ export const POLITICAL_CAREER: Career = {
   accepted: false,
 };
 
-export const POLITICAL_CAREER_REQUIREMENTS = {
+export const POLITICAL_CAREER_REQUIREMENTS: Record<string, PoliticalOfficeRequirements> = {
   council_member: {
     minAge: 25,
     minReputation: 30,
@@ -36,31 +38,31 @@ export const POLITICAL_CAREER_REQUIREMENTS = {
     minAge: 30,
     minReputation: 50,
     previousLevel: 'council_member',
-    minWeeksInPrevious: 52, // 1 year
+    minWeeksInPrevious: WEEKS_PER_YEAR, // 1 year
   },
   state_representative: {
     minAge: 35,
     minReputation: 70,
     previousLevel: 'mayor',
-    minWeeksInPrevious: 104, // 2 years
+    minWeeksInPrevious: WEEKS_PER_YEAR * 2, // 2 years
   },
   governor: {
     minAge: 40,
     minReputation: 85,
     previousLevel: 'state_representative',
-    minWeeksInPrevious: 208, // 4 years
+    minWeeksInPrevious: WEEKS_PER_YEAR * 4, // 4 years
   },
   senator: {
     minAge: 45,
     minReputation: 90,
     previousLevel: 'governor',
-    minWeeksInPrevious: 208, // 4 years
+    minWeeksInPrevious: WEEKS_PER_YEAR * 4, // 4 years
   },
   president: {
     minAge: 35, // STABILITY FIX: Lowered from 50 to 35 to make "President by 30" goal achievable (with some buffer)
     minReputation: 95,
     previousLevel: 'senator',
-    minWeeksInPrevious: 260, // 5 years
+    minWeeksInPrevious: WEEKS_PER_YEAR * 5, // 5 years
     specialEvent: true, // Requires special election event
   },
 };
@@ -89,7 +91,7 @@ export function canRunForOffice(
       l => l.name.toLowerCase().includes(requirements.previousLevel!.split('_')[0])
     );
     if (currentLevel <= previousLevelIndex) return false;
-    if ('minWeeksInPrevious' in requirements && weeksInCurrentLevel < requirements.minWeeksInPrevious) return false;
+    if ('minWeeksInPrevious' in requirements && requirements.minWeeksInPrevious !== undefined && weeksInCurrentLevel < requirements.minWeeksInPrevious) return false;
   }
   
   return true;

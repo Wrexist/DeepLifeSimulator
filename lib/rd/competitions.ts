@@ -3,6 +3,8 @@
  * 
  * Competitive events for R&D achievements
  */
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+
 export type CompetitionType = 'quarterly' | 'annual' | 'industry';
 
 export interface Competition {
@@ -49,7 +51,7 @@ export const COMPETITIONS: Competition[] = [
     description: 'The most prestigious technology competition',
     type: 'annual',
     startWeek: 1,
-    endWeek: 52,
+    endWeek: WEEKS_PER_YEAR,
     entryCost: 20000,
     prizes: {
       first: 200000,
@@ -121,12 +123,12 @@ export function getActiveCompetitions(week: number): Competition[] {
   return COMPETITIONS.filter(comp => {
     // Quarterly competitions repeat every 12 weeks
     if (comp.type === 'quarterly') {
-      const cycleWeek = ((week - 1) % 52) + 1;
+      const cycleWeek = ((week - 1) % WEEKS_PER_YEAR) + 1;
       return cycleWeek >= comp.startWeek && cycleWeek <= comp.endWeek;
     }
-    // Annual competitions repeat every 52 weeks
+    // Annual competitions repeat every WEEKS_PER_YEAR weeks
     if (comp.type === 'annual') {
-      const cycleWeek = ((week - 1) % 52) + 1;
+      const cycleWeek = ((week - 1) % WEEKS_PER_YEAR) + 1;
       return cycleWeek >= comp.startWeek && cycleWeek <= comp.endWeek;
     }
     // Industry competitions repeat every 26 weeks

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, View, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { MotiView, MotiText } from '@/components/anim/MotiStub';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const BlurView = BlurViewFallback;
 import { useGame } from '@/contexts/GameContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -26,7 +27,7 @@ export default function AnimatedModal({
   fullScreen = false
 }: AnimatedModalProps) {
   const { gameState } = useGame();
-  const isDarkMode = gameState.settings.darkMode;
+  const isDarkMode = gameState?.settings?.darkMode ?? false;
 
   const getAnimationProps = () => {
     switch (animationType) {

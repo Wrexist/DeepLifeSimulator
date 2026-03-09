@@ -2,7 +2,7 @@
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { logger } from '@/utils/logger';
-import type { GameState, Company, CompanyUpgrade } from '../GameContext';
+import type { GameState, Company, CompanyUpgrade } from './types';
 import type { Dispatch, SetStateAction } from 'react';
 
 export function createCompany(
@@ -22,6 +22,13 @@ export function createCompany(
     realestate: 200000,
     bank: 2000000,
   } as const;
+
+  // Validate companyType against allowed types
+  const validTypes = Object.keys(companyCosts);
+  if (!validTypes.includes(companyType)) {
+    logger.error('createCompany: invalid companyType:', { companyType, validTypes });
+    return { success: false, message: `Invalid company type: ${companyType}` };
+  }
 
   const baseCost = companyCosts[companyType as keyof typeof companyCosts];
   const cost = getInflatedPrice(baseCost, gameState.economy.priceIndex);
@@ -740,43 +747,160 @@ export function buyMiner(
   minerName: string,
   cost: number
 ): { success: boolean; message?: string } {
+  // Perform all validation and mutation inside a single functional update
+  // to avoid race conditions with stale state
+  let result: { success: boolean; message?: string } = { success: false, message: 'Unknown error' };
+
+  setGameState(prev => {
+    if (!prev.warehouse) {
+      result = { success: false, message: 'You need a warehouse to buy miners' };
+      return prev;
+    }
+
+    const currentMoney = typeof prev.stats.money === 'number' && isFinite(prev.stats.money) && prev.stats.money >= 0
+      ? prev.stats.money
+      : 0;
+
+    if (currentMoney < cost) {
+      result = { success: false, message: 'Not enough money' };
+      return prev;
+    }
+
+    // Check warehouse capacity
+    const currentMiners = Object.values(prev.warehouse.miners).reduce((sum, count) => sum + count, 0);
+    const maxCapacity = 10 + (prev.warehouse.level - 1) * 5;
+
+    if (currentMiners >= maxCapacity) {
+      result = { success: false, message: 'Warehouse is full! Upgrade your warehouse to store more miners.' };
+      return prev;
+    }
+
+    result = { success: true, message: `Successfully purchased ${minerName}!` };
+    return {
+      ...prev,
+      warehouse: {
+        ...prev.warehouse,
+        miners: {
+          ...prev.warehouse.miners,
+          [minerId]: (prev.warehouse.miners[minerId] || 0) + 1,
+        },
+        minerDurability: {
+          ...prev.warehouse.minerDurability,
+          [minerId]: 100,
+        },
+      },
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - cost,
+      },
+    };
+  });
+
+  return result;
+}
+
+/**
+ * Buy a warehouse (required for mining operations)
+ */
+export function buyWarehouse(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>
+): { success: boolean; message?: string } {
+  // Perform all validation and mutation inside a single functional update
+  let result: { success: boolean; message?: string } = { success: false, message: 'Unknown error' };
+
+  setGameState(prev => {
+    if (prev.warehouse) {
+      result = { success: false, message: 'You already have a warehouse' };
+      return prev;
+    }
+
+    const baseCost = 50000;
+    const priceIndex = typeof prev.economy?.priceIndex === 'number' && isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0
+      ? prev.economy.priceIndex
+      : 1;
+
+    const { getInflatedPrice } = require('@/lib/economy/inflation');
+    const cost = getInflatedPrice(baseCost, priceIndex);
+
+    const currentMoney = typeof prev.stats.money === 'number' && isFinite(prev.stats.money) && prev.stats.money >= 0
+      ? prev.stats.money
+      : 0;
+
+    if (currentMoney < cost) {
+      result = { success: false, message: `Not enough money. Warehouse costs ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cost)}` };
+      return prev;
+    }
+
+    result = { success: true, message: 'Warehouse purchased successfully! You can now buy miners.' };
+    return {
+      ...prev,
+      warehouse: {
+        level: 1,
+        miners: {},
+        minerDurability: {},
+      },
+      stats: {
+        ...prev.stats,
+        money: prev.stats.money - cost,
+      },
+    };
+  });
+
+  return result;
+}
+
+/**
+ * Upgrade warehouse to increase capacity
+ */
+export function upgradeWarehouse(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>
+): { success: boolean; message?: string } {
+  // Check if has warehouse
   if (!gameState.warehouse) {
-    return { success: false, message: 'You need a warehouse to buy miners' };
+    return { success: false, message: 'You need to buy a warehouse first' };
   }
-  
-  if (gameState.stats.money < cost) {
-    return { success: false, message: 'Not enough money' };
+
+  // Max level is 10
+  const maxLevel = 10;
+  if (gameState.warehouse.level >= maxLevel) {
+    return { success: false, message: 'Warehouse is already at maximum level' };
   }
+
+  // Upgrade cost: $25,000 * level
+  const baseCost = 25000;
+  const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0
+    ? gameState.economy.priceIndex
+    : 1;
   
-  // Check warehouse capacity
-  const currentMiners = Object.values(gameState.warehouse.miners).reduce((sum, count) => sum + count, 0);
-  const maxCapacity = 10 + (gameState.warehouse.level - 1) * 5; // Level 1 = 10 slots, Level 2 = 15 slots, etc.
-  
-  if (currentMiners >= maxCapacity) {
-    return { success: false, message: 'Warehouse is full! Upgrade your warehouse to store more miners.' };
+  const { getInflatedPrice } = require('@/lib/economy/inflation');
+  const cost = getInflatedPrice(baseCost * gameState.warehouse.level, priceIndex);
+
+  // Validate money
+  const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0
+    ? gameState.stats.money
+    : 0;
+
+  if (currentMoney < cost) {
+    return { success: false, message: `Not enough money. Upgrade costs ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cost)}` };
   }
-  
+
+  // Upgrade warehouse
   setGameState(prev => ({
     ...prev,
     warehouse: prev.warehouse ? {
       ...prev.warehouse,
-      miners: {
-        ...prev.warehouse.miners,
-        [minerId]: (prev.warehouse.miners[minerId] || 0) + 1,
-      },
-      // BUG FIX: Initialize durability to 100 for new miners
-      minerDurability: {
-        ...prev.warehouse.minerDurability,
-        [minerId]: 100, // New miners start at 100% durability
-      },
+      level: prev.warehouse.level + 1,
     } : undefined,
     stats: {
       ...prev.stats,
       money: prev.stats.money - cost,
     },
   }));
-  
-  return { success: true, message: `Successfully purchased ${minerName}!` };
+
+  const newCapacity = 10 + (gameState.warehouse.level) * 5; // After upgrade, capacity increases
+  return { success: true, message: `Warehouse upgraded to level ${gameState.warehouse.level + 1}! New capacity: ${newCapacity} miners.` };
 }
 
 export function sellMiner(

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,8 @@ import {
   Pause,
   RotateCcw,
 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
 import { GameState, GoalProgress } from '@/contexts/game/types';
 import {
@@ -66,8 +67,13 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<GoalTemplate | null>(null);
 
   // Get goals from game state (we'll add this to GameState interface later)
-  const goals = (gameState as GameState & { goals?: Goal[]; goalProgress?: Record<string, GoalProgress> }).goals || [];
-  const goalProgress = (gameState as GameState & { goals?: Goal[]; goalProgress?: Record<string, GoalProgress> }).goalProgress || {};
+  // Use type guards instead of intersection types for optional properties
+  const goals = ('goals' in gameState && Array.isArray(gameState.goals)) 
+    ? gameState.goals as Goal[]
+    : [];
+  const goalProgress = ('goalProgress' in gameState && typeof gameState.goalProgress === 'object' && gameState.goalProgress !== null) 
+    ? gameState.goalProgress as Record<string, GoalProgress>
+    : {};
 
   const filteredGoals = useMemo(() => {
     let filtered = goals.filter((goal: Goal) => {
@@ -168,7 +174,7 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
               if (goal.reward) {
                 applyGoalReward(goal.reward);
                 Alert.alert(
-                  '🎉 Goal Completed!',
+                  'ðŸŽ‰ Goal Completed!',
                   `You earned ${goal.reward.amount.toLocaleString()} ${goal.reward.type}!`
                 );
               }
@@ -190,7 +196,7 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
       if (goal.reward) {
         applyGoalReward(goal.reward);
         Alert.alert(
-          '🎉 Goal Completed!',
+          'ðŸŽ‰ Goal Completed!',
           `You earned ${goal.reward.amount.toLocaleString()} ${goal.reward.type}!`
         );
       }
@@ -218,8 +224,8 @@ export default function GoalManager({ visible, onClose }: GoalManagerProps) {
           
           // Check if achievement unlocks a perk
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { perksData } = require('@/app/(onboarding)/Perks');
-          const unlockedPerk = perksData.find((p: any) => p.unlock?.achievementId === achievementId);
+          const { perks: perksData } = require('@/src/features/onboarding/perksData');
+          const unlockedPerk = perksData?.find((p: any) => p.unlock?.achievementId === achievementId);
           
           if (unlockedPerk) {
             // Save as permanent perk
@@ -1006,3 +1012,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+

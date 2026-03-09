@@ -38,11 +38,11 @@ function loadTrackingTransparency(): boolean {
   try {
     // Add a small delay to ensure native modules are fully initialized
     // This helps prevent crashes during app startup
-    const moduleName = 'expo-tracking-transparency';
+    // CRITICAL: Metro requires static string literals in require() calls
     
     // Use a more defensive require that can handle native module initialization failures
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const module = require(moduleName);
+    const module = require('expo-tracking-transparency');
     
     // Verify the module has the expected methods before using it
     if (module && typeof module.getTrackingPermissionsAsync === 'function') {

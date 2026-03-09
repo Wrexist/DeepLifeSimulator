@@ -5,10 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
+  ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, CheckCircle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGame } from '@/contexts/game';
 import { useFeedback } from '@/utils/feedbackSystem';
 
 export default function CureSuccessModal() {
@@ -20,12 +22,12 @@ export default function CureSuccessModal() {
   // Only show modal when in an active game (week > 0 indicates active game)
   const isInActiveGame = week > 0;
 
-  // Auto-dismiss the modal after 2 seconds
+  // Auto-dismiss the modal after 8 seconds (increased from 2 seconds)
   useEffect(() => {
     if (isInActiveGame && showCureSuccessModal && curedDiseases.length > 0) {
       const timer = setTimeout(() => {
         dismissCureSuccessModal();
-      }, 2000); // 2 seconds
+      }, 8000); // 8 seconds
 
       return () => clearTimeout(timer);
     }
@@ -52,7 +54,7 @@ export default function CureSuccessModal() {
                   <CheckCircle size={32} color="#10B981" />
                 </View>
                 <Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>
-                  🏥 Treatment Successful!
+                  Treatment Successful!
                 </Text>
                 <Text style={[styles.modalSubtitle, darkMode && styles.modalSubtitleDark]}>
                   Your health conditions have been cured
@@ -71,11 +73,18 @@ export default function CureSuccessModal() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalContent}>
+            <ScrollView 
+              style={styles.modalContent}
+              contentContainerStyle={styles.modalContentContainer}
+              showsVerticalScrollIndicator={true}
+            >
               <View style={[styles.curedDiseasesContainer, darkMode && styles.curedDiseasesContainerDark]}>
-                <Text style={[styles.curedTitle, darkMode && styles.curedTitleDark]}>
-                  ✅ Cured Conditions:
-                </Text>
+                <View style={styles.curedTitleRow}>
+                  <CheckCircle size={18} color={darkMode ? '#6EE7B7' : '#166534'} />
+                  <Text style={[styles.curedTitle, darkMode && styles.curedTitleDark]}>
+                    Cured Conditions:
+                  </Text>
+                </View>
                 {curedDiseases.map((diseaseName, index) => (
                   <View key={index} style={styles.curedDiseaseItem}>
                     <CheckCircle size={16} color="#10B981" />
@@ -88,7 +97,7 @@ export default function CureSuccessModal() {
 
               <View style={[styles.benefitsContainer, darkMode && styles.benefitsContainerDark]}>
                 <Text style={[styles.benefitsTitle, darkMode && styles.benefitsTitleDark]}>
-                  🎉 Health Benefits:
+                  Health Benefits:
                 </Text>
                 <View style={styles.benefitsList}>
                   <View style={styles.benefitItem}>
@@ -120,19 +129,19 @@ export default function CureSuccessModal() {
 
               <View style={[styles.tipContainer, darkMode && styles.tipContainerDark]}>
                 <Text style={[styles.tipTitle, darkMode && styles.tipTitleDark]}>
-                  💡 Health Tips:
+                  Health Tips:
                 </Text>
                 <Text style={[styles.tipText, darkMode && styles.tipTextDark]}>
-                  • Maintain good health with regular doctor visits
+                  � Maintain good health with regular doctor visits
                 </Text>
                 <Text style={[styles.tipText, darkMode && styles.tipTextDark]}>
-                  • Eat healthy food and exercise regularly
+                  � Eat healthy food and exercise regularly
                 </Text>
                 <Text style={[styles.tipText, darkMode && styles.tipTextDark]}>
-                  • Visit hospitals for serious conditions
+                  � Visit hospitals for serious conditions
                 </Text>
               </View>
-            </View>
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -167,11 +176,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   modalContainer: {
-    width: '100%',
-    maxWidth: 400,
+    width: '95%',
+    maxWidth: 600,
+    maxHeight: '95%',
     borderRadius: 16,
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
@@ -184,8 +194,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1F2937',
   },
   modalGradient: {
-    padding: 24,
+    padding: 28,
     borderRadius: 16,
+    minHeight: 400,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -222,7 +233,11 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalContent: {
-    marginBottom: 20,
+    flex: 1,
+    maxHeight: 600,
+  },
+  modalContentContainer: {
+    paddingBottom: 20,
   },
   curedDiseasesContainer: {
     backgroundColor: '#F0FDF4',
@@ -236,11 +251,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#14532D',
     borderColor: '#10B981',
   },
+  curedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
   curedTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#166534',
-    marginBottom: 12,
   },
   curedTitleDark: {
     color: '#6EE7B7',
@@ -343,3 +363,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+

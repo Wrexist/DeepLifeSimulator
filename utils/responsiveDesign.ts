@@ -1,6 +1,6 @@
-import { 
-  responsiveSpacing, 
-  responsiveFontSize, 
+import {
+  responsiveSpacing,
+  responsiveFontSize,
   responsiveBorderRadius,
   responsiveIconSize,
   scale,
@@ -43,7 +43,7 @@ export const responsiveDesign = {
     xl: scale(32),
     xxl: scale(48),
   },
-  
+
   // Dynamic margins based on screen size
   margin: {
     xs: scale(4),
@@ -53,7 +53,7 @@ export const responsiveDesign = {
     xl: scale(32),
     xxl: scale(48),
   },
-  
+
   // Dynamic border radius based on screen size
   borderRadius: {
     xs: scale(4),
@@ -63,7 +63,7 @@ export const responsiveDesign = {
     xl: scale(24),
     xxl: scale(32),
   },
-  
+
   // Dynamic icon sizes based on screen size
   icon: {
     xs: scale(12),
@@ -73,7 +73,7 @@ export const responsiveDesign = {
     xl: scale(32),
     xxl: scale(48),
   },
-  
+
   // Dynamic button sizes based on screen size
   button: {
     height: {
@@ -86,14 +86,14 @@ export const responsiveDesign = {
       vertical: verticalScale(8),
     },
   },
-  
+
   // Dynamic card sizes based on screen size
   card: {
     padding: scale(16),
     margin: scale(8),
     borderRadius: scale(12),
   },
-  
+
   // Dynamic font sizes with better scaling
   fontSize: {
     xs: responsiveFontSize.xs,
@@ -106,7 +106,7 @@ export const responsiveDesign = {
     title: responsiveFontSize['4xl'],
     largeTitle: responsiveFontSize['5xl'],
   },
-  
+
   // Dynamic spacing for different screen densities
   spacing: {
     compact: scale(4),
@@ -115,7 +115,7 @@ export const responsiveDesign = {
     loose: scale(24),
     extraLoose: scale(32),
   },
-  
+
   // Screen-specific adjustments
   screen: {
     // Adjustments for different screen sizes
@@ -140,7 +140,7 @@ export const responsiveDesign = {
       iconSizeMultiplier: 1.15,
     },
   },
-  
+
   // Platform-specific adjustments
   platform: {
     ios: {
@@ -154,7 +154,7 @@ export const responsiveDesign = {
       fontSize: responsiveFontSize.sm,
     },
   },
-  
+
   // Device-specific adjustments
   device: {
     small: {

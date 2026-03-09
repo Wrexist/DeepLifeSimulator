@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -21,11 +21,19 @@ import {
   verticalScale,
 } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle, Building } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { useFeedback } from '@/utils/feedbackSystem';
+import {
+  SAVINGS_APR_BASE,
+  SAVINGS_APR_FINANCIAL_PLANNING,
+} from '@/lib/economy/constants';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { getMarketAPRForGameWeek } from '@/utils/bankMarketAPR';
 
 // Prefer expo-router for navigation; gracefully fall back if unavailable.
 let useRouterHook:
@@ -42,9 +50,8 @@ try {
 /* =========================
    CONFIG
    ========================= */
-const SAVINGS_APR = 0.15;                 // 15% APR on savings
-const PREMIUM_SAVINGS_APR = 0.30;         // 30% APR with Financial Planning (+15% added)
-const MISSED_PAYMENT_PENALTY = 0.01;      // +1% on remaining if a weekly payment is missed
+const SAVINGS_APR = SAVINGS_APR_BASE;
+const PREMIUM_SAVINGS_APR = SAVINGS_APR_FINANCIAL_PLANNING;
 const EARLY_FULL_PAY_DISCOUNT = 0.03;     // 3% discount when fully repaying a loan
 const MAX_DEBT_TO_FUNDS = 5;              // Total debt cap = 5 × (cash + savings)
 const LOAN_CAP_NET_WORTH_RATIO = 0.15;    // Single loan cap = 15% of net worth
@@ -108,12 +115,12 @@ function formatMoney(n: number): string {
   } else if (a >= 1_000_000) {
     // Millions (M)
     formatted = `${(a / 1_000_000).toFixed(2)}M`;
-  } else if (a >= 1_000) {
-    // Thousands (K)
+  } else if (a > 10_000) {
+    // Thousands (K) - only for numbers above 10,000
     formatted = `${(a / 1_000).toFixed(2)}K`;
   } else {
-    // Regular numbers
-    formatted = a.toString();
+    // Regular numbers (0-10,000) - show full number
+    formatted = a.toLocaleString();
   }
   
   // Remove trailing zeros and decimal point if not needed
@@ -143,15 +150,6 @@ function amortizedInstallment(principal: number, weeklyRate: number, termWeeks: 
   return Math.max(payment, principal * 0.001);
 }
 
-// Pseudo market-driven APR (deterministic by week). Smooth oscillation between 6% and 14%.
-function getMarketAPR(week: number | undefined): number {
-  const w = typeof week === 'number' ? week : 0;
-  const base = 0.10;      // 10% center
-  const amp = 0.04;       // +/- 4% → 6%..14%
-  const apr = base + amp * Math.sin(w * 0.35) * Math.cos(w * 0.17 + 1.2);
-  return Math.max(0.06, Math.min(0.14, apr));
-}
-
 /* =========================
    COMPONENT
    ========================= */
@@ -161,47 +159,35 @@ interface BankAppProps {
 
 export default function BankApp({ onBack }: BankAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  const router = useRouterHook ? useRouterHook() : undefined;
-
-  if (!gameState || !setGameState || !saveGame) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.muted}>Loading bank data…</Text>
-      </View>
-    );
-  }
-
-  const { settings } = gameState;
+  
+  // All hooks must be called before any early returns
   const [activeTab, setActiveTab] = useState<TabKey>('savings');
-
-  // From state
-  const cash = gameState.stats?.money ?? 0;
-  const initialSavings = gameState.bankSavings ?? 0;
-  const loans: Loan[] = gameState.loans ?? [];
-  const investments = gameState.stocks?.holdings ?? []; // link with Stocks app
-
-
-  // Local state
-  const [savings, setSavings] = useState<number>(initialSavings);
+  const [savings, setSavings] = useState<number>(0);
   const [amount, setAmount] = useState<string>('');
   const [infoOpen, setInfoOpen] = useState(false);
-
-  // Loan UI
   const [loanAmount, setLoanAmount] = useState<string>('10000');
   const [selectedTerm, setSelectedTerm] = useState<typeof TERM_OPTIONS[number]>(TERM_OPTIONS[0]);
-  const [repaySource, setRepaySource] = useState<RepaySource>('cash'); // NEW: switch pay-from source
-  
-  // IAP state
+  const [repaySource, setRepaySource] = useState<RepaySource>('cash');
   const [iapState, setIapState] = useState(iapService.getState());
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   
-  // Feedback system
+  // Get settings with fallback
+  const settings = gameState?.settings || { hapticFeedback: false };
   const { buttonPress, haptic, success } = useFeedback(settings.hapticFeedback);
 
+  // From state (safe to access even if undefined)
+  const cash = gameState?.stats?.money ?? 0;
+  const initialSavings = gameState?.bankSavings ?? 0;
+  const loans: Loan[] = gameState?.loans ?? [];
+  const investments: Array<{ symbol: string; shares: number; averagePrice: number; currentPrice: number; value?: number; price?: number }> = gameState?.stocks?.holdings ?? [];
+
+  // Update savings when initialSavings changes
   useEffect(() => {
-    setSavings(initialSavings);
-  }, [initialSavings]);
+    if (gameState?.bankSavings !== undefined) {
+      setSavings(gameState.bankSavings);
+    }
+  }, [gameState?.bankSavings]);
 
   // Initialize IAP service
   useEffect(() => {
@@ -211,76 +197,70 @@ export default function BankApp({ onBack }: BankAppProps) {
   }, []);
 
   // Helper functions for IAP services
-  const hasService = (serviceId: string) => {
+  const hasService = useCallback((serviceId: string) => {
     return iapService.hasPurchased(serviceId);
-  };
+  }, []);
 
-  const getServiceConfig = (serviceId: string) => {
+  const getServiceConfig = useCallback((serviceId: string) => {
     return getProductConfig(serviceId);
-  };
+  }, []);
 
-  const handleServicePurchase = async (serviceId: string) => {
-    buttonPress();
-    haptic('light');
-    
-    try {
-      const result = await iapService.purchaseProduct(serviceId);
-      if (result.success) {
-        success('Service activated successfully!');
-        setShowPurchaseModal(false);
-        setSelectedService(null);
-        // Refresh IAP state to get updated purchases
-        setIapState(iapService.getState());
-      } else {
-        Alert.alert('Purchase Failed', result.message);
-      }
-    } catch (error) {
-      Alert.alert('Purchase Error', 'Failed to purchase service. Please try again.');
-    }
-  };
-
-  const openServiceModal = (serviceId: string) => {
-    buttonPress();
-    haptic('light');
-    setSelectedService(serviceId);
-    setShowPurchaseModal(true);
-  };
-
-  /* ---------- Net worth & caps ---------- */
-  const totalDebt = useMemo(() => loans.reduce((sum, l) => sum + (l.remaining || 0), 0), [loans]);
-
+  // All computed values (using safe defaults)
+  const totalDebt = useMemo(() => (loans || []).reduce((sum, l) => sum + (l.remaining || 0), 0), [loans]);
   const investmentsValue = useMemo(() => {
-    // If holdings objects have {shares, currentPrice} or {value}, handle both
-    return (investments || []).reduce((s: number, it: any) => {
-      const value =
-        typeof it?.value === 'number'
-          ? it.value
-          : (Number(it?.shares) || 0) * (Number(it?.currentPrice ?? it?.price ?? 0) || 0);
+    return (investments || []).reduce((s: number, it: { value?: number; shares?: number; currentPrice?: number; price?: number }) => {
+      const value = typeof it?.value === 'number'
+        ? it.value
+        : (Number(it?.shares) || 0) * (Number(it?.currentPrice ?? it?.price ?? 0) || 0);
       return s + (value || 0);
     }, 0);
   }, [investments]);
-
-
-
   const computedNetWorth = useMemo(
     () => cash + savings + investmentsValue - totalDebt,
     [cash, savings, investmentsValue, totalDebt]
   );
-
-  // Single-loan cap: 15% of net worth (floored to MIN_LOAN_FLOOR)
   const singleLoanCap = useMemo(
     () => Math.max(MIN_LOAN_FLOOR, Math.floor(computedNetWorth * LOAN_CAP_NET_WORTH_RATIO)),
     [computedNetWorth]
   );
-
-  // Total debt cap vs available funds (cash + savings)
-  const totalFunds = cash + savings;
+  const totalFunds = useMemo(() => cash + savings, [cash, savings]);
   const maxTotalDebt = useMemo(() => Math.floor(totalFunds * MAX_DEBT_TO_FUNDS), [totalFunds]);
+  const currentSavingsAPR = useMemo(() => {
+    return hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) ? PREMIUM_SAVINGS_APR : SAVINGS_APR;
+  }, [hasService]);
+  const weeklySavingsInterest = useMemo(() => (savings * currentSavingsAPR) / WEEKS_PER_YEAR, [savings, currentSavingsAPR]);
+  const weeklyInterestRate = useMemo(() => (currentSavingsAPR / WEEKS_PER_YEAR) * 100, [currentSavingsAPR]);
+  const weeklySavingsText = useMemo(
+    () => `+${formatMoney(weeklySavingsInterest)} / w (${weeklyInterestRate.toFixed(2)}%)`,
+    [weeklySavingsInterest, weeklyInterestRate]
+  );
+  const marketAPR = useMemo(
+    () => getMarketAPRForGameWeek(gameState?.weeksLived, gameState?.week),
+    [gameState?.weeksLived, gameState?.week]
+  );
+  const marketAPRPercent = useMemo(() => `${(marketAPR * 100).toFixed(2)}%`, [marketAPR]);
+  const approxCost32 = useMemo(() => {
+    const amt = Math.floor(toNumberSafe(loanAmount));
+    if (amt <= 0) return 0;
+    return amortizedInstallment(amt, marketAPR / WEEKS_PER_YEAR, 32);
+  }, [loanAmount, marketAPR]);
+  const approxCost64 = useMemo(() => {
+    const amt = Math.floor(toNumberSafe(loanAmount));
+    if (amt <= 0) return 0;
+    return amortizedInstallment(amt, marketAPR / WEEKS_PER_YEAR, 64);
+  }, [loanAmount, marketAPR]);
+  const totalLoansRemaining = useMemo(
+    () => (loans || []).reduce((sum, l) => sum + (l.remaining || 0), 0),
+    [loans]
+  );
+  const formattedCash = useMemo(() => formatMoney(cash), [cash]);
+  const formattedSavings = useMemo(() => formatMoney(savings), [savings]);
 
-  /* ---------- Shared helpers ---------- */
+  // All callbacks
   const commitCashAndSavings = useCallback(
     (nextCash: number, nextSavings: number) => {
-      setGameState((prev: any) => ({
+      if (!setGameState || !saveGame) return;
+      setGameState((prev: GameState) => ({
         ...prev,
         stats: { ...prev.stats, money: clampNonNeg(nextCash) },
         bankSavings: clampNonNeg(nextSavings),
@@ -290,83 +270,34 @@ export default function BankApp({ onBack }: BankAppProps) {
     [setGameState, saveGame]
   );
 
-  const setLoansGlobal = useCallback(
-    (nextLoans: Loan[]) => {
-      // Remove fully paid loans automatically
-      const filtered = nextLoans.filter((l) => (l.remaining || 0) > 0);
-      setGameState((prev: any) => ({ ...prev, loans: filtered }));
-      saveGame();
-    },
-    [setGameState, saveGame]
-  );
-
-
-
-  const formattedCash = useMemo(() => formatMoney(cash), [cash]);
-  const formattedSavings = useMemo(() => formatMoney(savings), [savings]);
-
-  /* ---------- Savings actions ---------- */
   const onDeposit = useCallback(() => {
+    if (!gameState || !setGameState || !saveGame) return;
     const v = Math.floor(toNumberSafe(amount));
     if (v <= 0) return Alert.alert('Invalid amount', 'Enter an amount greater than 0.');
-    if (v > cash) return Alert.alert('Not enough cash', "You don't have that much cash.");
-
+    if (v > cash) return Alert.alert('Not enough cash', "You don&apos;t have that much cash.");
     const nextCash = cash - v;
     const nextSavings = savings + v;
     setSavings(nextSavings);
     commitCashAndSavings(nextCash, nextSavings);
     setAmount('');
     Keyboard.dismiss();
-  }, [amount, cash, savings, commitCashAndSavings]);
+  }, [amount, cash, savings, commitCashAndSavings, gameState, setGameState, saveGame]);
 
   const onWithdraw = useCallback(() => {
+    if (!gameState || !setGameState || !saveGame) return;
     const v = Math.floor(toNumberSafe(amount));
     if (v <= 0) return Alert.alert('Invalid amount', 'Enter an amount greater than 0.');
-    if (v > savings) return Alert.alert('Not enough savings', "You don't have that much in savings.");
-
+    if (v > savings) return Alert.alert('Not enough savings', "You don&apos;t have that much in savings.");
     const nextCash = cash + v;
     const nextSavings = savings - v;
     setSavings(nextSavings);
     commitCashAndSavings(nextCash, nextSavings);
     setAmount('');
     Keyboard.dismiss();
-  }, [amount, cash, savings, commitCashAndSavings]);
+  }, [amount, cash, savings, commitCashAndSavings, gameState, setGameState, saveGame]);
 
-
-  /* ---------- Weekly interest: Savings ---------- */
-  const lastSavingsWeek = useRef<number>(gameState.week);
-  const currentSavingsAPR = useMemo(() => {
-    // Financial Planning service gives +15% interest bonus (15% base → 17.25% with bonus)
-    return hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) ? PREMIUM_SAVINGS_APR : SAVINGS_APR;
-  }, [hasService]);
-  const weeklySavingsInterest = useMemo(() => (savings * currentSavingsAPR) / 52, [savings, currentSavingsAPR]);
-
-  /* ---------- Weekly accrual for Loans ---------- */
-
-  useEffect(() => {
-    // Savings weekly accrual
-    if (gameState.week > (lastSavingsWeek.current ?? -1)) {
-      lastSavingsWeek.current = gameState.week;
-      setSavings((prev) => {
-        if (prev <= 0) return prev;
-        // Apply Financial Planning bonus if purchased
-        const effectiveAPR = hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) ? PREMIUM_SAVINGS_APR : SAVINGS_APR;
-        const interest = (prev * effectiveAPR) / 52;
-        const newSavings = prev + interest;
-        setGameState((p: any) => ({ ...p, bankSavings: newSavings }));
-        saveGame();
-        return newSavings;
-      });
-    }
-
-    // Note: Automatic loan payments are handled by the main game loop in GameContext
-    // This ensures consistent payment processing and avoids duplicate deductions
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // Intentionally only depend on gameState.week to avoid unnecessary recalculations
-  }, [gameState.week]);
-
-  /* ---------- Take Loan (with caps & market APR) ---------- */
   const takeLoan = useCallback(() => {
+    if (!gameState || !setGameState || !saveGame) return;
     buttonPress();
     haptic('light');
     
@@ -376,7 +307,6 @@ export default function BankApp({ onBack }: BankAppProps) {
       return;
     }
 
-    // Apply Private Banking benefits (higher loan limits)
     const privateBankingMultiplier = hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 1.5 : 1;
     const adjustedLoanCap = Math.floor(singleLoanCap * privateBankingMultiplier);
     const adjustedMaxDebt = Math.floor(maxTotalDebt * privateBankingMultiplier);
@@ -396,20 +326,18 @@ export default function BankApp({ onBack }: BankAppProps) {
       return;
     }
 
-    // Apply Private Banking interest rate benefits (VIP 3% APR loans)
-    const baseAPR = getMarketAPR(gameState.week);
-    const privateBankingDiscount = hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? (baseAPR - 0.03) : 0; // VIP gets 3% APR
+    const baseAPR = getMarketAPRForGameWeek(gameState.weeksLived, gameState.week);
+    const privateBankingDiscount = hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? (baseAPR - 0.03) : 0;
     
-    // Get political perks if player has political career
     let politicalInterestReduction = 0;
     if (gameState.politics && gameState.politics.careerLevel > 0) {
       const { getCombinedPerkEffects } = require('@/lib/politics/perks');
       const perkEffects = getCombinedPerkEffects(gameState.politics.careerLevel);
-      politicalInterestReduction = perkEffects.loanInterestReduction / 100; // Convert percentage to decimal
+      politicalInterestReduction = perkEffects.loanInterestReduction / 100;
     }
     
-    const apr = Math.max(0.01, baseAPR - privateBankingDiscount - politicalInterestReduction); // Minimum 1% APR
-    const weeklyRate = apr / 52;
+    const apr = Math.max(0.01, baseAPR - privateBankingDiscount - politicalInterestReduction);
+    const weeklyRate = apr / WEEKS_PER_YEAR;
     const termW = selectedTerm;
     const installment = amortizedInstallment(amt, weeklyRate, termW);
 
@@ -421,18 +349,18 @@ export default function BankApp({ onBack }: BankAppProps) {
       rateAPR: apr,
       weeklyRate,
       termWeeks: termW,
-      startWeek: gameState.week ?? 0,
+      startWeek: gameState.weeksLived ?? 0,
       installment,
-      weeklyPayment: installment, // For auto-payment compatibility
+      weeklyPayment: installment,
       missedPayments: 0,
       autoPay: true,
-      type: 'personal' as const, // Default loan type
+      type: 'personal' as const,
       weeksRemaining: termW,
       interestRate: apr,
     };
 
     const nextCash = cash + amt;
-    setGameState((prev: any) => ({
+    setGameState((prev: GameState) => ({
       ...prev,
       stats: { ...prev.stats, money: clampNonNeg(nextCash) },
       loans: [...(prev.loans ?? []), newLoan],
@@ -440,8 +368,6 @@ export default function BankApp({ onBack }: BankAppProps) {
     saveGame();
 
     success('Loan approved and funds transferred!');
-
-    // reset only amount
     setLoanAmount('10000');
     Keyboard.dismiss();
   }, [
@@ -452,7 +378,7 @@ export default function BankApp({ onBack }: BankAppProps) {
     selectedTerm,
     loans,
     cash,
-    gameState.week,
+    gameState,
     setGameState,
     saveGame,
     hasService,
@@ -461,17 +387,16 @@ export default function BankApp({ onBack }: BankAppProps) {
     success,
   ]);
 
-  /* ---------- Manual Repay (Pay 15%, 50%, or Full w/ discount) ---------- */
-  function repayFromChosenSource(target: number, source: RepaySource): {
+  // Helper function for repay calculations (not a hook)
+  const repayFromChosenSourceHelper = useCallback((target: number, source: RepaySource): {
     nextCash: number;
     nextSavings: number;
     paid: number;
-  } {
+  } => {
     let nextCash = cash;
     let nextSavings = savings;
     const need = Math.max(0, Math.floor(target));
     if (need <= 0) return { nextCash, nextSavings, paid: 0 };
-
     if (source === 'cash') {
       const pay = Math.min(need, nextCash);
       nextCash -= pay;
@@ -481,10 +406,11 @@ export default function BankApp({ onBack }: BankAppProps) {
       nextSavings -= pay;
       return { nextCash, nextSavings, paid: pay };
     }
-  }
+  }, [cash, savings]);
 
   const repayPercent = useCallback(
     (loanId: string, pct: number) => {
+      if (!gameState || !setGameState || !saveGame) return;
       const idx = loans.findIndex((l) => l.id === loanId);
       if (idx === -1) return;
 
@@ -492,11 +418,11 @@ export default function BankApp({ onBack }: BankAppProps) {
       if (ln.remaining <= 0) return;
 
       const target = Math.ceil(ln.remaining * pct);
-      const { nextCash, nextSavings, paid } = repayFromChosenSource(target, repaySource);
+      const { nextCash, nextSavings, paid } = repayFromChosenSourceHelper(target, repaySource);
       if (paid <= 0) {
         Alert.alert(
           'Not enough funds',
-          `You don't have enough ${repaySource === 'cash' ? 'cash' : 'bank savings'} to pay this.`
+          `You don&apos;t have enough ${repaySource === 'cash' ? 'cash' : 'bank savings'} to pay this.`
         );
         return;
       }
@@ -505,10 +431,9 @@ export default function BankApp({ onBack }: BankAppProps) {
       const updated = [...loans];
       updated[idx] = { ...ln, remaining: newRemaining };
 
-      // remove fully paid
       const filtered = updated.filter((l) => (l.remaining || 0) > 0);
 
-      setGameState((prev: any) => ({
+      setGameState((prev: GameState) => ({
         ...prev,
         stats: { ...prev.stats, money: clampNonNeg(nextCash) },
         bankSavings: clampNonNeg(nextSavings),
@@ -517,18 +442,19 @@ export default function BankApp({ onBack }: BankAppProps) {
       saveGame();
       setSavings(clampNonNeg(nextSavings));
     },
-    [loans, repaySource, cash, savings, setGameState, saveGame]
+    [loans, repaySource, setGameState, saveGame, gameState, repayFromChosenSourceHelper]
   );
 
   const repayFull = useCallback(
     (loanId: string) => {
+      if (!gameState || !setGameState || !saveGame) return;
       const idx = loans.findIndex((l) => l.id === loanId);
       if (idx === -1) return;
       const ln = loans[idx];
       if (ln.remaining <= 0) return;
 
       const discounted = Math.ceil(ln.remaining * (1 - EARLY_FULL_PAY_DISCOUNT));
-      const { nextCash, nextSavings, paid } = repayFromChosenSource(discounted, repaySource);
+      const { nextCash, nextSavings, paid } = repayFromChosenSourceHelper(discounted, repaySource);
       if (paid < discounted) {
         Alert.alert(
           'Not enough funds',
@@ -540,10 +466,9 @@ export default function BankApp({ onBack }: BankAppProps) {
       const updated = [...loans];
       updated[idx] = { ...ln, remaining: 0 };
 
-      // remove fully paid
       const filtered = updated.filter((l) => (l.remaining || 0) > 0);
 
-      setGameState((prev: any) => ({
+      setGameState((prev: GameState) => ({
         ...prev,
         stats: { ...prev.stats, money: clampNonNeg(nextCash) },
         bankSavings: clampNonNeg(nextSavings),
@@ -552,35 +477,65 @@ export default function BankApp({ onBack }: BankAppProps) {
       saveGame();
       setSavings(clampNonNeg(nextSavings));
     },
-    [loans, repaySource, cash, savings, setGameState, saveGame]
+    [loans, repaySource, setGameState, saveGame, gameState, repayFromChosenSourceHelper]
   );
 
-  /* ---------- Derived UI bits ---------- */
-  const weeklyInterestRate = useMemo(() => (currentSavingsAPR / 52) * 100, [currentSavingsAPR]); // Convert to percentage
-  const weeklySavingsText = useMemo(
-    () => `+${formatMoney(weeklySavingsInterest)} / w (${weeklyInterestRate.toFixed(2)}%)`,
-    [weeklySavingsInterest, weeklyInterestRate]
-  );
 
-  const marketAPR = useMemo(() => getMarketAPR(gameState.week), [gameState.week]);
-  const marketAPRPercent = useMemo(() => `${(marketAPR * 100).toFixed(2)}%`, [marketAPR]);
+  // Early return after all hooks
+  if (!gameState || !setGameState || !saveGame) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.muted}>Loading bank data…</Text>
+      </View>
+    );
+  }
 
-  const approxCost32 = useMemo(() => {
-    const amt = Math.floor(toNumberSafe(loanAmount));
-    if (amt <= 0) return 0;
-    return amortizedInstallment(amt, marketAPR / 52, 32);
-  }, [loanAmount, marketAPR]);
+  // Helper functions (non-hooks, can be after early return)
+  const handleServicePurchase = async (serviceId: string) => {
+    buttonPress();
+    haptic('light');
+    try {
+      const result = await iapService.purchaseProduct(serviceId);
+      if (result.success) {
+        success('Service activated successfully!');
+        setShowPurchaseModal(false);
+        setSelectedService(null);
+        setIapState(iapService.getState());
+      } else {
+        Alert.alert('Purchase Failed', result.message);
+      }
+    } catch (error) {
+      Alert.alert('Purchase Error', 'Failed to purchase service. Please try again.');
+    }
+  };
 
-  const approxCost64 = useMemo(() => {
-    const amt = Math.floor(toNumberSafe(loanAmount));
-    if (amt <= 0) return 0;
-    return amortizedInstallment(amt, marketAPR / 52, 64);
-  }, [loanAmount, marketAPR]);
+  const openServiceModal = (serviceId: string) => {
+    buttonPress();
+    haptic('light');
+    setSelectedService(serviceId);
+    setShowPurchaseModal(true);
+  };
 
-  const totalLoansRemaining = useMemo(
-    () => loans.reduce((sum, l) => sum + (l.remaining || 0), 0),
-    [loans]
-  );
+  // Helper function (non-hook, can be after early return)
+  function repayFromChosenSource(target: number, source: RepaySource): {
+    nextCash: number;
+    nextSavings: number;
+    paid: number;
+  } {
+    let nextCash = cash;
+    let nextSavings = savings;
+    const need = Math.max(0, Math.floor(target));
+    if (need <= 0) return { nextCash, nextSavings, paid: 0 };
+    if (source === 'cash') {
+      const pay = Math.min(need, nextCash);
+      nextCash -= pay;
+      return { nextCash, nextSavings, paid: pay };
+    } else {
+      const pay = Math.min(need, nextSavings);
+      nextSavings -= pay;
+      return { nextCash, nextSavings, paid: pay };
+    }
+  }
 
   /* ---------- RENDER ---------- */
   return (
@@ -720,7 +675,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                   <Text style={styles.premiumTitle}>Financial Planning Active</Text>
                 </View>
                 <Text style={styles.premiumText}>
-                  You're earning {(currentSavingsAPR * 100).toFixed(0)}% APR on savings (double interest!)
+                  You&apos;re earning {(currentSavingsAPR * 100).toFixed(0)}% APR on savings (double interest!)
                 </Text>
               </View>
             )}
@@ -774,7 +729,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                   Max loan: {formatMoney(singleLoanCap * (hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 1.5 : 1))} $
                 </Text>
                 <Text style={styles.loanInfoText}>
-                  APR: {(hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 3 : getMarketAPR(gameState.week) * 100).toFixed(2)}%
+                  APR: {(hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 3 : marketAPR * 100).toFixed(2)}%
                 </Text>
                 <Text style={styles.loanInfoText}>
                   Weekly payment: ~{formatMoney(approxCost32)} $
@@ -1103,11 +1058,11 @@ const styles = StyleSheet.create({
   headerDark: { backgroundColor: '#11131A' },
   headerTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   backButton: {
-    width: scale(36), height: scale(36), borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
+    width: 36, height: 36, borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
     alignItems: 'center', justifyContent: 'center',
   },
   infoButton: {
-    width: scale(36), height: scale(36), borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
+    width: 36, height: 36, borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -1115,13 +1070,13 @@ const styles = StyleSheet.create({
   balanceCard: { flex: 1, backgroundColor: '#0F1220', borderRadius: responsiveBorderRadius.md, padding: responsiveSpacing.md, borderColor: '#23283B', borderWidth: 0.5 },
   balanceCardDark: { backgroundColor: '#0F1220' },
   balanceIconWrap: {
-    width: scale(28), height: scale(28), borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
-    alignItems: 'center', justifyContent: 'center', marginBottom: scale(6),
+    width: 28, height: 28, borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
   purpleBg: { backgroundColor: '#5B21B6' },
   balanceLabel: { color: '#9FA4B3', fontSize: responsiveFontSize.sm },
   balanceValue: { color: '#FFFFFF', fontSize: responsiveFontSize['2xl'], fontWeight: '600', marginTop: responsiveSpacing.xs },
-  smallRow: { flexDirection: 'row', alignItems: 'center', gap: scale(6), marginTop: scale(6) },
+  smallRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   smallGreen: { color: '#34D399', fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   tabContainer: {

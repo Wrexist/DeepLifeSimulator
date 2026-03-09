@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Tree, Sparkles } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { isIPad } from '@/utils/scaling';
@@ -14,7 +15,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
   const { gameState } = useGame();
   const [showInfo, setShowInfo] = useState(false);
   const { settings } = gameState;
-  const seasonData = getCurrentSeason(gameState.week);
+  const seasonData = getCurrentSeason(gameState.weeksLived || 0);
 
   const getSeasonConfig = () => {
     switch (seasonData.season) {
@@ -66,7 +67,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
     const holidays = {
       valentines: { name: "Valentine's Day", icon: Heart, color: '#EC4899' },
       halloween: { name: 'Halloween', icon: Ghost, color: '#F59E0B' },
-      christmas: { name: 'Christmas', icon: Tree, color: '#10B981' },
+      christmas: { name: 'Christmas', icon: Trees, color: '#10B981' },
       newyear: { name: 'New Year', icon: Sparkles, color: '#3B82F6' },
     };
     
@@ -76,7 +77,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
   const holiday = getHolidayInfo();
   const HolidayIcon = holiday?.icon;
 
-  const hasHoliday = !!holiday;
+  const _hasHoliday = !!holiday; // Unused but kept for potential future use
   // Match iconButton dimensions from TopStatsBar
   const containerSize = isIPad() ? 70 : 50;
   const borderRadius = containerSize / 2;
@@ -90,7 +91,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
         activeOpacity={0.7}
       >
         <LinearGradient
-          colors={config.gradient}
+          colors={config.gradient as unknown as readonly [string, string, ...string[]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -115,7 +116,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
             settings.darkMode && styles.modalContainerDark
           ]}>
             <LinearGradient
-              colors={config.gradient}
+              colors={config.gradient as unknown as readonly [string, string, ...string[]]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.modalHeader}
@@ -353,4 +354,5 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
 });
+
 

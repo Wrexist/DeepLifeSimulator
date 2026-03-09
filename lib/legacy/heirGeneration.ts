@@ -1,7 +1,7 @@
 import { ChildInfo, GameStats } from '@/contexts/game/types';
 import { FamilyMemberNode } from './familyTree';
 import { GeneticsSystem } from './genetics';
-import { v4 as uuidv4 } from 'uuid';
+import { WEEKS_PER_YEAR, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 
 export interface HeirGenerationResult {
   node: FamilyMemberNode;
@@ -24,7 +24,7 @@ export class HeirGenerator {
     child: ChildInfo,
     parentTraits: string[],
     generation: number,
-    parentLineageId: string,
+    _parentLineageId: string,
     parentId: string,
     spouseId?: string,
     spouseTraits: string[] = []
@@ -39,18 +39,18 @@ export class HeirGenerator {
     const inheritedTraits = GeneticsSystem.inheritTraits(parentTraits, effectiveSpouseTraits);
     
     // 2. Base Stats based on Age
-    // Children grow up differently. 
-    // Age 18 start: standard stats
+    // Children grow up differently.
+    // Adulthood start: standard stats
     // Older start: evolved stats (simulated)
-    const age = child.age || 18;
+    const age = child.age || ADULTHOOD_AGE;
     const startingStats: GameStats = { ...BASE_STATS };
-    
+
     // Apply age modifiers
-    if (age > 18) {
+    if (age > ADULTHOOD_AGE) {
       // Older heirs have more money/skills but maybe less energy?
       // Simple simulation for now
-      startingStats.fitness += Math.min(50, (age - 18) * 1);
-      startingStats.reputation += Math.min(30, (age - 18) * 2);
+      startingStats.fitness += Math.min(50, (age - ADULTHOOD_AGE) * 1);
+      startingStats.reputation += Math.min(30, (age - ADULTHOOD_AGE) * 2);
     }
     
     // 3. Apply Genetic Modifiers to Stats
@@ -66,7 +66,7 @@ export class HeirGenerator {
       parents: [parentId, spouseId || 'unknown_spouse'],
       children: [],
       traits: inheritedTraits,
-      netWorth: child.income ? child.income * 52 : 0, // Placeholder estimation
+      netWorth: child.income ? child.income * WEEKS_PER_YEAR : 0, // Placeholder estimation
       occupation: child.careerPath,
       gender: child.gender,
       avatarSeed: child.id, // Consistent avatar

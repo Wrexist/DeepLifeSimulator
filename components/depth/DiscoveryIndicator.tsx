@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Discovery & Depth Indicators
  * Show discovery progress and depth engagement
  */
@@ -12,7 +12,8 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   Compass,
   Lock,
@@ -24,7 +25,7 @@ import {
   Star,
 } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
-import { getDiscoveryProgress, getAllDiscoverableSystems } from '@/lib/depth/discoverySystem';
+import { getDiscoveryProgress, getAllDiscoverableSystems, getSystemUnlockRequirements } from '@/lib/depth/discoverySystem';
 import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 
 interface DiscoveryIndicatorProps {
@@ -226,7 +227,12 @@ function DiscoveryModal({
                   Discovered Systems ({discoveredSystems.length})
                 </Text>
               </View>
-              {discoveredSystems.map((system) => {
+              {discoveredSystems.length === 0 ? (
+                <Text style={[styles.emptyStateText, darkMode && styles.emptyStateTextDark]}>
+                  No systems discovered yet. Keep exploring to unlock new features!
+                </Text>
+              ) : (
+                discoveredSystems.map((system) => {
                 const systemDef = allSystems[system.systemId];
                 return (
                   <View
@@ -252,21 +258,25 @@ function DiscoveryModal({
                     </Text>
                   </View>
                 );
-              })}
+              })
+              )}
             </View>
 
             {/* Locked Systems */}
-            {lockedSystems.length > 0 && (
-              <View style={styles.modalSection}>
-                <View style={styles.modalSectionHeader}>
-                  <Lock size={scale(16)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
-                  <Text style={[styles.modalSectionTitle, darkMode && styles.modalSectionTitleDark]}>
-                    Locked Systems ({lockedSystems.length})
-                  </Text>
-                </View>
-                {lockedSystems.slice(0, 10).map((systemId) => {
+            <View style={styles.modalSection}>
+              <View style={styles.modalSectionHeader}>
+                <Lock size={scale(16)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+                <Text style={[styles.modalSectionTitle, darkMode && styles.modalSectionTitleDark]}>
+                  Locked Systems ({lockedSystems.length})
+                </Text>
+              </View>
+              {lockedSystems.length === 0 ? (
+                <Text style={[styles.emptyStateText, darkMode && styles.emptyStateTextDark]}>
+                  All systems unlocked! Great job exploring everything.
+                </Text>
+              ) : (
+                lockedSystems.slice(0, 10).map((systemId) => {
                   const systemDef = allSystems[systemId];
-                  const { getSystemUnlockRequirements } = require('@/lib/depth/discoverySystem');
                   const requirements = getSystemUnlockRequirements(systemId);
                   
                   return (
@@ -280,7 +290,7 @@ function DiscoveryModal({
                           {systemDef?.name || systemId}
                         </Text>
                       </View>
-                      {requirements && requirements.requirements.length > 0 && (
+                      {requirements && requirements.requirements && requirements.requirements.length > 0 && (
                         <View style={styles.requirementsList}>
                           {requirements.requirements.map((req, index) => (
                             <Text
@@ -294,9 +304,9 @@ function DiscoveryModal({
                       )}
                     </View>
                   );
-                })}
-              </View>
-            )}
+                })
+              )}
+            </View>
           </ScrollView>
         </View>
       </View>
@@ -620,5 +630,16 @@ const styles = StyleSheet.create({
   requirementTextDark: {
     color: '#9CA3AF',
   },
+  emptyStateText: {
+    fontSize: fontScale(12),
+    color: '#6B7280',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: responsiveSpacing.md,
+  },
+  emptyStateTextDark: {
+    color: '#9CA3AF',
+  },
 });
+
 

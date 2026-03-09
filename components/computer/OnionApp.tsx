@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+﻿import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { ArrowLeft, Lock, ShoppingCart, MessageSquare, Terminal, Bitcoin, Shield, Zap, DollarSign } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
@@ -1247,4 +1248,5 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
 });
+
 

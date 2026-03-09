@@ -1,0 +1,7 @@
+[    2303ms] [WARNING] "shadow*" style props are deprecated. Use "boxShadow". @ http://localhost:8096/app/entry.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fapp&unstable_transformProfile=hermes-stable:24316
+[    2308ms] [WARNING] "textShadow*" style props are deprecated. Use "textShadow". @ http://localhost:8096/app/entry.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fapp&unstable_transformProfile=hermes-stable:24316
+[    2330ms] [WARNING] Require cycle: contexts/GameContext.tsx -> contexts/game/index.ts -> contexts/game/GameProvider.tsx -> components/IAPHandler.tsx -> contexts/GameContext.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle. @ http://localhost:8096/app/entry.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fapp&unstable_transformProfile=hermes-stable:73
+[    2378ms] [WARNING] [WARN] expo-av not available, using haptic feedback only @ http://localhost:8096/app/entry.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fapp&unstable_transformProfile=hermes-stable:209209
+[    2891ms] [WARNING] props.pointerEvents is deprecated. Use style.pointerEvents @ http://localhost:8096/app/entry.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fapp&unstable_transformProfile=hermes-stable:24316

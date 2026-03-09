@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { ArrowLeft, Building2, Users, DollarSign, Settings, Plus, Minus, Lock, GraduationCap, X, Star, Zap, FlaskConical } from 'lucide-react-native';
 import { useGame, Company } from '@/contexts/GameContext';
 import { createCompany, buyCompanyUpgrade, addWorker, removeWorker, sellCompany } from '@/contexts/game/company';
@@ -19,7 +20,7 @@ const companyTypes = [
   { 
     id: 'factory', 
     name: 'Factory', 
-    emoji: '🏭', 
+    emoji: 'ðŸ­', 
     baseIncome: 2000, 
     workerSalary: 500, 
     cost: 50000,
@@ -29,7 +30,7 @@ const companyTypes = [
   { 
     id: 'ai', 
     name: 'AI Company', 
-    emoji: '🤖', 
+    emoji: 'ðŸ¤–', 
     baseIncome: 2000, 
     workerSalary: 2000, 
     cost: 90000,
@@ -39,7 +40,7 @@ const companyTypes = [
   { 
     id: 'restaurant', 
     name: 'Restaurant', 
-    emoji: '🍽️', 
+    emoji: 'ðŸ½ï¸', 
     baseIncome: 2000, 
     workerSalary: 400, 
     cost: 130000,
@@ -49,7 +50,7 @@ const companyTypes = [
   { 
     id: 'realestate', 
     name: 'Real Estate', 
-    emoji: '🏢', 
+    emoji: 'ðŸ¢', 
     baseIncome: 2000, 
     workerSalary: 1500, 
     cost: 200000,
@@ -59,7 +60,7 @@ const companyTypes = [
   { 
     id: 'bank', 
     name: 'Bank', 
-    emoji: '🏦', 
+    emoji: 'ðŸ¦', 
     baseIncome: 2000, 
     workerSalary: 5000, 
     cost: 2000000,
@@ -79,7 +80,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 10000,
         weeklyIncomeBonus: 500,
         maxLevel: 5,
-        icon: '⚙️',
+        icon: 'âš™ï¸',
         color: ['#F59E0B', '#D97706']
       },
       {
@@ -89,7 +90,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 15000,
         weeklyIncomeBonus: 800,
         maxLevel: 3,
-        icon: '👥',
+        icon: 'ðŸ‘¥',
         color: ['#10B981', '#059669']
       },
       {
@@ -99,7 +100,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 25000,
         weeklyIncomeBonus: 1200,
         maxLevel: 4,
-        icon: '🏭',
+        icon: 'ðŸ­',
         color: ['#6B7280', '#4B5563']
       },
       {
@@ -109,7 +110,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 20000,
         weeklyIncomeBonus: 1000,
         maxLevel: 3,
-        icon: '✅',
+        icon: 'âœ…',
         color: ['#10B981', '#059669']
       },
       {
@@ -119,7 +120,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 30000,
         weeklyIncomeBonus: 1500,
         maxLevel: 3,
-        icon: '📦',
+        icon: 'ðŸ“¦',
         color: ['#8B5CF6', '#7C3AED']
       },
       {
@@ -129,7 +130,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 18000,
         weeklyIncomeBonus: 800,
         maxLevel: 4,
-        icon: '🛡️',
+        icon: 'ðŸ›¡ï¸',
         color: ['#EF4444', '#DC2626']
       }
     ],
@@ -141,7 +142,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 25000,
         weeklyIncomeBonus: 1200,
         maxLevel: 4,
-        icon: '🖥️',
+        icon: 'ðŸ–¥ï¸',
         color: ['#8B5CF6', '#7C3AED']
       },
       {
@@ -151,7 +152,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 30000,
         weeklyIncomeBonus: 1500,
         maxLevel: 3,
-        icon: '🧠',
+        icon: 'ðŸ§ ',
         color: ['#3B82F6', '#1D4ED8']
       },
       {
@@ -161,7 +162,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 50000,
         weeklyIncomeBonus: 2500,
         maxLevel: 3,
-        icon: '🎮',
+        icon: 'ðŸŽ®',
         color: ['#F59E0B', '#D97706']
       },
       {
@@ -171,7 +172,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 75000,
         weeklyIncomeBonus: 3500,
         maxLevel: 2,
-        icon: '🏢',
+        icon: 'ðŸ¢',
         color: ['#10B981', '#059669']
       },
       {
@@ -181,7 +182,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 40000,
         weeklyIncomeBonus: 2000,
         maxLevel: 4,
-        icon: '👨‍🔬',
+        icon: 'ðŸ‘¨â€ðŸ”¬',
         color: ['#EF4444', '#DC2626']
       },
       {
@@ -191,7 +192,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 60000,
         weeklyIncomeBonus: 3000,
         maxLevel: 3,
-        icon: '🤖',
+        icon: 'ðŸ¤–',
         color: ['#8B5CF6', '#7C3AED']
       }
     ],
@@ -203,7 +204,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 20000,
         weeklyIncomeBonus: 1000,
         maxLevel: 4,
-        icon: '🍳',
+        icon: 'ðŸ³',
         color: ['#EF4444', '#DC2626']
       },
       {
@@ -213,7 +214,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 18000,
         weeklyIncomeBonus: 900,
         maxLevel: 3,
-        icon: '👨‍🍳',
+        icon: 'ðŸ‘¨â€ðŸ³',
         color: ['#F59E0B', '#D97706']
       },
       {
@@ -223,7 +224,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 25000,
         weeklyIncomeBonus: 1200,
         maxLevel: 3,
-        icon: '🚚',
+        icon: 'ðŸšš',
         color: ['#10B981', '#059669']
       },
       {
@@ -233,7 +234,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 40000,
         weeklyIncomeBonus: 2000,
         maxLevel: 2,
-        icon: '👨‍🍳',
+        icon: 'ðŸ‘¨â€ðŸ³',
         color: ['#8B5CF6', '#7C3AED']
       },
       {
@@ -243,7 +244,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 30000,
         weeklyIncomeBonus: 1500,
         maxLevel: 3,
-        icon: '🎨',
+        icon: 'ðŸŽ¨',
         color: ['#F59E0B', '#D97706']
       },
       {
@@ -253,7 +254,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 35000,
         weeklyIncomeBonus: 1800,
         maxLevel: 2,
-        icon: '🍷',
+        icon: 'ðŸ·',
         color: ['#EF4444', '#DC2626']
       }
     ],
@@ -265,7 +266,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 50000,
         weeklyIncomeBonus: 2000,
         maxLevel: 5,
-        icon: '🏘️',
+        icon: 'ðŸ˜ï¸',
         color: ['#10B981', '#059669']
       },
       {
@@ -275,7 +276,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 30000,
         weeklyIncomeBonus: 1500,
         maxLevel: 3,
-        icon: '📋',
+        icon: 'ðŸ“‹',
         color: ['#3B82F6', '#1D4ED8']
       },
       {
@@ -285,7 +286,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 75000,
         weeklyIncomeBonus: 3000,
         maxLevel: 4,
-        icon: '🏢',
+        icon: 'ðŸ¢',
         color: ['#F59E0B', '#D97706']
       },
       {
@@ -295,7 +296,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 100000,
         weeklyIncomeBonus: 4000,
         maxLevel: 3,
-        icon: '🏬',
+        icon: 'ðŸ¬',
         color: ['#8B5CF6', '#7C3AED']
       },
       {
@@ -305,7 +306,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 40000,
         weeklyIncomeBonus: 2000,
         maxLevel: 3,
-        icon: '👥',
+        icon: 'ðŸ‘¥',
         color: ['#10B981', '#059669']
       },
       {
@@ -315,7 +316,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 150000,
         weeklyIncomeBonus: 6000,
         maxLevel: 2,
-        icon: '🏰',
+        icon: 'ðŸ°',
         color: ['#EF4444', '#DC2626']
       }
     ],
@@ -327,7 +328,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 100000,
         weeklyIncomeBonus: 5000,
         maxLevel: 4,
-        icon: '💻',
+        icon: 'ðŸ’»',
         color: ['#3B82F6', '#1D4ED8']
       },
       {
@@ -337,7 +338,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 80000,
         weeklyIncomeBonus: 4000,
         maxLevel: 3,
-        icon: '💰',
+        icon: 'ðŸ’°',
         color: ['#10B981', '#059669']
       },
       {
@@ -347,7 +348,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 200000,
         weeklyIncomeBonus: 10000,
         maxLevel: 3,
-        icon: '📈',
+        icon: 'ðŸ“ˆ',
         color: ['#F59E0B', '#D97706']
       },
       {
@@ -357,7 +358,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 300000,
         weeklyIncomeBonus: 15000,
         maxLevel: 2,
-        icon: '🌍',
+        icon: 'ðŸŒ',
         color: ['#8B5CF6', '#7C3AED']
       },
       {
@@ -367,7 +368,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 150000,
         weeklyIncomeBonus: 7500,
         maxLevel: 3,
-        icon: '📱',
+        icon: 'ðŸ“±',
         color: ['#EF4444', '#DC2626']
       },
       {
@@ -377,7 +378,7 @@ const getCompanyUpgrades = (companyType: string) => {
         cost: 250000,
         weeklyIncomeBonus: 12000,
         maxLevel: 2,
-        icon: '👔',
+        icon: 'ðŸ‘”',
         color: ['#10B981', '#059669']
       }
     ]
@@ -563,7 +564,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
 
   const getCompanyEmoji = (type: string) => {
     const companyType = companyTypes.find(t => t.id === type);
-    return companyType?.emoji || '🏢';
+    return companyType?.emoji || 'ðŸ¢';
   };
 
   const getCompanyTypeName = (type: string) => {
@@ -655,8 +656,8 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.textDark]}>Active Research</Text>
                 {activeProjects.map((project) => {
                   const tech = getTechnologyById(project.technologyId);
-                  const weeksRemaining = project.duration - (gameState.week - project.startWeek);
-                  const progress = Math.min(100, ((gameState.week - project.startWeek) / project.duration) * 100);
+                  const weeksRemaining = project.duration - ((gameState.weeksLived || 0) - project.startWeek);
+                  const progress = Math.min(100, (((gameState.weeksLived || 0) - project.startWeek) / project.duration) * 100);
                   return (
                     <View key={project.id} style={styles.rdProjectCard}>
                       <Text style={[styles.rdProjectName, gameState.settings.darkMode && styles.textDark]}>
@@ -781,14 +782,14 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <>
                 <Text style={[styles.modalSectionTitle, gameState.settings.darkMode && styles.textDark]}>Innovation Competitions</Text>
                 {(() => {
-                  const activeCompetitions = getActiveCompetitions(gameState.week);
+                  const activeCompetitions = getActiveCompetitions(gameState.weeksLived || 0);
                   const competitionHistory = company.competitionHistory || [];
-                  
+
                   return activeCompetitions.map((competition) => {
                     const canEnter = canEnterCompetition(competition, company);
                     const alreadyEntered = competitionHistory.some(
-                      entry => entry.competitionId === competition.id && 
-                               entry.entryWeek === gameState.week &&
+                      entry => entry.competitionId === competition.id &&
+                               entry.entryWeek === (gameState.weeksLived || 0) &&
                                !entry.completed
                     );
                     const currentEntry = competitionHistory.find(
@@ -1302,7 +1303,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                         <View style={styles.modalUpgradeCardContent}>
                           <View style={styles.modalUpgradeHeader}>
                             <View style={styles.modalUpgradeIconContainer}>
-                              <Text style={styles.modalUpgradeIcon}>👥</Text>
+                              <Text style={styles.modalUpgradeIcon}>ðŸ‘¥</Text>
                             </View>
                             <View style={styles.modalUpgradeInfo}>
                               <Text style={styles.modalUpgradeName}>Hire Worker</Text>
@@ -1327,7 +1328,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                           <View style={styles.modalUpgradeCardContent}>
                             <View style={styles.modalUpgradeHeader}>
                               <View style={styles.modalUpgradeIconContainer}>
-                                <Text style={styles.modalUpgradeIcon}>➖</Text>
+                                <Text style={styles.modalUpgradeIcon}>âž–</Text>
                               </View>
                               <View style={styles.modalUpgradeInfo}>
                                 <Text style={styles.modalUpgradeName}>Fire Worker</Text>
@@ -1374,7 +1375,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
             >
               <View style={styles.richModalHeader}>
                 <Text style={styles.richModalTitle}>
-                  🎓 Education Required
+                  ðŸŽ“ Education Required
                 </Text>
               </View>
               
@@ -1415,7 +1416,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Success Animation Container */}
               <View style={styles.successAnimationContainer}>
                 <View style={styles.successIconContainer}>
-                  <Text style={styles.successIcon}>🎉</Text>
+                  <Text style={styles.successIcon}>ðŸŽ‰</Text>
                 </View>
                 <View style={styles.successRipple} />
                 <View style={[styles.successRipple, styles.successRipple2]} />
@@ -1439,15 +1440,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.benefitsList}>
                   <View style={styles.benefitItem}>
-                    <Text style={styles.benefitIcon}>💰</Text>
+                    <Text style={styles.benefitIcon}>ðŸ’°</Text>
                     <Text style={styles.benefitText}>Weekly income generation</Text>
                   </View>
                   <View style={styles.benefitItem}>
-                    <Text style={styles.benefitIcon}>👥</Text>
+                    <Text style={styles.benefitIcon}>ðŸ‘¥</Text>
                     <Text style={styles.benefitText}>Hire employees to scale</Text>
                   </View>
                   <View style={styles.benefitItem}>
-                    <Text style={styles.benefitIcon}>⚡</Text>
+                    <Text style={styles.benefitIcon}>âš¡</Text>
                     <Text style={styles.benefitText}>Upgrade for better performance</Text>
                   </View>
                 </View>
@@ -1464,7 +1465,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>Let&apos;s Build!</Text>
-                    <Text style={styles.richModalButtonIcon}>🚀</Text>
+                    <Text style={styles.richModalButtonIcon}>ðŸš€</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1484,7 +1485,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Error Animation Container */}
               <View style={styles.errorAnimationContainer}>
                 <View style={styles.errorIconContainer}>
-                  <Text style={styles.errorIcon}>⚠️</Text>
+                  <Text style={styles.errorIcon}>âš ï¸</Text>
                 </View>
                 <View style={styles.errorRipple} />
                 <View style={[styles.errorRipple, styles.errorRipple2]} />
@@ -1498,7 +1499,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.errorInfoCard}>
                   <View style={styles.errorIconContainer}>
-                    <Text style={styles.errorIcon}>❌</Text>
+                    <Text style={styles.errorIcon}>âŒ</Text>
                   </View>
                   <View style={styles.errorDetails}>
                     <Text style={styles.errorMessage}>{modalData.errorMessage}</Text>
@@ -1507,15 +1508,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.errorTipsList}>
                   <View style={styles.errorTipItem}>
-                    <Text style={styles.errorTipIcon}>💡</Text>
+                    <Text style={styles.errorTipIcon}>ðŸ’¡</Text>
                     <Text style={styles.errorTipText}>Check your internet connection</Text>
                   </View>
                   <View style={styles.errorTipItem}>
-                    <Text style={styles.errorTipIcon}>🔄</Text>
+                    <Text style={styles.errorTipIcon}>ðŸ”„</Text>
                     <Text style={styles.errorTipText}>Try the action again</Text>
                   </View>
                   <View style={styles.errorTipItem}>
-                    <Text style={styles.errorTipIcon}>📞</Text>
+                    <Text style={styles.errorTipIcon}>ðŸ“ž</Text>
                     <Text style={styles.errorTipText}>Contact support if issue persists</Text>
                   </View>
                 </View>
@@ -1532,7 +1533,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>Got It</Text>
-                    <Text style={styles.richModalButtonIcon}>👍</Text>
+                    <Text style={styles.richModalButtonIcon}>ðŸ‘</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1552,7 +1553,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Money Animation Container */}
               <View style={styles.moneyAnimationContainer}>
                 <View style={styles.moneyIconContainer}>
-                  <Text style={styles.moneyIcon}>💰</Text>
+                  <Text style={styles.moneyIcon}>ðŸ’°</Text>
                 </View>
                 <View style={styles.moneyRipple} />
                 <View style={[styles.moneyRipple, styles.moneyRipple2]} />
@@ -1566,7 +1567,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.moneyInfoCard}>
                   <View style={styles.moneyIconContainer}>
-                    <Text style={styles.moneyIcon}>💸</Text>
+                    <Text style={styles.moneyIcon}>ðŸ’¸</Text>
                   </View>
                   <View style={styles.moneyDetails}>
                     <Text style={styles.moneyRequired}>
@@ -1581,15 +1582,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.moneyTipsList}>
                   <View style={styles.moneyTipItem}>
-                    <Text style={styles.moneyTipIcon}>💼</Text>
+                    <Text style={styles.moneyTipIcon}>ðŸ’¼</Text>
                     <Text style={styles.moneyTipText}>Work to earn more money</Text>
                   </View>
                   <View style={styles.moneyTipItem}>
-                    <Text style={styles.moneyTipIcon}>🏦</Text>
+                    <Text style={styles.moneyTipIcon}>ðŸ¦</Text>
                     <Text style={styles.moneyTipText}>Take out a loan if needed</Text>
                   </View>
                   <View style={styles.moneyTipItem}>
-                    <Text style={styles.moneyTipIcon}>⏰</Text>
+                    <Text style={styles.moneyTipIcon}>â°</Text>
                     <Text style={styles.moneyTipText}>Wait for weekly income</Text>
                   </View>
                 </View>
@@ -1606,7 +1607,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>I&apos;ll Earn More</Text>
-                    <Text style={styles.richModalButtonIcon}>💪</Text>
+                    <Text style={styles.richModalButtonIcon}>ðŸ’ª</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1626,7 +1627,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Success Animation Container */}
               <View style={styles.successAnimationContainer}>
                 <View style={styles.successIconContainer}>
-                  <Text style={styles.successIcon}>👥</Text>
+                  <Text style={styles.successIcon}>ðŸ‘¥</Text>
                 </View>
                 <View style={styles.successRipple} />
                 <View style={[styles.successRipple, styles.successRipple2]} />
@@ -1640,7 +1641,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.workerInfoCard}>
                   <View style={styles.workerIconContainer}>
-                    <Text style={styles.workerIcon}>👨‍💼</Text>
+                    <Text style={styles.workerIcon}>ðŸ‘¨â€ðŸ’¼</Text>
                   </View>
                   <View style={styles.workerDetails}>
                     <Text style={styles.workerCompanyName}>{modalData.companyName}</Text>
@@ -1650,15 +1651,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.workerBenefitsList}>
                   <View style={styles.workerBenefitItem}>
-                    <Text style={styles.workerBenefitIcon}>💼</Text>
+                    <Text style={styles.workerBenefitIcon}>ðŸ’¼</Text>
                     <Text style={styles.workerBenefitText}>Increased productivity</Text>
                   </View>
                   <View style={styles.workerBenefitItem}>
-                    <Text style={styles.workerBenefitIcon}>📊</Text>
+                    <Text style={styles.workerBenefitIcon}>ðŸ“Š</Text>
                     <Text style={styles.workerBenefitText}>Higher weekly income</Text>
                   </View>
                   <View style={styles.workerBenefitItem}>
-                    <Text style={styles.workerBenefitIcon}>🎯</Text>
+                    <Text style={styles.workerBenefitIcon}>ðŸŽ¯</Text>
                     <Text style={styles.workerBenefitText}>Better business performance</Text>
                   </View>
                 </View>
@@ -1675,7 +1676,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>Great!</Text>
-                    <Text style={styles.richModalButtonIcon}>🎉</Text>
+                    <Text style={styles.richModalButtonIcon}>ðŸŽ‰</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1695,7 +1696,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* No Workers Animation Container */}
               <View style={styles.noWorkersAnimationContainer}>
                 <View style={styles.noWorkersIconContainer}>
-                  <Text style={styles.noWorkersIcon}>👥</Text>
+                  <Text style={styles.noWorkersIcon}>ðŸ‘¥</Text>
                 </View>
                 <View style={styles.noWorkersRipple} />
                 <View style={[styles.noWorkersRipple, styles.noWorkersRipple2]} />
@@ -1709,7 +1710,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.noWorkersInfoCard}>
                   <View style={styles.noWorkersIconContainer}>
-                    <Text style={styles.noWorkersIcon}>🚫</Text>
+                    <Text style={styles.noWorkersIcon}>ðŸš«</Text>
                   </View>
                   <View style={styles.noWorkersDetails}>
                     <Text style={styles.noWorkersMessage}>There are no workers to fire</Text>
@@ -1719,15 +1720,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.noWorkersTipsList}>
                   <View style={styles.noWorkersTipItem}>
-                    <Text style={styles.noWorkersTipIcon}>💼</Text>
+                    <Text style={styles.noWorkersTipIcon}>ðŸ’¼</Text>
                     <Text style={styles.noWorkersTipText}>Hire workers to grow your business</Text>
                   </View>
                   <View style={styles.noWorkersTipItem}>
-                    <Text style={styles.noWorkersTipIcon}>💰</Text>
+                    <Text style={styles.noWorkersTipIcon}>ðŸ’°</Text>
                     <Text style={styles.noWorkersTipText}>Workers increase your weekly income</Text>
                   </View>
                   <View style={styles.noWorkersTipItem}>
-                    <Text style={styles.noWorkersTipIcon}>📈</Text>
+                    <Text style={styles.noWorkersTipIcon}>ðŸ“ˆ</Text>
                     <Text style={styles.noWorkersTipText}>More workers = better performance</Text>
                   </View>
                 </View>
@@ -1744,7 +1745,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>Got It</Text>
-                    <Text style={styles.richModalButtonIcon}>👍</Text>
+                    <Text style={styles.richModalButtonIcon}>ðŸ‘</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1764,7 +1765,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Fired Animation Container */}
               <View style={styles.firedAnimationContainer}>
                 <View style={styles.firedIconContainer}>
-                  <Text style={styles.firedIcon}>👋</Text>
+                  <Text style={styles.firedIcon}>ðŸ‘‹</Text>
                 </View>
                 <View style={styles.firedRipple} />
                 <View style={[styles.firedRipple, styles.firedRipple2]} />
@@ -1778,7 +1779,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.firedInfoCard}>
                   <View style={styles.firedIconContainer}>
-                    <Text style={styles.firedIcon}>👨‍💼</Text>
+                    <Text style={styles.firedIcon}>ðŸ‘¨â€ðŸ’¼</Text>
                   </View>
                   <View style={styles.firedDetails}>
                     <Text style={styles.firedCompanyName}>{modalData.companyName}</Text>
@@ -1788,15 +1789,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.firedImpactList}>
                   <View style={styles.firedImpactItem}>
-                    <Text style={styles.firedImpactIcon}>📉</Text>
+                    <Text style={styles.firedImpactIcon}>ðŸ“‰</Text>
                     <Text style={styles.firedImpactText}>Reduced weekly costs</Text>
                   </View>
                   <View style={styles.firedImpactItem}>
-                    <Text style={styles.firedImpactIcon}>⚖️</Text>
+                    <Text style={styles.firedImpactIcon}>âš–ï¸</Text>
                     <Text style={styles.firedImpactText}>Lower productivity</Text>
                   </View>
                   <View style={styles.firedImpactItem}>
-                    <Text style={styles.firedImpactIcon}>💡</Text>
+                    <Text style={styles.firedImpactIcon}>ðŸ’¡</Text>
                     <Text style={styles.firedImpactText}>Hire more when needed</Text>
                   </View>
                 </View>
@@ -1813,7 +1814,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>Understood</Text>
-                    <Text style={styles.richModalButtonIcon}>👍</Text>
+                    <Text style={styles.richModalButtonIcon}>ðŸ‘</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1833,7 +1834,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Max Level Animation Container */}
               <View style={styles.maxLevelAnimationContainer}>
                 <View style={styles.maxLevelIconContainer}>
-                  <Text style={styles.maxLevelIcon}>🏆</Text>
+                  <Text style={styles.maxLevelIcon}>ðŸ†</Text>
                 </View>
                 <View style={styles.maxLevelRipple} />
                 <View style={[styles.maxLevelRipple, styles.maxLevelRipple2]} />
@@ -1847,7 +1848,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.maxLevelInfoCard}>
                   <View style={styles.maxLevelIconContainer}>
-                    <Text style={styles.maxLevelIcon}>⭐</Text>
+                    <Text style={styles.maxLevelIcon}>â­</Text>
                   </View>
                   <View style={styles.maxLevelDetails}>
                     <Text style={styles.maxLevelMessage}>This upgrade is already at maximum level</Text>
@@ -1857,15 +1858,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.maxLevelAchievementsList}>
                   <View style={styles.maxLevelAchievementItem}>
-                    <Text style={styles.maxLevelAchievementIcon}>🎯</Text>
+                    <Text style={styles.maxLevelAchievementIcon}>ðŸŽ¯</Text>
                     <Text style={styles.maxLevelAchievementText}>Peak performance achieved</Text>
                   </View>
                   <View style={styles.maxLevelAchievementItem}>
-                    <Text style={styles.maxLevelAchievementIcon}>💎</Text>
+                    <Text style={styles.maxLevelAchievementIcon}>ðŸ’Ž</Text>
                     <Text style={styles.maxLevelAchievementText}>Maximum efficiency unlocked</Text>
                   </View>
                   <View style={styles.maxLevelAchievementItem}>
-                    <Text style={styles.maxLevelAchievementIcon}>🚀</Text>
+                    <Text style={styles.maxLevelAchievementIcon}>ðŸš€</Text>
                     <Text style={styles.maxLevelAchievementText}>Focus on other upgrades</Text>
                   </View>
                 </View>
@@ -1882,7 +1883,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>Excellent!</Text>
-                    <Text style={styles.richModalButtonIcon}>🎉</Text>
+                    <Text style={styles.richModalButtonIcon}>ðŸŽ‰</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1902,7 +1903,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Success Animation Container */}
               <View style={styles.successAnimationContainer}>
                 <View style={styles.successIconContainer}>
-                  <Text style={styles.successIcon}>🚀</Text>
+                  <Text style={styles.successIcon}>ðŸš€</Text>
                 </View>
                 <View style={styles.successRipple} />
                 <View style={[styles.successRipple, styles.successRipple2]} />
@@ -1916,7 +1917,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.upgradeInfoCard}>
                   <View style={styles.upgradeIconContainer}>
-                    <Text style={styles.upgradeIcon}>⚡</Text>
+                    <Text style={styles.upgradeIcon}>âš¡</Text>
                   </View>
                   <View style={styles.upgradeDetails}>
                     <Text style={styles.upgradeCompanyName}>{modalData.companyName}</Text>
@@ -1926,15 +1927,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.upgradeBenefitsList}>
                   <View style={styles.upgradeBenefitItem}>
-                    <Text style={styles.upgradeBenefitIcon}>📈</Text>
+                    <Text style={styles.upgradeBenefitIcon}>ðŸ“ˆ</Text>
                     <Text style={styles.upgradeBenefitText}>Increased weekly income</Text>
                   </View>
                   <View style={styles.upgradeBenefitItem}>
-                    <Text style={styles.upgradeBenefitIcon}>🎯</Text>
+                    <Text style={styles.upgradeBenefitIcon}>ðŸŽ¯</Text>
                     <Text style={styles.upgradeBenefitText}>Enhanced efficiency</Text>
                   </View>
                   <View style={styles.upgradeBenefitItem}>
-                    <Text style={styles.upgradeBenefitIcon}>💎</Text>
+                    <Text style={styles.upgradeBenefitIcon}>ðŸ’Ž</Text>
                     <Text style={styles.upgradeBenefitText}>Competitive advantage</Text>
                   </View>
                 </View>
@@ -1951,7 +1952,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>Awesome!</Text>
-                    <Text style={styles.richModalButtonIcon}>✨</Text>
+                    <Text style={styles.richModalButtonIcon}>âœ¨</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1971,7 +1972,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Warning Animation Container */}
               <View style={styles.sellWarningAnimationContainer}>
                 <View style={styles.sellWarningIconContainer}>
-                  <Text style={styles.sellWarningIcon}>⚠️</Text>
+                  <Text style={styles.sellWarningIcon}>âš ï¸</Text>
                 </View>
                 <View style={styles.sellWarningRipple} />
                 <View style={[styles.sellWarningRipple, styles.sellWarningRipple2]} />
@@ -1985,7 +1986,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.sellCompanyInfoCard}>
                   <View style={styles.sellCompanyIconContainer}>
-                    <Text style={styles.sellCompanyIcon}>🏢</Text>
+                    <Text style={styles.sellCompanyIcon}>ðŸ¢</Text>
                   </View>
                   <View style={styles.sellCompanyDetails}>
                     <Text style={styles.sellCompanyName}>{modalData.companyName}</Text>
@@ -1995,15 +1996,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.sellCompanyDetailsList}>
                   <View style={styles.sellCompanyDetailItem}>
-                    <Text style={styles.sellCompanyDetailIcon}>💰</Text>
+                    <Text style={styles.sellCompanyDetailIcon}>ðŸ’°</Text>
                     <Text style={styles.sellCompanyDetailText}>You will receive 50% of your total investment</Text>
                   </View>
                   <View style={styles.sellCompanyDetailItem}>
-                    <Text style={styles.sellCompanyDetailIcon}>📉</Text>
+                    <Text style={styles.sellCompanyDetailIcon}>ðŸ“‰</Text>
                     <Text style={styles.sellCompanyDetailText}>You will lose all weekly income from this company</Text>
                   </View>
                   <View style={styles.sellCompanyDetailItem}>
-                    <Text style={styles.sellCompanyDetailIcon}>🔄</Text>
+                    <Text style={styles.sellCompanyDetailIcon}>ðŸ”„</Text>
                     <Text style={styles.sellCompanyDetailText}>You can create a new company later if needed</Text>
                   </View>
                 </View>
@@ -2021,7 +2022,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                       style={styles.richModalButtonGradient}
                     >
                       <Text style={styles.richModalButtonText}>Keep Company</Text>
-                      <Text style={styles.richModalButtonIcon}>✅</Text>
+                      <Text style={styles.richModalButtonIcon}>âœ…</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                   
@@ -2038,7 +2039,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                       style={styles.richModalButtonGradient}
                     >
                       <Text style={styles.richModalButtonText}>Sell Company</Text>
-                      <Text style={styles.richModalButtonIcon}>💸</Text>
+                      <Text style={styles.richModalButtonIcon}>ðŸ’¸</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
@@ -2059,7 +2060,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               {/* Success Animation Container */}
               <View style={styles.soldSuccessAnimationContainer}>
                 <View style={styles.soldSuccessIconContainer}>
-                  <Text style={styles.soldSuccessIcon}>💰</Text>
+                  <Text style={styles.soldSuccessIcon}>ðŸ’°</Text>
                 </View>
                 <View style={styles.soldSuccessRipple} />
                 <View style={[styles.soldSuccessRipple, styles.soldSuccessRipple2]} />
@@ -2073,7 +2074,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
               <View style={styles.richModalContent}>
                 <View style={styles.soldCompanyInfoCard}>
                   <View style={styles.soldCompanyIconContainer}>
-                    <Text style={styles.soldCompanyIcon}>🏢</Text>
+                    <Text style={styles.soldCompanyIcon}>ðŸ¢</Text>
                   </View>
                   <View style={styles.soldCompanyDetails}>
                     <Text style={styles.soldCompanyName}>{modalData.companyName}</Text>
@@ -2083,15 +2084,15 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                 
                 <View style={styles.soldCompanySummaryList}>
                   <View style={styles.soldCompanySummaryItem}>
-                    <Text style={styles.soldCompanySummaryIcon}>💵</Text>
+                    <Text style={styles.soldCompanySummaryIcon}>ðŸ’µ</Text>
                     <Text style={styles.soldCompanySummaryText}>Cash received: ${modalData.sellValue?.toLocaleString()}</Text>
                   </View>
                   <View style={styles.soldCompanySummaryItem}>
-                    <Text style={styles.soldCompanySummaryIcon}>📊</Text>
+                    <Text style={styles.soldCompanySummaryIcon}>ðŸ“Š</Text>
                     <Text style={styles.soldCompanySummaryText}>This represents 50% of your total investment</Text>
                   </View>
                   <View style={styles.soldCompanySummaryItem}>
-                    <Text style={styles.soldCompanySummaryIcon}>🎯</Text>
+                    <Text style={styles.soldCompanySummaryIcon}>ðŸŽ¯</Text>
                     <Text style={styles.soldCompanySummaryText}>You can create a new company anytime</Text>
                   </View>
                 </View>
@@ -2108,7 +2109,7 @@ export default function CompanyApp({ onBack }: CompanyAppProps) {
                     style={styles.richModalButtonGradient}
                   >
                     <Text style={styles.richModalButtonText}>Excellent!</Text>
-                    <Text style={styles.richModalButtonIcon}>🎉</Text>
+                    <Text style={styles.richModalButtonIcon}>ðŸŽ‰</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

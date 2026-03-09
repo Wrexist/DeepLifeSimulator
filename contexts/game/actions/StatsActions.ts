@@ -1,6 +1,7 @@
 /**
  * Stats Actions
  */
+import React from 'react';
 import { GameState, GameStats } from '../types';
 import { logger } from '@/utils/logger';
 import { clampStatByKey } from '@/utils/statUtils';

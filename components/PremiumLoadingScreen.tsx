@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,26 +8,24 @@ import {
   Easing,
   Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+// CRITICAL: Lazy load LinearGradient to prevent TurboModule crash
+// import { LinearGradient } from 'expo-linear-gradient'; // REMOVED - lazy load instead
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { lazyLoadTurboModule } from '@/utils/turboModuleWrapper';
+import { isValidReactComponent } from '@/utils/componentHelpers';
 // BlurView removed - TurboModule crash fix
 // import { BlurView } from 'expo-blur';
 import { 
   Zap, 
-  Star, 
   TrendingUp, 
   Heart,
-  Users,
-  MessageCircle,
-  CreditCard,
   Home,
   Globe,
   Bitcoin,
   Building,
-  GraduationCap,
-  PawPrint
 } from 'lucide-react-native';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
 
 interface PremiumLoadingScreenProps {
   progress: number; // 0 to 100
@@ -44,9 +42,66 @@ export default function PremiumLoadingScreen({
   oldVersion,
   newVersion,
 }: PremiumLoadingScreenProps) {
+  // Always use fallback initially - async loading is non-blocking enhancement only
+  // Use factory function to ensure it's always a component function, not JSX
+  const [LinearGradientComponent, setLinearGradientComponent] = useState<React.ComponentType<any>>(
+    () => LinearGradientFallback
+  );
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+
+  // Lazy load LinearGradient asynchronously (non-blocking enhancement)
+  // Component always renders with fallback, optionally upgrades if real module loads
+  useEffect(() => {
+    let mounted = true;
+
+    // Load LinearGradient asynchronously after component mounts
+    // This is a non-blocking enhancement - component works fine without it
+    lazyLoadTurboModule('expo-linear-gradient', {
+      retries: 2,
+      retryDelay: 500,
+      timeout: 3000,
+      fallback: LinearGradientFallback,
+    }).then((module) => {
+      if (!mounted) return;
+      
+      if (!module) {
+        setLinearGradientComponent(() => LinearGradientFallback);
+        return;
+      }
+      
+      // Extract LinearGradient from module
+      let LinearGradientComp = module.LinearGradient || module.default || module;
+      
+      // CRITICAL: Validate it's a component function, not JSX
+      if (!LinearGradientComp || typeof LinearGradientComp !== 'function') {
+        if (__DEV__) {
+          console.warn('[PremiumLoadingScreen] LinearGradient module is not a function, using fallback');
+        }
+        LinearGradientComp = LinearGradientFallback;
+      } else if (!isValidReactComponent(LinearGradientComp)) {
+        if (__DEV__) {
+          console.warn('[PremiumLoadingScreen] LinearGradient module is not a valid React component, using fallback');
+        }
+        LinearGradientComp = LinearGradientFallback;
+      }
+      
+      // Ensure it's a component function, not JSX - wrap in factory function
+      setLinearGradientComponent(() => LinearGradientComp);
+    }).catch((error) => {
+      if (__DEV__) {
+        console.warn('[PremiumLoadingScreen] Failed to load LinearGradient, using fallback:', error);
+      }
+      if (mounted) {
+        setLinearGradientComponent(() => LinearGradientFallback);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Rotating animation for the background elements
   useEffect(() => {
@@ -97,6 +152,25 @@ export default function PremiumLoadingScreen({
     { icon: Globe, color: '#2D3748', label: 'Dark Web' },
   ];
 
+  // Safe wrapper component that catches render errors
+  const SafeLinearGradient = React.memo(({ colors, ...props }: any) => {
+    // Validate component is a function before using
+    if (typeof LinearGradientComponent !== 'function') {
+      return <LinearGradientFallback colors={colors} {...props} />;
+    }
+    
+    try {
+      // Use React.createElement to ensure it's always a component function call
+      return React.createElement(LinearGradientComponent, { colors, ...props });
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[PremiumLoadingScreen] LinearGradient render error, using fallback:', error);
+      }
+      return <LinearGradientFallback colors={colors} {...props} />;
+    }
+  });
+  SafeLinearGradient.displayName = 'SafeLinearGradient';
+
   return (
     <View style={styles.container}>
       {/* Animated background gradients */}
@@ -143,13 +217,13 @@ export default function PremiumLoadingScreen({
             </View>
             <Text style={styles.progressText}>{Math.round(progress)}%</Text>
           </View>
-          
+
           <Text style={styles.loadingMessage}>{message}</Text>
-          
+
           {isCacheClearing && (
             <View style={styles.cacheUpdateCard}>
-              <LinearGradient
-                colors={['rgba(59, 130, 246, 0.1)', 'rgba(99, 102, 241, 0.1)']}
+              <SafeLinearGradient
+                colors={['rgba(59, 130, 246, 0.1)', 'rgba(99, 102, 241, 0.1)'] as const}
                 style={styles.cacheCardGradient}
               >
                 <Zap size={20} color="#3B82F6" />
@@ -161,7 +235,7 @@ export default function PremiumLoadingScreen({
                     From {oldVersion}
                   </Text>
                 )}
-              </LinearGradient>
+              </SafeLinearGradient>
             </View>
           )}
         </View>
@@ -170,7 +244,7 @@ export default function PremiumLoadingScreen({
         <View style={styles.featuresSection}>
           <Text style={styles.featuresTitle}>Experience Life Like Never Before</Text>
           <View style={styles.featuresGrid}>
-            {featureIcons.map((feature, index) => (
+            {featureIcons.map((feature) => (
               <Animated.View
                 key={feature.label}
                 style={[
@@ -188,13 +262,13 @@ export default function PremiumLoadingScreen({
                   },
                 ]}
               >
-                <LinearGradient
-                  colors={[`${feature.color}20`, `${feature.color}10`]}
+                <SafeLinearGradient
+                  colors={[`${feature.color}20`, `${feature.color}10`] as readonly [string, string]}
                   style={styles.featureGradient}
                 >
                   <feature.icon size={24} color={feature.color} />
                   <Text style={styles.featureLabel}>{feature.label}</Text>
-                </LinearGradient>
+                </SafeLinearGradient>
               </Animated.View>
             ))}
           </View>
@@ -271,7 +345,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 8,
-    textShadow: '0px 2px 4px rgba(0, 0, 0, 0.5)',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 16,

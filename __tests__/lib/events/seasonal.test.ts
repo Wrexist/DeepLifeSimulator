@@ -6,17 +6,33 @@ import {
   getSeasonalEventById,
   SEASONAL_EVENTS,
 } from '@/lib/events/seasonal';
-import { GameState } from '@/contexts/GameContext';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 describe('seasonal events', () => {
-  const createMockGameState = (month: number, week: number): Partial<GameState> => ({
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  const createMockGameState = (month: number, week: number) => createTestGameState({
+    weeksLived: Math.max(0, week - 1),
     date: {
       year: 2024,
-      month: month, // Can be number or string
+      month: monthNames[Math.max(0, Math.min(11, month - 1))],
       week,
       age: 25,
     },
-  } as Partial<GameState> as GameState);
+  });
 
   describe('getCurrentSeason', () => {
     it('should return correct season for each month', () => {
@@ -81,4 +97,3 @@ describe('seasonal events', () => {
     });
   });
 });
-

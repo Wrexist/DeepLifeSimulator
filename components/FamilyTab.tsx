@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Family Tab Component
  * 
  * Comprehensive family management with spouse, children, and family activities
@@ -14,7 +14,8 @@ import {
   Image,
   Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   Users,
   Heart,
@@ -41,7 +42,7 @@ interface FamilyTabProps {
   onClose?: () => void;
 }
 
-export default function FamilyTab({ onClose }: FamilyTabProps) {
+function FamilyTab({ onClose }: FamilyTabProps) {
   const { 
     gameState, 
     proposeToPartner, 
@@ -108,7 +109,7 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
             const result = proposeToPartner(partner.id);
             if (result?.success) {
               saveGame();
-              Alert.alert('Congratulations! 💍', result.message);
+              Alert.alert('Congratulations!', result.message);
             } else {
               Alert.alert('Response', result?.message || 'They need more time to think...');
             }
@@ -141,7 +142,7 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
             const result = moveInTogether(partner.id);
             if (result?.success) {
               saveGame();
-              Alert.alert('New Home! 🏠', result.message);
+              Alert.alert('New Home! ðŸ ', result.message);
             } else {
               Alert.alert('Cannot Move In', result?.message || 'Something went wrong.');
             }
@@ -170,13 +171,8 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
         {
           text: 'Try for Baby',
           onPress: () => {
-            const result = haveChild(spouse.id);
-            if (result?.success) {
-              saveGame();
-              Alert.alert('Wonderful News! 👶', result.message);
-            } else {
-              Alert.alert('Not This Time', result?.message || 'Maybe next time...');
-            }
+            haveChild(spouse.id);
+            saveGame();
           },
         },
       ]
@@ -199,6 +195,17 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
     if (score >= 40) return '#EF4444';
     return '#6B7280';
   };
+
+  // Check pregnancy status from relationships array (has latest state)
+  const spouseRelationship = useMemo(() =>
+    gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
+    [gameState.relationships, spouse?.id]
+  );
+  const isPregnant = spouseRelationship?.isPregnant ?? false;
+  const pregnancyWeeks = isPregnant && spouseRelationship?.pregnancyStartWeek != null
+    ? (gameState.weeksLived || 0) - spouseRelationship.pregnancyStartWeek
+    : 0;
+  const pregnancyProgress = Math.min(100, Math.round((pregnancyWeeks / 10) * 100));
 
   const renderSpouseCard = () => {
     if (!spouse) return null;
@@ -227,7 +234,7 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
                 <Heart size={16} color="#EF4444" fill="#EF4444" />
               </View>
               <Text style={[styles.cardSubtitle, settings.darkMode && styles.textMuted]}>
-                Your Spouse • {spouse.personality}
+                Your Spouse {'\u2022'} {spouse.personality}
               </Text>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
@@ -246,18 +253,41 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleHaveChild}
-          >
-            <LinearGradient
-              colors={['#EC4899', '#DB2777']}
-              style={styles.actionButtonGradient}
+          {/* Pregnancy progress indicator */}
+          {isPregnant && (
+            <View style={styles.pregnancySection}>
+              <View style={styles.pregnancyHeader}>
+                <Baby size={16} color="#EC4899" />
+                <Text style={[styles.pregnancyTitle, settings.darkMode && styles.textDark]}>
+                  Expecting a {spouseRelationship?.pregnancyChildGender === 'male' ? 'Boy' : 'Girl'}!
+                </Text>
+              </View>
+              <Text style={[styles.pregnancySubtext, settings.darkMode && styles.textMuted]}>
+                {spouseRelationship?.pregnancyChildName} {'\u2022'} Week {pregnancyWeeks} of 10
+              </Text>
+              <View style={styles.pregnancyBarContainer}>
+                <View style={styles.pregnancyBarBg}>
+                  <View style={[styles.pregnancyBarFill, { width: `${pregnancyProgress}%` }]} />
+                </View>
+                <Text style={styles.pregnancyPercent}>{pregnancyProgress}%</Text>
+              </View>
+            </View>
+          )}
+
+          {!isPregnant && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleHaveChild}
             >
-              <Baby size={18} color="#FFF" />
-              <Text style={styles.actionButtonText}>Try for Baby</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={['#EC4899', '#DB2777']}
+                style={styles.actionButtonGradient}
+              >
+                <Baby size={18} color="#FFF" />
+                <Text style={styles.actionButtonText}>Try for Baby</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
         </LinearGradient>
       </View>
     );
@@ -290,8 +320,8 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
                 <Heart size={16} color="#F59E0B" />
               </View>
               <Text style={[styles.cardSubtitle, settings.darkMode && styles.textMuted]}>
-                Your Partner • {partner.personality}
-                {partner.livingTogether && ' • Living Together'}
+                Your Partner â€¢ {partner.personality}
+                {partner.livingTogether && ' â€¢ Living Together'}
               </Text>
               <View style={styles.progressContainer}>
                 <View style={styles.progressBar}>
@@ -306,7 +336,7 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
                   />
                 </View>
                 <Text style={[styles.progressText, settings.darkMode && styles.textMuted]}>
-                  {partner.relationshipScore}% • {partner.relationshipScore >= 80 ? 'Ready for proposal!' : 'Building relationship...'}
+                  {partner.relationshipScore}% â€¢ {partner.relationshipScore >= 80 ? 'Ready for proposal!' : 'Building relationship...'}
                 </Text>
               </View>
             </View>
@@ -372,7 +402,7 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
             {child.name}
           </Text>
           <Text style={[styles.childAge, settings.darkMode && styles.textMuted]}>
-            Age {childAge} • {isAdult ? 'Adult' : childAge >= 13 ? 'Teen' : 'Child'}
+            Age {childAge} â€¢ {isAdult ? 'Adult' : childAge >= 13 ? 'Teen' : 'Child'}
           </Text>
           {child.educationLevel && (
             <View style={styles.childBadge}>
@@ -421,7 +451,7 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
                     {child.name}
                   </Text>
                   <Text style={[styles.childProfileAge, settings.darkMode && styles.textMuted]}>
-                    Age {childAge} • {child.gender === 'male' ? 'Son' : 'Daughter'}
+                    Age {childAge} â€¢ {child.gender === 'male' ? 'Son' : 'Daughter'}
                   </Text>
                 </View>
               </View>
@@ -534,7 +564,7 @@ export default function FamilyTab({ onClose }: FamilyTabProps) {
           >
             <Activity size={16} color="#FFF" />
             <Text style={styles.lifeStageText}>
-              {lifeStage.charAt(0).toUpperCase() + lifeStage.slice(1)} • Age {gameState.date.age}
+              {lifeStage.charAt(0).toUpperCase() + lifeStage.slice(1)} â€¢ Age {gameState.date.age}
             </Text>
           </LinearGradient>
         </View>
@@ -1110,4 +1140,55 @@ const styles = StyleSheet.create({
   textMuted: {
     color: '#9CA3AF',
   },
+  pregnancySection: {
+    marginTop: scale(12),
+    padding: scale(12),
+    backgroundColor: 'rgba(236, 72, 153, 0.08)',
+    borderRadius: scale(12),
+    borderWidth: 1,
+    borderColor: 'rgba(236, 72, 153, 0.2)',
+  },
+  pregnancyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    marginBottom: scale(4),
+  },
+  pregnancyTitle: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: '#EC4899',
+  },
+  pregnancySubtext: {
+    fontSize: fontScale(12),
+    color: '#6B7280',
+    marginBottom: scale(8),
+  },
+  pregnancyBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+  },
+  pregnancyBarBg: {
+    flex: 1,
+    height: scale(8),
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    borderRadius: scale(4),
+    overflow: 'hidden',
+  },
+  pregnancyBarFill: {
+    height: '100%',
+    backgroundColor: '#EC4899',
+    borderRadius: scale(4),
+  },
+  pregnancyPercent: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    color: '#EC4899',
+    minWidth: scale(32),
+    textAlign: 'right',
+  },
 });
+
+export default React.memo(FamilyTab);
+

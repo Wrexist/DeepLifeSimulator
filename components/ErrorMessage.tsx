@@ -1,6 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import { AlertTriangle, X, RefreshCw } from 'lucide-react-native';
 
@@ -50,13 +51,13 @@ export default function ErrorMessage({
   const getIcon = () => {
     switch (severity) {
       case 'info':
-        return 'ℹ️';
+        return 'â„¹ï¸';
       case 'warning':
-        return '⚠️';
+        return 'âš ï¸';
       case 'critical':
-        return '🚨';
+        return 'ðŸš¨';
       default:
-        return '❌';
+        return 'âŒ';
     }
   };
 
@@ -192,3 +193,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

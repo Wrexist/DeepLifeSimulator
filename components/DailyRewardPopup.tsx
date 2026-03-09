@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import { 
   Modal, 
   View, 
@@ -8,7 +8,8 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { 
   Gift, 
   DollarSign, 
@@ -35,6 +36,22 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
   const { gameState } = useGameState();
   const { settings } = gameState || { darkMode: false };
   const isDarkMode = settings?.darkMode || false;
+
+  // Unmount safety: prevent state updates and callbacks after unmount
+  const isMountedRef = useRef(true);
+  const claimInProgressRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  // Reset claim lock when popup becomes visible again
+  useEffect(() => {
+    if (visible) {
+      claimInProgressRef.current = false;
+    }
+  }, [visible]);
 
   // Animations
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
@@ -157,6 +174,10 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
   }, [visible, rewardAmount]);
 
   const handleClaim = () => {
+    // Prevent double-tap
+    if (claimInProgressRef.current) return;
+    claimInProgressRef.current = true;
+
     // Checkmark animation
     Animated.spring(checkmarkScale, {
       toValue: 1,
@@ -167,6 +188,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
 
     // Close after animation
     setTimeout(() => {
+      if (!isMountedRef.current) return;
       Animated.parallel([
         Animated.timing(scaleAnim, {
           toValue: 0.9,
@@ -179,7 +201,9 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
           useNativeDriver: true,
         }),
       ]).start(() => {
-        onClose();
+        if (isMountedRef.current) {
+          onClose();
+        }
       });
     }, 800);
   };
@@ -278,7 +302,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
             {/* Title */}
             <View style={styles.titleContainer}>
               <Text style={[styles.title, isDarkMode && styles.titleDark]}>
-                Daily Reward! 🎁
+                Daily Reward! ðŸŽ
               </Text>
               <Text style={[styles.subtitle, isDarkMode && styles.subtitleDark]}>
                 Your daily login bonus
@@ -615,3 +639,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+

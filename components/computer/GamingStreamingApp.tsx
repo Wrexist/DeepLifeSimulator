@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Gaming & Streaming App Component
  * 
- * ⚠️  PERMANENT SCALING FIX ⚠️
+ * âš ï¸  PERMANENT SCALING FIX âš ï¸
  * This component uses its OWN simple scaling system
  * DO NOT import or use any external responsive scaling utilities
  * DO NOT change the scaling functions below
@@ -28,7 +28,8 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { 
   ArrowLeft,
   Play,
@@ -134,9 +135,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const money = gameState.stats.money;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stream' | 'videos' | 'shop'>('dashboard');
   const {
-    isStreaming, streamDuration, currentViewers, totalDonations,
-    currentSubsGained, streamDonations, showConfetti, selectedGame,
-    startStream, endStream
+    isStreaming,
   } = useStreamingLogic(gameState, setGameState, AVAILABLE_GAMES);
   const [selectedGame, setSelectedGame] = useState<string>('');
   const [streamDuration, setStreamDuration] = useState(0);
@@ -189,8 +188,20 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const [subsMilestone, setSubsMilestone] = useState(0);
   const [donMilestone, setDonMilestone] = useState(0);
   const mountedRef = useRef(true);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const safeTimeout = (callback: () => void, delay: number) => {
+    const id = setTimeout(callback, delay);
+    timeoutsRef.current.push(id);
+    return id;
+  };
+
   useEffect(() => {
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
+    };
   }, []);
 
   // Cleanup timers on unmount to prevent memory leaks - enhanced with useMemoryCleanup
@@ -644,7 +655,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         });
         // Trigger confetti
         setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 1600);
+        safeTimeout(() => setShowConfetti(false), 1600);
       }
     }, Math.max(50, Math.round(uploadMs / usteps)));
       setUploadTimer(uploadInt as unknown as NodeJS.Timeout);
@@ -754,7 +765,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         });
         // Trigger confetti
         setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 1600);
+        safeTimeout(() => setShowConfetti(false), 1600);
       }
     }, Math.max(50, Math.round(uploadMs / usteps)));
     setUploadTimer(uploadInt as unknown as NodeJS.Timeout);
@@ -1404,6 +1415,17 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       return;
     }
 
+    // ANTI-EXPLOIT: Cap streams per week to prevent unlimited real-time income farming
+    // Streaming uses real-time timers for donations/subs, not game-time
+    const MAX_STREAMS_PER_WEEK = 5;
+    const currentWeeksLived = gameState.weeksLived || 0;
+    const lastStreamWeek = gamingData.lastStreamWeek || 0;
+    const streamsThisWeek = lastStreamWeek === currentWeeksLived ? (gamingData.streamsThisWeek || 0) : 0;
+    if (streamsThisWeek >= MAX_STREAMS_PER_WEEK) {
+      Alert.alert('Stream Limit', `You've already streamed ${MAX_STREAMS_PER_WEEK} times this week. Rest up and try again next week!`);
+      return;
+    }
+
     // Check if player has enough energy to start streaming
     const energyPerSecond = computeEnergyPerSecond();
     if (energy < energyPerSecond) {
@@ -1423,11 +1445,21 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       setShowNotEnoughEnergyModal(true);
       return;
     }
-    // upfront double energy cost to start
-    setGameState(prev => ({
-      ...prev,
-      stats: { ...prev.stats, energy: Math.max(0, prev.stats.energy - startCost) },
-    }));
+    // upfront double energy cost to start + track weekly stream count
+    setGameState(prev => {
+      const prevWeeksLived = prev.weeksLived || 0;
+      const prevLastStreamWeek = prev.gamingStreaming?.lastStreamWeek || 0;
+      const prevStreamsThisWeek = prevLastStreamWeek === prevWeeksLived ? (prev.gamingStreaming?.streamsThisWeek || 0) : 0;
+      return {
+        ...prev,
+        stats: { ...prev.stats, energy: Math.max(0, prev.stats.energy - startCost) },
+        gamingStreaming: {
+          ...prev.gamingStreaming!,
+          streamsThisWeek: prevStreamsThisWeek + 1,
+          lastStreamWeek: prevWeeksLived,
+        },
+      };
+    });
 
     setIsStreaming(true);
     setStreamDuration(0);
@@ -1486,7 +1518,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       const game = availableGames.find(g => g.id === selectedGame);
       if (game) {
         const baseViewers = game.baseViewers;
-        const viewerVariation = Math.floor(baseViewers * 0.3); // ±30% variation
+        const viewerVariation = Math.floor(baseViewers * 0.3); // Â±30% variation
         const newViewers = Math.max(10, baseViewers - viewerVariation + Math.floor(Math.random() * (viewerVariation * 2)));
         setCurrentViewers(newViewers);
         updateStreamingState({
@@ -1517,7 +1549,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         setSubsMilestone(s => s + gained);
         // Create popups for each new sub with staggered timing
         for (let i = 0; i < gained; i++) {
-          setTimeout(() => {
+          safeTimeout(() => {
             const id = `${Date.now()}_${i}_${Math.random()}`;
             setSubPopups(prev => {
               // Don't create more popups if we're at the limit
@@ -1532,7 +1564,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
               return [...prev, { id, name, position: { top: pos.top, left: pos.left } }];
             });
             // auto-remove after 3s
-            setTimeout(() => {
+            safeTimeout(() => {
               setSubPopups(prev => prev.filter(s => s.id !== id));
             }, 3000);
           }, i * 200); // Stagger popups by 200ms each
@@ -1596,7 +1628,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         }));
         
         // Remove donation after 3 seconds
-        setTimeout(() => {
+        safeTimeout(() => {
           setStreamDonations(prev => prev.filter(d => d.id !== donationId));
         }, 3000);
       }
@@ -1732,7 +1764,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         
         // Create popups for new subs
         for (let i = 0; i < gained; i++) {
-          setTimeout(() => {
+          safeTimeout(() => {
             const id = `${Date.now()}_${i}_${Math.random()}`;
             setSubPopups(prev => {
               if (prev.length >= MAX_POPUPS) return prev;
@@ -1744,7 +1776,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
               const pos = getNonOverlappingPosition(existingPositions);
               return [...prev, { id, name, position: { top: pos.top, left: pos.left } }];
             });
-            setTimeout(() => {
+            safeTimeout(() => {
               setSubPopups(prev => prev.filter(s => s.id !== id));
             }, 3000);
           }, i * 200);
@@ -1804,7 +1836,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
           stats: { ...prev.stats, money: prev.stats.money + donationAmount }
         }));
         
-        setTimeout(() => {
+        safeTimeout(() => {
           setStreamDonations(prev => prev.filter(d => d.id !== donationId));
         }, 3000);
       }
@@ -1821,7 +1853,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     // ✅ Clear all timers immediately
     clearAllStreamingTimers();
 
-    // ✅ Clear streaming state immediately to prevent container from showing
+    // âœ… Clear streaming state immediately to prevent container from showing
     updateStreamingState({
       isStreaming: false,
       streamProgress: 0,
@@ -1842,7 +1874,15 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     const newFollowers = Math.floor(finalViewers * 0.25);
     // Base subs from performance plus live subs gained during the session
     const newSubscribers = Math.floor(finalViewers * 0.02) + currentSubsGained;
-    const experience = Math.floor(finalStreamDuration / 60 + finalViewers);
+    // BUG FIX: Apply prestige experience multiplier
+    const unlockedBonuses = gameState.prestige?.unlockedBonuses || [];
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getExperienceMultiplier } = require('@/lib/prestige/applyBonuses');
+    const experienceMultiplier = getExperienceMultiplier(unlockedBonuses);
+    const safeExperienceMultiplier = typeof experienceMultiplier === 'number' && isFinite(experienceMultiplier) && experienceMultiplier > 0 ? experienceMultiplier : 1.0;
+    
+    const baseExperience = Math.floor(finalStreamDuration / 60 + finalViewers);
+    const experience = Math.round(baseExperience * safeExperienceMultiplier);
     const chatMessages = Math.floor(finalViewers * 0.5);
     // Use actual live totalDonations from state rather than estimate
 
@@ -1889,7 +1929,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     // Save game after stream ends
     saveGame();
 
-    // ✅ Reset local streaming state (persistent state already cleared in progress timer)
+    // âœ… Reset local streaming state (persistent state already cleared in progress timer)
     setIsStreaming(false);
     setStreamDuration(0);
     setStreamProgress(0);
@@ -1910,8 +1950,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     setShowStreamEndedModal(true);
     
     // Clear the stream state after showing modal
-    setTimeout(() => {
-      // ✅ Automatically navigate to dashboard after stream completion
+    safeTimeout(() => {
+      // âœ… Automatically navigate to dashboard after stream completion
       setActiveTab('dashboard');
     }, 100);
   };
@@ -2202,10 +2242,10 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
                     Last Video: {v.title}
                   </Text>
                   <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>
-                    👀 {v.views.toLocaleString()} • 👍 {v.likes?.toLocaleString?.() || 0} • 💬 {v.comments?.toLocaleString?.() || 0} • 💰 ${v.earnings?.toLocaleString?.() || 0}
+                    ðŸ‘€ {v.views.toLocaleString()} â€¢ ðŸ‘ {v.likes?.toLocaleString?.() || 0} â€¢ ðŸ’¬ {v.comments?.toLocaleString?.() || 0} â€¢ ðŸ’° ${v.earnings?.toLocaleString?.() || 0}
                   </Text>
                   <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>
-                    CTR {v.ctr || 0}% • AVD {v.avgViewDuration || 0}s • RPM ${v.rpm || 0} • Source {v.source || '—'}
+                    CTR {v.ctr || 0}% â€¢ AVD {v.avgViewDuration || 0}s â€¢ RPM ${v.rpm || 0} â€¢ Source {v.source || 'â€”'}
                   </Text>
                 </>
               );
@@ -2229,7 +2269,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
                 {stream.game}
               </Text>
               <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>
-                👥 {stream.viewers} • 💰 ${stream.earnings} • ⭐ +{stream.subscribers} • ⏱️ {Math.floor(stream.duration / 60)}m
+                ðŸ‘¥ {stream.viewers} â€¢ ðŸ’° ${stream.earnings} â€¢ â­ +{stream.subscribers} â€¢ â±ï¸ {Math.floor(stream.duration / 60)}m
               </Text>
             </View>
           ))
@@ -2293,10 +2333,10 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
                   {game.name}
                 </Text>
                 {!owned ? (
-                  <Text style={styles.requirementText}>${game.cost} • Tap to buy</Text>
+                  <Text style={styles.requirementText}>${game.cost} â€¢ Tap to buy</Text>
                 ) : (
                   <>
-                    <Text style={styles.ownedText}>✓ Owned</Text>
+                    <Text style={styles.ownedText}>âœ“ Owned</Text>
                     {videoGame !== game.id && (
                       <Text style={styles.useHintText}>Tap to use</Text>
                     )}
@@ -2360,7 +2400,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             <View style={[styles.progressButtonFill, { width: `${recordProgress}%`, backgroundColor: '#10B981' }]} />
             {isRecording && <Shimmer />}
             <Text style={[styles.progressButtonText, settings.darkMode && styles.progressButtonTextDark]}>
-              {recordProgress === 0 ? 'Record Video' : (recordProgress < 100 ? (isRecording ? `Recording ${recordProgress}%` : `Recording ${recordProgress}% (Paused)`) : 'Recorded ✔')}
+              {recordProgress === 0 ? 'Record Video' : (recordProgress < 100 ? (isRecording ? `Recording ${recordProgress}%` : `Recording ${recordProgress}% (Paused)`) : 'Recorded âœ”')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -2375,7 +2415,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             <View style={[styles.progressButtonFill, { width: `${renderProgress}%`, backgroundColor: '#3B82F6' }]} />
             {isRendering && <Shimmer />}
             <Text style={[styles.progressButtonText, settings.darkMode && styles.progressButtonTextDark]}>
-              {renderProgress === 0 ? 'Render Video' : (renderProgress < 100 ? (isRendering ? `Rendering ${renderProgress}%` : `Rendering ${renderProgress}% (Paused)`) : 'Rendered ✔')}
+              {renderProgress === 0 ? 'Render Video' : (renderProgress < 100 ? (isRendering ? `Rendering ${renderProgress}%` : `Rendering ${renderProgress}% (Paused)`) : 'Rendered âœ”')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -2390,7 +2430,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             <View style={[styles.progressButtonFill, { width: `${uploadProgress}%`, backgroundColor: '#8B5CF6' }]} />
             {isUploading && <Shimmer />}
             <Text style={[styles.progressButtonText, settings.darkMode && styles.progressButtonTextDark]}>
-              {uploadProgress === 0 ? 'Upload Video' : (uploadProgress < 100 ? (isUploading ? `Uploading ${uploadProgress}%` : `Uploading ${uploadProgress}% (Paused)`) : 'Uploaded ✔')}
+              {uploadProgress === 0 ? 'Upload Video' : (uploadProgress < 100 ? (isUploading ? `Uploading ${uploadProgress}%` : `Uploading ${uploadProgress}% (Paused)`) : 'Uploaded âœ”')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -2408,11 +2448,11 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
                 {v.title}
               </Text>
               <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>
-                🎮 {v.game} • 👀 {v.views.toLocaleString()} • 👍 {v.likes.toLocaleString()} • 💬 {v.comments.toLocaleString()} • 💰 ${v.earnings.toLocaleString()}
+                ðŸŽ® {v.game} â€¢ ðŸ‘€ {v.views.toLocaleString()} â€¢ ðŸ‘ {v.likes.toLocaleString()} â€¢ ðŸ’¬ {v.comments.toLocaleString()} â€¢ ðŸ’° ${v.earnings.toLocaleString()}
               </Text>
               {/* Simple analytics breakdown */}
               <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>
-                CTR ~{Math.max(2, Math.min(18, Math.round(6 + (v.quality||0)*8)))}% • AVD ~{Math.round(40 + (v.quality||0)*30)}s • RPM ${Math.max(1, Math.round(((v.earnings/(v.views/1000))||2)*0.7*100)/100)}
+                CTR ~{Math.max(2, Math.min(18, Math.round(6 + (v.quality||0)*8)))}% â€¢ AVD ~{Math.round(40 + (v.quality||0)*30)}s â€¢ RPM ${Math.max(1, Math.round(((v.earnings/(v.views/1000))||2)*0.7*100)/100)}
               </Text>
             </View>
           ))
@@ -2554,15 +2594,15 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             <View style={styles.infoPillsRow}>
               <View style={[styles.infoPill, styles.infoPillGreen]}>
                 <Zap size={16} color="#065F46" />
-                <Text style={styles.infoPillText}>Energy ↓</Text>
+                <Text style={styles.infoPillText}>Energy â†“</Text>
               </View>
               <View style={[styles.infoPill, styles.infoPillPurple]}>
                 <Camera size={16} color="#4C1D95" />
-                <Text style={styles.infoPillText}>Quality ↑</Text>
+                <Text style={styles.infoPillText}>Quality â†‘</Text>
               </View>
               <View style={[styles.infoPill, styles.infoPillBlue]}>
                 <Clock size={16} color="#1E3A8A" />
-                <Text style={styles.infoPillText}>Time ↓</Text>
+                <Text style={styles.infoPillText}>Time â†“</Text>
               </View>
             </View>
           </LinearGradient>
@@ -2631,7 +2671,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         <View style={styles.floatingButtonContainer}>
           <View style={[styles.streamingContainer, settings.darkMode && styles.streamingContainerDark]}>
             <Text style={[styles.streamingTitle, settings.darkMode && styles.streamingTitleDark]}>
-              {isStreaming ? '🔴 Streaming' : '⏸️ Streaming (Paused)'} {availableGames.find(g => g.id === (selectedGame || gamingData.streamingState?.selectedGame))?.name}
+              {isStreaming ? 'ðŸ”´ Streaming' : 'â¸ï¸ Streaming (Paused)'} {availableGames.find(g => g.id === (selectedGame || gamingData.streamingState?.selectedGame))?.name}
             </Text>
             
             <View style={styles.streamingStats}>
@@ -2659,7 +2699,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
                 />
               </View>
               <Text style={[styles.progressText, settings.darkMode && styles.progressTextDark]}>
-                {streamProgress}% Complete • {Math.floor(streamDuration / 60)}m {streamDuration % 60}s
+                {streamProgress}% Complete â€¢ {Math.floor(streamDuration / 60)}m {streamDuration % 60}s
               </Text>
             </View>
 
@@ -2694,7 +2734,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  🎮 Game Not Owned
+                  ðŸŽ® Game Not Owned
                 </Text>
               </View>
               
@@ -2736,7 +2776,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  ⚡ Not Enough Energy
+                  âš¡ Not Enough Energy
                 </Text>
               </View>
               
@@ -2778,7 +2818,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  🎮 Select Game
+                  ðŸŽ® Select Game
                 </Text>
               </View>
               
@@ -2820,7 +2860,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  📺 Already Streaming
+                  ðŸ“º Already Streaming
                 </Text>
               </View>
               
@@ -2862,7 +2902,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  👥 Followers Required
+                  ðŸ‘¥ Followers Required
                 </Text>
               </View>
               
@@ -2904,7 +2944,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  📺 Stream Ended
+                  ðŸ“º Stream Ended
                 </Text>
               </View>
               
@@ -2913,11 +2953,11 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
                   Stream Results:
                 </Text>
                 <Text style={[styles.modalSubtext, settings.darkMode && styles.modalSubtextDark]}>
-                  ⏱️ Duration: {Math.floor(modalData.duration / 60)}m {modalData.duration % 60}s{'\n'}
-                  👥 Viewers: {modalData.viewers}{'\n'}
-                  💰 Total Earnings: ${modalData.earnings}{'\n'}
-                  📈 New Followers: +{modalData.followers}{'\n'}
-                  ⭐ New Subscribers: +{modalData.subscribers}
+                  â±ï¸ Duration: {Math.floor(modalData.duration / 60)}m {modalData.duration % 60}s{'\n'}
+                  ðŸ‘¥ Viewers: {modalData.viewers}{'\n'}
+                  ðŸ’° Total Earnings: ${modalData.earnings}{'\n'}
+                  ðŸ“ˆ New Followers: +{modalData.followers}{'\n'}
+                  â­ New Subscribers: +{modalData.subscribers}
                 </Text>
               </View>
               
@@ -2953,7 +2993,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  🎮 Game Purchased!
+                  ðŸŽ® Game Purchased!
                 </Text>
               </View>
               
@@ -2995,7 +3035,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  🎮 Already Owned
+                  ðŸŽ® Already Owned
                 </Text>
               </View>
               
@@ -3037,7 +3077,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  💰 Insufficient Funds
+                  ðŸ’° Insufficient Funds
                 </Text>
               </View>
               
@@ -3082,7 +3122,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  🎥 Recording in Progress
+                  ðŸŽ¥ Recording in Progress
                 </Text>
               </View>
               
@@ -3143,7 +3183,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, settings.darkMode && styles.modalTitleDark]}>
-                  🔄 Resuming
+                  ðŸ”„ Resuming
                 </Text>
               </View>
               
@@ -3906,3 +3946,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+

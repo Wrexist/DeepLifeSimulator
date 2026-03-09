@@ -1,6 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react-native';
 
 interface ConfirmDialogProps {
@@ -111,14 +112,15 @@ const styles = StyleSheet.create({
   container: {
     width: '85%',
     maxWidth: 400,
-    backgroundColor: '#fff',
+    backgroundColor: '#1a1a2e',
     borderRadius: 12,
     padding: 24,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
     shadowColor: '#000',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.5,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
+    shadowRadius: 12,
     elevation: 8,
   },
   iconContainer: {
@@ -130,14 +132,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 12,
     textAlign: 'center',
-    color: '#1F2937',
+    color: '#F3F4F6',
   },
   message: {
     fontSize: 16,
     marginBottom: 24,
     textAlign: 'center',
     lineHeight: 22,
-    color: '#4B5563',
+    color: '#9CA3AF',
   },
   actions: {
     flexDirection: 'row',
@@ -161,7 +163,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancel: {
-    color: '#6B7280',
+    color: '#E5E7EB',
     fontWeight: '600',
   },
   confirm: {
@@ -172,3 +174,4 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+

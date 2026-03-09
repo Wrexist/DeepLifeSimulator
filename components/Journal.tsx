@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Journal Component
  * 
  * Full-featured life diary system with categories, search, timeline,
@@ -10,11 +10,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   Modal,
   TextInput,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   BookOpen,
   Search,
@@ -38,6 +40,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { JournalEntry } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 type JournalCategory = 'all' | 'career' | 'relationship' | 'achievement' | 'travel' | 'family' | 'crime' | 'health' | 'other';
 
@@ -159,8 +162,8 @@ export default function Journal({ compact = false }: JournalProps) {
   }, []);
 
   const formatWeek = useCallback((week: number) => {
-    const year = Math.floor(week / 52) + 1;
-    const weekInYear = (week % 52) + 1;
+    const year = Math.floor(week / WEEKS_PER_YEAR) + 1;
+    const weekInYear = (week % WEEKS_PER_YEAR) + 1;
     return `Year ${year}, Week ${weekInYear}`;
   }, []);
 
@@ -368,88 +371,93 @@ export default function Journal({ compact = false }: JournalProps) {
         </View>
       )}
 
-      {/* Entries List */}
-      <ScrollView style={styles.entriesContainer} showsVerticalScrollIndicator={false}>
-        {filteredEntries.length === 0 ? (
-          <View style={styles.emptyState}>
-            <BookOpen size={48} color={settings.darkMode ? '#4B5563' : '#D1D5DB'} />
-            <Text style={[styles.emptyStateTitle, settings.darkMode && styles.textDark]}>
-              {searchQuery || selectedCategory !== 'all'
-                ? 'No matching entries'
-                : 'No journal entries yet'}
-            </Text>
-            <Text style={[styles.emptyStateText, settings.darkMode && styles.textMuted]}>
-              {searchQuery || selectedCategory !== 'all'
-                ? 'Try adjusting your filters or search query'
-                : 'Your life events will be recorded here as you play!'}
-            </Text>
-          </View>
-        ) : (
-          <>
-            {filteredEntries.map((entry, index) => {
-              const categoryInfo = getCategoryInfo(entry.category);
-              const CategoryIcon = categoryInfo.icon;
+      {/* Entries List — C-1: Virtualized with FlatList to prevent OOM on large journals */}
+      {filteredEntries.length === 0 ? (
+        <View style={[styles.entriesContainer, styles.emptyState]}>
+          <BookOpen size={48} color={settings.darkMode ? '#4B5563' : '#D1D5DB'} />
+          <Text style={[styles.emptyStateTitle, settings.darkMode && styles.textDark]}>
+            {searchQuery || selectedCategory !== 'all'
+              ? 'No matching entries'
+              : 'No journal entries yet'}
+          </Text>
+          <Text style={[styles.emptyStateText, settings.darkMode && styles.textMuted]}>
+            {searchQuery || selectedCategory !== 'all'
+              ? 'Try adjusting your filters or search query'
+              : 'Your life events will be recorded here as you play!'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          style={styles.entriesContainer}
+          data={filteredEntries}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={20}
+          maxToRenderPerBatch={15}
+          windowSize={7}
+          renderItem={({ item: entry, index }) => {
+            const categoryInfo = getCategoryInfo(entry.category);
+            const CategoryIcon = categoryInfo.icon;
 
-              // Check if we should show a date separator
-              const prevEntry = index > 0 ? filteredEntries[index - 1] : null;
-              const currentYear = Math.floor((entry.atWeek || 0) / 52) + 1;
-              const prevYear = prevEntry ? Math.floor((prevEntry.atWeek || 0) / 52) + 1 : null;
-              const showYearSeparator = currentYear !== prevYear;
+            // Check if we should show a date separator
+            const prevEntry = index > 0 ? filteredEntries[index - 1] : null;
+            const currentYear = Math.floor((entry.atWeek || 0) / WEEKS_PER_YEAR) + 1;
+            const prevYear = prevEntry ? Math.floor((prevEntry.atWeek || 0) / WEEKS_PER_YEAR) + 1 : null;
+            const showYearSeparator = currentYear !== prevYear;
 
-              return (
-                <React.Fragment key={entry.id}>
-                  {showYearSeparator && (
-                    <View style={styles.yearSeparator}>
-                      <View style={[styles.yearLine, settings.darkMode && styles.yearLineDark]} />
-                      <Text style={[styles.yearText, settings.darkMode && styles.textMuted]}>
-                        Year {currentYear}
-                      </Text>
-                      <View style={[styles.yearLine, settings.darkMode && styles.yearLineDark]} />
-                    </View>
-                  )}
-                  <TouchableOpacity
-                    style={[styles.entryCard, settings.darkMode && styles.entryCardDark]}
-                    onPress={() => setSelectedEntry(entry)}
-                  >
-                    {/* Timeline dot */}
-                    <View style={styles.timelineDot}>
-                      <View style={[styles.dot, { backgroundColor: categoryInfo.color }]} />
-                      {index < filteredEntries.length - 1 && (
-                        <View style={[styles.timelineLine, settings.darkMode && styles.timelineLineDark]} />
-                      )}
-                    </View>
+            return (
+              <View>
+                {showYearSeparator && (
+                  <View style={styles.yearSeparator}>
+                    <View style={[styles.yearLine, settings.darkMode && styles.yearLineDark]} />
+                    <Text style={[styles.yearText, settings.darkMode && styles.textMuted]}>
+                      Year {currentYear}
+                    </Text>
+                    <View style={[styles.yearLine, settings.darkMode && styles.yearLineDark]} />
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[styles.entryCard, settings.darkMode && styles.entryCardDark]}
+                  onPress={() => setSelectedEntry(entry)}
+                >
+                  {/* Timeline dot */}
+                  <View style={styles.timelineDot}>
+                    <View style={[styles.dot, { backgroundColor: categoryInfo.color }]} />
+                    {index < filteredEntries.length - 1 && (
+                      <View style={[styles.timelineLine, settings.darkMode && styles.timelineLineDark]} />
+                    )}
+                  </View>
 
-                    {/* Entry content */}
-                    <View style={styles.entryContent}>
-                      <View style={styles.entryHeader}>
-                        <View style={[styles.entryIconContainer, { backgroundColor: settings.darkMode ? `${categoryInfo.color}30` : categoryInfo.bgColor }]}>
-                          <CategoryIcon size={16} color={categoryInfo.color} />
-                        </View>
-                        <View style={styles.entryHeaderText}>
-                          <Text style={[styles.entryTitle, settings.darkMode && styles.textDark]}>
-                            {entry.title}
-                          </Text>
-                          <Text style={[styles.entryMeta, settings.darkMode && styles.textMuted]}>
-                            Week {entry.atWeek}
-                          </Text>
-                        </View>
+                  {/* Entry content */}
+                  <View style={styles.entryContent}>
+                    <View style={styles.entryHeader}>
+                      <View style={[styles.entryIconContainer, { backgroundColor: settings.darkMode ? `${categoryInfo.color}30` : categoryInfo.bgColor }]}>
+                        <CategoryIcon size={16} color={categoryInfo.color} />
                       </View>
-                      {entry.details && (
-                        <Text
-                          style={[styles.entryDetails, settings.darkMode && styles.textMuted]}
-                          numberOfLines={2}
-                        >
-                          {entry.details}
+                      <View style={styles.entryHeaderText}>
+                        <Text style={[styles.entryTitle, settings.darkMode && styles.textDark]}>
+                          {entry.title}
                         </Text>
-                      )}
+                        <Text style={[styles.entryMeta, settings.darkMode && styles.textMuted]}>
+                          Week {entry.atWeek}
+                        </Text>
+                      </View>
                     </View>
-                  </TouchableOpacity>
-                </React.Fragment>
-              );
-            })}
-          </>
-        )}
-      </ScrollView>
+                    {entry.details && (
+                      <Text
+                        style={[styles.entryDetails, settings.darkMode && styles.textMuted]}
+                        numberOfLines={2}
+                      >
+                        {entry.details}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
+        />
+      )}
 
       {renderEntryModal()}
     </View>
@@ -818,3 +826,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

@@ -16,8 +16,21 @@ class OfflineManager {
   private pendingActions: OfflineAction[] = [];
   private listeners: ((isOnline: boolean) => void)[] = [];
   private syncInProgress: boolean = false;
+  private handleOnline: () => void;
+  private handleOffline: () => void;
 
   private constructor() {
+    this.handleOnline = () => {
+      this.isOnline = true;
+      this.notifyListeners();
+      if (this.pendingActions.length > 0) {
+        this.syncPendingActions();
+      }
+    };
+    this.handleOffline = () => {
+      this.isOnline = false;
+      this.notifyListeners();
+    };
     this.initializeNetworkListener();
     this.loadPendingActions();
   }
@@ -36,17 +49,8 @@ class OfflineManager {
         this.isOnline = navigator.onLine ?? true;
         this.notifyListeners();
         
-        window.addEventListener('online', () => {
-          this.isOnline = true;
-          this.notifyListeners();
-          if (this.pendingActions.length > 0) {
-            this.syncPendingActions();
-          }
-        });
-        window.addEventListener('offline', () => {
-          this.isOnline = false;
-          this.notifyListeners();
-        });
+        window.addEventListener('online', this.handleOnline);
+        window.addEventListener('offline', this.handleOffline);
       } else {
         // Default to online if navigator is not available
         this.isOnline = true;
@@ -63,10 +67,10 @@ class OfflineManager {
   }
 
   public destroy() {
-    // Clean up event listeners on web
+    // Clean up event listeners on web using stored handler references
     if (typeof window !== 'undefined') {
-      window.removeEventListener('online', () => {});
-      window.removeEventListener('offline', () => {});
+      window.removeEventListener('online', this.handleOnline);
+      window.removeEventListener('offline', this.handleOffline);
     }
     this.listeners = [];
   }
@@ -230,7 +234,7 @@ class OfflineManager {
     try {
       // Purchase validation would be handled by IAP service
       if (__DEV__) {
-        logger.info('Executing purchase validation:', data);
+        logger.info('Executing purchase validation:', { data: typeof data === 'object' ? data : { value: data } });
       }
     } catch (error) {
       if (__DEV__) {

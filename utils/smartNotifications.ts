@@ -37,6 +37,8 @@ export interface SmartNotification {
     hasDebt?: boolean;
     isInJail?: boolean;
     hasDiseases?: boolean;
+    hasCriticalDisease?: boolean;
+    hasDeathWarning?: boolean;
     weeksLived?: number;
   };
   cooldown?: number; // hours between notifications
@@ -193,6 +195,52 @@ class SmartNotificationSystem {
         showOnce: true,
       },
 
+      // Disease Notifications
+      {
+        id: 'new_disease',
+        type: 'warning',
+        title: '🏥 New Health Condition',
+        message: 'You\'ve contracted a health condition. Visit a doctor or hospital for treatment.',
+        priority: 'high',
+        category: 'health',
+        icon: '🏥',
+        conditions: { hasDiseases: true },
+        cooldown: 72, // 72 hours between notifications (was 24)
+      },
+      {
+        id: 'disease_cured',
+        type: 'celebration',
+        title: '✅ Disease Cured!',
+        message: 'Great news! Your health condition has been successfully treated.',
+        priority: 'medium',
+        category: 'health',
+        icon: '✅',
+        conditions: { hasDiseases: false },
+        cooldown: 12,
+      },
+      {
+        id: 'critical_disease_warning',
+        type: 'warning',
+        title: '🚨 Critical Health Warning',
+        message: 'You have a critical health condition requiring immediate treatment!',
+        priority: 'critical',
+        category: 'health',
+        icon: '🚨',
+        conditions: { hasCriticalDisease: true },
+        cooldown: 24, // Was 6h — less spammy
+      },
+      {
+        id: 'death_warning_disease',
+        type: 'warning',
+        title: '💀 Death Warning',
+        message: 'URGENT: Your condition is life-threatening! Seek treatment immediately!',
+        priority: 'critical',
+        category: 'health',
+        icon: '💀',
+        conditions: { hasDeathWarning: true },
+        cooldown: 6, // Was 1h — still urgent but less spammy
+      },
+
       // Warning Notifications
       {
         id: 'low_health_warning',
@@ -202,8 +250,8 @@ class SmartNotificationSystem {
         priority: 'high',
         category: 'health',
         icon: '⚠️',
-        conditions: { minHealth: 0, maxHealth: 30 },
-        cooldown: 24,
+        conditions: { minHealth: 0, maxHealth: 15 },
+        cooldown: 72, // Was 24h, threshold was 30 — only warn when truly critical
       },
       {
         id: 'low_happiness_warning',
@@ -213,8 +261,8 @@ class SmartNotificationSystem {
         priority: 'high',
         category: 'health',
         icon: '😢',
-        conditions: { minHappiness: 0, maxHappiness: 30 },
-        cooldown: 24,
+        conditions: { minHappiness: 0, maxHappiness: 15 },
+        cooldown: 72, // Was 24h, threshold was 30
       },
       {
         id: 'low_energy_warning',
@@ -224,8 +272,8 @@ class SmartNotificationSystem {
         priority: 'medium',
         category: 'health',
         icon: '😴',
-        conditions: { minEnergy: 0, maxEnergy: 20 },
-        cooldown: 12,
+        conditions: { minEnergy: 0, maxEnergy: 10 },
+        cooldown: 48, // Was 12h, threshold was 20
       },
       {
         id: 'debt_warning',
@@ -236,7 +284,7 @@ class SmartNotificationSystem {
         category: 'wealth',
         icon: '💸',
         conditions: { hasDebt: true },
-        cooldown: 48,
+        cooldown: 168, // Was 48h — once per week is enough
       },
       {
         id: 'jail_warning',
@@ -247,7 +295,7 @@ class SmartNotificationSystem {
         category: 'general',
         icon: '🔒',
         conditions: { isInJail: true },
-        cooldown: 72,
+        cooldown: 168, // Was 72h — player already knows they're in jail
       },
 
       // Tip Notifications
@@ -515,6 +563,16 @@ class SmartNotificationSystem {
           break;
         case 'hasDiseases':
           if ((gameState.diseases?.length || 0) > 0 !== (value as boolean)) return false;
+          break;
+        case 'hasCriticalDisease':
+          const hasCritical = (gameState.diseases || []).some(d => d.severity === 'critical');
+          if (hasCritical !== (value as boolean)) return false;
+          break;
+        case 'hasDeathWarning':
+          const hasDeathWarning = (gameState.diseases || []).some(d => 
+            'weeksUntilDeath' in d && typeof d.weeksUntilDeath === 'number' && d.weeksUntilDeath <= 4
+          );
+          if (hasDeathWarning !== (value as boolean)) return false;
           break;
         case 'weeksLived':
           if (gameState.weeksLived < (value as number)) return false;

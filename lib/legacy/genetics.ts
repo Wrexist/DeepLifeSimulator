@@ -1,4 +1,4 @@
-import { GENETIC_TRAITS, getTraitById, GeneticTrait } from './geneticTraits';
+import { GENETIC_TRAITS, getTraitById } from './geneticTraits';
 import { GameStats } from '@/contexts/game/types';
 
 export class GeneticsSystem {
@@ -29,8 +29,8 @@ export class GeneticsSystem {
         const parent2Has = parent2Traits.includes(traitId);
 
         // Find competing traits in this group from parents
-        const p1GroupTraits = parent1Traits.map(t => getTraitById(t)).filter(t => t?.exclusivityGroup === trait.exclusivityGroup);
-        const p2GroupTraits = parent2Traits.map(t => getTraitById(t)).filter(t => t?.exclusivityGroup === trait.exclusivityGroup);
+        const _p1GroupTraits = parent1Traits.map(t => getTraitById(t)).filter(t => t?.exclusivityGroup === trait.exclusivityGroup);
+        const _p2GroupTraits = parent2Traits.map(t => getTraitById(t)).filter(t => t?.exclusivityGroup === trait.exclusivityGroup);
 
         // Simplify: if both have same, high chance. If different, dominance battle.
         if (parent1Has && parent2Has) {

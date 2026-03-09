@@ -23,69 +23,16 @@ const settings: GameSettings = {
   hapticFeedback: true,
   weeklySummaryEnabled: true,
   showDecimalsInStats: false,
+  lifetimePremium: false,
 };
 
-const createState = (overrides: Partial<GameState>): GameState => ({
-  version: 5,
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+
+const createState = (overrides: Partial<GameState>): GameState => createTestGameState({
   stats: baseStats,
-  totalHappiness: 0,
-  weeksLived: 0,
-  week: 1,
   date: baseDate,
-  streetJobs: [],
-  careers: [],
-  hobbies: [],
-  items: [],
-  darkWebItems: [],
-  hacks: [],
-  relationships: [],
-  pets: [],
-  hasPhone: false,
-  foods: [],
-  healthActivities: [],
-  dietPlans: [],
-  educations: [],
-  companies: [],
-  userProfile: { name: '', handle: '', bio: '', followers: 0, following: 0, gender: 'male', seekingGender: 'female' },
-  showWelcomePopup: false,
   settings,
-  cryptos: [],
-  diseases: [],
-  realEstate: [],
-  social: { relations: [] },
   economy: { inflationRateAnnual: 0.03, priceIndex: 1 },
-  family: { children: [] },
-  lifeStage: 'adult',
-  wantedLevel: 0,
-  jailWeeks: 0,
-  escapedFromJail: false,
-  jailActivities: [],
-  criminalXp: 0,
-  criminalLevel: 1,
-  crimeSkills: {
-    stealth: { xp: 0, level: 1 },
-    hacking: { xp: 0, level: 1 },
-    lockpicking: { xp: 0, level: 1 },
-  },
-  bankSavings: 0,
-  stocksOwned: {},
-  achievements: [],
-  claimedProgressAchievements: [],
-  lastLogin: Date.now(),
-  streetJobsCompleted: 0,
-  happinessZeroWeeks: 0,
-  healthZeroWeeks: 0,
-  showZeroStatPopup: false,
-  zeroStatType: undefined,
-  showDeathPopup: false,
-  deathReason: undefined,
-  day: 1,
-  dailySummary: undefined,
-  pendingEvents: [],
-  eventLog: [],
-  progress: { achievements: [] },
-  journal: [],
-  healthWeeks: 0,
   ...overrides,
 });
 
@@ -96,10 +43,10 @@ describe('evaluateAchievements', () => {
     expect(result.some(a => a.id === 'first_million')).toBe(true);
   });
 
-  it('unlocks top health at 100 health', () => {
-    const state = createState({ stats: { ...baseStats, health: 100 } });
+  it('unlocks healthy lifestyle after 10 healthy weeks', () => {
+    const state = createState({ stats: { ...baseStats, health: 100 }, healthWeeks: 10 });
     const result = evaluateAchievements(state);
-    expect(result.some(a => a.id === 'top_health')).toBe(true);
+    expect(result.some(a => a.id === 'healthy_lifestyle')).toBe(true);
   });
 
   it('unlocks social star with enough relationships', () => {
@@ -119,7 +66,7 @@ describe('evaluateAchievements', () => {
 
   it('does not unlock already achieved milestones', () => {
     const progress: AchievementProgress[] = [{ ...ACHIEVEMENTS[0], unlockedAt: 1 }];
-    const state = createState({ progress: { achievements: progress }, stats: { ...baseStats, money: 1_000_000 } });
+    const state = createState({ progress: { achievements: progress, adsRemoved: false }, stats: { ...baseStats, money: 1_000_000 } });
     const result = evaluateAchievements(state);
     expect(result.some(a => a.id === 'first_million')).toBe(false);
   });

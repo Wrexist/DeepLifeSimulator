@@ -3,6 +3,7 @@ node_modules/
 
 # expo
 .expo/
+.expo-test-build/
 dist/
 web-build/
 expo-env.d.ts
@@ -15,6 +16,11 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# builds
+build/
+android/app/build/
+ios/build/
+
 # metro
 .metro-health-check*
 
@@ -22,6 +28,9 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+
+# crash logs
+*.crash
 
 # macos
 .DS_Store
@@ -34,5 +43,24 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# secrets
+google-play-service-account.json
 
-echo "google-play-service-account.json" >> .gitignore
+# IDE & tool state
+.cursor/
+.claude/
+.Claude/
+.codex/
+.bolt/
+.idea/
+.vscode/
+.eas/
+.cursorrules
+
+# temp files
+YOOO
+Testf*light*command*
+test_economy_fixes.js
+test_onboarding_simulations.js
+feedbackapple.txt
+installcli.sh

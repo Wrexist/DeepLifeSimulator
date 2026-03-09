@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { 
   X, 
   Clock, 
@@ -80,10 +81,24 @@ export default function BackupRecoveryModal({ visible, onClose, slot, onRestoreC
   const loadBackupsAndInfo = useCallback(async () => {
     try {
       setLoading(true);
-      const [backupList, storage] = await Promise.all([
+      // IMPROVEMENT: Use Promise.allSettled to handle partial failures gracefully
+      const results = await Promise.allSettled([
         saveBackupManager.listBackups(slot),
         getBackupStorageInfo(),
       ]);
+      
+      // Handle results - use defaults if any fail
+      const backupList = results[0].status === 'fulfilled' ? results[0].value : [];
+      const storage = results[1].status === 'fulfilled' ? results[1].value : { total: 0, used: 0, available: 0 };
+      
+      // Log any failures
+      if (results[0].status === 'rejected') {
+        log.warn('Failed to load backup list:', results[0].reason);
+      }
+      if (results[1].status === 'rejected') {
+        log.warn('Failed to load storage info:', results[1].reason);
+      }
+      
       setBackups(backupList);
       setStorageInfo(storage);
       log.info(`Loaded ${backupList.length} backups for slot ${slot}`);
@@ -154,9 +169,10 @@ export default function BackupRecoveryModal({ visible, onClose, slot, onRestoreC
       } else {
         Alert.alert('Backup Failed', result.error || 'Failed to create backup. Please try again.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create backup. Please try again.';
       log.error('Failed to create backup', error);
-      Alert.alert('Error', error?.message || 'Failed to create backup. Please try again.');
+      Alert.alert('Error', errorMessage);
     } finally {
       setCreating(false);
     }
@@ -236,9 +252,10 @@ export default function BackupRecoveryModal({ visible, onClose, slot, onRestoreC
                 Alert.alert('Restore Failed', result.error || 'Failed to restore backup.');
                 setRestoring(null);
               }
-            } catch (error: any) {
+            } catch (error: unknown) {
+              const errorMessage = error instanceof Error ? error.message : 'Failed to restore backup.';
               log.error('Failed to restore backup', error);
-              Alert.alert('Error', error?.message || 'Failed to restore backup.');
+              Alert.alert('Error', errorMessage);
               setRestoring(null);
             }
           },
@@ -461,8 +478,8 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     height: screenHeight * 0.85,
-    borderTopLeftRadius: scale(28),
-    borderTopRightRadius: scale(28),
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     overflow: 'hidden',
   },
   modalGradient: {
@@ -472,14 +489,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: scale(20),
-    paddingTop: scale(24),
-    paddingBottom: scale(16),
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(14),
+    gap: 14,
   },
   headerIcon: {
     width: scale(48),
@@ -717,4 +734,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
 

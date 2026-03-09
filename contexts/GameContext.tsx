@@ -9,6 +9,19 @@
 
 export * from './game';
 
+// Export new specialized action hooks
+export { useMoneyActions } from './game/MoneyActionsContext';
+export { useJobActions } from './game/JobActionsContext';
+export { useItemActions } from './game/ItemActionsContext';
+export { useSocialActions } from './game/SocialActionsContext';
+
+
+
+
+
+
+
+
 
 
 

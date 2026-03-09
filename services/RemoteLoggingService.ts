@@ -1,13 +1,43 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState, AppStateStatus } from 'react-native';
 
-// Optional NetInfo import - gracefully handle if package is not installed
-let NetInfo: any = null;
-try {
-  NetInfo = require('@react-native-community/netinfo');
-} catch (e) {
-  // NetInfo not available - will use fallback
+// REMOVED: NetInfo import - causing iOS 26 crashes
+// Network connectivity checks disabled for iOS 26 compatibility
+
+// CRITICAL: Lazy load AsyncStorage to prevent TurboModule crash on iOS 26 Beta
+// (Same pattern used in storageWrapper.ts and ErrorBoundary.tsx)
+let _realAsyncStorage: typeof import('@react-native-async-storage/async-storage').default | null = null;
+let _lastLoadAttempt = 0;
+const _LOAD_RETRY_COOLDOWN_MS = 2000;
+
+function getLazyAsyncStorage() {
+  if (_realAsyncStorage) return _realAsyncStorage;
+  const now = Date.now();
+  if (_lastLoadAttempt > 0 && now - _lastLoadAttempt < _LOAD_RETRY_COOLDOWN_MS) return null;
+  _lastLoadAttempt = now;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _realAsyncStorage = require('@react-native-async-storage/async-storage').default;
+    return _realAsyncStorage;
+  } catch {
+    return null;
+  }
 }
+
+// Lazy-loaded AsyncStorage proxy — same interface as real AsyncStorage
+const AsyncStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    const storage = getLazyAsyncStorage();
+    return storage ? storage.getItem(key) : null;
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    const storage = getLazyAsyncStorage();
+    if (storage) await storage.setItem(key, value);
+  },
+  removeItem: async (key: string): Promise<void> => {
+    const storage = getLazyAsyncStorage();
+    if (storage) await storage.removeItem(key);
+  },
+};
 
 export interface LogEntry {
   id: string;
@@ -221,21 +251,19 @@ class RemoteLoggingService {
   private async sync() {
     if (this.isSyncing || !this.remoteUrl || this.queue.length === 0) return;
 
-    // Check network connectivity if NetInfo is available
-    if (NetInfo) {
-      try {
-        const state = await NetInfo.fetch();
-        if (!state.isConnected) return;
-      } catch (error) {
-        // If NetInfo fails, continue anyway (assume connected)
-      }
-    }
+    // REMOVED: Network connectivity check - causing iOS 26 crashes
+    // Assume always connected for iOS 26 compatibility
 
     this.isSyncing = true;
-    
+
+    // Safety timeout: reset isSyncing if sync takes too long (prevents permanent stall)
+    const syncTimeout = setTimeout(() => {
+      this.isSyncing = false;
+    }, 15000);
+
     try {
       const batch = this.queue.slice(0, BATCH_SIZE);
-      
+
       const response = await fetch(this.remoteUrl, {
         method: 'POST',
         headers: {
@@ -254,6 +282,7 @@ class RemoteLoggingService {
     } catch (error) {
       // Silent fail on sync error
     } finally {
+      clearTimeout(syncTimeout);
       this.isSyncing = false;
     }
   }

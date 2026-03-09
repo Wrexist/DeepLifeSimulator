@@ -33,6 +33,10 @@ interface PostCardProps {
   content: string;
   photo?: string;
   timestamp: string;
+  gameWeek?: number;
+  gameMonth?: string;
+  gameYear?: number;
+  currentGameDate?: { week: number; month: string; year: number };
   likes: number;
   reposts: number;
   replies: number;
@@ -63,7 +67,52 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
-const formatTimestamp = (timestamp: string): string => {
+const formatTimestamp = (
+  timestamp: string,
+  gameWeek?: number,
+  gameMonth?: string,
+  gameYear?: number,
+  currentGameDate?: { week: number; month: string; year: number }
+): string => {
+  // If we have game date info, use it for formatting
+  if (gameWeek !== undefined && gameMonth && gameYear && currentGameDate) {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    const getMonthNumber = (month: string): number => {
+      return monthNames.indexOf(month) + 1;
+    };
+    
+    const postMonthNum = getMonthNumber(gameMonth);
+    const currentMonthNum = getMonthNumber(currentGameDate.month);
+    
+    // Calculate weeks difference
+    let weeksDiff = 0;
+    
+    if (gameYear === currentGameDate.year) {
+      // Same year - calculate month and week difference
+      const monthDiff = currentMonthNum - postMonthNum;
+      weeksDiff = (monthDiff * 4) + (currentGameDate.week - gameWeek);
+    } else {
+      // Different year - calculate full difference
+      const yearDiff = currentGameDate.year - gameYear;
+      const monthDiff = (yearDiff * 12) + (currentMonthNum - postMonthNum);
+      weeksDiff = (monthDiff * 4) + (currentGameDate.week - gameWeek);
+    }
+    
+    weeksDiff = Math.max(0, weeksDiff);
+    
+    // Format based on weeks difference
+    if (weeksDiff === 0) return 'now';
+    if (weeksDiff === 1) return '1w';
+    if (weeksDiff < 4) return `${weeksDiff}w`;
+    
+    // For older posts, show month and year
+    const monthAbbr = gameMonth.substring(0, 3);
+    return `${monthAbbr} ${gameYear}`;
+  }
+  
+  // Fallback to original timestamp-based formatting
   try {
     const date = new Date(timestamp);
     const now = new Date();
@@ -82,7 +131,7 @@ const formatTimestamp = (timestamp: string): string => {
   }
 };
 
-export default function PostCard({
+function PostCard({
   id,
   authorName,
   authorHandle,
@@ -91,6 +140,10 @@ export default function PostCard({
   content,
   photo,
   timestamp,
+  gameWeek,
+  gameMonth,
+  gameYear,
+  currentGameDate,
   likes,
   reposts,
   replies,
@@ -151,7 +204,9 @@ export default function PostCard({
                 @{authorHandle}
               </Text>
               <Text style={styles.dot}>·</Text>
-              <Text style={styles.timestamp}>{formatTimestamp(timestamp)}</Text>
+              <Text style={styles.timestamp}>
+                {formatTimestamp(timestamp, gameWeek, gameMonth, gameYear, currentGameDate)}
+              </Text>
             </View>
             <TouchableOpacity style={styles.moreButton}>
               <MoreHorizontal size={scale(18)} color="#71767B" />
@@ -358,4 +413,6 @@ const styles = StyleSheet.create({
     color: '#00BA7C',
   },
 });
+
+export default React.memo(PostCard);
 

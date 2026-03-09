@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Dimensions, Animated, Easing, TextInput, Platform, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useNavigation } from 'expo-router';
@@ -133,9 +134,11 @@ export default function Customize() {
     setLastName(randomName.lastName);
   };
 
-  // Update name when sex changes if using random
+  // Update name when sex changes to ensure it matches the selected gender
   useEffect(() => {
-    if (sex === 'random' && (firstName || lastName)) {
+    // Only update if sex is explicitly 'male' or 'female' (not 'random')
+    // This ensures male characters get male names and female characters get female names
+    if ((sex === 'male' || sex === 'female') && (firstName || lastName)) {
       const randomName = generateRandomName(sex);
       setFirstName(randomName.firstName);
       setLastName(randomName.lastName);
@@ -223,8 +226,7 @@ export default function Customize() {
                 <TouchableOpacity style={styles.randomNameButton} onPress={generateRandomNameHandler}>
                   <View style={styles.glassButton}>
                     <View style={styles.glassOverlay} />
-                    <Shuffle size={16} color="#10B981" />
-                    <Text style={styles.randomNameButtonText}>Random</Text>
+                    <Shuffle size={20} color="#10B981" />
                   </View>
                 </TouchableOpacity>
               </View>
@@ -903,3 +905,4 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.25)',
   },
 });
+

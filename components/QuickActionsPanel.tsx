@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { Plus, X, Zap, DollarSign, Heart, Briefcase, ShoppingCart, Home, TrendingUp, Plane } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useRouter } from 'expo-router';
@@ -308,4 +309,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 

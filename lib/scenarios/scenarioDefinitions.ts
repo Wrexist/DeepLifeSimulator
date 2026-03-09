@@ -4,6 +4,8 @@
  * Defines game scenarios with win conditions and starting conditions
  */
 
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+
 export interface ScenarioCondition {
   type: 'money' | 'reputation' | 'age' | 'education' | 'career' | 'achievement' | 'relationship' | 'netWorth';
   operator: '>=' | '<=' | '==' | '>';
@@ -25,6 +27,8 @@ export interface Scenario {
     items?: string[]; // Item IDs to start with
     relationships?: string[]; // Relationship types to exclude/include
     noChildren?: boolean; // Start with no children
+    hasChild?: boolean; // Start with a child (for single parent scenario)
+    childAge?: number; // Age of starting child if hasChild is true
     stats?: {
       health?: number;
       happiness?: number;
@@ -50,6 +54,7 @@ export const SCENARIOS: Scenario[] = [
       money: 100,
       age: 18,
       reputation: 0,
+      noChildren: true, // Focus on building wealth, no family distractions
       stats: {
         health: 70,
         happiness: 50,
@@ -64,7 +69,7 @@ export const SCENARIOS: Scenario[] = [
         description: 'Reach $1,000,000 net worth',
       },
     ],
-    timeLimit: 520, // 10 years
+    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 50,
       achievement: 'rags_to_riches',
@@ -103,7 +108,7 @@ export const SCENARIOS: Scenario[] = [
         description: 'Become a Research Scientist',
       },
     ],
-    timeLimit: 416, // 8 years
+    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 75,
       achievement: 'academic_excellence',
@@ -141,7 +146,7 @@ export const SCENARIOS: Scenario[] = [
         description: 'Reach 80+ reputation',
       },
     ],
-    timeLimit: 260, // 5 years
+    timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
     rewards: {
       gems: 40,
       achievement: 'social_butterfly',
@@ -179,7 +184,7 @@ export const SCENARIOS: Scenario[] = [
         description: 'Have $5M in cash',
       },
     ],
-    timeLimit: 520, // 10 years
+    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 100,
       achievement: 'entrepreneur',
@@ -217,7 +222,7 @@ export const SCENARIOS: Scenario[] = [
         description: 'Achieve "Family Man" achievement',
       },
     ],
-    timeLimit: 312, // 6 years
+    timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
     rewards: {
       gems: 60,
       achievement: 'family_focused',
@@ -234,7 +239,9 @@ export const SCENARIOS: Scenario[] = [
       age: 28,
       reputation: 5,
       items: ['smartphone'], // Mobile phone to see contacts
-      noChildren: true, // Start with no children (will need to have/adopt one)
+      noChildren: false, // Start WITH a child (you're already a single parent)
+      hasChild: true, // Flag to indicate starting with a child
+      childAge: 3, // Child is 3 years old at start
       relationships: [], // No starting relationships except what's needed
       stats: {
         health: 70,
@@ -262,11 +269,648 @@ export const SCENARIOS: Scenario[] = [
         description: 'Build a good reputation (50+)',
       },
     ],
-    timeLimit: 416, // 8 years
+    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 80,
       achievement: 'single_parent_success',
       title: 'Super Parent',
+    },
+  },
+
+  // === NEW CHALLENGE SCENARIOS ===
+
+  {
+    id: 'criminal_empire',
+    name: 'Criminal Empire',
+    description: 'Rise from petty crime to kingpin. Build a criminal empire worth millions — but watch your back.',
+    icon: '🔫',
+    difficulty: 'expert',
+    startingConditions: {
+      money: 500,
+      age: 18,
+      reputation: 0,
+      noChildren: true,
+      stats: {
+        health: 80,
+        happiness: 40,
+        energy: 90,
+      },
+    },
+    winConditions: [
+      {
+        type: 'netWorth',
+        operator: '>=',
+        value: 2000000,
+        description: 'Amass $2M net worth through any means',
+      },
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 60,
+        description: 'Build fearsome reputation (60+)',
+      },
+    ],
+    timeLimit: 12 * WEEKS_PER_YEAR, // 12 years
+    rewards: {
+      gems: 150,
+      achievement: 'criminal_empire',
+      title: 'Kingpin',
+    },
+  },
+  {
+    id: 'political_dynasty',
+    name: 'Political Dynasty',
+    description: 'Climb from nobody to President. Win elections, build alliances, and lead the nation.',
+    icon: '🏛️',
+    difficulty: 'expert',
+    startingConditions: {
+      money: 5000,
+      age: 25,
+      reputation: 20,
+      education: ['college'],
+      items: ['smartphone', 'computer'],
+      noChildren: true,
+      stats: {
+        health: 75,
+        happiness: 65,
+        energy: 80,
+      },
+    },
+    winConditions: [
+      {
+        type: 'career',
+        operator: '==',
+        value: 'president',
+        description: 'Become President',
+      },
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 90,
+        description: 'Achieve iconic reputation (90+)',
+      },
+    ],
+    timeLimit: 15 * WEEKS_PER_YEAR, // 15 years
+    rewards: {
+      gems: 200,
+      achievement: 'political_dynasty',
+      title: 'Mr. President',
+    },
+  },
+  {
+    id: 'tech_mogul',
+    name: 'Tech Mogul',
+    description: 'Start in a garage, build the next tech giant. Code your way to billions.',
+    icon: '💻',
+    difficulty: 'hard',
+    startingConditions: {
+      money: 3000,
+      age: 20,
+      reputation: 5,
+      items: ['computer', 'smartphone'],
+      noChildren: true,
+      stats: {
+        health: 70,
+        happiness: 65,
+        energy: 85,
+      },
+    },
+    winConditions: [
+      {
+        type: 'netWorth',
+        operator: '>=',
+        value: 10000000,
+        description: 'Reach $10M net worth',
+      },
+      {
+        type: 'career',
+        operator: '==',
+        value: 'ceo',
+        description: 'Become CEO of your company',
+      },
+    ],
+    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
+    rewards: {
+      gems: 120,
+      achievement: 'tech_mogul',
+      title: 'Silicon Valley Legend',
+    },
+  },
+  {
+    id: 'real_estate_tycoon',
+    name: 'Real Estate Tycoon',
+    description: 'Buy, flip, and rent your way to a property empire. Location, location, location.',
+    icon: '🏠',
+    difficulty: 'hard',
+    startingConditions: {
+      money: 15000,
+      age: 25,
+      reputation: 10,
+      items: ['smartphone', 'computer'],
+      noChildren: true,
+      stats: {
+        health: 75,
+        happiness: 60,
+        energy: 80,
+      },
+    },
+    winConditions: [
+      {
+        type: 'netWorth',
+        operator: '>=',
+        value: 5000000,
+        description: 'Build $5M real estate portfolio',
+      },
+    ],
+    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
+    rewards: {
+      gems: 100,
+      achievement: 'real_estate_tycoon',
+      title: 'Property Baron',
+    },
+  },
+  {
+    id: 'speedrun',
+    name: 'Speedrun',
+    description: 'How fast can you reach $100K? Every week counts. No time to waste.',
+    icon: '⚡',
+    difficulty: 'expert',
+    startingConditions: {
+      money: 1000,
+      age: 18,
+      reputation: 5,
+      items: ['smartphone'],
+      noChildren: true,
+      stats: {
+        health: 80,
+        happiness: 70,
+        energy: 100,
+      },
+    },
+    winConditions: [
+      {
+        type: 'money',
+        operator: '>=',
+        value: 100000,
+        description: 'Earn $100,000 in cash',
+      },
+    ],
+    timeLimit: 2 * WEEKS_PER_YEAR, // 2 years — very tight!
+    rewards: {
+      gems: 125,
+      achievement: 'speedrun_champion',
+      title: 'Speed Demon',
+    },
+  },
+  {
+    id: 'balanced_life',
+    name: 'Balanced Life',
+    description: 'Money isn\'t everything. Achieve excellence across health, wealth, relationships, and career.',
+    icon: '⚖️',
+    difficulty: 'hard',
+    startingConditions: {
+      money: 2000,
+      age: 20,
+      reputation: 10,
+      items: ['smartphone'],
+      noChildren: true,
+      stats: {
+        health: 60,
+        happiness: 60,
+        energy: 70,
+      },
+    },
+    winConditions: [
+      {
+        type: 'money',
+        operator: '>=',
+        value: 100000,
+        description: 'Save $100K',
+      },
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 75,
+        description: 'High reputation (75+)',
+      },
+      {
+        type: 'relationship',
+        operator: '>=',
+        value: 5,
+        description: 'Build 5+ meaningful relationships',
+      },
+    ],
+    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
+    rewards: {
+      gems: 90,
+      achievement: 'balanced_life',
+      title: 'Renaissance Person',
+    },
+  },
+  {
+    id: 'debt_escape',
+    name: 'Debt Escape',
+    description: 'You\'re drowning in debt. Claw your way back to zero — and then beyond.',
+    icon: '💸',
+    difficulty: 'hard',
+    startingConditions: {
+      money: 50,
+      age: 30,
+      reputation: 5,
+      items: ['smartphone'],
+      noChildren: true,
+      stats: {
+        health: 60,
+        happiness: 30,
+        energy: 65,
+      },
+    },
+    winConditions: [
+      {
+        type: 'money',
+        operator: '>=',
+        value: 50000,
+        description: 'Save $50,000 (debt-free + savings)',
+      },
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 40,
+        description: 'Rebuild your reputation (40+)',
+      },
+    ],
+    timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
+    rewards: {
+      gems: 85,
+      achievement: 'debt_escape',
+      title: 'Debt Destroyer',
+    },
+  },
+  {
+    id: 'fame_seeker',
+    name: 'Fame Seeker',
+    description: 'From unknown to icon. Build your fame through social media, career, and connections.',
+    icon: '⭐',
+    difficulty: 'medium',
+    startingConditions: {
+      money: 1500,
+      age: 19,
+      reputation: 0,
+      items: ['smartphone', 'computer'],
+      noChildren: true,
+      stats: {
+        health: 80,
+        happiness: 70,
+        energy: 90,
+      },
+    },
+    winConditions: [
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 95,
+        description: 'Reach legendary reputation (95+)',
+      },
+    ],
+    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
+    rewards: {
+      gems: 70,
+      achievement: 'fame_seeker',
+      title: 'Living Legend',
+    },
+  },
+  {
+    id: 'minimalist',
+    name: 'Minimalist Challenge',
+    description: 'Less is more. Reach maximum happiness with under $5,000. Prove money can\'t buy joy.',
+    icon: '🧘',
+    difficulty: 'medium',
+    startingConditions: {
+      money: 500,
+      age: 22,
+      reputation: 10,
+      items: ['smartphone'],
+      noChildren: true,
+      stats: {
+        health: 70,
+        happiness: 50,
+        energy: 75,
+      },
+    },
+    winConditions: [
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 70,
+        description: 'Build solid reputation (70+)',
+      },
+      {
+        type: 'relationship',
+        operator: '>=',
+        value: 8,
+        description: 'Forge 8+ relationships',
+      },
+    ],
+    timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
+    rewards: {
+      gems: 65,
+      achievement: 'minimalist',
+      title: 'Zen Master',
+    },
+  },
+  // ─── Phase 3 additions ──────────────────────────────────────────
+  {
+    id: 'athletes_journey',
+    name: "Athlete's Journey",
+    description: 'Start as an unfit teen and become a champion athlete. Push your body to its limits.',
+    icon: '🏆',
+    difficulty: 'hard',
+    startingConditions: {
+      money: 200,
+      age: 16,
+      reputation: 0,
+      noChildren: true,
+      stats: {
+        health: 40,
+        happiness: 60,
+        energy: 50,
+      },
+    },
+    winConditions: [
+      {
+        type: 'career',
+        operator: '==',
+        value: 'athlete',
+        description: 'Become a professional athlete',
+      },
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 60,
+        description: 'Build a strong reputation (60+)',
+      },
+    ],
+    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
+    rewards: {
+      gems: 55,
+      achievement: 'athletes_journey',
+      title: 'Champion',
+    },
+  },
+  {
+    id: 'creative_legend',
+    name: 'Creative Legend',
+    description: 'Start as a nobody and become famous through music or art. Build your creative empire.',
+    icon: '🎨',
+    difficulty: 'hard',
+    startingConditions: {
+      money: 300,
+      age: 20,
+      reputation: 5,
+      items: ['guitar'],
+      noChildren: true,
+      stats: {
+        health: 70,
+        happiness: 60,
+        energy: 70,
+      },
+    },
+    winConditions: [
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 80,
+        description: 'Achieve fame and recognition (80+ reputation)',
+      },
+      {
+        type: 'netWorth',
+        operator: '>=',
+        value: 500000,
+        description: 'Earn $500,000 from your creative work',
+      },
+    ],
+    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
+    rewards: {
+      gems: 60,
+      achievement: 'creative_legend',
+      title: 'Creative Genius',
+    },
+  },
+  {
+    id: 'late_bloomer',
+    name: 'Late Bloomer',
+    description: 'Start at age 40 with nothing. Prove it\'s never too late to build a great life.',
+    icon: '🌺',
+    difficulty: 'expert',
+    startingConditions: {
+      money: 500,
+      age: 40,
+      reputation: 5,
+      noChildren: true,
+      stats: {
+        health: 50,
+        happiness: 30,
+        energy: 40,
+      },
+    },
+    winConditions: [
+      {
+        type: 'netWorth',
+        operator: '>=',
+        value: 500000,
+        description: 'Build $500,000 net worth',
+      },
+      {
+        type: 'relationship',
+        operator: '>=',
+        value: 5,
+        description: 'Build 5+ meaningful relationships',
+      },
+    ],
+    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
+    rewards: {
+      gems: 80,
+      achievement: 'late_bloomer',
+      title: 'Late Bloomer',
+    },
+  },
+  {
+    id: 'lottery_winner',
+    name: 'Lottery Winner',
+    description: 'You just won $500,000! Can you keep it and grow it, or will you blow it all?',
+    icon: '🎰',
+    difficulty: 'easy',
+    startingConditions: {
+      money: 500000,
+      age: 25,
+      reputation: 5,
+      noChildren: true,
+      stats: {
+        health: 70,
+        happiness: 90,
+        energy: 80,
+      },
+    },
+    winConditions: [
+      {
+        type: 'netWorth',
+        operator: '>=',
+        value: 2000000,
+        description: 'Grow your winnings to $2,000,000',
+      },
+    ],
+    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
+    rewards: {
+      gems: 40,
+      achievement: 'lottery_winner',
+      title: 'Smart Money',
+    },
+  },
+  {
+    id: 'redemption_arc',
+    name: 'Redemption Arc',
+    description: 'Start with a criminal record and wanted level. Turn your life around and become a respected citizen.',
+    icon: '⚖️',
+    difficulty: 'hard',
+    startingConditions: {
+      money: 50,
+      age: 25,
+      reputation: -10,
+      noChildren: true,
+      stats: {
+        health: 60,
+        happiness: 20,
+        energy: 50,
+      },
+    },
+    winConditions: [
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 50,
+        description: 'Rebuild your reputation to 50+',
+      },
+      {
+        type: 'career',
+        operator: '>=',
+        value: 1,
+        description: 'Hold a legitimate job',
+      },
+    ],
+    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
+    rewards: {
+      gems: 70,
+      achievement: 'redemption_arc',
+      title: 'Redeemed',
+    },
+  },
+  {
+    id: 'health_recovery',
+    name: 'Health Recovery',
+    description: 'Start with terrible health and no fitness. Get healthy and stay healthy for a full year.',
+    icon: '💪',
+    difficulty: 'medium',
+    startingConditions: {
+      money: 1000,
+      age: 30,
+      reputation: 10,
+      noChildren: true,
+      stats: {
+        health: 15,
+        happiness: 30,
+        energy: 20,
+      },
+    },
+    winConditions: [
+      {
+        type: 'money',
+        operator: '>=',
+        value: 80,
+        description: 'Reach 80+ health',
+      },
+    ],
+    timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
+    rewards: {
+      gems: 45,
+      achievement: 'health_recovery',
+      title: 'Comeback Kid',
+    },
+  },
+  {
+    id: 'world_traveler',
+    name: 'World Traveler',
+    description: 'Visit every continent and build a global network. The world is your playground.',
+    icon: '✈️',
+    difficulty: 'medium',
+    startingConditions: {
+      money: 5000,
+      age: 22,
+      reputation: 10,
+      items: ['smartphone'],
+      noChildren: true,
+      stats: {
+        health: 80,
+        happiness: 70,
+        energy: 80,
+      },
+    },
+    winConditions: [
+      {
+        type: 'reputation',
+        operator: '>=',
+        value: 50,
+        description: 'Build worldwide reputation (50+)',
+      },
+      {
+        type: 'netWorth',
+        operator: '>=',
+        value: 100000,
+        description: 'Maintain $100,000 net worth while traveling',
+      },
+    ],
+    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
+    rewards: {
+      gems: 50,
+      achievement: 'world_traveler',
+      title: 'Globe Trotter',
+    },
+  },
+  {
+    id: 'survival_expert',
+    name: 'Survival Expert',
+    description: 'Start with almost nothing and no energy. Survive 5 years without going bankrupt or dying.',
+    icon: '🏕️',
+    difficulty: 'expert',
+    startingConditions: {
+      money: 0,
+      age: 18,
+      reputation: 0,
+      noChildren: true,
+      stats: {
+        health: 30,
+        happiness: 20,
+        energy: 15,
+      },
+    },
+    winConditions: [
+      {
+        type: 'age',
+        operator: '>=',
+        value: 23,
+        description: 'Survive to age 23',
+      },
+      {
+        type: 'money',
+        operator: '>=',
+        value: 10000,
+        description: 'Save $10,000',
+      },
+    ],
+    timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
+    rewards: {
+      gems: 75,
+      achievement: 'survival_expert',
+      title: 'Survivor',
     },
   },
 ];
@@ -336,9 +980,11 @@ export function checkScenarioWin(
           // President is the highest level (level 5, index 5) of the political career
           // Political career has 6 levels (0-5), so level 5 is the last level (President)
           const politicalCareer = gameState.careers.find(c => c.id === 'political');
-          const isPresident = politicalCareer && 
+          const isPresident = !!(politicalCareer && 
             politicalCareer.accepted && 
-            politicalCareer.level >= 5; // President is level 5 (last level, index 5)
+            'level' in politicalCareer && 
+            typeof politicalCareer.level === 'number' &&
+            politicalCareer.level >= 5); // President is level 5 (last level, index 5)
           conditionMet = condition.operator === '==' ? isPresident : !isPresident;
         } else {
           // Standard career check - just verify career exists and is accepted
@@ -364,20 +1010,20 @@ export function checkScenarioWin(
         // CRITICAL FIX: Use proper net worth calculation that includes all assets
         // Import the actual netWorth function to ensure consistency with game calculations
         // This ensures challenge scenarios check net worth correctly
-        const { netWorth: calculateNetWorth } = require('@/lib/progress/achievements');
+        // const { netWorth: calculateNetWorth } = require('@/lib/progress/achievements');
         // Create a minimal GameState-like object for net worth calculation
         // Note: This is a simplified version - full calculation would need full GameState
         // But we include the most important components: money, companies, real estate
         const companyValue = (gameState.companies || []).reduce((sum, c) => {
           const weeklyIncome = c.weeklyIncome || 0;
-          const annualIncome = weeklyIncome * 52; // Company value = annual income
+          const annualIncome = weeklyIncome * WEEKS_PER_YEAR; // Company value = annual income
           return sum + annualIncome;
         }, 0);
         const realEstateValue = (gameState.realEstate || [])
-          .filter(p => p.owned)
-          .reduce((sum, p) => sum + (p.value || p.price || 0), 0);
+          .filter((p) => p.owned)
+          .reduce((sum, p) => sum + p.value, 0);
         // CRITICAL FIX: Include bank savings if available in gameState
-        const bankSavings = (gameState as any).bankSavings || 0;
+        const bankSavings = gameState.bankSavings || 0;
         // Calculate net worth (simplified - doesn't include stocks/vehicles/loans in this context)
         // This matches the original calculation but is more explicit
         const netWorth = gameState.stats.money + bankSavings + companyValue + realEstateValue;

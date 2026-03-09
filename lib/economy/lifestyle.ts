@@ -8,6 +8,7 @@
 
 import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 
 export type LifestyleLevel = 'minimal' | 'modest' | 'comfortable' | 'affluent' | 'luxury' | 'elite';
 
@@ -43,31 +44,73 @@ export function calculateLifestyleLevel(gameState: GameState): LifestyleLevel {
  * Costs scale with net worth: 0.5% to 2% of net worth per week
  */
 export function calculateLifestyleCosts(gameState: GameState): number {
-  const currentNetWorth = netWorth(gameState);
-  const level = calculateLifestyleLevel(gameState);
-  
-  // Cost percentages by lifestyle level
-  // STABILITY FIX: Cap elite lifestyle at 1% (was 2%) to ensure passive income always covers costs
-  // At ultra-high net worth ($50M+), passive income has diminishing returns (50% minimum efficiency)
-  // Lifestyle costs at 2% would exceed passive income, creating impossible situation
-  const costPercentages: Record<LifestyleLevel, number> = {
-    minimal: 0,        // No lifestyle costs for minimal
-    modest: 0.002,    // 0.2% of net worth
-    comfortable: 0.005, // 0.5% of net worth
-    affluent: 0.01,   // 1% of net worth
-    luxury: 0.015,    // 1.5% of net worth
-    elite: 0.01,      // 1% of net worth (reduced from 2% to prevent exceeding passive income)
-  };
-  
-  const percentage = costPercentages[level];
-  if (percentage === 0) return 0;
-  
-  // Calculate weekly cost
-  const weeklyCost = Math.floor(currentNetWorth * percentage);
-  
-  // Cap at reasonable maximum to prevent extreme costs
-  const maxWeeklyCost = 1_000_000; // $1M per week max
-  return Math.min(weeklyCost, maxWeeklyCost);
+  // CRITICAL: Wrap in try-catch to prevent crashes
+  try {
+    const currentNetWorth = netWorth(gameState);
+    // CRITICAL: Validate net worth before calculation
+    const safeNetWorth = typeof currentNetWorth === 'number' && isFinite(currentNetWorth) && currentNetWorth >= 0 ? currentNetWorth : 0;
+    
+    const level = calculateLifestyleLevel(gameState);
+    
+    // Cost percentages by lifestyle level
+    // STABILITY FIX: Cap elite lifestyle at 1% (was 2%) to ensure passive income always covers costs
+    // At ultra-high net worth ($50M+), passive income has diminishing returns (50% minimum efficiency)
+    // Lifestyle costs at 2% would exceed passive income, creating impossible situation
+    const costPercentages: Record<LifestyleLevel, number> = {
+      minimal: 0,        // No lifestyle costs for minimal
+      modest: 0.002,    // 0.2% of net worth
+      comfortable: 0.005, // 0.5% of net worth
+      affluent: 0.01,   // 1% of net worth
+      luxury: 0.015,    // 1.5% of net worth
+      elite: 0.01,      // 1% of net worth (reduced from 2% to prevent exceeding passive income)
+    };
+    
+    const percentage = costPercentages[level] || 0;
+    if (percentage === 0 || safeNetWorth === 0) return 0;
+    
+    // CRITICAL: Validate percentage before multiplication
+    if (!isFinite(percentage) || percentage < 0 || percentage > 1) {
+      return 0; // Safe fallback
+    }
+    
+    // ENGAGEMENT: Lifestyle creep — expenses naturally grow with age and career level
+    // This maintains survival tension and prevents the game from becoming an idle clicker
+    const age = gameState.date?.age || ADULTHOOD_AGE;
+    const careerLevel = (() => {
+      if (!gameState.currentJob || !Array.isArray(gameState.careers)) return 0;
+      const career = gameState.careers.find(c => c.id === gameState.currentJob);
+      return career?.level || 0;
+    })();
+    const ageCreep = 1 + Math.max(0, age - 20) * 0.02; // +2% per year after 20
+    const careerCreep = 1 + careerLevel * 0.15; // +15% per career level
+    const lifestyleCreepMultiplier = Math.min(ageCreep * careerCreep, 5.0); // Cap at 5x
+
+    // Calculate weekly cost with lifestyle creep
+    const weeklyCost = safeNetWorth * percentage * lifestyleCreepMultiplier;
+    
+    // CRITICAL: Validate result before flooring
+    if (!isFinite(weeklyCost) || weeklyCost < 0) {
+      return 0; // Safe fallback
+    }
+    
+    const flooredCost = Math.floor(weeklyCost);
+    
+    // Cap at reasonable maximum to prevent extreme costs
+    const maxWeeklyCost = 1_000_000; // $1M per week max
+    const finalCost = Math.min(flooredCost, maxWeeklyCost);
+    
+    // CRITICAL: Final validation
+    if (!isFinite(finalCost) || finalCost < 0) {
+      return 0; // Safe fallback
+    }
+    
+    return finalCost;
+  } catch (error) {
+    // CRITICAL: If any error occurs, return safe default to prevent crash
+    const logger = require('@/utils/logger').logger;
+    logger.error('[calculateLifestyleCosts] Error calculating lifestyle costs:', error);
+    return 0; // Safe fallback
+  }
 }
 
 /**

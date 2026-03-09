@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
+// CRITICAL: Use turboModuleWrapper for consistent module loading
 // Lazy-load SplashScreen to avoid crashes if module fails to initialize
 let SplashScreen: any = null;
 let splashScreenLoaded = false;
+let splashScreenLoadPromise: Promise<any> | null = null;
 
-function loadSplashScreen(): boolean {
+async function loadSplashScreen(): Promise<boolean> {
   if (Platform.OS === 'web') {
     return false;
   }
@@ -13,60 +15,122 @@ function loadSplashScreen(): boolean {
   if (splashScreenLoaded && SplashScreen) {
     return true;
   }
-  
-  try {
-    SplashScreen = require('expo-splash-screen');
-    splashScreenLoaded = true;
-    return true;
-  } catch (error) {
-    if (__DEV__) {
-      console.warn('expo-splash-screen not available:', error);
+
+  // Prevent race conditions - reuse existing load promise
+  if (splashScreenLoadPromise) {
+    try {
+      await splashScreenLoadPromise;
+      return splashScreenLoaded && SplashScreen !== null;
+    } catch {
+      return false;
     }
-    return false;
   }
+
+  // Load using turboModuleWrapper for consistency
+  splashScreenLoadPromise = (async () => {
+    try {
+      const { lazyLoadTurboModule } = await import('@/utils/turboModuleWrapper');
+      const module = await lazyLoadTurboModule('expo-splash-screen', {
+        retries: 1,
+        retryDelay: 500,
+        timeout: 2000,
+      });
+      
+      if (module) {
+        SplashScreen = module;
+        splashScreenLoaded = true;
+        return true;
+      }
+      return false;
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('expo-splash-screen not available:', error);
+      }
+      return false;
+    }
+  })();
+
+  return await splashScreenLoadPromise;
 }
 
 export function useFrameworkReady() {
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useFrameworkReady.ts:30',message:'useFrameworkReady effect start',data:{platform:Platform.OS},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
-    
     // Hide splash screen on native platforms
     if (Platform.OS !== 'web') {
-      if (loadSplashScreen() && SplashScreen) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useFrameworkReady.ts:38',message:'Before SplashScreen.hideAsync',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-        // #endregion
-        
-        // Add a small delay to ensure UI is ready
-        setTimeout(async () => {
-          try {
-            await SplashScreen.hideAsync();
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useFrameworkReady.ts:47',message:'After SplashScreen.hideAsync success',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-            // #endregion
-            if (__DEV__) {
-              console.log('[useFrameworkReady] Splash screen hidden successfully');
+      // Load splash screen asynchronously
+      const hideSplashScreen = async () => {
+        try {
+          const loaded = await loadSplashScreen();
+          if (loaded && SplashScreen) {
+            // On iOS, prevent auto-hide first to ensure we control when it disappears
+            if (Platform.OS === 'ios' && SplashScreen.preventAutoHideAsync) {
+              try {
+                await SplashScreen.preventAutoHideAsync();
+              } catch (preventError: any) {
+                // Ignore errors from preventAutoHideAsync - it's optional
+                if (__DEV__) {
+                  console.log('[useFrameworkReady] Could not prevent auto-hide (this is OK):', preventError?.message);
+                }
+              }
             }
-          } catch (error) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useFrameworkReady.ts:55',message:'SplashScreen.hideAsync error',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-            // #endregion
-            if (__DEV__) {
-              console.warn('[useFrameworkReady] Failed to hide splash screen:', error);
+            
+            // Add a small delay to ensure UI is ready
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Try to hide the splash screen
+            try {
+              await SplashScreen.hideAsync();
+              if (__DEV__) {
+                console.log('[useFrameworkReady] Splash screen hidden successfully');
+              }
+            } catch (error: any) {
+              // On iOS, if the splash screen isn't registered, it will auto-hide anyway
+              // Check for the specific error about splash screen not being registered
+              const errorMessage = error?.message || String(error);
+              if (errorMessage.includes('No native splash screen registered') || 
+                  errorMessage.includes('Call \'SplashScreen.show\'')) {
+                // This is not a critical error - the splash screen will auto-hide
+                // Silently handle this error to prevent uncaught promise rejection
+                if (__DEV__) {
+                  console.log('[useFrameworkReady] Splash screen not registered - will auto-hide. This is normal on iOS.');
+                }
+              } else {
+                if (__DEV__) {
+                  console.warn('[useFrameworkReady] Failed to hide splash screen:', error);
+                }
+              }
+              // Continue anyway - don't block app startup
             }
-            // Continue anyway - don't block app startup
+          } else {
+            if (__DEV__) {
+              console.log('[useFrameworkReady] SplashScreen module not available');
+            }
           }
-        }, 100);
-      } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useFrameworkReady.ts:66',message:'SplashScreen not loaded',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-        // #endregion
-        if (__DEV__) {
-          console.log('[useFrameworkReady] SplashScreen module not available');
+        } catch (error: any) {
+          // Silently handle all errors to prevent uncaught promise rejection
+          // The splash screen will auto-hide on iOS anyway
+          if (__DEV__) {
+            const errorMessage = error?.message || String(error);
+            if (!errorMessage.includes('No native splash screen registered') && 
+                !errorMessage.includes('Call \'SplashScreen.show\'')) {
+              console.warn('[useFrameworkReady] Failed to handle splash screen:', error);
+            }
+          }
         }
-      }
+      };
+      
+      // Execute and catch any unhandled rejections
+      hideSplashScreen().catch((error: any) => {
+        // This catch should never be reached due to try-catch above,
+        // but it's here as a safety net to prevent uncaught promise rejections
+        if (__DEV__) {
+          const errorMessage = error?.message || String(error);
+          if (!errorMessage.includes('No native splash screen registered') && 
+              !errorMessage.includes('Call \'SplashScreen.show\'')) {
+            console.warn('[useFrameworkReady] Unhandled splash screen error:', error);
+          }
+        }
+      });
     }
     
     // Web-specific: notify that framework is ready

@@ -26,13 +26,13 @@ export const travelTo = (
 
   // Check requirements
   if (destination.requirements) {
-    if (destination.requirements.money && gameState.stats.money < destination.requirements.money) {
+    if ('money' in destination.requirements && destination.requirements.money && gameState.stats.money < destination.requirements.money) {
       return { success: false, message: 'Insufficient funds for this destination' };
     }
-    if (destination.requirements.happiness && gameState.stats.happiness < destination.requirements.happiness) {
+    if ('happiness' in destination.requirements && destination.requirements.happiness && gameState.stats.happiness < destination.requirements.happiness) {
       return { success: false, message: 'You need higher happiness to visit this destination' };
     }
-    if (destination.requirements.items) {
+    if ('items' in destination.requirements && destination.requirements.items) {
       const hasPassport = destination.requirements.items.includes('passport');
       const passportItem = gameState.items?.find(i => i.id === 'passport');
       const ownsPassport = gameState.travel?.passportOwned || passportItem?.owned;
@@ -53,8 +53,9 @@ export const travelTo = (
 
   deps.updateMoney(setGameState, -adjustedCost, `Travel to ${destination.name}`);
 
-  // Set current trip
-  const returnWeek = gameState.week + destination.duration;
+  // Set current trip using absolute timeline (weeksLived) to avoid 1..4 week wrap bugs
+  const absoluteWeek = gameState.weeksLived || 0;
+  const returnWeek = absoluteWeek + destination.duration;
   setGameState(prev => ({
     ...prev,
     travel: {
@@ -62,16 +63,14 @@ export const travelTo = (
       currentTrip: {
         destinationId: destination.id,
         returnWeek,
-        startWeek: prev.week,
+        startWeek: prev.weeksLived || 0,
       },
-      visitedDestinations: prev.travel?.visitedDestinations?.includes(destination.id)
-        ? prev.travel.visitedDestinations
-        : [...(prev.travel?.visitedDestinations || []), destination.id],
+      visitedDestinations: prev.travel?.visitedDestinations || [],
       travelHistory: [
         ...(prev.travel?.travelHistory || []),
         {
           destinationId: destination.id,
-          week: prev.week,
+          week: prev.weeksLived || 0,
           year: prev.date.year,
         },
       ],
@@ -92,11 +91,24 @@ export const returnFromTrip = (
     return { success: false, message: 'You are not on a trip' };
   }
 
-  const destinationId = gameState.travel.currentTrip.destinationId;
+  const currentTrip = gameState.travel.currentTrip;
+  const destinationId = currentTrip.destinationId;
   const destination = DESTINATIONS.find(d => d.id === destinationId);
   if (!destination) {
     log.error(`Destination ${destinationId} not found`);
     return { success: false, message: 'Destination not found' };
+  }
+
+  // Enforce trip duration — cannot return early for full benefits
+  const currentAbsoluteWeek = gameState.weeksLived || 0;
+  const returnWeek = currentTrip.returnWeek || 0;
+  // Migrate legacy returnWeek values (stored as week-of-month 1-4) to absolute
+  const effectiveReturnWeek = returnWeek <= 8 && currentAbsoluteWeek > 8
+    ? currentAbsoluteWeek // Legacy data: allow return immediately
+    : returnWeek;
+  if (currentAbsoluteWeek < effectiveReturnWeek) {
+    const weeksRemaining = effectiveReturnWeek - currentAbsoluteWeek;
+    return { success: false, message: `You're still traveling! Return in ${weeksRemaining} week(s).` };
   }
 
   // Apply benefits on return using functional update to get latest state
@@ -104,6 +116,7 @@ export const returnFromTrip = (
     happiness: destination.benefits.happiness,
     health: destination.benefits.health,
     energy: destination.benefits.energy,
+    ...(destination.benefits.reputation ? { reputation: destination.benefits.reputation } : {}),
   });
 
   // Check if first visit and unlock business opportunity
@@ -111,11 +124,15 @@ export const returnFromTrip = (
 
   // Clear current trip and conditionally unlock business opportunity
   setGameState(prev => {
+    const alreadyVisited = prev.travel?.visitedDestinations?.includes(destination.id) || false;
     const newState = {
       ...prev,
       travel: {
         ...prev.travel!,
         currentTrip: undefined,
+        visitedDestinations: alreadyVisited
+          ? (prev.travel?.visitedDestinations || [])
+          : [...(prev.travel?.visitedDestinations || []), destination.id],
       },
     };
     return newState;
@@ -142,7 +159,11 @@ export const unlockBusinessOpportunity = (
 
   // Generate business opportunity based on destination
   const opportunityId = `business_${destinationId}`;
-  const baseIncome = destination.cost * 0.1; // 10% of travel cost as weekly income
+  // ANTI-EXPLOIT: Cap business opportunity income to prevent travel farming
+  // Was 10% of destination cost/week with no cap (expensive destinations = massive passive income)
+  const MAX_BUSINESS_OPPORTUNITY_WEEKLY_INCOME = 2000;
+  const rawIncome = destination.cost * 0.05; // Reduced from 10% to 5% of travel cost
+  const baseIncome = Math.min(MAX_BUSINESS_OPPORTUNITY_WEEKLY_INCOME, rawIncome);
 
   setGameState(prev => ({
     ...prev,

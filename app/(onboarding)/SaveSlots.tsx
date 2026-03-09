@@ -1,1180 +1,560 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Animated, Easing, Platform, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
-import { useGame } from '@/contexts/GameContext';
-import { logger } from '@/utils/logger';
-import { ArrowLeft, Save, Trash2, Play, Archive } from 'lucide-react-native';
-import { responsiveFontSize, responsivePadding, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
-import { formatMoney } from '@/utils/moneyFormatting';
-import ConfirmDialog from '@/components/ConfirmDialog';
-import { createBackupBeforeMajorAction, listBackups, clearProtectedState } from '@/utils/saveBackup';
+import { Archive, Play, Trash2 } from 'lucide-react-native';
 import BackupRecoveryModal from '@/components/BackupRecoveryModal';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import GlassActionButton from '@/components/onboarding/GlassActionButton';
+import GlassPanel from '@/components/onboarding/GlassPanel';
+import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
+import OnboardingTopBar from '@/components/onboarding/OnboardingTopBar';
+import { useGame } from '@/contexts/GameContext';
+import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
+import { logger } from '@/utils/logger';
+import { formatMoney } from '@/utils/moneyFormatting';
+import { clearProtectedState, deleteAllBackupsForSlot, listBackups } from '@/utils/saveBackup';
 import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
+import {
+  fontScale,
+  responsiveBorderRadius,
+  responsiveSpacing,
+  scale,
+  verticalScale,
+} from '@/utils/scaling';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+type SaveSlotSnapshot = {
+  weeksLived?: number;
+  stats?: { money?: number };
+  date?: { age?: number; month?: string };
+  userProfile?: { firstName?: string; lastName?: string };
+  achievements?: { completed?: boolean }[];
+  relationships?: unknown[];
+  items?: { owned?: boolean }[];
+};
+
+interface SaveSlotData extends SaveSlotSnapshot {
+  id: number;
+  hasData: boolean;
+  error?: boolean;
+}
+
+const BACKGROUND = require('@/assets/images/Main_Menu_2.png');
+
+const hasSaveStateShape = (state: unknown): state is SaveSlotSnapshot => {
+  if (!state || typeof state !== 'object') return false;
+  const candidate = state as Record<string, unknown>;
+  return (
+    typeof candidate.userProfile === 'object' &&
+    candidate.userProfile !== null &&
+    typeof candidate.stats === 'object' &&
+    candidate.stats !== null &&
+    typeof candidate.date === 'object' &&
+    candidate.date !== null
+  );
+};
+
+const hasMeaningfulSaveData = (state: SaveSlotSnapshot): boolean => {
+  return Boolean(
+    (typeof state.weeksLived === 'number' && state.weeksLived > 0) ||
+      (typeof state.stats?.money === 'number' && state.stats.money > 0) ||
+      (Array.isArray(state.achievements) && state.achievements.some((a) => a?.completed)) ||
+      (Array.isArray(state.relationships) && state.relationships.length > 0) ||
+      (Array.isArray(state.items) && state.items.some((item) => item?.owned)) ||
+      state.userProfile?.firstName ||
+      state.userProfile?.lastName
+  );
+};
 
 export default function SaveSlots() {
   const log = logger.scope('SaveSlots');
-  const { state, setState } = useOnboarding();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { loadGame } = useGame();
-  const [slots, setSlots] = useState<any[]>([]);
+  const navigation = useNavigation();
+  const { state, setState } = useOnboarding();
+  const { gameState, loadGame } = useGame();
+  const [slots, setSlots] = useState<SaveSlotData[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [showBackupManager, setShowBackupManager] = useState<number | null>(null);
-  const [backupCounts, setBackupCounts] = useState<{ [slot: number]: number }>({});
+  const [backupCounts, setBackupCounts] = useState<Record<number, number>>({});
+  const [isBusy, setIsBusy] = useState(false);
 
-  // Animations
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
+  const isDarkMode = Boolean(gameState?.settings?.darkMode);
+  const theme = getOnboardingTheme(isDarkMode);
 
-  // Rotating background animation
-  useEffect(() => {
-    let isMounted = true;
-    let rotateAnimation: Animated.CompositeAnimation | null = null;
-    
-    try {
-      rotateAnimation = Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 30000,
-          easing: Easing.linear,
-          useNativeDriver: Platform.OS !== 'web',
-        })
-      );
-      
-      if (isMounted && rotateAnimation) {
-        rotateAnimation.start();
-      }
-    } catch (error) {
-      log.error('Error starting rotate animation', error);
-    }
-
-    return () => {
-      isMounted = false;
-      if (rotateAnimation) {
-        try {
-          rotateAnimation.stop();
-        } catch (error) {
-          log.error('Error stopping rotate animation', error);
-        }
-      }
-    };
-  }, [rotateAnim]);
-
-  // Fade in and slide up animation
-  useEffect(() => {
-    let isMounted = true;
-    let parallelAnimation: Animated.CompositeAnimation | null = null;
-    
-    try {
-      parallelAnimation = Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 1000,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-      ]);
-      
-      if (isMounted && parallelAnimation) {
-        parallelAnimation.start();
-      }
-    } catch (error) {
-      log.error('Error starting fade/slide animation', error);
-    }
-
-    return () => {
-      isMounted = false;
-      if (parallelAnimation) {
-        try {
-          parallelAnimation.stop();
-        } catch (error) {
-          log.error('Error stopping fade/slide animation', error);
-        }
-      }
-    };
-  }, [fadeAnim, slideAnim]);
+  const selectedCard = useMemo(
+    () => slots.find((slot) => slot.id === selectedSlot) ?? null,
+    [selectedSlot, slots]
+  );
 
   const loadSlots = useCallback(async () => {
-    const slotData = [];
-    for (let i = 1; i <= 3; i++) {
-      try {
+    try {
+      const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
+        '@/utils/saveValidation'
+      );
+      const allowLegacy = shouldAllowUnsignedLegacySaves();
+      const slotData: SaveSlotData[] = [];
+
+      for (let i = 1; i <= 3; i++) {
         let data: string | null = null;
-        
         try {
-          data = await AsyncStorage.getItem(`save_slot_${i}`);
+          data = await readSaveSlot(i, undefined, { allowLegacy });
         } catch (storageError) {
-          log.error(`AsyncStorage error loading slot ${i}:`, storageError);
+          log.error(`Storage error loading slot ${i}`, storageError);
           slotData.push({ id: i, hasData: false, error: true });
           continue;
         }
-        
-        if (data) {
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed && typeof parsed === 'object') {
-              slotData.push({
-                ...parsed,
-                id: i,
-                hasData: true,
-              });
-            }
-          } catch (parseError) {
-            log.error(`Failed to parse save slot ${i}:`, parseError);
-            slotData.push({
-              id: i,
-              hasData: false,
-            });
-          }
-        } else {
-          slotData.push({
-            id: i,
-            hasData: false,
-          });
+
+        if (!data) {
+          slotData.push({ id: i, hasData: false });
+          continue;
         }
-      } catch (error) {
-        slotData.push({
-          id: i,
-          hasData: false,
-        });
+
+        try {
+          const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
+          if (!decoded.valid || typeof decoded.data !== 'string') {
+            slotData.push({ id: i, hasData: false, error: true });
+            continue;
+          }
+
+          const parsed = JSON.parse(decoded.data);
+          if (hasSaveStateShape(parsed)) {
+            slotData.push({
+              ...parsed,
+              id: i,
+              hasData: hasMeaningfulSaveData(parsed),
+            });
+          } else {
+            slotData.push({ id: i, hasData: false, error: true });
+          }
+        } catch (parseError) {
+          log.error(`Failed parsing slot ${i}`, parseError);
+          slotData.push({ id: i, hasData: false, error: true });
+        }
       }
+
+      setSlots(slotData);
+    } catch (error) {
+      log.error('Failed loading slots', error);
     }
-    setSlots(slotData);
   }, [log]);
 
   const loadBackupCounts = useCallback(async () => {
-    try {
-      const counts: { [slot: number]: number } = {};
-      for (let i = 1; i <= 3; i++) {
+    const counts: Record<number, number> = {};
+    for (let i = 1; i <= 3; i++) {
+      try {
         const backups = await listBackups(i);
         counts[i] = backups.length;
+      } catch {
+        counts[i] = 0;
       }
-      setBackupCounts(counts);
-    } catch (error) {
-      log.error('Failed to load backup counts', error);
     }
-  }, [log]);
+    setBackupCounts(counts);
+  }, []);
 
   useEffect(() => {
-    loadSlots();
-    loadBackupCounts();
-  }, [loadSlots, loadBackupCounts]);
+    void loadSlots();
+    void loadBackupCounts();
+  }, [loadBackupCounts, loadSlots]);
 
   useFocusEffect(
     useCallback(() => {
-      loadSlots();
-      loadBackupCounts();
-    }, [loadSlots])
+      void loadSlots();
+      void loadBackupCounts();
+    }, [loadBackupCounts, loadSlots])
   );
 
-  const checkIfAllSlotsFull = async (): Promise<boolean> => {
+  const checkIfAllSlotsFull = useCallback(async (): Promise<boolean> => {
     try {
+      const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
+        '@/utils/saveValidation'
+      );
+      const allowLegacy = shouldAllowUnsignedLegacySaves();
       let fullSlots = 0;
+
       for (let i = 1; i <= 3; i++) {
-        const data = await AsyncStorage.getItem(`save_slot_${i}`);
-        if (data) {
-          try {
-            const parsed = JSON.parse(data);
-            // Check if slot has actual game data (not just empty object)
-            if (parsed && typeof parsed === 'object') {
-              // Consider slot full if it has meaningful game data
-              const hasGameData = parsed.weeksLived > 0 ||
-                                 parsed.stats?.money > 0 ||
-                                 (parsed.achievements && parsed.achievements.some((a: any) => a?.completed)) ||
-                                 (parsed.relationships && parsed.relationships.length > 0) ||
-                                 (parsed.items && parsed.items.some((item: any) => item?.owned));
-              if (hasGameData) {
-                fullSlots++;
-              }
-            }
-          } catch {
-            // If parsing fails, consider slot as potentially full/corrupted
+        const data = await readSaveSlot(i, undefined, { allowLegacy });
+        if (!data) continue;
+
+        try {
+          const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
+          if (!decoded.valid || typeof decoded.data !== 'string') {
+            fullSlots++;
+            continue;
+          }
+          const parsed = JSON.parse(decoded.data);
+          if (hasSaveStateShape(parsed) && hasMeaningfulSaveData(parsed)) {
             fullSlots++;
           }
+        } catch {
+          fullSlots++;
         }
       }
+
       return fullSlots >= 3;
     } catch (error) {
-      log.error('Error checking save slots:', error);
-      return false; // Allow new game if check fails
+      log.error('Error checking full slots', error);
+      return false;
     }
+  }, [log]);
+
+  const selectSlot = (slotId: number) => {
+    setSelectedSlot(slotId);
+    setState((prev) => ({ ...prev, slot: slotId }));
   };
 
-  const selectSlot = async (slotId: number) => {
-    setSelectedSlot(slotId);
-    setState(prev => ({ ...prev, slot: slotId }));
-    
-    // Check if slot is empty (no save data)
-    const slot = slots.find(s => s.id === slotId);
-    if (!slot || !slot.hasData) {
-      // Check if all slots are full before allowing new game
-      const allSlotsFull = await checkIfAllSlotsFull();
-      if (allSlotsFull) {
-        Alert.alert(
-          'All Save Slots Full',
-          'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
-          [{ text: 'OK' }]
-        );
-        // Reset selection if all slots are full
-        setSelectedSlot(null);
-        setState(prev => ({ ...prev, slot: 0 }));
-        return;
-      }
-      // Navigate to Scenarios for new game
-      router.push('/(onboarding)/Scenarios');
-    } else {
-      // CRITICAL: Validate save slot before loading
-      const slotValidation = await validateSaveSlot(slotId);
-      
-      if (!slotValidation.valid) {
-        log.error('Save slot validation failed', {
-          slot: slotId,
-          errors: slotValidation.errors,
-          version: slotValidation.version,
-        });
+  const continueToGame = async () => {
+    if (!selectedSlot || isBusy) return;
 
-        // TESTFLIGHT FIX: Offer backup restoration for incompatible/corrupted saves
-        const errorMessage = slotValidation.errors.find(e => e.includes('version')) || 
-          slotValidation.errors.find(e => e.includes('corrupted')) ||
+    const slot = slots.find((s) => s.id === selectedSlot);
+    if (!slot || !slot.hasData) {
+      await startNewGame();
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      const slotValidation = await validateSaveSlot(selectedSlot);
+      if (!slotValidation.valid) {
+        const errorMessage =
+          slotValidation.errors.find((e) => e.includes('version')) ||
+          slotValidation.errors.find((e) => e.includes('corrupted')) ||
           slotValidation.errors[0] ||
           'This save file cannot be loaded.';
-        
-        if (slotValidation.errors.some(e => e.includes('version'))) {
-          Alert.alert(
-            'Version Incompatible',
-            `${errorMessage}\n\nWould you like to try restoring from a backup?`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'View Backups', 
-                onPress: () => {
-                  // Import and show backup recovery modal
-                  import('@/components/BackupRecoveryModal').then(({ default: BackupRecoveryModal }) => {
-                    // We'll need to add state for this modal - for now, show alert with instructions
-                    Alert.alert(
-                      'Backup Recovery',
-                      'To restore from a backup, go to Settings > Backup & Recovery and select this save slot.',
-                      [{ text: 'OK' }]
-                    );
-                  });
-                }
-              }
-            ]
-          );
-        } else if (slotValidation.errors.some(e => e.includes('corrupted'))) {
-          Alert.alert(
-            'Corrupted Save',
-            `${errorMessage}\n\nWould you like to try restoring from a backup?`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'View Backups', 
-                onPress: () => {
-                  Alert.alert(
-                    'Backup Recovery',
-                    'To restore from a backup, go to Settings > Backup & Recovery and select this save slot.',
-                    [{ text: 'OK' }]
-                  );
-                }
-              }
-            ]
-          );
-        } else {
-          Alert.alert(
-            'Invalid Save',
-            `${errorMessage}\n\nWould you like to try restoring from a backup?`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { 
-                text: 'View Backups', 
-                onPress: () => {
-                  Alert.alert(
-                    'Backup Recovery',
-                    'To restore from a backup, go to Settings > Backup & Recovery and select this save slot.',
-                    [{ text: 'OK' }]
-                  );
-                }
-              }
-            ]
-          );
-        }
+
+        Alert.alert('Save Unavailable', `${errorMessage}\n\nOpen backups for this slot?`, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'View Backups', onPress: () => setShowBackupManager(selectedSlot) },
+        ]);
         return;
       }
 
-      // Load the existing save
-      await loadGame(slotId);
-      
-      // CRITICAL: Validate loaded state before navigation
-      setTimeout(async () => {
-        try {
-          const loadedData = await AsyncStorage.getItem(`save_slot_${slotId}`);
-          if (!loadedData) {
-            log.error('Failed to load game state after loadGame call');
-            Alert.alert(
-              'Load Failed',
-              'Failed to load your game. The save file may be corrupted or missing.',
-              [{ text: 'OK' }]
-            );
-            return;
-          }
+      const loadedState = await loadGame(selectedSlot);
+      if (!loadedState) {
+        Alert.alert('No Save Found', 'No save data found for this slot. Please select another slot.');
+        return;
+      }
 
-          let loadedState;
-          try {
-            loadedState = JSON.parse(loadedData);
-          } catch (parseError) {
-            log.error('Failed to parse loaded game state:', parseError);
-            Alert.alert(
-              'Corrupted Save',
-              'Your save file is corrupted and cannot be loaded. Please try loading from a backup or start a new game.',
-              [{ text: 'OK' }]
-            );
-            return;
-          }
+      const validation = validateGameEntry(loadedState);
+      if (!validation.canEnter) {
+        Alert.alert('Invalid Save', validation.errors[0] || 'This save cannot be loaded right now.');
+        return;
+      }
 
-          // CRITICAL: Validate state before entering gameplay
-          const validation = validateGameEntry(loadedState);
-          
-          if (!validation.canEnter) {
-            log.error('Game entry validation failed', {
-              reason: validation.reason,
-              errors: validation.errors,
-              warnings: validation.warnings,
-              versionCompatible: validation.versionCompatible,
-              stateComplete: validation.stateComplete,
-            });
-
-            // Show appropriate error message
-            if (!validation.versionCompatible) {
-              Alert.alert(
-                'Version Incompatible',
-                validation.errors.find(e => e.includes('version')) || 
-                'This save is from an incompatible game version and cannot be loaded.',
-                [{ text: 'OK' }]
-              );
-            } else if (!validation.stateComplete) {
-              Alert.alert(
-                'Incomplete Save',
-                validation.errors[0] || 
-                'Your save file is incomplete and cannot be loaded. Please try loading from a backup.',
-                [{ text: 'OK' }]
-              );
-            } else {
-              Alert.alert(
-                'Invalid Save',
-                validation.errors[0] || 
-                'Your save file is invalid and cannot be loaded.',
-                [{ text: 'OK' }]
-              );
-            }
-            return;
-          }
-
-          if (validation.warnings.length > 0) {
-            log.warn('Game entry validation warnings', validation.warnings);
-          }
-
-          // CRITICAL: Only navigate if validation passed
-          log.info('Game entry validation passed, navigating to gameplay');
-          router.push('/(tabs)');
-        } catch (validationError) {
-          log.error('Error during game entry validation:', validationError);
-          Alert.alert(
-            'Validation Error',
-            'An error occurred while validating your save. Please try again.',
-            [{ text: 'OK' }]
-          );
-        }
-      }, 500); // Small delay to allow loadGame to complete
+      setTimeout(() => {
+        router.push('/(tabs)');
+      }, 80);
+    } catch (error) {
+      log.error('Error continuing game', error);
+      Alert.alert('Load Error', 'An error occurred while loading your save. Please try again.');
+    } finally {
+      setIsBusy(false);
     }
   };
 
   const deleteSlot = async (slotId: number) => {
     try {
-      // Get the save data to back it up before deletion
-      const saveData = await AsyncStorage.getItem(`save_slot_${slotId}`);
-      if (saveData) {
-        try {
-          const gameState = JSON.parse(saveData);
-          // Create backup before deleting
-          await createBackupBeforeMajorAction(slotId, gameState, 'delete_save');
-        } catch (error) {
-          log.error('Failed to backup save before deletion:', error);
-        }
-      }
-      
-      await AsyncStorage.removeItem(`save_slot_${slotId}`);
-      
-      // Clear protected state so new games start fresh
+      const { deleteSaveSlot } = await import('@/utils/saveValidation');
+      await deleteSaveSlot(slotId);
+      await deleteAllBackupsForSlot(slotId);
       await clearProtectedState(slotId);
-      await loadSlots();
+
       if (selectedSlot === slotId) {
         setSelectedSlot(null);
-        setState(prev => ({ ...prev, slot: 0 }));
+        setState((prev) => ({ ...prev, slot: 0 }));
       }
+
+      await loadSlots();
+      await loadBackupCounts();
+    } catch (error) {
+      log.error('Failed deleting slot', error);
+      Alert.alert('Delete Failed', 'Could not delete this slot. Please try again.');
+    } finally {
       setShowDeleteConfirm(null);
-    } catch (error) {
-      log.error('Error deleting slot:', error);
     }
   };
 
-  const continueToGame = async () => {
-    if (!selectedSlot) {
+  const startNewGame = useCallback(async () => {
+    if (isBusy) return;
+
+    if (selectedCard?.hasData) {
+      Alert.alert('Slot Occupied', 'Please pick an empty slot to start a new game.');
       return;
     }
 
-    // CRITICAL: Validate before entering gameplay
+    setIsBusy(true);
     try {
-      const loadedData = await AsyncStorage.getItem(`save_slot_${selectedSlot}`);
-      if (!loadedData) {
-        log.error('No save data found for selected slot:', selectedSlot);
+      const allSlotsFull = await checkIfAllSlotsFull();
+      if (allSlotsFull) {
         Alert.alert(
-          'No Save Found',
-          'No save data found for this slot. Please select a different slot or start a new game.',
-          [{ text: 'OK' }]
+          'All Save Slots Full',
+          'All 3 save slots are full. Delete one to create a new life.'
         );
         return;
       }
 
-      let loadedState;
-      try {
-        loadedState = JSON.parse(loadedData);
-      } catch (parseError) {
-        log.error('Failed to parse save data:', parseError);
-        Alert.alert(
-          'Corrupted Save',
-          'Your save file is corrupted and cannot be loaded. Please try loading from a backup.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      // CRITICAL: Validate state before entering gameplay
-      const validation = validateGameEntry(loadedState);
-      
-      if (!validation.canEnter) {
-        log.error('Game entry validation failed', {
-          reason: validation.reason,
-          errors: validation.errors,
-          warnings: validation.warnings,
-        });
-
-        // Show appropriate error message
-        if (!validation.versionCompatible) {
-          Alert.alert(
-            'Version Incompatible',
-            validation.errors.find(e => e.includes('version')) || 
-            'This save is from an incompatible game version and cannot be loaded.',
-            [{ text: 'OK' }]
-          );
-        } else if (!validation.stateComplete) {
-          Alert.alert(
-            'Incomplete Save',
-            validation.errors[0] || 
-            'Your save file is incomplete and cannot be loaded.',
-            [{ text: 'OK' }]
-          );
-        } else {
-          Alert.alert(
-            'Invalid Save',
-            validation.errors[0] || 
-            'Your save file is invalid and cannot be loaded.',
-            [{ text: 'OK' }]
-          );
-        }
-        return;
-      }
-
-      if (validation.warnings.length > 0) {
-        log.warn('Game entry validation warnings', validation.warnings);
-      }
-
-      // CRITICAL: Only navigate if validation passed
-      log.info('Game entry validation passed, navigating to gameplay');
-      router.push('/(tabs)');
-    } catch (error) {
-      log.error('Error validating game entry:', error);
-      Alert.alert(
-        'Validation Error',
-        'An error occurred while validating your save. Please try again.',
-        [{ text: 'OK' }]
-      );
+      router.push('/(onboarding)/Scenarios');
+    } finally {
+      setIsBusy(false);
     }
-  };
+  }, [checkIfAllSlotsFull, isBusy, router, selectedCard]);
 
-  const startNewGame = async () => {
-    const allSlotsFull = await checkIfAllSlotsFull();
-    if (allSlotsFull) {
-      Alert.alert(
-        'All Save Slots Full',
-        'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
-        [{ text: 'OK' }]
-      );
+  const primaryAction = async () => {
+    if (!selectedSlot) {
+      Alert.alert('Select A Slot', 'Choose a slot first to continue.');
       return;
     }
-    router.push('/(onboarding)/Scenarios');
+    if (selectedCard?.hasData) {
+      await continueToGame();
+      return;
+    }
+    await startNewGame();
   };
-
-  const rotateInterpolate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   return (
-    <View style={styles.container}>
-      {/* Animated background gradients */}
-      <Animated.View
-        style={[
-          styles.backgroundGradient1,
-          {
-            transform: [{ rotate: rotateInterpolate }],
-          },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.backgroundGradient2,
-          {
-            transform: [{ rotate: rotateInterpolate }],
-          },
-        ]}
-      />
-
-      {/* Main content */}
-      <Animated.View 
-        style={[
-          styles.content, 
-          { 
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-            paddingTop: 50 + insets.top,
+    <>
+      <OnboardingScreenShell backgroundSource={BACKGROUND}>
+        <OnboardingTopBar
+          title="Save Slots"
+          subtitle="Choose where your life story lives."
+          onBack={() => {
+            if (navigation.canGoBack()) {
+              router.back();
+            } else {
+              router.push('/');
+            }
+          }}
+          onInfo={() =>
+            Alert.alert(
+              'Save Slots',
+              'Pick an empty slot for a new life or select an existing slot to continue.'
+            )
           }
-        ]}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.push('/(onboarding)/MainMenu')} style={styles.backButton}>
-            <View style={styles.glassButton}>
-              <View style={styles.glassOverlay} />
-              <View style={styles.glassIconContainer}>
-                <ArrowLeft size={24} color="#FFFFFF" />
-              </View>
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.title}>Save Slots</Text>
-          <View style={styles.placeholder} />
-        </View>
+        />
 
-        <ScrollView 
-          style={styles.scrollContainer} 
-          contentContainerStyle={{ paddingTop: insets.top }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={[styles.scrollContent, { paddingBottom: 160 + insets.bottom }]}>
-            {/* Hero section */}
-            <View style={styles.heroSection}>
-              <View style={styles.glassCard}>
-                <View style={styles.glassOverlay} />
-                <Text style={styles.heroTitle}>Choose Your Save Slot</Text>
-                <Text style={styles.heroSubtitle}>Select a slot to continue your journey or start fresh</Text>
-              </View>
-            </View>
+        <GlassPanel strong style={styles.heroPanel}>
+          <Text style={[styles.heroTitle, { color: theme.title }]}>Smart Save Manager</Text>
+          <Text style={[styles.heroSubtitle, { color: theme.subtitle }]}>
+            Slot health, backups, and restore options are all available before you continue.
+          </Text>
+        </GlassPanel>
 
-            {/* Save slots */}
-            <View style={styles.slotsContainer}>
-              {slots.map((slot) => {
-                const isSelected = selectedSlot === slot.id;
-                const isOccupied = slot.hasData;
-                
-                return (
-                  <TouchableOpacity
-                    key={slot.id}
-                    style={styles.slotContainer}
-                    onPress={() => selectSlot(slot.id)}
-                  >
-                    <View style={[styles.glassSlotCard, isSelected && styles.glassSlotCardSelected]}>
-                      <View style={styles.glassOverlay} />
-                        <View style={styles.slotHeader}>
-                          <View style={styles.glassIconContainer}>
-                            <View style={styles.glassOverlay} />
-                            <Save size={32} color="#FFFFFF" />
-                          </View>
-                          <View style={styles.slotInfo}>
-                            <Text style={styles.slotTitle}>Slot {slot.id}</Text>
-                            {isOccupied ? (
-                              <Text style={styles.slotSubtitle}>
-                                {slot.userProfile?.firstName} {slot.userProfile?.lastName} - Age {Math.ceil(slot.date?.age || 0)}
-                              </Text>
-                            ) : (
-                              <Text style={styles.slotSubtitle}>Empty Slot</Text>
-                            )}
-                          </View>
-                          {isSelected && (
-                            <View style={styles.glassSelectedIndicator}>
-                              <View style={styles.glassOverlay} />
-                              <Text style={styles.selectedText}>✓</Text>
-                            </View>
-                          )}
-                        </View>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {slots.map((slot) => {
+            const isSelected = selectedSlot === slot.id;
+            const statusText = slot.error ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
+            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#34D399' : theme.subtitle;
+            const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
 
-                        {isOccupied && (
-                          <View style={styles.slotStats}>
-                            <View style={styles.glassStatItem}>
-                              <View style={styles.glassOverlay} />
-                              <Text style={styles.statLabel}>Money</Text>
-                              <Text style={styles.statValue}>{formatMoney(slot.stats?.money || 0)}</Text>
-                            </View>
-                            <View style={styles.glassStatItem}>
-                              <View style={styles.glassOverlay} />
-                              <Text style={styles.statLabel}>Age</Text>
-                              <Text style={styles.statValue}>{Math.ceil(slot.date?.age || 0)}</Text>
-                            </View>
-                            <View style={styles.glassStatItem}>
-                              <View style={styles.glassOverlay} />
-                              <Text style={styles.statLabel}>Month</Text>
-                              <Text style={styles.statValue}>{slot.date?.month || 'Unknown'}</Text>
-                            </View>
-                          </View>
-                        )}
+            return (
+              <TouchableOpacity key={slot.id} activeOpacity={0.9} onPress={() => selectSlot(slot.id)}>
+                <GlassPanel style={[styles.slotCard, isSelected ? styles.slotCardSelected : undefined]}>
+                  <View style={styles.slotHeader}>
+                    <Text style={[styles.slotTitle, { color: theme.title }]}>Slot {slot.id}</Text>
+                    <Text style={[styles.statusChip, { color: statusColor }]}>{statusText}</Text>
+                  </View>
 
-                        <View style={styles.slotActions}>
-                          {isOccupied && (
-                            <>
-                              {/* Backups Button - Opens full backup manager */}
-                              <TouchableOpacity
-                                style={styles.glassBackupButton}
-                                onPress={() => setShowBackupManager(slot.id)}
-                                accessibilityLabel="Manage backups"
-                                accessibilityRole="button"
-                              >
-                                <View style={styles.glassOverlay} />
-                                <Archive size={16} color="#3B82F6" />
-                                <Text style={styles.backupButtonText}>Backups</Text>
-                                {backupCounts[slot.id] > 0 && (
-                                  <View style={styles.backupCountBadge}>
-                                    <Text style={styles.backupCountText}>{backupCounts[slot.id]}</Text>
-                                  </View>
-                                )}
-                              </TouchableOpacity>
+                  <Text style={[styles.slotName, { color: theme.subtitle }]}>
+                    {slot.hasData ? fullName || 'Unnamed Character' : 'Start a new life here'}
+                  </Text>
 
-                              {/* Delete Button */}
-                              <TouchableOpacity
-                                style={styles.glassDeleteButton}
-                                onPress={() => setShowDeleteConfirm(slot.id)}
-                                accessibilityLabel="Delete save slot"
-                                accessibilityRole="button"
-                              >
-                                <View style={styles.glassOverlay} />
-                                <Trash2 size={16} color="#EF4444" />
-                                <Text style={styles.deleteButtonText}>Delete</Text>
-                              </TouchableOpacity>
-                            </>
-                          )}
-                        </View>
+                  {slot.hasData ? (
+                    <View style={styles.statsRow}>
+                      <View style={styles.statBlock}>
+                        <Text style={[styles.statLabel, { color: theme.subtitle }]}>Money</Text>
+                        <Text style={[styles.statValue, { color: theme.title }]}>
+                          {formatMoney(slot.stats?.money || 0)}
+                        </Text>
+                      </View>
+                      <View style={styles.statBlock}>
+                        <Text style={[styles.statLabel, { color: theme.subtitle }]}>Age</Text>
+                        <Text style={[styles.statValue, { color: theme.title }]}>
+                          {Math.ceil(slot.date?.age || 0)}
+                        </Text>
+                      </View>
+                      <View style={styles.statBlock}>
+                        <Text style={[styles.statLabel, { color: theme.subtitle }]}>Weeks</Text>
+                        <Text style={[styles.statValue, { color: theme.title }]}>{slot.weeksLived || 0}</Text>
+                      </View>
                     </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                  ) : null}
 
-            {/* Bottom spacing for floating button */}
-            <View style={[styles.bottomSpacing, { height: 140 + insets.bottom }]} />
-          </View>
+                  {slot.hasData ? (
+                    <View style={styles.slotActions}>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        onPress={() => setShowBackupManager(slot.id)}
+                        style={[styles.smallAction, { borderColor: theme.glassBorder }]}
+                      >
+                        <Archive size={scale(14)} color={theme.accentText} />
+                        <Text style={[styles.smallActionText, { color: theme.accentText }]}>
+                          Backups ({backupCounts[slot.id] || 0})
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        onPress={() => setShowDeleteConfirm(slot.id)}
+                        style={[styles.smallAction, styles.deleteAction]}
+                      >
+                        <Trash2 size={scale(14)} color="#F87171" />
+                        <Text style={styles.deleteText}>Delete Slot</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                </GlassPanel>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
-        {/* Floating Action Button */}
-        {selectedSlot && (
-          <View style={[styles.floatingButtonContainer, { bottom: 20 + insets.bottom }]}>
-            {slots.find(s => s.id === selectedSlot)?.hasData ? (
-              <TouchableOpacity style={styles.floatingButton} onPress={continueToGame} activeOpacity={0.8}>
-                <LinearGradient
-                  colors={['#10B981', '#059669', '#047857']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.floatingGlassButton}
-                >
-                  <View style={styles.buttonContent}>
-                    <Text style={styles.glassButtonTitle}>Continue Game</Text>
-                    <View style={styles.glassIconContainer}>
-                      <Play size={24} color="#FFFFFF" />
-                    </View>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.floatingButton} onPress={startNewGame} activeOpacity={0.8}>
-                <LinearGradient
-                  colors={['#10B981', '#059669', '#047857']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.floatingGlassButton}
-                >
-                  <View style={styles.buttonContent}>
-                    <Text style={styles.glassButtonTitle}>Start New Game</Text>
-                    <View style={styles.glassIconContainer}>
-                      <Play size={24} color="#FFFFFF" />
-                    </View>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        <GlassActionButton
+          disabled={!selectedSlot || isBusy}
+          highlighted
+          icon={<Play color={theme.title} size={scale(22)} />}
+          onPress={() => {
+            void primaryAction();
+          }}
+          subtitle={
+            !selectedSlot
+              ? 'Select a slot first'
+              : selectedCard?.hasData
+                ? 'Validate and continue your current life'
+                : 'Create a new life in this slot'
+          }
+          title={selectedCard?.hasData ? 'Continue Game' : 'Start New Game'}
+        />
+      </OnboardingScreenShell>
 
-        {/* Floating particles */}
-        <View style={styles.particlesContainer}>
-          {[...Array(8)].map((_, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.particle,
-                {
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg'],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ))}
-        </View>
-      </Animated.View>
-
-      {/* Delete Confirmation Dialog */}
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         visible={showDeleteConfirm !== null}
-        title="Delete Save?"
-        message="Are you sure you want to delete this save? This action cannot be undone, but a backup will be created."
+        title="Delete Save Slot?"
+        message="This removes the selected save and its backups. This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
+        destructive
+        type="danger"
         onConfirm={() => {
           if (showDeleteConfirm !== null) {
-            deleteSlot(showDeleteConfirm);
+            void deleteSlot(showDeleteConfirm);
           }
         }}
         onCancel={() => setShowDeleteConfirm(null)}
-        type="error"
       />
 
-      {/* Backup Manager Modal */}
-      {showBackupManager !== null && (
+      {showBackupManager !== null ? (
         <BackupRecoveryModal
-          visible={true}
+          visible
           slot={showBackupManager}
           onClose={() => {
             setShowBackupManager(null);
-            loadBackupCounts();
+            void loadBackupCounts();
           }}
           onRestoreComplete={() => {
-            loadSlots();
-            loadBackupCounts();
+            void loadSlots();
+            void loadBackupCounts();
           }}
         />
-      )}
-    </View>
+      ) : null}
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-    overflow: 'hidden',
-  },
-  backgroundGradient1: {
-    position: 'absolute',
-    width: screenWidth * 2,
-    height: screenWidth * 2,
-    borderRadius: screenWidth,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    top: -screenWidth / 2,
-    left: -screenWidth / 2,
-  },
-  backgroundGradient2: {
-    position: 'absolute',
-    width: screenWidth * 1.5,
-    height: screenWidth * 1.5,
-    borderRadius: screenWidth,
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
-    bottom: -screenWidth / 3,
-    right: -screenWidth / 3,
-  },
-  content: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    ...Platform.select({
-      web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' },
-      ios: {
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 3,
-      },
-      android: {
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 3,
-      },
-    }),
-  },
-  backButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  glassButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: 60,
-    justifyContent: 'center',
-  },
-  glassOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-  },
-  glassIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    padding: 24,
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  placeholder: {
-    width: 48,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  heroSection: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 30,
+  heroPanel: {
+    marginBottom: responsiveSpacing.md,
   },
   heroTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 8,
-    ...Platform.select({
-      web: { textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)' },
-      ios: {
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
-      },
-      android: {
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
+    fontSize: fontScale(20),
+    fontWeight: '800',
+    marginBottom: verticalScale(4),
   },
   heroSubtitle: {
-    fontSize: 16,
-    color: '#94A3B8',
-    textAlign: 'center',
+    fontSize: fontScale(12),
     fontWeight: '500',
+    lineHeight: fontScale(16),
   },
-  slotsContainer: {
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  scrollContent: {
+    gap: responsiveSpacing.md,
+    paddingBottom: responsiveSpacing.md,
   },
-  slotContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+  slotCard: {
+    paddingVertical: responsiveSpacing.md,
   },
-  glassSlotCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    padding: 20,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  glassSlotCardSelected: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+  slotCardSelected: {
+    borderWidth: 1.6,
   },
   slotHeader: {
+    alignItems: 'center',
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  slotInfo: {
-    flex: 1,
+    justifyContent: 'space-between',
+    marginBottom: verticalScale(8),
   },
   slotTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
+    fontSize: fontScale(18),
+    fontWeight: '800',
   },
-  slotSubtitle: {
-    fontSize: 14,
-    color: '#D1D5DB',
-  },
-  glassSelectedIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
+  statusChip: {
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    borderRadius: responsiveBorderRadius.full,
+    fontSize: fontScale(11),
+    fontWeight: '700',
     overflow: 'hidden',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: verticalScale(4),
   },
-  glassStatItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    padding: 12,
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    flex: 1,
-    marginHorizontal: 4,
+  slotName: {
+    fontSize: fontScale(13),
+    fontWeight: '500',
+    marginBottom: verticalScale(10),
   },
-  selectedText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  slotStats: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: 16,
+    gap: responsiveSpacing.sm,
+    marginBottom: verticalScale(10),
   },
-  statItem: {
-    alignItems: 'center',
+  statBlock: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: responsiveBorderRadius.md,
+    flex: 1,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: verticalScale(8),
   },
   statLabel: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginBottom: 4,
+    fontSize: fontScale(10),
+    fontWeight: '600',
+    marginBottom: verticalScale(2),
   },
   statValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    flexShrink: 1,
-    textAlign: 'center',
+    fontSize: fontScale(12),
+    fontWeight: '800',
   },
   slotActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
+    gap: responsiveSpacing.sm,
   },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  glassBackupButton: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderRadius: 8,
+  smallAction: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.25)',
+    borderRadius: responsiveBorderRadius.md,
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.25)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    position: 'relative',
-    overflow: 'hidden',
-    gap: 4,
-  },
-  backupButtonText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-  },
-  backupCountBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    marginLeft: 2,
-  },
-  backupCountText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  glassDeleteButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.25)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    position: 'relative',
-    overflow: 'hidden',
-    gap: 4,
-  },
-  deleteButtonText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#EF4444',
-    marginLeft: 4,
-  },
-  bottomSpacing: {
-    height: 120, // Space for floating button
-  },
-  floatingButtonContainer: {
-    position: 'absolute',
-    left: responsivePadding.horizontal,
-    right: responsivePadding.horizontal,
-    zIndex: 10,
-  },
-  floatingButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 16,
-  },
-  floatingGlassButton: {
-    width: '100%',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: 64,
-    justifyContent: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    width: '100%',
-  },
-  glassButtonTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
     flex: 1,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    flexDirection: 'row',
+    gap: responsiveSpacing.xs,
+    justifyContent: 'center',
+    paddingVertical: verticalScale(8),
   },
-  particlesContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    pointerEvents: 'none',
+  smallActionText: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
   },
-  particle: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
-    borderRadius: 2,
+  deleteAction: {
+    borderColor: 'rgba(248, 113, 113, 0.4)',
+  },
+  deleteText: {
+    color: '#F87171',
+    fontSize: fontScale(11),
+    fontWeight: '700',
   },
 });
-

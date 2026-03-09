@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, Animated, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { Target, CheckCircle, Star, DollarSign, Gem, TrendingUp, Award } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 
@@ -401,3 +402,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

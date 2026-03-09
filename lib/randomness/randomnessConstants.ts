@@ -15,7 +15,7 @@ export const PITY_THRESHOLD_CHILDREN = 15; // Having children: guaranteed after 
 export const PITY_THRESHOLD_MONEY_REQUEST = 5; // Asking for money: guaranteed after 5 attempts
 export const PITY_THRESHOLD_STREET_JOB = 5; // Street jobs: guaranteed after 5 failures
 export const PITY_THRESHOLD_JOB_APPLICATION = 3; // Job applications: guaranteed after 3 attempts
-export const PITY_THRESHOLD_WEEKLY_EVENTS = 6; // Weekly events: guaranteed after 6 weeks without
+export const PITY_THRESHOLD_WEEKLY_EVENTS = 24; // Weekly events: guaranteed after 24 weeks without (was 12 — events should feel rare)
 
 /**
  * Soft Guarantee Thresholds

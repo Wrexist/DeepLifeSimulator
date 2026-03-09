@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Statistics & Analytics Dashboard
  * 
  * Comprehensive statistics app showing lifetime achievements, graphs, and analytics
@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   BarChart3,
@@ -50,6 +51,10 @@ import { getEnhancedLifetimeStatistics } from '@/lib/statistics/enhancedStatisti
 import { getSystemHealth } from '@/lib/depth/systemInterconnections';
 import { getDiscoveryProgress } from '@/lib/depth/discoverySystem';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
+import { calculateLifeExpectancy } from '@/lib/statistics/lifeExpectancy';
+import { calculateRetirementPlanning } from '@/lib/statistics/retirementCalculator';
+import { calculateFIRETracker } from '@/lib/statistics/fireTracker';
+import { calculateAchievementAnalytics } from '@/lib/statistics/achievementAnalytics';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -57,7 +62,7 @@ interface StatisticsAppProps {
   onBack: () => void;
 }
 
-type TabType = 'overview' | 'career' | 'relationships' | 'achievements' | 'comparison' | 'systems' | 'interconnections' | 'discovery' | 'trends';
+type TabType = 'overview' | 'career' | 'relationships' | 'achievements' | 'comparison' | 'systems' | 'interconnections' | 'discovery' | 'trends' | 'planning' | 'achievementAnalytics';
 
 // Simple line chart component using View elements
 const SimpleLineChart = ({ 
@@ -250,6 +255,8 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
     { id: 'career', label: 'Career', icon: Briefcase },
     { id: 'relationships', label: 'Life', icon: Heart },
     { id: 'achievements', label: 'Achievements', icon: Trophy },
+    { id: 'planning', label: 'Planning', icon: Target },
+    { id: 'achievementAnalytics', label: 'Analytics', icon: Award },
     { id: 'comparison', label: 'Ranking', icon: Crown },
     { id: 'systems', label: 'Systems', icon: Network },
     { id: 'interconnections', label: 'Connections', icon: Link },
@@ -786,18 +793,18 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
             onPress={() => {
               const statsText = `
 🎮 DeepLifeSim Statistics
-━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 💰 Net Worth: ${formatStatMoney(currentNetWorth)}
 📈 Peak: ${formatStatMoney(stats.peakNetWorth)}
-💵 Total Earned: ${formatStatMoney(stats.totalMoneyEarned)}
-💸 Total Spent: ${formatStatMoney(stats.totalMoneySpent)}
-━━━━━━━━━━━━━━━━━━━━
-🏢 Companies: ${stats.totalCompaniesOwned}
-🏠 Properties: ${stats.totalPropertiesOwned}
-✈️ Destinations: ${stats.totalTravelDestinations}
-👥 Relationships: ${stats.totalRelationships}
-🏆 Achievements: ${achievementProgress.unlocked}/${achievementProgress.total}
-━━━━━━━━━━━━━━━━━━━━
+💸 Total Earned: ${formatStatMoney(stats.totalMoneyEarned)}
+💳 Total Spent: ${formatStatMoney(stats.totalMoneySpent)}
+━━━━━━━━━━━━━━━━━━━━
+🏢¢ Companies: ${stats.totalCompaniesOwned}
+🏢  Properties: ${stats.totalPropertiesOwned}
+✈️ Destinations: ${stats.totalTravelDestinations}
+🏢‘¥ Relationships: ${stats.totalRelationships}
+🏢† Achievements: ${achievementProgress.unlocked}/${achievementProgress.total}
+━━━━━━━━━━━━━━━━━━━━
 Week ${gameState.week || 0}
               `.trim();
               
@@ -821,6 +828,96 @@ Week ${gameState.week || 0}
     );
   }, [currentNetWorth, stats, careerSummary, achievementProgress, gameState.pastLives, gameState.week]);
   
+  const renderPlanningTab = useCallback(() => {
+    const lifeExpectancy = calculateLifeExpectancy(gameState);
+    const retirement = calculateRetirementPlanning(gameState);
+    const fire = calculateFIRETracker(gameState);
+    
+    return (
+      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+        {/* Life Expectancy */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Life Expectancy</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardValue}>{lifeExpectancy.totalLifeExpectancy} years</Text>
+            <Text style={styles.cardLabel}>Expected Lifespan</Text>
+            <Text style={styles.cardSubtext}>{lifeExpectancy.yearsRemaining} years remaining</Text>
+            {lifeExpectancy.recommendations.length > 0 && (
+              <View style={styles.recommendations}>
+                {lifeExpectancy.recommendations.map((rec, i) => (
+                  <Text key={i} style={styles.recommendationText}>• {rec}</Text>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+        
+        {/* Retirement Planning */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Retirement Planning</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardValue}>{formatStatMoney(retirement.requiredNetWorth)}</Text>
+            <Text style={styles.cardLabel}>Required Net Worth</Text>
+            <Text style={styles.cardSubtext}>Current: {formatStatMoney(retirement.currentNetWorth)}</Text>
+            <Text style={styles.cardSubtext}>Gap: {formatStatMoney(retirement.savingsGap)}</Text>
+            <Text style={styles.cardSubtext}>Years to Retirement: {retirement.yearsToRetirement}</Text>
+            <Text style={styles.cardSubtext}>Target Age: {retirement.targetRetirementAge}</Text>
+          </View>
+        </View>
+        
+        {/* FIRE Tracker */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>FIRE Tracker</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardValue}>{formatStatMoney(fire.fireNumber)}</Text>
+            <Text style={styles.cardLabel}>FIRE Number</Text>
+            <Text style={styles.cardSubtext}>Progress: {fire.progressToFIRE.toFixed(1)}%</Text>
+            <Text style={styles.cardSubtext}>Years to FIRE: {fire.yearsToFIRE}</Text>
+            <Text style={styles.cardSubtext}>Savings Rate: {fire.savingsRate.toFixed(1)}%</Text>
+            {fire.milestones.achieved && (
+              <Text style={[styles.cardSubtext, { color: '#10B981', fontWeight: 'bold' }]}>
+                ✓ FIRE Achieved!
+              </Text>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }, [gameState]);
+  
+  const renderAchievementAnalyticsTab = useCallback(() => {
+    const analytics = calculateAchievementAnalytics(gameState);
+    
+    return (
+      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Achievement Analytics</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardValue}>{analytics.completionRate.toFixed(1)}%</Text>
+            <Text style={styles.cardLabel}>Completion Rate</Text>
+            <Text style={styles.cardSubtext}>
+              {analytics.unlockedAchievements} of {analytics.totalAchievements} unlocked
+            </Text>
+          </View>
+          
+          <View style={styles.card}>
+            <Text style={styles.cardValue}>{analytics.averageTimeToComplete.toFixed(1)} weeks</Text>
+            <Text style={styles.cardLabel}>Average Time to Complete</Text>
+          </View>
+          
+          {analytics.recommendations.length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>Recommendations</Text>
+              {analytics.recommendations.map((rec, i) => (
+                <Text key={i} style={styles.recommendationText}>• {rec}</Text>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    );
+  }, [gameState]);
+  
   const renderContent = useCallback(() => {
     switch (activeTab) {
       case 'overview':
@@ -831,12 +928,16 @@ Week ${gameState.week || 0}
         return renderRelationshipsTab();
       case 'achievements':
         return renderAchievementsTab();
+      case 'planning':
+        return renderPlanningTab();
+      case 'achievementAnalytics':
+        return renderAchievementAnalyticsTab();
       case 'comparison':
         return renderComparisonTab();
       default:
         return renderOverviewTab();
     }
-  }, [activeTab, renderOverviewTab, renderCareerTab, renderRelationshipsTab, renderAchievementsTab, renderComparisonTab]);
+  }, [activeTab, renderOverviewTab, renderCareerTab, renderRelationshipsTab, renderAchievementsTab, renderPlanningTab, renderAchievementAnalyticsTab, renderComparisonTab]);
   
   return (
     <LinearGradient
@@ -1391,6 +1492,41 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  card: {
+    backgroundColor: 'rgba(31,41,55,0.8)',
+    borderRadius: scale(12),
+    padding: scale(16),
+    marginBottom: scale(12),
+  },
+  cardValue: {
+    fontSize: fontScale(24),
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: scale(4),
+  },
+  cardLabel: {
+    fontSize: fontScale(14),
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginBottom: scale(8),
+  },
+  cardSubtext: {
+    fontSize: fontScale(12),
+    color: '#D1D5DB',
+    marginTop: scale(4),
+  },
+  recommendations: {
+    marginTop: scale(12),
+    paddingTop: scale(12),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  recommendationText: {
+    fontSize: fontScale(12),
+    color: '#D1D5DB',
+    marginTop: scale(4),
+    lineHeight: fontScale(18),
+  },
   systemHealthCard: {
     borderRadius: scale(12),
     overflow: 'hidden',
@@ -1482,10 +1618,11 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     lineHeight: fontScale(16),
   },
-  sectionSubtitle: {
+  sectionSubtitleAlt: {
     fontSize: fontScale(12),
     color: '#9CA3AF',
     marginBottom: scale(16),
   },
 });
+
 

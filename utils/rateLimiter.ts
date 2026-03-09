@@ -149,7 +149,7 @@ export function withRateLimit(
   onLimitExceeded?: (remaining: number, resetTime: number) => void
 ) {
   return function <T extends (...args: any[]) => Promise<any>>(
-    target: any,
+    _target: any,
     _propertyKey: string,
     descriptor: TypedPropertyDescriptor<T>
   ) {

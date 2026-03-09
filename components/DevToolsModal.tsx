@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, TextInput, Switch } from 'react-native';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useGame } from '@/contexts/GameContext';
-import { X, DollarSign, Heart, Zap, Clock, Shield, Briefcase, Gift, Skull, Database, RefreshCw, Save, FileText, Package, Users, Building2, GraduationCap, CreditCard, Star, Award, Bug } from 'lucide-react-native';
+import { X, DollarSign, Heart, Zap, Clock, Shield, Briefcase, Gift, Skull, Database, RefreshCw, Save, FileText, Package, Users, Building2, GraduationCap, CreditCard, Star, Award, Bug, ClipboardCheck, AlertTriangle, Activity } from 'lucide-react-native';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const BlurView = BlurViewFallback;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LogViewer from '@/components/dev/LogViewer';
 import AIDebugMenu from '@/components/debug/AIDebugMenu';
+import TestRunner from '@/components/TestRunner';
+import { generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
+import { DISEASE_DEFINITIONS } from '@/lib/diseases/diseaseDefinitions';
 
 interface DevToolsModalProps {
   visible: boolean;
@@ -20,30 +25,107 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
   const [preventDrain, setPreventDrain] = useState(false);
   const [showLogViewer, setShowLogViewer] = useState(false);
   const [showAIDebug, setShowAIDebug] = useState(false);
+  const [showTestRunner, setShowTestRunner] = useState(false);
   
   // Target week for time travel loop
   const [targetWeek, setTargetWeek] = useState<number | null>(null);
-  const initialStatsRef = useRef<any>(null);
   const isProcessingRef = useRef(false);
+  const godModeStatsRef = useRef<{ health: number; happiness: number; energy: number; fitness: number } | null>(null);
+  const lastWeekRef = useRef<number>(0);
 
   // Add null check for gameState
   if (!gameState) {
     return null;
   }
 
+  // Initialize lastWeekRef when gameState is available
+  useEffect(() => {
+    if (gameState?.weeksLived !== undefined && lastWeekRef.current === 0) {
+      lastWeekRef.current = gameState.weeksLived || 0;
+    }
+  }, [gameState?.weeksLived]);
+
+  // God Mode: Restore stats after week progression
+  useEffect(() => {
+    if (!preventDrain || !gameState) return;
+    
+    // Capture stats when god mode is first enabled
+    if (!godModeStatsRef.current && gameState.stats) {
+      godModeStatsRef.current = {
+        health: Math.max(100, gameState.stats.health || 100),
+        happiness: Math.max(100, gameState.stats.happiness || 100),
+        energy: Math.max(100, gameState.stats.energy || 100),
+        fitness: Math.max(100, gameState.stats.fitness || 100),
+      };
+    }
+
+    // Check if week has changed (normal progression or time travel)
+    const currentWeek = gameState.weeksLived || 0;
+    if (currentWeek !== lastWeekRef.current && godModeStatsRef.current) {
+      // Week has progressed, restore stats to god mode values
+      setGameState(prev => {
+        if (!prev.stats || !godModeStatsRef.current) return prev;
+        
+        return {
+          ...prev,
+          stats: {
+            ...prev.stats,
+            health: godModeStatsRef.current.health,
+            happiness: godModeStatsRef.current.happiness,
+            energy: godModeStatsRef.current.energy,
+            fitness: godModeStatsRef.current.fitness,
+          },
+        };
+      });
+      lastWeekRef.current = currentWeek;
+    }
+  }, [gameState?.weeksLived, gameState?.week, preventDrain, setGameState]);
+
+  // Handle god mode toggle
+  const handleGodModeToggle = (enabled: boolean) => {
+    setPreventDrain(enabled);
+    
+    if (enabled && gameState?.stats) {
+      // Capture current stats when enabling
+      godModeStatsRef.current = {
+        health: Math.max(100, gameState.stats.health || 100),
+        happiness: Math.max(100, gameState.stats.happiness || 100),
+        energy: Math.max(100, gameState.stats.energy || 100),
+        fitness: Math.max(100, gameState.stats.fitness || 100),
+      };
+      
+      // Immediately apply max stats
+      setGameState(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          ...godModeStatsRef.current,
+        },
+      }));
+      saveGame();
+      Alert.alert('God Mode', 'Enabled! Stats will not decrease.');
+    } else {
+      // Clear god mode stats when disabling
+      godModeStatsRef.current = null;
+      Alert.alert('God Mode', 'Disabled. Stats will decrease normally.');
+    }
+  };
+
   // Main Game Loop for Time Travel
   useEffect(() => {
     if (targetWeek === null || !gameState) return;
 
+    const currentTotal = gameState.weeksLived || 0;
+
     // Stop conditions
-    if (gameState.week >= targetWeek) {
+    if (currentTotal >= targetWeek) {
       setTargetWeek(null);
       isProcessingRef.current = false;
       Alert.alert('Time Travel', 'Travel complete.');
       return;
     }
 
-    if (gameState.date?.age >= 100) {
+    if ((gameState.date?.age || 0) >= 100) {
         setTargetWeek(null);
         isProcessingRef.current = false;
         Alert.alert('Stopped', 'Reached age 100.');
@@ -57,51 +139,20 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     }
 
     // Function to execute one step
-    const step = async () => {
+    const step = () => {
         if (isProcessingRef.current) return; // Prevent overlaps
         isProcessingRef.current = true;
 
-        // 1. Restore Stats (God Mode) BEFORE advancing
-        // This ensures we start the week with full health/energy so we don't die from the drain calculation
-        if (preventDrain && initialStatsRef.current) {
-            // We need to cheat a bit and update the state immediately for the nextWeek call if possible,
-            // but since nextWeek uses closure state, we have to rely on the cycle.
-            // However, if we update stats here, we trigger a render.
-            // So we apply the fix to the PREVIOUS state result effectively.
-            
-            setGameState(prev => ({
-                ...prev,
-                stats: {
-                    ...prev.stats,
-                    health: initialStatsRef.current.health,
-                    happiness: initialStatsRef.current.happiness,
-                    energy: initialStatsRef.current.energy,
-                    fitness: initialStatsRef.current.fitness
-                }
-            }));
-            
-            // Small delay to let state flush if needed, though in React Native batching might hide it.
-            // We rely on the fact that the NEXT render triggers the effect again.
-        }
-
-        // 2. Advance Week
-        // We use a timeout to break the stack and allow UI/State to settle
-        nextWeek();
-        isProcessingRef.current = false;
+        // Advance Week (god mode is handled by the separate useEffect)
+        setTimeout(() => {
+            nextWeek();
+            isProcessingRef.current = false;
+        }, 50);
     };
 
-    // Use a timeout to break the stack and allow UI/State to settle
-    const timeoutId = setTimeout(() => {
-        step();
-    }, 10);
-    
-    // Cleanup timeout on unmount or when effect re-runs
-    return () => {
-        clearTimeout(timeoutId);
-        isProcessingRef.current = false;
-    };
+    step();
 
-  }, [gameState.week, targetWeek, preventDrain, nextWeek, setGameState]); // Re-run whenever week changes or target changes
+  }, [gameState.weeksLived, targetWeek, nextWeek]);
 
   const updateStats = (updates: Partial<typeof gameState.stats>) => {
     setGameState(prev => ({
@@ -116,13 +167,23 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
   };
 
   const addMoney = (amount: number) => {
-    if (!gameState?.stats) return;
-    updateStats({ money: (gameState.stats.money || 0) + amount });
+    setGameState(prev => {
+      if (!prev.stats) return prev;
+      const currentMoney = prev.stats.money ?? 0;
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          money: currentMoney + amount,
+        },
+      };
+    });
+    saveGame();
   };
 
   const addGems = (amount: number) => {
     if (!gameState?.stats) return;
-    updateStats({ gems: (gameState.stats.gems || 0) + amount });
+    updateStats({ gems: (gameState?.stats?.gems ?? 0) + amount });
   };
 
   const maxStats = () => {
@@ -136,86 +197,14 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
 
   const startSkipping = (weeksToSkip: number) => {
     if (targetWeek !== null) return; // Already skipping
-
-    // Capture stats for God Mode
-    if (preventDrain && gameState?.stats) {
-        initialStatsRef.current = { 
-            health: Math.max(100, gameState.stats.health || 100), // Force max if starting god mode
-            happiness: Math.max(100, gameState.stats.happiness || 100),
-            energy: Math.max(100, gameState.stats.energy || 100),
-            fitness: Math.max(100, gameState.stats.fitness || 100)
-        };
-        // Apply max immediately so we start strong
-        setGameState(prev => ({
-            ...prev,
-            stats: {
-                ...prev.stats,
-                ...initialStatsRef.current
-            }
-        }));
-    } else {
-        initialStatsRef.current = null;
-    }
     
     // Calculate target absolute week number
-    // Note: gameState.week is cyclic (1-48 or 1-52 usually, but looks like it might be absolute in some contexts?)
-    // GameContext seems to treat date.week as 1-4 and increments weeksLived.
-    // Using weeksLived is safer for absolute targeting.
     if (!gameState) return;
     const currentTotal = gameState.weeksLived || 0;
     const target = currentTotal + weeksToSkip;
     
-    // We'll use a hack: setTargetWeek to the 'weeksLived' target
-    // But wait, the effect depends on gameState.week? No, gameState.week cycles 1-4.
-    // Let's change the dependency to weeksLived or just use a counter.
-    // Actually, let's change the effect to depend on `gameState.weeksLived`.
-    
     setTargetWeek(target);
   };
-  
-  // Override the effect logic slightly to use weeksLived for robust tracking
-  useEffect(() => {
-    if (targetWeek === null || !gameState) return;
-
-    const currentTotal = gameState.weeksLived || 0;
-
-    if (currentTotal >= targetWeek) {
-      setTargetWeek(null);
-      isProcessingRef.current = false;
-      Alert.alert('Time Travel', `Travelled ${targetWeek - (targetWeek - 20)} weeks.`); // Approximate message
-      return;
-    }
-    
-    // ... rest of stop conditions ...
-    if ((gameState.date?.age || 0) >= 100 || gameState.showDeathPopup) {
-        setTargetWeek(null);
-        isProcessingRef.current = false;
-        return;
-    }
-
-    const step = () => {
-        if (isProcessingRef.current) return;
-        isProcessingRef.current = true;
-
-        if (preventDrain && initialStatsRef.current) {
-             setGameState(prev => ({
-                ...prev,
-                stats: {
-                    ...prev.stats,
-                    ...initialStatsRef.current
-                }
-            }));
-        }
-
-        setTimeout(() => {
-            nextWeek();
-            isProcessingRef.current = false;
-        }, 50);
-    };
-
-    step();
-
-  }, [gameState.weeksLived, targetWeek, preventDrain]);
 
 
   const setAge = (age: number) => {
@@ -267,16 +256,18 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
   };
 
   const unlockAllItems = () => {
-    const commonItemIds = ['smartphone', 'computer', 'bike', 'car', 'guitar', 'gym_membership', 'netflix', 'spotify', 'gloves', 'usb', 'lockpick', 'slim_jim', 'drug_supply', 'suit', 'basic_bed'];
     setGameState(prev => ({
       ...prev,
-      items: (prev.items || []).map(item => 
-        commonItemIds.includes(item.id) 
-          ? { ...item, owned: true }
-          : item
-      ),
+      items: (prev.items || []).map(item => ({
+        ...item,
+        owned: true,
+      })),
+      darkWebItems: (prev.darkWebItems || []).map(item => ({
+        ...item,
+        owned: true,
+      })),
     }));
-    Alert.alert('Success', 'All common items unlocked!');
+    Alert.alert('Success', 'All items and dark web items unlocked!');
     saveGame();
   };
 
@@ -285,9 +276,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
       ...prev,
       relationships: (prev.relationships || []).map(rel => ({
         ...rel,
-        affection: 100,
-        trust: 100,
-        respect: 100,
+        relationshipScore: 100,
       })),
     }));
     Alert.alert('Success', 'All relationships maxed!');
@@ -317,20 +306,27 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
 
   const addEducation = () => {
     setGameState(prev => {
-      const existingIds = new Set((prev.education || []).map(e => e.id));
-      const newEducation = [
-        { id: 'highSchool', name: 'High School', completed: true },
-        { id: 'university', name: 'University', completed: true },
-        { id: 'masters', name: 'Masters Degree', completed: true },
-        { id: 'phd', name: 'PhD', completed: true },
+      const existingIds = new Set((prev.educations || []).map(e => e.id));
+      const allEducations = [
+        { id: 'high_school', name: 'High School Diploma', duration: 104, cost: 0, completed: true, weeksRemaining: 0 },
+        { id: 'police_academy', name: 'Police Academy', duration: 30, cost: 12000, completed: true, weeksRemaining: 0 },
+        { id: 'legal_studies', name: 'Legal Studies', duration: 46, cost: 18000, completed: true, weeksRemaining: 0 },
+        { id: 'entrepreneurship', name: 'Entrepreneurship Course', duration: 72, cost: 30000, completed: true, weeksRemaining: 0 },
+        { id: 'business_degree', name: 'Business Degree', duration: 90, cost: 48000, completed: true, weeksRemaining: 0 },
+        { id: 'computer_science', name: 'Computer Science', duration: 104, cost: 72000, completed: true, weeksRemaining: 0 },
+        { id: 'masters_degree', name: "Master's Degree", duration: 120, cost: 90000, completed: true, weeksRemaining: 0 },
+        { id: 'mba', name: 'MBA', duration: 150, cost: 120000, completed: true, weeksRemaining: 0 },
+        { id: 'medical_school', name: 'Medical School', duration: 180, cost: 150000, completed: true, weeksRemaining: 0 },
+        { id: 'law_school', name: 'Law School', duration: 156, cost: 132000, completed: true, weeksRemaining: 0 },
+        { id: 'phd', name: 'PhD', duration: 208, cost: 180000, completed: true, weeksRemaining: 0 },
       ].filter(e => !existingIds.has(e.id));
       
       return {
         ...prev,
-        education: [...(prev.education || []), ...newEducation],
+        educations: [...(prev.educations || []), ...allEducations],
       };
     });
-    Alert.alert('Success', 'All education levels added!');
+    Alert.alert('Success', 'All education levels added and completed!');
     saveGame();
   };
 
@@ -345,23 +341,64 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
 
   const unlockAllAchievements = () => {
     setGameState(prev => {
-      const existingIds = new Set((prev.progress?.achievements || []).map(a => a.id));
-      const newAchievements = [
-        { id: 'first_million', name: 'First Million', desc: 'Reach a net worth of $1,000,000.', unlockedAt: prev.week },
-        { id: 'debt_free', name: 'Debt Free', desc: 'Have no outstanding debts.', unlockedAt: prev.week },
-        { id: 'healthy_lifestyle', name: 'Healthy Lifestyle', desc: 'Maintain 90+ health for 10 consecutive weeks.', unlockedAt: prev.week },
-        { id: 'social_star', name: 'Social Star', desc: 'Maintain 10 relationships with affection over 70.', unlockedAt: prev.week },
-      ].filter(a => !existingIds.has(a.id));
+      // Import comprehensive achievements
+      const { achievements: comprehensiveAchievements } = require('@/src/features/onboarding/achievementsData');
+      
+      // Unlock all comprehensive achievements (progress achievements)
+      const existingProgressIds = new Set((prev.progress?.achievements || []).map(a => a.id));
+      const newProgressAchievements = comprehensiveAchievements
+        .filter((a: any) => !existingProgressIds.has(a.id))
+        .map((a: any) => ({
+          id: a.id,
+          name: a.title,
+          desc: a.description,
+          unlockedAt: prev.weeksLived || 0,
+        }));
+      
+      // Unlock all legacy achievements (GameState.achievements)
+      const existingLegacyIds = new Set((prev.achievements || []).map(a => a.id));
+      const updatedLegacyAchievements = (prev.achievements || []).map(ach => ({
+        ...ach,
+        completed: true,
+      }));
+      
+      // Add any missing legacy achievements from initialState
+      const legacyAchievementIds = [
+        'first_dollar', 'hundred_dollars', 'thousand_dollars', 'ten_thousand', 
+        'hundred_thousand', 'millionaire', 'deca_millionaire', 'first_job',
+        'street_worker', 'career_starter', 'promotion', 'entrepreneur',
+        'first_upgrade', 'all_upgrades', 'first_worker',
+      ];
+      
+      legacyAchievementIds.forEach(id => {
+        if (!existingLegacyIds.has(id)) {
+          updatedLegacyAchievements.push({
+            id,
+            name: id.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+            description: `Unlocked achievement: ${id}`,
+            category: 'dev',
+            completed: true,
+          });
+        }
+      });
+      
+      // Mark all claimed progress achievements
+      const allAchievementIds = new Set([
+        ...comprehensiveAchievements.map((a: any) => a.id),
+        ...legacyAchievementIds,
+      ]);
       
       return {
         ...prev,
         progress: {
           ...prev.progress,
-          achievements: [...(prev.progress?.achievements || []), ...newAchievements],
+          achievements: [...(prev.progress?.achievements || []), ...newProgressAchievements],
         },
+        achievements: updatedLegacyAchievements,
+        claimedProgressAchievements: Array.from(allAchievementIds),
       };
     });
-    Alert.alert('Success', 'All basic achievements unlocked!');
+    Alert.alert('Success', 'All achievements unlocked!');
     saveGame();
   };
 
@@ -375,6 +412,107 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
       addGems(amount);
       setCustomMoney('');
     }
+  };
+
+  // Disease Testing Functions
+  const addDisease = (diseaseId: string) => {
+    if (!gameState) return;
+    
+    try {
+      // Check if disease already exists BEFORE generating
+      const existingDiseases = gameState.diseases || [];
+      if (existingDiseases.some(d => d.id === diseaseId)) {
+        Alert.alert('Info', 'You already have this disease!');
+        return;
+      }
+
+      const newDisease = generateSpecificDisease(diseaseId, gameState);
+      if (!newDisease) {
+        Alert.alert('Error', `Could not generate disease: ${diseaseId}`);
+        return;
+      }
+
+      // Ensure diseaseHistory is properly initialized
+      const currentHistory = gameState.diseaseHistory || {
+        diseases: [],
+        totalDiseases: 0,
+        totalCured: 0,
+        deathsFromDisease: 0,
+      };
+
+      // Use requestAnimationFrame to ensure UI is ready, then update state
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          setGameState(prev => {
+            const updatedDiseases = [...(prev.diseases || []), newDisease];
+            return {
+              ...prev,
+              diseases: updatedDiseases,
+              showSicknessModal: true,
+              lastDiseaseWeek: prev.weeksLived || 0,
+              diseaseHistory: {
+                diseases: [
+                  ...(currentHistory.diseases || []),
+                  {
+                    id: newDisease.id,
+                    name: newDisease.name,
+                    contractedWeek: prev.weeksLived || 0,
+                    severity: newDisease.severity,
+                  },
+                ],
+                totalDiseases: (currentHistory.totalDiseases || 0) + 1,
+                totalCured: currentHistory.totalCured || 0,
+                deathsFromDisease: currentHistory.deathsFromDisease || 0,
+              },
+            };
+          });
+          
+          // Save and show success message asynchronously
+          setTimeout(() => {
+            saveGame();
+            Alert.alert('Success', `Added disease: ${newDisease.name}`);
+          }, 100);
+        }, 50);
+      });
+    } catch (error) {
+      console.error('Error adding disease:', error);
+      Alert.alert('Error', `Failed to add disease: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const clearAllDiseases = () => {
+    Alert.alert(
+      'Clear All Diseases',
+      'This will remove all active diseases. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          onPress: () => {
+            setGameState(prev => ({
+              ...prev,
+              diseases: [],
+              showSicknessModal: false,
+            }));
+            saveGame();
+            Alert.alert('Success', 'All diseases cleared!');
+          },
+        },
+      ]
+    );
+  };
+
+  const setLowHealthForTesting = () => {
+    updateStats({ health: 20, fitness: 15 });
+    Alert.alert('Info', 'Health and fitness set low to increase disease risk. Progress weeks to test disease generation.');
+  };
+
+  const resetDiseaseCooldown = () => {
+    setGameState(prev => ({
+      ...prev,
+      lastDiseaseWeek: 0, // Reset cooldown
+    }));
+    Alert.alert('Success', 'Disease cooldown reset. Diseases can now generate immediately.');
   };
 
   const tools = [
@@ -422,6 +560,19 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
       ]
     },
     {
+      category: 'Disease Testing',
+      items: [
+        { label: 'Common Cold', icon: Activity, action: () => addDisease('common_cold'), color: ['#10B981', '#059669'] },
+        { label: 'Flu', icon: Activity, action: () => addDisease('flu'), color: ['#F59E0B', '#D97706'] },
+        { label: 'Pneumonia', icon: AlertTriangle, action: () => addDisease('pneumonia'), color: ['#EF4444', '#DC2626'] },
+        { label: 'Cancer', icon: Skull, action: () => addDisease('cancer'), color: ['#991B1B', '#7F1D1D'] },
+        { label: 'Diabetes', icon: Heart, action: () => addDisease('diabetes'), color: ['#8B5CF6', '#7C3AED'] },
+        { label: 'Clear All', icon: X, action: clearAllDiseases, color: ['#6B7280', '#4B5563'] },
+        { label: 'Low Health Test', icon: Heart, action: setLowHealthForTesting, color: ['#EF4444', '#DC2626'] },
+        { label: 'Reset Cooldown', icon: RefreshCw, action: resetDiseaseCooldown, color: ['#6366F1', '#4F46E5'] },
+      ]
+    },
+    {
       category: 'System',
       items: [
         { label: 'Save Game', icon: Save, action: saveGame, color: ['#6366F1', '#4F46E5'] },
@@ -429,6 +580,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
         { label: 'Restart Game', icon: RefreshCw, action: restartGame, color: ['#EF4444', '#B91C1C'] },
         { label: 'View Logs', icon: FileText, action: () => setShowLogViewer(true), color: ['#4B5563', '#374151'] },
         { label: 'AI Debug Suite', icon: Bug, action: () => setShowAIDebug(true), color: ['#818CF8', '#6366F1'] },
+        { label: 'Comprehensive Tests', icon: ClipboardCheck, action: () => setShowTestRunner(true), color: ['#10B981', '#059669'] },
       ]
     }
   ];
@@ -494,13 +646,13 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
                     <Text style={styles.toggleLabel}>Prevent Stat Drain (God Mode)</Text>
                     <Switch
                         value={preventDrain}
-                        onValueChange={setPreventDrain}
+                        onValueChange={handleGodModeToggle}
                         trackColor={{ false: '#E5E7EB', true: '#10B981' }}
                         thumbColor={preventDrain ? '#FFFFFF' : '#F3F4F6'}
                     />
                 </View>
                 <Text style={styles.toggleDesc}>
-                    When enabled, health, happiness, and energy won't decrease when using time travel skips.
+                    When enabled, health, happiness, energy, and fitness will be locked at maximum values and won't decrease during week progression or time travel.
                 </Text>
             </View>
 
@@ -546,6 +698,16 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
       
       <LogViewer visible={showLogViewer} onClose={() => setShowLogViewer(false)} />
       <AIDebugMenu visible={showAIDebug} onClose={() => setShowAIDebug(false)} />
+      <Modal
+        visible={showTestRunner}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowTestRunner(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' }}>
+          <TestRunner onClose={() => setShowTestRunner(false)} />
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -563,7 +725,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.xl,
     width: '100%',
     maxHeight: '90%',
-    maxWidth: scale(500),
+    maxWidth: 500,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -685,3 +847,4 @@ const styles = StyleSheet.create({
       fontSize: 10,
   },
 });
+

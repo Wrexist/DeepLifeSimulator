@@ -1,17 +1,17 @@
-import React, { useEffect, useRef } from 'react';
-import { 
-  Modal, 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
+﻿import React, { useEffect, useRef } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
   Animated,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  Home, 
-  Calendar,
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import {
+  Home,
   TrendingUp,
   Clock,
   Sparkles,
@@ -21,9 +21,9 @@ import {
   Zap,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/GameContext';
-import { scale, fontScale, verticalScale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
+import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: _screenWidth } = Dimensions.get('window');
 
 interface WelcomeBackPopupProps {
   visible: boolean;
@@ -49,6 +49,9 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    let glowLoopRef: Animated.CompositeAnimation | null = null;
+    let pulseLoopRef: Animated.CompositeAnimation | null = null;
+
     if (visible) {
       // Reset animations
       scaleAnim.setValue(0.9);
@@ -79,7 +82,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
       ]).start();
 
       // Glow pulse animation
-      Animated.loop(
+      glowLoopRef = Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {
             toValue: 1,
@@ -92,10 +95,11 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      glowLoopRef.start();
 
       // Pulse animation for icon
-      Animated.loop(
+      pulseLoopRef = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.1,
@@ -108,8 +112,14 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulseLoopRef.start();
     }
+
+    return () => {
+      if (glowLoopRef) glowLoopRef.stop();
+      if (pulseLoopRef) pulseLoopRef.stop();
+    };
   }, [visible]);
 
   const handleClose = () => {
@@ -157,14 +167,14 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
   };
 
   return (
-    <Modal 
-      visible={visible} 
-      transparent 
+    <Modal
+      visible={visible}
+      transparent
       animationType="none"
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <Animated.View 
+        <Animated.View
           style={[
             styles.container,
             {
@@ -177,7 +187,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
           ]}
         >
           {/* Animated background glow */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.glowCircle,
               {
@@ -187,8 +197,8 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
           />
 
           <LinearGradient
-            colors={isDarkMode 
-              ? ['#1F2937', '#111827', '#0F172A'] 
+            colors={isDarkMode
+              ? ['#1F2937', '#111827', '#0F172A']
               : ['#FFFFFF', '#F8FAFC', '#EFF6FF']
             }
             start={{ x: 0, y: 0 }}
@@ -197,7 +207,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
           >
             {/* Header with animated home icon */}
             <View style={styles.header}>
-              <Animated.View 
+              <Animated.View
                 style={[
                   styles.iconContainer,
                   {
@@ -211,7 +221,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 >
                   <Home size={scale(40)} color="#FFFFFF" strokeWidth={2.5} />
                 </LinearGradient>
-                
+
                 {/* Sparkle accents */}
                 <View style={[styles.sparkleAccent, styles.sparkleTopLeft]}>
                   <Sparkles size={scale(14)} color="#60A5FA" fill="#60A5FA" />
@@ -260,30 +270,52 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                     Life Progress
                   </Text>
                   <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
-                    Week {gameState.weeksLived || 0} • Age {gameState.date?.age?.toFixed(1) || 0}
+                    Week {gameState.weeksLived || 0} | Age {gameState.date?.age?.toFixed(1) || 0}
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Quick Info */}
+            {/* ENGAGEMENT: Scaled Welcome Back Bonus */}
             <View style={styles.infoContainer}>
-              <View style={styles.infoRow}>
-                <View style={styles.infoIcon}>
-                  <TrendingUp size={scale(18)} color="#8B5CF6" />
-                </View>
-                <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                  Your progress has been saved
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <View style={styles.infoIcon}>
-                  <Zap size={scale(18)} color="#F59E0B" />
-                </View>
-                <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                  Continue your life journey
-                </Text>
-              </View>
+              {(() => {
+                // Calculate welcome bonus based on player income level
+                const currentCareer = gameState.careers?.find((c: any) => c?.id === gameState.currentJob && c?.accepted);
+                const weeklySalary = currentCareer?.levels?.[currentCareer?.level || 0]?.salary || 0;
+                const rewardWeeks = Math.min(Math.max(daysAway, 1), 7);
+                const welcomeBonus = Math.max(100, Math.round(weeklySalary * rewardWeeks * 0.5));
+                const streakCount = gameState.playStreak?.count || 0;
+                return (
+                  <>
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIcon}>
+                        <DollarSign size={scale(18)} color="#10B981" />
+                      </View>
+                      <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                        Welcome back bonus: +${welcomeBonus.toLocaleString()}
+                      </Text>
+                    </View>
+                    {streakCount > 1 && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIcon}>
+                          <TrendingUp size={scale(18)} color="#F59E0B" />
+                        </View>
+                        <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                          Play streak: {streakCount} days (+{Math.min(streakCount * 2, 20)}% income)
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIcon}>
+                        <Zap size={scale(18)} color="#8B5CF6" />
+                      </View>
+                      <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                        Continue your life journey
+                      </Text>
+                    </View>
+                  </>
+                );
+              })()}
             </View>
 
             {/* Action Button */}
@@ -512,4 +544,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+
 

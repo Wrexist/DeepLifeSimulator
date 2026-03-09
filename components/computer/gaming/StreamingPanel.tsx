@@ -1,6 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { Zap } from 'lucide-react-native';
 import { GamingStreamingState , GameSettings } from '@/contexts/game/types';
 
@@ -108,7 +109,7 @@ export default function StreamingPanel({
                 {game.name}
               </Text>
               <Text style={[styles.gameStats, settings.darkMode && styles.gameStatsDark]}>
-                {game.baseViewers} viewers • Donation-based
+                {game.baseViewers} viewers â€¢ Donation-based
               </Text>
               {game.required && gamingData.followers < game.required && (
                 <Text style={styles.requirementText}>
@@ -117,7 +118,7 @@ export default function StreamingPanel({
               )}
               {(gamingData.ownedGames || []).includes(game.id) ? (
                 <Text style={styles.ownedText}>
-                  ✓ Owned
+                  âœ“ Owned
                 </Text>
               ) : (
                 <Text style={styles.requirementText}>
@@ -139,7 +140,7 @@ export default function StreamingPanel({
             left={donation.position.left}
             bgStyle={settings.darkMode && styles.donationPopupDark}
           >
-            <Text style={[styles.donationAmount, settings.darkMode && styles.donationAmountDark]}>💰 ${donation.amount}</Text>
+            <Text style={[styles.donationAmount, settings.darkMode && styles.donationAmountDark]}>ðŸ’° ${donation.amount}</Text>
             <Text style={[styles.donationMessage, settings.darkMode && styles.donationMessageDark]}>{donation.message}</Text>
           </AnimatedPopup>
         ))}
@@ -151,13 +152,14 @@ export default function StreamingPanel({
             left={sub.position.left}
             bgStyle={[settings.darkMode && styles.donationPopupDark, { borderLeftColor: '#10B981' }]}
           >
-            <Text style={[styles.donationAmount, settings.darkMode && styles.donationAmountDark]}>⭐ New sub: {sub.name}</Text>
+            <Text style={[styles.donationAmount, settings.darkMode && styles.donationAmountDark]}>â­ New sub: {sub.name}</Text>
           </AnimatedPopup>
         ))}
       </View>
     </ScrollView>
   );
 }
+
 
 
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, BarChart3, Bell } from 'lucide-react-native';
+import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, BarChart3, Bell, BookOpen, Brain } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
 import EnhancedDataVisualization from '@/components/EnhancedDataVisualization';
@@ -13,8 +13,11 @@ import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import LifeStoryModal from '@/components/LifeStoryModal';
+import SkillTreeModal from '@/components/SkillTreeModal';
+import EmptyState from '@/components/ui/EmptyState';
 
-export default function ProgressionScreen() {
+function ProgressionScreen() {
   return (
     <ErrorBoundary>
       <ProgressionScreenContent />
@@ -30,6 +33,8 @@ function ProgressionScreenContent() {
   const [showPrestigeHistory, setShowPrestigeHistory] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
   const [showCommitments, setShowCommitments] = useState(false);
+  const [showLifeStory, setShowLifeStory] = useState(false);
+  const [showSkillTree, setShowSkillTree] = useState(false);
 
   React.useEffect(() => {
     checkAchievements();
@@ -61,11 +66,11 @@ function ProgressionScreenContent() {
     }
   };
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, settings?.darkMode !== false && styles.containerDark]}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
         <View style={styles.header}>
           <Trophy size={32} color="#F59E0B" />
-          <Text style={styles.title}>Your Progress</Text>
+          <Text style={[styles.title, settings?.darkMode !== false && styles.titleDark]}>Your Progress</Text>
         </View>
 
         {/* Prestige Section */}
@@ -103,20 +108,29 @@ function ProgressionScreenContent() {
               <Target size={24} color="#F59E0B" />
               <Text style={styles.featureButtonText}>Activity Commitments</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => setShowLifeStory(true)}
+            >
+              <BookOpen size={24} color="#8B5CF6" />
+              <Text style={styles.featureButtonText}>My Life Story</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => setShowSkillTree(true)}
+            >
+              <Brain size={24} color="#10B981" />
+              <Text style={styles.featureButtonText}>Life Skills</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <ProgressOverview />
         <Journal />
 
-        <View style={styles.minigamesSection}>
-          <Text style={styles.sectionTitle}>Hobby Minigames</Text>
-          {gameState.hobbies.map(h => (
-            <TouchableOpacity key={h.id} style={styles.minigameButton} onPress={() => setActiveHobby(h.id)}>
-              <Text>Play {h.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Hobbies removed - minigames section no longer available */}
 
         <View style={styles.overallProgress}>
           <Text style={styles.progressTitle}>Overall Achievement Progress</Text>
@@ -125,72 +139,74 @@ function ProgressionScreenContent() {
               {completedAchievements} / {totalAchievements} Completed
             </Text>
             <Text style={styles.progressPercent}>
-              {Math.round((completedAchievements / totalAchievements) * 100)}%
+              {totalAchievements > 0 ? Math.round((completedAchievements / totalAchievements) * 100) : 0}%
             </Text>
           </View>
           <View style={styles.progressBar}>
-            <View 
+            <View
               style={[
-                styles.progressFill, 
-                { width: `${(completedAchievements / totalAchievements) * 100}%` }
-              ]} 
+                styles.progressFill,
+                { width: `${totalAchievements > 0 ? (completedAchievements / totalAchievements) * 100 : 0}%` }
+              ]}
             />
           </View>
         </View>
 
         <View style={styles.achievementsSection}>
           <Text style={styles.sectionTitle}>Achievements ({completedAchievements}/{totalAchievements})</Text>
-          
-          {categories.map(category => {
-            const categoryAchievements = achievements.filter(a => a.category === category);
-            const categoryCompleted = categoryAchievements.filter(a => a.completed).length;
-            const { icon: CategoryIcon, color } = getCategoryIcon(category);
-            
-            return (
-              <View key={category} style={styles.categorySection}>
-                <View style={styles.categoryHeader}>
-                  <CategoryIcon size={20} color={color} />
-                  <Text style={styles.categoryTitle}>
-                    {category.charAt(0).toUpperCase() + category.slice(1)} ({categoryCompleted}/{categoryAchievements.length})
-                  </Text>
-                </View>
-                
-                {categoryAchievements.map(achievement => (
-                  <View key={achievement.id} style={styles.achievementCard}>
-                    <View style={styles.achievementIcon}>
-                      {achievement.completed ? (
-                        <Star size={20} color="#F59E0B" fill="#F59E0B" />
-                      ) : (
-                        <Target size={20} color="#9CA3AF" />
-                      )}
-                    </View>
-                    <View style={styles.achievementInfo}>
-                      <Text style={[
-                        styles.achievementName,
-                        achievement.completed && styles.completedAchievement,
-                        settings?.darkMode && !achievement.completed && { color: '#FFFFFF' }
-                      ]}>
-                        {achievement.name}
-                      </Text>
-                      <Text style={[styles.achievementDescription, settings?.darkMode && styles.achievementDescriptionDark]}>
-                        {achievement.description}
-                      </Text>
-                    </View>
+
+          {achievements.length === 0 ? (
+            <EmptyState
+              icon="🏆"
+              title="No Achievements Yet"
+              description="Keep playing and complete challenges to earn achievements."
+              darkMode={settings?.darkMode !== false}
+            />
+          ) : (
+            categories.map(category => {
+              const categoryAchievements = achievements.filter(a => a.category === category);
+              const categoryCompleted = categoryAchievements.filter(a => a.completed).length;
+              const { icon: CategoryIcon, color } = getCategoryIcon(category);
+
+              return (
+                <View key={category} style={styles.categorySection}>
+                  <View style={styles.categoryHeader}>
+                    <CategoryIcon size={20} color={color} />
+                    <Text style={styles.categoryTitle}>
+                      {category.charAt(0).toUpperCase() + category.slice(1)} ({categoryCompleted}/{categoryAchievements.length})
+                    </Text>
                   </View>
-                ))}
-              </View>
-            );
-          })}
+
+                  {categoryAchievements.map(achievement => (
+                    <View key={achievement.id} style={styles.achievementCard}>
+                      <View style={styles.achievementIcon}>
+                        {achievement.completed ? (
+                          <Star size={20} color="#F59E0B" fill="#F59E0B" />
+                        ) : (
+                          <Target size={20} color="#9CA3AF" />
+                        )}
+                      </View>
+                      <View style={styles.achievementInfo}>
+                        <Text style={[
+                          styles.achievementName,
+                          achievement.completed && styles.completedAchievement,
+                          settings?.darkMode && !achievement.completed && { color: '#FFFFFF' }
+                        ]}>
+                          {achievement.name}
+                        </Text>
+                        <Text style={[styles.achievementDescription, settings?.darkMode && styles.achievementDescriptionDark]}>
+                          {achievement.description}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              );
+            })
+          )}
         </View>
 
-        <View style={styles.minigamesSection}>
-          <Text style={styles.sectionTitle}>Hobby Minigames</Text>
-          {gameState.hobbies.map(h => (
-            <TouchableOpacity key={h.id} style={styles.minigameButton} onPress={() => setActiveHobby(h.id)}>
-              <Text>Play {h.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Hobbies removed - minigames section no longer available */}
 
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Life Stats</Text>
@@ -220,6 +236,8 @@ function ProgressionScreenContent() {
         <EnhancedDataVisualization darkMode={gameState.settings.darkMode} compact={false} />
         <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
         <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
+        <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
+        <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
     </View>
   );
 }
@@ -228,6 +246,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  containerDark: {
+    backgroundColor: '#0F172A',
   },
   content: {
     flex: 1,
@@ -243,6 +264,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1F2937',
     marginLeft: 12,
+  },
+  titleDark: {
+    color: '#F9FAFB',
   },
   overallProgress: {
     backgroundColor: '#FFFFFF',
@@ -358,6 +382,9 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     lineHeight: 16,
   },
+  achievementDescriptionDark: {
+    color: '#6B7280',
+  },
   statsSection: {
     marginBottom: 30,
   },
@@ -450,3 +477,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+export default React.memo(ProgressionScreen);

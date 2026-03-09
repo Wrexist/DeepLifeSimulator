@@ -12,6 +12,7 @@ import { POLICIES, getPolicyById, calculatePolicyEffects } from '@/lib/politics/
 import { AVAILABLE_LOBBYISTS, getLobbyistById, calculateTotalLobbyistInfluence } from '@/lib/politics/lobbyists';
 import { getNextElectionWeek } from '@/lib/politics/elections';
 import type { Dispatch, SetStateAction } from 'react';
+import { CAMPAIGN_MINIMUM_AMOUNT } from '@/lib/config/gameConstants';
 
 const log = logger.scope('PoliticalActions');
 
@@ -34,104 +35,104 @@ function calculateActivePolicyEffects(policiesEnacted: string[]): PoliticsState[
     if (!policy) return;
 
     // Aggregate stock effects
-    if (policy.effects.stocks) {
+    if (policy.effects.stocks && effects.stocks) {
       if (policy.effects.stocks.volatilityModifier !== undefined) {
-        effects.stocks!.volatilityModifier *= policy.effects.stocks.volatilityModifier;
+        effects.stocks.volatilityModifier *= policy.effects.stocks.volatilityModifier;
       }
       if (policy.effects.stocks.dividendBonus !== undefined) {
-        effects.stocks!.dividendBonus += policy.effects.stocks.dividendBonus;
+        effects.stocks.dividendBonus += policy.effects.stocks.dividendBonus;
       }
       if (policy.effects.stocks.companyBoost) {
-        effects.stocks!.companyBoost = [
-          ...(effects.stocks!.companyBoost || []),
+        effects.stocks.companyBoost = [
+          ...(effects.stocks.companyBoost || []),
           ...policy.effects.stocks.companyBoost,
         ];
       }
     }
 
     // Aggregate real estate effects
-    if (policy.effects.realEstate) {
+    if (policy.effects.realEstate && effects.realEstate) {
       if (policy.effects.realEstate.priceModifier !== undefined) {
-        effects.realEstate!.priceModifier *= policy.effects.realEstate.priceModifier;
+        effects.realEstate.priceModifier *= policy.effects.realEstate.priceModifier;
       }
       if (policy.effects.realEstate.rentModifier !== undefined) {
-        effects.realEstate!.rentModifier *= policy.effects.realEstate.rentModifier;
+        effects.realEstate.rentModifier *= policy.effects.realEstate.rentModifier;
       }
       if (policy.effects.realEstate.propertyTaxRate !== undefined) {
-        effects.realEstate!.propertyTaxRate = (effects.realEstate!.propertyTaxRate || 0) + policy.effects.realEstate.propertyTaxRate;
+        effects.realEstate.propertyTaxRate = (effects.realEstate.propertyTaxRate || 0) + policy.effects.realEstate.propertyTaxRate;
       }
     }
 
     // Aggregate education effects (take maximum for weeks reduction, sum for cost reduction)
-    if (policy.effects.education) {
+    if (policy.effects.education && effects.education) {
       if (policy.effects.education.weeksReduction !== undefined) {
-        effects.education!.weeksReduction = Math.max(
-          effects.education!.weeksReduction || 0,
+        effects.education.weeksReduction = Math.max(
+          effects.education.weeksReduction || 0,
           policy.effects.education.weeksReduction
         );
       }
       if (policy.effects.education.costReduction !== undefined) {
-        effects.education!.costReduction = Math.min(
+        effects.education.costReduction = Math.min(
           50,
-          (effects.education!.costReduction || 0) + policy.effects.education.costReduction
+          (effects.education.costReduction || 0) + policy.effects.education.costReduction
         );
       }
       if (policy.effects.education.scholarshipAmount !== undefined) {
-        effects.education!.scholarshipAmount = (effects.education!.scholarshipAmount || 0) + policy.effects.education.scholarshipAmount;
+        effects.education.scholarshipAmount = (effects.education.scholarshipAmount || 0) + policy.effects.education.scholarshipAmount;
       }
     }
 
     // Aggregate crypto effects
-    if (policy.effects.crypto) {
+    if (policy.effects.crypto && effects.crypto) {
       if (policy.effects.crypto.miningBonus !== undefined) {
-        effects.crypto!.miningBonus += policy.effects.crypto.miningBonus;
+        effects.crypto.miningBonus += policy.effects.crypto.miningBonus;
       }
       if (policy.effects.crypto.priceStability !== undefined) {
-        effects.crypto!.priceStability = Math.min(1, (effects.crypto!.priceStability || 0) + policy.effects.crypto.priceStability);
+        effects.crypto.priceStability = Math.min(1, (effects.crypto.priceStability || 0) + policy.effects.crypto.priceStability);
       }
       if (policy.effects.crypto.regulationLevel !== undefined) {
-        effects.crypto!.regulationLevel = (effects.crypto!.regulationLevel || 0) + policy.effects.crypto.regulationLevel;
+        effects.crypto.regulationLevel = (effects.crypto.regulationLevel || 0) + policy.effects.crypto.regulationLevel;
       }
     }
 
     // Aggregate technology effects
-    if (policy.effects.technology) {
+    if (policy.effects.technology && effects.technology) {
       if (policy.effects.technology.rdBonus !== undefined) {
-        effects.technology!.rdBonus += policy.effects.technology.rdBonus;
+        effects.technology.rdBonus += policy.effects.technology.rdBonus;
       }
       if (policy.effects.technology.patentBonus !== undefined) {
-        effects.technology!.patentBonus += policy.effects.technology.patentBonus;
+        effects.technology.patentBonus += policy.effects.technology.patentBonus;
       }
       if (policy.effects.technology.innovationGrants !== undefined) {
-        effects.technology!.innovationGrants = (effects.technology!.innovationGrants || 0) + policy.effects.technology.innovationGrants;
+        effects.technology.innovationGrants = (effects.technology.innovationGrants || 0) + policy.effects.technology.innovationGrants;
       }
     }
 
     // Aggregate healthcare effects
-    if (policy.effects.healthcare) {
+    if (policy.effects.healthcare && effects.healthcare) {
       if (policy.effects.healthcare.healthBonus !== undefined) {
-        effects.healthcare!.healthBonus += policy.effects.healthcare.healthBonus;
+        effects.healthcare.healthBonus += policy.effects.healthcare.healthBonus;
       }
       if (policy.effects.healthcare.medicalCostReduction !== undefined) {
-        effects.healthcare!.medicalCostReduction = Math.min(
+        effects.healthcare.medicalCostReduction = Math.min(
           50,
-          (effects.healthcare!.medicalCostReduction || 0) + policy.effects.healthcare.medicalCostReduction
+          (effects.healthcare.medicalCostReduction || 0) + policy.effects.healthcare.medicalCostReduction
         );
       }
     }
 
     // Aggregate transportation effects
-    if (policy.effects.transportation) {
+    if (policy.effects.transportation && effects.transportation) {
       if (policy.effects.transportation.travelCostReduction !== undefined) {
-        effects.transportation!.travelCostReduction = Math.min(
+        effects.transportation.travelCostReduction = Math.min(
           50,
-          (effects.transportation!.travelCostReduction || 0) + policy.effects.transportation.travelCostReduction
+          (effects.transportation.travelCostReduction || 0) + policy.effects.transportation.travelCostReduction
         );
       }
       if (policy.effects.transportation.commuteTimeReduction !== undefined) {
-        effects.transportation!.commuteTimeReduction = Math.min(
+        effects.transportation.commuteTimeReduction = Math.min(
           50,
-          (effects.transportation!.commuteTimeReduction || 0) + policy.effects.transportation.commuteTimeReduction
+          (effects.transportation.commuteTimeReduction || 0) + policy.effects.transportation.commuteTimeReduction
         );
       }
     }
@@ -191,7 +192,7 @@ export const runForOffice = (
     return { success: false, message: `You need at least ${requirements.minReputation} reputation to run for this office. You have ${gameState.stats.reputation} reputation.` };
   }
   
-  if (requirements.education) {
+  if ('education' in requirements && requirements.education) {
     const missingEducation = requirements.education.filter(edu => !hasEducation(edu));
     if (missingEducation.length > 0) {
       const educationNames: Record<string, string> = {
@@ -204,15 +205,26 @@ export const runForOffice = (
     }
   }
   
-  if (requirements.previousLevel) {
-    const previousLevelIndex = POLITICAL_CAREER.levels.findIndex(
-      l => l.name.toLowerCase().includes(requirements.previousLevel!.split('_')[0])
-    );
-    if (career.level <= previousLevelIndex) {
+  if ('previousLevel' in requirements && requirements.previousLevel) {
+    // Safe to use non-null assertion here because we checked requirements.previousLevel exists above
+    const previousLevelStr = requirements.previousLevel;
+    // Safe string split - ensure string is not empty
+    const levelPrefix = previousLevelStr && previousLevelStr.length > 0
+      ? previousLevelStr.split('_')[0]
+      : '';
+    
+    const previousLevelIndex = levelPrefix
+      ? POLITICAL_CAREER.levels.findIndex(
+          l => l.name.toLowerCase().includes(levelPrefix)
+        )
+      : -1;
+    
+    // CRITICAL: Check if findIndex found a valid index (not -1) before accessing array
+    if (previousLevelIndex >= 0 && career.level <= previousLevelIndex) {
       const previousOfficeName = POLITICAL_CAREER.levels[previousLevelIndex]?.name || requirements.previousLevel;
       return { success: false, message: `You must first serve as ${previousOfficeName} before running for this office.` };
     }
-    if (weeksInCurrentLevel < requirements.minWeeksInPrevious) {
+    if ('minWeeksInPrevious' in requirements && requirements.minWeeksInPrevious && weeksInCurrentLevel < requirements.minWeeksInPrevious) {
       const weeksNeeded = requirements.minWeeksInPrevious - weeksInCurrentLevel;
       return { success: false, message: `You need ${weeksNeeded} more weeks in your current position before running for this office.` };
     }
@@ -246,16 +258,21 @@ export const runForOffice = (
     return { success: false, message: `You need $${campaignCost.toLocaleString()} to run for this office` };
   }
 
-  // Deduct campaign cost
-  deps.updateMoney(setGameState, -campaignCost, `Campaign for ${office}`);
+  // Pre-roll impure values before updater
+  const electionRoll = Math.random() * 100;
 
-  // Calculate election success chance (based on approval rating, reputation, and campaign funds)
+  // Calculate election success chance (based on approval rating, reputation, karma, and campaign funds)
   const baseChance = 50;
   const approvalBonus = politics.approvalRating * 0.3;
   const reputationBonus = gameState.stats.reputation * 0.2;
-  const successChance = Math.min(95, baseChance + approvalBonus + reputationBonus);
+  let karmaApprovalBonus = 0;
+  if (gameState.karma) {
+    const { getKarmaModifiers } = require('@/lib/karma/karmaSystem');
+    karmaApprovalBonus = getKarmaModifiers(gameState.karma).politicalApprovalModifier;
+  }
+  const successChance = Math.min(95, baseChance + approvalBonus + reputationBonus + karmaApprovalBonus);
 
-  const won = Math.random() * 100 < successChance;
+  const won = electionRoll < successChance;
 
   if (won) {
     // Determine new level based on office
@@ -269,7 +286,7 @@ export const runForOffice = (
     };
 
     const newLevel = levelMap[office];
-    const currentWeek = gameState.week;
+    const currentWeek = gameState.weeksLived;
     const nextElection = getNextElectionWeek(currentWeek, newLevel as 0 | 1 | 2 | 3 | 4 | 5, currentWeek);
 
     // Calculate election win reward based on office level
@@ -284,13 +301,13 @@ export const runForOffice = (
 
     const reward = electionRewards[office] || 0;
 
-    // Add election reward
-    if (reward > 0) {
-      deps.updateMoney(setGameState, reward, `Election win bonus for ${POLITICAL_CAREER.levels[newLevel].name}`);
-    }
-
+    // Atomic: merge campaign cost + election reward + politics update into single update
     setGameState(prev => ({
       ...prev,
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, prev.stats.money - campaignCost + reward),
+      },
       careers: prev.careers.map(c => {
         if (c.id !== 'political') return c;
         return {
@@ -322,11 +339,18 @@ export const runForOffice = (
 
     log.info(`Won election for ${office}, now at level ${newLevel}, reward: $${reward}`);
     const rewardMessage = reward > 0 ? ` You received $${reward.toLocaleString()} as an election bonus!` : '';
-    return { success: true, message: `Congratulations! You won the election and are now ${POLITICAL_CAREER.levels[newLevel].name}!${rewardMessage}` };
+    // Validate newLevel is within bounds before accessing levels array
+    const safeLevel = Math.max(0, Math.min(newLevel, POLITICAL_CAREER.levels.length - 1));
+    const levelName = POLITICAL_CAREER.levels[safeLevel]?.name || 'Unknown Office';
+    return { success: true, message: `Congratulations! You won the election and are now ${levelName}!${rewardMessage}` };
   } else {
-    // Lost election - small approval hit
+    // Lost election - deduct campaign cost + small approval hit
     setGameState(prev => ({
       ...prev,
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, prev.stats.money - campaignCost),
+      },
       politics: {
         ...prev.politics || {
           careerLevel: 0,
@@ -384,35 +408,23 @@ export const enactPolicy = (
     return { success: false, message: `You need $${policy.implementationCost.toLocaleString()} to implement this policy` };
   }
 
-  // Deduct cost
-  if (policy.implementationCost > 0) {
-    deps.updateMoney(setGameState, -policy.implementationCost, `Implement ${policy.name}`);
-  }
-
   // Apply approval impact
   const newApproval = Math.max(0, Math.min(100, politics.approvalRating + policy.approvalImpact));
-
-  // Apply policy effects
-  if (policy.effects.money) {
-    deps.updateStats(setGameState, { money: policy.effects.money });
-  }
-  if (policy.effects.happiness) {
-    deps.updateStats(setGameState, { happiness: policy.effects.happiness });
-  }
-  if (policy.effects.health) {
-    deps.updateStats(setGameState, { health: policy.effects.health });
-  }
-  if (policy.effects.reputation) {
-    deps.updateStats(setGameState, { reputation: policy.effects.reputation });
-  }
 
   // Calculate active policy effects
   const updatedPoliciesEnacted = [...(politics.policiesEnacted || []), policyId];
   const activePolicyEffects = calculateActivePolicyEffects(updatedPoliciesEnacted);
 
-  // Update politics state
+  // Atomic: merge cost + stats effects + politics update into single update
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, prev.stats.money - (policy.implementationCost || 0) + (policy.effects.money || 0)),
+      happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + (policy.effects.happiness || 0))),
+      health: Math.max(0, Math.min(100, (prev.stats.health || 0) + (policy.effects.health || 0))),
+      reputation: Math.max(0, Math.min(100, (prev.stats.reputation || 0) + (policy.effects.reputation || 0))),
+    },
     politics: {
       ...prev.politics || {
         careerLevel: 0,
@@ -431,8 +443,8 @@ export const enactPolicy = (
         ...(prev.politics?.activePolicies || []),
         {
           policyId,
-          enactedWeek: prev.week,
-          expiresWeek: policy.duration ? prev.week + policy.duration : undefined,
+          enactedWeek: prev.weeksLived || 0,
+          expiresWeek: policy.duration ? (prev.weeksLived || 0) + policy.duration : undefined,
         },
       ],
       policyInfluence: Math.min(100, (prev.politics?.policyInfluence || 0) + 5),
@@ -464,14 +476,16 @@ export const lobby = (
     return { success: false, message: 'Minimum lobbying amount is $1,000' };
   }
 
-  // Deduct money
-  deps.updateMoney(setGameState, -amount, `Lobby for ${policy.name}`);
-
   // Increase policy influence (lobbying makes policies easier to pass)
   const influenceGain = Math.min(10, Math.floor(amount / 10000));
 
+  // Atomic: merge money deduction + influence update into single update
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, prev.stats.money - amount),
+    },
     politics: {
       ...prev.politics || {
         careerLevel: 0,
@@ -492,7 +506,7 @@ export const lobby = (
 };
 
 export const joinParty = (
-  gameState: GameState,
+  _gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   party: 'democratic' | 'republican' | 'independent'
 ): { success: boolean; message: string } => {
@@ -540,6 +554,7 @@ export const formAlliance = (
     return { success: false, message: 'You already have an alliance with this character' };
   }
 
+  const allianceTimestamp = Date.now();
   setGameState(prev => ({
     ...prev,
     politics: {
@@ -556,11 +571,11 @@ export const formAlliance = (
       alliances: [
         ...(prev.politics?.alliances || []),
         {
-          id: `alliance_${characterId}_${Date.now()}`,
+          id: `alliance_${characterId}_${allianceTimestamp}`,
           characterId,
           name: characterName,
           influence: 10,
-          formedWeek: prev.week,
+          formedWeek: prev.weeksLived || 0,
         },
       ],
       approvalRating: Math.min(100, (prev.politics?.approvalRating || 50) + 3),
@@ -581,18 +596,20 @@ export const campaign = (
     return { success: false, message: 'Insufficient funds' };
   }
 
-  if (amount < 500) {
-    return { success: false, message: 'Minimum campaign amount is $500' };
+  if (amount < CAMPAIGN_MINIMUM_AMOUNT) {
+    return { success: false, message: `Minimum campaign amount is $${CAMPAIGN_MINIMUM_AMOUNT}` };
   }
-
-  // Deduct money
-  deps.updateMoney(setGameState, -amount, 'Campaign spending');
 
   // Increase approval rating (diminishing returns)
   const approvalGain = Math.min(10, Math.floor(amount / 5000));
 
+  // Atomic: merge money deduction + politics update into single update
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, prev.stats.money - amount),
+    },
     politics: {
       ...prev.politics || {
         careerLevel: 0,
@@ -645,9 +662,6 @@ export const hireLobbyist = (
     return { success: false, message: `You need $${lobbyist.cost.toLocaleString()} to hire ${lobbyist.name}` };
   }
 
-  // Deduct cost
-  deps.updateMoney(setGameState, -lobbyist.cost, `Hire ${lobbyist.name}`);
-
   // Add lobbyist to list
   const newLobbyist = {
     id: lobbyist.id,
@@ -657,12 +671,13 @@ export const hireLobbyist = (
     active: true,
   };
 
-  // Calculate new policy influence
-  const newLobbyistIds = [...politics.lobbyists.map(l => l.id), lobbyistId];
-  const totalInfluence = calculateTotalLobbyistInfluence(newLobbyistIds);
-
+  // Atomic: merge money deduction + lobbyist addition into single update
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, prev.stats.money - lobbyist.cost),
+    },
     politics: {
       ...prev.politics || {
         careerLevel: 0,

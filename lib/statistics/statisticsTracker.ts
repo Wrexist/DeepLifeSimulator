@@ -5,6 +5,7 @@
 
 import type { GameState, LifetimeStatistics, CareerHistoryEntry, NetWorthSnapshot } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 // Maximum history entries to keep
 const MAX_NET_WORTH_HISTORY = 100;
@@ -204,7 +205,7 @@ export function updateJobStats(
     ...stats,
     careerHistory: history,
     totalWeeksWorked: stats.totalWeeksWorked + 1,
-    highestSalary: Math.max(stats.highestSalary, weeklyEarnings * 52), // Annualized
+    highestSalary: Math.max(stats.highestSalary, weeklyEarnings * WEEKS_PER_YEAR), // Annualized
   };
 }
 
@@ -335,8 +336,9 @@ export function updateWeeklyStatistics(
   // Track current job
   if (state.currentJob) {
     const career = state.careers?.find(c => c.id === state.currentJob);
-    if (career) {
-      stats = updateJobStats(stats, state.currentJob, career.salary || 0);
+    if (career && career.levels && career.levels.length > 0) {
+      const currentLevel = career.levels[career.level] || career.levels[0];
+      stats = updateJobStats(stats, state.currentJob, currentLevel.salary || 0);
     }
   }
   
@@ -384,7 +386,7 @@ export function formatStatNumber(value: number): string {
   if (value >= 1_000_000) {
     return `${(value / 1_000_000).toFixed(2)}M`;
   }
-  if (value >= 1_000) {
+  if (value > 10_000) {
     return `${(value / 1_000).toFixed(2)}K`;
   }
   return value.toLocaleString();
@@ -443,7 +445,7 @@ export function getAchievementProgress(state: GameState): {
   percentage: number;
 } {
   const achievements = state.achievements || [];
-  const unlocked = achievements.filter(a => a.unlocked).length;
+  const unlocked = achievements.filter(a => a.completed).length;
   const total = achievements.length;
   
   return {

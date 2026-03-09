@@ -1,15 +1,16 @@
 /**
  * AI Debug Suite - Main Export
- * 
- * This module provides comprehensive debugging tools for AI-assisted
- * bug finding and analysis in DeepLifeSim.
- * 
+ *
+ * This module provides essential debugging tools for game testing
+ * and development in DeepLifeSim.
+ *
  * Usage:
  * ```typescript
- * import { 
- *   createDebugSnapshot, 
+ * import {
+ *   createDebugSnapshot,
  *   runIntegrityChecks,
- *   runFuzz 
+ *   generateActionSimulations,
+ *   generateLifeScenarios
  * } from '@/src/debug';
  * ```
  */
@@ -44,21 +45,17 @@ export {
 // Integrity Checks
 export {
   runIntegrityChecks,
-  quickStateCheck,
-  filterIssuesBySeverity,
-  filterIssuesByCategory,
-  formatReportAsText,
   type IntegrityIssue,
   type IntegrityReport,
 } from './aiIntegrityChecks';
 
-// Fuzz Testing Engine
+// Action Simulator
 export {
-  runFuzz,
-  createGameFuzzConfig,
-  SeededRandom,
-  CommonInvariants,
-  type FuzzConfig,
-  type FuzzResult,
-} from './fuzzEngine';
+  generateActionSimulations,
+  generateLifeScenarios,
+  runActionSimulation,
+  runLifeScenario,
+  type SimulatedAction,
+  type LifeScenario,
+} from './actionSimulator';
 

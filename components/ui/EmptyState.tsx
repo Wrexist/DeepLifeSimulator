@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, ViewStyle, TextStyle, TouchableOpacity } from 'react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 
 interface EmptyStateProps {
   icon?: string;
@@ -15,7 +16,7 @@ interface EmptyStateProps {
 }
 
 export default function EmptyState({
-  icon = '📭',
+  icon = '\u{1F52D}',
   title,
   description,
   actionText,
@@ -35,23 +36,27 @@ export default function EmptyState({
       >
         <View style={styles.content}>
           <Text style={styles.icon}>{icon}</Text>
-          
+
           <Text style={[styles.title, darkMode && styles.titleDark, titleStyle]}>
             {title}
           </Text>
-          
+
           {description && (
             <Text style={[styles.description, darkMode && styles.descriptionDark, descriptionStyle]}>
               {description}
             </Text>
           )}
-          
+
           {actionText && onAction && (
-            <View style={styles.actionContainer}>
+            <TouchableOpacity
+              style={styles.actionContainer}
+              onPress={onAction}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.actionText, darkMode && styles.actionTextDark]}>
                 {actionText}
               </Text>
-            </View>
+            </TouchableOpacity>
           )}
         </View>
       </LinearGradient>
@@ -63,7 +68,7 @@ export default function EmptyState({
 export function EmptyPortfolio({ onAddInvestment }: { onAddInvestment?: () => void }) {
   return (
     <EmptyState
-      icon="📈"
+      icon={'\u{1F4C8}'}
       title="No Investments Yet"
       description="Start building your portfolio by investing in stocks, crypto, or real estate."
       actionText="Start Investing"
@@ -75,7 +80,7 @@ export function EmptyPortfolio({ onAddInvestment }: { onAddInvestment?: () => vo
 export function EmptyProperties({ onBuyProperty }: { onBuyProperty?: () => void }) {
   return (
     <EmptyState
-      icon="🏠"
+      icon={'\u{1F3E0}'}
       title="No Properties Owned"
       description="Invest in real estate to generate passive income and build wealth."
       actionText="Browse Properties"
@@ -87,7 +92,7 @@ export function EmptyProperties({ onBuyProperty }: { onBuyProperty?: () => void 
 export function EmptyAchievements() {
   return (
     <EmptyState
-      icon="🏆"
+      icon={'\u{1F3C6}'}
       title="No Achievements Yet"
       description="Complete various life milestones to unlock achievements and earn rewards."
     />
@@ -97,7 +102,7 @@ export function EmptyAchievements() {
 export function EmptyNotifications() {
   return (
     <EmptyState
-      icon="🔔"
+      icon={'\u{1F514}'}
       title="No Notifications"
       description="You're all caught up! Check back later for updates."
     />
@@ -107,7 +112,7 @@ export function EmptyNotifications() {
 export function EmptySearch({ searchTerm }: { searchTerm?: string }) {
   return (
     <EmptyState
-      icon="🔍"
+      icon={'\u{1F50D}'}
       title="No Results Found"
       description={searchTerm ? `No results found for "${searchTerm}"` : "Try adjusting your search criteria."}
     />
@@ -117,7 +122,7 @@ export function EmptySearch({ searchTerm }: { searchTerm?: string }) {
 export function EmptyTransactions() {
   return (
     <EmptyState
-      icon="💳"
+      icon={'\u{1F4B3}'}
       title="No Transactions"
       description="Your transaction history will appear here once you start making purchases."
     />

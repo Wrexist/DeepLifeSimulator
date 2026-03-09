@@ -8,6 +8,7 @@
  */
 
 import { GameState, GameStats } from '@/contexts/game/types';
+import { WEEKS_PER_YEAR, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 
 export interface IntegrityIssue {
   /** Unique identifier for the issue */
@@ -380,12 +381,12 @@ export function runIntegrityChecks(state: GameState | null): IntegrityReport {
 
   // Weeks lived vs age consistency
   if (state.date?.age && typeof state.weeksLived === 'number') {
-    const expectedMinWeeks = (state.date.age - 18) * 52;
-    const expectedMaxWeeks = (state.date.age - 17) * 52;
-    
+    const expectedMinWeeks = (state.date.age - ADULTHOOD_AGE) * WEEKS_PER_YEAR;
+    const expectedMaxWeeks = (state.date.age - ADULTHOOD_AGE + 1) * WEEKS_PER_YEAR;
+
     // Allow some tolerance
     addCheck(
-      state.weeksLived >= expectedMinWeeks - 52 && state.weeksLived <= expectedMaxWeeks + 52,
+      state.weeksLived >= expectedMinWeeks - WEEKS_PER_YEAR && state.weeksLived <= expectedMaxWeeks + WEEKS_PER_YEAR,
       {
         severity: 'low',
         category: 'logic',

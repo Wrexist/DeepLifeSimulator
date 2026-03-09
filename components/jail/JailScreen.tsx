@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { 
@@ -125,7 +126,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               }));
               const result = performJailActivity(activityId);
               if (result) {
-                const title = result.success ? '✅ Activity Completed' : '❌ Activity Failed';
+                const title = result.success ? 'âœ… Activity Completed' : 'âŒ Activity Failed';
                 Alert.alert(title, result.message);
               }
             }
@@ -143,7 +144,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
 
     const result = performJailActivity(activityId);
     if (result) {
-      const title = result.success ? '✅ Activity Completed' : '❌ Activity Failed';
+      const title = result.success ? 'âœ… Activity Completed' : 'âŒ Activity Failed';
       Alert.alert(title, result.message);
     }
   };
@@ -828,3 +829,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+

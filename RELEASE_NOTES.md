@@ -1,141 +1,113 @@
 # Deep Life Simulator - Update Release Notes
 
-## Version 2.2.8 - Major Quality of Life & Balance Update
+## Version 2.3.0 - Stability, Purchase Fixes & Major Bug Sweep
 
-**Release Date**: Current  
+**Release Date**: March 2026
+**Build**: 94
 **Compatibility**: All existing saves compatible - no breaking changes
+
+---
+
+## 🛒 In-App Purchase Overhaul
+
+We've done a comprehensive audit and fix of the entire purchase system to make sure every dollar you spend is properly applied:
+
+- **Purchase Safety**: Purchases are now fully applied to your account before being marked as consumed with Apple — no more risk of losing a purchase if the app closes at the wrong moment
+- **Perk Effects Fixed**: IAP perks (Work Boost, Fast Learner, Mindset, Good Credit) now properly apply their bonuses in-game. A naming mismatch was preventing purchased perks from having any effect — this is now fixed
+- **Restore Purchases Improved**: You'll now get clear feedback if a restore fails, instead of silent failure
+- **Ad Removal Reliable**: The "Remove Ads" purchase now consistently hides all ads across the entire app
+- **Work Boost Preserved**: Work Boost is now correctly saved as a permanent purchase — it won't disappear after reinstalling
+- **All Perks Bundle**: The unlock-all-perks bundle now properly persists all individual perk flags
+
+---
+
+## 🔧 Massive Bug Sweep (70+ Fixes)
+
+### Save System Hardening
+- Fixed 4 missing default values that could cause save corruption on older saves
+- Cloud sync now validates data integrity on download — corrupted cloud saves won't overwrite your good local save
+- Fixed stale closure bugs in cloud sync that could cause sync to silently fail
+- Save migration properly backfills new fields for older save files
+
+### Economy & Finance Fixes
+- Stock purchases now correctly apply transaction fees
+- Vehicle selling has a proper minimum price floor
+- Dividend fees are now consistent across all code paths
+- Rent income rate unified across the entire codebase (was using 3 different rates!)
+- Stock symbols now handle case correctly — no more "phantom stocks" from mixed capitalization
+- Company upgrade calculations fixed for stale state issues
+- Loan system guards against edge cases
+
+### Stability Improvements
+- Fixed AdMob crash on startup (missing native configuration)
+- Fixed ErrorBoundary null access crash
+- Fixed crash recovery validation
+- Removed duplicate exception handler that could mask real errors
+- 20+ TypeScript type safety improvements across the codebase
 
 ---
 
 ## 🎲 Fairness Improvements
 
 ### Guaranteed Success Systems
-We've added "pity systems" to prevent frustrating infinite failures:
-
-- **Having Children**: After 15 attempts, success is guaranteed. You'll see how many attempts remain until guaranteed success.
-- **Marriage Proposals**: At very high relationship scores (95%+), proposals are now guaranteed to succeed - no more losing expensive rings to bad luck!
-- **Job Applications**: If you meet all requirements perfectly, you're guaranteed acceptance after 3 attempts. No more endless rejections with perfect qualifications.
-- **Weekly Events**: Guaranteed event after 6 weeks without any events, so the game never feels empty.
-
-### Disease Protection
-- **Disease Cooldown**: Maximum 1 disease per 4 weeks to prevent unfair disease stacking.
-
-**Why This Matters**: Randomness should add excitement, not frustration. These systems ensure that even with bad luck, you'll eventually succeed at important actions.
+- **Having Children**: After 15 attempts, success is guaranteed
+- **Marriage Proposals**: At 95%+ relationship, proposals always succeed
+- **Job Applications**: Perfect qualifications guarantee acceptance after 3 attempts
+- **Weekly Events**: Guaranteed event after 6 weeks without any events
+- **Disease Cooldown**: Maximum 1 disease per 4 weeks
 
 ---
 
 ## 💔 Relationship Consequences
 
-### Automatic Relationship Failures
 Relationships now have real consequences for neglect:
-
-- **Partners**: Will break up with you after 8 weeks at relationship score ≤ 10
-- **Spouses**: Will file for divorce after 12 weeks at relationship score ≤ 15
-  - Divorce includes financial settlement (20-30% of your money, minimum $5,000)
-  - Lawyer fees: $5,000
-  - Reputation and happiness penalties
-
-**Why This Matters**: Relationships are no longer just numbers - they require active maintenance. Neglect has real consequences, making relationships feel meaningful and adding emotional depth to the game.
+- **Partners**: Will break up after 8 weeks at relationship score ≤ 10
+- **Spouses**: Will file for divorce after 12 weeks at score ≤ 15
+  - Includes financial settlement (20-30% of your money)
+  - Lawyer fees and reputation/happiness penalties
 
 ---
 
-## ⚡ Performance Optimizations
+## ⚡ Performance
 
-### Faster Gameplay
-Major performance improvements for long playthroughs:
-
-- **90% faster** video/stream income calculations
-- **50% faster** family expense calculations
-- **80% smaller** save files for long playthroughs
+- 90% faster video/stream income calculations
+- 50% faster family expense calculations
+- 80% smaller save files for long playthroughs
 - Smoother weekly progression even after 1000+ weeks
-
-### What Changed
-- Optimized how the game processes large families and content libraries
-- Reduced memory usage for long-running saves
-- Faster save/load times
-
-**Why This Matters**: The game stays smooth and responsive even after years of in-game time. Your save files won't bloat, and weekly progression stays fast.
 
 ---
 
 ## 💰 Economy Balance
 
-### Company Management
-- **Multiple Companies**: Managing many companies now has diminishing returns (10-30% efficiency penalty for 4+ companies)
-- **Company Upgrades**: Higher upgrade levels have reduced efficiency (10% reduction per level)
-- **Gaming/Streaming**: Older content generates less income over time (5% decay per week, minimum 10%)
-- **Reputation**: Reputation now decays slowly over time (1% weekly, 0.5% for reputation careers)
-
-**Why This Matters**: Prevents exponential wealth growth, adds strategic depth to business decisions, and makes the economy feel more realistic.
+- Multiple companies now have diminishing returns (4+ companies)
+- Gaming/streaming content decays over time (more realistic)
+- Reputation decays slowly, requiring active maintenance
+- Company upgrade efficiency scales with level
 
 ---
 
-## 🐛 Bug Fixes & Quality of Life
+## 🐛 Other Fixes
 
-### Fixed Issues
-- **Children Pity System**: Money is now only deducted when conception succeeds (no more losing money on failed attempts)
-- **Event System**: Old saves now properly track event history
-- **Save Files**: Automatic cleanup of old data prevents save file bloat
-- **Performance**: Optimized calculations for large families and content libraries
-
-### Improved Systems
-- Better error handling for edge cases
-- More defensive programming to prevent rare bugs
-- Improved code documentation for future maintenance
+- Updated Discord community link
+- Removed dead code and unused signals in purchase system
+- Cleaned up banking service unnecessary expiry dates on permanent purchases
+- Improved error messages throughout the app
 
 ---
 
-## 📊 Technical Improvements
+## 📊 Summary
 
-### Code Quality
-- Added comprehensive code review and defensive improvements
-- Better error handling and edge case coverage
-- Improved performance monitoring and optimization
-- Enhanced save file management
+This is our biggest stability update yet:
 
-### Stability
-- Fixed potential bugs in relationship tracking
-- Improved state management for long playthroughs
-- Better handling of edge cases in economy calculations
+✅ **70+ bugs fixed** across saves, economy, purchases, and state management
+✅ **Purchase system overhauled** — every IAP now works correctly
+✅ **Crash fixes** — resolved startup crashes and edge case crashes
+✅ **Fairness** — pity systems prevent infinite failures
+✅ **Consequences** — relationships feel meaningful
+✅ **Performance** — faster gameplay, smaller saves
 
----
-
-## 🎮 Player Experience
-
-### What You'll Notice
-- **Fairer Randomness**: Important actions have guarantees after multiple attempts
-- **Meaningful Relationships**: Neglect has consequences, relationships feel real
-- **Better Performance**: Faster weekly progression, smaller save files
-- **Balanced Economy**: More strategic decisions, less exponential growth
-
-### What Stayed the Same
-- Core gameplay mechanics unchanged
-- All existing saves remain compatible
-- No breaking changes to favorite features
-- Randomness still adds excitement (just with safety nets)
+All changes are **backward compatible** — your existing saves will work perfectly!
 
 ---
 
-## 📝 Summary
-
-This update focuses on **fairness, consequences, and performance**:
-
-✅ **Fairness**: Pity systems prevent infinite failures  
-✅ **Consequences**: Relationships have real stakes  
-✅ **Performance**: Faster gameplay, smaller saves  
-✅ **Balance**: More strategic economy decisions  
-
-All changes are **backward compatible** - your existing saves will work perfectly with these improvements!
-
----
-
-## 🔮 Coming Soon
-
-We're working on:
-- UI improvements to show success rates and attempt counters
-- Additional quality of life features
-- More strategic depth in career and relationship systems
-
-Thank you for playing Deep Life Simulator! 🎮
-
-
+Thank you for playing Deep Life Simulator! Join our Discord community to share feedback and suggestions.

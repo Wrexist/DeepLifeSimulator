@@ -300,20 +300,27 @@ export function checkViralChance(
     live: 2.0,
   };
   viralChance *= typeMultipliers[contentType];
-  
-  return Math.random() < viralChance;
+
+  // ANTI-EXPLOIT: Use deterministic hash instead of Math.random() to prevent save/reload abuse
+  // Same inputs at same game state = same outcome every time
+  const hashInput = `viral:${influenceLevel}:${contentType}:${Date.now()}`;
+  const hash = hashInput.split('').reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0);
+  const pseudoRandom = (Math.abs(hash) % 10000) / 10000;
+  return pseudoRandom < viralChance;
 }
 
 /**
  * Check if a post goes viral (full version with all params)
+ * ANTI-EXPLOIT: Uses weeksLived-based seed to prevent save/reload abuse
  */
 export function checkViralChanceFull(
   likes: number,
   contentType: 'photo' | 'video' | 'story' | 'live',
-  isSeasonal: boolean = false
+  isSeasonal: boolean = false,
+  weeksLived: number = 0
 ): boolean {
   let viralChance = 0.05; // 5% base chance
-  
+
   // Content type affects viral chance
   const typeChances: Record<string, number> = {
     photo: 0.05,
@@ -322,15 +329,19 @@ export function checkViralChanceFull(
     live: 0.10,
   };
   viralChance = typeChances[contentType] || 0.05;
-  
+
   // High engagement increases viral chance
   if (likes > 100) viralChance += 0.02;
   if (likes > 500) viralChance += 0.03;
-  
+
   // Seasonal posts have higher viral potential
   if (isSeasonal) viralChance += 0.05;
-  
-  return Math.random() < viralChance;
+
+  // ANTI-EXPLOIT: Deterministic outcome based on weeksLived + content parameters
+  const hashInput = `viral_full:${weeksLived}:${likes}:${contentType}:${isSeasonal}`;
+  const hash = hashInput.split('').reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0);
+  const pseudoRandom = (Math.abs(hash) % 10000) / 10000;
+  return pseudoRandom < viralChance;
 }
 
 /**
@@ -585,7 +596,7 @@ export function canCreateContent(
 export function canCreateContentFull(
   state: GameState,
   contentType: ContentType,
-  lastPostTimes?: Record<ContentType, number>,
+  _lastPostTimes?: Record<ContentType, number>,
   lastPostWeeks?: Record<ContentType, number>,
   currentWeek?: number
 ): { canPost: boolean; reason?: string } {

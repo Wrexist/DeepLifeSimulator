@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Vehicle App Component
  * 
  * Complete garage management: purchase/sell vehicles, refuel, repair, insurance, and driver's license
@@ -15,7 +15,8 @@ import {
   Modal,
   Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   Car,
@@ -36,6 +37,7 @@ import {
   Settings,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import EmptyState from '@/components/ui/EmptyState';
 import {
   VEHICLE_TEMPLATES,
   INSURANCE_PLANS,
@@ -383,15 +385,12 @@ export default function VehicleApp({ onBack }: VehicleAppProps) {
   const renderGarage = () => (
     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
       {ownedVehicles.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Car size={scale(64)} color={settings.darkMode ? '#4B5563' : '#9CA3AF'} />
-          <Text style={[styles.emptyTitle, settings.darkMode && styles.textDark]}>
-            No Vehicles Yet
-          </Text>
-          <Text style={[styles.emptyDesc, settings.darkMode && styles.textMuted]}>
-            Visit the dealership to purchase your first vehicle!
-          </Text>
-        </View>
+        <EmptyState
+          icon="🚗"
+          title="No Vehicles"
+          description="Visit a dealership to buy your first car. Vehicles can improve your commute and lifestyle."
+          darkMode={settings?.darkMode ?? true}
+        />
       ) : (
         ownedVehicles.map(vehicle => {
           const VehicleIcon = getVehicleIcon(vehicle.type);
@@ -689,19 +688,19 @@ export default function VehicleApp({ onBack }: VehicleAppProps) {
         onRequestClose={() => setShowInsuranceModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, settings.darkMode && styles.modalContentDark]}>
-            <Text style={[styles.modalTitle, settings.darkMode && styles.textDark]}>
+          <View style={styles.modalContentDark}>
+            <Text style={[styles.modalTitle, styles.textDark]}>
               Insurance for {vehicle.name}
             </Text>
 
             {vehicle.insurance?.active ? (
               <View style={styles.currentInsurance}>
                 <Shield size={scale(40)} color="#8B5CF6" />
-                <Text style={[styles.currentInsuranceText, settings.darkMode && styles.textDark]}>
+                <Text style={[styles.currentInsuranceText, styles.textDark]}>
                   {vehicle.insurance.type.charAt(0).toUpperCase() + vehicle.insurance.type.slice(1)} Insurance Active
                 </Text>
-                <Text style={[styles.currentInsuranceDesc, settings.darkMode && styles.textMuted]}>
-                  Expires in {Math.max(0, vehicle.insurance.expiresWeek - gameState.week)} weeks
+                <Text style={[styles.currentInsuranceDesc, styles.textMuted]}>
+                  Expires in {Math.max(0, vehicle.insurance.expiresWeek - gameState.weeksLived)} weeks
                 </Text>
                 <TouchableOpacity
                   style={styles.cancelInsuranceButton}
@@ -718,18 +717,18 @@ export default function VehicleApp({ onBack }: VehicleAppProps) {
                 {INSURANCE_PLANS.map(plan => (
                   <TouchableOpacity
                     key={plan.id}
-                    style={styles.insuranceOption}
+                    style={styles.insuranceOptionDark}
                     onPress={() => handlePurchaseInsurance(plan.type)}
                   >
                     <View style={styles.insuranceOptionHeader}>
-                      <Text style={[styles.insuranceOptionName, settings.darkMode && styles.textDark]}>
+                      <Text style={[styles.insuranceOptionName, styles.textDark]}>
                         {plan.type.charAt(0).toUpperCase() + plan.type.slice(1)}
                       </Text>
                       <Text style={styles.insuranceOptionPrice}>
                         ${plan.monthlyCost * 6} / 6 mo
                       </Text>
                     </View>
-                    <Text style={[styles.insuranceOptionCoverage, settings.darkMode && styles.textMuted]}>
+                    <Text style={[styles.insuranceOptionCoverage, styles.textMuted]}>
                       {plan.coveragePercent}% coverage
                     </Text>
                   </TouchableOpacity>
@@ -738,10 +737,10 @@ export default function VehicleApp({ onBack }: VehicleAppProps) {
             )}
 
             <TouchableOpacity
-              style={styles.modalCloseButton}
+              style={styles.modalCloseButtonDark}
               onPress={() => setShowInsuranceModal(false)}
             >
-              <Text style={styles.modalCloseText}>Close</Text>
+              <Text style={[styles.modalCloseText, styles.textDark]}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1228,6 +1227,10 @@ const styles = StyleSheet.create({
   },
   modalContentDark: {
     backgroundColor: '#1F2937',
+    borderTopLeftRadius: scale(24),
+    borderTopRightRadius: scale(24),
+    padding: scale(24),
+    maxHeight: '80%',
   },
   modalTitle: {
     fontSize: fontScale(20),
@@ -1269,6 +1272,12 @@ const styles = StyleSheet.create({
     padding: scale(16),
     marginBottom: scale(12),
   },
+  insuranceOptionDark: {
+    backgroundColor: '#374151',
+    borderRadius: scale(12),
+    padding: scale(16),
+    marginBottom: scale(12),
+  },
   insuranceOptionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1296,10 +1305,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: scale(8),
   },
+  modalCloseButtonDark: {
+    backgroundColor: '#374151',
+    paddingVertical: scale(14),
+    borderRadius: scale(12),
+    alignItems: 'center',
+    marginTop: scale(8),
+  },
   modalCloseText: {
     fontSize: fontScale(16),
     fontWeight: '600',
     color: '#6B7280',
   },
 });
+
 

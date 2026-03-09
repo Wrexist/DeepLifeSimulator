@@ -1,6 +1,7 @@
 import { GameState } from '@/contexts/game/types';
 import { PrestigeData } from './prestigeTypes';
 import { MAX_MULTIPLIER_LEVEL } from './prestigeConstants';
+import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 
 /**
  * Breakdown of prestige points calculation
@@ -44,8 +45,8 @@ export function calculatePrestigePoints(
   const generationBonus = (gameState.generationNumber || 1 - 1) * 50;
 
   // Age bonus: +1 point per year lived (max 100 points)
-  const age = Math.floor(gameState.date?.age || 18);
-  const ageBonus = Math.min(100, age - 18);
+  const age = Math.floor(gameState.date?.age || ADULTHOOD_AGE);
+  const ageBonus = Math.min(100, age - ADULTHOOD_AGE);
 
   // Career bonus: +25 points per maxed career
   const maxedCareers = (gameState.careers || []).filter(c => {

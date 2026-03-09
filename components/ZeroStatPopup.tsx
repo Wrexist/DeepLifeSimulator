@@ -8,7 +8,8 @@ const log = logger.scope('ZeroStatPopup');
 
 export default function ZeroStatPopup() {
   const { gameState, dismissStatWarning } = useGame();
-  const { settings, zeroStatType, showZeroStatPopup, week, stats } = gameState;
+  const { settings, zeroStatType, showZeroStatPopup, week } = gameState;
+  const stats = gameState.stats || { health: 0, happiness: 0, energy: 0, fitness: 0, money: 0, reputation: 0, gems: 0 };
   const [localDismissed, setLocalDismissed] = useState(false);
   const dismissedRef = useRef(false);
 
@@ -48,9 +49,15 @@ export default function ZeroStatPopup() {
     return null;
   }
 
+  // Calculate weeks remaining before death
+  const weeksAtZero = zeroStatType === 'health' 
+    ? gameState.healthZeroWeeks || 0
+    : gameState.happinessZeroWeeks || 0;
+  const weeksRemaining = Math.max(0, 4 - weeksAtZero);
+  
   const message = zeroStatType === 'happiness'
-    ? 'Your happiness is at 0! Increase it within 4 weeks or your character will die.'
-    : 'Your health is at 0! Increase it within 4 weeks or your character will die.';
+    ? `Your happiness is at 0! You have ${weeksRemaining} week${weeksRemaining !== 1 ? 's' : ''} to improve it or your character will die.`
+    : `Your health is at 0! You have ${weeksRemaining} week${weeksRemaining !== 1 ? 's' : ''} to improve it or your character will die.`;
 
   const handleDismiss = () => {
     // Prevent multiple calls

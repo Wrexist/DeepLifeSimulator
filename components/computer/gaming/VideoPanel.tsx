@@ -1,6 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, TextInput, StyleProp, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { Zap } from 'lucide-react-native';
 import { GamingStreamingState , GameSettings } from '@/contexts/game/types';
 
@@ -70,7 +71,7 @@ export default function VideoPanel({
       <View style={[styles.section, settings.darkMode && styles.sectionDark]}>
         <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Record Video</Text>
         <LinearGradient
-          colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
+          colors={settings.darkMode ? ['#1F2937', '#111827'] as const : ['#F8FAFC', '#FFFFFF'] as const}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.infoCard}
@@ -117,10 +118,10 @@ export default function VideoPanel({
                   {game.name}
                 </Text>
                 {!owned ? (
-                  <Text style={styles.requirementText}>${game.cost} • Tap to buy</Text>
+                  <Text style={styles.requirementText}>${game.cost} â€¢ Tap to buy</Text>
                 ) : (
                   <>
-                    <Text style={styles.ownedText}>✓ Owned</Text>
+                    <Text style={styles.ownedText}>âœ“ Owned</Text>
                     {videoGame !== game.id && (
                       <Text style={styles.useHintText}>Tap to use</Text>
                     )}
@@ -184,7 +185,7 @@ export default function VideoPanel({
             <View style={[styles.progressButtonFill, { width: `${recordProgress}%`, backgroundColor: '#10B981' }]} />
             {isRecording && <Shimmer />}
             <Text style={[styles.progressButtonText, settings.darkMode && styles.progressButtonTextDark]}>
-              {recordProgress === 0 ? 'Record Video' : (recordProgress < 100 ? (isRecording ? `Recording ${recordProgress}%` : `Recording ${recordProgress}% (Paused)`) : 'Recorded ✔')}
+              {recordProgress === 0 ? 'Record Video' : (recordProgress < 100 ? (isRecording ? `Recording ${recordProgress}%` : `Recording ${recordProgress}% (Paused)`) : 'Recorded âœ”')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -199,7 +200,7 @@ export default function VideoPanel({
             <View style={[styles.progressButtonFill, { width: `${renderProgress}%`, backgroundColor: '#3B82F6' }]} />
             {isRendering && <Shimmer />}
             <Text style={[styles.progressButtonText, settings.darkMode && styles.progressButtonTextDark]}>
-              {renderProgress === 0 ? 'Render Video' : (renderProgress < 100 ? (isRendering ? `Rendering ${renderProgress}%` : `Rendering ${renderProgress}% (Paused)`) : 'Rendered ✔')}
+              {renderProgress === 0 ? 'Render Video' : (renderProgress < 100 ? (isRendering ? `Rendering ${renderProgress}%` : `Rendering ${renderProgress}% (Paused)`) : 'Rendered âœ”')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -214,7 +215,7 @@ export default function VideoPanel({
             <View style={[styles.progressButtonFill, { width: `${uploadProgress}%`, backgroundColor: '#8B5CF6' }]} />
             {isUploading && <Shimmer />}
             <Text style={[styles.progressButtonText, settings.darkMode && styles.progressButtonTextDark]}>
-              {uploadProgress === 0 ? 'Upload Video' : (uploadProgress < 100 ? (isUploading ? `Uploading ${uploadProgress}%` : `Uploading ${uploadProgress}% (Paused)`) : 'Uploaded ✔')}
+              {uploadProgress === 0 ? 'Upload Video' : (uploadProgress < 100 ? (isUploading ? `Uploading ${uploadProgress}%` : `Uploading ${uploadProgress}% (Paused)`) : 'Uploaded âœ”')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -232,11 +233,11 @@ export default function VideoPanel({
                 {v.title}
               </Text>
               <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>
-                🎮 {v.game} • 👀 {v.views.toLocaleString()} • 👍 {v.likes.toLocaleString()} • 💬 {v.comments.toLocaleString()} • 💰 ${v.earnings.toLocaleString()}
+                ðŸŽ® {v.game} â€¢ ðŸ‘€ {v.views.toLocaleString()} â€¢ ðŸ‘ {v.likes.toLocaleString()} â€¢ ðŸ’¬ {v.comments.toLocaleString()} â€¢ ðŸ’° ${v.earnings.toLocaleString()}
               </Text>
               {/* Simple analytics breakdown */}
               <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>
-                CTR ~{Math.max(2, Math.min(18, Math.round(6 + (v.quality||0)*8)))}% • AVD ~{Math.round(40 + (v.quality||0)*30)}s • RPM ${Math.max(1, Math.round(((v.earnings/(v.views/1000))||2)*0.7*100)/100)}
+                CTR ~{Math.max(2, Math.min(18, Math.round(6 + (v.quality||0)*8)))}% â€¢ AVD ~{Math.round(40 + (v.quality||0)*30)}s â€¢ RPM ${Math.max(1, Math.round(((v.earnings/(v.views/1000))||2)*0.7*100)/100)}
               </Text>
             </View>
           ))
@@ -247,6 +248,14 @@ export default function VideoPanel({
     </ScrollView>
   );
 }
+
+
+
+
+
+
+
+
 
 
 

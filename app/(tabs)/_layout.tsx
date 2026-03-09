@@ -1,72 +1,101 @@
 import { Tabs, useRouter, useSegments } from 'expo-router';
-import { useWindowDimensions, Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor } from 'lucide-react-native';
+import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { responsiveIconSize, touchTargets, scale } from '@/utils/scaling';
+import { scale } from '@/utils/scaling';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useEffect } from 'react';
+import { useTheme } from '@/hooks/useTheme';
+import React, { useEffect, lazy, Suspense } from 'react';
+import { getGlassTabBar } from '@/utils/glassmorphismStyles';
+import { haptic } from '@/utils/haptics';
+import { useStatChanges } from '@/contexts/StatChangeContext';
+import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
+
+const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
+const LifeMomentModal = lazy(() => import('@/components/LifeMomentModal'));
 
 export default function TabLayout() {
   const { gameState } = useGame();
   const { t } = useTranslation();
-  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
   
-  const isInPrison = gameState.jailWeeks > 0;
+  const { isDark } = useTheme();
+  const { changes, clearChange } = useStatChanges();
+
+  const isInPrison = (gameState?.jailWeeks ?? 0) > 0;
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
+  const items = gameState?.items ?? [];
 
   // Force navigation to work tab when entering prison
   useEffect(() => {
     if (isInPrison && currentRoute && currentRoute !== 'work') {
-      // Small delay to ensure navigation happens after state update
-      const timer = setTimeout(() => {
-        try {
-          router.replace('/(tabs)/work');
-        } catch (error) {
-          // Navigation might fail if already navigating, ignore
-          if (__DEV__) {
-            console.warn('Navigation to work tab failed:', error);
-          }
+      try {
+        router.replace('/(tabs)/work');
+      } catch (error) {
+        // Navigation might fail if already navigating, ignore
+        if (__DEV__) {
+          console.warn('Navigation to work tab failed:', error);
         }
-      }, 100);
-      return () => clearTimeout(timer);
+      }
     }
   }, [isInPrison, currentRoute, router]);
 
   // Determine which tabs to show based on device ownership
-  const ownsSmartphone = gameState.items.some(
+  const ownsSmartphone = items.some(
     (item) => item.id === 'smartphone' && item.owned
   );
-  const ownsComputer = gameState.items.some(
+  const ownsComputer = items.some(
     (item) => item.id === 'computer' && item.owned
   );
+  // Hide mobile tab if computer is owned (mobile apps accessible through desktop)
+  const showMobileTab = ownsSmartphone && !ownsComputer;
 
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
+      screenListeners={{ tabPress: () => haptic.light() }}
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false,
-        tabBarActiveTintColor: gameState.settings.darkMode ? '#60A5FA' : '#3B82F6',
-        tabBarInactiveTintColor: gameState.settings.darkMode ? '#9CA3AF' : '#6B7280',
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+          marginTop: -2,
+        },
+        tabBarActiveTintColor: isDark ? '#60A5FA' : '#3B82F6',
+        tabBarInactiveTintColor: isDark ? '#9CA3AF' : '#6B7280',
         // Hide tab bar completely when in prison
         tabBarStyle: isInPrison ? { display: 'none' } : {
-          backgroundColor: gameState.settings.darkMode ? '#1F2937' : '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: gameState.settings.darkMode ? '#374151' : '#E5E7EB',
-          paddingTop: scale(8),
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          ...getGlassTabBar(isDark),
+          paddingTop: scale(12),
           // Account for bottom safe area (navigation bar) on Android
-          // Use at least scale(8) but add bottom inset if it exists
+          // Use at least scale(12) but add bottom inset if it exists
           paddingBottom: Platform.OS === 'android' 
-            ? Math.max(scale(8), insets.bottom || 0)
-            : scale(8),
+            ? Math.max(scale(12), insets.bottom || 0)
+            : scale(12),
           // Add bottom inset to height to prevent overlap with navigation bar
           height: Platform.OS === 'android'
-            ? scale(60) + (insets.bottom || 0)
-            : scale(60),
+            ? scale(70) + (insets.bottom || 0)
+            : scale(70),
         },
+        tabBarBackground: () => (
+          <View style={{
+            flex: 1,
+            ...getGlassTabBar(isDark),
+            ...Platform.select({
+              web: {
+                backdropFilter: 'blur(20px) saturate(180%)',
+              },
+            }),
+          }} />
+        ),
       }}
     >
       <Tabs.Screen
@@ -89,8 +118,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="mobile"
         options={{
-          // Hide until a smartphone is owned, or disable when in prison
-          href: (isInPrison || !ownsSmartphone) ? null : undefined,
+          // Hide until a smartphone is owned, hide if computer is owned (mobile apps in desktop tab), or disable when in prison
+          href: (isInPrison || !showMobileTab) ? null : undefined,
           title: t('tabs.mobile'),
           tabBarIcon: ({ size, color }) => <Smartphone size={size} color={color} />,
         }}
@@ -104,10 +133,13 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }) => <Monitor size={size} color={color} />,
         }}
       />
-      {/* Hidden progression screen - accessible but not shown in tab bar */}
       <Tabs.Screen
         name="progression"
-        options={{ href: null }}
+        options={{
+          title: t('tabs.progression') || 'Progress',
+          tabBarIcon: ({ size, color }) => <Trophy size={size} color={color} />,
+          href: isInPrison ? null : undefined,
+        }}
       />
       <Tabs.Screen
         name="market"
@@ -128,5 +160,18 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    {gameState.pendingEvents && gameState.pendingEvents.length > 0 && (
+      <Suspense fallback={null}>
+        <WeeklyEventModal />
+      </Suspense>
+    )}
+    {gameState.lifeMoments?.pendingMoment && (
+      <Suspense fallback={null}>
+        <LifeMomentModal />
+      </Suspense>
+    )}
+    {/* ENGAGEMENT: Floating stat change indicators on week advance */}
+    <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />
+    </View>
   );
 }

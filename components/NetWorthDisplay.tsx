@@ -1,11 +1,13 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+﻿import React, { useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity , Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
 import { Crown, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
 import { usePerformanceOptimization } from '@/hooks/usePerformanceOptimization';
+import { MINER_PRICES } from '@/lib/economy/constants';
 
 interface NetWorthDisplayProps {
   onPress?: () => void;
@@ -19,12 +21,6 @@ interface PieSlice {
   value: number;
   color: string;
 }
-
-const MINER_PRICES = {
-  'asic_miner': 5000,
-  'gpu_miner': 2000,
-  'cpu_miner': 500,
-};
 
 const PieChart = ({ data }: { data: PieSlice[] }) => {
   const total = data.reduce((sum, slice) => sum + slice.value, 0);
@@ -107,8 +103,8 @@ export default function NetWorthDisplay({ onPress, onPrestigePress }: NetWorthDi
     if (a >= 1_000_000_000_000) return `$${(a / 1_000_000_000_000).toFixed(2)}T`;
     if (a >= 1_000_000_000) return `$${(a / 1_000_000_000).toFixed(2)}B`;
     if (a >= 1_000_000) return `$${(a / 1_000_000).toFixed(2)}M`;
-    if (a >= 1_000) return `$${(a / 1_000).toFixed(2)}K`;
-    return `$${a}`;
+    if (a > 10_000) return `$${(a / 1_000).toFixed(2)}K`;
+    return `$${a.toLocaleString()}`;
   };
 
   // Optimize breakdown calculation with specific dependencies
@@ -384,3 +380,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+

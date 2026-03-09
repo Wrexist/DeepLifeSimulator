@@ -1,5 +1,5 @@
 import { GameState } from '@/contexts/game/types';
-import { getBonusLevel, PRESTIGE_BONUSES } from './prestigeBonuses';
+import { getBonusLevel } from './prestigeBonuses';
 
 /**
  * Apply starting bonuses to game state
@@ -35,10 +35,18 @@ export function applyStartingBonuses(
   if (stats2Level > 0) statBonus += 10 * stats2Level;
   if (stats3Level > 0) statBonus += 20 * stats3Level;
 
-  newState.stats.health = Math.min(100, (newState.stats.health || 100) + statBonus);
-  newState.stats.happiness = Math.min(100, (newState.stats.happiness || 100) + statBonus);
-  newState.stats.energy = Math.min(100, (newState.stats.energy || 100) + statBonus);
-  newState.stats.fitness = Math.min(100, (newState.stats.fitness || 10) + statBonus);
+  let finalStatBonus = statBonus;
+  
+  // Synergy: Life Master (requires 3+ starting bonuses)
+  const startingBonusCount = money1Level + money2Level + money3Level + stats1Level + stats2Level + stats3Level;
+  if (unlockedBonuses.includes('synergy_life_master') && startingBonusCount >= 3) {
+    finalStatBonus = Math.floor(statBonus * 1.25); // +25% effectiveness
+  }
+
+  newState.stats.health = Math.min(100, (newState.stats.health || 100) + finalStatBonus);
+  newState.stats.happiness = Math.min(100, (newState.stats.happiness || 100) + finalStatBonus);
+  newState.stats.energy = Math.min(100, (newState.stats.energy || 100) + finalStatBonus);
+  newState.stats.fitness = Math.min(100, (newState.stats.fitness || 10) + finalStatBonus);
 
   // Starting reputation bonus
   if (unlockedBonuses.includes('starting_reputation')) {
@@ -56,6 +64,107 @@ export function applyStartingBonuses(
     newState.stats.happiness = 100;
     newState.stats.energy = 100;
     newState.stats.fitness = 100;
+  }
+
+  // Starting investment portfolio bonus
+  if (unlockedBonuses.includes('starting_investment_portfolio')) {
+    const portfolioValue = 50000;
+    // Initialize stocks if not present
+    if (!newState.stocks) {
+      newState.stocks = {
+        holdings: [],
+        watchlist: [],
+        realizedGains: 0,
+      };
+    }
+    // Add diversified stock holdings (simplified - add to a few major stocks)
+    const { getStockInfo } = require('@/lib/economy/stockMarket');
+    const majorStocks = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA'];
+    const sharesPerStock = Math.floor(portfolioValue / majorStocks.length / 100); // Rough estimate
+    
+    majorStocks.forEach(symbol => {
+      const stockInfo = getStockInfo(symbol);
+      if (stockInfo && stockInfo.currentPrice > 0) {
+        const shares = Math.floor(portfolioValue / majorStocks.length / stockInfo.currentPrice);
+        if (shares > 0) {
+          const existingHolding = newState.stocks.holdings.find(h => h.symbol === symbol);
+          if (existingHolding) {
+            existingHolding.shares += shares;
+            existingHolding.averagePrice = (existingHolding.averagePrice * existingHolding.shares + stockInfo.currentPrice * shares) / (existingHolding.shares + shares);
+          } else {
+            newState.stocks.holdings.push({
+              symbol,
+              shares,
+              averagePrice: stockInfo.currentPrice,
+              currentPrice: stockInfo.currentPrice,
+            });
+          }
+        }
+      }
+    });
+    // Deduct the portfolio cost from money (already included in starting money)
+  }
+
+  // Starting real estate bonus
+  if (unlockedBonuses.includes('starting_real_estate')) {
+    // Find a basic rental property to give
+    const basicProperties = (newState.realEstate || []).filter(
+      prop => prop.type === 'apartment' && !prop.owned && (prop.price || 0) <= 150000
+    );
+    if (basicProperties.length > 0) {
+      const property = basicProperties[0];
+      property.owned = true;
+      property.purchaseDate = newState.date;
+    }
+  }
+
+  // Starting company bonus
+  if (unlockedBonuses.includes('starting_company')) {
+    // Create a small basic factory company
+    if (!newState.companies) {
+      newState.companies = [];
+    }
+    // Check if player already has a company
+    if (newState.companies.length === 0) {
+      const newCompany: any = {
+        id: 'factory',
+        name: 'Family Business',
+        type: 'factory',
+        weeklyIncome: 2000,
+        baseWeeklyIncome: 2000,
+        upgrades: [],
+        employees: 0,
+        workerSalary: 500,
+        workerMultiplier: 1.1,
+        marketingLevel: 1,
+        miners: {},
+        warehouseLevel: 0,
+      };
+      newState.companies.push(newCompany);
+      newState.company = newCompany;
+    }
+  }
+
+  // Starting vehicle bonus
+  if (unlockedBonuses.includes('starting_vehicle')) {
+    // Add a basic vehicle
+    if (!newState.vehicles) {
+      newState.vehicles = [];
+    }
+    // Check if player already has a vehicle
+    if (newState.vehicles.length === 0) {
+      newState.vehicles.push({
+        id: 'starting_vehicle',
+        name: 'Basic Car',
+        type: 'car',
+        price: 15000,
+        owned: true,
+        speedBonus: 0,
+        reputationBonus: 0,
+        insurance: undefined,
+      });
+      newState.hasDriversLicense = true; // Give license with vehicle
+    }
   }
 
   return newState;
@@ -82,7 +191,16 @@ export function getIncomeMultiplier(unlockedBonuses: string[]): number {
     multiplier += 1.0; // +100% passive income
   }
 
-  return multiplier;
+  // Synergy: Wealth Master (requires 2+ income bonuses)
+  const incomeBonusCount = income1Level + income2Level + income3Level;
+  if (unlockedBonuses.includes('synergy_wealth_master') && incomeBonusCount >= 2) {
+    multiplier += 0.15; // +15% bonus
+  }
+
+  // ANTI-EXPLOIT: Cap total income multiplier at 1.5x (50% bonus max)
+  // Without cap, stacking all bonuses gives 2.35x+ which makes each prestige cycle faster
+  // than the last, creating an exponential snowball
+  return Math.min(1.5, multiplier);
 }
 
 /**
@@ -104,6 +222,12 @@ export function getExperienceMultiplier(unlockedBonuses: string[]): number {
   // Genius bonus
   if (unlockedBonuses.includes('genius')) {
     multiplier += 1.0; // +100% learning speed
+  }
+
+  // Synergy: Learning Master (requires 2+ experience bonuses)
+  const expBonusCount = exp1Level + exp2Level + exp3Level;
+  if (unlockedBonuses.includes('synergy_learning_master') && expBonusCount >= 2) {
+    multiplier += 0.20; // +20% bonus
   }
 
   return multiplier;
@@ -151,8 +275,42 @@ export function getEnergyRegenMultiplier(unlockedBonuses: string[]): number {
  * @returns Relationship gain multiplier (1.0 = no bonus)
  */
 export function getRelationshipGainMultiplier(unlockedBonuses: string[]): number {
+  let multiplier = 1.0;
+  
   if (unlockedBonuses.includes('social_master')) {
-    return 1.5; // +50% relationship gains
+    multiplier += 0.5; // +50% relationship gains
+  }
+  
+  const reputationGainLevel = getBonusLevel('reputation_gain_multiplier', unlockedBonuses);
+  if (reputationGainLevel > 0) {
+    multiplier += 0.30 * reputationGainLevel; // +30% per level
+  }
+  
+  return multiplier;
+}
+
+/**
+ * Get event frequency modifier (for positive events)
+ * @param unlockedBonuses Array of unlocked bonus IDs
+ * @returns Event frequency multiplier (1.0 = normal, 1.25 = +25% positive events)
+ */
+export function getEventFrequencyBoost(unlockedBonuses: string[]): number {
+  const eventBoostLevel = getBonusLevel('event_frequency_boost', unlockedBonuses);
+  if (eventBoostLevel > 0) {
+    return 1.0 + (0.25 * eventBoostLevel); // +25% per level
+  }
+  return 1.0;
+}
+
+/**
+ * Get achievement progress multiplier
+ * @param unlockedBonuses Array of unlocked bonus IDs
+ * @returns Achievement progress multiplier (1.0 = normal, 1.2 = +20% progress)
+ */
+export function getAchievementProgressMultiplier(unlockedBonuses: string[]): number {
+  const achievementLevel = getBonusLevel('achievement_progress_multiplier', unlockedBonuses);
+  if (achievementLevel > 0) {
+    return 1.0 + (0.20 * achievementLevel); // +20% per level
   }
   return 1.0;
 }
@@ -164,5 +322,52 @@ export function getRelationshipGainMultiplier(unlockedBonuses: string[]): number
  */
 export function hasImmortality(unlockedBonuses: string[]): boolean {
   return unlockedBonuses.includes('immortality');
+}
+
+/**
+ * Apply legacy bonuses to game state (from previous generations)
+ * @param gameState Game state to modify
+ * @param unlockedBonuses Array of unlocked bonus IDs
+ * @param previousNetWorth Net worth from previous life (for generational wealth)
+ * @param previousState Previous game state (for legacy data)
+ * @returns Modified game state
+ */
+export function applyLegacyBonuses(
+  gameState: GameState,
+  unlockedBonuses: string[],
+  previousNetWorth: number = 0,
+  previousState?: GameState
+): GameState {
+  const newState = { ...gameState };
+
+  // Generational wealth bonus
+  if (unlockedBonuses.includes('legacy_wealth') && previousNetWorth > 0) {
+    const inheritance = Math.floor(previousNetWorth * 0.10); // 10% of previous net worth
+    newState.stats.money = (newState.stats.money || 0) + inheritance;
+  }
+
+  // Educational legacy bonus
+  if (unlockedBonuses.includes('legacy_education') && previousState) {
+    // Mark all educations as completed
+    newState.educations = (newState.educations || []).map(edu => ({
+      ...edu,
+      completed: true,
+      weeksRemaining: undefined,
+    }));
+  }
+
+  // Family reputation bonus
+  if (unlockedBonuses.includes('legacy_reputation')) {
+    newState.stats.reputation = (newState.stats.reputation || 0) + 20;
+  }
+
+  // Family business legacy bonus
+  if (unlockedBonuses.includes('legacy_business') && previousState) {
+    // Inherit family businesses (simplified - add a flag that the company system can check)
+    newState.hasFamilyBusinessLegacy = true;
+    // Could also transfer specific companies if needed
+  }
+
+  return newState;
 }
 

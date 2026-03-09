@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { DesignSystem } from '@/utils/designSystem';
 
 interface EnhancedLoadingSpinnerProps {
@@ -133,6 +134,8 @@ export default function EnhancedLoadingSpinner({
 
       return () => dotAnimation.stop();
     }
+    // Default: no cleanup needed
+    return undefined;
   }, [variant, spinValue, pulseValue, dot1Value, dot2Value, dot3Value]);
 
   const renderSpinner = () => {
@@ -260,3 +263,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

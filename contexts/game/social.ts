@@ -21,7 +21,7 @@ export function interactRelation(
   const relation = gameState.social.relations.find(r => r.id === relationId);
   if (!relation) return { success: false, message: 'Relation not found' };
 
-  const result = applyRelationAction(relation, action, gameState.week);
+  const result = applyRelationAction(relation, action, gameState.weeksLived);
   setGameState(prev => ({
     ...prev,
     social: {

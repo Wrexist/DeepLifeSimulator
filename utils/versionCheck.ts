@@ -3,6 +3,7 @@ import { Alert, Linking, Platform } from 'react-native';
 // import Constants from 'expo-constants'; // REMOVED - lazy load
 // import * as Updates from 'expo-updates'; // REMOVED - not used, commented out below
 import { logger } from './logger';
+import { APP_STORE_URL, PLAY_STORE_URL } from '@/lib/config/appConfig';
 
 // Lazy-loaded Constants module
 let Constants: any = null;
@@ -16,18 +17,9 @@ function loadConstantsModule(): boolean {
   constantsLoadAttempted = true;
   
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/versionCheck.ts:20',message:'Before expo-constants require',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
-    // #endregion
     Constants = require('expo-constants').default;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/versionCheck.ts:24',message:'After expo-constants require success',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
-    // #endregion
     return true;
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/versionCheck.ts:29',message:'expo-constants require failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
-    // #endregion
     // Module not available
     return false;
   }
@@ -36,10 +28,6 @@ function loadConstantsModule(): boolean {
 // Minimum required version - update this when you need to force an update
 const MIN_REQUIRED_VERSION = '2.2.4'; // Set to your current version
 const MIN_REQUIRED_BUILD_NUMBER = 31; // iOS build number
-
-// App Store URLs - Replace with your actual App Store IDs
-const APP_STORE_URL = 'https://apps.apple.com/app/id[YOUR_APP_ID]'; // Replace [YOUR_APP_ID] with actual App Store ID
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.deeplife.simulator';
 
 /**
  * Compare two version strings (e.g., "2.2.4" vs "2.2.3")

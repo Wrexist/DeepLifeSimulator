@@ -1,3 +1,4 @@
+import React from 'react';
 import { GameState, FamilyBusiness, Company } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';

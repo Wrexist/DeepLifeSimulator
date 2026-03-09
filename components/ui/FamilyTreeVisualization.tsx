@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Family Tree Visualization Component
  * 
  * Interactive family tree showing multiple generations
@@ -14,7 +14,8 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   User,
   Crown,
@@ -656,4 +657,5 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
 

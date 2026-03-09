@@ -2,7 +2,6 @@ import { GameState } from '@/contexts/game/types';
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import { validateGameState } from '@/utils/saveValidation';
 import { logger } from '@/utils/logger';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const log = logger.scope('GameEntryValidation');
 
@@ -84,7 +83,7 @@ export function validateGameEntry(state: GameState | null | undefined): GameEntr
   // TESTFLIGHT FIX: Check app version compatibility (if available)
   if (state._appVersion) {
     try {
-      const appConfig = require('../../app.config.js');
+      const appConfig = require('../app.config.js');
       const currentAppVersion = appConfig.expo?.version || 'unknown';
       const saveAppVersion = state._appVersion;
       
@@ -125,9 +124,16 @@ export function validateGameEntry(state: GameState | null | undefined): GameEntr
       if (!(stat in state.stats)) {
         errors.push(`Missing stat: ${stat}`);
         stateComplete = false;
-      } else if (typeof state.stats[stat] !== 'number' || isNaN(state.stats[stat]) || !isFinite(state.stats[stat])) {
-        errors.push(`Invalid ${stat} value: ${state.stats[stat]}`);
-        stateComplete = false;
+      } else {
+        const statValue = (state.stats as any)[stat];
+        // CRITICAL FIX: Handle null/undefined values - treat as missing and use default
+        if (statValue === null || statValue === undefined) {
+          errors.push(`Missing stat: ${stat} (value is null or undefined)`);
+          stateComplete = false;
+        } else if (typeof statValue !== 'number' || isNaN(statValue) || !isFinite(statValue)) {
+          errors.push(`Invalid ${stat} value: ${statValue}`);
+          stateComplete = false;
+        }
       }
     }
   }
@@ -148,7 +154,11 @@ export function validateGameEntry(state: GameState | null | undefined): GameEntr
     errors.push('User profile is missing or invalid');
     stateComplete = false;
   } else {
-    if (!state.userProfile.firstName || !state.userProfile.lastName) {
+    // CRITICAL FIX: Handle null/undefined name values
+    const firstName = state.userProfile.firstName;
+    const lastName = state.userProfile.lastName;
+    if (!firstName || firstName === null || firstName === undefined || 
+        !lastName || lastName === null || lastName === undefined) {
       errors.push('User profile missing name information');
       stateComplete = false;
     }
@@ -163,7 +173,7 @@ export function validateGameEntry(state: GameState | null | undefined): GameEntr
   ];
 
   for (const field of requiredArrays) {
-    if (!Array.isArray(state[field])) {
+    if (!Array.isArray((state as any)[field])) {
       errors.push(`${field} must be an array`);
       stateComplete = false;
     }
@@ -222,7 +232,10 @@ export async function validateSaveSlot(slot: number): Promise<{
   const errors: string[] = [];
   
   try {
-    const savedData = await AsyncStorage.getItem(`save_slot_${slot}`);
+    // CRASH FIX (A-1): Read from double-buffer system
+    const { readSaveSlot, shouldAllowUnsignedLegacySaves } = await import('@/utils/saveValidation');
+    const allowLegacy = shouldAllowUnsignedLegacySaves();
+    const savedData = await readSaveSlot(slot, undefined, { allowLegacy });
     
     if (!savedData) {
       return {
@@ -233,7 +246,17 @@ export async function validateSaveSlot(slot: number): Promise<{
     }
 
     try {
-      const parsed = JSON.parse(savedData);
+      const { decodePersistedSaveEnvelope } = await import('@/utils/saveValidation');
+      const decoded = decodePersistedSaveEnvelope(savedData, { allowLegacy });
+      if (!decoded.valid || typeof decoded.data !== 'string') {
+        return {
+          valid: false,
+          exists: true,
+          errors: [decoded.error || 'Save envelope verification failed'],
+        };
+      }
+
+      const parsed = JSON.parse(decoded.data);
       
       if (!parsed || typeof parsed !== 'object') {
         return {

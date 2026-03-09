@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { MotiView, MotiText } from '@/components/anim/MotiStub';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -164,7 +166,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 9999,
+    zIndex: Z_INDEX.LOADING,
   },
   fullScreenContainerDark: {
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -230,3 +232,4 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 });
+

@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Text, StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { MotiView, MotiText } from '@/components/anim/MotiStub';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 import { 
   Trophy, 
   Zap, 
@@ -15,7 +17,7 @@ import {
   Users,
   CheckCircle
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { setAchievementToastRef } from '@/utils/achievementToast';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -33,7 +35,11 @@ export const showAchievementToast = (title: string, category: string = 'general'
 };
 
 export default function AchievementToast() {
-  const { gameState } = useGame();
+  // CRITICAL: Use useGameState directly instead of useGame() to avoid calling multiple hooks
+  // This is safer during provider initialization
+  // If the context isn't ready, useGameState will throw, but ErrorBoundary will catch it
+  // We can't use try-catch here because hooks must be called unconditionally
+  const { gameState } = useGameState();
   const insets = useSafeAreaInsets();
   const [achievement, setAchievement] = useState<AchievementData | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -97,7 +103,7 @@ export default function AchievementToast() {
 
   if (!achievement || !isVisible) return null;
 
-  // Add null check for gameState
+  // Add null check for gameState - return null if not ready yet
   if (!gameState || !gameState.settings) return null;
 
   const categoryColor = getCategoryColor(achievement.category);
@@ -127,7 +133,7 @@ export default function AchievementToast() {
       style={[
         styles.container, 
         { 
-          zIndex: 9999,
+          zIndex: Z_INDEX.TOAST,
           top: insets.top + (Platform.OS === 'ios' ? 60 : 50),
         }
       ]}
@@ -179,7 +185,7 @@ const styles = StyleSheet.create({
     maxWidth: screenWidth - 32,
     borderRadius: 16,
     overflow: 'visible',
-    zIndex: 9999,
+    zIndex: Z_INDEX.TOAST,
     boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -259,3 +265,4 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 });
+

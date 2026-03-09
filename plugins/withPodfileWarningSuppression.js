@@ -22,19 +22,27 @@ module.exports = function withPodfileWarningSuppression(config) {
 
       let podfileContent = fs.readFileSync(podfilePath, 'utf8');
       
-      // Check if the warning suppression code is already added
-      if (podfileContent.includes('iOS 26 SDK Compatibility Fix')) {
+      // Check if the warning suppression code is already added (check for both markers)
+      if (podfileContent.includes('iOS 26 SDK Compatibility Fix') ||
+          podfileContent.includes('Disable Fabric for third-party components')) {
         console.log('✅ Podfile already has warning suppression code');
         return config;
       }
 
       // Code to insert INSIDE existing post_install block
+      // NOTE: This plugin is now redundant since withDisableFabricComponents includes all fixes
+      // Keeping it for backward compatibility, but it will skip if Fabric plugin already ran
       const warningSuppressionCode = `
-  # CRITICAL: iOS 26 SDK Compatibility Fix
+  # CRITICAL: iOS 26 SDK Compatibility Fix + Fabric Disable
   # React Native 0.81.5 headers are not fully modularized
-  # This applies build settings to ALL pods
+  # Also disables Fabric to prevent RCTThirdPartyComponentsProvider crash
+  # This post_install hook applies build settings to ALL pods
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
+      # CRITICAL: Force disable New Architecture/Fabric
+      # This prevents the "attempt to insert nil object" crash in RCTThirdPartyComponentsProvider
+      config.build_settings['RCT_NEW_ARCH_ENABLED'] = '0'
+      
       # Layer 1: Allow non-modular includes in framework modules
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       
@@ -44,9 +52,12 @@ module.exports = function withPodfileWarningSuppression(config) {
       
       # Layer 3: Suppress additional strict Xcode 16 warnings
       config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'NO'
+      
+      # Ensure Hermes is used (not JSC)
+      config.build_settings['USE_HERMES'] = 'true'
     end
   end
-  puts "✅ iOS 26 SDK compatibility fixes applied to \#{installer.pods_project.targets.count} pods"
+  puts "✅ iOS 26 SDK compatibility fixes + Fabric disabled for \#{installer.pods_project.targets.count} pods"
 `;
 
       // Find existing post_install block and insert code BEFORE the final 'end'

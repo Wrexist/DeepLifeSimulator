@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Profile Header Component - X.com Style
  * 
  * Displays user profile header with cover photo, profile photo, stats, and bio
@@ -12,7 +12,8 @@ import {
   Image,
   ImageBackground,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   Calendar,
   MapPin,
@@ -320,4 +321,5 @@ const styles = StyleSheet.create({
     color: '#71767B',
   },
 });
+
 

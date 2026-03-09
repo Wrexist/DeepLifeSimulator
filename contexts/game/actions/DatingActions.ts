@@ -13,6 +13,8 @@ import { GameState, Relationship, WeddingPlan, EngagementRing } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
+import { clampRelationshipScore } from '@/utils/stateValidation';
+import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import {
   ENGAGEMENT_RINGS,
   getEngagementRing,
@@ -27,8 +29,71 @@ import {
   calculateWeddingReputationBonus,
 } from '@/lib/dating/weddingVenues';
 import type { Dispatch, SetStateAction } from 'react';
+import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 const log = logger.scope('DatingActions');
+
+const MIN_DIVORCE_CASH_BUFFER = 1000;
+const FORCED_STOCK_LIQUIDATION_RATE = 0.97;
+const FORCED_REAL_ESTATE_LIQUIDATION_RATE = 0.75;
+const DIVORCE_DEBT_APR = 0.12;
+const DIVORCE_DEBT_TERM_WEEKS = 104;
+
+const safeNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number' && isFinite(value)) {
+    return value;
+  }
+  return fallback;
+};
+
+const calculateDivorceNetWorth = (state: GameState): number => {
+  let netWorth = safeNumber(state.stats?.money);
+  netWorth += safeNumber(state.bankSavings);
+
+  if (Array.isArray(state.stocks?.holdings)) {
+    state.stocks.holdings.forEach(holding => {
+      netWorth += safeNumber(holding.shares) * safeNumber(holding.currentPrice);
+    });
+  }
+
+  if (Array.isArray(state.realEstate)) {
+    state.realEstate.forEach(property => {
+      if (!property?.owned) return;
+      const currentValue = safeNumber(property.currentValue);
+      const baseValue = safeNumber(property.price);
+      netWorth += Math.max(0, currentValue || baseValue);
+    });
+  }
+
+  if (Array.isArray(state.companies)) {
+    state.companies.forEach(company => {
+      netWorth += Math.max(0, safeNumber(company.weeklyIncome) * 10);
+    });
+  }
+
+  return Math.max(0, netWorth);
+};
+
+const calculateForcedStockLiquidity = (state: GameState): number => {
+  if (!Array.isArray(state.stocks?.holdings)) return 0;
+  return state.stocks.holdings.reduce((total, holding) => {
+    const gross = safeNumber(holding.shares) * safeNumber(holding.currentPrice);
+    if (gross <= 0) return total;
+    return total + Math.floor(gross * FORCED_STOCK_LIQUIDATION_RATE);
+  }, 0);
+};
+
+const calculateForcedRealEstateLiquidity = (state: GameState): number => {
+  if (!Array.isArray(state.realEstate)) return 0;
+  return state.realEstate.reduce((total, property) => {
+    if (!property?.owned) return total;
+    const currentValue = safeNumber(property.currentValue);
+    const baseValue = safeNumber(property.price);
+    const liquidationBase = Math.max(0, currentValue || baseValue);
+    if (liquidationBase <= 0) return total;
+    return total + Math.floor(liquidationBase * FORCED_REAL_ESTATE_LIQUIDATION_RATE);
+  }, 0);
+};
 
 /**
  * Go on a date with a partner
@@ -59,6 +124,15 @@ export const goOnDate = (
 
   const config = dateConfigs[dateType];
 
+  // ANTI-EXPLOIT: Limit dates per week per partner (prevent free chat date spam)
+  const MAX_DATES_PER_WEEK = 2;
+  const currentWeeksLived = gameState.weeksLived || 0;
+  const lastDateWeek = partner.lastDateWeek || 0;
+  const datesThisWeek = lastDateWeek === currentWeeksLived ? (partner.datesThisWeek || 0) : 0;
+  if (datesThisWeek >= MAX_DATES_PER_WEEK) {
+    return { success: false, message: `You've already been on ${MAX_DATES_PER_WEEK} dates with ${partner.name} this week.` };
+  }
+
   // Check if can afford
   if (gameState.stats.money < config.cost) {
     return { success: false, message: `You need $${config.cost} for this date.` };
@@ -69,34 +143,41 @@ export const goOnDate = (
     return { success: false, message: "You're too tired for a date." };
   }
 
-  // Deduct cost
-  deps.updateMoney(setGameState, -config.cost, `Date with ${partner.name}`);
-  deps.updateStats(setGameState, { energy: -config.energy, happiness: config.happiness });
-
-  // Update relationship
+  // Atomic update: deduct cost + update stats + update relationship in single setGameState
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, (prev.stats.money || 0) - config.cost),
+      energy: Math.max(0, Math.min(100, (prev.stats.energy || 0) - config.energy)),
+      happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + config.happiness)),
+    },
     relationships: (prev.relationships || []).map(r =>
       r.id === partnerId
         ? {
             ...r,
-            relationshipScore: Math.min(100, r.relationshipScore + config.relationshipBoost),
+            relationshipScore: clampRelationshipScore(r.relationshipScore + config.relationshipBoost),
             datesCount: (r.datesCount || 0) + 1,
-            lastDateWeek: prev.week,
+            lastDateWeek: prev.weeksLived || 0,
+            // ANTI-EXPLOIT: Track dates this week to prevent spam (especially free chat dates)
+            datesThisWeek: (r.lastDateWeek === (prev.weeksLived || 0) ? (r.datesThisWeek || 0) : 0) + 1,
           }
         : r
     ),
-    lifeMilestones: [
-      ...(prev.lifeMilestones || []),
-      {
-        id: `date_${prev.week}_${partnerId}`,
-        type: 'first_date' as const,
-        week: prev.week,
-        year: prev.date.year,
-        partnerId,
-        details: { dateType },
-      },
-    ],
+    // Only record first_date milestone if one doesn't already exist for this partner
+    lifeMilestones: (prev.lifeMilestones || []).some(m => m.type === 'first_date' && m.partnerId === partnerId)
+      ? prev.lifeMilestones
+      : [
+          ...(prev.lifeMilestones || []),
+          {
+            id: `date_${prev.weeksLived || 0}_${partnerId}`,
+            type: 'first_date' as const,
+            week: prev.weeksLived,
+            year: prev.date.year,
+            partnerId,
+            details: { dateType },
+          },
+        ],
   }));
 
   log.info(`Date with ${partner.name} - type: ${dateType}`);
@@ -128,20 +209,35 @@ export const giveGift = (
 
   const config = giftConfigs[giftType];
 
+  // ANTI-EXPLOIT: Limit gifts per week per partner to prevent relationship score farming
+  const MAX_GIFTS_PER_WEEK = 2;
+  const currentWeeksLived = gameState.weeksLived || 0;
+  const lastGiftWeek = partner.lastGiftWeek || 0;
+  const giftsThisWeek = lastGiftWeek === currentWeeksLived ? (partner.giftsThisWeek || 0) : 0;
+  if (giftsThisWeek >= MAX_GIFTS_PER_WEEK) {
+    return { success: false, message: `You've already given ${partner.name} ${MAX_GIFTS_PER_WEEK} gifts this week. Give them some space!` };
+  }
+
   if (gameState.stats.money < config.cost) {
     return { success: false, message: `You need $${config.cost} for this gift.` };
   }
 
-  deps.updateMoney(setGameState, -config.cost, `Gift for ${partner.name}`);
-
+  // Atomic update: deduct cost + update relationship in single setGameState
   setGameState(prev => ({
     ...prev,
+    stats: {
+      ...prev.stats,
+      money: Math.max(0, (prev.stats.money || 0) - config.cost),
+    },
     relationships: (prev.relationships || []).map(r =>
       r.id === partnerId
         ? {
             ...r,
-            relationshipScore: Math.min(100, r.relationshipScore + config.relationshipBoost),
+            relationshipScore: clampRelationshipScore(r.relationshipScore + config.relationshipBoost),
             giftsReceived: (r.giftsReceived || 0) + 1,
+            // ANTI-EXPLOIT: Track weekly gift count
+            giftsThisWeek: (r.lastGiftWeek === (prev.weeksLived || 0) ? (r.giftsThisWeek || 0) : 0) + 1,
+            lastGiftWeek: prev.weeksLived || 0,
           }
         : r
     ),
@@ -181,9 +277,6 @@ export const proposeMarriage = (
     return { success: false, message: "Your relationship isn't strong enough yet. Keep building trust!", accepted: false };
   }
 
-  // Deduct cost
-  deps.updateMoney(setGameState, -ring.price, `Engagement Ring: ${ring.name}`);
-
   // Calculate success rate
   const successRate = calculateProposalSuccessRate(
     partner.relationshipScore,
@@ -197,55 +290,74 @@ export const proposeMarriage = (
   // PRIORITY 2 FIX: Use constant from randomnessConstants
   const { SOFT_GUARANTEE_PROPOSAL } = require('@/lib/randomness/randomnessConstants');
   const guaranteedSuccess = successRate >= SOFT_GUARANTEE_PROPOSAL;
-  const accepted = guaranteedSuccess ? true : Math.random() * 100 < successRate;
+  const proposalRollKey = `proposal:${gameState.weeksLived || 0}:${partnerId}:${ringId}:score:${Math.floor(partner.relationshipScore)}:dates:${partner.datesCount || 0}`;
+  const proposalRoll = guaranteedSuccess ? null : getDeterministicRoll(gameState, proposalRollKey);
+  const rngCommitKeys = guaranteedSuccess ? [] : [proposalRollKey];
+  const accepted = guaranteedSuccess ? true : ((proposalRoll || 0) * 100 < successRate);
 
   if (accepted) {
-    // Update partner to engaged
-    setGameState(prev => ({
-      ...prev,
-      relationships: (prev.relationships || []).map(r =>
-        r.id === partnerId
-          ? {
-              ...r,
-              engagementWeek: prev.week,
-              engagementRing: ring,
-              relationshipScore: Math.min(100, r.relationshipScore + 15),
-            }
-          : r
-      ),
-      lifeMilestones: [
-        ...(prev.lifeMilestones || []),
-        {
-          id: `engagement_${prev.week}_${partnerId}`,
-          type: 'engagement' as const,
-          week: prev.week,
-          year: prev.date.year,
-          partnerId,
-          details: { ringId, ringName: ring.name },
+    // Atomic update: deduct ring cost + update stats + update relationship + milestone
+    setGameState(prev => {
+      const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          money: Math.max(0, (prev.stats.money || 0) - ring.price),
+          happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + 30)),
         },
-      ],
-    }));
+        relationships: (prev.relationships || []).map(r =>
+          r.id === partnerId
+            ? {
+                ...r,
+                engagementWeek: prev.weeksLived || 0,
+                engagementRing: ring,
+                relationshipScore: clampRelationshipScore(r.relationshipScore + 15),
+              }
+            : r
+        ),
+        lifeMilestones: [
+          ...(prev.lifeMilestones || []),
+          {
+            id: `engagement_${prev.weeksLived || 0}_${partnerId}`,
+            type: 'engagement' as const,
+            week: prev.weeksLived || 0,
+            year: prev.date.year,
+            partnerId,
+            details: { ringId, ringName: ring.name },
+          },
+        ],
+        rngCommitLog: nextRngCommitLog,
+      };
+    });
 
-    deps.updateStats(setGameState, { happiness: 30 });
     log.info(`Proposal accepted by ${partner.name}`);
     return { success: true, message: `${partner.name} said YES! You're engaged!`, accepted: true };
   } else {
-    // Proposal rejected
-    setGameState(prev => ({
-      ...prev,
-      relationships: (prev.relationships || []).map(r =>
-        r.id === partnerId
-          ? { ...r, relationshipScore: Math.max(0, r.relationshipScore - 10) }
-          : r
-      ),
-    }));
+    // Atomic update: deduct ring cost + update stats + reduce relationship
+    setGameState(prev => {
+      const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          money: Math.max(0, (prev.stats.money || 0) - ring.price),
+          happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) - 20)),
+        },
+        relationships: (prev.relationships || []).map(r =>
+          r.id === partnerId
+            ? { ...r, relationshipScore: clampRelationshipScore(r.relationshipScore - 10) }
+            : r
+        ),
+        rngCommitLog: nextRngCommitLog,
+      };
+    });
 
-    deps.updateStats(setGameState, { happiness: -20 });
     log.info(`Proposal rejected by ${partner.name}`);
-    return { 
-      success: true, 
-      message: `${partner.name} said they're not ready... The relationship needs more time.`, 
-      accepted: false 
+    return {
+      success: true,
+      message: `${partner.name} said they're not ready... The relationship needs more time.`,
+      accepted: false
     };
   }
 };
@@ -280,7 +392,7 @@ export const planWedding = (
     return { success: false, message: `This venue can only accommodate ${venue.guestCapacity} guests.` };
   }
 
-  const scheduledWeek = gameState.week + weeksFromNow;
+  const scheduledWeek = (gameState.weeksLived || 0) + weeksFromNow;
   const plan = createWeddingPlan(venueId, partnerId, guestCount, scheduledWeek, options);
 
   if (!plan) {
@@ -301,7 +413,7 @@ export const planWedding = (
     ),
     stats: {
       ...prev.stats,
-      money: prev.stats.money - deposit,
+      money: Math.max(0, (prev.stats.money || 0) - deposit),
     },
   }));
 
@@ -330,7 +442,7 @@ export const executeWedding = (
   const plan = partner.weddingPlanned;
 
   // Check if it's the scheduled week
-  if (gameState.week < plan.scheduledWeek) {
+  if ((gameState.weeksLived || 0) < plan.scheduledWeek) {
     return { success: false, message: `The wedding isn't until week ${plan.scheduledWeek}.` };
   }
 
@@ -340,15 +452,11 @@ export const executeWedding = (
     return { success: false, message: `You need $${remainingBalance.toLocaleString()} to finalize the wedding!` };
   }
 
-  deps.updateMoney(setGameState, -remainingBalance, `Wedding at ${plan.venueName}`);
-
   // Calculate bonuses
   const happinessBonus = calculateWeddingHappinessBonus(plan);
   const reputationBonus = calculateWeddingReputationBonus(plan);
 
-  deps.updateStats(setGameState, { happiness: happinessBonus, reputation: reputationBonus });
-
-  // Convert partner to spouse
+  // Atomic update: pay remaining balance + update stats + convert partner to spouse
   setGameState(prev => {
     // RELATIONSHIP STATE FIX: Remove existing spouse if different person (prevent duplicates)
     let relationships = prev.relationships || [];
@@ -357,14 +465,14 @@ export const executeWedding = (
       relationships = relationships.filter(r => r.id !== existingSpouse.id);
       log.warn('Replacing existing spouse during wedding', { oldSpouseId: existingSpouse.id, newSpouseId: partnerId });
     }
-    
+
     const updatedRelationships = relationships.map(r =>
       r.id === partnerId
         ? {
             ...r,
             type: 'spouse' as const,
-            marriageWeek: prev.week,
-            anniversaryWeek: prev.week,
+            marriageWeek: prev.weeksLived || 0,
+            anniversaryWeek: prev.weeksLived || 0,
             // RELATIONSHIP STATE FIX: Clear all engagement properties when becoming spouse
             engagementWeek: undefined,
             engagementRing: undefined,
@@ -379,6 +487,12 @@ export const executeWedding = (
 
     return {
       ...prev,
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, (prev.stats.money || 0) - remainingBalance),
+        happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + happinessBonus)),
+        reputation: Math.max(0, Math.min(100, (prev.stats.reputation || 0) + reputationBonus)),
+      },
       relationships: updatedRelationships,
       family: {
         ...prev.family,
@@ -387,13 +501,13 @@ export const executeWedding = (
       lifeMilestones: [
         ...(prev.lifeMilestones || []),
         {
-          id: `wedding_${prev.week}_${partnerId}`,
+          id: `wedding_${prev.weeksLived || 0}_${partnerId}`,
           type: 'wedding' as const,
-          week: prev.week,
+          week: prev.weeksLived || 0,
           year: prev.date.year,
           partnerId,
-          details: { 
-            venueName: plan.venueName, 
+          details: {
+            venueName: plan.venueName,
             guestCount: plan.guestCount,
             totalCost: plan.budget,
           },
@@ -410,58 +524,366 @@ export const executeWedding = (
 };
 
 /**
+ * Calculate divorce costs without actually divorcing (for preview)
+ */
+export const calculateDivorceCosts = (gameState: GameState, spouseId: string): {
+  netWorth: number;
+  settlement: number;
+  settlementPercent: number;
+  lawyerFees: number;
+  totalCost: number;
+  moneyAfter: number;
+  immediateLiquidity: number;
+  projectedDebt: number;
+} | null => {
+  const spouse = gameState.relationships?.find(r => r.id === spouseId && r.type === 'spouse');
+  if (!spouse) {
+    return null;
+  }
+
+  const netWorth = calculateDivorceNetWorth(gameState);
+  // Use a deterministic settlement percent based on spouse ID for consistency
+  // This ensures preview matches actual divorce
+  const spouseForCalc = gameState.relationships?.find(r => r.id === spouseId && r.type === 'spouse');
+  const spouseHash = spouseForCalc ? spouseForCalc.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
+  const settlementRatio = 0.15 + ((spouseHash % 20) / 100); // 15-35% of net worth (deterministic)
+  const settlement = Math.floor(netWorth * settlementRatio);
+  const lawyerFees = DIVORCE_LAWYER_BASE_FEE;
+  const liquidAssets = safeNumber(gameState.stats.money) + safeNumber(gameState.bankSavings);
+  const forcedStockLiquidity = calculateForcedStockLiquidity(gameState);
+  const forcedRealEstateLiquidity = calculateForcedRealEstateLiquidity(gameState);
+  const immediateLiquidity = Math.max(
+    0,
+    liquidAssets + forcedStockLiquidity + forcedRealEstateLiquidity - MIN_DIVORCE_CASH_BUFFER
+  );
+  const totalCost = settlement + lawyerFees;
+  const projectedDebt = Math.max(0, totalCost - immediateLiquidity);
+  const immediatePaid = Math.min(totalCost, immediateLiquidity);
+  const moneyAfter = Math.max(MIN_DIVORCE_CASH_BUFFER, liquidAssets + forcedStockLiquidity + forcedRealEstateLiquidity - immediatePaid);
+
+  return {
+    netWorth,
+    settlement,
+    settlementPercent: netWorth > 0 ? (settlement / netWorth) * 100 : 0,
+    lawyerFees,
+    totalCost,
+    moneyAfter,
+    immediateLiquidity,
+    projectedDebt,
+  };
+};
+
+/**
  * File for divorce
  */
 export const fileDivorce = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   spouseId: string,
-  deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
-): { success: boolean; message: string; settlement?: number } => {
+  deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats },
+  lawyerId?: string // Optional lawyer ID to fight the settlement
+): { success: boolean; message: string; settlement?: number; lawyerResult?: any } => {
   const spouse = gameState.relationships?.find(r => r.id === spouseId && r.type === 'spouse');
   if (!spouse) {
     return { success: false, message: 'Spouse not found.' };
   }
 
-  // Calculate divorce settlement (lose 30-50% of money)
-  const settlementPercent = 0.3 + Math.random() * 0.2;
-  const settlement = Math.floor(gameState.stats.money * settlementPercent);
-
-  // Divorce cost (lawyer fees)
-  const lawyerFees = 5000;
-
-  if (gameState.stats.money < lawyerFees) {
-    return { success: false, message: `You need $${lawyerFees.toLocaleString()} for lawyer fees.` };
+  // ANTI-EXPLOIT: Divorce cooldown - prevent marry/divorce/remarry loop for stat/money manipulation
+  const DIVORCE_COOLDOWN_WEEKS = 26; // 6 months cooldown
+  const currentWeeksLived = gameState.weeksLived || 0;
+  const lastDivorceWeek = gameState.lastDivorceWeek || 0;
+  if (lastDivorceWeek > 0 && (currentWeeksLived - lastDivorceWeek) < DIVORCE_COOLDOWN_WEEKS) {
+    const weeksToWait = DIVORCE_COOLDOWN_WEEKS - (currentWeeksLived - lastDivorceWeek);
+    return { success: false, message: `You must wait ${weeksToWait} more weeks before filing for divorce again.` };
   }
 
-  deps.updateMoney(setGameState, -(settlement + lawyerFees), 'Divorce Settlement');
-  deps.updateStats(setGameState, { happiness: -40, reputation: -10 });
+  const netWorth = calculateDivorceNetWorth(gameState);
+  const spouseHash = spouse.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const settlementRatio = 0.15 + ((spouseHash % 20) / 100);
+  const baseSettlement = Math.floor(netWorth * settlementRatio);
 
-  // Remove spouse
+  let lawyerResult: any = null;
+  let settlementObligation = baseSettlement;
+  let lawyerFees = 5000;
+  let lawyerCost = 0;
+  const rngCommitKeys: string[] = [];
+
+  if (lawyerId) {
+    const lawyerModule = require('@/lib/dating/divorceLawyers');
+    const lawyer = lawyerModule.DIVORCE_LAWYERS.find((entry: any) => entry.id === lawyerId);
+    if (lawyer) {
+      const lawyerSuccessRollKey = `divorce_lawyer_success:${gameState.weeksLived || 0}:${spouseId}:${lawyerId}:${baseSettlement}`;
+      const lawyerReductionRollKey = `divorce_lawyer_reduction:${gameState.weeksLived || 0}:${spouseId}:${lawyerId}:${baseSettlement}`;
+      const lawyerSuccessRoll = getDeterministicRoll(gameState, lawyerSuccessRollKey);
+      const lawyerReductionRoll = getDeterministicRoll(gameState, lawyerReductionRollKey);
+      rngCommitKeys.push(lawyerSuccessRollKey, lawyerReductionRollKey);
+
+      lawyerResult = lawyerModule.calculateLawyerOutcome(baseSettlement, lawyer, {
+        successRoll: lawyerSuccessRoll,
+        reductionRoll: lawyerReductionRoll,
+      });
+      settlementObligation = Math.max(0, Math.floor(safeNumber(lawyerResult?.reducedSettlement, baseSettlement)));
+      lawyerCost = Math.max(0, Math.floor(safeNumber(lawyerResult?.lawyerCost, 0)));
+
+      log.info(
+        `[DIVORCE] Lawyer ${lawyer.name} ${lawyerResult?.success ? 'SUCCEEDED' : 'FAILED'}. ` +
+        `Settlement: $${baseSettlement} -> $${settlementObligation}`
+      );
+    }
+  }
+
+  const totalObligation = settlementObligation + lawyerFees + lawyerCost;
+  const quoteRollKey = `divorce_quote:${gameState.weeksLived || 0}:${spouseId}:${totalObligation}`;
+  const quoteRoll = getDeterministicRoll(gameState, quoteRollKey);
+  rngCommitKeys.push(quoteRollKey);
+
+  let immediatePaymentApplied = 0;
+  let divorceDebtCreated = 0;
+  let forcedStockLiquidationPaid = 0;
+  let forcedPropertyLiquidationPaid = 0;
+
   setGameState(prev => {
-    // RELATIONSHIP STATE FIX: Clear livingTogether before removing spouse (defensive programming)
-    const relationships = (prev.relationships || []).map(r =>
-      r.id === spouseId ? { ...r, livingTogether: false } : r
-    ).filter(r => r.id !== spouseId);
-    
+    const currentMoney = Math.max(0, safeNumber(prev.stats?.money));
+    const currentSavings = Math.max(0, safeNumber(prev.bankSavings));
+
+    const availableWithoutLiquidation = Math.max(0, currentMoney - MIN_DIVORCE_CASH_BUFFER) + currentSavings;
+    let requiredFromAssetLiquidation = Math.max(0, totalObligation - availableWithoutLiquidation);
+
+    const originalHoldings = Array.isArray(prev.stocks?.holdings) ? prev.stocks.holdings : [];
+    const updatedHoldings: NonNullable<GameState['stocks']>['holdings'] = [];
+    let stockLiquidationGained = 0;
+
+    originalHoldings.forEach(holding => {
+      const shares = Math.max(0, safeNumber(holding.shares));
+      const currentPrice = Math.max(0, safeNumber(holding.currentPrice));
+      const proceedsPerShare = currentPrice * FORCED_STOCK_LIQUIDATION_RATE;
+
+      if (requiredFromAssetLiquidation <= 0 || shares <= 0 || proceedsPerShare <= 0) {
+        updatedHoldings.push(holding);
+        return;
+      }
+
+      const maxProceeds = shares * proceedsPerShare;
+      if (maxProceeds <= requiredFromAssetLiquidation + 0.0001) {
+        const realized = Math.floor(maxProceeds);
+        stockLiquidationGained += realized;
+        requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - realized);
+        return;
+      }
+
+      const sharesToSell = Math.min(shares, Math.ceil(requiredFromAssetLiquidation / proceedsPerShare));
+      const realized = Math.floor(sharesToSell * proceedsPerShare);
+      if (realized <= 0) {
+        updatedHoldings.push(holding);
+        return;
+      }
+
+      stockLiquidationGained += realized;
+      requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - realized);
+
+      const remainingShares = Math.max(0, shares - sharesToSell);
+      if (remainingShares > 0) {
+        updatedHoldings.push({
+          ...holding,
+          shares: remainingShares,
+        });
+      }
+    });
+
+    let propertyLiquidationGained = 0;
+    let updatedRealEstate = Array.isArray(prev.realEstate) ? [...prev.realEstate] : [];
+    if (requiredFromAssetLiquidation > 0 && updatedRealEstate.length > 0) {
+      const liquidationCandidates = updatedRealEstate
+        .filter(property => property?.owned)
+        .map(property => {
+          const currentValue = safeNumber(property.currentValue);
+          const baseValue = safeNumber(property.price);
+          const liquidationBase = Math.max(0, currentValue || baseValue);
+          const proceeds = Math.floor(liquidationBase * FORCED_REAL_ESTATE_LIQUIDATION_RATE);
+          return { id: property.id, proceeds };
+        })
+        .filter(candidate => candidate.proceeds > 0)
+        .sort((a, b) => b.proceeds - a.proceeds);
+
+      const liquidatedPropertyIds = new Set<string>();
+      liquidationCandidates.forEach(candidate => {
+        if (requiredFromAssetLiquidation <= 0) return;
+        liquidatedPropertyIds.add(candidate.id);
+        propertyLiquidationGained += candidate.proceeds;
+        requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - candidate.proceeds);
+      });
+
+      if (liquidatedPropertyIds.size > 0) {
+        updatedRealEstate = updatedRealEstate.map(property => {
+          if (!property?.owned || !liquidatedPropertyIds.has(property.id)) {
+            return property;
+          }
+
+          const propertyAny = property as any;
+          const { currentResidence: _ignoredCurrentResidence, ...withoutResidence } = propertyAny;
+          return {
+            ...withoutResidence,
+            owned: false,
+            status: 'vacant' as const,
+            rent: 0,
+            upkeep: 0,
+            currentValue: safeNumber(property.price),
+          };
+        });
+      }
+    }
+
+    let remainingObligation = totalObligation;
+    let newMoney = currentMoney + stockLiquidationGained + propertyLiquidationGained;
+    let newSavings = currentSavings;
+
+    const fromMoney = Math.min(remainingObligation, Math.max(0, newMoney - MIN_DIVORCE_CASH_BUFFER));
+    newMoney -= fromMoney;
+    remainingObligation -= fromMoney;
+
+    const fromSavings = Math.min(remainingObligation, Math.max(0, newSavings));
+    newSavings -= fromSavings;
+    remainingObligation -= fromSavings;
+
+    const debtShortfall = Math.max(0, Math.ceil(remainingObligation));
+    const immediatePayment = totalObligation - debtShortfall;
+
+    const updatedLoans = [...(prev.loans || [])];
+    if (debtShortfall > 0) {
+      const weeklyPayment = Math.max(
+        50,
+        Math.round(
+          Math.max(
+            debtShortfall / DIVORCE_DEBT_TERM_WEEKS,
+            debtShortfall * 0.005
+          )
+        )
+      );
+      updatedLoans.push({
+        id: `divorce_loan_${spouseId}_${prev.weeksLived || 0}_${updatedLoans.length + 1}`,
+        name: 'Divorce Settlement Debt',
+        principal: debtShortfall,
+        remaining: debtShortfall,
+        rateAPR: DIVORCE_DEBT_APR,
+        termWeeks: DIVORCE_DEBT_TERM_WEEKS,
+        weeklyPayment,
+        startWeek: prev.weeksLived || prev.week || 0,
+        autoPay: true,
+        type: 'personal',
+        weeksRemaining: DIVORCE_DEBT_TERM_WEEKS,
+        interestRate: DIVORCE_DEBT_APR,
+      });
+    }
+
+    const updatedStats = { ...prev.stats };
+    updatedStats.money = Math.max(0, newMoney);
+    updatedStats.happiness = Math.max(0, Math.min(100, safeNumber(updatedStats.happiness) - 40));
+    updatedStats.reputation = Math.max(0, Math.min(100, safeNumber(updatedStats.reputation) - 10));
+
+    const dailySummary = {
+      ...prev.dailySummary,
+      moneyChange: (prev.dailySummary?.moneyChange || 0) - immediatePayment,
+      statsChange: {
+        ...(prev.dailySummary?.statsChange || {}),
+        happiness: (prev.dailySummary?.statsChange?.happiness || 0) - 40,
+        reputation: (prev.dailySummary?.statsChange?.reputation || 0) - 10,
+      },
+      events: prev.dailySummary?.events || [],
+    };
+
+    const relationships = (prev.relationships || [])
+      .map(r => (r.id === spouseId ? { ...r, livingTogether: false } : r))
+      .filter(r => r.id !== spouseId);
+
+    const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
+
+    immediatePaymentApplied = immediatePayment;
+    divorceDebtCreated = debtShortfall;
+    forcedStockLiquidationPaid = stockLiquidationGained;
+    forcedPropertyLiquidationPaid = propertyLiquidationGained;
+
     return {
       ...prev,
+      stats: updatedStats,
+      bankSavings: Math.max(0, newSavings),
+      stocks: prev.stocks
+        ? {
+            ...prev.stocks,
+            holdings: updatedHoldings,
+          }
+        : prev.stocks,
+      realEstate: updatedRealEstate,
+      loans: updatedLoans,
       relationships,
       family: {
         ...prev.family,
         spouse: undefined,
       },
+      // ANTI-EXPLOIT: Track divorce week for cooldown (prevent marry/divorce cycling)
+      lastDivorceWeek: prev.weeksLived || 0,
+      dailySummary,
+      rngCommitLog: nextRngCommitLog,
     };
   });
 
-  log.info(`Divorced ${spouse.name}, settlement: $${settlement}`);
-  return { 
-    success: true, 
-    message: `Divorce finalized. Settlement paid: $${settlement.toLocaleString()}. Lawyer fees: $${lawyerFees.toLocaleString()}.`,
-    settlement,
+  const funnyDivorceQuotes = [
+    "'I thought till death do us part meant something.'",
+    "'Congratulations, you won... the settlement bill.'",
+    "'The prenup did not include emotional damages.'",
+    "'You can keep the house, I kept the debt.'",
+    "'Signed, sealed, billed.'",
+    "'For better or worse definitely meant worse.'",
+    "'Thanks for donating to the ex-spouse fund.'",
+    "'Bank account: stressed. Lawyer: paid.'",
+  ];
+  const quoteIndex = Math.min(
+    funnyDivorceQuotes.length - 1,
+    Math.max(0, Math.floor(quoteRoll * funnyDivorceQuotes.length))
+  );
+  const randomQuote = funnyDivorceQuotes[quoteIndex];
+
+  log.info(
+    `Divorced ${spouse.name}, settlement: $${settlementObligation} ` +
+    `(${(settlementRatio * 100).toFixed(1)}% of $${netWorth.toLocaleString()} net worth), ` +
+    `immediate payment: $${Math.round(immediatePaymentApplied)}, debt: $${Math.round(divorceDebtCreated)}`
+  );
+
+  let message = `DIVORCE FINALIZED!\n\n${randomQuote}\n\n`;
+
+  if (lawyerResult && lawyerResult.success) {
+    message += `Your lawyer successfully reduced the settlement.\n`;
+    message += `Original settlement: $${baseSettlement.toLocaleString()}\n`;
+    message += `Reduced settlement: $${settlementObligation.toLocaleString()} (${safeNumber(lawyerResult.reductionPercent).toFixed(1)}% reduction)\n\n`;
+  } else if (lawyerResult && !lawyerResult.success) {
+    message += `Your lawyer failed to reduce the settlement.\n`;
+    message += `Settlement: $${settlementObligation.toLocaleString()}\n\n`;
+  } else {
+    message += `Net worth settlement: $${settlementObligation.toLocaleString()} (${(settlementRatio * 100).toFixed(1)}% of your $${netWorth.toLocaleString()} net worth)\n\n`;
+  }
+
+  message += `Base lawyer fees: $${lawyerFees.toLocaleString()}\n`;
+  if (lawyerCost > 0) {
+    message += `Lawyer cost: $${lawyerCost.toLocaleString()}\n`;
+  }
+  if (forcedStockLiquidationPaid > 0) {
+    message += `Forced stock liquidation: $${Math.round(forcedStockLiquidationPaid).toLocaleString()}\n`;
+  }
+  if (forcedPropertyLiquidationPaid > 0) {
+    message += `Forced property liquidation: $${Math.round(forcedPropertyLiquidationPaid).toLocaleString()}\n`;
+  }
+  if (divorceDebtCreated > 0) {
+    message += `Settlement debt created: $${Math.round(divorceDebtCreated).toLocaleString()} (auto-paid weekly)\n`;
+  }
+  message += `Total obligation: $${totalObligation.toLocaleString()}\n`;
+  message += `Immediate payment: $${Math.round(immediatePaymentApplied).toLocaleString()}`;
+
+  return {
+    success: true,
+    message,
+    settlement: totalObligation,
+    lawyerResult,
   };
 };
-
 /**
  * Cancel engagement
  */
@@ -488,7 +910,7 @@ export const cancelEngagement = (
             engagementWeek: undefined,
             engagementRing: undefined,
             weddingPlanned: undefined,
-            relationshipScore: Math.max(0, r.relationshipScore - 20),
+            relationshipScore: clampRelationshipScore(r.relationshipScore - 20),
           }
         : r
     ),
@@ -511,13 +933,21 @@ export const checkAnniversary = (
     return { isAnniversary: false };
   }
 
-  // Check if this is the anniversary week (same week number, different year)
-  const marriageWeek = spouse.marriageWeek || spouse.anniversaryWeek;
-  const weeksMarried = gameState.week - marriageWeek;
-  const yearsMarried = Math.floor(weeksMarried / 52);
+  // Use absolute timeline (weeksLived) to avoid 1..4 week wrap bugs.
+  const absoluteWeek = gameState.weeksLived || 0;
+  let marriageWeek = spouse.marriageWeek ?? spouse.anniversaryWeek;
+  if (typeof marriageWeek !== 'number' || !isFinite(marriageWeek)) {
+    return { isAnniversary: false };
+  }
+  if (marriageWeek <= 4 && absoluteWeek > 4) {
+    marriageWeek = Math.max(0, absoluteWeek - ((gameState.week - marriageWeek + 4) % 4));
+  }
 
-  // Anniversary is every 52 weeks
-  if (weeksMarried > 0 && weeksMarried % 52 === 0) {
+  const weeksMarried = Math.max(0, absoluteWeek - marriageWeek);
+  const yearsMarried = Math.floor(weeksMarried / WEEKS_PER_YEAR);
+
+  // Anniversary is every WEEKS_PER_YEAR weeks
+  if (weeksMarried > 0 && weeksMarried % WEEKS_PER_YEAR === 0) {
     deps.updateStats(setGameState, { happiness: 10 + yearsMarried });
     
     setGameState(prev => ({
@@ -525,9 +955,9 @@ export const checkAnniversary = (
       lifeMilestones: [
         ...(prev.lifeMilestones || []),
         {
-          id: `anniversary_${prev.week}_${spouse.id}`,
+          id: `anniversary_${prev.weeksLived || 0}_${spouse.id}`,
           type: 'anniversary' as const,
-          week: prev.week,
+          week: prev.weeksLived || 0,
           year: prev.date.year,
           partnerId: spouse.id,
           details: { yearsMarried },

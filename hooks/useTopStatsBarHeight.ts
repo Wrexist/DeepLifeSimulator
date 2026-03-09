@@ -14,7 +14,7 @@ export function useTopStatsBarHeight(): number {
   
   // Check if we're in main game tabs
   const isMainGame = segments[0] === '(tabs)';
-  const isOnboarding = segments[0] === '(onboarding)' || segments[0] === 'index' || segments[0] === 'preview';
+  const isOnboarding = segments[0] === '(onboarding)' || segments[0] === 'preview';
   const showStatsBar = isMainGame && !isOnboarding && gameState?.stats;
   
   if (!showStatsBar) return 0;

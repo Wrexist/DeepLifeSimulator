@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LegacyTimeline Component
  * 
  * Displays previous lives with expandable details, family tree links,
@@ -15,7 +15,8 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   X,
   Crown,
@@ -106,7 +107,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
     if (amount >= 1_000_000) {
       return `$${(amount / 1_000_000).toFixed(2)}M`;
     }
-    if (amount >= 1_000) {
+    if (amount > 10_000) {
       return `$${(amount / 1_000).toFixed(2)}K`;
     }
     return `$${amount.toLocaleString()}`;
@@ -367,7 +368,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                                   <View style={styles.eventsList}>
                                     {life.memorableEvents.slice(0, 3).map((event, idx) => (
                                       <Text key={idx} style={[styles.eventText, settings.darkMode && styles.eventTextDark]}>
-                                        • {event}
+                                        â€¢ {event}
                                       </Text>
                                     ))}
                                   </View>
@@ -826,3 +827,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

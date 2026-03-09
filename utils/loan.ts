@@ -1,3 +1,5 @@
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+
 export interface LoanEligibilityInput {
   netWorth: number;
   educationTiers: number;
@@ -23,7 +25,7 @@ export function loanEligibility({
   existingLoans,
 }: LoanEligibilityInput): LoanEligibilityResult {
   const apr = 18; // percent
-  const termWeeks = 52;
+  const termWeeks = WEEKS_PER_YEAR;
   const weeklyRate = apr / 100 / termWeeks;
 
   const reasons: string[] = [];

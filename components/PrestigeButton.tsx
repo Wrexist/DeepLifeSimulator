@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+﻿import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { Crown, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
@@ -85,8 +86,8 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
   const formatMoney = (amount: number) => {
     if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
     if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-    if (amount >= 1_000) return `$${(amount / 1_000).toFixed(2)}K`;
-    return `$${amount}`;
+    if (amount > 10_000) return `$${(amount / 1_000).toFixed(2)}K`;
+    return `$${Math.floor(amount).toLocaleString()}`;
   };
 
   if (!isAvailable) {
@@ -230,4 +231,5 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 });
+
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -9,17 +9,18 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Crown, X, Sparkles, TrendingUp, Zap, Unlock, Settings, Star, Check } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import { Crown, X, Sparkles, TrendingUp, Unlock, Settings, Star, Check } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import {
-  PRESTIGE_BONUSES,
   getBonusesByCategory,
   getBonusLevel,
   canPurchaseBonus,
   getBonusPurchaseCost,
   PrestigeBonusCategory,
 } from '@/lib/prestige/prestigeBonuses';
+import { scale, fontScale } from '@/utils/scaling';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -34,11 +35,11 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
   const [searchQuery, setSearchQuery] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  const prestigeData = gameState.prestige;
+  const prestigeData = gameState?.prestige;
   const prestigePoints = prestigeData?.prestigePoints || 0;
   const unlockedBonuses = prestigeData?.unlockedBonuses || [];
+  const isDarkMode = gameState?.settings?.darkMode ?? false;
 
   const categories: PrestigeBonusCategory[] = ['starting', 'multiplier', 'unlock', 'qol', 'special'];
 
@@ -60,24 +61,15 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
 
   useEffect(() => {
     if (visible) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 100,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     } else {
       fadeAnim.setValue(0);
-      scaleAnim.setValue(0.8);
     }
-  }, [visible, fadeAnim, scaleAnim]);
+  }, [visible, fadeAnim]);
 
   const handlePurchase = (bonusId: string) => {
     const result = purchasePrestigeBonus(bonusId);
@@ -140,19 +132,30 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
+        <TouchableOpacity 
+          style={StyleSheet.absoluteFill} 
+          activeOpacity={1} 
+          onPress={onClose}
+        >
+          <View 
+            style={[StyleSheet.absoluteFill, { backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)' }]}
+          />
+        </TouchableOpacity>
+        
         <Animated.View
           style={[
             styles.container,
             {
               opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
             },
           ]}
         >
           <LinearGradient
-            colors={gameState.settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
+            colors={isDarkMode 
+              ? ['rgba(31, 41, 55, 0.95)', 'rgba(17, 24, 39, 0.98)'] 
+              : ['rgba(255, 255, 255, 0.95)', 'rgba(243, 244, 246, 0.98)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -161,56 +164,79 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 <View style={styles.pointsContainer}>
-                  <Crown size={24} color="#F59E0B" />
-                  <Text style={[styles.pointsText, gameState.settings.darkMode && styles.pointsTextDark]}>
-                    {prestigePoints.toLocaleString()} Points
-                  </Text>
+                  <View style={styles.crownIconContainer}>
+                    <Crown size={20} color="#F59E0B" />
+                  </View>
+                  <View>
+                    <Text style={[styles.pointsLabel, isDarkMode && styles.pointsLabelDark]}>
+                      Prestige Points
+                    </Text>
+                    <Text style={[styles.pointsText, isDarkMode && styles.pointsTextDark]}>
+                      {prestigePoints.toLocaleString()}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={gameState.settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+              <TouchableOpacity 
+                onPress={onClose} 
+                style={styles.closeButton}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.closeButtonInner, isDarkMode && styles.closeButtonInnerDark]}>
+                  <X size={18} color={isDarkMode ? '#FFFFFF' : '#1F2937'} />
+                </View>
               </TouchableOpacity>
             </View>
 
             {/* Category Tabs */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.categoryTabs}
-              contentContainerStyle={styles.categoryTabsContent}
-            >
-              {categories.map(category => {
-                const Icon = getCategoryIcon(category);
-                const colors = getCategoryColor(category);
-                const isSelected = selectedCategory === category;
-                return (
-                  <TouchableOpacity
-                    key={category}
-                    style={[styles.categoryTab, isSelected && styles.categoryTabSelected]}
-                    onPress={() => setSelectedCategory(category)}
-                    activeOpacity={0.8}
-                  >
-                    <LinearGradient
-                      colors={isSelected ? colors : ['#374151', '#1F2937']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.categoryTabGradient}
+            <View style={styles.categoryTabsContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.categoryTabs}
+                contentContainerStyle={styles.categoryTabsContent}
+              >
+                {categories.map(category => {
+                  const Icon = getCategoryIcon(category);
+                  const colors = getCategoryColor(category);
+                  const isSelected = selectedCategory === category;
+                  return (
+                    <TouchableOpacity
+                      key={category}
+                      style={styles.categoryTabWrapper}
+                      onPress={() => setSelectedCategory(category)}
+                      activeOpacity={0.7}
                     >
-                      <Icon size={18} color="#FFFFFF" />
-                      <Text style={styles.categoryTabText}>
-                        {category.charAt(0).toUpperCase() + category.slice(1)}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                      <LinearGradient
+                        colors={isSelected 
+                          ? colors 
+                          : isDarkMode 
+                          ? ['rgba(55, 65, 81, 0.6)', 'rgba(31, 41, 55, 0.7)'] 
+                          : ['rgba(243, 244, 246, 0.8)', 'rgba(229, 231, 235, 0.9)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[styles.categoryTab, isSelected && styles.categoryTabSelected]}
+                      >
+                        <Icon size={16} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#D1D5DB' : '#6B7280')} />
+                        <Text style={[styles.categoryTabText, isSelected && styles.categoryTabTextSelected, !isSelected && isDarkMode && styles.categoryTabTextDark]}>
+                          {category.charAt(0).toUpperCase() + category.slice(1)}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
             {/* Bonuses List */}
-            <ScrollView style={styles.bonusesList} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              style={styles.bonusesList} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.bonusesListContent}
+            >
               {filteredBonuses.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Text style={[styles.emptyText, gameState.settings.darkMode && styles.emptyTextDark]}>
+                  <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark]}>
                     No bonuses found
                   </Text>
                 </View>
@@ -226,25 +252,21 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   return (
                     <View
                       key={bonus.id}
-                      style={[
-                        styles.bonusCard,
-                        gameState.settings.darkMode && styles.bonusCardDark,
-                        hasAnyLevel && styles.bonusCardOwned,
-                      ]}
+                      style={styles.bonusCard}
                     >
                       <LinearGradient
                         colors={
                           isAtMaxLevel
-                            ? ['#10B981', '#059669']
+                            ? ['rgba(16, 185, 129, 0.4)', 'rgba(5, 150, 105, 0.5)']
                             : hasAnyLevel
-                            ? ['#3B82F6', '#2563EB']
-                            : gameState.settings.darkMode
-                            ? ['#374151', '#1F2937']
-                            : ['#F3F4F6', '#E5E7EB']
+                            ? ['rgba(59, 130, 246, 0.4)', 'rgba(37, 99, 235, 0.5)']
+                            : isDarkMode
+                            ? ['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.4)']
+                            : ['rgba(243, 244, 246, 0.6)', 'rgba(229, 231, 235, 0.7)']
                         }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={styles.bonusGradient}
+                        style={[styles.bonusGradient, hasAnyLevel && styles.bonusGradientOwned]}
                       >
                         <View style={styles.bonusHeader}>
                           <View style={styles.bonusInfo}>
@@ -252,9 +274,10 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                               <Text
                                 style={[
                                   styles.bonusName,
-                                  gameState.settings.darkMode && styles.bonusNameDark,
+                                  isDarkMode && styles.bonusNameDark,
                                   hasAnyLevel && styles.bonusNameOwned,
                                 ]}
+                                numberOfLines={1}
                               >
                                 {bonus.name}
                               </Text>
@@ -262,7 +285,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                                 <View
                                   style={[
                                     styles.rarityBadge,
-                                    { backgroundColor: getRarityColor(bonus.rarity) },
+                                    { backgroundColor: getRarityColor(bonus.rarity) + '40' },
                                   ]}
                                 >
                                   <Text style={styles.rarityText}>{bonus.rarity.toUpperCase()}</Text>
@@ -272,67 +295,69 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                             <Text
                               style={[
                                 styles.bonusDescription,
-                                gameState.settings.darkMode && styles.bonusDescriptionDark,
+                                isDarkMode && styles.bonusDescriptionDark,
                                 hasAnyLevel && styles.bonusDescriptionOwned,
                               ]}
+                              numberOfLines={2}
                             >
                               {bonus.description}
                             </Text>
                             {bonus.maxLevel && (
-                              <Text
-                                style={[
-                                  styles.levelText,
-                                  gameState.settings.darkMode && styles.levelTextDark,
-                                ]}
-                              >
-                                Level {currentLevel} / {bonus.maxLevel}
-                              </Text>
+                              <View style={styles.levelContainer}>
+                                <Text
+                                  style={[
+                                    styles.levelText,
+                                    isDarkMode && styles.levelTextDark,
+                                  ]}
+                                >
+                                  Level {currentLevel} / {bonus.maxLevel}
+                                </Text>
+                              </View>
                             )}
                           </View>
                           {isAtMaxLevel && (
                             <View style={styles.ownedBadge}>
-                              <Check size={20} color="#FFFFFF" />
+                              <Check size={16} color="#10B981" />
                             </View>
                           )}
                         </View>
 
                         <View style={styles.bonusFooter}>
-                          <View style={styles.costContainer}>
-                            <Crown size={16} color="#F59E0B" />
-                            <Text
-                              style={[
-                                styles.costText,
-                                gameState.settings.darkMode && styles.costTextDark,
-                                !canAfford && styles.costTextInsufficient,
-                              ]}
-                            >
-                              {cost.toLocaleString()}
-                            </Text>
-                          </View>
+                          {!isAtMaxLevel && (
+                            <View style={styles.costContainer}>
+                              <Crown size={14} color="#F59E0B" />
+                              <Text
+                                style={[
+                                  styles.costText,
+                                  isDarkMode && styles.costTextDark,
+                                  !canAfford && styles.costTextInsufficient,
+                                ]}
+                              >
+                                {cost.toLocaleString()}
+                              </Text>
+                            </View>
+                          )}
                           <TouchableOpacity
-                            style={[
-                              styles.purchaseButton,
-                              (!canPurchase || !canAfford) && styles.purchaseButtonDisabled,
-                            ]}
+                            style={[styles.purchaseButtonWrapper, isAtMaxLevel && styles.purchaseButtonWrapperMaxLevel]}
                             onPress={() => handlePurchase(bonus.id)}
                             disabled={!canPurchase || !canAfford}
-                            activeOpacity={0.8}
+                            activeOpacity={0.7}
                           >
                             <LinearGradient
                               colors={
                                 isAtMaxLevel
-                                  ? ['#10B981', '#059669']
+                                  ? ['rgba(16, 185, 129, 0.7)', 'rgba(5, 150, 105, 0.8)']
                                   : !canPurchase || !canAfford
-                                  ? ['#6B7280', '#4B5563']
+                                  ? ['rgba(107, 114, 128, 0.4)', 'rgba(75, 85, 99, 0.5)']
                                   : hasAnyLevel
-                                  ? ['#3B82F6', '#2563EB']
-                                  : ['#3B82F6', '#2563EB']
+                                  ? ['rgba(59, 130, 246, 0.7)', 'rgba(37, 99, 235, 0.8)']
+                                  : ['rgba(59, 130, 246, 0.7)', 'rgba(37, 99, 235, 0.8)']
                               }
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
-                              style={styles.purchaseButtonGradient}
+                              style={styles.purchaseButton}
                             >
-                              <Text style={styles.purchaseButtonText}>
+                              <Text style={[styles.purchaseButtonText, (!canPurchase || !canAfford) && styles.purchaseButtonTextDisabled]}>
                                 {isAtMaxLevel
                                   ? 'Max Level'
                                   : !canPurchase
@@ -362,30 +387,36 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    padding: 20,
+    padding: scale(12),
+    paddingBottom: scale(40),
   },
   container: {
     width: '100%',
-    maxWidth: 600,
-    maxHeight: '90%',
-  },
-  content: {
-    borderRadius: 20,
+    maxWidth: scale(700),
+    height: '85%',
+    maxHeight: '85%',
+    borderRadius: scale(24),
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: scale(20) },
+    shadowOpacity: 0.4,
+    shadowRadius: scale(30),
+    elevation: 20,
+  },
+  content: {
+    flex: 1,
+    borderRadius: scale(24),
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: scale(20),
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -395,227 +426,263 @@ const styles = StyleSheet.create({
   pointsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: scale(12),
+  },
+  crownIconContainer: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  pointsLabel: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: scale(2),
+  },
+  pointsLabelDark: {
+    color: '#9CA3AF',
   },
   pointsText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: fontScale(24),
+    fontWeight: '800',
     color: '#1F2937',
   },
   pointsTextDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
+    overflow: 'hidden',
+  },
+  closeButtonInner: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  categoryTabs: {
-    maxHeight: 60,
+  closeButtonInnerDark: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  categoryTabsContainer: {
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
+  categoryTabs: {
+    maxHeight: scale(70),
+  },
   categoryTabsContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(12),
+    gap: scale(10),
+  },
+  categoryTabWrapper: {
+    marginRight: scale(8),
   },
   categoryTab: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginRight: 8,
-  },
-  categoryTabSelected: {
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  categoryTabGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 6,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    gap: scale(8),
+    borderRadius: scale(12),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  categoryTabSelected: {
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: scale(4) },
+    shadowOpacity: 0.4,
+    shadowRadius: scale(8),
+    elevation: 8,
   },
   categoryTabText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  categoryTabTextSelected: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontWeight: '700',
+  },
+  categoryTabTextDark: {
+    color: '#D1D5DB',
   },
   bonusesList: {
-    maxHeight: screenWidth * 1.2,
-    padding: 20,
+    flex: 1,
+  },
+  bonusesListContent: {
+    padding: scale(20),
+    gap: scale(14),
+    paddingBottom: scale(40),
   },
   emptyState: {
-    padding: 40,
+    padding: scale(40),
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     color: '#6B7280',
   },
   emptyTextDark: {
     color: '#9CA3AF',
   },
   bonusCard: {
-    marginBottom: 16,
-    borderRadius: 16,
+    marginBottom: scale(12),
+    borderRadius: scale(16),
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  bonusCardDark: {
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  bonusCardOwned: {
-    borderColor: '#10B981',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   bonusGradient: {
-    padding: 16,
+    padding: scale(18),
+    minHeight: scale(140),
+  },
+  bonusGradientOwned: {
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: scale(2) },
+    shadowOpacity: 0.3,
+    shadowRadius: scale(8),
+    elevation: 4,
   },
   bonusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   bonusInfo: {
     flex: 1,
+    minWidth: 0,
   },
   bonusTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
+    gap: scale(8),
+    marginBottom: scale(6),
+    flexWrap: 'wrap',
   },
   bonusName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: fontScale(18),
+    fontWeight: '700',
     color: '#1F2937',
   },
   bonusNameDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   bonusNameOwned: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    fontWeight: '700',
   },
   rarityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(3),
+    borderRadius: scale(6),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   rarityText: {
-    fontSize: 9,
-    fontWeight: 'bold',
+    fontSize: fontScale(9),
+    fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   bonusDescription: {
-    fontSize: 13,
+    fontSize: fontScale(14),
     color: '#6B7280',
-    lineHeight: 18,
-    marginBottom: 4,
+    lineHeight: fontScale(20),
+    marginBottom: scale(8),
+    marginTop: scale(4),
   },
   bonusDescriptionDark: {
-    color: '#9CA3AF',
+    color: '#D1D5DB',
   },
   bonusDescriptionOwned: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  levelContainer: {
+    marginTop: scale(4),
   },
   levelText: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    marginTop: 4,
-    fontWeight: '700',
-    textShadowColor: 'rgba(0, 0, 0, 0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontSize: fontScale(11),
+    color: '#6B7280',
+    fontWeight: '600',
   },
   levelTextDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    color: '#9CA3AF',
   },
   ownedBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
   bonusFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: scale(12),
+    paddingTop: scale(12),
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    gap: scale(12),
   },
   costContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: scale(6),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
+    borderRadius: scale(10),
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   costText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: fontScale(16),
+    fontWeight: '700',
     color: '#1F2937',
   },
   costTextDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    fontWeight: '700',
   },
   costTextInsufficient: {
     color: '#EF4444',
   },
-  purchaseButton: {
-    minWidth: 120,
-    borderRadius: 8,
+  purchaseButtonWrapper: {
+    minWidth: scale(110),
+    borderRadius: scale(10),
     overflow: 'hidden',
   },
-  purchaseButtonDisabled: {
-    opacity: 0.5,
+  purchaseButtonWrapperMaxLevel: {
+    minWidth: 'auto',
+    flex: 1,
   },
-  purchaseButtonGradient: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  purchaseButton: {
+    paddingHorizontal: scale(18),
+    paddingVertical: scale(10),
     alignItems: 'center',
+    justifyContent: 'center',
   },
   purchaseButtonText: {
-    fontSize: 14,
+    fontSize: fontScale(13),
     fontWeight: '700',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  },
+  purchaseButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });
-

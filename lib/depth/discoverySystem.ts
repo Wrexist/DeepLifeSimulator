@@ -31,20 +31,15 @@ export interface DiscoveryProgress {
   };
 }
 
+import { SystemUnlockRequirements } from '@/lib/types/requirements';
+
 /**
  * All discoverable systems in the game
  */
 const DISCOVERABLE_SYSTEMS: Record<string, {
   name: string;
   category: 'core' | 'advanced' | 'premium';
-  unlockRequirements?: {
-    minAge?: number;
-    minMoney?: number;
-    minReputation?: number;
-    requiresSystem?: string;
-    requiresItem?: string;
-    requiresEducation?: string;
-  };
+  unlockRequirements?: SystemUnlockRequirements;
 }> = {
   // Core systems (always available)
   career: {
@@ -354,23 +349,23 @@ export function getSystemUnlockRequirements(systemId: string): {
   const unlockReq = systemDef.unlockRequirements;
 
   if (unlockReq) {
-    if (unlockReq.minAge) {
+    if ('minAge' in unlockReq && unlockReq.minAge) {
       requirements.push(`Age: ${unlockReq.minAge}+`);
     }
-    if (unlockReq.minMoney) {
+    if ('minMoney' in unlockReq && unlockReq.minMoney) {
       requirements.push(`Money: $${unlockReq.minMoney.toLocaleString()}+`);
     }
-    if (unlockReq.minReputation) {
+    if ('minReputation' in unlockReq && unlockReq.minReputation) {
       requirements.push(`Reputation: ${unlockReq.minReputation}+`);
     }
-    if (unlockReq.requiresSystem) {
+    if ('requiresSystem' in unlockReq && unlockReq.requiresSystem) {
       const reqSystem = DISCOVERABLE_SYSTEMS[unlockReq.requiresSystem];
       requirements.push(`Requires: ${reqSystem?.name || unlockReq.requiresSystem}`);
     }
-    if (unlockReq.requiresItem) {
+    if ('requiresItem' in unlockReq && unlockReq.requiresItem) {
       requirements.push(`Requires: ${unlockReq.requiresItem}`);
     }
-    if (unlockReq.requiresEducation) {
+    if ('requiresEducation' in unlockReq && unlockReq.requiresEducation) {
       requirements.push(`Requires: ${unlockReq.requiresEducation} education`);
     }
   }
@@ -397,22 +392,22 @@ export function checkSystemUnlocked(systemId: string, gameState: GameState): boo
   }
 
   // Check age requirement
-  if (unlockReq.minAge && gameState.date.age < unlockReq.minAge) {
+  if ('minAge' in unlockReq && unlockReq.minAge && gameState.date.age < unlockReq.minAge) {
     return false;
   }
 
   // Check money requirement
-  if (unlockReq.minMoney && gameState.stats.money < unlockReq.minMoney) {
+  if ('minMoney' in unlockReq && unlockReq.minMoney && gameState.stats.money < unlockReq.minMoney) {
     return false;
   }
 
   // Check reputation requirement
-  if (unlockReq.minReputation && (gameState.stats.reputation || 0) < unlockReq.minReputation) {
+  if ('minReputation' in unlockReq && unlockReq.minReputation && (gameState.stats.reputation || 0) < unlockReq.minReputation) {
     return false;
   }
 
   // Check required system
-  if (unlockReq.requiresSystem) {
+  if ('requiresSystem' in unlockReq && unlockReq.requiresSystem) {
     const hasSystem = checkSystemUnlocked(unlockReq.requiresSystem, gameState);
     if (!hasSystem) {
       return false;
@@ -420,7 +415,7 @@ export function checkSystemUnlocked(systemId: string, gameState: GameState): boo
   }
 
   // Check required item
-  if (unlockReq.requiresItem) {
+  if ('requiresItem' in unlockReq && unlockReq.requiresItem) {
     const hasItem = gameState.items?.find(i => i.id === unlockReq.requiresItem && i.owned);
     if (!hasItem) {
       // Special case for phone/computer
@@ -434,7 +429,7 @@ export function checkSystemUnlocked(systemId: string, gameState: GameState): boo
   }
 
   // Check required education
-  if (unlockReq.requiresEducation) {
+  if ('requiresEducation' in unlockReq && unlockReq.requiresEducation) {
     const hasEducation = gameState.educations?.find(e => e.id === unlockReq.requiresEducation && e.completed);
     if (!hasEducation) {
       return false;

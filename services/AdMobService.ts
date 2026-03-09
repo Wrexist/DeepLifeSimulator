@@ -1,159 +1,128 @@
+/**
+ * AdMob Service — Error-Isolated Implementation
+ *
+ * Uses lazy-loading of the native module to prevent TurboModule crashes.
+ * All ad operations are wrapped in try/catch with a circuit breaker:
+ * after MAX_CONSECUTIVE_FAILURES failures the service disables itself for
+ * the remainder of the session so a broken ad SDK can never crash the app.
+ *
+ * To configure for production:
+ * 1. Replace the test ad unit IDs in AD_UNITS below with your real AdMob IDs
+ * 2. Set your App IDs in app.config.js react-native-google-mobile-ads plugin
+ * 3. Run `npx expo prebuild` to regenerate native projects
+ */
+
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '@/utils/logger';
 
-// CRITICAL: EMERGENCY DISABLE FOR TESTFLIGHT
-// AdMob is causing native crashes during TurboModule initialization
-// This happens BEFORE JavaScript error handlers can intercept
-// We MUST completely disable AdMob until the native crash is resolved
-const ADMOB_EMERGENCY_DISABLE = true; // Set to false to re-enable AdMob
+const log = logger.scope('AdMob');
 
-// Track if module has been loaded successfully
-let admobModuleLoaded = false;
+// ---------------------------------------------------------------------------
+// Lazy-loaded native modules — never require at module load time
+// ---------------------------------------------------------------------------
 let mobileAds: any = null;
-let InterstitialAd: any = null;
-let RewardedAd: any = null;
-let AdEventType: any = null;
+let NativeInterstitialAd: any = null;
+let NativeRewardedAd: any = null;
+let NativeAdEventType: any = null;
+let NativeRewardedAdEventType: any = null;
+let NativeBannerAd: any = null;
+let NativeBannerAdSize: any = null;
+let NativeTestIds: any = null;
 
-// Check if running in Expo Go (native modules not available)
-function isExpoGo(): boolean {
-  if (Platform.OS === 'web') {
-    return false;
-  }
+let moduleLoaded = false;
+let moduleLoadAttempted = false;
+
+function loadModule(): boolean {
+  if (moduleLoaded) return true;
+  if (moduleLoadAttempted) return false;
+  moduleLoadAttempted = true;
+
+  if (Platform.OS === 'web') return false;
+
   try {
-    // Try to detect Expo Go by checking for execution environment
-    const Constants = require('expo-constants');
-    if (Constants?.default?.executionEnvironment === 'storeClient') {
-      return true;
-    }
-    return false;
-  } catch {
-      return false;
-    }
-  }
-}
-
-// Lazy-load AdMob module only when needed and only on native platforms
-function loadAdMobModule(): boolean {
-  // CRITICAL: Emergency disable for TestFlight
-  if (ADMOB_EMERGENCY_DISABLE) {
-    if (__DEV__) {
-      logger.info('AdMob EMERGENCY DISABLED - skipping all initialization');
-    }
-    return false;
-  }
-
-  // Skip on web platform
-  if (Platform.OS === 'web') {
-    return false;
-  }
-
-  // Skip in Expo Go (native modules not available)
-  if (isExpoGo()) {
-    if (__DEV__) {
-      logger.info('AdMob skipped - running in Expo Go (native modules not available)');
-    }
-    return false;
-  }
-
-  // If already loaded, return success
-  if (admobModuleLoaded && mobileAds) {
-    return true;
-  }
-
-  // Try to load the module
-  // Note: The require() call itself might throw if the native module isn't available
-  // This happens because the module tries to access TurboModuleRegistry during initialization
-  try {
-    // Use dynamic require with string concatenation to prevent static bundler analysis
-    // This pattern makes it harder for the bundler to statically resolve the require
-    const moduleName = 'react-native-google-mobile-ads';
-    
-    // Wrap require in a function that can catch synchronous errors
-    let admobModule: any;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      admobModule = require(moduleName);
-    } catch (requireError: any) {
-      // The error might be thrown during module initialization
-      const errorMessage = requireError?.message || String(requireError);
-      
-      // Check if it's a native module error (common in Expo Go)
-      if (errorMessage.includes('TurboModuleRegistry') || 
-          errorMessage.includes('RNGoogleMobileAdsModule') ||
-          errorMessage.includes('could not be found') ||
-          errorMessage.includes('Invariant Violation')) {
-        if (__DEV__) {
-          logger.info('AdMob native module not available (likely Expo Go) - AdMob features disabled');
-        }
-        return false;
-      }
-      // Re-throw if it's a different error
-      throw requireError;
-    }
-    
-    // If module loaded, try to access exports
-    // This might also fail if the module loaded but native module isn't linked
-    if (!admobModule) {
-      if (__DEV__) {
-        logger.warn('AdMob module loaded but is null or undefined');
-      }
-      return false;
-    }
-
-    // Try to access the exports
-    try {
-      mobileAds = admobModule.default?.mobileAds;
-      InterstitialAd = admobModule.InterstitialAd;
-      RewardedAd = admobModule.RewardedAd;
-      AdEventType = admobModule.AdEventType;
-    } catch (accessError: any) {
-      const errorMessage = accessError?.message || String(accessError);
-      
-      // Check if it's a native module error
-      if (errorMessage.includes('TurboModuleRegistry') || 
-          errorMessage.includes('RNGoogleMobileAdsModule') ||
-          errorMessage.includes('could not be found')) {
-        if (__DEV__) {
-          logger.info('AdMob exports not available - AdMob features disabled');
-        }
-        return false;
-      }
-      // Re-throw if it's a different error
-      throw accessError;
-    }
-
-    // Verify all required exports are available
-    if (!mobileAds || !InterstitialAd || !RewardedAd || !AdEventType) {
-      if (__DEV__) {
-        logger.warn('AdMob module missing required exports - ads disabled');
-      }
-      return false;
-    }
-
-    admobModuleLoaded = true;
-    if (__DEV__) {
-      logger.info('AdMob module loaded successfully');
-    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('react-native-google-mobile-ads');
+    mobileAds = mod.default;
+    NativeInterstitialAd = mod.InterstitialAd;
+    NativeRewardedAd = mod.RewardedAd;
+    NativeAdEventType = mod.AdEventType;
+    NativeRewardedAdEventType = mod.RewardedAdEventType;
+    NativeBannerAd = mod.BannerAd;
+    NativeBannerAdSize = mod.BannerAdSize;
+    NativeTestIds = mod.TestIds;
+    moduleLoaded = true;
     return true;
   } catch (error: any) {
-    const errorMessage = error?.message || String(error) || '';
-    
-    // Check if it's a native module error (common in Expo Go or when module isn't linked)
-    if (errorMessage.includes('TurboModuleRegistry') || 
-        errorMessage.includes('RNGoogleMobileAdsModule') ||
-        errorMessage.includes('could not be found')) {
-      if (__DEV__) {
-        logger.info('AdMob native module not available - ads disabled');
-      }
-    } else {
-      // Log unexpected errors
-      logger.warn('Failed to load AdMob module:', errorMessage);
-    }
+    log.warn('react-native-google-mobile-ads not available:', error?.message);
     return false;
   }
 }
 
+// ---------------------------------------------------------------------------
+// Circuit breaker — disables ads after repeated failures
+// ---------------------------------------------------------------------------
+const MAX_CONSECUTIVE_FAILURES = 3;
+let failureCount = 0;
+let circuitOpen = false;
+
+// D-1: Auto-recovery timer resets circuit after 5 minutes
+const CIRCUIT_RECOVERY_MS = 5 * 60 * 1000;
+let circuitRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
+
+function recordFailure() {
+  failureCount++;
+  if (failureCount >= MAX_CONSECUTIVE_FAILURES) {
+    circuitOpen = true;
+    log.warn('Circuit breaker tripped — ads disabled temporarily');
+    // D-1: Schedule auto-recovery instead of permanent disable
+    if (!circuitRecoveryTimer) {
+      circuitRecoveryTimer = setTimeout(() => {
+        circuitOpen = false;
+        failureCount = 0;
+        circuitRecoveryTimer = null;
+        log.info('Circuit breaker auto-recovered — ads re-enabled');
+      }, CIRCUIT_RECOVERY_MS);
+    }
+  }
+}
+
+function recordSuccess() {
+  failureCount = 0;
+  // Cancel recovery timer on success
+  if (circuitRecoveryTimer) {
+    clearTimeout(circuitRecoveryTimer);
+    circuitRecoveryTimer = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ad unit IDs — loaded from env vars, falls back to Google test IDs in dev
+// ---------------------------------------------------------------------------
+const TEST_BANNER_IOS = 'ca-app-pub-3940256099942544/2934735716';
+const TEST_BANNER_ANDROID = 'ca-app-pub-3940256099942544/6300978111';
+const TEST_INTERSTITIAL_IOS = 'ca-app-pub-3940256099942544/4411468910';
+const TEST_INTERSTITIAL_ANDROID = 'ca-app-pub-3940256099942544/1033173712';
+const TEST_REWARDED_IOS = 'ca-app-pub-3940256099942544/1712485313';
+const TEST_REWARDED_ANDROID = 'ca-app-pub-3940256099942544/5224354917';
+
+const AD_UNITS = {
+  BANNER: Platform.select({
+    ios: process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS || TEST_BANNER_IOS,
+    android: process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID || TEST_BANNER_ANDROID,
+  }) || '',
+  INTERSTITIAL: Platform.select({
+    ios: process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS || TEST_INTERSTITIAL_IOS,
+    android: process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID || TEST_INTERSTITIAL_ANDROID,
+  }) || '',
+  REWARDED: Platform.select({
+    ios: process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS || TEST_REWARDED_IOS,
+    android: process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID || TEST_REWARDED_ANDROID,
+  }) || '',
+};
+
+// ---------------------------------------------------------------------------
+// Public state type
+// ---------------------------------------------------------------------------
 export interface AdMobState {
   isLoading: boolean;
   isInitialized: boolean;
@@ -162,7 +131,10 @@ export interface AdMobState {
   error: string | null;
 }
 
-class AdMobService {
+// ---------------------------------------------------------------------------
+// Service implementation
+// ---------------------------------------------------------------------------
+class AdMobServiceImpl {
   private state: AdMobState = {
     isLoading: false,
     isInitialized: false,
@@ -172,22 +144,14 @@ class AdMobService {
   };
 
   private listeners: Array<(state: AdMobState) => void> = [];
-  private interstitialAd: any = null;
-  private rewardedAd: any = null;
+  private interstitial: any = null;
+  private rewarded: any = null;
 
-  private setState(newState: Partial<AdMobState>) {
-    this.state = { ...this.state, ...newState };
-    this.notifyListeners();
-  }
-
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.state));
-  }
+  // --- Listener management ---
 
   addListener(listener: (state: AdMobState) => void) {
     this.listeners.push(listener);
-    // Immediately notify with current state
-    listener(this.state);
+    listener(this.getState());
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
     };
@@ -197,134 +161,210 @@ class AdMobService {
     return { ...this.state };
   }
 
-  /**
-   * Should ads be shown in this environment?
-   */
-  private shouldShowAds(): boolean {
-    // CRITICAL: Emergency disable for TestFlight
-    if (ADMOB_EMERGENCY_DISABLE) {
-      return false;
-    }
-
-    // Don't show ads on web
-    if (Platform.OS === 'web') {
-      return false;
-    }
-
-    // Don't show ads in Expo Go
-    if (isExpoGo()) {
-      return false;
-    }
-
-    // Only show if initialized
-    return this.state.isInitialized;
-  }
-
-  /**
-   * Get the appropriate ad unit ID for the platform and ad type
-   */
-  private getAdUnitId(type: 'interstitial' | 'rewarded'): string {
-    // Test ad unit IDs from Google
-    // Replace these with your actual ad unit IDs in production
-    if (type === 'interstitial') {
-      return Platform.OS === 'ios'
-        ? 'ca-app-pub-3940256099942544/4411468910' // iOS test interstitial
-        : 'ca-app-pub-3940256099942544/1033173712'; // Android test interstitial
-    } else {
-      return Platform.OS === 'ios'
-        ? 'ca-app-pub-3940256099942544/1712485313' // iOS test rewarded
-        : 'ca-app-pub-3940256099942544/5224354917'; // Android test rewarded
+  private setState(updates: Partial<AdMobState>) {
+    this.state = { ...this.state, ...updates };
+    for (const l of this.listeners) {
+      try { l(this.getState()); } catch (_) { /* never crash on listener error */ }
     }
   }
 
-  /**
-   * Initialize AdMob service
-   * MUST be called before showing ads
-   */
+  // --- Initialization ---
+
   async initialize(): Promise<void> {
-    // CRITICAL: Emergency disable for TestFlight
-    if (ADMOB_EMERGENCY_DISABLE) {
-      if (__DEV__) {
-        logger.info('AdMob EMERGENCY DISABLED - initialization skipped');
-      }
-      this.setState({
-        isLoading: false,
-        isInitialized: false,
-        error: 'AdMob disabled for TestFlight stability'
-      });
+    if (circuitOpen || this.state.isInitialized) return;
+
+    if (!loadModule() || !mobileAds) {
+      this.setState({ error: 'Ad module not available' });
       return;
     }
 
-    // Skip on web
-    if (Platform.OS === 'web') {
-      logger.info('AdMob skipped - web platform not supported');
-      this.setState({ isLoading: false, error: null });
-      return;
-    }
+    try {
+      this.setState({ isLoading: true });
+      await mobileAds().initialize();
+      this.setState({ isInitialized: true, isLoading: false, error: null });
+      recordSuccess();
+      log.info('Initialized successfully');
 
-    // Skip in Expo Go
-    if (isExpoGo()) {
-      logger.info('AdMob skipped - running in Expo Go (native modules not available)');
-      this.setState({ isLoading: false, error: null });
-      return;
+      // Pre-load ads in background
+      void this.loadInterstitialAd();
+      void this.loadRewardedAd();
+    } catch (error: any) {
+      recordFailure();
+      log.error('Initialization failed:', error?.message);
+      this.setState({ isLoading: false, error: error?.message || 'Init failed' });
     }
-
-    // CRITICAL: Do NOT attempt to load AdMob module
-    // The native module is causing crashes during TurboModule initialization
-    // This happens BEFORE JavaScript error handlers can intercept
-    logger.info('AdMob initialization skipped due to native crashes in TurboModule');
-    this.setState({
-      isLoading: false,
-      isInitialized: false,
-      error: 'AdMob disabled due to native crashes'
-    });
   }
 
-  /**
-   * Load an interstitial ad
-   */
+  // --- Interstitial ---
+
   async loadInterstitialAd(): Promise<void> {
-    // All ad operations disabled
-    return;
+    if (circuitOpen || !this.state.isInitialized || !NativeInterstitialAd || !NativeAdEventType) return;
+
+    try {
+      const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.INTERSTITIAL : AD_UNITS.INTERSTITIAL;
+      this.interstitial = NativeInterstitialAd.createForAdRequest(adUnitId);
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Load timeout')), 15000);
+
+        const unsubLoaded = this.interstitial.addAdEventListener(NativeAdEventType.LOADED, () => {
+          clearTimeout(timeout);
+          unsubLoaded();
+          unsubError();
+          this.setState({ isInterstitialLoaded: true });
+          recordSuccess();
+          resolve();
+        });
+
+        const unsubError = this.interstitial.addAdEventListener(NativeAdEventType.ERROR, (err: any) => {
+          clearTimeout(timeout);
+          unsubLoaded();
+          unsubError();
+          reject(err);
+        });
+
+        this.interstitial.load();
+      });
+    } catch (error: any) {
+      recordFailure();
+      log.warn('Interstitial load failed:', error?.message);
+      this.setState({ isInterstitialLoaded: false });
+    }
   }
 
-  /**
-   * Show an interstitial ad
-   */
   async showInterstitialAd(): Promise<boolean> {
-    // All ad operations disabled
-    return false;
+    if (circuitOpen || !this.state.isInterstitialLoaded || !this.interstitial) return false;
+
+    try {
+      await this.interstitial.show();
+      this.setState({ isInterstitialLoaded: false });
+      recordSuccess();
+      // Pre-load next one
+      void this.loadInterstitialAd();
+      return true;
+    } catch (error: any) {
+      recordFailure();
+      log.warn('Interstitial show failed:', error?.message);
+      this.setState({ isInterstitialLoaded: false });
+      return false;
+    }
   }
 
-  /**
-   * Load a rewarded ad
-   */
+  // --- Rewarded ---
+
   async loadRewardedAd(): Promise<void> {
-    // All ad operations disabled
-    return;
+    if (circuitOpen || !this.state.isInitialized || !NativeRewardedAd) return;
+
+    try {
+      const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.REWARDED : AD_UNITS.REWARDED;
+      this.rewarded = NativeRewardedAd.createForAdRequest(adUnitId);
+
+      // Determine the correct event type constants — RewardedAd may use its own enum
+      const loadedEvent = NativeRewardedAdEventType?.LOADED || NativeAdEventType?.LOADED;
+      const errorEvent = NativeAdEventType?.ERROR;
+
+      if (!loadedEvent || !errorEvent) {
+        log.warn('Ad event types not available');
+        return;
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Load timeout')), 15000);
+
+        const unsubLoaded = this.rewarded.addAdEventListener(loadedEvent, () => {
+          clearTimeout(timeout);
+          unsubLoaded();
+          unsubError();
+          this.setState({ isRewardedLoaded: true });
+          recordSuccess();
+          resolve();
+        });
+
+        const unsubError = this.rewarded.addAdEventListener(errorEvent, (err: any) => {
+          clearTimeout(timeout);
+          unsubLoaded();
+          unsubError();
+          reject(err);
+        });
+
+        this.rewarded.load();
+      });
+    } catch (error: any) {
+      recordFailure();
+      log.warn('Rewarded ad load failed:', error?.message);
+      this.setState({ isRewardedLoaded: false });
+    }
   }
 
-  /**
-   * Show a rewarded ad and call the callback when user earns reward
-   */
   async showRewardedAd(onReward: () => void): Promise<boolean> {
-    // All ad operations disabled
-    return false;
+    if (circuitOpen || !this.state.isRewardedLoaded || !this.rewarded) return false;
+
+    try {
+      let rewarded = false;
+
+      const rewardEvent = NativeRewardedAdEventType?.EARNED_REWARD;
+      let unsubReward: (() => void) | undefined;
+      if (rewardEvent) {
+        unsubReward = this.rewarded.addAdEventListener(rewardEvent, () => {
+          rewarded = true;
+        });
+      }
+
+      await this.rewarded.show();
+      unsubReward?.();
+      this.setState({ isRewardedLoaded: false });
+      recordSuccess();
+
+      if (rewarded) {
+        try { onReward(); } catch (_) { /* never crash on reward callback error */ }
+      }
+
+      // Pre-load next one
+      void this.loadRewardedAd();
+      return rewarded;
+    } catch (error: any) {
+      recordFailure();
+      log.warn('Rewarded show failed:', error?.message);
+      this.setState({ isRewardedLoaded: false });
+      return false;
+    }
   }
 
-  /**
-   * Clean up ad resources
-   */
+  // --- Banner helpers (used by BannerAd component) ---
+
+  /** Returns the native BannerAd React component, or null if unavailable */
+  getNativeBannerAd(): any {
+    return circuitOpen ? null : NativeBannerAd;
+  }
+
+  /** Returns the BannerAdSize constants, or null if unavailable */
+  getBannerAdSize(): any {
+    return circuitOpen ? null : NativeBannerAdSize;
+  }
+
+  /** Returns the banner ad unit ID for the current platform */
+  getBannerAdUnitId(): string {
+    if (circuitOpen) return '';
+    if (__DEV__ && NativeTestIds) return NativeTestIds.BANNER;
+    return AD_UNITS.BANNER;
+  }
+
+  /** Returns true if ads are available and not circuit-broken */
+  isAvailable(): boolean {
+    return !circuitOpen && moduleLoaded && this.state.isInitialized;
+  }
+
+  // --- Cleanup ---
+
   cleanup(): void {
-    // Nothing to clean up
-    this.interstitialAd = null;
-    this.rewardedAd = null;
-    this.setState({
-      isInterstitialLoaded: false,
-      isRewardedLoaded: false,
-    });
+    try {
+      this.interstitial = null;
+      this.rewarded = null;
+      this.setState({ isInterstitialLoaded: false, isRewardedLoaded: false });
+    } catch (_) {
+      // Never crash on cleanup
+    }
   }
 }
 
-// Export singleton instance
-export const adMobService = new AdMobService();
+export const adMobService = new AdMobServiceImpl();

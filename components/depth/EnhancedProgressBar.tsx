@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Enhanced Progress Bar
  * Multi-layered progress bars with milestones and detailed information
  */
@@ -10,7 +10,8 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   Target,
   Clock,
@@ -322,4 +323,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 

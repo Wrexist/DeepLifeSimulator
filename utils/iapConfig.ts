@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 // IAP Product IDs - These must match exactly with your App Store/Google Play Console
 export const IAP_PRODUCTS = {
-  // Gem Shop Store Items (from GemShopModal)
+  // Gem Packs
   GEMS_100: Platform.select({
     ios: 'deeplife_gems_100',
     android: 'deeplife_gems_100',
@@ -74,16 +74,11 @@ export const IAP_PRODUCTS = {
     android: 'deeplife_lifetime_premium',
   }) || 'deeplife_lifetime_premium',
   
-  // Perks IAP (from ShopModal)
+  // Perks IAP
   WORK_BOOST: Platform.select({
     ios: 'deeplife_work_boost',
     android: 'deeplife_work_boost',
   }) || 'deeplife_work_boost',
-  
-  MINDSET: Platform.select({
-    ios: 'deeplife_mindset',
-    android: 'deeplife_mindset',
-  }) || 'deeplife_mindset',
   
   FAST_LEARNER: Platform.select({
     ios: 'deeplife_fast_learner',
@@ -135,11 +130,6 @@ export const IAP_PRODUCTS = {
     android: 'revival_pack',
   }) || 'revival_pack',
 
-  // Single Revive (Consumable - one-time use)
-  REVIVE_SINGLE: Platform.select({
-    ios: 'deeplife_revive_single',
-    android: 'deeplife_revive_single',
-  }) || 'deeplife_revive_single',
 };
 
 // Product configurations with descriptions and rewards
@@ -307,15 +297,6 @@ export const PRODUCT_CONFIGS = {
     bestValue: false,
   },
   
-  [IAP_PRODUCTS.MINDSET]: {
-    name: 'Mindset',
-    description: '50% faster promotions',
-    mindset: true,
-    price: '$1.99',
-    popular: false,
-    bestValue: false,
-  },
-  
   [IAP_PRODUCTS.FAST_LEARNER]: {
     name: 'Fast Learner',
     description: '50% faster education',
@@ -440,21 +421,6 @@ export const PRODUCT_CONFIGS = {
     ],
   },
 
-  // Single Revive (Consumable - one-time use)
-  [IAP_PRODUCTS.REVIVE_SINGLE]: {
-    name: 'Revive',
-    description: 'Instantly revive your character with full stats',
-    revive: true,
-    price: '$1.99',
-    popular: true,
-    bestValue: false,
-    features: [
-      'Instant revival',
-      'Restore health to 100',
-      'Restore happiness to 100',
-      'Restore energy to 100',
-    ],
-  },
 };
 
 // Subscription products (if you want to add subscriptions later)
@@ -468,6 +434,22 @@ export const SUBSCRIPTION_PRODUCTS = {
     ios: 'deeplife_premium_yearly',
     android: 'deeplife_premium_yearly',
   }) || 'deeplife_premium_yearly',
+};
+
+// Subscription product configurations
+export const SUBSCRIPTION_CONFIGS: Record<string, { name: string; price: string; description?: string; type: 'subscription' }> = {
+  [SUBSCRIPTION_PRODUCTS.PREMIUM_MONTHLY]: {
+    name: 'Premium Monthly',
+    price: '$4.99',
+    description: 'Monthly premium subscription',
+    type: 'subscription',
+  },
+  [SUBSCRIPTION_PRODUCTS.PREMIUM_YEARLY]: {
+    name: 'Premium Yearly',
+    price: '$49.99',
+    description: 'Yearly premium subscription (save 17%)',
+    type: 'subscription',
+  },
 };
 
 // Get all product IDs as an array
@@ -509,15 +491,12 @@ export const CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.YOUTH_PILL_PACK,
   IAP_PRODUCTS.MONEY_BOOST,
   IAP_PRODUCTS.SKILL_BOOST,
-  IAP_PRODUCTS.REVIVAL_PACK, // Revival is one-time use
-  IAP_PRODUCTS.REVIVE_SINGLE, // Single revive (consumable)
 ];
 
 // Non-consumable products - These SHOULD be restored
 // (permanent perks, ad removal, lifetime features)
 export const NON_CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.WORK_BOOST,
-  IAP_PRODUCTS.MINDSET,
   IAP_PRODUCTS.FAST_LEARNER,
   IAP_PRODUCTS.GOOD_CREDIT,
   IAP_PRODUCTS.UNLOCK_ALL_PERKS,
@@ -527,6 +506,7 @@ export const NON_CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.FINANCIAL_PLANNING,
   IAP_PRODUCTS.BUSINESS_BANKING,
   IAP_PRODUCTS.PRIVATE_BANKING,
+  IAP_PRODUCTS.REVIVAL_PACK, // Revival pack (non-consumable - permanent feature)
 ];
 
 // Helper function to check if product is consumable

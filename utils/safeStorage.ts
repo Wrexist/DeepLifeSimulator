@@ -7,10 +7,38 @@
  * - Consistent error logging
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from './logger';
 
 const log = logger.scope('SafeStorage');
+
+// Lazy-load AsyncStorage to prevent TurboModule crash at module load time
+let _asyncStorage: any = null;
+let _loadAttempted = false;
+
+function getAsyncStorage(): any {
+  if (_asyncStorage) return _asyncStorage;
+  if (_loadAttempted) return null;
+  _loadAttempted = true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _asyncStorage = require('@react-native-async-storage/async-storage').default;
+    return _asyncStorage;
+  } catch {
+    return null;
+  }
+}
+
+// Keep backward-compatible reference
+const AsyncStorage = {
+  get instance() { return getAsyncStorage(); },
+  async setItem(key: string, value: string) { const s = getAsyncStorage(); if (!s) throw new Error('AsyncStorage not available'); return s.setItem(key, value); },
+  async getItem(key: string) { const s = getAsyncStorage(); if (!s) return null; return s.getItem(key); },
+  async removeItem(key: string) { const s = getAsyncStorage(); if (!s) return; return s.removeItem(key); },
+  async multiGet(keys: string[]) { const s = getAsyncStorage(); if (!s) return keys.map((k: string) => [k, null] as const); return s.multiGet(keys); },
+  async multiSet(pairs: [string, string][]) { const s = getAsyncStorage(); if (!s) throw new Error('AsyncStorage not available'); return s.multiSet(pairs); },
+  async multiRemove(keys: string[]) { const s = getAsyncStorage(); if (!s) return; return s.multiRemove(keys); },
+  async getAllKeys() { const s = getAsyncStorage(); if (!s) return []; return s.getAllKeys(); },
+};
 
 /**
  * Safely set an item in AsyncStorage with QuotaExceededError handling
@@ -109,7 +137,7 @@ export const safeMultiRemove = async (keys: string[]): Promise<boolean> => {
  */
 export const safeGetAllKeys = async (): Promise<string[]> => {
   try {
-    return await AsyncStorage.getAllKeys();
+    return [...(await AsyncStorage.getAllKeys())];
   } catch (error) {
     log.error('Failed to get all keys:', error);
     return [];

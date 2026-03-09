@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Finance Overview Component
  * 
  * Comprehensive financial dashboard with visualizations, trends, and projections
@@ -11,7 +11,8 @@ import {
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   TrendingUp,
   TrendingDown,
@@ -31,6 +32,7 @@ import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { getWeeklyInflationRate } from '@/lib/economy/inflation';
 import { scale, fontScale } from '@/utils/scaling';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -76,7 +78,7 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
     });
     // Add company values
     (gameState.companies || []).forEach(c => {
-      total += (c.weeklyIncome * 52) || 0; // Rough valuation
+      total += (c.weeklyIncome * WEEKS_PER_YEAR) || 0; // Rough valuation
     });
     // Subtract loans
     total -= totalLoanDebt;
@@ -132,10 +134,12 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
       return `${sign}$${(absAmount / 1_000_000_000).toFixed(2)}B`;
     } else if (absAmount >= 1_000_000) {
       return `${sign}$${(absAmount / 1_000_000).toFixed(2)}M`;
-    } else if (absAmount >= 1_000) {
+    } else if (absAmount > 10_000) {
+      // Thousands (K) - only for numbers above 10,000
       return `${sign}$${(absAmount / 1_000).toFixed(2)}K`;
     }
-    return `${sign}$${absAmount.toFixed(0)}`;
+    // Regular numbers (0-10,000) - show full number
+    return `${sign}$${Math.floor(absAmount).toLocaleString()}`;
   };
 
   const getHealthColor = (score: number) => {
@@ -386,15 +390,15 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
       {/* Projections */}
       <View style={[styles.projectionCard, settings.darkMode && styles.projectionCardDark]}>
         <Text style={[styles.projectionTitle, settings.darkMode && styles.textDark]}>
-          📊 1-Year Projection
+          ðŸ“Š 1-Year Projection
         </Text>
         <View style={styles.projectionGrid}>
           <View style={styles.projectionItem}>
             <Text style={[styles.projectionLabel, settings.darkMode && styles.textMuted]}>
               Est. Net Worth
             </Text>
-            <Text style={[styles.projectionValue, { color: netWorth + (weeklyCashFlow * 52) >= netWorth ? '#10B981' : '#EF4444' }]}>
-              {formatMoney(netWorth + (weeklyCashFlow * 52))}
+            <Text style={[styles.projectionValue, { color: netWorth + (weeklyCashFlow * WEEKS_PER_YEAR) >= netWorth ? '#10B981' : '#EF4444' }]}>
+              {formatMoney(netWorth + (weeklyCashFlow * WEEKS_PER_YEAR))}
             </Text>
           </View>
           <View style={styles.projectionItem}>
@@ -402,7 +406,7 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
               Est. Savings
             </Text>
             <Text style={[styles.projectionValue, settings.darkMode && styles.textDark]}>
-              {formatMoney((gameState.bankSavings || 0) + (weeklyCashFlow > 0 ? weeklyCashFlow * 52 * 0.5 : 0))}
+              {formatMoney((gameState.bankSavings || 0) + (weeklyCashFlow > 0 ? weeklyCashFlow * WEEKS_PER_YEAR * 0.5 : 0))}
             </Text>
           </View>
         </View>
@@ -714,3 +718,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+

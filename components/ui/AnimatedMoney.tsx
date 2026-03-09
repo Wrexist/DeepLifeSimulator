@@ -56,34 +56,37 @@ export default function AnimatedMoney({
     
     let formatted: string;
     
+    // Always remove decimals for better readability in TopStatsBar
     if (a >= 1_000_000_000_000_000) {
       // Quadrillions (Q)
-      formatted = `${(a / 1_000_000_000_000_000).toFixed(2)}Q`;
+      formatted = `${Math.floor(a / 1_000_000_000_000_000)}Q`;
     } else if (a >= 1_000_000_000_000) {
       // Trillions (T)
-      formatted = `${(a / 1_000_000_000_000).toFixed(2)}T`;
+      formatted = `${Math.floor(a / 1_000_000_000_000)}T`;
     } else if (a >= 1_000_000_000) {
       // Billions (B)
-      formatted = `${(a / 1_000_000_000).toFixed(2)}B`;
+      formatted = `${Math.floor(a / 1_000_000_000)}B`;
     } else if (a >= 1_000_000) {
       // Millions (M)
-      formatted = `${(a / 1_000_000).toFixed(2)}M`;
-    } else if (a >= 1_000) {
-      // Thousands (K)
-      formatted = `${(a / 1_000).toFixed(2)}K`;
+      formatted = `${Math.floor(a / 1_000_000)}M`;
+    } else if (a > 10_000) {
+      // Thousands (K) - only for numbers above 10,000
+      formatted = `${Math.floor(a / 1_000)}K`;
     } else {
-      // Regular numbers
-      formatted = a.toString();
+      // Regular numbers (0-10,000) - show full number
+      formatted = a.toLocaleString();
     }
-    
-    // Remove trailing zeros and decimal point if not needed
-    formatted = formatted.replace(/\.00$/, '').replace(/\.0$/, '');
     
     return `${sign}${formatted}`;
   };
 
   return (
-    <Text style={[styles.text, style]}>
+    <Text 
+      style={[styles.text, style]}
+      numberOfLines={1}
+      adjustsFontSizeToFit={true}
+      minimumFontScale={0.7}
+    >
       {prefix}{formatNumber(displayValue)}{suffix}
     </Text>
   );
@@ -131,34 +134,37 @@ export function AnimatedMoneyNative({
     
     let formatted: string;
     
+    // Always remove decimals for better readability in TopStatsBar
     if (a >= 1_000_000_000_000_000) {
       // Quadrillions (Q)
-      formatted = `${(a / 1_000_000_000_000_000).toFixed(2)}Q`;
+      formatted = `${Math.floor(a / 1_000_000_000_000_000)}Q`;
     } else if (a >= 1_000_000_000_000) {
       // Trillions (T)
-      formatted = `${(a / 1_000_000_000_000).toFixed(2)}T`;
+      formatted = `${Math.floor(a / 1_000_000_000_000)}T`;
     } else if (a >= 1_000_000_000) {
       // Billions (B)
-      formatted = `${(a / 1_000_000_000).toFixed(2)}B`;
+      formatted = `${Math.floor(a / 1_000_000_000)}B`;
     } else if (a >= 1_000_000) {
       // Millions (M)
-      formatted = `${(a / 1_000_000).toFixed(2)}M`;
-    } else if (a >= 1_000) {
-      // Thousands (K)
-      formatted = `${(a / 1_000).toFixed(2)}K`;
+      formatted = `${Math.floor(a / 1_000_000)}M`;
+    } else if (a > 10_000) {
+      // Thousands (K) - only for numbers above 10,000
+      formatted = `${Math.floor(a / 1_000)}K`;
     } else {
-      // Regular numbers
-      formatted = a.toString();
+      // Regular numbers (0-10,000) - show full number
+      formatted = a.toLocaleString();
     }
-    
-    // Remove trailing zeros and decimal point if not needed
-    formatted = formatted.replace(/\.00$/, '').replace(/\.0$/, '');
     
     return `${sign}${formatted}`;
   };
 
   return (
-    <Text style={[styles.text, style]}>
+    <Text 
+      style={[styles.text, style]}
+      numberOfLines={1}
+      adjustsFontSizeToFit={true}
+      minimumFontScale={0.7}
+    >
       {prefix}{formatNumber(displayValue)}{suffix}
     </Text>
   );

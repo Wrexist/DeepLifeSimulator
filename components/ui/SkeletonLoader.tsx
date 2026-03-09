@@ -53,7 +53,7 @@ export default function SkeletonLoader({
       style={[
         styles.container,
         {
-          width,
+          width: width as any,
           height,
           borderRadius,
           backgroundColor: color,

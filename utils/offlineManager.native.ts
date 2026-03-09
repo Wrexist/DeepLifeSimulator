@@ -4,34 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // import NetInfo, { NetInfoState } from '@react-native-community/netinfo'; // REMOVED - lazy load
 import { logger } from '@/utils/logger';
 
-// Lazy-loaded NetInfo module
-let NetInfo: any = null;
-let netInfoLoadAttempted = false;
-
-function loadNetInfoModule(): boolean {
-  if (netInfoLoadAttempted) {
-    return NetInfo !== null;
-  }
-  
-  netInfoLoadAttempted = true;
-  
-  try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/offlineManager.native.ts:18',message:'Before NetInfo require',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
-    // #endregion
-    NetInfo = require('@react-native-community/netinfo').default;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/offlineManager.native.ts:22',message:'After NetInfo require success',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
-    // #endregion
-    return true;
-  } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/offlineManager.native.ts:27',message:'NetInfo require failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
-    // #endregion
-    // Module not available - will assume online
-    return false;
-  }
-}
+// REMOVED: NetInfo module - causing iOS 26 crashes
+// Network connectivity checks disabled for iOS 26 compatibility
 
 interface OfflineAction {
   id: string;
@@ -79,45 +53,13 @@ class OfflineManager {
   }
 
   private async initializeNetworkListener() {
-    // Try to load NetInfo module
-    if (!loadNetInfoModule()) {
-      // NetInfo not available - assume always online
-      if (__DEV__) {
-        logger.warn('NetInfo not available - assuming always online');
-      }
-      this.isOnline = true;
-      this.notifyListeners();
-      return;
+    // REMOVED: NetInfo usage - causing iOS 26 crashes
+    // Assume always online for iOS 26 compatibility
+    if (__DEV__) {
+      logger.warn('Network monitoring disabled - assuming always online');
     }
-
-    try {
-      // Check initial network state
-      const netInfoState = await NetInfo.fetch();
-      this.isOnline = netInfoState.isConnected ?? true;
-      this.notifyListeners();
-
-      // Subscribe to network state changes
-      this.unsubscribeNetInfo = NetInfo.addEventListener((state: any) => {
-        const wasOnline = this.isOnline;
-        this.isOnline = state.isConnected ?? false;
-        
-        if (wasOnline !== this.isOnline) {
-          this.notifyListeners();
-          
-          // Auto-sync when coming back online
-          if (this.isOnline && this.pendingActions.length > 0) {
-            this.syncPendingActions();
-          }
-        }
-      });
-    } catch (error) {
-      if (__DEV__) {
-        logger.error('Failed to initialize network listener:', error);
-      }
-      // Default to online if initialization fails
-      this.isOnline = true;
-      this.notifyListeners();
-    }
+    this.isOnline = true;
+    this.notifyListeners();
   }
 
   public destroy() {
@@ -287,7 +229,7 @@ class OfflineManager {
     try {
       // Purchase validation would be handled by IAP service
       if (__DEV__) {
-        logger.info('Executing purchase validation:', data);
+        logger.info('Executing purchase validation:', { data: typeof data === 'object' ? data : { value: data } });
       }
     } catch (error) {
       if (__DEV__) {

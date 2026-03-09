@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/GameContext';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 // Mock AsyncStorage
 const mockAsyncStorage: { [key: string]: string } = {};
@@ -22,70 +23,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 function createGameState(overrides: Partial<GameState> = {}): GameState {
-  return {
-    stats: { health: 50, happiness: 50, energy: 50, fitness: 50, money: 1000, reputation: 50, gems: 0 },
-    day: 1,
-    week: 1,
-    date: { year: 2025, month: 'January', week: 1, age: 18 },
-    totalHappiness: 50,
-    weeksLived: 0,
-    streetJobs: [],
-    careers: [],
-    hobbies: [],
-    items: [],
-    darkWebItems: [],
-    hacks: [],
-    relationships: [],
-    social: { relations: [] },
-    hasPhone: false,
-    computerPreviouslyOwned: false,
-    foods: [],
-    healthActivities: [],
-    dietPlans: [],
-    educations: [],
-    companies: [],
+  return createTestGameState({
     userProfile: { name: 'Test', handle: 'test', bio: '', followers: 0, following: 0, gender: 'male', seekingGender: 'female' },
-    currentJob: undefined,
-    showWelcomePopup: true,
-    settings: { darkMode: false, soundEnabled: true, notificationsEnabled: true, autoSave: true, language: 'English', maxStats: false, hapticFeedback: true, weeklySummaryEnabled: true, showDecimalsInStats: false },
-    cryptos: [],
-    diseases: [],
-    realEstate: [],
-    family: { children: [] },
-    lifeStage: 'adult',
-    wantedLevel: 0,
-    jailWeeks: 0,
-    escapedFromJail: false,
-    jailActivities: [],
-    criminalXp: 0,
-    criminalLevel: 1,
-    crimeSkills: {
-      stealth: { xp: 0, level: 1 },
-      hacking: { xp: 0, level: 1 },
-      lockpicking: { xp: 0, level: 1 },
-    },
-    pets: [],
-    bankSavings: 0,
-    stocksOwned: {},
-    perks: {},
-    achievements: [],
-    claimedProgressAchievements: [],
-    lastLogin: Date.now(),
-    streetJobsCompleted: 0,
-    happinessZeroWeeks: 0,
-    healthZeroWeeks: 0,
-    showZeroStatPopup: false,
-    zeroStatType: undefined,
-    showDeathPopup: false,
-    deathReason: undefined,
-    economy: { inflationRateAnnual: 0.03, priceIndex: 1 },
-    version: 5,
-    pendingEvents: [],
-    eventLog: [],
-    progress: { achievements: [] },
-    journal: [],
+    settings: { lifetimePremium: false, darkMode: false, soundEnabled: true, notificationsEnabled: true, autoSave: true, language: 'English', maxStats: false, hapticFeedback: true, weeklySummaryEnabled: true, showDecimalsInStats: false },
     ...overrides,
-  } as GameState;
+  });
 }
 
 // Mock save/load functions
@@ -173,7 +115,7 @@ describe('Save/Load Integration Tests', () => {
           }
         ],
         items: [
-          { id: 'laptop', name: 'Laptop', price: 1000, owned: true, weeklyBonus: { energy: 5 } }
+          { id: 'laptop', name: 'Laptop', price: 1000, owned: true, dailyBonus: { energy: 5 } }
         ],
         companies: [
           {
@@ -271,7 +213,7 @@ describe('Save/Load Integration Tests', () => {
         stats: { health: 100, happiness: 100, energy: 100, fitness: 100, money: 50000, reputation: 100, gems: 50 },
         week: 20,
         date: { year: 2025, month: 'May', week: 20, age: 18 },
-        settings: { darkMode: true, soundEnabled: false, notificationsEnabled: true, autoSave: false, language: 'Swedish', maxStats: true, hapticFeedback: true, weeklySummaryEnabled: true, showDecimalsInStats: false },
+        settings: { darkMode: true, soundEnabled: false, notificationsEnabled: true, autoSave: false, language: 'Swedish', maxStats: true, hapticFeedback: true, weeklySummaryEnabled: true, showDecimalsInStats: false, lifetimePremium: false },
         perks: { workBoost: true, mindset: true, fastLearner: true },
         achievements: [
           { id: 'first_job', name: 'First Job', description: 'Get your first job', category: 'career', completed: true, reward: 100 }

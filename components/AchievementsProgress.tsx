@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AchievementsProgress Component
  * 
  * Enhanced achievements display with category filters, rarity indicators,
@@ -14,8 +14,10 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const BlurView = BlurViewFallback;
 import { useGame } from '@/contexts/GameContext';
 import {
   Trophy,
@@ -34,6 +36,8 @@ import {
   Zap,
   Crown,
   Medal,
+  Activity,
+  Skull,
 } from 'lucide-react-native';
 import { useAchievements } from '@/hooks/useAchievements';
 import {
@@ -47,7 +51,7 @@ import {
   fontScale,
 } from '@/utils/scaling';
 
-type AchievementCategory = 'all' | 'career' | 'wealth' | 'social' | 'travel' | 'family' | 'special';
+type AchievementCategory = 'all' | 'career' | 'wealth' | 'social' | 'travel' | 'family' | 'health' | 'crime' | 'special';
 type RarityType = 'common' | 'rare' | 'epic' | 'legendary';
 
 interface CategoryInfo {
@@ -64,6 +68,8 @@ const CATEGORIES: CategoryInfo[] = [
   { id: 'social', label: 'Social', icon: Users, color: '#EC4899' },
   { id: 'travel', label: 'Travel', icon: Plane, color: '#8B5CF6' },
   { id: 'family', label: 'Family', icon: Heart, color: '#F59E0B' },
+  { id: 'health', label: 'Health', icon: Activity, color: '#14B8A6' },
+  { id: 'crime', label: 'Crime', icon: Skull, color: '#F97316' },
   { id: 'special', label: 'Special', icon: Star, color: '#EF4444' },
 ];
 
@@ -74,26 +80,46 @@ const RARITY_CONFIG: Record<RarityType, { label: string; color: string; bgColor:
   legendary: { label: 'Legendary', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.15)' },
 };
 
-// Helper to determine achievement category from title/description
-function getCategoryFromAchievement(title: string, description: string): AchievementCategory {
+// Helper to determine achievement category from title/description and group
+function getCategoryFromAchievement(title: string, description: string, group?: string): AchievementCategory {
   const combined = (title + ' ' + description).toLowerCase();
-  
-  if (combined.includes('job') || combined.includes('work') || combined.includes('career') || combined.includes('promotion') || combined.includes('salary')) {
+
+  // Check group field first for accurate routing
+  if (group) {
+    const g = group.toLowerCase();
+    if (g === 'travel') return 'travel';
+    if (g === 'health' || g === 'fitness' || g === 'happiness' || g === 'fun_all_nighter') return 'health';
+    if (g === 'crime' || g === 'street') return 'crime';
+    if (g === 'career' || g === 'company' || g === 'workforce' || g === 'education' || g === 'politics') return 'career';
+    if (g === 'relationship' || g === 'family') return 'family';
+    if (g === 'social' || g === 'reputation') return 'social';
+    if (g === 'wealth' || g === 'savings' || g === 'networth' || g === 'financial' || g === 'gold' || g === 'real_estate' || g === 'crypto_value' || g === 'crypto_portfolio' || g === 'fun_crypto') return 'wealth';
+    if (g === 'prestige' || g === 'milestone' || g === 'longevity' || g === 'collector') return 'special';
+  }
+
+  // Fallback: keyword matching on text
+  if (combined.includes('job') || combined.includes('work') || combined.includes('career') || combined.includes('promot') || combined.includes('salary') || combined.includes('hired') || combined.includes('perform') || combined.includes('election') || combined.includes('politi')) {
     return 'career';
   }
-  if (combined.includes('money') || combined.includes('wealth') || combined.includes('rich') || combined.includes('million') || combined.includes('billion') || combined.includes('net worth')) {
+  if (combined.includes('money') || combined.includes('wealth') || combined.includes('rich') || combined.includes('million') || combined.includes('billion') || combined.includes('net worth') || combined.includes('savings') || combined.includes('debt')) {
     return 'wealth';
   }
-  if (combined.includes('friend') || combined.includes('relationship') || combined.includes('social') || combined.includes('follower')) {
-    return 'social';
+  if (combined.includes('health') || combined.includes('fitness') || combined.includes('disease') || combined.includes('vaccin') || combined.includes('cure')) {
+    return 'health';
   }
-  if (combined.includes('travel') || combined.includes('visit') || combined.includes('country') || combined.includes('destination')) {
+  if (combined.includes('crime') || combined.includes('jail') || combined.includes('prison') || combined.includes('wanted') || combined.includes('hack') || combined.includes('escape') || combined.includes('criminal')) {
+    return 'crime';
+  }
+  if (combined.includes('travel') || combined.includes('visit') || combined.includes('destination') || combined.includes('passport') || combined.includes('trip') || combined.includes('voyage') || combined.includes('flight')) {
     return 'travel';
   }
-  if (combined.includes('family') || combined.includes('child') || combined.includes('marry') || combined.includes('generation') || combined.includes('heir')) {
+  if (combined.includes('friend') || combined.includes('relationship') || combined.includes('social') || combined.includes('follower') || combined.includes('match') || combined.includes('dating')) {
+    return 'social';
+  }
+  if (combined.includes('family') || combined.includes('child') || combined.includes('marry') || combined.includes('married') || combined.includes('spouse') || combined.includes('generation') || combined.includes('heir')) {
     return 'family';
   }
-  if (combined.includes('secret') || combined.includes('hidden') || combined.includes('rare') || combined.includes('special') || combined.includes('legendary')) {
+  if (combined.includes('secret') || combined.includes('hidden') || combined.includes('special')) {
     return 'special';
   }
   return 'all';
@@ -119,9 +145,9 @@ export default function AchievementsProgress() {
   const categorizedAchievements = useMemo(() => {
     return achievements.map(a => ({
       ...a,
-      category: getCategoryFromAchievement(a.title, a.description || ''),
+      category: getCategoryFromAchievement(a.title, a.description || '', a.group),
       rarity: getRarityFromAchievement(a.goldReward, a.stackIndex, a.stackSize),
-      isSecret: a.title.toLowerCase().includes('secret') || (a as any).hidden === true,
+      isSecret: a.title.toLowerCase().includes('secret') || a.group === 'secret' || ('hidden' in a && (a as { hidden?: boolean }).hidden === true),
     }));
   }, [achievements]);
 
@@ -142,9 +168,33 @@ export default function AchievementsProgress() {
     return filtered;
   }, [categorizedAchievements, selectedCategory, showSecret]);
 
-  // Sort achievements
+  // Sort achievements - show completed ones first, then by sort option
   const sortedAchievements = useMemo(() => {
     return [...filteredAchievements].sort((a, b) => {
+      // Always show completed/claimed achievements first, then in-progress, then not started
+      const aCompleted = a.claimed || a.progress >= 1;
+      const bCompleted = b.claimed || b.progress >= 1;
+      const aInProgress = a.progress > 0 && a.progress < 1;
+      const bInProgress = b.progress > 0 && b.progress < 1;
+      
+      // Completed achievements first
+      if (aCompleted && !bCompleted) return -1;
+      if (!aCompleted && bCompleted) return 1;
+      
+      // Within completed, sort by completion time (claimed first, then by progress)
+      if (aCompleted && bCompleted) {
+        if (a.claimed && !b.claimed) return -1;
+        if (!a.claimed && b.claimed) return 1;
+        if (sort === 'progress') {
+          return b.progress - a.progress;
+        }
+      }
+      
+      // In-progress achievements next
+      if (aInProgress && !bInProgress) return -1;
+      if (!aInProgress && bInProgress) return 1;
+      
+      // Then apply the selected sort
       if (sort === 'progress') {
         return b.progress - a.progress;
       }
@@ -198,11 +248,11 @@ export default function AchievementsProgress() {
   };
 
   return (
-    <View style={[styles.container, gameState.settings.darkMode && styles.containerDark]}>
+    <View style={[styles.container, gameState?.settings?.darkMode && styles.containerDark]}>
       {/* Enhanced header with gradient background */}
       <BlurView intensity={20} style={styles.headerBlur}>
         <LinearGradient
-          colors={gameState.settings.darkMode ? ['rgba(99, 102, 241, 0.1)', 'rgba(79, 70, 229, 0.1)'] : ['rgba(99, 102, 241, 0.05)', 'rgba(79, 70, 229, 0.05)']}
+          colors={gameState?.settings?.darkMode ? ['rgba(99, 102, 241, 0.1)', 'rgba(79, 70, 229, 0.1)'] : ['rgba(99, 102, 241, 0.05)', 'rgba(79, 70, 229, 0.05)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
@@ -220,11 +270,11 @@ export default function AchievementsProgress() {
               <Sparkles size={12} color="#6366F1" style={styles.sparkleIcon} />
             </View>
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]}>
+              <Text style={[styles.title, gameState?.settings?.darkMode && styles.titleDark]}>
                 Achievements
               </Text>
-              <Text style={[styles.statsText, gameState.settings.darkMode && styles.statsTextDark]}>
-                {stats.completed} / {stats.total} • {stats.inProgress} in progress
+              <Text style={[styles.statsText, gameState?.settings?.darkMode && styles.statsTextDark]}>
+                {stats.completed} / {stats.total} completed • {stats.inProgress} in progress
               </Text>
             </View>
           </View>
@@ -237,11 +287,11 @@ export default function AchievementsProgress() {
           onPress={() => setShowFilters(!showFilters)}
           style={[styles.filterToggle, showFilters && styles.filterToggleActive]}
         >
-          <Filter size={scale(16)} color={showFilters ? '#FFF' : (gameState.settings.darkMode ? '#9CA3AF' : '#6B7280')} />
+          <Filter size={scale(16)} color={showFilters ? '#FFF' : (gameState?.settings?.darkMode ? '#9CA3AF' : '#6B7280')} />
           <Text style={[
             styles.filterToggleText,
             showFilters && styles.filterToggleTextActive,
-            gameState.settings.darkMode && styles.controlTextDark,
+            gameState?.settings?.darkMode && styles.controlTextDark,
           ]}>
             Filters
           </Text>
@@ -257,7 +307,7 @@ export default function AchievementsProgress() {
               <Text style={[
                 styles.sortButtonText,
                 sort === s && styles.sortButtonTextActive,
-                gameState.settings.darkMode && styles.controlTextDark,
+                gameState?.settings?.darkMode && styles.controlTextDark,
               ]}>
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </Text>
@@ -282,7 +332,7 @@ export default function AchievementsProgress() {
                   style={[
                     styles.categoryChip,
                     isActive && { backgroundColor: category.color },
-                    !isActive && gameState.settings.darkMode && styles.categoryChipDark,
+                    !isActive && gameState?.settings?.darkMode && styles.categoryChipDark,
                   ]}
                   onPress={() => setSelectedCategory(category.id)}
                 >
@@ -290,7 +340,7 @@ export default function AchievementsProgress() {
                   <Text style={[
                     styles.categoryChipText,
                     isActive && styles.categoryChipTextActive,
-                    !isActive && gameState.settings.darkMode && styles.categoryChipTextDark,
+                    !isActive && gameState?.settings?.darkMode && styles.categoryChipTextDark,
                   ]}>
                     {category.label} ({count})
                   </Text>
@@ -301,18 +351,18 @@ export default function AchievementsProgress() {
 
           {/* Secret Toggle */}
           <TouchableOpacity
-            style={[styles.secretToggle, gameState.settings.darkMode && styles.secretToggleDark]}
+            style={[styles.secretToggle, gameState?.settings?.darkMode && styles.secretToggleDark]}
             onPress={() => setShowSecret(!showSecret)}
           >
             {showSecret ? (
               <Eye size={scale(14)} color="#F59E0B" />
             ) : (
-              <EyeOff size={scale(14)} color={gameState.settings.darkMode ? '#6B7280' : '#9CA3AF'} />
+              <EyeOff size={scale(14)} color={gameState?.settings?.darkMode ? '#6B7280' : '#9CA3AF'} />
             )}
             <Text style={[
               styles.secretToggleText,
               showSecret && styles.secretToggleTextActive,
-              gameState.settings.darkMode && styles.secretToggleTextDark,
+              gameState?.settings?.darkMode && styles.secretToggleTextDark,
             ]}>
               {showSecret ? 'Hide Secrets' : 'Show Secret Hints'}
             </Text>
@@ -324,29 +374,35 @@ export default function AchievementsProgress() {
       <View>
         {sortedAchievements.length === 0 && (
           <View style={styles.emptyState}>
-            <Trophy size={scale(40)} color={gameState.settings.darkMode ? '#4B5563' : '#D1D5DB'} />
-            <Text style={[styles.empty, gameState.settings.darkMode && styles.cardDescDark]}>
+            <Trophy size={scale(40)} color={gameState?.settings?.darkMode ? '#4B5563' : '#D1D5DB'} />
+            <Text style={[styles.empty, gameState?.settings?.darkMode && styles.cardDescDark]}>
               No achievements found in this category.
             </Text>
           </View>
         )}
         {sortedAchievements.map(a => {
-          const progress = Math.min(1, a.progress);
+          // Calculate display progress (capped at 1.0 for visual bar)
+          const displayProgress = Math.min(1, a.progress);
+          // Use raw progress for claim detection (allows > 1.0)
+          // Add small epsilon (0.0001) to handle floating point precision issues
+          const canClaim = a.progress >= 0.9999 && !a.claimed;
           const categoryInfo = getCategoryInfo(a.category);
           const rarityConfig = RARITY_CONFIG[a.rarity];
           const RarityIcon = getRarityIcon(a.rarity);
           const CategoryIcon = categoryInfo.icon;
 
+          // Determine if achievement is completed (claimed or progress >= 1)
+          const isCompleted = a.claimed || a.progress >= 1;
+          
           return (
-            <View key={a.id} style={[styles.card, gameState.settings.darkMode && styles.cardDark]}>
-              {/* Rarity Indicator */}
-              <View style={[styles.rarityBadge, { backgroundColor: rarityConfig.bgColor }]}>
-                <RarityIcon size={scale(10)} color={rarityConfig.color} />
-                <Text style={[styles.rarityText, { color: rarityConfig.color }]}>
-                  {rarityConfig.label}
-                </Text>
-              </View>
-
+            <View 
+              key={a.id} 
+              style={[
+                styles.card, 
+                gameState?.settings?.darkMode && styles.cardDark,
+                isCompleted && styles.cardCompleted
+              ]}
+            >
               <View style={styles.cardHeader}>
                 {a.icon ? (
                   <Image source={a.icon} style={styles.achievementIcon} />
@@ -356,7 +412,7 @@ export default function AchievementsProgress() {
                   </View>
                 )}
                 <View style={styles.cardTitleContainer}>
-                  <Text style={[styles.cardTitle, gameState.settings.darkMode && styles.cardTitleDark]}>
+                  <Text style={[styles.cardTitle, gameState?.settings?.darkMode && styles.cardTitleDark]}>
                     {a.isSecret && a.progress === 0 ? '???' : a.title}
                   </Text>
                   {a.isSecret && (
@@ -384,18 +440,52 @@ export default function AchievementsProgress() {
                 </View>
               </View>
 
-              <Text style={[styles.cardDesc, gameState.settings.darkMode && styles.cardDescDark]}>
+              {/* Rarity Indicator - Moved below header to prevent blocking */}
+              <View style={[styles.rarityBadge, { backgroundColor: rarityConfig.bgColor }]}>
+                <RarityIcon size={scale(10)} color={rarityConfig.color} />
+                <Text style={[styles.rarityText, { color: rarityConfig.color }]}>
+                  {rarityConfig.label}
+                </Text>
+              </View>
+
+              <Text style={[styles.cardDesc, gameState?.settings?.darkMode && styles.cardDescDark]}>
                 {a.isSecret && a.progress === 0 ? 'Complete hidden requirements to unlock this secret achievement!' : a.description}
               </Text>
 
               {a.nextTitle && (
-                <Text style={[styles.nextText, gameState.settings.darkMode && styles.cardDescDark]}>
+                <Text style={[styles.nextText, gameState?.settings?.darkMode && styles.cardDescDark]}>
                   Next: {a.nextTitle}
                 </Text>
               )}
 
-              {a.progress >= 1 ? (
-                <TouchableOpacity onPress={() => claimProgressAchievement(a.id, a.goldReward)}>
+              {a.claimed ? (
+                <View style={styles.progressContainer}>
+                  <View style={styles.claimedBadge}>
+                    <Sparkles size={14} color="#10B981" />
+                    <Text style={styles.claimedText}>Claimed</Text>
+                  </View>
+                  {/* Narrative context: when was this achievement unlocked? */}
+                  {gameState?.achievementUnlocks?.[a.id] && (
+                    <Text style={[styles.narrativeText, gameState?.settings?.darkMode && styles.narrativeTextDark]}>
+                      Unlocked at age {gameState.achievementUnlocks[a.id].age} ({gameState.achievementUnlocks[a.id].year})
+                      {gameState.achievementUnlocks[a.id].money > 0
+                        ? ` with $${gameState.achievementUnlocks[a.id].money.toLocaleString()}`
+                        : ''}
+                    </Text>
+                  )}
+                </View>
+              ) : canClaim ? (
+                <TouchableOpacity 
+                  onPress={() => {
+                    try {
+                      if (claimProgressAchievement) {
+                        claimProgressAchievement(a.id, a.goldReward);
+                      }
+                    } catch (error) {
+                      // Achievement claim failed silently
+                    }
+                  }}
+                >
                   <BlurView intensity={20} style={styles.claimButtonBlur}>
                     <LinearGradient
                       colors={['#6366F1', '#4F46E5']}
@@ -411,7 +501,7 @@ export default function AchievementsProgress() {
               ) : (
                 <View style={styles.progressContainer}>
                   <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]}>
+                    <View style={[styles.progressFill, { width: `${displayProgress * 100}%` }]}>
                       <LinearGradient
                         colors={[categoryInfo.color, `${categoryInfo.color}CC`]}
                         start={{ x: 0, y: 0 }}
@@ -421,8 +511,8 @@ export default function AchievementsProgress() {
                     </View>
                     <View style={styles.progressGlow} />
                   </View>
-                  <Text style={[styles.progressPercent, gameState.settings.darkMode && styles.progressPercentDark]}>
-                    {Math.round(progress * 100)}%
+                  <Text style={[styles.progressPercent, gameState?.settings?.darkMode && styles.progressPercentDark]}>
+                    {Math.min(100, Math.round(a.progress * 100))}%
                   </Text>
                 </View>
               )}
@@ -502,9 +592,9 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
   statsText: {
-    fontSize: fontScale(12),
+    fontSize: 12,
     color: '#9CA3AF',
-    marginTop: scale(2),
+    marginTop: 2,
   },
   statsTextDark: {
     color: '#9CA3AF',
@@ -518,11 +608,11 @@ const styles = StyleSheet.create({
   filterToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
+    gap: 6,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(8),
-    borderRadius: scale(20),
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
   filterToggleActive: {
     backgroundColor: '#6366F1',
@@ -634,6 +724,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
     borderColor: 'rgba(99, 102, 241, 0.2)',
   },
+  cardCompleted: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    opacity: 0.9,
+  },
   rarityBadge: {
     position: 'absolute',
     top: scale(8),
@@ -644,6 +739,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(8),
     paddingVertical: scale(3),
     borderRadius: scale(10),
+    zIndex: 10, // Ensure it's above other elements
+    maxWidth: scale(100), // Prevent overflow
   },
   rarityText: {
     fontSize: fontScale(10),
@@ -656,6 +753,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: scale(8),
     paddingRight: scale(70),
+    marginTop: scale(8), // Add space for rarity badge
   },
   categoryIconContainer: {
     width: scale(36),
@@ -674,6 +772,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
+    gap: scale(4), // Add gap between stack text and reward
   },
   achievementIcon: {
     width: responsiveIconSize.lg,
@@ -786,6 +885,33 @@ const styles = StyleSheet.create({
   progressPercentDark: {
     color: '#9CA3AF',
   },
+  claimedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
+    paddingVertical: scale(8),
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.md,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  claimedText: {
+    fontWeight: '600',
+    color: '#10B981',
+    fontSize: responsiveFontSize.base,
+  },
+  narrativeText: {
+    fontSize: responsiveFontSize.xs,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  narrativeTextDark: {
+    color: '#9CA3AF',
+  },
   claimButtonBlur: {
     borderRadius: responsiveBorderRadius.md,
     overflow: 'hidden',
@@ -813,3 +939,4 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.base,
   },
 });
+

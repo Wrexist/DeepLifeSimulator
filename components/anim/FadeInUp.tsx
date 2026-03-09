@@ -1,5 +1,5 @@
 import React from 'react';
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 
 interface FadeInUpProps {
   delay?: number;

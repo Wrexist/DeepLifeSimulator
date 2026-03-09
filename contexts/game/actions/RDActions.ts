@@ -6,10 +6,12 @@
 import { GameState, Company, RDLab, Patent } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
+import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { LAB_TYPES, getLabUpgradeCost, LabType } from '@/lib/rd/labs';
 import { getTechnologyById, getAvailableTechnologies, Technology } from '@/lib/rd/technologyTree';
 import { createPatent, updatePatents, calculatePatentIncome } from '@/lib/rd/patents';
 import { 
+  COMPETITIONS,
   getActiveCompetitions, 
   canEnterCompetition, 
   calculateCompetitionScore,
@@ -38,17 +40,16 @@ export const buildRDLab = (
     return { success: false, message: `You need $${cost.toLocaleString()} to build/upgrade the lab` };
   }
 
-  // Create or upgrade lab
-  const newLab: RDLab = {
-    type: labType,
-    builtWeek: gameState.week,
-    researchProjects: company.rdLab?.researchProjects || [],
-    completedResearch: company.rdLab?.completedResearch || [],
-  };
-
   // Update state: deduct money AND update company in a single state update to avoid race conditions
   setGameState(prev => {
     const newMoney = Math.max(0, prev.stats.money - cost);
+    // Create lab object inside updater to use fresh weeksLived
+    const newLab: RDLab = {
+      type: labType,
+      builtWeek: prev.weeksLived || 0,
+      researchProjects: company.rdLab?.researchProjects || [],
+      completedResearch: company.rdLab?.completedResearch || [],
+    };
     return {
       ...prev,
       stats: {
@@ -126,18 +127,18 @@ export const startResearch = (
   const projectId = `research_${technologyId}_${Date.now()}`;
   const researchTime = Math.ceil(technology.researchTime / (labInfo.researchSpeedMultiplier * rdBonusMultiplier));
 
-  const newProject = {
-    id: projectId,
-    technologyId,
-    startWeek: gameState.week,
-    duration: researchTime,
-    cost: technology.researchCost,
-    progress: 0,
-    completed: false,
-  };
-
   // Update state: deduct money AND update company in a single state update to avoid race conditions
   setGameState(prev => {
+    // Create project inside updater to use fresh weeksLived
+    const newProject = {
+      id: projectId,
+      technologyId,
+      startWeek: prev.weeksLived || 0,
+      duration: researchTime,
+      cost: technology.researchCost,
+      progress: 0,
+      completed: false,
+    };
     const newMoney = Math.max(0, prev.stats.money - technology.researchCost);
     return {
       ...prev,
@@ -287,8 +288,8 @@ export const filePatent = (
     return { success: false, message: 'Technology not found' };
   }
 
-  // Patent filing cost (10-100k based on technology tier)
-  const patentCost = technology.tier === 1 ? 10000 : technology.tier === 2 ? 50000 : 100000;
+  // Patent filing cost based on technology tier
+  const patentCost = PATENT_COSTS[technology.tier] || 100000;
 
   if (gameState.stats.money < patentCost) {
     return { success: false, message: `You need $${patentCost.toLocaleString()} to file this patent` };
@@ -298,8 +299,8 @@ export const filePatent = (
   const patent = createPatent(
     technologyId,
     technology.name,
-    gameState.week,
-    company.rdLab.type
+    gameState.weeksLived,
+    company.rdLab?.type
   );
 
   // Update state: deduct money AND update company in a single state update to avoid race conditions
@@ -347,7 +348,8 @@ export const enterCompetition = (
   }
 
   // Get active competitions
-  const activeCompetitions = getActiveCompetitions(gameState.week);
+  const absoluteWeek = gameState.weeksLived || 0;
+  const activeCompetitions = getActiveCompetitions(absoluteWeek);
   const competition = activeCompetitions.find(c => c.id === competitionId);
   
   if (!competition) {
@@ -358,7 +360,7 @@ export const enterCompetition = (
   const competitionHistory = company.competitionHistory || [];
   const alreadyEntered = competitionHistory.some(
     entry => entry.competitionId === competitionId && 
-             entry.entryWeek === gameState.week &&
+             entry.entryWeek === absoluteWeek &&
              !entry.completed
   );
 
@@ -401,8 +403,8 @@ export const enterCompetition = (
   const competitionEntry = {
     competitionId: competition.id,
     competitionName: competition.name,
-    entryWeek: gameState.week,
-    endWeek: gameState.week + (competition.endWeek - competition.startWeek),
+    entryWeek: absoluteWeek,
+    endWeek: absoluteWeek + Math.max(1, competition.endWeek - competition.startWeek),
     score: score,
     completed: false,
     prize: undefined,
@@ -427,9 +429,10 @@ export const enterCompetition = (
   }));
 
   log.info(`Entered competition: ${competition.name} for ${companyId} with score ${score}`);
+  const resultDelayWeeks = Math.max(1, competition.endWeek - competition.startWeek);
   return { 
     success: true, 
-    message: `Successfully entered ${competition.name}! Results will be announced at week ${competitionEntry.endWeek}.` 
+    message: `Successfully entered ${competition.name}! Results will be announced in ${resultDelayWeeks} weeks.` 
   };
 };
 
@@ -439,19 +442,19 @@ export const processCompetitionResults = (
   deps: { updateMoney: typeof updateMoney },
   currentWeek?: number
 ): void => {
-  const week = currentWeek ?? gameState.week;
-  const activeCompetitions = getActiveCompetitions(week);
+  const week = currentWeek ?? (gameState.weeksLived || 0);
   
   (gameState.companies || []).forEach(company => {
     const competitionHistory = company.competitionHistory || [];
     const pendingCompetitions = competitionHistory.filter(
-      entry => !entry.completed && entry.endWeek <= gameState.week
+      entry => !entry.completed && entry.endWeek <= week
     );
 
     if (pendingCompetitions.length === 0) return;
 
     pendingCompetitions.forEach(entry => {
-      const competition = activeCompetitions.find(c => c.id === entry.competitionId);
+      // Resolve by id from canonical list so resolution does not depend on current active window.
+      const competition = COMPETITIONS.find(c => c.id === entry.competitionId);
       if (!competition) return;
 
       // Generate AI competitors (3-10 competitors with random scores)

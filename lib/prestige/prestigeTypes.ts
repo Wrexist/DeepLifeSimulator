@@ -1,4 +1,3 @@
-import { GameState } from '@/contexts/game/types';
 
 /**
  * Lifetime statistics tracked across all prestiges
@@ -65,23 +64,23 @@ export const defaultPrestigeData: PrestigeData = {
 };
 
 /**
- * Base prestige threshold - net worth required for first prestige
+ * Base prestige threshold - net worth required for first prestige.
+ * Lowered from $100M to $10M so first-time players can experience prestige
+ * without an extreme grind. Subsequent prestiges scale up 25% each.
  */
-export const BASE_PRESTIGE_THRESHOLD = 100_000_000; // $100M
+export const BASE_PRESTIGE_THRESHOLD = 10_000_000; // $10M
 
 /**
- * Calculate the prestige threshold based on current prestige level
- * STABILITY FIX: Add difficulty scaling - each prestige increases threshold by 5% (reduced from 10%)
- * This prevents prestige from becoming trivial after many cycles, but not too aggressive
- * Level 0: $100M, Level 1: $105M (5% increase), Level 2: $110.25M (5% of $105M), etc.
- * Base formula: $100M * 1.05^prestigeLevel
+ * Calculate the prestige threshold based on current prestige level.
+ * ANTI-EXPLOIT: 25% increase per prestige to counteract income multiplier bonuses.
+ * Level 0: $10M, Level 1: $12.5M, Level 2: $15.6M, Level 3: $19.5M, Level 4: $24.4M, etc.
  */
 export function getPrestigeThreshold(prestigeLevel: number): number {
   if (prestigeLevel === 0) {
-    return BASE_PRESTIGE_THRESHOLD; // First prestige: $100M
+    return BASE_PRESTIGE_THRESHOLD; // First prestige: $10M
   }
-  // Each prestige increases threshold by 5% (compound) - reduced from 10% to be less aggressive
-  return Math.floor(BASE_PRESTIGE_THRESHOLD * Math.pow(1.05, prestigeLevel));
+  // Each prestige increases threshold by 25% (compound)
+  return Math.floor(BASE_PRESTIGE_THRESHOLD * Math.pow(1.25, prestigeLevel));
 }
 
 /**

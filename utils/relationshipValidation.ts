@@ -124,7 +124,7 @@ export function validateRelationshipState(state: GameState): RelationshipValidat
  * - Fix type mismatches
  */
 export function repairRelationshipState(state: GameState): GameState {
-  let repaired = false;
+  let _repaired = false;
   let relationships = [...(state.relationships || [])];
   let family = { ...state.family };
   
@@ -138,7 +138,7 @@ export function repairRelationshipState(state: GameState): GameState {
         repairedRel.engagementWeek = undefined;
         repairedRel.engagementRing = undefined;
         repairedRel.weddingPlanned = undefined;
-        repaired = true;
+        _repaired = true;
         log.warn('Cleared engagement properties on spouse', { relationshipId: rel.id });
       }
     }
@@ -148,7 +148,7 @@ export function repairRelationshipState(state: GameState): GameState {
       if (rel.marriageWeek !== undefined || rel.anniversaryWeek !== undefined) {
         repairedRel.marriageWeek = undefined;
         repairedRel.anniversaryWeek = undefined;
-        repaired = true;
+        _repaired = true;
         log.warn('Cleared marriage properties on non-spouse', { relationshipId: rel.id, type: rel.type });
       }
     }
@@ -159,7 +159,7 @@ export function repairRelationshipState(state: GameState): GameState {
         repairedRel.engagementWeek = undefined;
         repairedRel.engagementRing = undefined;
         repairedRel.weddingPlanned = undefined;
-        repaired = true;
+        _repaired = true;
         log.warn('Cleared engagement properties on non-partner/spouse', { relationshipId: rel.id, type: rel.type });
       }
     }
@@ -167,57 +167,57 @@ export function repairRelationshipState(state: GameState): GameState {
     // Fix relationship score bounds
     if (typeof rel.relationshipScore !== 'number' || isNaN(rel.relationshipScore)) {
       repairedRel.relationshipScore = 50;
-      repaired = true;
+      _repaired = true;
       log.warn('Fixed invalid relationshipScore', { relationshipId: rel.id });
     } else if (rel.relationshipScore < 0) {
       repairedRel.relationshipScore = 0;
-      repaired = true;
+      _repaired = true;
       log.warn('Clamped relationshipScore to 0', { relationshipId: rel.id });
     } else if (rel.relationshipScore > 100) {
       repairedRel.relationshipScore = 100;
-      repaired = true;
+      _repaired = true;
       log.warn('Clamped relationshipScore to 100', { relationshipId: rel.id });
     }
     
     return repairedRel;
   });
   
-  // Remove orphaned child relationships (in relationships but not in family.children)
-  const childIdsInFamily = new Set((family.children || []).map(c => c.id));
-  const orphanedChildren = relationships.filter(r => r.type === 'child' && !childIdsInFamily.has(r.id));
-  if (orphanedChildren.length > 0) {
-    relationships = relationships.filter(r => !(r.type === 'child' && !childIdsInFamily.has(r.id)));
-    repaired = true;
-    log.warn('Removed orphaned child relationships', { count: orphanedChildren.length });
-  }
-  
-  // Remove children from family.children that aren't in relationships
-  if (family.children) {
-    const relationshipIds = new Set(relationships.map(r => r.id));
-    const originalCount = family.children.length;
-    family.children = family.children.filter(c => {
-      const inRelationships = relationshipIds.has(c.id);
-      if (!inRelationships) {
-        log.warn('Removed child from family.children (not in relationships)', { childId: c.id });
-      }
-      return inRelationships;
-    });
-    if (family.children.length !== originalCount) {
-      repaired = true;
+  // A-3: Sync children bidirectionally instead of deleting orphans
+  // If a child is in relationships but not family.children, ADD it to family.children
+  if (!family.children) family.children = [];
+  const childIdsInFamily = new Set(family.children.map(c => c.id));
+  const orphanedInRelationships = relationships.filter(r => r.type === 'child' && !childIdsInFamily.has(r.id));
+  if (orphanedInRelationships.length > 0) {
+    for (const orphan of orphanedInRelationships) {
+      family.children.push(orphan as any);
+      log.warn('Synced orphaned child from relationships into family.children', { childId: orphan.id });
     }
+    _repaired = true;
+  }
+
+  // If a child is in family.children but not relationships, ADD it to relationships
+  const relationshipIds = new Set(relationships.map(r => r.id));
+  const orphanedInFamily = family.children.filter(c => !relationshipIds.has(c.id));
+  if (orphanedInFamily.length > 0) {
+    for (const orphan of orphanedInFamily) {
+      relationships.push({ ...orphan, type: 'child' } as any);
+      log.warn('Synced orphaned child from family.children into relationships', { childId: orphan.id });
+    }
+    _repaired = true;
   }
   
   // Fix spouse consistency
   if (family.spouse) {
-    const spouseInRelationships = relationships.find(r => r.id === family.spouse!.id && r.type === 'spouse');
+    const spouseId = family.spouse.id;
+    const spouseInRelationships = relationships.find(r => r.id === spouseId && r.type === 'spouse');
     if (!spouseInRelationships) {
       family.spouse = undefined;
-      repaired = true;
-      log.warn('Cleared family.spouse (not found in relationships)', { spouseId: family.spouse.id });
+      _repaired = true;
+      log.warn('Cleared family.spouse (not found in relationships)', { spouseId });
     } else if (spouseInRelationships.type !== 'spouse') {
       family.spouse = undefined;
-      repaired = true;
-      log.warn('Cleared family.spouse (incorrect type)', { spouseId: family.spouse.id, actualType: spouseInRelationships.type });
+      _repaired = true;
+      log.warn('Cleared family.spouse (incorrect type)', { spouseId, actualType: spouseInRelationships.type });
     }
   }
   
@@ -229,7 +229,7 @@ export function repairRelationshipState(state: GameState): GameState {
     if (family.spouse && family.spouse.id !== firstSpouse.id) {
       family.spouse = firstSpouse;
     }
-    repaired = true;
+    _repaired = true;
     log.warn('Removed duplicate spouses', { keptSpouseId: firstSpouse.id, removedCount: spouses.length - 1 });
   }
   

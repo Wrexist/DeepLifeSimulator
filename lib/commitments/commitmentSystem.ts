@@ -118,7 +118,7 @@ export function updateCommitmentLevel(
  */
 export function decayCommitmentLevels(
   commitments: GameState['activityCommitments']
-): GameState['activityCommitments']['commitmentLevels'] {
+): NonNullable<GameState['activityCommitments']>['commitmentLevels'] {
   if (!commitments?.commitmentLevels) {
     return { career: 0, hobbies: 0, relationships: 0, health: 0 };
   }

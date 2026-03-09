@@ -53,8 +53,9 @@ import {
   type ContentType,
   type InfluenceLevel,
 } from '@/lib/social/socialMedia';
-import type { SocialPost } from '@/contexts/game/types';
+import type { SocialPost, GameDate } from '@/contexts/game/types';
 import { PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 interface SocialAppProps {
   onBack: () => void;
@@ -74,8 +75,87 @@ const TRENDING_TOPICS = [
   { tag: '#FitnessGoals', posts: '93K', category: 'Health' },
 ];
 
+// Helper function to calculate game date X weeks ago
+const getGameDateWeeksAgo = (weeksAgo: number, currentDate: GameDate): { week: number; month: string; year: number } => {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                     'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  const getMonthNumber = (month: string): number => {
+    return monthNames.indexOf(month) + 1;
+  };
+  
+  let targetWeek = currentDate.week - weeksAgo;
+  let targetMonthNum = getMonthNumber(currentDate.month);
+  let targetYear = currentDate.year;
+  
+  // Handle week rollover (weeks go backwards)
+  while (targetWeek < 1) {
+    targetWeek += 4;
+    targetMonthNum--;
+    if (targetMonthNum < 1) {
+      targetMonthNum = 12;
+      targetYear--;
+    }
+  }
+  
+  // Ensure month is valid
+  if (targetMonthNum < 1) {
+    targetMonthNum = 12;
+    targetYear--;
+  }
+  
+  return {
+    week: targetWeek,
+    month: monthNames[targetMonthNum - 1] || 'January',
+    year: targetYear,
+  };
+};
+
+// Helper function to calculate weeks difference between two game dates
+const gameDateToRelativeWeeks = (postDate: { week: number; month: string; year: number }, currentDate: GameDate): number => {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                     'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  const getMonthNumber = (month: string): number => {
+    return monthNames.indexOf(month) + 1;
+  };
+  
+  const postMonthNum = getMonthNumber(postDate.month);
+  const currentMonthNum = getMonthNumber(currentDate.month);
+  
+  // Calculate total weeks difference
+  let weeksDiff = 0;
+  
+  if (postDate.year === currentDate.year) {
+    // Same year - calculate month and week difference
+    const monthDiff = currentMonthNum - postMonthNum;
+    weeksDiff = (monthDiff * 4) + (currentDate.week - postDate.week);
+  } else {
+    // Different year - calculate full difference
+    const yearDiff = currentDate.year - postDate.year;
+    const monthDiff = (yearDiff * 12) + (currentMonthNum - postMonthNum);
+    weeksDiff = (monthDiff * 4) + (currentDate.week - postDate.week);
+  }
+  
+  return Math.max(0, weeksDiff);
+};
+
+// Helper function to format game timestamp as relative time string
+const formatGameTimestamp = (gameWeek: number, gameMonth: string, gameYear: number, currentDate: GameDate): string => {
+  const postDate = { week: gameWeek, month: gameMonth, year: gameYear };
+  const weeksDiff = gameDateToRelativeWeeks(postDate, currentDate);
+  
+  if (weeksDiff === 0) return 'now';
+  if (weeksDiff === 1) return '1w';
+  if (weeksDiff < 4) return `${weeksDiff}w`;
+  
+  // For older posts, show month and year
+  const monthAbbr = gameMonth.substring(0, 3);
+  return `${monthAbbr} ${gameYear}`;
+};
+
 // Generate fake feed posts with realistic engagement based on follower counts
-const generateFakePosts = (): SocialPost[] => {
+const generateFakePosts = (gameDate: GameDate): SocialPost[] => {
   // Authors with varying follower counts for realistic engagement simulation
   const fakeAuthors = [
     { name: 'Tech Daily', handle: 'techdaily', verified: true, followers: 2_500_000, photo: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=100&h=100&fit=crop' },
@@ -137,6 +217,14 @@ const generateFakePosts = (): SocialPost[] => {
     const hasPhoto = Math.random() > 0.5;
     const engagement = getRealisticEngagement(author.followers, hasPhoto);
     
+    // Generate posts from 1-8 weeks ago in game time
+    const weeksAgo = Math.floor(Math.random() * 8) + 1;
+    const postGameDate = getGameDateWeeksAgo(weeksAgo, gameDate);
+    const weeksDiff = gameDateToRelativeWeeks(postGameDate, gameDate);
+    
+    // Calculate timestamp for display (1 week = 7 days = 604800000 ms)
+    const postTimestamp = Date.now() - (weeksDiff * 604800000);
+    
     return {
       id: `fake-${index}`,
       authorId: `author-${index}`,
@@ -146,8 +234,10 @@ const generateFakePosts = (): SocialPost[] => {
       authorVerified: author.verified,
       content,
       photo: hasPhoto ? `https://images.unsplash.com/photo-${1550000000000 + index * 10000}?w=400&h=300&fit=crop` : undefined,
-      timestamp: Date.now() - (index * 3600000),
-      gameWeek: 1,
+      timestamp: postTimestamp,
+      gameWeek: postGameDate.week,
+      gameMonth: postGameDate.month,
+      gameYear: postGameDate.year,
       likes: engagement.likes,
       reposts: engagement.reposts,
       replies: engagement.comments,
@@ -168,7 +258,7 @@ export default function SocialApp({ onBack }: SocialAppProps) {
   const [showComposer, setShowComposer] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [fakePosts] = useState(generateFakePosts);
+  const fakePosts = useMemo(() => generateFakePosts(gameState.date), [gameState.date]);
   
   const userProfile = gameState.userProfile || {
     name: 'Player',
@@ -198,29 +288,48 @@ export default function SocialApp({ onBack }: SocialAppProps) {
   // Get player posts from state
   const playerPosts: SocialPost[] = useMemo(() => {
     const recentPosts = socialMedia.recentPosts || [];
-    return recentPosts.map((post, index) => ({
-      id: post.id || `player-${index}`,
-      authorId: 'player',
-      authorName: userProfile.displayName || userProfile.name || 'Player',
-      authorHandle: userProfile.username || userProfile.handle?.replace('@', '') || 'player',
-      authorPhoto: userProfile.profilePhoto,
-      authorVerified: userProfile.verified || false,
-      content: post.content,
-      photo: post.photo,
-      timestamp: post.timestamp,
-      gameWeek: gameState.week || 1,
-      likes: post.likes,
-      reposts: Math.floor(post.likes * 0.1),
-      replies: post.comments,
-      bookmarks: Math.floor(post.likes * 0.05),
-      views: post.likes * 10,
+    return recentPosts.map((post, index) => {
+      // Extract game date from stored post, fallback to current game date
+      const postGameWeek = post.gameWeek ?? gameState.date.week;
+      const postGameMonth = post.gameMonth ?? gameState.date.month;
+      const postGameYear = post.gameYear ?? gameState.date.year;
+      
+      // Calculate timestamp from game date if available
+      let postTimestamp = post.timestamp;
+      if (post.gameWeek !== undefined && post.gameMonth && post.gameYear) {
+        const weeksDiff = gameDateToRelativeWeeks(
+          { week: post.gameWeek, month: post.gameMonth, year: post.gameYear },
+          gameState.date
+        );
+        postTimestamp = Date.now() - (weeksDiff * 604800000);
+      }
+      
+      return {
+        id: post.id || `player-${index}`,
+        authorId: 'player',
+        authorName: userProfile.displayName || userProfile.name || 'Player',
+        authorHandle: userProfile.username || userProfile.handle?.replace('@', '') || 'player',
+        authorPhoto: userProfile.profilePhoto,
+        authorVerified: userProfile.verified || false,
+        content: post.content,
+        photo: post.photo,
+        timestamp: postTimestamp,
+        gameWeek: postGameWeek,
+        gameMonth: postGameMonth,
+        gameYear: postGameYear,
+        likes: post.likes,
+        reposts: Math.floor(post.likes * 0.1),
+        replies: post.comments,
+        bookmarks: Math.floor(post.likes * 0.05),
+        views: post.likes * 10,
         isLiked: false,
-      isReposted: false,
-      isBookmarked: false,
+        isReposted: false,
+        isBookmarked: false,
         isPlayerPost: true,
-      isViral: post.isViral,
-    }));
-  }, [socialMedia.recentPosts, userProfile, gameState.week]);
+        isViral: post.isViral,
+      };
+    });
+  }, [socialMedia.recentPosts, userProfile, gameState.date]);
   
   // Combined feed with player posts interspersed
   const feedPosts = useMemo(() => {
@@ -248,7 +357,7 @@ export default function SocialApp({ onBack }: SocialAppProps) {
       gameState.stats.energy,
       contentType,
       socialMedia.lastPostWeek,
-      gameState.week
+      gameState.weeksLived || 0
     );
     
     if (!canPost.canCreate) {
@@ -298,18 +407,21 @@ export default function SocialApp({ onBack }: SocialAppProps) {
     const postReposts = engagement.reposts;
     const postViews = engagement.views;
     
-    // Create new post
+    // Create new post with game date info
     const newPost = {
       id: `post-${Date.now()}`,
-            content,
+      content,
       likes: postLikes,
       comments: postComments,
       reposts: postReposts,
       views: postViews,
       timestamp: Date.now(),
-            contentType,
+      gameWeek: gameState.date.week,
+      gameMonth: gameState.date.month,
+      gameYear: gameState.date.year,
+      contentType,
       photo,
-            isViral,
+      isViral,
     };
     
     // Update game state - posting costs energy & health but gives happiness!
@@ -326,7 +438,7 @@ export default function SocialApp({ onBack }: SocialAppProps) {
         followers: (prev.socialMedia?.followers || 0) + followerGrowth + (isViral ? 1000 : 0),
         totalPosts: (prev.socialMedia?.totalPosts || 0) + 1,
         viralPosts: (prev.socialMedia?.viralPosts || 0) + (isViral ? 1 : 0),
-        lastPostWeek: prev.week,
+        lastPostWeek: prev.weeksLived || 0,
         lastPostTime: Date.now(),
         totalEarnings: (prev.socialMedia?.totalEarnings || 0) + earnings,
         recentPosts: [
@@ -401,6 +513,10 @@ export default function SocialApp({ onBack }: SocialAppProps) {
           content={item.content}
           photo={item.photo}
           timestamp={new Date(item.timestamp).toISOString()}
+          gameWeek={item.gameWeek}
+          gameMonth={item.gameMonth}
+          gameYear={item.gameYear}
+          currentGameDate={gameState.date}
           likes={item.likes}
           reposts={item.reposts}
           replies={item.replies}
@@ -458,28 +574,28 @@ export default function SocialApp({ onBack }: SocialAppProps) {
         <View style={styles.influenceHeader}>
           <TrendingUp size={scale(20)} color="#1D9BF0" />
           <Text style={styles.influenceTitle}>Influence Level</Text>
-            </View>
+        </View>
         <View style={styles.influenceInfo}>
           <Text style={styles.influenceLevel}>{influenceInfo.name}</Text>
           <Text style={styles.influenceDescription}>{influenceInfo.description}</Text>
-          </View>
+        </View>
         <View style={styles.influenceStats}>
           <View style={styles.influenceStat}>
             <Text style={styles.influenceStatValue}>{socialMedia.viralPosts || 0}</Text>
             <Text style={styles.influenceStatLabel}>Viral Posts</Text>
-        </View>
+          </View>
           <View style={styles.influenceStat}>
             <Text style={styles.influenceStatValue}>
-              ${(socialMedia.totalEarnings || 0).toFixed(0)}
-          </Text>
+              {formatMoney(socialMedia.totalEarnings || 0)}
+            </Text>
             <Text style={styles.influenceStatLabel}>Total Earnings</Text>
-      </View>
+          </View>
           <View style={styles.influenceStat}>
             <Text style={styles.influenceStatValue}>{socialMedia.brandPartnerships || 0}</Text>
             <Text style={styles.influenceStatLabel}>Brand Deals</Text>
-                    </View>
-                   </View>
-                </View>
+          </View>
+        </View>
+      </View>
 
       {/* Monetization Card - X.com Creator Program Style */}
       <View style={styles.monetizationCard}>
@@ -488,12 +604,12 @@ export default function SocialApp({ onBack }: SocialAppProps) {
           {socialMedia.followers >= 500 ? (
             <View style={styles.monetizationBadge}>
               <Text style={styles.monetizationBadgeText}>ACTIVE</Text>
-                </View>
+            </View>
           ) : (
             <View style={[styles.monetizationBadge, styles.monetizationBadgeInactive]}>
               <Text style={styles.monetizationBadgeText}>LOCKED</Text>
-          </View>
-        )}
+            </View>
+          )}
         </View>
         
         {socialMedia.followers >= 500 ? (
@@ -518,31 +634,31 @@ export default function SocialApp({ onBack }: SocialAppProps) {
               <View style={styles.monetizationStatRow}>
                 <Text style={styles.monetizationStatLabel}>Total Earned:</Text>
                 <Text style={[styles.monetizationStatValue, styles.monetizationEarnings]}>
-                  ${(socialMedia.totalEarnings || 0).toFixed(2)}
+                  {formatMoney(socialMedia.totalEarnings || 0)}
                 </Text>
               </View>
-                    </View>
+            </View>
             <Text style={styles.monetizationTip}>
               💡 Post regularly and go viral to maximize earnings!
-                      </Text>
+            </Text>
           </>
         ) : (
           <View style={styles.monetizationLocked}>
             <Text style={styles.monetizationLockedText}>
               🔒 Reach 500 followers to unlock monetization
-                      </Text>
+            </Text>
             <View style={styles.monetizationProgress}>
               <View style={[
                 styles.monetizationProgressBar, 
                 { width: `${Math.min(100, (socialMedia.followers / 500) * 100)}%` }
               ]} />
-                    </View>
+            </View>
             <Text style={styles.monetizationProgressText}>
               {socialMedia.followers}/500 followers
-                      </Text>
-                  </View>
-            )}
+            </Text>
           </View>
+        )}
+      </View>
       
       {/* Player's Posts */}
       <View style={styles.postsSection}>
@@ -558,7 +674,7 @@ export default function SocialApp({ onBack }: SocialAppProps) {
             >
               <Text style={styles.createPostButtonText}>Create Post</Text>
             </TouchableOpacity>
-              </View>
+          </View>
         ) : (
           playerPosts.map(post => (
             <PostCard
@@ -571,6 +687,10 @@ export default function SocialApp({ onBack }: SocialAppProps) {
               content={post.content}
               photo={post.photo}
               timestamp={new Date(post.timestamp).toISOString()}
+              gameWeek={post.gameWeek}
+              gameMonth={post.gameMonth}
+              gameYear={post.gameYear}
+              currentGameDate={gameState.date}
               likes={post.likes}
               reposts={post.reposts}
               replies={post.replies}
@@ -584,14 +704,14 @@ export default function SocialApp({ onBack }: SocialAppProps) {
             />
           ))
         )}
-              </View>
+      </View>
     </ScrollView>
   ), [userProfile, socialMedia, influenceInfo, playerPosts]);
   
   const renderTrendingTab = useCallback(() => (
     <ScrollView style={styles.trendingScroll} showsVerticalScrollIndicator={false}>
       <Text style={styles.trendingTitle}>Trending</Text>
-      <Text style={styles.trendingSubtitle}>What's happening now</Text>
+      <Text style={styles.trendingSubtitle}>What&apos;s happening now</Text>
       
       {TRENDING_TOPICS.map((topic, index) => (
         <TouchableOpacity key={index} style={styles.trendingItem}>
@@ -675,19 +795,19 @@ export default function SocialApp({ onBack }: SocialAppProps) {
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <ArrowLeft size={scale(24)} color="#E7E9EA" />
-                  </TouchableOpacity>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Social</Text>
         <View style={styles.headerRight} />
-              </View>
+      </View>
       
       {/* Content */}
       <View style={styles.content}>
         {renderContent()}
-            </View>
+      </View>
 
       {/* Bottom Tab Bar */}
       <View style={styles.tabBar}>
-                  <TouchableOpacity
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setActiveTab('feed')}
         >
@@ -696,8 +816,8 @@ export default function SocialApp({ onBack }: SocialAppProps) {
             color={activeTab === 'feed' ? '#E7E9EA' : '#71767B'}
             fill={activeTab === 'feed' ? '#E7E9EA' : 'transparent'}
           />
-                </TouchableOpacity>
-              <TouchableOpacity
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setActiveTab('trending')}
         >
@@ -705,8 +825,8 @@ export default function SocialApp({ onBack }: SocialAppProps) {
             size={scale(24)} 
             color={activeTab === 'trending' ? '#E7E9EA' : '#71767B'} 
           />
-              </TouchableOpacity>
-              <TouchableOpacity
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setActiveTab('notifications')}
         >
@@ -714,8 +834,8 @@ export default function SocialApp({ onBack }: SocialAppProps) {
             size={scale(24)} 
             color={activeTab === 'notifications' ? '#E7E9EA' : '#71767B'} 
           />
-              </TouchableOpacity>
-                <TouchableOpacity
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setActiveTab('messages')}
         >
@@ -723,8 +843,8 @@ export default function SocialApp({ onBack }: SocialAppProps) {
             size={scale(24)} 
             color={activeTab === 'messages' ? '#E7E9EA' : '#71767B'}
           />
-              </TouchableOpacity>
-                <TouchableOpacity
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.tabItem}
           onPress={() => setActiveTab('profile')}
         >
@@ -733,16 +853,16 @@ export default function SocialApp({ onBack }: SocialAppProps) {
             color={activeTab === 'profile' ? '#E7E9EA' : '#71767B'}
             fill={activeTab === 'profile' ? '#E7E9EA' : 'transparent'}
           />
-                </TouchableOpacity>
-            </View>
+        </TouchableOpacity>
+      </View>
             
       {/* Floating Action Button */}
-            <TouchableOpacity
+      <TouchableOpacity
         style={styles.fab}
         onPress={() => setShowComposer(true)}
-            >
+      >
         <Feather size={scale(24)} color="#FFFFFF" />
-            </TouchableOpacity>
+      </TouchableOpacity>
       
       {/* Post Composer Modal */}
       <PostComposer

@@ -92,8 +92,8 @@ android {
         applicationId 'com.deeplife.simulator'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "2.2.7"
+        versionCode 84
+        versionName "2.3.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

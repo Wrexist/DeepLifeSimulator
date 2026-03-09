@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Modal, View, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { HelpCircle, X } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
 
@@ -180,3 +181,4 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
 });
+

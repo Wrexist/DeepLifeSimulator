@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+﻿import React, { useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { MotiView, MotiText } from '@/components/anim/MotiStub';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
 
 interface AnimatedCardProps {
@@ -153,3 +154,4 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 });
+

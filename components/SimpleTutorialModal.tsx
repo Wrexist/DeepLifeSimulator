@@ -1,9 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, ArrowRight, Lightbulb } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
-import { useGame } from '@/contexts/GameContext';
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { logger } from '@/utils/logger';
 
 interface TutorialStep {
@@ -31,19 +32,22 @@ export default function SimpleTutorialModal({
   onClose,
   onSkip,
 }: SimpleTutorialModalProps) {
-  const { gameState } = useGame();
-  const { settings } = gameState;
+  // Use useGameState directly (only requires GameStateProvider, not GameActionsProvider)
+  // This component is rendered inside AppProviders which includes GameProvider,
+  // so GameStateProvider should be available
+  const gameState = useGameState();
+  const darkMode = gameState?.settings?.darkMode ?? false;
 
   logger.debug('[SimpleTutorialModal] Render:', { visible, stepTitle: step?.title, currentStep, totalSteps });
 
   return (
     <Modal visible={visible} transparent animationType="fade" onShow={() => logger.debug('[SimpleTutorialModal] Modal shown!')}>
       <View style={styles.overlay}>
-        <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
+        <View style={[styles.modal, darkMode && styles.modalDark]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.progressContainer}>
-              <Text style={[styles.stepCounter, settings.darkMode && styles.textDark]}>
+              <Text style={[styles.stepCounter, darkMode && styles.textDark]}>
                 {currentStep} of {totalSteps}
               </Text>
               <View style={styles.progressBar}>
@@ -56,7 +60,7 @@ export default function SimpleTutorialModal({
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
+              <X size={24} color={darkMode ? '#FFFFFF' : '#000000'} />
             </TouchableOpacity>
           </View>
 
@@ -65,10 +69,10 @@ export default function SimpleTutorialModal({
             <View style={styles.iconContainer}>
               <Lightbulb size={32} color="#F59E0B" />
             </View>
-            <Text style={[styles.title, settings.darkMode && styles.textDark]}>
+            <Text style={[styles.title, darkMode && styles.textDark]}>
               {step.title}
             </Text>
-            <Text style={[styles.message, settings.darkMode && styles.messageDark]}>
+            <Text style={[styles.message, darkMode && styles.messageDark]}>
               {step.description}
             </Text>
           </View>
@@ -76,7 +80,7 @@ export default function SimpleTutorialModal({
           {/* Footer */}
           <View style={styles.footer}>
             <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
-              <Text style={[styles.skipText, settings.darkMode && styles.skipTextDark]}>
+              <Text style={[styles.skipText, darkMode && styles.skipTextDark]}>
                 Skip Tour
               </Text>
             </TouchableOpacity>
@@ -209,3 +213,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+

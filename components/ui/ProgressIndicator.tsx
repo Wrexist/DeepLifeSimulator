@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, Text, ViewStyle, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 
 const NATIVE_OK = Platform.OS !== 'web';
 
@@ -75,10 +76,10 @@ export default function ProgressIndicator({
         </View>
       )}
 
-      <View style={[styles.track, { height, width, backgroundColor }]}>
+      <View style={[styles.track, { height, width: width as any, backgroundColor }]}>
         <Animated.View style={[styles.progress, { width: '100%', height, transform: [{ scaleX }] }]}>
           <LinearGradient
-            colors={color}
+            colors={color as unknown as readonly [string, string]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
@@ -124,7 +125,7 @@ export function CircularProgress({
       Animated.timing(animatedProgress, {
         toValue: clamped,
         duration,
-        useNativeDriver: false, // stroke/size-like behavior → JS driver
+        useNativeDriver: false, // stroke/size-like behavior â†’ JS driver
       }).start();
     } else {
       animatedProgress.setValue(clamped);
@@ -241,3 +242,4 @@ const styles = StyleSheet.create({
   spinnerContainer: { justifyContent: 'center', alignItems: 'center' },
   spinner: { borderStyle: 'solid' },
 });
+

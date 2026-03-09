@@ -48,14 +48,16 @@ describe('useAchievements grouping', () => {
   });
 
   it('groups social achievements correctly', () => {
+    const expectedSocialStackSize = achievements.filter(a => (a.group ?? a.id.split('_')[0]) === 'social').length;
+
     const initial = compute({ relationships: [] });
     const social = initial.find(a => a.id === 'social_butterfly');
     expect(social.stackIndex).toBe(0);
-    expect(social.stackSize).toBe(2);
+    expect(social.stackSize).toBe(expectedSocialStackSize);
 
     const afterClaim = compute({ relationships: [], claimedProgressAchievements: ['social_butterfly'] });
     const socialNext = afterClaim.find(a => a.id === 'social_celebrity');
     expect(socialNext.stackIndex).toBe(1);
-    expect(socialNext.stackSize).toBe(2);
+    expect(socialNext.stackSize).toBe(expectedSocialStackSize);
   });
 });

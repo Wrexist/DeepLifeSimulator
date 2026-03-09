@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepLife Simulator — App Store Screenshot Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-deep: #0F172A;
+    --bg-surface: #1E293B;
+    --bg-elevated: #334155;
+    --text-primary: #FFFFFF;
+    --text-secondary: #64748B;
+    --border-subtle: rgba(255,255,255,0.12);
+    --indigo: #6366F1;
+    --health: #10B981;
+    --happiness: #F59E0B;
+    --energy: #3B82F6;
+    --fitness: #8B5CF6;
+    --money: #10B981;
+    --gems: #6366F1;
+    --reputation: #EC4899;
+    --danger: #EF4444;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #fff;
+    padding: 40px 20px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #7c3aed, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle { text-align: center; color: #888; margin-bottom: 12px; font-size: 14px; }
+
+  .instructions {
+    max-width: 800px; margin: 0 auto 30px;
+    background: #1a1a2e; border: 1px solid #333; border-radius: 12px;
+    padding: 20px; font-size: 13px; line-height: 1.6; color: #ccc;
+  }
+  .instructions h3 { color: #a78bfa; margin-bottom: 8px; }
+  .instructions ol { padding-left: 20px; }
+  .instructions li { margin-bottom: 6px; }
+  .instructions code { background: #2a2a3e; padding: 2px 6px; border-radius: 4px; color: #e879f9; }
+
+  .screenshots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 30px;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+
+  .screenshot-card {
+    background: #111; border-radius: 16px; padding: 16px; border: 1px solid #222;
+  }
+  .screenshot-card h3 { font-size: 14px; color: #a78bfa; margin-bottom: 4px; }
+  .screenshot-card .card-desc { font-size: 11px; color: #666; margin-bottom: 12px; }
+
+  /* The actual frame that gets exported */
+  .frame {
+    position: relative; width: 100%; aspect-ratio: 1290 / 2796;
+    border-radius: 12px; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center;
+  }
+
+  .frame-1 { background: linear-gradient(180deg, #1a0533 0%, #0d1b2a 40%, #0a0a1a 100%); }
+  .frame-2 { background: linear-gradient(180deg, #2d0a1e 0%, #1a0533 40%, #0a0a1a 100%); }
+  .frame-3 { background: linear-gradient(180deg, #0a1628 0%, #0d0d2b 40%, #0a0a1a 100%); }
+  .frame-4 { background: linear-gradient(180deg, #1a2f0a 0%, #0a1a0d 40%, #0a0a1a 100%); }
+  .frame-5 { background: linear-gradient(180deg, #2a1a00 0%, #1a0d00 40%, #0a0a1a 100%); }
+  .frame-6 { background: linear-gradient(180deg, #0a0a2e 0%, #1a0a2e 40%, #0a0a1a 100%); }
+
+  .frame-header {
+    width: 100%; padding: 8% 6% 2%; text-align: center; z-index: 2; flex-shrink: 0;
+  }
+  .frame-headline {
+    font-weight: 900; font-size: clamp(16px, 4.5vw, 36px);
+    line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 2%;
+  }
+  .frame-subline { font-weight: 500; font-size: clamp(10px, 2.2vw, 17px); opacity: 0.7; line-height: 1.3; }
+
+  .grad-purple { background: linear-gradient(135deg, #c084fc, #e879f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .grad-rose { background: linear-gradient(135deg, #fb7185, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .grad-blue { background: linear-gradient(135deg, #60a5fa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .grad-green { background: linear-gradient(135deg, #4ade80, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .grad-amber { background: linear-gradient(135deg, #fbbf24, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .grad-cyan { background: linear-gradient(135deg, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .frame-phone {
+    flex: 1; width: 78%; margin: 0 auto;
+    position: relative; display: flex; align-items: flex-start;
+    justify-content: center; overflow: hidden;
+  }
+
+  .phone-bezel {
+    width: 100%; height: 100%;
+    background: #000; border-radius: 28px;
+    border: 3px solid #333; overflow: hidden;
+    position: relative;
+  }
+
+  .phone-bezel::before {
+    content: ''; position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%); width: 90px; height: 24px;
+    background: #000; border-radius: 20px; z-index: 5; border: 1px solid #222;
+  }
+
+  .glow-circle {
+    position: absolute; border-radius: 50%; filter: blur(80px);
+    opacity: 0.15; pointer-events: none; z-index: 0;
+  }
+  .frame-1 .glow-circle { width: 60%; height: 40%; top: 10%; left: 20%; background: #7c3aed; }
+  .frame-2 .glow-circle { width: 60%; height: 40%; top: 10%; left: 20%; background: #ec4899; }
+  .frame-3 .glow-circle { width: 60%; height: 40%; top: 10%; left: 20%; background: #3b82f6; }
+  .frame-4 .glow-circle { width: 60%; height: 40%; top: 10%; left: 20%; background: #22c55e; }
+  .frame-5 .glow-circle { width: 60%; height: 40%; top: 10%; left: 20%; background: #f59e0b; }
+  .frame-6 .glow-circle { width: 60%; height: 40%; top: 10%; left: 20%; background: #6366f1; }
+
+  /* ===== MOCK PHONE SCREENS ===== */
+  .mock-screen {
+    width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+    background: var(--bg-deep); overflow: hidden;
+    font-family: 'Inter', -apple-system, sans-serif;
+    padding-top: 38px;
+    font-size: 10px;
+  }
+
+  .mock-status-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 38px; display: flex; align-items: flex-end;
+    justify-content: space-between; padding: 0 16px 4px;
+    font-size: 9px; font-weight: 600; color: #fff; z-index: 10;
+  }
+
+  /* === SCREEN 1: HOME === */
+  .home-screen { padding: 6px 8px; overflow: hidden; }
+
+  .home-stats-bar {
+    display: flex; gap: 4px; padding: 4px 0 6px; flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .home-stat {
+    display: flex; align-items: center; gap: 2px; font-size: 7.5px; font-weight: 600;
+  }
+  .home-stat .icon { font-size: 9px; }
+
+  .identity-card {
+    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(236,72,153,0.1));
+    border: 1px solid var(--border-subtle); border-radius: 12px;
+    padding: 10px; margin-bottom: 6px; text-align: center;
+  }
+  .identity-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    margin: 0 auto 6px; display: flex; align-items: center;
+    justify-content: center; font-size: 22px;
+  }
+  .identity-name { font-size: 13px; font-weight: 800; color: #fff; }
+  .identity-age { font-size: 9px; color: #F59E0B; font-weight: 600; margin: 2px 0 6px; }
+
+  .stat-row {
+    display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
+  }
+  .stat-pill {
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle);
+    border-radius: 8px; padding: 4px 6px; text-align: center; min-width: 42px;
+  }
+  .stat-pill .label { font-size: 6px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-pill .value { font-size: 9px; font-weight: 700; margin-top: 1px; }
+
+  .net-worth-bar {
+    background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 8px; padding: 6px; margin-top: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .net-worth-bar .label { font-size: 7px; color: var(--text-secondary); }
+  .net-worth-bar .amount { font-size: 12px; font-weight: 800; color: #10B981; }
+
+  .goals-card {
+    background: var(--bg-surface); border: 1px solid var(--border-subtle);
+    border-radius: 10px; padding: 8px; margin-bottom: 6px;
+  }
+  .goals-title { font-size: 9px; font-weight: 700; color: #fff; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .goal-item {
+    display: flex; align-items: center; gap: 4px; margin-bottom: 5px;
+  }
+  .goal-icon { font-size: 10px; }
+  .goal-info { flex: 1; }
+  .goal-name { font-size: 7.5px; color: #fff; font-weight: 500; }
+  .goal-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 2px; overflow: hidden; }
+  .goal-fill { height: 100%; border-radius: 2px; }
+  .goal-pct { font-size: 7px; font-weight: 600; min-width: 22px; text-align: right; }
+
+  .achievements-row {
+    display: flex; gap: 4px; padding: 4px 0;
+  }
+  .ach-badge {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; border: 1px solid var(--border-subtle);
+  }
+
+  .tab-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(15,23,42,0.95); border-top: 1px solid var(--border-subtle);
+    display: flex; justify-content: space-around; padding: 4px 0 8px;
+    backdrop-filter: blur(10px);
+  }
+  .tab-item { text-align: center; font-size: 6px; color: var(--text-secondary); }
+  .tab-item.active { color: #6366F1; }
+  .tab-item .tab-icon { font-size: 14px; display: block; margin-bottom: 1px; }
+
+  /* === SCREEN 2: DATING === */
+  .dating-screen { position: relative; overflow: hidden; }
+  .dating-card {
+    position: absolute; top: 38px; left: 8px; right: 8px; bottom: 70px;
+    border-radius: 16px; overflow: hidden;
+    background: linear-gradient(180deg, #2a1f3d 0%, #1a0f2e 100%);
+    border: 1px solid var(--border-subtle);
+  }
+  .dating-photo {
+    width: 100%; height: 55%;
+    background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #6366f1 100%);
+    position: relative; display: flex; align-items: center; justify-content: center;
+  }
+  .dating-photo-icon { font-size: 60px; opacity: 0.6; }
+  .dating-photo-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 50%;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  }
+  .dating-info {
+    padding: 10px 12px; position: relative;
+  }
+  .dating-name { font-size: 15px; font-weight: 800; color: #fff; }
+  .dating-detail { font-size: 8px; color: var(--text-secondary); margin-top: 2px; }
+  .dating-bio { font-size: 8px; color: rgba(255,255,255,0.7); margin-top: 6px; font-style: italic; line-height: 1.4; }
+  .dating-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+  .dating-tag {
+    background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 10px; padding: 2px 6px; font-size: 7px; color: #a5b4fc;
+  }
+  .dating-actions {
+    position: absolute; bottom: 34px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 12px; padding: 8px;
+  }
+  .dating-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; border: 2px solid;
+  }
+  .dating-btn.pass { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+  .dating-btn.msg { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+  .dating-btn.like { border-color: #ec4899; background: rgba(236,72,153,0.1); }
+  .dating-btn.gift { border-color: #f59e0b; background: rgba(245,158,11,0.1); }
+
+  /* === SCREEN 3: DEATH === */
+  .death-screen { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 38px 10px 40px; overflow: hidden; }
+  .death-overlay {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(239,68,68,0.08) 0%, transparent 70%);
+  }
+  .death-icon { font-size: 44px; margin: 12px 0 6px; position: relative; z-index: 1; }
+  .death-title { font-size: 20px; font-weight: 900; color: #ef4444; letter-spacing: 2px; position: relative; z-index: 1; }
+  .death-reason { font-size: 8px; color: var(--text-secondary); margin: 4px 0 10px; text-align: center; position: relative; z-index: 1; }
+  .death-card {
+    background: var(--bg-surface); border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 12px; padding: 10px; width: 100%; position: relative; z-index: 1;
+    margin-bottom: 6px;
+  }
+  .death-card-title { font-size: 9px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .death-stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  }
+  .death-stat {
+    background: rgba(255,255,255,0.04); border-radius: 8px; padding: 6px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .death-stat .ds-icon { font-size: 12px; }
+  .death-stat .ds-label { font-size: 6.5px; color: var(--text-secondary); }
+  .death-stat .ds-value { font-size: 9px; font-weight: 700; color: #fff; }
+
+  .heir-card {
+    background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 10px; padding: 8px; display: flex; align-items: center; gap: 8px;
+    margin-top: 4px;
+  }
+  .heir-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .heir-name { font-size: 9px; font-weight: 700; color: #fff; }
+  .heir-detail { font-size: 7px; color: var(--text-secondary); }
+  .heir-inherit { font-size: 8px; font-weight: 600; color: #10B981; margin-top: 1px; }
+
+  .death-buttons {
+    display: flex; gap: 6px; width: 100%; margin-top: 6px; position: relative; z-index: 1;
+  }
+  .death-btn {
+    flex: 1; padding: 8px; border-radius: 10px; text-align: center;
+    font-weight: 700; font-size: 9px; border: none;
+  }
+  .death-btn.newlife { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
+  .death-btn.revive { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: #f59e0b; }
+
+  /* === SCREEN 4: FAMILY TREE === */
+  .tree-screen { padding: 38px 6px 40px; overflow: hidden; position: relative; }
+  .tree-title-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 4px 8px;
+  }
+  .tree-title { font-size: 12px; font-weight: 800; color: #fff; }
+  .tree-gen-label { font-size: 7px; color: var(--text-secondary); font-weight: 600; margin: 6px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .tree-row {
+    display: flex; justify-content: center; gap: 8px; margin-bottom: 4px;
+    position: relative;
+  }
+  .tree-node {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .tree-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; border: 2px solid;
+  }
+  .tree-avatar.gold { border-color: #FFD700; background: rgba(255,215,0,0.1); }
+  .tree-avatar.silver { border-color: #C0C0C0; background: rgba(192,192,192,0.1); }
+  .tree-avatar.bronze { border-color: #CD7F32; background: rgba(205,127,50,0.1); }
+  .tree-avatar.green { border-color: #10B981; background: rgba(16,185,129,0.1); }
+  .tree-avatar.blue { border-color: #3B82F6; background: rgba(59,130,246,0.1); }
+  .tree-avatar.current { border-color: #6366F1; background: rgba(99,102,241,0.2); box-shadow: 0 0 12px rgba(99,102,241,0.4); }
+  .tree-node-name { font-size: 6.5px; font-weight: 600; color: #fff; }
+  .tree-node-worth { font-size: 6px; color: #10B981; font-weight: 500; }
+  .tree-you-badge {
+    font-size: 5px; background: #fff; color: #000; padding: 1px 3px;
+    border-radius: 3px; font-weight: 700; position: absolute; top: -4px;
+  }
+  .tree-connector {
+    position: absolute; width: 1px; height: 12px;
+    background: rgba(255,255,255,0.15); left: 50%;
+    transform: translateX(-50%); bottom: -12px;
+  }
+
+  .tree-detail-card {
+    background: var(--bg-surface); border: 1px solid var(--border-subtle);
+    border-radius: 10px; padding: 8px; margin-top: 8px;
+  }
+  .tree-detail-name { font-size: 10px; font-weight: 700; color: #fff; }
+  .tree-detail-sub { font-size: 7px; color: var(--text-secondary); margin: 2px 0; }
+  .tree-detail-stats { display: flex; gap: 8px; margin-top: 4px; }
+  .tree-detail-stat { text-align: center; }
+  .tree-detail-stat .tds-val { font-size: 10px; font-weight: 700; }
+  .tree-detail-stat .tds-label { font-size: 6px; color: var(--text-secondary); }
+
+  /* === SCREEN 5: BITCOIN === */
+  .btc-screen { padding: 38px 8px 10px; overflow: hidden; background: #0a0e17; }
+  .btc-header { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 8px; }
+  .btc-title { font-size: 11px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 4px; }
+
+  .btc-ticker {
+    display: flex; gap: 6px; overflow: hidden; padding: 4px 0 8px;
+  }
+  .btc-coin {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border-subtle);
+    border-radius: 8px; padding: 5px 8px; min-width: 70px;
+  }
+  .btc-coin-name { font-size: 7px; font-weight: 700; color: var(--text-secondary); }
+  .btc-coin-price { font-size: 9px; font-weight: 700; color: #fff; font-family: 'Courier New', monospace; }
+  .btc-coin-change { font-size: 7px; font-weight: 600; }
+  .btc-coin-change.up { color: #10B981; }
+  .btc-coin-change.down { color: #EF4444; }
+
+  .btc-dashboard {
+    background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(99,102,241,0.05));
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 12px; padding: 10px; margin-bottom: 8px;
+  }
+  .btc-dash-title { font-size: 7px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .btc-earnings { font-size: 16px; font-weight: 900; color: #F59E0B; margin: 2px 0; }
+  .btc-earnings-usd { font-size: 8px; color: var(--text-secondary); }
+  .btc-dash-row { display: flex; gap: 8px; margin-top: 6px; }
+  .btc-dash-metric { flex: 1; background: rgba(255,255,255,0.04); border-radius: 6px; padding: 4px; text-align: center; }
+  .btc-dash-metric .val { font-size: 9px; font-weight: 700; color: #fff; }
+  .btc-dash-metric .lbl { font-size: 6px; color: var(--text-secondary); }
+
+  .btc-miner-card {
+    background: var(--bg-surface); border: 1px solid var(--border-subtle);
+    border-radius: 10px; padding: 8px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btc-miner-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .btc-miner-icon.t1 { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); }
+  .btc-miner-icon.t2 { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); }
+  .btc-miner-icon.t3 { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); }
+  .btc-miner-info { flex: 1; }
+  .btc-miner-name { font-size: 8.5px; font-weight: 700; color: #fff; }
+  .btc-miner-detail { font-size: 7px; color: var(--text-secondary); }
+  .btc-miner-earn { font-size: 8px; font-weight: 600; color: #10B981; text-align: right; }
+  .btc-miner-earn-sub { font-size: 6px; color: var(--text-secondary); text-align: right; }
+
+  .btc-durability { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+  .btc-durability-fill { height: 100%; border-radius: 2px; }
+
+  /* === SCREEN 6: SOCIAL === */
+  .social-screen { padding: 38px 0 40px; overflow: hidden; }
+  .social-tabs {
+    display: flex; border-bottom: 1px solid var(--border-subtle);
+    padding: 0 8px;
+  }
+  .social-tab {
+    flex: 1; text-align: center; padding: 6px 0; font-size: 8px;
+    font-weight: 600; color: var(--text-secondary);
+  }
+  .social-tab.active { color: #3B82F6; border-bottom: 2px solid #3B82F6; }
+
+  .social-composer {
+    display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--border-subtle);
+  }
+  .social-composer-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; flex-shrink: 0;
+  }
+  .social-composer-input {
+    flex: 1; background: none; color: var(--text-secondary);
+    font-size: 8px; padding-top: 4px;
+  }
+
+  .social-post {
+    padding: 8px; border-bottom: 1px solid var(--border-subtle);
+  }
+  .social-post-header { display: flex; gap: 6px; align-items: flex-start; }
+  .social-post-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; flex-shrink: 0;
+  }
+  .social-post-meta { flex: 1; }
+  .social-post-author { font-size: 8px; font-weight: 700; color: #fff; }
+  .social-post-author .handle { font-weight: 400; color: var(--text-secondary); margin-left: 3px; }
+  .social-post-author .verified { color: #3B82F6; margin-left: 2px; }
+  .social-post-time { font-size: 7px; color: var(--text-secondary); }
+  .social-post-text { font-size: 8.5px; color: rgba(255,255,255,0.9); line-height: 1.4; margin: 4px 0 4px 30px; }
+  .social-post-image {
+    margin: 4px 0 4px 30px; border-radius: 8px; height: 60px;
+    border: 1px solid var(--border-subtle); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+  }
+  .social-post-engagement {
+    display: flex; gap: 16px; margin: 4px 0 0 30px;
+  }
+  .social-eng { display: flex; align-items: center; gap: 2px; font-size: 7px; color: var(--text-secondary); }
+  .social-eng .se-icon { font-size: 10px; }
+  .social-viral { color: #EF4444; font-size: 7px; font-weight: 600; margin-left: 30px; margin-top: 2px; display: flex; align-items: center; gap: 2px; }
+
+  /* Export Section */
+  .export-section { text-align: center; margin-top: 40px; padding: 20px; }
+  .export-btn {
+    background: linear-gradient(135deg, #7c3aed, #ec4899);
+    color: #fff; border: none; padding: 14px 36px; font-size: 16px;
+    font-weight: 700; border-radius: 12px; cursor: pointer; margin: 8px;
+    transition: transform 0.2s;
+  }
+  .export-btn:hover { transform: scale(1.04); }
+  .export-btn.secondary { background: #1e1e2e; border: 1px solid #444; }
+  .tip { display: inline-block; background: #1a1a2e; color: #a78bfa; font-size: 11px; padding: 4px 10px; border-radius: 6px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>DeepLife Simulator — Screenshot Generator</h1>
+<p class="subtitle">Self-contained mock screenshots — click Export to download at App Store resolution</p>
+
+<div class="instructions">
+  <h3>How to use:</h3>
+  <ol>
+    <li>Review the 6 mock screenshots below — they use realistic game UI</li>
+    <li>Click <code>Export All (iOS)</code> to download each at 1290x2796px (iPhone 6.7")</li>
+    <li>Or <code>Export All (Android)</code> for 1080x1920px</li>
+    <li>Upload the exported PNGs to App Store Connect / Google Play Console</li>
+  </ol>
+</div>
+
+<div class="screenshots-grid">
+
+  <!-- SCREENSHOT 1: HERO SHOT -->
+  <div class="screenshot-card">
+    <h3>#1 — Hero Shot</h3>
+    <p class="card-desc">Home tab with identity, stats, goals</p>
+    <div class="frame frame-1" id="frame-1">
+      <div class="glow-circle"></div>
+      <div class="frame-header">
+        <div class="frame-headline grad-purple">Live Your<br>Dream Life</div>
+        <div class="frame-subline">Every choice shapes your destiny</div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-bezel">
+          <div class="mock-screen home-screen">
+            <div class="mock-status-bar"><span>9:41</span><span>⚡ 100%</span></div>
+            <div class="home-stats-bar">
+              <div class="home-stat"><span class="icon">❤️</span><span style="color:#10B981">87%</span></div>
+              <div class="home-stat"><span class="icon">😊</span><span style="color:#F59E0B">92%</span></div>
+              <div class="home-stat"><span class="icon">⚡</span><span style="color:#3B82F6">76%</span></div>
+              <div class="home-stat"><span class="icon">💰</span><span style="color:#10B981">$24.5K</span></div>
+              <div class="home-stat"><span class="icon">🏦</span><span style="color:#60A5FA">$182K</span></div>
+              <div class="home-stat"><span class="icon">💎</span><span style="color:#6366F1">347</span></div>
+            </div>
+            <div class="identity-card">
+              <div class="identity-avatar">👤</div>
+              <div class="identity-name">Alexander Morrison</div>
+              <div class="identity-age">⭐ 28 years old — Software Engineer</div>
+              <div class="stat-row">
+                <div class="stat-pill"><div class="label">Health</div><div class="value" style="color:#10B981">87%</div></div>
+                <div class="stat-pill"><div class="label">Happy</div><div class="value" style="color:#F59E0B">92%</div></div>
+                <div class="stat-pill"><div class="label">Energy</div><div class="value" style="color:#3B82F6">76%</div></div>
+                <div class="stat-pill"><div class="label">Fitness</div><div class="value" style="color:#8B5CF6">64%</div></div>
+              </div>
+              <div class="net-worth-bar">
+                <span class="label">NET WORTH</span>
+                <span class="amount">$1,247,832</span>
+              </div>
+            </div>
+            <div class="goals-card">
+              <div class="goals-title">🎯 Active Goals</div>
+              <div class="goal-item">
+                <span class="goal-icon">💼</span>
+                <div class="goal-info">
+                  <div class="goal-name">Get Promoted to Senior Engineer</div>
+                  <div class="goal-bar"><div class="goal-fill" style="width:72%;background:#6366F1"></div></div>
+                </div>
+                <span class="goal-pct" style="color:#6366F1">72%</span>
+              </div>
+              <div class="goal-item">
+                <span class="goal-icon">🏠</span>
+                <div class="goal-info">
+                  <div class="goal-name">Buy a Luxury Apartment</div>
+                  <div class="goal-bar"><div class="goal-fill" style="width:45%;background:#10B981"></div></div>
+                </div>
+                <span class="goal-pct" style="color:#10B981">45%</span>
+              </div>
+              <div class="goal-item">
+                <span class="goal-icon">💪</span>
+                <div class="goal-info">
+                  <div class="goal-name">Reach 90% Fitness</div>
+                  <div class="goal-bar"><div class="goal-fill" style="width:71%;background:#8B5CF6"></div></div>
+                </div>
+                <span class="goal-pct" style="color:#8B5CF6">71%</span>
+              </div>
+            </div>
+            <div class="achievements-row">
+              <div class="ach-badge" style="background:rgba(245,158,11,0.15); border-color:rgba(245,158,11,0.3)">🏆</div>
+              <div class="ach-badge" style="background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.3)">💰</div>
+              <div class="ach-badge" style="background:rgba(99,102,241,0.15); border-color:rgba(99,102,241,0.3)">🎓</div>
+              <div class="ach-badge" style="background:rgba(236,72,153,0.15); border-color:rgba(236,72,153,0.3)">❤️</div>
+              <div class="ach-badge" style="background:rgba(139,92,246,0.15); border-color:rgba(139,92,246,0.3)">🏋️</div>
+              <div class="ach-badge" style="background:rgba(255,255,255,0.04); border-color:var(--border-subtle); opacity:0.4">❓</div>
+              <div class="ach-badge" style="background:rgba(255,255,255,0.04); border-color:var(--border-subtle); opacity:0.4">❓</div>
+            </div>
+            <div class="tab-bar">
+              <div class="tab-item active"><span class="tab-icon">🏠</span>Life</div>
+              <div class="tab-item"><span class="tab-icon">💼</span>Work</div>
+              <div class="tab-item"><span class="tab-icon">❤️</span>Health</div>
+              <div class="tab-item"><span class="tab-icon">📱</span>Phone</div>
+              <div class="tab-item"><span class="tab-icon">💻</span>PC</div>
+              <div class="tab-item"><span class="tab-icon">📈</span>Progress</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREENSHOT 2: DATING -->
+  <div class="screenshot-card">
+    <h3>#2 — Dating</h3>
+    <p class="card-desc">Tinder-style swiping cards</p>
+    <div class="frame frame-2" id="frame-2">
+      <div class="glow-circle"></div>
+      <div class="frame-header">
+        <div class="frame-headline grad-rose">Find Love.<br>Build a Family.</div>
+        <div class="frame-subline">Swipe, date, marry — your love story awaits</div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-bezel">
+          <div class="mock-screen dating-screen">
+            <div class="mock-status-bar"><span>9:41</span><span>⚡ 100%</span></div>
+            <div class="dating-card">
+              <div class="dating-photo">
+                <span class="dating-photo-icon">👩</span>
+                <div class="dating-photo-overlay"></div>
+              </div>
+              <div class="dating-info">
+                <div class="dating-name">Sarah Chen, 26</div>
+                <div class="dating-detail">📍 2 km away · Marketing Director</div>
+                <div class="dating-bio">"Love hiking, coffee dates, and spontaneous road trips. Looking for someone who can make me laugh."</div>
+                <div class="dating-tags">
+                  <span class="dating-tag">☕ Coffee</span>
+                  <span class="dating-tag">🥾 Hiking</span>
+                  <span class="dating-tag">✈️ Travel</span>
+                  <span class="dating-tag">📸 Photography</span>
+                  <span class="dating-tag">🎵 Music</span>
+                </div>
+                <div style="margin-top:6px; display:flex; gap:6px; align-items:center">
+                  <span style="font-size:7px; color:var(--text-secondary)">Income:</span>
+                  <span style="font-size:8px; color:#10B981; font-weight:600">$78,000/yr</span>
+                  <span style="font-size:7px; background:rgba(16,185,129,0.15); color:#10B981; padding:1px 4px; border-radius:4px; font-weight:600">Wealthy</span>
+                </div>
+              </div>
+            </div>
+            <div class="dating-actions">
+              <div class="dating-btn pass">✕</div>
+              <div class="dating-btn msg">💬</div>
+              <div class="dating-btn like">❤️</div>
+              <div class="dating-btn gift">🎁</div>
+            </div>
+            <div class="tab-bar">
+              <div class="tab-item"><span class="tab-icon">🏠</span>Life</div>
+              <div class="tab-item"><span class="tab-icon">💼</span>Work</div>
+              <div class="tab-item"><span class="tab-icon">❤️</span>Health</div>
+              <div class="tab-item active"><span class="tab-icon">📱</span>Phone</div>
+              <div class="tab-item"><span class="tab-icon">💻</span>PC</div>
+              <div class="tab-item"><span class="tab-icon">📈</span>Progress</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREENSHOT 3: DEATH & LEGACY -->
+  <div class="screenshot-card">
+    <h3>#3 — Death & Legacy</h3>
+    <p class="card-desc">The emotional tombstone moment</p>
+    <div class="frame frame-3" id="frame-3">
+      <div class="glow-circle"></div>
+      <div class="frame-header">
+        <div class="frame-headline grad-blue">Your Legacy<br>Lives On</div>
+        <div class="frame-subline">Death isn't the end — it's a new beginning</div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-bezel">
+          <div class="mock-screen death-screen">
+            <div class="mock-status-bar"><span>9:41</span><span>⚡ 100%</span></div>
+            <div class="death-overlay"></div>
+            <div class="death-icon">💀</div>
+            <div class="death-title">YOU DIED</div>
+            <div class="death-reason">Old age at 84 years — a life well lived.</div>
+            <div class="death-card">
+              <div class="death-card-title">Life Summary</div>
+              <div class="death-stat-grid">
+                <div class="death-stat"><span class="ds-icon">🎂</span><div><div class="ds-label">Age</div><div class="ds-value">84 years</div></div></div>
+                <div class="death-stat"><span class="ds-icon">💰</span><div><div class="ds-label">Net Worth</div><div class="ds-value" style="color:#10B981">$4.2M</div></div></div>
+                <div class="death-stat"><span class="ds-icon">💼</span><div><div class="ds-label">Career</div><div class="ds-value">CEO</div></div></div>
+                <div class="death-stat"><span class="ds-icon">👨‍👩‍👧‍👦</span><div><div class="ds-label">Children</div><div class="ds-value">3</div></div></div>
+              </div>
+            </div>
+            <div class="death-card">
+              <div class="death-card-title">Choose Your Heir</div>
+              <div class="heir-card">
+                <div class="heir-avatar">👦</div>
+                <div style="flex:1">
+                  <div class="heir-name">James Morrison</div>
+                  <div class="heir-detail">Age 32 · Ambitious · High IQ</div>
+                  <div class="heir-inherit">Inherits $840,000</div>
+                </div>
+              </div>
+              <div class="heir-card" style="margin-top:4px">
+                <div class="heir-avatar">👧</div>
+                <div style="flex:1">
+                  <div class="heir-name">Emily Morrison</div>
+                  <div class="heir-detail">Age 28 · Creative · Kind</div>
+                  <div class="heir-inherit">Inherits $840,000</div>
+                </div>
+              </div>
+            </div>
+            <div class="death-buttons">
+              <div class="death-btn newlife">🔄 New Life</div>
+              <div class="death-btn revive">💎 Revive (500)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREENSHOT 4: DYNASTY -->
+  <div class="screenshot-card">
+    <h3>#4 — Dynasty</h3>
+    <p class="card-desc">Multi-generation family tree</p>
+    <div class="frame frame-4" id="frame-4">
+      <div class="glow-circle"></div>
+      <div class="frame-header">
+        <div class="frame-headline grad-green">Build a<br>Dynasty</div>
+        <div class="frame-subline">Your children inherit your legacy</div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-bezel">
+          <div class="mock-screen tree-screen">
+            <div class="mock-status-bar"><span>9:41</span><span>⚡ 100%</span></div>
+            <div class="tree-title-bar">
+              <span style="font-size:10px">←</span>
+              <span class="tree-title">🌳 Family Tree</span>
+              <span style="font-size:8px;color:var(--text-secondary)">5 Generations</span>
+            </div>
+
+            <div class="tree-gen-label">Generation 1 — Founder</div>
+            <div class="tree-row">
+              <div class="tree-node">
+                <div class="tree-avatar gold">👴</div>
+                <div class="tree-node-name">William M.</div>
+                <div class="tree-node-worth">$12.4M</div>
+              </div>
+            </div>
+
+            <div style="height:10px;display:flex;justify-content:center"><div style="width:1px;height:100%;background:rgba(255,255,255,0.15)"></div></div>
+
+            <div class="tree-gen-label">Generation 2</div>
+            <div class="tree-row">
+              <div class="tree-node">
+                <div class="tree-avatar silver">👨</div>
+                <div class="tree-node-name">Robert M.</div>
+                <div class="tree-node-worth">$5.8M</div>
+              </div>
+              <div class="tree-node">
+                <div class="tree-avatar bronze">👩</div>
+                <div class="tree-node-name">Catherine M.</div>
+                <div class="tree-node-worth">$2.1M</div>
+              </div>
+            </div>
+
+            <div style="height:10px;display:flex;justify-content:center"><div style="width:1px;height:100%;background:rgba(255,255,255,0.15)"></div></div>
+
+            <div class="tree-gen-label">Generation 3</div>
+            <div class="tree-row">
+              <div class="tree-node">
+                <div class="tree-avatar green">👨</div>
+                <div class="tree-node-name">David M.</div>
+                <div class="tree-node-worth">$890K</div>
+              </div>
+              <div class="tree-node">
+                <div class="tree-avatar silver">👩</div>
+                <div class="tree-node-name">Sarah M.</div>
+                <div class="tree-node-worth">$3.2M</div>
+              </div>
+              <div class="tree-node">
+                <div class="tree-avatar blue">👨</div>
+                <div class="tree-node-name">Michael M.</div>
+                <div class="tree-node-worth">$420K</div>
+              </div>
+            </div>
+
+            <div style="height:10px;display:flex;justify-content:center"><div style="width:1px;height:100%;background:rgba(255,255,255,0.15)"></div></div>
+
+            <div class="tree-gen-label">Generation 4 — Current</div>
+            <div class="tree-row">
+              <div class="tree-node" style="position:relative">
+                <span class="tree-you-badge">YOU</span>
+                <div class="tree-avatar current">⭐</div>
+                <div class="tree-node-name" style="color:#6366F1;font-weight:700">Alexander M.</div>
+                <div class="tree-node-worth">$1.2M</div>
+              </div>
+              <div class="tree-node">
+                <div class="tree-avatar green">👩</div>
+                <div class="tree-node-name">Jessica M.</div>
+                <div class="tree-node-worth">$650K</div>
+              </div>
+            </div>
+
+            <div class="tree-detail-card">
+              <div class="tree-detail-name">Morrison Dynasty</div>
+              <div class="tree-detail-sub">Founded by William Morrison · 4 Generations</div>
+              <div class="tree-detail-stats">
+                <div class="tree-detail-stat"><div class="tds-val" style="color:#FFD700">$24.7M</div><div class="tds-label">Total Wealth</div></div>
+                <div class="tree-detail-stat"><div class="tds-val" style="color:#6366F1">7</div><div class="tds-label">Members</div></div>
+                <div class="tree-detail-stat"><div class="tds-val" style="color:#10B981">4</div><div class="tds-label">Generations</div></div>
+                <div class="tree-detail-stat"><div class="tds-val" style="color:#EC4899">12</div><div class="tds-label">Achievements</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREENSHOT 5: BITCOIN MINING -->
+  <div class="screenshot-card">
+    <h3>#5 — Wealth Building</h3>
+    <p class="card-desc">Bitcoin mining & crypto trading</p>
+    <div class="frame frame-5" id="frame-5">
+      <div class="glow-circle"></div>
+      <div class="frame-header">
+        <div class="frame-headline grad-amber">Get Rich.<br>Your Way.</div>
+        <div class="frame-subline">Mine crypto, trade stocks, build empires</div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-bezel">
+          <div class="mock-screen btc-screen">
+            <div class="mock-status-bar"><span>9:41</span><span>⚡ 100%</span></div>
+            <div class="btc-header">
+              <span style="font-size:10px">←</span>
+              <span class="btc-title">⛏️ Bitcoin Mining</span>
+              <span style="font-size:10px">⚙️</span>
+            </div>
+
+            <div class="btc-ticker">
+              <div class="btc-coin">
+                <div class="btc-coin-name">BTC</div>
+                <div class="btc-coin-price">$67,842</div>
+                <div class="btc-coin-change up">▲ 3.2%</div>
+              </div>
+              <div class="btc-coin">
+                <div class="btc-coin-name">ETH</div>
+                <div class="btc-coin-price">$3,421</div>
+                <div class="btc-coin-change up">▲ 1.8%</div>
+              </div>
+              <div class="btc-coin">
+                <div class="btc-coin-name">SOL</div>
+                <div class="btc-coin-price">$142</div>
+                <div class="btc-coin-change down">▼ 0.5%</div>
+              </div>
+            </div>
+
+            <div class="btc-dashboard">
+              <div class="btc-dash-title">Weekly Earnings</div>
+              <div class="btc-earnings">0.00847 BTC</div>
+              <div class="btc-earnings-usd">≈ $574.62 USD</div>
+              <div class="btc-dash-row">
+                <div class="btc-dash-metric"><div class="val" style="color:#10B981">847 GH/s</div><div class="lbl">Hash Rate</div></div>
+                <div class="btc-dash-metric"><div class="val" style="color:#F59E0B">1,240W</div><div class="lbl">Power</div></div>
+                <div class="btc-dash-metric"><div class="val" style="color:#3B82F6">$82/wk</div><div class="lbl">Net Profit</div></div>
+              </div>
+            </div>
+
+            <div class="btc-miner-card">
+              <div class="btc-miner-icon t1">⛏️</div>
+              <div class="btc-miner-info">
+                <div class="btc-miner-name">Advanced Miner × 3</div>
+                <div class="btc-miner-detail">Level 5 · 280 GH/s each</div>
+                <div class="btc-durability"><div class="btc-durability-fill" style="width:85%;background:#10B981"></div></div>
+              </div>
+              <div>
+                <div class="btc-miner-earn">+$312/wk</div>
+                <div class="btc-miner-earn-sub">0.0046 BTC</div>
+              </div>
+            </div>
+
+            <div class="btc-miner-card">
+              <div class="btc-miner-icon t2">🖥️</div>
+              <div class="btc-miner-info">
+                <div class="btc-miner-name">Pro Miner × 1</div>
+                <div class="btc-miner-detail">Level 3 · 520 GH/s</div>
+                <div class="btc-durability"><div class="btc-durability-fill" style="width:62%;background:#F59E0B"></div></div>
+              </div>
+              <div>
+                <div class="btc-miner-earn">+$198/wk</div>
+                <div class="btc-miner-earn-sub">0.0029 BTC</div>
+              </div>
+            </div>
+
+            <div class="btc-miner-card">
+              <div class="btc-miner-icon t3">🔮</div>
+              <div class="btc-miner-info">
+                <div class="btc-miner-name">Quantum Miner × 1</div>
+                <div class="btc-miner-detail">Level 1 · 1,200 GH/s</div>
+                <div class="btc-durability"><div class="btc-durability-fill" style="width:94%;background:#8B5CF6"></div></div>
+              </div>
+              <div>
+                <div class="btc-miner-earn">+$64/wk</div>
+                <div class="btc-miner-earn-sub">0.0009 BTC</div>
+              </div>
+            </div>
+
+            <div class="tab-bar" style="background:rgba(10,14,23,0.95)">
+              <div class="tab-item"><span class="tab-icon">🏠</span>Life</div>
+              <div class="tab-item"><span class="tab-icon">💼</span>Work</div>
+              <div class="tab-item"><span class="tab-icon">❤️</span>Health</div>
+              <div class="tab-item"><span class="tab-icon">📱</span>Phone</div>
+              <div class="tab-item active"><span class="tab-icon">💻</span>PC</div>
+              <div class="tab-item"><span class="tab-icon">📈</span>Progress</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREENSHOT 6: SOCIAL MEDIA -->
+  <div class="screenshot-card">
+    <h3>#6 — Social Media</h3>
+    <p class="card-desc">In-game X/Twitter clone</p>
+    <div class="frame frame-6" id="frame-6">
+      <div class="glow-circle"></div>
+      <div class="frame-header">
+        <div class="frame-headline grad-cyan">Go Viral.<br>Get Famous.</div>
+        <div class="frame-subline">Post, gain followers, become an influencer</div>
+      </div>
+      <div class="frame-phone">
+        <div class="phone-bezel">
+          <div class="mock-screen social-screen">
+            <div class="mock-status-bar"><span>9:41</span><span>⚡ 100%</span></div>
+            <div class="social-tabs">
+              <div class="social-tab active">Home</div>
+              <div class="social-tab">Explore</div>
+              <div class="social-tab">Notifs</div>
+              <div class="social-tab">DMs</div>
+              <div class="social-tab">Profile</div>
+            </div>
+
+            <div class="social-composer">
+              <div class="social-composer-avatar">👤</div>
+              <div class="social-composer-input">What's happening?!</div>
+            </div>
+
+            <!-- Post 1 — Viral -->
+            <div class="social-post">
+              <div class="social-post-header">
+                <div class="social-post-avatar" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">🔥</div>
+                <div class="social-post-meta">
+                  <div class="social-post-author">TechGuru<span class="verified">✓</span><span class="handle">@techguru</span></div>
+                  <div class="social-post-time">2h ago</div>
+                </div>
+              </div>
+              <div class="social-post-text">Just quit my 9-5 to build my startup full time. Scared but excited. Here we go! 🚀</div>
+              <div class="social-viral">🔥 Trending · 45.2K views</div>
+              <div class="social-post-engagement">
+                <span class="social-eng"><span class="se-icon">💬</span> 1.2K</span>
+                <span class="social-eng"><span class="se-icon">🔄</span> 3.4K</span>
+                <span class="social-eng" style="color:#EC4899"><span class="se-icon">❤️</span> 15.2K</span>
+                <span class="social-eng"><span class="se-icon">📊</span> 45.2K</span>
+              </div>
+            </div>
+
+            <!-- Post 2 -->
+            <div class="social-post">
+              <div class="social-post-header">
+                <div class="social-post-avatar" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">👩</div>
+                <div class="social-post-meta">
+                  <div class="social-post-author">FitnessQueen<span class="handle">@fitqueen</span></div>
+                  <div class="social-post-time">4h ago</div>
+                </div>
+              </div>
+              <div class="social-post-text">Morning run done! 🏃‍♀️ 10K in under 45 minutes. New personal best! Who else is working on their fitness goals?</div>
+              <div class="social-post-engagement">
+                <span class="social-eng"><span class="se-icon">💬</span> 89</span>
+                <span class="social-eng"><span class="se-icon">🔄</span> 234</span>
+                <span class="social-eng" style="color:#EC4899"><span class="se-icon">❤️</span> 2.1K</span>
+                <span class="social-eng"><span class="se-icon">📊</span> 8.4K</span>
+              </div>
+            </div>
+
+            <!-- Post 3 — Player's post -->
+            <div class="social-post" style="border-left:2px solid #6366F1">
+              <div class="social-post-header">
+                <div class="social-post-avatar" style="background:linear-gradient(135deg,#6366f1,#ec4899)">👤</div>
+                <div class="social-post-meta">
+                  <div class="social-post-author">Alexander<span class="verified">✓</span><span class="handle">@alexm</span></div>
+                  <div class="social-post-time">6h ago</div>
+                </div>
+              </div>
+              <div class="social-post-text">Just hit $1M net worth! 💎 Started from nothing. Hard work pays off 📈</div>
+              <div class="social-post-engagement">
+                <span class="social-eng"><span class="se-icon">💬</span> 456</span>
+                <span class="social-eng"><span class="se-icon">🔄</span> 1.8K</span>
+                <span class="social-eng" style="color:#EC4899"><span class="se-icon">❤️</span> 8.7K</span>
+                <span class="social-eng"><span class="se-icon">📊</span> 23.1K</span>
+              </div>
+            </div>
+
+            <div class="tab-bar">
+              <div class="tab-item"><span class="tab-icon">🏠</span>Life</div>
+              <div class="tab-item"><span class="tab-icon">💼</span>Work</div>
+              <div class="tab-item"><span class="tab-icon">❤️</span>Health</div>
+              <div class="tab-item active"><span class="tab-icon">📱</span>Phone</div>
+              <div class="tab-item"><span class="tab-icon">💻</span>PC</div>
+              <div class="tab-item"><span class="tab-icon">📈</span>Progress</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="export-section">
+  <button class="export-btn" onclick="exportAll()">Export All — iOS (1290 × 2796px)</button>
+  <button class="export-btn secondary" onclick="exportAll('android')">Export All — Android (1080 × 1920px)</button>
+  <br>
+  <span class="tip">Tip: Each frame is self-contained — exports include the headline + phone mockup at exact App Store dimensions</span>
+</div>
+
+<script>
+async function exportAll(platform = 'ios') {
+  const width = platform === 'android' ? 1080 : 1290;
+  const height = platform === 'android' ? 1920 : 2796;
+
+  if (typeof html2canvas === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    document.head.appendChild(script);
+    await new Promise((resolve, reject) => {
+      script.onload = resolve;
+      script.onerror = () => {
+        alert('Could not load html2canvas. Check internet connection.');
+        reject();
+      };
+    });
+  }
+
+  const names = ['hero-shot', 'dating', 'death-legacy', 'dynasty', 'wealth-building', 'social-media'];
+
+  for (let i = 1; i <= 6; i++) {
+    const frame = document.getElementById('frame-' + i);
+    if (!frame) continue;
+
+    try {
+      const canvas = await html2canvas(frame, {
+        width: frame.offsetWidth,
+        height: frame.offsetHeight,
+        scale: width / frame.offsetWidth,
+        useCORS: true,
+        backgroundColor: null,
+        logging: false,
+      });
+
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = width;
+      finalCanvas.height = height;
+      const ctx = finalCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, 0, width, height);
+
+      const link = document.createElement('a');
+      link.download = `deeplife-${names[i-1]}-${platform}-${width}x${height}.png`;
+      link.href = finalCanvas.toDataURL('image/png');
+      link.click();
+
+      await new Promise(r => setTimeout(r, 500));
+    } catch (err) {
+      console.error('Export error for frame ' + i, err);
+      alert('Error exporting frame ' + i + ': ' + err.message);
+    }
+  }
+}
+</script>
+
+</body>
+</html>

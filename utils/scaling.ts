@@ -1,9 +1,8 @@
 import { Dimensions, PixelRatio, Platform } from 'react-native';
 
 // --- DEV viewport override (web) ---
-let __DEV_VIEWPORT__: { width?: number; height?: number } | null = null;
 
-/** Sätt/ta bort override. Används av /preview. */
+/** Set/remove viewport override. Used by /preview. */
 export function setViewportOverride(width?: number, height?: number) {
   if (Platform.OS !== 'web') return;
   if (typeof window === 'undefined') return;
@@ -12,27 +11,13 @@ export function setViewportOverride(width?: number, height?: number) {
       localStorage.setItem('dl_viewport_w', String(width));
       if (height) localStorage.setItem('dl_viewport_h', String(height));
     } catch {}
-    __DEV_VIEWPORT__ = { width, height };
   } else {
     try {
       localStorage.removeItem('dl_viewport_w');
       localStorage.removeItem('dl_viewport_h');
     } catch {}
-    __DEV_VIEWPORT__ = null;
   }
 }
-
-function readViewportOverride() {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  const w = params.get('w') || (typeof localStorage !== 'undefined' ? localStorage.getItem('dl_viewport_w') : null);
-  const h = params.get('h') || (typeof localStorage !== 'undefined' ? localStorage.getItem('dl_viewport_h') : null);
-  const width = w ? parseInt(w, 10) : undefined;
-  const height = h ? parseInt(h, 10) : undefined;
-  return width ? { width, height } : null;
-}
-
-// Removed unused getWindowSize function
 
 // CRITICAL FIX: Defer Dimensions.get('window') until first use to prevent startup crashes
 // This runs at module load time, BEFORE React Native is fully initialized
@@ -90,9 +75,19 @@ export const isExtraLargeDevice = () => getDeviceType() === 'xlarge';
 // Platform checks
 export const isIOS = () => Platform.OS === 'ios';
 export const isAndroid = () => Platform.OS === 'android';
-export const isIPhone = () => Platform.OS === 'ios' && getScreenDimensions().height <= 926;
-export const isIPad = () => Platform.OS === 'ios' && getScreenDimensions().height > 926;
-export const isLatestIPhone = () => Platform.OS === 'ios' && getScreenDimensions().height > 800;
+// Treat iPad as a tablet form factor by shortest side, not height.
+// Height-based checks can misclassify newer Pro Max iPhones as iPads.
+export const isIPad = () => {
+  if (Platform.OS !== 'ios') return false;
+  const { width, height } = getScreenDimensions();
+  return Math.min(width, height) >= 768;
+};
+export const isIPhone = () => Platform.OS === 'ios' && !isIPad();
+export const isLatestIPhone = () => {
+  if (!isIPhone()) return false;
+  const { width, height } = getScreenDimensions();
+  return Math.max(width, height) > 800;
+};
 
 // Android-specific checks
 export const isAndroidSmall = () => {
@@ -433,6 +428,11 @@ export const getResponsiveFontSize = (size: 'xs' | 'sm' | 'base' | 'lg' | 'xl' |
   return responsiveFontSize[size] || responsiveFontSize.base; // Safe fallback
 };
 
+// Helper function for responsive border radius - takes a number and returns scaled value
+export const getResponsiveBorderRadius = (value: number) => {
+  return scale(value);
+};
+
 // Enhanced responsive scale function with better control
 export const responsiveScale = (size: number, options: {
   minScale?: number;
@@ -743,7 +743,6 @@ export const iosScale = {
     largeTitle: fontScale(34),
   },
 };
-
 
 
 

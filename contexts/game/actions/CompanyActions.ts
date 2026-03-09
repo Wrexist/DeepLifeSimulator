@@ -1,11 +1,11 @@
 /**
  * Company Actions
  */
+import React from 'react';
 import { GameState, Company, CompanyUpgrade } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import type { Dispatch, SetStateAction } from 'react';
 
 const log = logger.scope('CompanyActions');
 
@@ -34,9 +34,20 @@ export const createCompany = (
     return { success: false, message: 'Unknown company type' };
   }
 
-  const cost = getInflatedPrice(baseCost, gameState.economy.priceIndex);
+  // CRITICAL: Validate priceIndex before calculation
+  const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 ? gameState.economy.priceIndex : 1;
+  const cost = getInflatedPrice(baseCost, priceIndex);
   
-  if (gameState.stats.money < cost) {
+  // CRITICAL: Validate cost before comparison
+  if (!isFinite(cost) || cost < 0) {
+    log.error(`Invalid cost calculated for company ${companyType}: ${cost}`, { baseCost, priceIndex });
+    return { success: false, message: 'Invalid company cost' };
+  }
+  
+  // CRITICAL: Validate money before comparison
+  const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
+  
+  if (currentMoney < cost) {
     return { success: false, message: 'Insufficient funds' };
   }
 
@@ -63,9 +74,15 @@ export const createCompany = (
 
   const workerConfig = workerConfigs[companyType as keyof typeof workerConfigs];
 
+  // Safe string operations - ensure companyType is not empty
+  const safeCompanyType = companyType || 'company';
+  const capitalizedType = safeCompanyType.length > 0
+    ? safeCompanyType.charAt(0).toUpperCase() + safeCompanyType.slice(1)
+    : 'Company';
+  
   const newCompany: Company = {
     id: companyType,
-    name: `My ${companyType.charAt(0).toUpperCase() + companyType.slice(1)}`,
+    name: `My ${capitalizedType}`,
     type: companyType as Company['type'],
     weeklyIncome: 2000,
     baseWeeklyIncome: 2000,
@@ -78,13 +95,20 @@ export const createCompany = (
     warehouseLevel: 0,
   };
 
-  deps.updateMoney(setGameState, -cost, `Started company: ${newCompany.name}`);
-
-  setGameState(prev => ({
-    ...prev,
-    companies: [...(prev.companies || []), newCompany],
-    company: prev.company ?? newCompany,
-  }));
+  // Atomic: deduct money and add company in a single state update to prevent race conditions
+  setGameState(prev => {
+    const prevMoney = prev.stats?.money ?? 0;
+    if (prevMoney < cost) return prev; // Re-check affordability against fresh state
+    return {
+      ...prev,
+      companies: [...(prev.companies || []), newCompany],
+      company: prev.company ?? newCompany,
+      stats: {
+        ...prev.stats,
+        money: prevMoney - cost,
+      },
+    };
+  });
 
   return { success: true, companyId: newCompany.id };
 };
@@ -93,8 +117,8 @@ export const buyCompanyUpgrade = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   upgradeId: string,
-  companyId?: string,
-  deps: { updateMoney: typeof updateMoney }
+  deps: { updateMoney: typeof updateMoney },
+  companyId?: string
 ): { success: boolean; message: string } => {
   const targetId = companyId || gameState.company?.id;
   if (!targetId) {
@@ -164,45 +188,88 @@ export const buyCompanyUpgrade = (
     return { success: false, message: 'Upgrade not found for this company type.' };
   }
 
-  // Find existing upgrade or create new one
-  const existingUpgrade = company.upgrades.find(u => u.id === upgradeId);
-  const currentLevel = existingUpgrade?.level || 0;
-  
-  if (currentLevel >= upgradeDefinition.maxLevel) {
+  // Optimistic early checks against current state (fast-path rejection).
+  // The real validation happens inside setGameState against prev (fresh) state.
+  const existingUpgradeOuter = company.upgrades.find(u => u.id === upgradeId);
+  const currentLevelOuter = existingUpgradeOuter?.level || 0;
+
+  if (currentLevelOuter >= upgradeDefinition.maxLevel) {
     return { success: false, message: 'Upgrade is already at maximum level.' };
   }
 
-  // Calculate cost based on current level
+  // Calculate cost based on current level (optimistic — recalculated inside updater)
   const costMultiplier = 1.5;
-  // ECONOMY FIX: Add diminishing returns to upgrade ROI
-  // Higher upgrade levels have reduced income bonus efficiency
-  // Level 1: 100% bonus, Level 2: 90% bonus, Level 3: 80% bonus, etc.
-  const levelPenalty = currentLevel * 0.1; // 10% reduction per level
-  const bonusEfficiency = Math.max(0.5, 1 - levelPenalty); // Minimum 50% efficiency
-  
-  const nextLevelCost = currentLevel === 0 
-    ? upgradeDefinition.cost 
-    : Math.round(upgradeDefinition.cost * Math.pow(costMultiplier, currentLevel));
-  
-  const cost = getInflatedPrice(nextLevelCost, gameState.economy.priceIndex);
-  
-  if (gameState.stats.money < cost) {
-    return { success: false, message: `You need $${cost.toLocaleString()} to purchase this upgrade.` };
+  const nextLevelCostOuter = currentLevelOuter === 0
+    ? upgradeDefinition.cost
+    : Math.round(upgradeDefinition.cost * Math.pow(costMultiplier, currentLevelOuter));
+
+  // CRITICAL: Validate priceIndex before calculation
+  const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 ? gameState.economy.priceIndex : 1;
+  const costOuter = getInflatedPrice(nextLevelCostOuter, priceIndex);
+
+  // CRITICAL: Validate cost before comparison
+  if (!isFinite(costOuter) || costOuter < 0) {
+    log.error(`Invalid cost calculated for upgrade ${upgradeId}: ${costOuter}`, { nextLevelCost: nextLevelCostOuter, priceIndex });
+    return { success: false, message: 'Invalid upgrade cost' };
   }
 
-  // Calculate bonus for this level with diminishing returns
-  const baseBonus = upgradeDefinition.weeklyIncomeBonus;
-  const bonus = Math.round(baseBonus * bonusEfficiency);
+  // CRITICAL: Validate money before comparison
+  const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
 
-  // Update company with upgrade
+  if (currentMoney < costOuter) {
+    return { success: false, message: `You need $${costOuter.toLocaleString()} to purchase this upgrade.` };
+  }
+
+  // Track whether the updater actually applied the upgrade (not stale/rejected)
+  let appliedLevel = currentLevelOuter + 1;
+
+  // Update company with upgrade — all level/cost/bonus reads from fresh prev state
   setGameState(prev => {
     const companies = [...(prev.companies || [])];
-    const companyToUpdate = companies[companyIndex];
-    
-    // Update or add the upgrade
-    const updatedUpgrades = existingUpgrade 
+    const freshIndex = companies.findIndex(c => c.id === targetId);
+    if (freshIndex === -1) return prev; // Company disappeared — bail out safely
+    const companyToUpdate = companies[freshIndex];
+
+    // STALE CLOSURE FIX: Read currentLevel from fresh prev state, not outer closure
+    const freshExistingUpgrade = companyToUpdate.upgrades.find(u => u.id === upgradeId);
+    const currentLevel = freshExistingUpgrade?.level || 0;
+
+    // Re-validate max level against fresh state
+    if (currentLevel >= upgradeDefinition.maxLevel) return prev;
+
+    // Recalculate cost from fresh level
+    const nextLevelCost = currentLevel === 0
+      ? upgradeDefinition.cost
+      : Math.round(upgradeDefinition.cost * Math.pow(costMultiplier, currentLevel));
+
+    const freshPriceIndex = typeof prev.economy?.priceIndex === 'number' && isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0 ? prev.economy.priceIndex : 1;
+    const cost = getInflatedPrice(nextLevelCost, freshPriceIndex);
+
+    if (!isFinite(cost) || cost < 0) return prev;
+
+    // Atomic: check affordability against fresh state
+    const prevMoney = prev.stats?.money ?? 0;
+    if (prevMoney < cost) return prev;
+
+    // ECONOMY FIX: Diminishing returns to upgrade ROI
+    // Level 1: 100% bonus, Level 2: 90% bonus, Level 3: 80% bonus, etc.
+    const levelPenalty = currentLevel * 0.1; // 10% reduction per level
+    const bonusEfficiency = Math.max(0.5, 1 - levelPenalty); // Minimum 50% efficiency
+    const baseBonus = upgradeDefinition.weeklyIncomeBonus;
+    const bonus = Math.round(baseBonus * bonusEfficiency);
+
+    // Update or add the upgrade using fresh state
+    const updatedUpgrades = freshExistingUpgrade
       ? companyToUpdate.upgrades.map(u => u.id === upgradeId ? { ...u, level: u.level + 1 } : u)
-      : [...companyToUpdate.upgrades, { id: upgradeId, level: 1, maxLevel: upgradeDefinition.maxLevel }];
+      : [...companyToUpdate.upgrades, {
+          id: upgradeId,
+          name: upgradeDefinition.name,
+          description: upgradeDefinition.description,
+          cost: upgradeDefinition.cost,
+          weeklyIncomeBonus: upgradeDefinition.weeklyIncomeBonus,
+          level: 1,
+          maxLevel: upgradeDefinition.maxLevel
+        }];
 
     // ECONOMY FIX: Apply diminishing returns when calculating income with upgrades
     const employeeCount = companyToUpdate.employees;
@@ -216,7 +283,7 @@ export const buyCompanyUpgrade = (
     } else {
       incomeMultiplier = Math.pow(companyToUpdate.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, employeeCount - 20);
     }
-    
+
     const updated: typeof companyToUpdate = {
       ...companyToUpdate,
       baseWeeklyIncome: companyToUpdate.baseWeeklyIncome + bonus,
@@ -225,22 +292,26 @@ export const buyCompanyUpgrade = (
       ),
       upgrades: updatedUpgrades,
     };
-    companies[companyIndex] = updated;
+    companies[freshIndex] = updated;
+
+    // Record the actual applied level for the return message
+    appliedLevel = currentLevel + 1;
 
     return {
       ...prev,
       companies,
       company: prev.company?.id === targetId ? updated : prev.company,
+      stats: {
+        ...prev.stats,
+        money: prevMoney - cost,
+      },
     };
   });
 
-  // Deduct money using updateMoney
-  deps.updateMoney(setGameState, -cost, `Company Upgrade: ${upgradeDefinition.name}`);
-
   log.info(`Purchased upgrade ${upgradeDefinition.name} for company ${company.name}`);
-  return { 
-    success: true, 
-    message: `Successfully purchased ${upgradeDefinition.name} (Level ${currentLevel + 1}/${upgradeDefinition.maxLevel})!` 
+  return {
+    success: true,
+    message: `Successfully purchased ${upgradeDefinition.name} (Level ${appliedLevel}/${upgradeDefinition.maxLevel})!`
   };
 };
 

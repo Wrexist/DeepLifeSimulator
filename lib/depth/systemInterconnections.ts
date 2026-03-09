@@ -560,8 +560,7 @@ function calculateSystemTrend(systemId: string, gameState: GameState): 'improvin
 }
 
 function getLastActivity(_systemId: string, gameState: GameState): number {
-  // Return current timestamp as placeholder - can be enhanced with actual tracking
-  // Use week as approximation
-  return gameState.week ? gameState.week * 7 * 24 * 60 * 60 * 1000 : Date.now();
+  // Use weeksLived for a game-time approximation (week cycles 1-4, weeksLived is absolute)
+  return gameState.weeksLived ? gameState.weeksLived * 7 * 24 * 60 * 60 * 1000 : Date.now();
 }
 

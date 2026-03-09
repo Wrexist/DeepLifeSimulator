@@ -1,7 +1,8 @@
-import React from 'react';
+﻿import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { FamilyMemberNode } from '@/lib/legacy/familyTree';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, User, Star, Briefcase, Heart, Brain } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 
@@ -245,4 +246,5 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
 });
+
 

@@ -1,7 +1,15 @@
 import { GameState } from '@/contexts/GameContext';
+import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
 
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 export type Holiday = 'newYear' | 'valentines' | 'easter' | 'halloween' | 'thanksgiving' | 'christmas';
+
+/**
+ * Derive week-of-month (1-4) from weeksLived instead of relying on getWeekOfMonth(gameState) (UI-only field).
+ */
+function getWeekOfMonth(gameState: GameState): number {
+  return ((gameState.weeksLived || 0) % WEEKS_PER_MONTH) + 1;
+}
 
 /**
  * Helper function to normalize month to number
@@ -53,7 +61,7 @@ export function getCurrentSeason(gameState: GameState): Season {
  */
 export function getCurrentHoliday(gameState: GameState): Holiday | null {
   const month = getMonthNumber(gameState.date.month);
-  const week = gameState.date.week;
+  const week = getWeekOfMonth(gameState);
   
   // New Year (January, weeks 1-2)
   if (month === 1 && week <= 2) return 'newYear';
@@ -81,7 +89,7 @@ export function getCurrentHoliday(gameState: GameState): Holiday | null {
  */
 export function isSeasonalEventActive(event: SeasonalEvent, gameState: GameState): boolean {
   const currentMonth = getMonthNumber(gameState.date.month);
-  const currentWeek = gameState.date.week;
+  const currentWeek = getWeekOfMonth(gameState);
   
   const { startDate, endDate } = event;
   
@@ -146,7 +154,7 @@ export const SEASONAL_EVENTS: SeasonalEvent[] = [
     },
     isActive: (gameState) => {
       const month = getMonthNumber(gameState.date.month);
-      return month === 1 && gameState.date.week <= 2;
+      return month === 1 && getWeekOfMonth(gameState) <= 2;
     },
   },
   {
@@ -163,7 +171,7 @@ export const SEASONAL_EVENTS: SeasonalEvent[] = [
     specialActions: ['sendValentine', 'romanticDate'],
     isActive: (gameState) => {
       const month = getMonthNumber(gameState.date.month);
-      return month === 2 && gameState.date.week === 2;
+      return month === 2 && getWeekOfMonth(gameState) === 2;
     },
   },
   {
@@ -196,7 +204,7 @@ export const SEASONAL_EVENTS: SeasonalEvent[] = [
     specialActions: ['easterEggHunt'],
     isActive: (gameState) => {
       const month = getMonthNumber(gameState.date.month);
-      return month === 4 && gameState.date.week >= 2 && gameState.date.week <= 3;
+      return month === 4 && getWeekOfMonth(gameState) >= 2 && getWeekOfMonth(gameState) <= 3;
     },
   },
   {
@@ -229,7 +237,7 @@ export const SEASONAL_EVENTS: SeasonalEvent[] = [
     specialActions: ['trickOrTreat', 'halloweenParty'],
     isActive: (gameState) => {
       const month = getMonthNumber(gameState.date.month);
-      return month === 10 && gameState.date.week === 4;
+      return month === 10 && getWeekOfMonth(gameState) === 4;
     },
   },
   {
@@ -246,7 +254,7 @@ export const SEASONAL_EVENTS: SeasonalEvent[] = [
     },
     isActive: (gameState) => {
       const month = getMonthNumber(gameState.date.month);
-      return month === 11 && gameState.date.week === 4;
+      return month === 11 && getWeekOfMonth(gameState) === 4;
     },
   },
   {
@@ -265,7 +273,7 @@ export const SEASONAL_EVENTS: SeasonalEvent[] = [
     specialActions: ['exchangeGifts', 'christmasParty'],
     isActive: (gameState) => {
       const month = getMonthNumber(gameState.date.month);
-      return month === 12 && gameState.date.week >= 3;
+      return month === 12 && getWeekOfMonth(gameState) >= 3;
     },
   },
 ];

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { GameState } from './types';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 interface GameDataContextType {
   initialState: GameState;
@@ -37,11 +38,11 @@ const addWeekToAge = (age: number): number => {
   if (typeof age !== 'number' || isNaN(age) || age < 0) {
     return 0; // Return 0 for invalid ages
   }
-  // Use more precise calculation: age in years * 52 + 1 week, then convert back
+  // Use more precise calculation: age in years * WEEKS_PER_YEAR + 1 week, then convert back
   // This reduces floating-point error accumulation
-  const totalWeeks = Math.round(age * 52) + 1;
+  const totalWeeks = Math.round(age * WEEKS_PER_YEAR) + 1;
   // Round to 4 decimal places to maintain reasonable precision
-  return Math.round((totalWeeks / 52) * 10000) / 10000;
+  return Math.round((totalWeeks / WEEKS_PER_YEAR) * 10000) / 10000;
 };
 
 export function GameDataProvider({ 
@@ -49,12 +50,12 @@ export function GameDataProvider({
   initialState, 
   stateVersion 
 }: GameDataProviderProps) {
-  const value: GameDataContextType = {
+  const value = useMemo<GameDataContextType>(() => ({
     initialState,
     STATE_VERSION: stateVersion,
     getLifeStage,
     addWeekToAge,
-  };
+  }), [initialState, stateVersion]);
 
   return (
     <GameDataContext.Provider value={value}>

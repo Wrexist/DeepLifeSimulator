@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Travel Modal Component
  * 
  * Quick access travel widget that provides fast travel options
@@ -6,7 +6,8 @@
  */
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { Plane, X, MapPin, Heart, Zap, Battery, ChevronRight, Globe, Briefcase, Clock, Star } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
@@ -63,12 +64,12 @@ export default function TravelModal({ visible, onClose, onOpenFullApp }: TravelM
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Let\'s Go! ✈️',
+          text: 'Let\'s Go! âœˆï¸',
           onPress: () => {
             const result = travelTo(destination.id);
             if (result.success) {
               saveGame();
-              Alert.alert('Bon Voyage! 🌍', result.message);
+              Alert.alert('Bon Voyage! ðŸŒ', result.message);
               onClose();
             } else {
               Alert.alert('Error', result.message);
@@ -118,11 +119,11 @@ export default function TravelModal({ visible, onClose, onOpenFullApp }: TravelM
             </View>
             {gameState.travel?.passportOwned ? (
               <View style={styles.passportBadge}>
-                <Text style={styles.passportText}>✅ Passport</Text>
+                <Text style={styles.passportText}>âœ… Passport</Text>
               </View>
             ) : (
               <View style={[styles.passportBadge, styles.passportBadgeLocked]}>
-                <Text style={styles.passportTextLocked}>❌ No Passport</Text>
+                <Text style={styles.passportTextLocked}>âŒ No Passport</Text>
               </View>
             )}
           </View>
@@ -144,7 +145,7 @@ export default function TravelModal({ visible, onClose, onOpenFullApp }: TravelM
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             <Text style={[styles.subtitle, settings.darkMode && styles.textMuted]}>
-              Quick destinations • Tap for instant booking
+              Quick destinations â€¢ Tap for instant booking
             </Text>
 
             {sortedDestinations.map((dest) => {
@@ -231,15 +232,15 @@ export default function TravelModal({ visible, onClose, onOpenFullApp }: TravelM
 
             {/* Tips */}
             <View style={[styles.tipsCard, settings.darkMode && styles.tipsCardDark]}>
-              <Text style={styles.tipsTitle}>💡 Travel Tips</Text>
+              <Text style={styles.tipsTitle}>ðŸ’¡ Travel Tips</Text>
               <Text style={[styles.tipText, settings.darkMode && styles.textMuted]}>
-                • Travel boosts happiness, health, and energy
+                â€¢ Travel boosts happiness, health, and energy
               </Text>
               <Text style={[styles.tipText, settings.darkMode && styles.textMuted]}>
-                • Visit all destinations to unlock achievements
+                â€¢ Visit all destinations to unlock achievements
               </Text>
               <Text style={[styles.tipText, settings.darkMode && styles.textMuted]}>
-                • Some destinations have business opportunities
+                â€¢ Some destinations have business opportunities
               </Text>
             </View>
           </ScrollView>
@@ -492,3 +493,4 @@ const styles = StyleSheet.create({
     lineHeight: fontScale(18),
   },
 });
+

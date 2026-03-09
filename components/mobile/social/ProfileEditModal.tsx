@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Profile Edit Modal - X.com Style
  * 
  * Modal for editing profile details including photo uploads
@@ -18,7 +18,8 @@ import {
   Alert,
   ImageBackground,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   X,
   Camera,
@@ -435,4 +436,5 @@ const styles = StyleSheet.create({
     marginTop: scale(4),
   },
 });
+
 

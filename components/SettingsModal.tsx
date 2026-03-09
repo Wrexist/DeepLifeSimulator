@@ -1,45 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Switch, Alert, TextInput, Linking, Image, Animated, Platform, KeyboardAvoidingView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Switch, Alert, Linking, Animated, Platform } from 'react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, RotateCcw, Bug, HelpCircle, Calendar, Settings, Target, Sparkles, Star, Zap, Shield, Heart, RefreshCw, MessageCircle, Users, Code, HardDrive } from 'lucide-react-native';
+import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, TrendingUp, Shield } from 'lucide-react-native';
 import BackupRecoveryModal from './BackupRecoveryModal';
-import { perks } from '@/src/features/onboarding/perksData';
 import LeaderboardModal from './LeaderboardModal';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import DevToolsModal from './DevToolsModal';
+import LifeGoalsPanel from './settings/LifeGoalsPanel';
+import BugReportSheet from './settings/BugReportSheet';
+import DangerZone from './settings/DangerZone';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
-import { setSoundEnabled, setSoundVolume, isSoundEnabled, getSoundVolume } from '@/utils/soundManager';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { setSoundEnabled } from '@/utils/soundManager';
+import { setHapticsEnabled } from '@/utils/haptics';
+import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import { logger } from '@/utils/logger';
 import { getShadow } from '@/utils/shadow';
+import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
+import { DISCORD_JOIN_REWARD_GEMS } from '@/lib/config/gameConstants';
 
 interface SettingsModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-export default function SettingsModal({ visible, onClose }: SettingsModalProps) {
-  const { gameState, updateSettings, restartGame, nextWeek, setGameState, saveGame } = useGame();
+function SettingsModal({ visible, onClose }: SettingsModalProps) {
+  const { gameState, setGameState, saveGame } = useGame();
+  const { currentSlot } = useGameState();
   const { settings } = gameState;
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  const languages = ['English', 'Svenska', 'Español', 'Français', 'Deutsch'];
+  const languages = ['English', 'Svenska', 'EspaÃ±ol', 'FranÃ§ais', 'Deutsch'];
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'settings' | 'lifeGoals'>('settings');
   const [showBugReport, setShowBugReport] = useState(false);
   const { startEnhancedTutorial, resetTutorial } = useTutorial();
-  const [bugReportText, setBugReportText] = useState('');
-  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
@@ -79,16 +85,17 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       glowLoop.start();
       return () => glowLoop.stop();
     }
+    return undefined;
   }, [discordRewardClaimed]);
 
   const settingItems = [
     {
       id: 'darkMode',
-      title: t('settings.darkMode'),
-      description: t('settings.darkModeDescription'),
+      title: 'Dark Mode',
+      description: 'Switch between dark and light theme',
       icon: settings.darkMode ? Moon : Sun,
       type: 'toggle' as const,
-      value: settings.darkMode,
+      value: settings.darkMode !== false,
     },
     {
       id: 'soundEnabled',
@@ -146,53 +153,46 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       type: 'toggle' as const,
       value: settings.autoProgression !== false, // Default to true
     },
+    {
+      id: 'showStatArrows',
+      title: 'Show Stat Arrows',
+      description: 'Display arrows indicating stat change direction (green up, red down)',
+      icon: TrendingUp,
+      type: 'toggle' as const,
+      value: settings.showStatArrows !== false, // Default to true
+    },
   ];
 
   const handleToggle = (settingId: string, value: boolean) => {
-    updateSettings({ [settingId]: value });
+    setGameState(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        [settingId]: value,
+      },
+    }));
     
     // Handle sound-specific settings
     if (settingId === 'soundEnabled') {
       setSoundEnabled(value);
     }
+    // Sync standalone haptic utility
+    if (settingId === 'hapticFeedback') {
+      setHapticsEnabled(value);
+    }
   };
 
   const handleLanguageChange = (language: string) => {
-    updateSettings({ language });
+    setGameState(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        language,
+      },
+    }));
   };
 
-  const confirmRestart = async () => {
-    try {
-      await restartGame();
-      setShowRestartConfirm(false);
-      onClose();
-      // Navigate to main menu after restart
-      const mainMenuPath: Href = '/(onboarding)/MainMenu';
-      router.push(mainMenuPath);
-    } catch (error) {
-      logger.error('Failed to restart game:', error);
-      Alert.alert('Error', 'Failed to restart game. Please try again.');
-    }
-  };
 
-  const handleBugReport = () => {
-    if (!bugReportText.trim()) {
-      Alert.alert('Empty Report', 'Please describe the bug you encountered.');
-      return;
-    }
-
-    const subject = 'Bug Report - DeepLife Simulator';
-    const body = `Bug Report:\n\n${bugReportText.trim()}\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}`;
-    const emailUrl = `mailto:deeplifesimulator@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    Linking.openURL(emailUrl).then(() => {
-      setBugReportText('');
-      setShowBugReport(false);
-      Alert.alert('Thank you!', 'Your bug report has been prepared. Please send the email to help us improve the game.');
-    }).catch(() => {
-      Alert.alert('Error', 'Could not open email app. Please email deeplifesimulator@gmail.com directly.');
-    });
-  };
 
   const handleRestorePurchases = async () => {
     if (isRestoringPurchases) {
@@ -208,11 +208,16 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       if (success) {
         // Reload IAP state to refresh purchases
         await iapService.loadPurchases();
-        
-        // Show success message
+
         Alert.alert(
           'Purchases Restored',
           'Your previous purchases have been restored successfully!',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert(
+          'Could Not Restore',
+          'Purchases could not be restored at this time. Make sure you are signed in to the App Store and try again.',
           [{ text: 'OK', style: 'default' }]
         );
       }
@@ -230,7 +235,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
 
   const handleJoinDiscord = async () => {
     try {
-      const discordUrl = 'https://discord.gg/MU9VSgKg';
+      const discordUrl = DISCORD_URL;
       
       // Check if reward already claimed
       if (discordRewardClaimed) {
@@ -239,7 +244,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
         if (canOpen) {
           await Linking.openURL(discordUrl);
         } else {
-          Alert.alert('Error', 'Could not open Discord link. Please visit https://discord.gg/MU9VSgKg in your browser.');
+          Alert.alert('Error', `Could not open Discord link. Please visit ${DISCORD_URL} in your browser.`);
         }
         return;
       }
@@ -249,7 +254,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
         ...prev,
         stats: {
           ...prev.stats,
-          gems: prev.stats.gems + 500,
+          gems: prev.stats.gems + DISCORD_JOIN_REWARD_GEMS,
         },
       }));
       
@@ -268,32 +273,24 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       if (canOpen) {
         await Linking.openURL(discordUrl);
         Alert.alert(
-          '🎉 Reward Claimed!',
-          'You received 500 gems for joining our Discord! Welcome to the community!',
+          'ðŸŽ‰ Reward Claimed!',
+          `You received ${DISCORD_JOIN_REWARD_GEMS} gems for joining our Discord! Welcome to the community!`,
           [{ text: 'OK', style: 'default' }]
         );
       } else {
         Alert.alert(
-          '🎉 Reward Claimed!',
-          'You received 500 gems! Please visit https://discord.gg/MU9VSgKg in your browser to join our Discord.',
+          'ðŸŽ‰ Reward Claimed!',
+          `You received ${DISCORD_JOIN_REWARD_GEMS} gems! Please visit ${DISCORD_URL} in your browser to join our Discord.`,
           [{ text: 'OK', style: 'default' }]
         );
       }
     } catch (error) {
       logger.error('Error joining Discord:', error);
-      Alert.alert('Error', 'Could not open Discord link. Please visit https://discord.gg/MU9VSgKg in your browser.');
+      Alert.alert('Error', `Could not open Discord link. Please visit ${DISCORD_URL} in your browser.`);
     }
   };
 
-  const overlayStyle = [
-    styles.overlay,
-    settings.darkMode && styles.overlayDark
-  ];
-
-  const modalStyle = [
-    styles.modal,
-    settings.darkMode && styles.modalDark
-  ];
+  // Always use dark mode - no conditional styles needed
 
   // Removed upcoming features tab
 
@@ -304,9 +301,9 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <BlurView intensity={20} style={styles.blurOverlay}>
-          <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
+      <View style={[styles.overlay, styles.overlayDark, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={[styles.blurOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>
+          <View style={styles.modal}>
           {/* Enhanced Header with Glass */}
           <View style={styles.glassHeader}>
             <View style={styles.glassOverlay} />
@@ -316,7 +313,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   <View style={styles.glassOverlay} />
                   <Settings size={24} color="#FFFFFF" />
                 </View>
-                <Text style={[styles.title, settings.darkMode && styles.titleDark]}>{t('settings.title')}</Text>
+                <Text style={[styles.title,  styles.titleDark]}>{t('settings.title')}</Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.glassCloseButton}>
                 <View style={styles.glassOverlay} />
@@ -327,7 +324,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
             {/* Enhanced Tab Container */}
-            <View style={[styles.tabContainer, settings.darkMode && styles.tabContainerDark]}>
+            <View style={[styles.tabContainer,  styles.tabContainerDark]}>
               <TouchableOpacity
                 style={[styles.settingsTab, activeSettingsTab === 'settings' && styles.activeSettingsTab]}
                 onPress={() => setActiveSettingsTab('settings')}
@@ -344,8 +341,8 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   </LinearGradient>
                 ) : (
                   <View style={styles.inactiveTab}>
-                    <Settings size={16} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} style={styles.tabIcon} />
-                    <Text style={[styles.settingsTabText, settings.darkMode && styles.settingsTabTextDark]}>Settings</Text>
+                    <Settings size={16} color="#9CA3AF" style={styles.tabIcon} />
+                    <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Settings</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -366,8 +363,8 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   </LinearGradient>
                 ) : (
                   <View style={styles.inactiveTab}>
-                    <Target size={16} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} style={styles.tabIcon} />
-                    <Text style={[styles.settingsTabText, settings.darkMode && styles.settingsTabTextDark]}>Life Goals</Text>
+                    <Target size={16} color="#9CA3AF" style={styles.tabIcon} />
+                    <Text style={[styles.settingsTabText, styles.settingsTabTextDark]}>Life Goals</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -376,10 +373,10 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
             {activeSettingsTab === 'settings' ? (
               <>
                 {settingItems.map(item => (
-                  <View key={item.id} style={[styles.settingItem, settings.darkMode && styles.settingItemDark]}>
-                    <BlurView intensity={10} style={styles.settingItemBlur}>
+                  <View key={item.id} style={[styles.settingItem,  styles.settingItemDark]}>
+                    <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
                       <LinearGradient
-                        colors={settings.darkMode ? ['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)'] : ['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.9)']}
+                        colors={['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.settingItemGradient}
@@ -387,7 +384,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                         <View style={styles.settingInfo}>
                           <View style={styles.settingHeader}>
                             <LinearGradient
-                              colors={item.value ? ['#10B981', '#059669'] : ['#6B7280', '#4B5563']}
+                              colors={item.value ? ['#10B981', '#059669'] as const : ['#6B7280', '#4B5563'] as const}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={styles.settingIconContainer}
@@ -395,10 +392,10 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                               <item.icon size={18} color="#FFFFFF" />
                             </LinearGradient>
                             <View style={styles.settingTextContainer}>
-                              <Text style={[styles.settingTitle, settings.darkMode && styles.settingTitleDark]}>
+                              <Text style={[styles.settingTitle,  styles.settingTitleDark]}>
                                 {item.title}
                               </Text>
-                              <Text style={[styles.settingDescription, settings.darkMode && styles.settingDescriptionDark]}>
+                              <Text style={[styles.settingDescription,  styles.settingDescriptionDark]}>
                                 {item.description}
                               </Text>
                             </View>
@@ -418,16 +415,16 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                           />
                         </View>
                       </LinearGradient>
-                    </BlurView>
+                    </View>
                   </View>
                 ))}
 
                 {/* Progressive Disclosure Level */}
                 {!settings.autoProgression && (
-                  <View style={[styles.settingItem, settings.darkMode && styles.settingItemDark]}>
-                    <BlurView intensity={10} style={styles.settingItemBlur}>
+                  <View style={[styles.settingItem,  styles.settingItemDark]}>
+                    <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
                       <LinearGradient
-                        colors={settings.darkMode ? ['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)'] : ['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.9)']}
+                        colors={['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.settingItemGradient}
@@ -443,10 +440,10 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                               <Sparkles size={18} color="#FFFFFF" />
                             </LinearGradient>
                             <View style={styles.settingTextContainer}>
-                              <Text style={[styles.settingTitle, settings.darkMode && styles.settingTitleDark]}>
+                              <Text style={[styles.settingTitle,  styles.settingTitleDark]}>
                                 Information Detail Level
                               </Text>
-                              <Text style={[styles.settingDescription, settings.darkMode && styles.settingDescriptionDark]}>
+                              <Text style={[styles.settingDescription,  styles.settingDescriptionDark]}>
                                 Choose how much detail to show in tooltips and information
                               </Text>
                             </View>
@@ -474,7 +471,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                                   style={[
                                     styles.disclosureLevelText,
                                     isSelected && styles.disclosureLevelTextActive,
-                                    settings.darkMode && !isSelected && styles.disclosureLevelTextDark,
+ !isSelected && styles.disclosureLevelTextDark,
                                   ]}
                                 >
                                   {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -484,15 +481,15 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                           })}
                         </View>
                       </LinearGradient>
-                    </BlurView>
+                    </View>
                   </View>
                 )}
 
                 {/* Enhanced Language Selection */}
-                <View style={[styles.settingItem, settings.darkMode && styles.settingItemDark]}>
-                  <BlurView intensity={10} style={styles.settingItemBlur}>
+                <View style={[styles.settingItem,  styles.settingItemDark]}>
+                  <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
                     <LinearGradient
-                      colors={settings.darkMode ? ['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)'] : ['rgba(255, 255, 255, 0.9)', 'rgba(248, 250, 252, 0.9)']}
+                      colors={['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.settingItemGradient}
@@ -508,10 +505,10 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                             <Globe size={18} color="#FFFFFF" />
                           </LinearGradient>
                           <View style={styles.settingTextContainer}>
-                            <Text style={[styles.settingTitle, settings.darkMode && styles.settingTitleDark]}>
+                            <Text style={[styles.settingTitle,  styles.settingTitleDark]}>
                               {t('settings.language')}
                             </Text>
-                            <Text style={[styles.settingDescription, settings.darkMode && styles.settingDescriptionDark]}>
+                            <Text style={[styles.settingDescription,  styles.settingDescriptionDark]}>
                               {t('settings.languageDescription')}
                             </Text>
                           </View>
@@ -536,8 +533,8 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                                 </Text>
                               </LinearGradient>
                             ) : (
-                              <View style={[styles.languageButton, settings.darkMode && styles.languageButtonDark]}>
-                                <Text style={[styles.languageButtonText, settings.darkMode && styles.languageButtonTextDark]}>
+                              <View style={[styles.languageButton,  styles.languageButtonDark]}>
+                                <Text style={[styles.languageButtonText,  styles.languageButtonTextDark]}>
                                   {language}
                                 </Text>
                               </View>
@@ -546,7 +543,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                         ))}
                       </View>
                     </LinearGradient>
-                  </BlurView>
+                  </View>
                 </View>
 
                 {/* Enhanced Action Buttons */}
@@ -628,7 +625,8 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                {/* Leaderboard - Hidden */}
+                {/* <TouchableOpacity
                   style={styles.actionButtonContainer}
                   onPress={() => setShowLeaderboard(true)}
                 >
@@ -641,7 +639,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                     <Star size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
                     <Text style={styles.actionButtonText}>{t('settings.leaderboard')}</Text>
                   </LinearGradient>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
                 {/* Special Discord Button with Animation */}
                 <TouchableOpacity
@@ -688,7 +686,7 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                           {discordRewardClaimed ? 'Join Our Discord' : 'Join Our Discord'}
                         </Text>
                         {!discordRewardClaimed && (
-                          <Text style={styles.discordButtonRewardText}>🎁 Reward: 500 Gems</Text>
+                          <Text style={styles.discordButtonRewardText}>{`🎁 Reward: ${DISCORD_JOIN_REWARD_GEMS} Gems`}</Text>
                         )}
                       </View>
                       {!discordRewardClaimed && (
@@ -719,8 +717,8 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Developer Tools - Visible in development mode */}
-                {__DEV__ && (
+                {/* Developer Tools - Hidden */}
+                {/* {__DEV__ && (
                   <TouchableOpacity
                     style={styles.actionButtonContainer}
                     onPress={() => setShowDevTools(true)}
@@ -735,15 +733,14 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                       <Text style={styles.actionButtonText}>Developer Tools</Text>
                     </LinearGradient>
                   </TouchableOpacity>
-                )}
+                )} */}
 
                 {/* Privacy Policy & Terms */}
                 <TouchableOpacity
                   style={styles.actionButtonContainer}
                   onPress={() => {
-                    const privacyUrl = 'https://deeplifesimulator.github.io/privacy-policy/';
-                    Linking.openURL(privacyUrl).catch(() => {
-                      Alert.alert('Error', 'Could not open privacy policy. Please visit https://deeplifesimulator.github.io/privacy-policy/ in your browser.');
+                    Linking.openURL(PRIVACY_POLICY_URL).catch(() => {
+                      Alert.alert('Error', `Could not open privacy policy. Please visit ${PRIVACY_POLICY_URL} in your browser.`);
                     });
                   }}
                 >
@@ -758,237 +755,28 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Enhanced Danger Zone */}
-                <View style={[styles.dangerSection, settings.darkMode && styles.dangerSectionDark]}>
-                  <BlurView intensity={15} style={styles.dangerSectionBlur}>
-                    <LinearGradient
-                      colors={settings.darkMode ? ['rgba(127, 29, 29, 0.3)', 'rgba(95, 21, 21, 0.3)'] : ['rgba(254, 226, 226, 0.8)', 'rgba(252, 231, 243, 0.8)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.dangerSectionGradient}
-                    >
-                      <View style={styles.dangerHeader}>
-                        <LinearGradient
-                          colors={['#EF4444', '#DC2626']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.dangerIconContainer}
-                        >
-                          <Shield size={20} color="#FFFFFF" />
-                        </LinearGradient>
-                        <Text style={[styles.dangerTitle, settings.darkMode && styles.dangerTitleDark]}>{t('settings.dangerZone')}</Text>
-                      </View>
-                      
-                      <TouchableOpacity
-                        style={styles.dangerButtonContainer}
-                        onPress={() => setShowBugReport(true)}
-                        accessibilityLabel={t('settings.reportBug')}
-                        accessibilityRole="button"
-                        accessibilityHint="Tap to report a bug or issue you encountered in the game"
-                      >
-                        <LinearGradient
-                          colors={['#3B82F6', '#1D4ED8']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.dangerButton}
-                        >
-                          <Bug size={18} color="#FFFFFF" style={styles.dangerButtonIcon} />
-                          <Text style={styles.dangerButtonText}>{t('settings.reportBug')}</Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity
-                        style={styles.dangerButtonContainer}
-                        onPress={() => setShowRestartConfirm(true)}
-                        accessibilityLabel={t('settings.restartGame')}
-                        accessibilityRole="button"
-                        accessibilityHint="Tap to restart the game. This will delete all your progress"
-                      >
-                        <LinearGradient
-                          colors={['#EF4444', '#DC2626']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.dangerButton}
-                        >
-                          <RotateCcw size={18} color="#FFFFFF" style={styles.dangerButtonIcon} />
-                          <Text style={styles.dangerButtonText}>{t('settings.restartGame')}</Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </LinearGradient>
-                  </BlurView>
-                </View>
+                {/* Danger Zone (restart & bug report) */}
+                <DangerZone
+                  onShowBugReport={() => setShowBugReport(true)}
+                  onModalClose={onClose}
+                />
               </>
             ) : activeSettingsTab === 'lifeGoals' ? (
-              <>
-                <Text style={[styles.lifeGoalInfo, settings.darkMode && styles.lifeGoalInfoDark]}>
-                  Achieve a Life Goal to unlock a perk for your next life. Each perk offers unique bonuses and advantages.
-                </Text>
-                {perks.map(perk => {
-                  const current = gameState.achievements?.some(
-                    a => a.id === perk.unlock?.achievementId && a.completed
-                  )
-                    ? 1
-                    : 0;
-                  const goalValue = 1;
-                  const progress = Math.min(1, current / goalValue);
-                  return (
-                    <View key={perk.id} style={[styles.goalItem, settings.darkMode && styles.goalItemDark]}>
-                      {typeof perk.icon === 'string' ? (
-                        <Text
-                          style={[
-                            styles.goalIconText,
-                            settings.darkMode && styles.goalIconTextDark,
-                          ]}
-                        >
-                          {perk.icon}
-                        </Text>
-                      ) : (
-                        <Image source={perk.icon} style={styles.goalIcon} />
-                      )}
-                      <View style={styles.goalContent}>
-                        <Text style={[styles.goalTitle, settings.darkMode && styles.goalTitleDark]}>
-                          {perk.title}
-                        </Text>
-                        <Text style={[styles.goalDesc, settings.darkMode && styles.goalDescDark]}>
-                          Reward: {perk.description}
-                        </Text>
-                        <Text style={[styles.goalRequirement, settings.darkMode && styles.goalRequirementDark]}>
-                          Requirement: {perk.requirement}
-                        </Text>
-                        <View style={styles.goalProgressBar}>
-                          <View style={[styles.goalProgressFill, { width: `${progress * 100}%` }]} />
-                        </View>
-                        <Text style={[styles.goalProgressText, settings.darkMode && styles.goalDescDark]}>
-                          {`Progress: ${current}/${goalValue}`}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </>
+              <LifeGoalsPanel />
             ) : null}
           </ScrollView>
           </View>
-        </BlurView>
+        </View>
       </View>
 
-      <Modal
-        visible={showRestartConfirm}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowRestartConfirm(false)}
-      >
-        <View style={overlayStyle}>
-          <View style={modalStyle}>
-            <View style={styles.header}>
-              <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Restart Game</Text>
-              <TouchableOpacity onPress={() => setShowRestartConfirm(false)} style={styles.closeButton}>
-                <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.bugReportContent}>
-              <Text style={[styles.bugReportDescription, settings.darkMode && styles.bugReportDescriptionDark]}>
-                Are you sure you want to restart? All progress will be lost.
-              </Text>
-              <View style={styles.bugReportActions}>
-                <TouchableOpacity
-                  style={styles.cancelBugButton}
-                  onPress={() => setShowRestartConfirm(false)}
-                >
-                  <Text style={styles.cancelBugButtonText}>No</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.sendBugButton}
-                  onPress={confirmRestart}
-                >
-                  <Text style={styles.sendBugButtonText}>Yes</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showBugReport}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowBugReport(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={overlayStyle}
-        >
-          <View style={modalStyle}>
-            <View style={styles.header}>
-              <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Report Bug</Text>
-              <TouchableOpacity onPress={() => setShowBugReport(false)} style={styles.closeButton}>
-                <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              style={styles.bugReportScrollView}
-              contentContainerStyle={styles.bugReportContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={true}
-            >
-              <Text style={[styles.bugReportDescription, settings.darkMode && styles.bugReportDescriptionDark]}>
-                Please describe the bug you encountered. Include steps to reproduce it if possible.
-              </Text>
-
-              {/* BUG FIX: Ensure TextInput is visible and accessible */}
-              <TextInput
-                style={[
-                  styles.bugReportInput, 
-                  settings.darkMode && styles.bugReportInputDark,
-                  { minHeight: 120 } // Ensure minimum height for visibility
-                ]}
-                placeholder="Describe the bug here..."
-                placeholderTextColor={settings.darkMode ? '#9CA3AF' : '#6B7280'}
-                value={bugReportText}
-                onChangeText={setBugReportText}
-                multiline
-                numberOfLines={6}
-                textAlignVertical="top"
-                maxLength={1000}
-                editable={true}
-                autoFocus={false}
-              />
-            </ScrollView>
-
-            <View style={[styles.bugReportActions, settings.darkMode && styles.bugReportActionsDark]}>
-              <TouchableOpacity
-                style={styles.cancelBugButton}
-                onPress={() => {
-                  setShowBugReport(false);
-                  setBugReportText('');
-                }}
-              >
-                <Text style={styles.cancelBugButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.sendBugButton, !bugReportText.trim() && styles.disabledSendButton]}
-                onPress={handleBugReport}
-                disabled={!bugReportText.trim()}
-              >
-                <Text style={[styles.sendBugButtonText, !bugReportText.trim() && styles.disabledSendButtonText]}>
-                  Send Report
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <BugReportSheet visible={showBugReport} onClose={() => setShowBugReport(false)} />
 
       <LeaderboardModal visible={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       <LegacyOverviewTab visible={showLegacyOverview} onClose={() => setShowLegacyOverview(false)} />
       <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       <BackupRecoveryModal 
         visible={showBackupManager} 
-        slot={gameState.currentSlot || 1} 
+        slot={currentSlot || 1} 
         onClose={() => setShowBackupManager(false)} 
       />
     </Modal>
@@ -1000,7 +788,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'none',
   },
   blurOverlay: {
     flex: 1,
@@ -1010,41 +799,39 @@ const styles = StyleSheet.create({
     padding: responsivePadding.large,
   },
   overlayDark: {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'none',
   },
   modal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1F2937',
     borderRadius: responsiveBorderRadius.xl,
-    maxWidth: scale(450),
+    maxWidth: 450,
     width: '100%',
     maxHeight: '90%',
-    ...Platform.select({
-      ios: {
-        ...getShadow(20, '#000'),
-      },
-      android: {
-        elevation: 10,
-      },
-      web: {
-        ...getShadow(20, '#000'),
-      },
-    }),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+    borderWidth: 0,
     overflow: 'hidden',
-  },
-  modalDark: {
-    backgroundColor: '#1F2937',
   },
   header: {
     padding: responsivePadding.large,
     paddingBottom: responsivePadding.medium,
     borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: '#FAFBFC',
+  },
+  headerDark: {
+    backgroundColor: 'transparent',
     borderBottomColor: 'rgba(229, 231, 235, 0.3)',
   },
   glassHeader: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(59, 130, 246, 0.1)',
     paddingHorizontal: responsivePadding.large,
     paddingVertical: responsivePadding.large,
     position: 'relative',
@@ -1067,7 +854,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderRadius: 20,
   },
   glassTitleIcon: {
@@ -1105,9 +892,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titleIconContainer: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: responsiveSpacing.sm,
@@ -1470,87 +1257,249 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: responsiveFontSize.sm,
   },
-  lifeGoalInfo: {
-    fontSize: 14,
-    color: '#6B7280',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-    marginBottom: 12,
-    textAlign: 'center',
+  // Life Goals styles moved to components/settings/LifeGoalsPanel.tsx
+  lifeGoalGradient: {
+    padding: scale(18),
+    minHeight: scale(160),
   },
-  lifeGoalInfoDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+  lifeGoalGradientCompleted: {
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: scale(2) },
+        shadowOpacity: 0.3,
+        shadowRadius: scale(8),
+      },
+      android: {
+        elevation: 6,
+      },
+      web: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: scale(2) },
+        shadowOpacity: 0.3,
+        shadowRadius: scale(8),
+      },
+    }),
   },
-  goalItem: {
+  lifeGoalCardHeader: {
     flexDirection: 'row',
-    backgroundColor: '#F9FAFB',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+    marginBottom: scale(14),
+    gap: scale(12),
   },
-  goalItemDark: {
-    backgroundColor: '#1F2937',
+  lifeGoalIconWrapper: {
+    alignItems: 'flex-start',
   },
-  goalIcon: {
-    width: 32,
-    height: 32,
-    marginRight: 12,
+  lifeGoalIconContainer: {
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
   },
-  goalIconText: {
-    width: 32,
-    marginRight: 12,
-    textAlign: 'center',
-    fontSize: 24,
+  lifeGoalIconContainerCompleted: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  lifeGoalIcon: {
+    width: scale(40),
+    height: scale(40),
+  },
+  lifeGoalIconText: {
+    fontSize: scale(40),
+  },
+  lifeGoalInfoSection: {
+    flex: 1,
+    minWidth: 0,
+  },
+  lifeGoalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    marginBottom: scale(6),
+  },
+  lifeGoalCardTitle: {
+    fontSize: fontScale(18),
+    fontWeight: '700',
     color: '#1F2937',
+    flex: 1,
+    letterSpacing: -0.3,
   },
-  goalIconTextDark: {
-    color: '#F9FAFB',
+  lifeGoalCardTitleDark: {
+    color: '#FFFFFF',
   },
-  goalContent: {
+  lifeGoalCardTitleCompleted: {
+    color: '#10B981',
+  },
+  completedBadge: {
+    width: scale(24),
+    height: scale(24),
+    borderRadius: scale(12),
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.5)',
+  },
+  completedBadgeText: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  lifeGoalReward: {
+    fontSize: fontScale(13),
+    color: '#6B7280',
+    lineHeight: fontScale(18),
+    fontWeight: '500',
+  },
+  lifeGoalRewardDark: {
+    color: '#D1D5DB',
+  },
+  lifeGoalRequirementSection: {
+    marginBottom: scale(14),
+    paddingTop: scale(12),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  lifeGoalRequirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+  },
+  lifeGoalRequirementText: {
+    fontSize: fontScale(12),
+    color: '#6B7280',
+    fontWeight: '600',
     flex: 1,
   },
-  goalTitle: {
-    fontSize: 16,
+  lifeGoalRequirementTextDark: {
+    color: '#9CA3AF',
+  },
+  lifeGoalProgressSection: {
+    marginTop: scale(4),
+  },
+  lifeGoalProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: scale(8),
+  },
+  lifeGoalProgressLabel: {
+    fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#1F2937',
-  },
-  goalTitleDark: {
-    color: '#F9FAFB',
-  },
-  goalDesc: {
-    fontSize: 12,
     color: '#6B7280',
-    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  goalDescDark: {
-    color: '#D1D5DB',
+  lifeGoalProgressLabelDark: {
+    color: '#9CA3AF',
   },
-  goalRequirement: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 8,
+  lifeGoalProgressPercent: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    color: '#3B82F6',
   },
-  goalRequirementDark: {
-    color: '#D1D5DB',
+  lifeGoalProgressPercentDark: {
+    color: '#60A5FA',
   },
-  goalProgressBar: {
-    height: 6,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 3,
+  lifeGoalProgressPercentCompleted: {
+    color: '#10B981',
+  },
+  lifeGoalProgressBarContainer: {
+    marginBottom: scale(6),
+  },
+  lifeGoalProgressBar: {
+    height: scale(8),
+    backgroundColor: 'rgba(229, 231, 235, 0.5)',
+    borderRadius: scale(4),
     overflow: 'hidden',
   },
-  goalProgressFill: {
+  lifeGoalProgressBarDark: {
+    backgroundColor: 'rgba(55, 65, 81, 0.6)',
+  },
+  lifeGoalProgressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    borderRadius: scale(4),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: scale(4),
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: scale(4),
+      },
+    }),
+  },
+  lifeGoalProgressText: {
+    fontSize: fontScale(11),
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  lifeGoalProgressTextDark: {
+    color: '#9CA3AF',
+  },
+  // Keep old styles hidden for backward compatibility
+  lifeGoalInfo: {
+    display: 'none',
+  },
+  lifeGoalInfoDark: {
+    display: 'none',
+  },
+  goalItem: {
+    display: 'none',
+  },
+  goalItemDark: {
+    display: 'none',
+  },
+  goalIcon: {
+    display: 'none',
+  },
+  goalIconText: {
+    display: 'none',
+  },
+  goalIconTextDark: {
+    display: 'none',
+  },
+  goalContent: {
+    display: 'none',
+  },
+  goalTitle: {
+    display: 'none',
+  },
+  goalTitleDark: {
+    display: 'none',
+  },
+  goalDesc: {
+    display: 'none',
+  },
+  goalDescDark: {
+    display: 'none',
+  },
+  goalRequirement: {
+    display: 'none',
+  },
+  goalRequirementDark: {
+    display: 'none',
+  },
+  goalProgressBar: {
+    display: 'none',
+  },
+  goalProgressFill: {
+    display: 'none',
   },
   goalProgressText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    display: 'none',
   },
   upcomingSection: {
     marginBottom: 30,
@@ -1637,19 +1586,15 @@ const styles = StyleSheet.create({
   },
   bugReportInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#4B5563',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#374151',
+    color: '#F9FAFB',
     minHeight: 120,
     maxHeight: 200,
     marginBottom: 12,
-  },
-  bugReportInputDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
-    color: '#F9FAFB',
   },
   bugReportActions: {
     flexDirection: 'row',
@@ -1725,13 +1670,13 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
   featureSuggestionInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#374151',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#4B5563',
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
-    color: '#374151',
+    color: '#F9FAFB',
     marginBottom: 16,
     minHeight: 100,
   },
@@ -1793,7 +1738,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     zIndex: 1,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   discordButtonContent: {
     flexDirection: 'row',
@@ -1873,3 +1818,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+
+export default React.memo(SettingsModal);
+

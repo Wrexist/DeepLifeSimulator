@@ -1,6 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { Crown, TrendingUp, Award, Users, DollarSign } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
@@ -12,7 +13,7 @@ interface PrestigeStatsCardProps {
   onInfoPress?: () => void;
 }
 
-export default function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsCardProps) {
+function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsCardProps) {
   const { gameState } = useGame();
   const prestigeData = gameState.prestige;
   const currentNetWorth = netWorth(gameState);
@@ -23,8 +24,8 @@ export default function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }:
   const formatMoney = (amount: number) => {
     if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
     if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-    if (amount >= 1_000) return `$${(amount / 1_000).toFixed(2)}K`;
-    return `$${amount}`;
+    if (amount > 10_000) return `$${(amount / 1_000).toFixed(2)}K`;
+    return `$${Math.floor(amount).toLocaleString()}`;
   };
 
   if (!prestigeData) return null;
@@ -50,11 +51,11 @@ export default function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }:
             <View style={styles.iconContainer}>
               <Crown size={24} color="#F59E0B" />
             </View>
-            <View>
-              <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]}>
+            <View style={styles.titleContainer}>
+              <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]} numberOfLines={1} ellipsizeMode="tail">
                 Prestige Level {prestigeData.prestigeLevel}
               </Text>
-              <Text style={[styles.subtitle, gameState.settings.darkMode && styles.subtitleDark]}>
+              <Text style={[styles.subtitle, gameState.settings.darkMode && styles.subtitleDark]} numberOfLines={1} ellipsizeMode="tail">
                 {prestigeData.totalPrestiges} Prestige{prestigeData.totalPrestiges !== 1 ? 's' : ''} Completed
               </Text>
             </View>
@@ -173,12 +174,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 12,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     flex: 1,
+    minWidth: 0,
+  },
+  titleContainer: {
+    flex: 1,
+    minWidth: 0,
   },
   iconContainer: {
     width: 48,
@@ -192,6 +199,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
+    flexShrink: 1,
   },
   titleDark: {
     color: '#FFFFFF',
@@ -207,14 +215,15 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: 8,
+    flexShrink: 0,
   },
   infoButton: {
     borderRadius: 8,
     overflow: 'hidden',
   },
   infoButtonGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   infoButtonText: {
     fontSize: 12,
@@ -226,8 +235,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   shopButtonGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   shopButtonText: {
     fontSize: 12,
@@ -296,4 +305,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 });
+
+export default React.memo(PrestigeStatsCard);
+
 

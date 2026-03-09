@@ -5,8 +5,7 @@
  * across multiple generations
  */
 
-import type { GameState, DynastyStats, Heirloom } from '@/contexts/game/types';
-import { netWorth } from '@/lib/progress/achievements';
+import type { DynastyStats, Heirloom } from '@/contexts/game/types';
 
 /**
  * Default dynasty stats
@@ -128,7 +127,7 @@ export function getHeirloomBonuses(heirlooms: Heirloom[]): {
 export function generateHeirloom(
   playerName: string,
   playerNetWorth: number,
-  generation: number
+  _generation: number
 ): Heirloom | null {
   // Only generate heirloom if wealthy enough
   if (playerNetWorth < 1000000) return null;

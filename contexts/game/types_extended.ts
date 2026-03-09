@@ -1,37 +1,4 @@
-import { 
-  GameStats, 
-  GameDate, 
-  StreetJob, 
-  JailActivity, 
-  Career, 
-  Hobby, 
-  Item, 
-  Relationship, 
-  Pet, 
-  Food, 
-  HealthActivity, 
-  DietPlan, 
-  Education, 
-  Company, 
-  UserProfile, 
-  GameSettings, 
-  Crypto, 
-  Disease, 
-  RealEstate, 
-  SocialState, 
-  EconomyState, 
-  FamilyState, 
-  FamilyMemberNode, 
-  Memory, 
-  FamilyBusiness, 
-  GameProgress, 
-  JournalEntry, 
-  Loan, 
-  GamingStreamingState, 
-  Achievement, 
-  WeeklyEvent,
-  DailyChallengeState
-} from './types';
+// All types are re-exported from './types' below, no need to import individually
 
 export interface Goal {
   id: string;

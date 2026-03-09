@@ -1,6 +1,6 @@
-import { GameState } from '@/contexts/game/types';
 import { initialGameState } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
+import { WEEKS_PER_YEAR, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 
 const log = logger.scope('OnboardingValidation');
 
@@ -383,9 +383,7 @@ export function validateOnboardingState(state: any): OnboardingValidationResult 
 
   // 10. Validate that week and weeksLived are consistent with age
   if (invariants.hasDate && invariants.hasWeek && invariants.hasWeeksLived) {
-    const baseAge = 18;
-    const weeksPerYear = 52;
-    const expectedWeeksLived = Math.max(0, Math.floor((state.date.age - baseAge) * weeksPerYear));
+    const expectedWeeksLived = Math.max(0, Math.floor((state.date.age - ADULTHOOD_AGE) * WEEKS_PER_YEAR));
     
     if (Math.abs(state.weeksLived - expectedWeeksLived) > 1) {
       warnings.push(

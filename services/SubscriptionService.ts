@@ -1,7 +1,9 @@
+import { Platform, Linking } from 'react-native';
 import { iapService } from './IAPService';
-import { IAP_PRODUCTS } from '@/utils/iapConfig';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SUBSCRIPTION_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
+import { logger } from '@/utils/logger';
+import { SUBSCRIPTION_MANAGE_URL_IOS, SUBSCRIPTION_MANAGE_URL_ANDROID } from '@/lib/config/appConfig';
 
 export interface Subscription {
   productId: string;
@@ -19,9 +21,10 @@ class SubscriptionService {
   private static instance: SubscriptionService;
   private subscriptions: Map<string, Subscription> = new Map();
   private listeners: ((subscriptions: Subscription[]) => void)[] = [];
+  private _initialized: Promise<void>;
 
   private constructor() {
-    this.loadSubscriptions();
+    this._initialized = this.loadSubscriptions();
     this.initializeIAPListeners();
   }
 
@@ -33,10 +36,18 @@ class SubscriptionService {
   }
 
   /**
+   * Wait for subscription data to finish loading from storage.
+   * Call this before checking subscription status at startup.
+   */
+  async waitForInitialization(): Promise<void> {
+    await this._initialized;
+  }
+
+  /**
    * Initialize IAP service listeners
    */
   private initializeIAPListeners(): void {
-    iapService.addListener((state) => {
+    iapService.addListener((_state) => {
       this.syncSubscriptions();
     });
   }
@@ -53,7 +64,7 @@ class SubscriptionService {
       }
     } catch (error) {
       if (__DEV__) {
-        console.error('Failed to load subscriptions:', error);
+        logger.error('Failed to load subscriptions:', error);
       }
     }
   }
@@ -67,7 +78,7 @@ class SubscriptionService {
       await safeSetItem('subscriptions', JSON.stringify(data));
     } catch (error) {
       if (__DEV__) {
-        console.error('Failed to save subscriptions:', error);
+        logger.error('Failed to save subscriptions:', error);
       }
     }
   }
@@ -76,29 +87,28 @@ class SubscriptionService {
    * Sync subscriptions with IAP service
    */
   private async syncSubscriptions(): Promise<void> {
-    const subscriptionProducts = Object.values(IAP_PRODUCTS).filter(
-      product => product.type === 'subscription'
-    );
+    const subscriptionProductIds = Object.values(SUBSCRIPTION_PRODUCTS);
 
-    for (const product of subscriptionProducts) {
-      const hasPurchased = iapService.hasPurchased(product.id);
+    for (const productId of subscriptionProductIds) {
+      const productConfig = getProductConfig(productId);
+      const hasPurchased = iapService.hasPurchased(productId);
       
       if (hasPurchased) {
         const subscription: Subscription = {
-          productId: product.id,
-          name: product.name,
+          productId: productId,
+          name: productConfig?.name || productId,
           isActive: true,
           autoRenew: true,
           isTrial: false,
         };
 
-        this.subscriptions.set(product.id, subscription);
+        this.subscriptions.set(productId, subscription);
       } else {
         // Check if subscription expired
-        const existing = this.subscriptions.get(product.id);
+        const existing = this.subscriptions.get(productId);
         if (existing && existing.isActive) {
           existing.isActive = false;
-          this.subscriptions.set(product.id, existing);
+          this.subscriptions.set(productId, existing);
         }
       }
     }
@@ -138,20 +148,11 @@ class SubscriptionService {
       return 'free';
     }
 
-    // Check for ultimate tier
-    const hasUltimate = activeSubs.some(sub => 
-      sub.productId.includes('ultimate') || sub.productId.includes('premium_plus')
+    // Check for premium tier using actual product IDs
+    const hasPremium = activeSubs.some(sub =>
+      sub.productId.includes('deeplife_premium')
     );
-    
-    if (hasUltimate) {
-      return 'ultimate';
-    }
 
-    // Check for premium tier
-    const hasPremium = activeSubs.some(sub => 
-      sub.productId.includes('premium') || sub.productId.includes('subscription')
-    );
-    
     if (hasPremium) {
       return 'premium';
     }
@@ -209,21 +210,23 @@ class SubscriptionService {
       await this.syncSubscriptions();
     } catch (error) {
       if (__DEV__) {
-        console.error('Failed to restore subscriptions:', error);
+        logger.error('Failed to restore subscriptions:', error);
       }
     }
   }
 
   /**
-   * Cancel subscription
+   * Cancel subscription — opens platform subscription management
+   * Apple/Google control subscription renewal; the app cannot cancel directly.
    */
-  async cancelSubscription(productId: string): Promise<void> {
-    const subscription = this.subscriptions.get(productId);
-    if (subscription) {
-      subscription.autoRenew = false;
-      this.subscriptions.set(productId, subscription);
-      await this.saveSubscriptions();
-      this.notifyListeners();
+  async cancelSubscription(_productId: string): Promise<void> {
+    const url = Platform.select({
+      ios: SUBSCRIPTION_MANAGE_URL_IOS,
+      android: SUBSCRIPTION_MANAGE_URL_ANDROID,
+    });
+
+    if (url) {
+      await Linking.openURL(url);
     }
   }
 
@@ -247,7 +250,7 @@ class SubscriptionService {
         listener(subscriptions);
       } catch (error) {
         if (__DEV__) {
-          console.error('Error in subscription listener:', error);
+          logger.error('Error in subscription listener:', error);
         }
       }
     });

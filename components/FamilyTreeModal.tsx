@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
+﻿import React, { useState, useMemo } from 'react';
+import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, User, ChevronRight, ChevronDown } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getCharacterImage } from '@/utils/characterImages';
@@ -41,7 +42,8 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
       .sort((a, b) => Number(a[0]) - Number(b[0])) // Sort by generation ascending (1, 2, 3...)
       .map(([gen, members]) => ({
         gen: Number(gen),
-        members: members.sort((a, b) => a.birthYear - b.birthYear)
+        title: `Generation ${gen}`,
+        data: members.sort((a, b) => a.birthYear - b.birthYear),
       }));
   }, [tree]);
 
@@ -112,29 +114,36 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.scrollContainer}>
-            {generations.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={[styles.emptyText, settings.darkMode && styles.textDarkSecondary]}>
-                  No family history yet. Start your legacy!
-                </Text>
-              </View>
-            ) : (
-              generations.map(({ gen, members }) => (
-                <View key={gen} style={styles.generationRow}>
-                  <View style={styles.generationLabel}>
-                    <Text style={[styles.genText, settings.darkMode && styles.textDark]}>
-                      Generation {gen}
-                    </Text>
-                    <View style={styles.line} />
-                  </View>
-                  <View style={styles.membersGrid}>
-                    {members.map(renderMemberNode)}
-                  </View>
+          {/* C-2: Virtualized with SectionList to prevent OOM on large family trees */}
+          {generations.length === 0 ? (
+            <View style={[styles.scrollContainer, styles.emptyState]}>
+              <Text style={[styles.emptyText, settings.darkMode && styles.textDarkSecondary]}>
+                No family history yet. Start your legacy!
+              </Text>
+            </View>
+          ) : (
+            <SectionList
+              style={styles.scrollContainer}
+              sections={generations}
+              keyExtractor={(item) => item.id}
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+              renderSectionHeader={({ section }) => (
+                <View style={styles.generationLabel}>
+                  <Text style={[styles.genText, settings.darkMode && styles.textDark]}>
+                    {section.title}
+                  </Text>
+                  <View style={styles.line} />
                 </View>
-              ))
-            )}
-          </ScrollView>
+              )}
+              renderItem={({ item }) => (
+                <View style={styles.membersGrid}>
+                  {renderMemberNode(item)}
+                </View>
+              )}
+            />
+          )}
         </LinearGradient>
       </View>
     </Modal>
@@ -272,4 +281,5 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+
 

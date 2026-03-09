@@ -2,16 +2,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 
 // Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  multiGet: jest.fn(),
-  multiSet: jest.fn(),
-  multiRemove: jest.fn(),
-  getAllKeys: jest.fn(),
-  clear: jest.fn(),
-}));
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const mock = {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    multiGet: jest.fn(),
+    multiSet: jest.fn(),
+    multiRemove: jest.fn(),
+    getAllKeys: jest.fn(),
+    clear: jest.fn(),
+  };
+  return {
+    __esModule: true,
+    default: mock,
+    ...mock,
+  };
+});
 
 describe('safeAsyncStorage', () => {
   beforeEach(() => {

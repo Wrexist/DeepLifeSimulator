@@ -31,7 +31,7 @@ export default function ResponsiveLayout({
   align = 'start',
   wrap = false,
 }: ResponsiveLayoutProps) {
-  const { width, height } = useWindowDimensions();
+  const { width: _width, height: _height } = useWindowDimensions();
 
   const getPadding = () => {
     switch (padding) {

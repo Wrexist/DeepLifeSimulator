@@ -31,12 +31,6 @@ try {
   logger.warn('expo-av not available, using haptic feedback only');
 }
 
-interface SoundEffect {
-  id: string;
-  source: any; // require() statement
-  volume?: number;
-}
-
 class SoundManager {
   private isEnabled: boolean = true;
   private isInitialized: boolean = false;
@@ -101,7 +95,7 @@ class SoundManager {
         try {
           const { sound } = await Audio.Sound.createAsync(source, {
             shouldPlay: false,
-            volume: this.soundVolume,
+            volume: this.effectiveSfxVolume,
           });
           this.sounds.set(soundId, sound);
           logger.debug(`Sound loaded: ${soundId}`);

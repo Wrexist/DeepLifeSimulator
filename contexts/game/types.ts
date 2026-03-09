@@ -11,6 +11,7 @@ import { SocialState } from '@/lib/social/relations';
 import { WeeklyEvent } from '@/lib/events/engine';
 import { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 import { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
+import { KarmaState } from '@/lib/karma/karmaSystem';
 
 export interface GameStats {
   health: number;
@@ -32,6 +33,7 @@ export interface GameDate {
 export type LifeStage = 'child' | 'teen' | 'adult' | 'senior';
 
 export interface ChildInfo extends Relationship {
+  birthWeeksLived?: number;
   educationLevel?: 'none' | 'highSchool' | 'university' | 'specialized';
   careerPath?: 'blueCollar' | 'whiteCollar' | 'professional' | 'entrepreneur';
   jobTier?: 1 | 2 | 3 | 4;
@@ -124,21 +126,23 @@ export interface JailActivity {
   risk?: string;
 }
 
+import { CareerRequirements } from '@/lib/types/requirements';
+
 export interface Career {
   id: string;
-  levels: { name: string; salary: number }[];
+  levels: { name: string; salary: number; experienceRequired?: number; description?: string; energyCost?: number }[];
   level: number;
   description: string;
-  requirements: {
-    fitness?: number;
-    items?: string[];
-    education?: string[];
-    reputation?: number;
-  };
+  requirements: CareerRequirements;
   progress: number;
   applied: boolean;
   accepted: boolean;
   applicationAttempts?: number; // Track job application attempts (for pity system - guaranteed acceptance after 3 attempts)
+  applicationWeeksPending?: number; // Track how many weeks the application has been pending
+  startedWeeksLived?: number; // Track when career was started (for early career acceleration)
+  performance?: number; // 0-100 job performance rating (affects progress speed, firing risk, raises)
+  warningsReceived?: number; // Number of formal warnings (3 = auto-fired)
+  currentLevel?: number; // Current level index (alias for level, used by some components)
 }
 
 export interface Hobby {
@@ -235,6 +239,7 @@ export interface Item {
   description?: string;
   owned: boolean;
   dailyBonus?: Partial<GameStats>;
+  consumable?: boolean;
 }
 
 export interface DarkWebItem {
@@ -253,6 +258,7 @@ export interface HackResult {
   btcReward: number;
   risk: number;
   jailed?: boolean;
+  success?: boolean;
 }
 
 export interface Hack {
@@ -326,6 +332,49 @@ export interface Relationship {
   weddingPlanned?: WeddingPlan;
   marriageWeek?: number;
   anniversaryWeek?: number;
+  // ANTI-EXPLOIT: Track weekly interactions to prevent spam (diminishing returns)
+  weeklyInteractions?: number;
+  lastInteractionWeek?: number;
+  // ANTI-EXPLOIT: Track weekly dates and gifts to prevent spam
+  datesThisWeek?: number;
+  giftsThisWeek?: number;
+  lastGiftWeek?: number;
+  // Pregnancy tracking
+  isPregnant?: boolean;
+  pregnancyStartWeek?: number; // weeksLived when pregnancy started
+  pregnancyChildGender?: 'male' | 'female';
+  pregnancyChildName?: string;
+  // NPC Depth System — makes NPCs feel alive
+  npcGoals?: NPCGoal[];
+  npcOpinion?: NPCOpinion;
+  npcMemories?: NPCMemory[];
+  giftPreferences?: string[]; // Gift type IDs the NPC likes
+  giftDislikes?: string[]; // Gift type IDs the NPC dislikes
+  lastLifeEvent?: { event: string; weeksLived: number };
+  job?: string; // NPC's current job
+  npcMood?: 'happy' | 'neutral' | 'stressed' | 'sad' | 'angry';
+}
+
+export interface NPCGoal {
+  id: string;
+  label: string;
+  category: 'family' | 'career' | 'travel' | 'lifestyle' | 'relationship';
+  fulfilled: boolean;
+  fulfilledWeek?: number;
+}
+
+export interface NPCOpinion {
+  trust: number;       // 0-100 — built by consistent interactions, honesty
+  attraction: number;  // 0-100 — affected by gifts, dates, player stats
+  respect: number;     // 0-100 — career/education achievements, keeping promises
+}
+
+export interface NPCMemory {
+  id: string;
+  type: 'date' | 'gift' | 'milestone' | 'conflict' | 'life_event' | 'kindness';
+  description: string;
+  weeksLived: number;
+  sentiment: 'positive' | 'negative' | 'neutral';
 }
 
 // Wedding & Engagement Types
@@ -365,7 +414,7 @@ export interface WeddingPlan {
 
 export interface LifeMilestone {
   id: string;
-  type: 'first_date' | 'engagement' | 'wedding' | 'anniversary' | 'child_birth' | 'promotion' | 'retirement';
+  type: 'first_date' | 'engagement' | 'wedding' | 'anniversary' | 'child_birth' | 'pregnancy_start' | 'promotion' | 'retirement';
   week: number;
   year: number;
   partnerId?: string;
@@ -380,6 +429,26 @@ export interface Education {
   duration: number;
   completed: boolean;
   weeksRemaining?: number;
+  paused?: boolean;
+  // Education revamp fields (optional for backward compatibility)
+  enrolledClasses?: EducationClass[];
+  examsPassed?: number;
+  examsFailed?: number;
+  gpa?: number; // 0.0 - 4.0
+  studyGroupActive?: boolean;
+  studentLoan?: { amount: number; weeklyPayment: number; remaining: number };
+  semesterNumber?: number;
+  lastExamWeek?: number;
+  lastCampusEventWeek?: number;
+}
+
+export interface EducationClass {
+  id: string;
+  name: string;
+  category: 'core' | 'elective' | 'lab' | 'seminar';
+  statBonuses: Partial<Record<'health' | 'happiness' | 'energy' | 'fitness' | 'reputation', number>>;
+  difficulty: 1 | 2 | 3; // 1=easy, 2=medium, 3=hard
+  completed: boolean;
 }
 
 export interface CompanyUpgrade {
@@ -392,6 +461,51 @@ export interface CompanyUpgrade {
   maxLevel: number;
 }
 
+export interface MinerUpgrade {
+  id: string;
+  minerId: string;
+  type: 'efficiency' | 'power' | 'durability' | 'cooling';
+  level: number;
+  maxLevel: number;
+}
+
+export interface MiningPool {
+  id: string;
+  cryptoId: string;
+  name: string;
+  bonusMultiplier: number; // e.g., 1.15 for 15% bonus
+  fee: number; // e.g., 0.05 for 5% fee
+  joined?: boolean;
+}
+
+export interface StakingPosition {
+  cryptoId: string;
+  amount: number;
+  lockWeeks: number;
+  startWeek: number;
+  startAbsoluteWeek?: number;
+  lastClaimAbsoluteWeek?: number;
+  rewardRate: number; // e.g., 0.03 for 3% weekly
+}
+
+export interface MiningStatistics {
+  totalCryptoMined: Record<string, number>; // cryptoId -> total amount
+  totalEarnings: number;
+  totalPowerCost: number;
+  bestPerformingCrypto?: string;
+  miningHistory: Array<{
+    week: number;
+    earnings: number;
+    cryptoMined: Record<string, number>;
+    powerCost: number;
+  }>;
+  minerPerformance: Record<string, {
+    totalEarnings: number;
+    totalPowerCost: number;
+    roi: number;
+  }>;
+}
+
 export interface Warehouse {
   level: number;
   miners: Record<string, number>;
@@ -401,6 +515,18 @@ export interface Warehouse {
   autoRepairEnabled?: boolean;
   autoRepairWeeklyCost?: number;
   autoRepairCryptoId?: string;
+  // New features
+  upgrades?: MinerUpgrade[];
+  activePool?: string; // pool ID
+  pools?: MiningPool[];
+  stakingPositions?: StakingPosition[];
+  statistics?: MiningStatistics;
+  energyType?: 'standard' | 'solar' | 'wind' | 'hybrid';
+  energyEfficiency?: number; // 0-1, reduces power costs
+  automationLevel?: number; // 0-5, affects efficiency
+  difficultyMultiplier?: number; // mining difficulty over time
+  lastDifficultyUpdate?: number; // week number
+  lastDifficultyUpdateAbsoluteWeek?: number;
 }
 
 export interface RDLab {
@@ -516,7 +642,14 @@ export interface GameSettings {
   maxStats: boolean;
   weeklySummaryEnabled: boolean;
   showDecimalsInStats: boolean;
+  showStatArrows?: boolean; // Show arrows indicating stat change direction
   autoProgression?: boolean; // Auto-progression for progressive disclosure
+  adsRemoved?: boolean; // IAP: Remove Ads purchased
+  adsRemovedDate?: string; // When ads were removed
+  hasRevivalPack?: boolean; // IAP: Revival Pack purchased
+  moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
+  everythingUnlocked?: boolean; // IAP: Mega bundle
+  unlimitedYouthPills?: boolean; // IAP: Mega bundle
   premiumCreditCard?: boolean;
   premiumCreditCardExpiry?: string;
   financialPlanning?: boolean;
@@ -535,6 +668,10 @@ export interface Disease {
   curable: boolean;
   treatmentRequired?: boolean;
   weeksUntilDeath?: number;
+  naturalRecoveryWeeks?: number; // Can heal naturally over time
+  contractedWeek?: number; // Track when disease was contracted
+  description?: string; // Disease description and symptoms
+  preventionTips?: string[]; // Tips to prevent this disease
 }
 
 export interface RealEstate {
@@ -544,10 +681,18 @@ export interface RealEstate {
   weeklyHappiness: number;
   weeklyEnergy: number;
   owned: boolean;
-  interior: string[];
+  interior: string[]; // Decoration/furniture item IDs installed
   upgradeLevel: number;
   rent?: number;
   upkeep?: number;
+  status?: 'vacant' | 'owner' | 'rented';
+  // Housing depth fields
+  currentResidence?: boolean; // Is this the player's home?
+  currentValue?: number; // Market value (appreciates/depreciates)
+  lastMaintenance?: number; // weeksLived of last maintenance
+  condition?: number; // 0-100, decays without maintenance
+  rooms?: string[]; // Room addition IDs installed
+  totalHappinessBonus?: number; // Computed from base + interior + upgrades
 }
 
 export interface Achievement {
@@ -555,14 +700,14 @@ export interface Achievement {
   name: string;
   description: string;
   category:
-    | 'money'
-    | 'career'
-    | 'education'
-    | 'relationships'
-    | 'health'
-    | 'items'
-    | 'special'
-    | 'secret';
+  | 'money'
+  | 'career'
+  | 'education'
+  | 'relationships'
+  | 'health'
+  | 'items'
+  | 'special'
+  | 'secret';
   completed: boolean;
   reward?: number;
   secretName?: string;
@@ -608,6 +753,16 @@ export interface Loan {
 export interface EconomyState {
   inflationRateAnnual: number;
   priceIndex: number;
+  economyEvents?: {
+    currentState: 'normal' | 'recession' | 'boom' | 'crash';
+    stateStartWeek: number;
+    stateDuration: number;
+    modifiers: {
+      incomeMultiplier: number;
+      stockVolatility: number;
+      jobAvailability: number;
+    };
+  };
 }
 
 export interface FamilyBusiness {
@@ -728,6 +883,9 @@ export interface GamingStreamingState {
   paidMembers?: number;
   membershipRate?: number;
   upgrades?: Record<string, number>;
+  // ANTI-EXPLOIT: Track weekly stream count to prevent unlimited real-time income farming
+  streamsThisWeek?: number;
+  lastStreamWeek?: number; // weeksLived when last stream occurred
 }
 
 // Re-export from lib/social/relations for convenience
@@ -742,10 +900,13 @@ export type { WeeklyEvent } from '@/lib/events/engine';
 export type AccidentSeverity = 'minor' | 'moderate' | 'severe' | 'total';
 
 export interface VehicleInsurance {
+  id?: string;
+  type?: 'basic' | 'comprehensive' | 'premium';
   active: boolean;
   coveragePercent: number;
   expiresWeek: number;
-  premiumCost: number;
+  monthlyCost?: number;
+  premiumCost?: number; // Deprecated, use monthlyCost instead
 }
 
 export interface Vehicle {
@@ -764,9 +925,11 @@ export interface Vehicle {
   weeklyMaintenanceCost: number;
   weeklyFuelCost: number;
   maxSpeed: number;
-  insurance?: VehicleInsurance;
+  insurance?: VehicleInsurance; // undefined when no insurance (never purchased or cancelled)
   lastServiceWeek?: number;
   owned: boolean;
+  reputationBonus: number; // Required - always present from template
+  speedBonus: number; // Required - always present from template
 }
 
 /**
@@ -777,21 +940,26 @@ export interface GameState {
   revivalPack: boolean;
   stats: GameStats;
   totalHappiness: number;
+  /** Absolute week counter — the single source of truth for elapsed game time. Use for ALL duration/scheduling logic. */
   weeksLived: number;
   day: number;
+  /** UI-only week of month, cycles 1-4. For time comparisons, scheduling, and durations, use weeksLived instead. */
   week: number;
   date: GameDate;
   streetJobs: StreetJob[];
   jailActivities: JailActivity[];
   careers: Career[];
-  hobbies: Hobby[];
+  hobbies: Hobby[]; // DEPRECATED: Hobbies removed from game
   items: Item[];
   darkWebItems: DarkWebItem[];
   hacks: Hack[];
   relationships: Relationship[];
+  // ANTI-EXPLOIT: Track divorce cooldown to prevent marry/divorce cycling
+  lastDivorceWeek?: number;
   pets: Pet[];
   hasPhone: boolean;
   computerPreviouslyOwned: boolean;
+  hasDriversLicense?: boolean; // Driver's license for vehicle ownership
   foods: Food[];
   healthActivities: HealthActivity[];
   dietPlans: DietPlan[];
@@ -858,6 +1026,8 @@ export interface GameState {
   // This allows pity system to work over multiple weeks
   criminalLevel: number;
   crimeSkills: Record<CrimeSkillId, CrimeSkill>;
+  /** Karma/morality system — tracks cumulative moral weight of player choices */
+  karma?: KarmaState;
   version: number;
   progress: GameProgress;
   journal: JournalEntry[];
@@ -874,6 +1044,8 @@ export interface GameState {
       currentPrice: number;
     }[];
     watchlist: string[];
+    realizedGains?: number; // Total realized gains from sold shares
+    savedMarketPrices?: Record<string, { price: number; dividendYield: number }>; // Persisted market prices to prevent save/reload exploit
   };
   perks?: {
     workBoost?: boolean;
@@ -907,9 +1079,39 @@ export interface GameState {
     choice: string;
     week: number;
     year: number;
+    weeksLived?: number; // Track weeksLived for better history
+    category?: string; // Event category
+    effects?: {
+      money?: number;
+      stats?: Partial<GameStats>;
+    }; // Track effects for analytics
   }[];
+  eventChains?: {
+    chainId: string;
+    currentStage: number;
+    stages: {
+      eventId: string;
+      choiceId?: string;
+      week: number;
+    }[];
+    completed: boolean;
+  }[]; // Track multi-stage event chains
+  activeEventChain?: {
+    chainId: string;
+    eventId: string;
+    currentStage: number;
+    totalStages: number;
+  };
   achievements: Achievement[];
   claimedProgressAchievements: string[];
+  /** Rich achievement unlock context for narrative display */
+  achievementUnlocks?: Record<string, {
+    unlockedAt: number; // timestamp
+    age: number;
+    weeksLived: number;
+    money: number;
+    year: number;
+  }>;
   lastLogin: number;
   updatedAt?: number;
   streetJobsCompleted: number;
@@ -920,6 +1122,8 @@ export interface GameState {
   zeroStatType?: 'happiness' | 'health';
   showDeathPopup: boolean;
   deathReason?: 'happiness' | 'health';
+  showWeddingPopup: boolean;
+  weddingPartnerName?: string;
   debtWeeks?: number; // STABILITY FIX: Track weeks in debt for bankruptcy system
   bankruptcyTriggered?: boolean; // STABILITY FIX: Track if bankruptcy has been triggered
   weeksInPoverty?: number; // STABILITY FIX: Track weeks in poverty for scholarship event
@@ -927,8 +1131,23 @@ export interface GameState {
   lastEventWeek?: number; // Track last week an event occurred (for pity system) - DEPRECATED, use lastEventWeeksLived
   lastEventWeeksLived?: number; // TIME PROGRESSION FIX: Track weeksLived for pity system to handle year boundaries correctly
   lastDiseaseWeek?: number; // Track last week a disease was contracted (for bounds - max 1 per 4 weeks)
+  lastGymVisitWeek?: number; // Track last week player visited gym (for fitness decay calculation)
   showCureSuccessModal: boolean;
   curedDiseases: string[];
+  diseaseHistory?: {
+    diseases: Array<{
+      id: string;
+      name: string;
+      contractedWeek: number;
+      curedWeek?: number;
+      severity: string;
+    }>;
+    totalDiseases: number;
+    totalCured: number;
+    deathsFromDisease: number;
+  };
+  diseaseImmunities?: string[]; // Diseases player has immunity to (from previous infections)
+  vaccinations?: string[]; // Vaccinations player has received
   goals: Goal[];
   goalProgress: Record<string, GoalProgress>;
   completedGoals: string[];
@@ -941,12 +1160,49 @@ export interface GameState {
     medium: DailyChallengeState;
     hard: DailyChallengeState;
     lastRefresh: number;
+    lastRefreshDayKey?: string;
   };
+  rngCommitLog?: RngCommitLog;
   prestige?: PrestigeData;
   prestigeAvailable?: boolean; // True when net worth >= $100M
   seasonalEvents?: {
     lastSeason: string;
     completedEvents: string[];
+  };
+  automation?: {
+    rules: Array<{
+      id: string;
+      type: 'invest' | 'save' | 'pay' | 'renew';
+      name: string;
+      enabled: boolean;
+      conditions: Array<{
+        type: string;
+        value: number;
+      }>;
+      actions: Array<{
+        type: string;
+        value: number;
+        target?: string;
+      }>;
+      priority: number;
+      lastExecuted?: number;
+      executionCount?: number;
+    }>;
+    executionHistory: Array<{
+      ruleId: string;
+      ruleName: string;
+      type: string;
+      executedAt: number;
+      success: boolean;
+      message: string;
+      actionsTaken: Array<{
+        type: string;
+        value: number;
+        result: string;
+      }>;
+    }>;
+    maxSlots: number;
+    enabled: boolean;
   };
   socialMedia?: {
     followers: number;
@@ -978,6 +1234,9 @@ export interface GameState {
       likes: number;
       comments: number;
       timestamp: number;
+      gameWeek?: number;
+      gameMonth?: string;
+      gameYear?: number;
       contentType: 'text' | 'photo' | 'video' | 'story' | 'live';
       category?: 'lifestyle' | 'career' | 'fitness' | 'travel' | 'food';
       photo?: string;
@@ -1031,6 +1290,96 @@ export interface GameState {
   };
   progressiveDisclosureLevel?: 'simple' | 'standard' | 'advanced';
   systemStatistics?: Record<string, SystemStatistics>;
+  // Life Moments & Consequence System
+  consequenceState?: import('@/lib/lifeMoments/types').ConsequenceState;
+  lifeMoments?: {
+    lastMomentWeek: number;
+    momentsThisWeek: number;
+    totalMoments: number;
+    pendingMoment?: import('@/lib/lifeMoments/types').LifeMoment; // Current life moment waiting for decision
+  };
+  // B-4: IAP processed transaction IDs stored in save envelope for cross-device resilience
+  // Belt-and-suspenders: also stored in separate AsyncStorage key for cross-slot persistence
+  processedIAPTransactions?: string[];
+  // Education System — campus event pending for UI display
+  pendingCampusEventEducationId?: string;
+
+  // ── Engagement & Addiction Systems ──────────────────────────────
+  /** Play session streak — tracks consecutive play sessions within 48h window */
+  playStreak?: {
+    count: number;
+    lastPlayTimestamp: number;
+    longestStreak: number;
+  };
+  /** Week advance result — lucky bonus and streak info for the result sheet */
+  weekResult?: {
+    luckyBonus?: number;
+    luckyMessage?: string;
+    luckyTier?: 'small' | 'medium' | 'rare';
+    streakBonus?: number;
+    incomeEarned?: number;
+    expensesPaid?: number;
+    netChange?: number;
+    careerProgressPercent?: number;
+    cliffhangerTeaser?: string;
+  };
+  /** Mini-prestige currency earned every 10 weeks, spent on temporary buffs */
+  legacyPoints?: number;
+  /** Active legacy buffs purchased with legacy points */
+  legacyBuffs?: {
+    luckyCharm?: { expiresWeeksLived: number }; // +10% luck for 5 weeks
+    mentor?: { expiresWeeksLived: number }; // +50% career progress for 3 weeks
+  };
+  /** Daily challenge completion streak */
+  challengeStreak?: {
+    count: number;
+    lastCompletionDayKey: string;
+  };
+  /** Life chapters — themed goal groups that unlock based on weeksLived */
+  activeChapterId?: string;
+  completedChapters?: string[];
+  /** Tutorial step completion tracking for rewards */
+  completedTutorialSteps?: string[];
+
+  // ── Wave 2: Addiction Mechanics ────────────────────────────────
+  /** Secrets/Easter eggs discovered this life */
+  discoveredSecrets?: string[];
+  /** Pending cliffhanger to resolve next week */
+  pendingCliffhanger?: {
+    resolveEventId: string;
+    teaser: string;
+    setWeeksLived: number;
+  };
+  /** Ribbon collection — persists across prestiges */
+  ribbonCollection?: {
+    earned: Array<{
+      ribbonId: string;
+      generation: number;
+      earnedTimestamp: number;
+      lifeAge: number;
+      lifeName: string;
+    }>;
+    discoveredIds: string[];
+  };
+  /** Weekly themed challenge state */
+  weeklyChallenge?: {
+    challengeId: string;
+    startedAt: number;
+    progress: Array<{ objectiveId: string; current: number; target: number; met: boolean }>;
+    completed: boolean;
+    rewardClaimed: boolean;
+  };
+  /** Time machine checkpoints — max 5 snapshots */
+  checkpoints?: Array<{
+    id: string;
+    label: string;
+    weeksLived: number;
+    age: number;
+    timestamp: number;
+    snapshot: string;
+  }>;
+  /** Number of time machine rewinds used this life (escalates cost) */
+  timeMachineUsesThisLife?: number;
 }
 
 export interface DMConversation {
@@ -1171,6 +1520,14 @@ export interface SocialInteraction {
   impact: number;
 }
 
+export interface RngCommitLog {
+  seed: number;
+  sequence: number;
+  entries: Record<string, number>;
+  order: string[];
+  lastCommittedWeek?: number;
+}
+
 export interface DailyChallengeState {
   id: string;
   progress: number;
@@ -1284,11 +1641,14 @@ export interface SocialPost {
   photo?: string;
   timestamp: number;
   gameWeek: number;
+  gameMonth?: string;
+  gameYear?: number;
   likes: number;
   reposts: number;
   replies: number;
   bookmarks: number;
   views: number;
+  contentType?: 'text' | 'photo' | 'video' | 'story' | 'live';
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;

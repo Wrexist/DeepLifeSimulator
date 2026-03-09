@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { 
   Smartphone, 
   ArrowLeft,
@@ -48,6 +50,11 @@ import {
   isTablet,
   scale,
 } from '@/utils/scaling';
+import { 
+  getGlassHeader, 
+  getGlassIconContainer, 
+  getGlassAppCard,
+} from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLazyComponent, usePerformanceMonitor } from '@/utils/performanceOptimization';
@@ -58,7 +65,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-export default function MobileScreen() {
+function MobileScreen() {
   return (
     <ErrorBoundary>
       <MobileScreenContent />
@@ -224,19 +231,25 @@ function MobileScreenContent() {
 
   return (
     <LinearGradient
-      colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
+      colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Smartphone size={32} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
-          <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
-            {t('mobile.mobileApps')}
-          </Text>
+        <View style={[styles.headerGlass, settings.darkMode && styles.headerGlassDark]}>
+          <View style={styles.headerContent}>
+            <View style={[styles.headerIconGlass, settings.darkMode && styles.headerIconGlassDark]}>
+              <Smartphone size={32} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
+                {t('mobile.mobileApps')}
+              </Text>
+              <Text style={[styles.headerSubtitle, settings.darkMode && styles.headerSubtitleDark]}>
+                {t('mobile.accessSmartphoneApplications')}
+              </Text>
+            </View>
+          </View>
         </View>
-        <Text style={[styles.headerSubtitle, settings.darkMode && styles.headerSubtitleDark]}>
-          {t('mobile.accessSmartphoneApplications')}
-        </Text>
       </View>
 
       <ScrollView 
@@ -248,7 +261,7 @@ function MobileScreenContent() {
           {appsList.map((app) => (
             <TouchableOpacity
               key={app.id}
-              style={[styles.appCard, { width: cardWidth }]}
+              style={[styles.appCardGlass, { width: cardWidth }]}
               onPress={() => {
                 buttonPress();
                 haptic('light');
@@ -256,25 +269,32 @@ function MobileScreenContent() {
               }}
               activeOpacity={0.8}
             >
-              <LinearGradient
-                colors={app.gradient as [string, string]}
-                style={styles.appCardGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <View style={styles.appIconContainer}>
-                  <LinearGradient
-                    colors={app.iconGradient as [string, string]}
-                    style={styles.appIconGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <app.icon size={responsiveIconSize.lg} color="#FFFFFF" />
-                  </LinearGradient>
+              <View style={[
+                styles.appCardGlassInner,
+                settings.darkMode && styles.appCardGlassInnerDark
+              ]}>
+                <View style={styles.appIconGlassContainer}>
+                  <View style={[
+                    styles.appIconGlass,
+                    settings.darkMode && styles.appIconGlassDark
+                  ]}>
+                    <LinearGradient
+                      colors={app.iconGradient as [string, string]}
+                      style={styles.appIconGradientGlass}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <app.icon size={responsiveIconSize.lg} color="#FFFFFF" />
+                    </LinearGradient>
+                  </View>
                 </View>
-                <Text style={styles.appName}>{app.name}</Text>
-                <Text style={styles.appDescription}>{app.description}</Text>
-              </LinearGradient>
+                <Text style={[styles.appName, settings.darkMode && styles.appNameDark]}>
+                  {app.name}
+                </Text>
+                <Text style={[styles.appDescription, settings.darkMode && styles.appDescriptionDark]}>
+                  {app.description}
+                </Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -306,27 +326,43 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: responsivePadding.vertical,
-    paddingBottom: responsivePadding.vertical,
+    paddingBottom: responsiveSpacing.md,
     paddingHorizontal: responsivePadding.horizontal,
+  },
+  headerGlass: {
+    ...getGlassHeader(false),
+  },
+  headerGlassDark: {
+    ...getGlassHeader(true),
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.sm,
+    gap: responsiveSpacing.md,
+  },
+  headerIconGlass: {
+    ...getGlassIconContainer(false, 48),
+  },
+  headerIconGlassDark: {
+    ...getGlassIconContainer(true, 48),
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: responsiveFontSize['3xl'],
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#111827',
-    marginLeft: responsiveSpacing.md,
+    marginBottom: scale(4),
+    letterSpacing: -0.5,
   },
   headerTitleDark: {
     color: '#F9FAFB',
   },
   headerSubtitle: {
-    fontSize: responsiveFontSize.lg,
+    fontSize: responsiveFontSize.sm,
     color: '#6B7280',
-    marginLeft: responsiveSpacing.xl + responsiveSpacing.md,
+    fontWeight: '500',
   },
   headerSubtitleDark: {
     color: '#9CA3AF',
@@ -344,54 +380,93 @@ const styles = StyleSheet.create({
     justifyContent: 'space-evenly',
     gap: responsiveSpacing.sm,
   },
-  appCard: {
+  appCardGlass: {
     aspectRatio: 1,
-    borderRadius: responsiveBorderRadius.lg,
-    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
+    borderRadius: responsiveBorderRadius.xl,
+    marginBottom: responsiveSpacing.sm,
     overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scale(8) },
+        shadowOpacity: 0.2,
+        shadowRadius: scale(16),
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+      },
+    }),
   },
-  appCardGradient: {
+  appCardGlassInner: {
     flex: 1,
-    borderRadius: responsiveBorderRadius.lg,
-    padding: responsiveSpacing.sm,
+    ...getGlassAppCard(false),
+    padding: responsiveSpacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  appIconContainer: {
+  appCardGlassInnerDark: {
+    ...getGlassAppCard(true),
+  },
+  appIconGlassContainer: {
     marginBottom: responsiveSpacing.sm,
   },
-  appIconGradient: {
+  appIconGlass: {
+    width: responsiveIconSize['2xl'] + scale(8),
+    height: responsiveIconSize['2xl'] + scale(8),
+    borderRadius: (responsiveIconSize['2xl'] + scale(8)) / 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scale(4) },
+        shadowOpacity: 0.2,
+        shadowRadius: scale(8),
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)',
+      },
+    }),
+  },
+  appIconGlassDark: {
+    backgroundColor: 'rgba(30, 41, 59, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  appIconGradientGlass: {
     width: responsiveIconSize['2xl'],
     height: responsiveIconSize['2xl'],
     borderRadius: responsiveIconSize['2xl'] / 2,
     justifyContent: 'center',
     alignItems: 'center',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   appName: {
     fontSize: responsiveFontSize.sm,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    color: '#1F2937',
     marginBottom: responsiveSpacing.xs,
     textAlign: 'center',
-    textShadow: '0px 1px 2px rgba(0, 0, 0, 0.2)',
+  },
+  appNameDark: {
+    color: '#FFFFFF',
   },
   appDescription: {
     fontSize: responsiveFontSize.xs,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#4B5563',
     textAlign: 'center',
     lineHeight: responsiveFontSize.xs * 1.4,
-    textShadow: '0px 1px 1px rgba(0, 0, 0, 0.2)',
+    fontWeight: '500',
+  },
+  appDescriptionDark: {
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   noPhoneContainer: {
     flex: 1,
@@ -422,3 +497,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+
+export default React.memo(MobileScreen);
+

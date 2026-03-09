@@ -1,6 +1,5 @@
 // STUB: expo-notifications removed to fix TurboModule crash
 // All notification functions are now no-ops
-import { Platform } from 'react-native';
 import { logger } from './logger';
 
 const log = logger.scope('Notifications');
@@ -9,7 +8,7 @@ const log = logger.scope('Notifications');
 export async function scheduleNotification(
   title: string,
   body: string,
-  trigger: any
+  _trigger: any
 ): Promise<string> {
   if (__DEV__) {
     log.info('Notification scheduled (stubbed):', { title, body });
@@ -40,7 +39,7 @@ export async function getPermissionsAsync(): Promise<{ status: string }> {
   return { status: 'denied' };
 }
 
-export function addNotificationReceivedListener(listener: (notification: any) => void): { remove: () => void } {
+export function addNotificationReceivedListener(_listener: (notification: any) => void): { remove: () => void } {
   return {
     remove: () => {
       if (__DEV__) {
@@ -50,7 +49,7 @@ export function addNotificationReceivedListener(listener: (notification: any) =>
   };
 }
 
-export function addNotificationResponseReceivedListener(listener: (response: any) => void): { remove: () => void } {
+export function addNotificationResponseReceivedListener(_listener: (response: any) => void): { remove: () => void } {
   return {
     remove: () => {
       if (__DEV__) {
@@ -70,5 +69,17 @@ export const Notifications = {
   addNotificationReceivedListener,
   addNotificationResponseReceivedListener,
 };
+
+export function notifyAchievementUnlock(name: string, reward: number): void {
+  if (__DEV__) {
+    log.info('Achievement unlocked (stubbed):', { name, reward });
+  }
+}
+
+export function notifySecretAchievementUnlock(name: string, reward: number): void {
+  if (__DEV__) {
+    log.info('Secret achievement unlocked (stubbed):', { name, reward });
+  }
+}
 
 export default Notifications;

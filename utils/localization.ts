@@ -9,17 +9,8 @@ try {
 }
 
 try {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/localization.ts:13',message:'Before expo-localization require',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
   Localization = require('expo-localization');
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/localization.ts:17',message:'After expo-localization require success',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
 } catch (error) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/afa84dc3-87dd-40fd-a42e-55a0db841d20',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/localization.ts:22',message:'expo-localization require failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
   // expo-localization not available, will use fallback
 }
 

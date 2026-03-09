@@ -1,4 +1,3 @@
-import { GameState } from '@/contexts/game/types';
 
 /**
  * Quality of Life bonus flags
@@ -61,9 +60,18 @@ export function shouldAutoReinvestDividends(unlockedBonuses: string[]): boolean 
  * @returns Event frequency multiplier (1.0 = normal, 0.7 = 30% reduction)
  */
 export function getEventFrequencyModifier(unlockedBonuses: string[]): number {
+  let modifier = 1.0;
+  
+  // Reduced negative event frequency
   if (unlockedBonuses.includes('reduced_event_frequency')) {
-    return 0.7; // -30% negative events
+    modifier *= 0.7; // -30% negative events
   }
-  return 1.0;
+  
+  // Positive event frequency boost (from applyBonuses.ts)
+  const { getEventFrequencyBoost } = require('./applyBonuses');
+  const boost = getEventFrequencyBoost(unlockedBonuses);
+  // Apply boost only to positive events (this is handled in event engine)
+  
+  return modifier;
 }
 

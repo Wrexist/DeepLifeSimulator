@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Post Composer Component - X.com Style
  * 
  * Modal for creating new posts with photo upload
@@ -17,7 +17,8 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   X,
   Image as ImageIcon,
@@ -428,4 +429,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#2F3336',
   },
 });
+
 

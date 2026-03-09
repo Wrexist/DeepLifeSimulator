@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Contextual Information Card
  * Long-press or info button reveals detailed information about a system/item
  */
@@ -13,7 +13,8 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   X,
   Info,
@@ -283,7 +284,7 @@ export default function ContextualInfoCard({
                         style={[styles.requirementItem, darkMode && styles.requirementItemDark]}
                       >
                         <Text style={[styles.requirementText, darkMode && styles.requirementTextDark]}>
-                          • {req}
+                          â€¢ {req}
                         </Text>
                       </View>
                     ))}
@@ -355,7 +356,7 @@ export default function ContextualInfoCard({
                         style={[styles.tipItem, darkMode && styles.tipItemDark]}
                       >
                         <Text style={[styles.tipText, darkMode && styles.tipTextDark]}>
-                          • {tip}
+                          â€¢ {tip}
                         </Text>
                       </View>
                     ))}
@@ -667,4 +668,5 @@ const styles = StyleSheet.create({
     color: '#FCD34D',
   },
 });
+
 

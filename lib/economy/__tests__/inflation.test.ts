@@ -1,70 +1,11 @@
 import { applyWeeklyInflation, getInflatedPrice, getWeeklyInflationRate } from '../inflation';
 import { GameState } from '@/contexts/GameContext';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 function createState(priceIndex: number, rate: number): GameState {
-  return {
-    stats: { health: 0, happiness: 0, energy: 0, fitness: 0, money: 0, reputation: 0, gems: 0 },
-    day: 0,
-    week: 1,
-    date: { year: 2025, month: 'January', week: 1, age: 18 },
-    totalHappiness: 0,
-    weeksLived: 0,
-    streetJobs: [],
-    careers: [],
-    hobbies: [],
-    items: [],
-    darkWebItems: [],
-    hacks: [],
-    relationships: [],
-    pets: [],
-    social: { relations: [] },
-    hasPhone: false,
-    foods: [],
-    healthActivities: [],
-    dietPlans: [],
-    educations: [],
-    companies: [],
-    userProfile: { name: '', handle: '', bio: '', followers: 0, following: 0, gender: 'male', seekingGender: 'female' },
-    currentJob: undefined,
-    showWelcomePopup: true,
-    settings: { darkMode: false, soundEnabled: true, notificationsEnabled: true, autoSave: true, language: 'English', maxStats: false },
-    cryptos: [],
-    diseases: [],
-    realEstate: [],
-    family: { children: [] },
-    lifeStage: 'adult',
-    wantedLevel: 0,
-    jailWeeks: 0,
-    escapedFromJail: false,
-    jailActivities: [],
-    criminalXp: 0,
-    criminalLevel: 1,
-    crimeSkills: {
-      stealth: { xp: 0, level: 1 },
-      hacking: { xp: 0, level: 1 },
-      lockpicking: { xp: 0, level: 1 },
-    },
-    bankSavings: 0,
-    stocksOwned: {},
-    perks: {},
-    achievements: [],
-    claimedProgressAchievements: [],
-    lastLogin: Date.now(),
-    streetJobsCompleted: 0,
-    happinessZeroWeeks: 0,
-    healthZeroWeeks: 0,
-    showZeroStatPopup: false,
-    zeroStatType: undefined,
-    showDeathPopup: false,
-    deathReason: undefined,
+  return createTestGameState({
     economy: { inflationRateAnnual: rate, priceIndex },
-    version: 5,
-    pendingEvents: [],
-    eventLog: [],
-    progress: { achievements: [] },
-    journal: [],
-    healthWeeks: 0,
-  } as GameState;
+  });
 }
 
 describe('inflation utilities', () => {

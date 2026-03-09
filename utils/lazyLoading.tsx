@@ -37,7 +37,7 @@ export function withLazyLoading<T extends ComponentType<any>>(
       {React.createElement(lazyComponent, props)}
     </Suspense>
   );
-  WrappedComponent.displayName = `LazyWrapper(${lazyComponent.displayName || 'Component'})`;
+  WrappedComponent.displayName = `LazyWrapper(${(lazyComponent as any).displayName || 'Component'})`;
   return WrappedComponent;
 }
 

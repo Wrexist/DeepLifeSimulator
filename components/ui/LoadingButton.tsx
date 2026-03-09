@@ -1,6 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
 import { getButtonAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
 
@@ -89,12 +90,12 @@ export default function LoadingButton({
         style,
       ]}
       accessibilityLabel={accessibilityProps.accessibilityLabel}
-      accessibilityRole={accessibilityProps.accessibilityRole}
+      accessibilityRole={accessibilityProps.accessibilityRole as any}
       accessibilityHint={accessibilityProps.accessibilityHint}
       accessibilityState={accessibilityProps.accessibilityState}
     >
       <LinearGradient
-        colors={isDisabled ? ['#9CA3AF', '#6B7280'] : colors}
+        colors={(isDisabled ? ['#9CA3AF', '#6B7280'] : colors) as unknown as readonly [string, string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[
@@ -155,3 +156,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

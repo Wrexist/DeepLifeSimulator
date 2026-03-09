@@ -1,4 +1,4 @@
-/**
+﻿/**
  * YouVideo App Component
  * 
  * Complete video creation platform with recording, rendering, and uploading
@@ -18,7 +18,8 @@ import {
   Modal,
   Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { 
   ArrowLeft,
   Play,
@@ -37,7 +38,9 @@ import {
   Heart,
   MessageCircle,
   Cpu,
+  Sparkles,
 } from 'lucide-react-native';
+import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import { useGame, Video as VideoType } from '@/contexts/GameContext';
 import { useMemoryCleanup } from '@/utils/performanceOptimization';
 
@@ -326,6 +329,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   const renderingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const uploadingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
+  
 
   // Cleanup intervals on unmount
   useEffect(() => {
@@ -666,6 +670,26 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     return Math.floor(subscribersGained * (0.7 + Math.random() * 0.6));
   };
 
+  // Calculate total energy cost for complete video creation (recording + rendering + uploading)
+  const calculateTotalEnergyCost = useCallback((videoId: string): number => {
+    const video = AVAILABLE_VIDEOS.find(v => v.id === videoId);
+    if (!video) return Infinity;
+    
+    const modifiers = calculateUpgradeModifiers();
+    
+    // Energy costs for each phase:
+    // Recording: full energyCost
+    // Rendering: energyCost / 2
+    // Uploading: energyCost / 4
+    // Total = energyCost * (1 + 0.5 + 0.25) = energyCost * 1.75
+    const baseTotalCost = video.energyCost * 1.75;
+    
+    // Apply energy reduction to total cost
+    const effectiveTotalCost = Math.ceil(baseTotalCost * (1 - modifiers.energyReduction));
+    
+    return effectiveTotalCost;
+  }, []);
+
   const startVideoCreation = (videoId: string) => {
     const video = AVAILABLE_VIDEOS.find(v => v.id === videoId);
     if (!video) return;
@@ -676,12 +700,11 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       return;
     }
 
-    // Check energy with upgrade energy reduction
-    const modifiers = calculateUpgradeModifiers();
-    const effectiveEnergyCost = Math.ceil(video.energyCost * (1 - modifiers.energyReduction));
+    // Check total energy for complete process (recording + rendering + uploading)
+    const totalEnergyRequired = calculateTotalEnergyCost(videoId);
     
-    if (energy < effectiveEnergyCost) {
-      setModalData({ requiredEnergy: effectiveEnergyCost, currentEnergy: energy });
+    if (energy < totalEnergyRequired) {
+      setModalData({ requiredEnergy: totalEnergyRequired, currentEnergy: energy });
       setShowNotEnoughEnergyModal(true);
       return;
     }
@@ -714,19 +737,81 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     return cleanup;
   }, [addCleanup]);
 
+  const stopVideoProcess = useCallback(() => {
+    // Clear all intervals
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+    if (renderingIntervalRef.current) {
+      clearInterval(renderingIntervalRef.current);
+      renderingIntervalRef.current = null;
+    }
+    if (uploadingIntervalRef.current) {
+      clearInterval(uploadingIntervalRef.current);
+      uploadingIntervalRef.current = null;
+    }
+    
+    // Stop all animations
+    recordingAnimation.stopAnimation();
+    renderingAnimation.stopAnimation();
+    uploadingAnimation.stopAnimation();
+    
+    // Reset all state
+    setIsRecording(false);
+    setIsRendering(false);
+    setIsUploading(false);
+    setCurrentPhase('idle');
+    setRecordingProgress(0);
+    setRenderingProgress(0);
+    setUploadingProgress(0);
+    
+    // Reset animation values
+    recordingAnimation.setValue(0);
+    renderingAnimation.setValue(0);
+    uploadingAnimation.setValue(0);
+    
+    // Reset video selection
+    setSelectedVideo(null);
+    setVideoTitle('');
+    
+    // Show alert
+    Alert.alert(
+      'Process Stopped',
+      'Video creation stopped due to insufficient energy. You need enough energy for the complete process (recording + rendering + uploading).',
+      [{ text: 'OK' }]
+    );
+  }, []);
+
   const startRecording = () => {
     if (!selectedVideo || !videoTitle.trim()) return;
+    
+    // Check total energy for complete process before starting
+    const totalEnergyRequired = calculateTotalEnergyCost(selectedVideo);
+    if (energy < totalEnergyRequired) {
+      setModalData({ requiredEnergy: totalEnergyRequired, currentEnergy: energy });
+      setShowNotEnoughEnergyModal(true);
+      return;
+    }
     
     // Clear any existing interval
     if (recordingIntervalRef.current) {
       clearInterval(recordingIntervalRef.current);
     }
+    if (renderingIntervalRef.current) {
+      clearInterval(renderingIntervalRef.current);
+    }
+    if (uploadingIntervalRef.current) {
+      clearInterval(uploadingIntervalRef.current);
+    }
     
+    // Start recording
     setIsRecording(true);
     setCurrentPhase('recording');
     setRecordingProgress(0);
     
     // Animate recording progress
+    recordingAnimation.setValue(0);
     Animated.timing(recordingAnimation, {
       toValue: 1,
       duration: 5000, // 5 seconds to record
@@ -734,6 +819,11 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     }).start();
     
     // Simulate recording progress with real-time energy drain
+    // OPTIMIZATION: Batch energy updates to reduce gameState update frequency
+    let energyAccumulator = 0;
+    const energyUpdateInterval = 500; // Update energy every 500ms instead of every 100ms
+    let lastEnergyUpdate = Date.now();
+    
     recordingIntervalRef.current = setInterval(() => {
       setRecordingProgress(prev => {
         if (prev >= 100) {
@@ -752,16 +842,30 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           const effectiveEnergyCost = video.energyCost * (1 - modifiers.energyReduction);
           const energyPerTick = effectiveEnergyCost / 50; // 50 ticks over 5 seconds
           
-          // Use setTimeout to avoid setState during render - with cleanup
-          createTimeout(() => {
-            updateGameState(prev => ({
-              ...prev,
-              stats: {
-                ...prev.stats,
-                energy: Math.max(0, prev.stats.energy - energyPerTick),
-              },
-            }));
-          }, 0);
+          // Accumulate energy drain
+          energyAccumulator += energyPerTick;
+          
+          // Only update gameState every 500ms to reduce re-renders
+          const now = Date.now();
+          if (now - lastEnergyUpdate >= energyUpdateInterval) {
+            const energyToDrain = Math.floor(energyAccumulator);
+            energyAccumulator -= energyToDrain;
+            lastEnergyUpdate = now;
+            
+            // Use setTimeout to avoid setState during render - with cleanup
+            createTimeout(() => {
+              updateGameState(prev => {
+                const newEnergy = Math.max(0, prev.stats.energy - energyToDrain);
+                return {
+                  ...prev,
+                  stats: {
+                    ...prev.stats,
+                    energy: newEnergy,
+                  },
+                };
+              });
+            }, 0);
+          }
         }
         
         return Math.min(100, Math.round((prev + 2) * 100) / 100);
@@ -784,6 +888,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     const modifiers = calculateUpgradeModifiers();
     const renderDuration = 8000 * (1 - modifiers.renderTimeReduction - modifiers.processingTimeReduction);
     
+    renderingAnimation.setValue(0);
     Animated.timing(renderingAnimation, {
       toValue: 1,
       duration: Math.max(2000, renderDuration), // Minimum 2 seconds
@@ -812,13 +917,16 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           
           // Use setTimeout to avoid setState during render - with cleanup
           createTimeout(() => {
-            updateGameState(prev => ({
-              ...prev,
-              stats: {
-                ...prev.stats,
-                energy: Math.max(0, prev.stats.energy - energyPerTick),
-              },
-            }));
+            updateGameState(prev => {
+              const newEnergy = Math.max(0, prev.stats.energy - energyPerTick);
+              return {
+                ...prev,
+                stats: {
+                  ...prev.stats,
+                  energy: newEnergy,
+                },
+              };
+            });
           }, 0);
           
           // Calculate progress increment based on actual duration
@@ -847,6 +955,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     const modifiers = calculateUpgradeModifiers();
     const uploadDuration = 6000 * (1 - modifiers.uploadSpeed);
     
+    uploadingAnimation.setValue(0);
     Animated.timing(uploadingAnimation, {
       toValue: 1,
       duration: Math.max(2000, uploadDuration), // Minimum 2 seconds
@@ -875,13 +984,16 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           
           // Use setTimeout to avoid setState during render - with cleanup
           createTimeout(() => {
-            updateGameState(prev => ({
-              ...prev,
-              stats: {
-                ...prev.stats,
-                energy: Math.max(0, prev.stats.energy - energyPerTick),
-              },
-            }));
+            updateGameState(prev => {
+              const newEnergy = Math.max(0, prev.stats.energy - energyPerTick);
+              return {
+                ...prev,
+                stats: {
+                  ...prev.stats,
+                  energy: newEnergy,
+                },
+              };
+            });
           }, 0);
           
           // Calculate progress increment based on actual duration
@@ -999,137 +1111,268 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   };
 
   const renderVideosTab = () => (
-    <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
-      <Text style={styles.sectionTitle}>Available Video Types</Text>
-      {AVAILABLE_VIDEOS.map((video) => {
+    <ScrollView 
+      style={styles.tabContent} 
+      contentContainerStyle={styles.tabContentContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+          Available Video Types
+        </Text>
+        <Text style={[styles.sectionSubtitle, isDarkMode && styles.sectionSubtitleDark]}>
+          {AVAILABLE_VIDEOS.length} games available
+        </Text>
+      </View>
+      {AVAILABLE_VIDEOS.map((video, index) => {
         const isOwned = videoData.ownedGames.includes(video.id);
         const canCreate = isOwned || video.cost === 0;
         const hasEnergy = energy >= video.energyCost;
         
         return (
-          <View key={video.id} style={styles.videoCard}>
-            <View style={styles.videoInfo}>
-              <Text style={styles.videoName}>{video.name}</Text>
-              <Text style={styles.videoDescription}>{video.description}</Text>
-              <View style={styles.videoStatsRow}>
-                <Text style={styles.videoStats}>
-                  Base Viewers: {video.baseViewers} | Weekly Earnings: ${video.baseEarnings}
-                </Text>
-                <View style={styles.energyCostRow}>
-                  <Zap size={scale(14)} color="#F59E0B" />
-                  <Text style={styles.energyCost}>
-                    Energy Cost: {video.energyCost}
-                  </Text>
+          <MotiView
+            key={video.id}
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 400, delay: index * 50 }}
+          >
+            <TouchableOpacity
+              style={[styles.videoCard, isDarkMode && styles.videoCardDark]}
+              onPress={() => canCreate && hasEnergy ? startVideoCreation(video.id) : !canCreate ? buyVideo(video.id) : null}
+              disabled={canCreate && !hasEnergy}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={isDarkMode 
+                  ? ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.9)']
+                  : ['rgba(255, 255, 255, 0.95)', 'rgba(249, 250, 251, 0.95)']
+                }
+                style={styles.cardGradient}
+              >
+                <View style={styles.videoCardHeader}>
+                  <View style={styles.videoIconContainer}>
+                    <Gamepad2 size={24} color={isDarkMode ? '#8B5CF6' : '#6366F1'} />
+                  </View>
+                  <View style={styles.videoInfo}>
+                    <View style={styles.videoNameRow}>
+                      <Text style={[styles.videoName, isDarkMode && styles.videoNameDark]}>
+                        {video.name}
+                      </Text>
+                      {isOwned && (
+                        <View style={styles.ownedBadge}>
+                          <Text style={styles.ownedBadgeText}>OWNED</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[styles.videoDescription, isDarkMode && styles.videoDescriptionDark]}>
+                      {video.description}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </View>
-            <View style={styles.videoActions}>
-              {canCreate ? (
-                <TouchableOpacity
-                  style={[
-                    styles.button, 
-                    styles.createButton,
-                    !hasEnergy && styles.disabledButton
-                  ]}
-                  onPress={() => startVideoCreation(video.id)}
-                  disabled={!hasEnergy}
-                >
-                  <Video size={scale(16)} color="white" />
-                  <Text style={styles.buttonText}>
-                    {hasEnergy ? 'Create' : 'No Energy'}
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.button, styles.buyButton]}
-                  onPress={() => buyVideo(video.id)}
-                  disabled={money < video.cost}
-                >
-                  <Text style={styles.buttonText}>Buy ${video.cost}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+
+                <View style={styles.videoStatsContainer}>
+                  <View style={styles.videoStatBadge}>
+                    <Eye size={14} color={isDarkMode ? '#60A5FA' : '#3B82F6'} />
+                    <Text style={[styles.videoStatText, isDarkMode && styles.videoStatTextDark]}>
+                      {video.baseViewers.toLocaleString()} views
+                    </Text>
+                  </View>
+                  <View style={styles.videoStatBadge}>
+                    <DollarSign size={14} color={isDarkMode ? '#10B981' : '#059669'} />
+                    <Text style={[styles.videoStatText, isDarkMode && styles.videoStatTextDark]}>
+                      ${video.baseEarnings}/week
+                    </Text>
+                  </View>
+                  <View style={styles.videoStatBadge}>
+                    <Zap size={14} color="#F59E0B" />
+                    <Text style={[styles.videoStatText, isDarkMode && styles.videoStatTextDark]}>
+                      {video.energyCost} energy
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.videoCardFooter}>
+                  {canCreate ? (
+                    <TouchableOpacity
+                      style={[styles.createButtonCard, !hasEnergy && styles.disabledButtonCard]}
+                      onPress={() => startVideoCreation(video.id)}
+                      disabled={!hasEnergy}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient
+                        colors={hasEnergy ? ['#10B981', '#059669'] : ['#9CA3AF', '#6B7280']}
+                        style={styles.createButtonGradient}
+                      >
+                        <Video size={18} color="#FFF" />
+                        <Text style={styles.createButtonText}>
+                          {hasEnergy ? 'Create Video' : 'No Energy'}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.buyButtonCard, money < video.cost && styles.disabledButtonCard]}
+                      onPress={() => buyVideo(video.id)}
+                      disabled={money < video.cost}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient
+                        colors={money >= video.cost ? ['#8B5CF6', '#7C3AED'] : ['#9CA3AF', '#6B7280']}
+                        style={styles.buyButtonGradient}
+                      >
+                        <DollarSign size={18} color="#FFF" />
+                        <Text style={styles.buyButtonText}>
+                          Buy ${video.cost}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </MotiView>
         );
       })}
     </ScrollView>
   );
 
   const renderStatsTab = () => (
-    <ScrollView style={styles.tabContent} contentContainerStyle={styles.tabContentContainer}>
-      <Text style={styles.sectionTitle}>Channel Statistics</Text>
+    <ScrollView 
+      style={styles.tabContent} 
+      contentContainerStyle={styles.tabContentContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+          Channel Statistics
+        </Text>
+        <Text style={[styles.sectionSubtitle, isDarkMode && styles.sectionSubtitleDark]}>
+          Your content performance
+        </Text>
+      </View>
       
       <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Users size={scale(24)} color="#8B5CF6" />
-          <Text style={styles.statValue}>{videoData.followers.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>Followers</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <Star size={scale(24)} color="#F59E0B" />
-          <Text style={styles.statValue}>{videoData.subscribers.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>Subscribers</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <TrendingUp size={scale(24)} color="#10B981" />
-          <Text style={styles.statValue}>{videoData.totalViews.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>Total Views</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <DollarSign size={scale(24)} color="#EF4444" />
-          <Text style={styles.statValue}>${videoData.totalEarnings.toFixed(2)}</Text>
-          <Text style={styles.statLabel}>Total Earnings</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <Crown size={scale(24)} color="#8B5CF6" />
-          <Text style={styles.statValue}>{videoData.experience.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>Experience</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <Video size={scale(24)} color="#6B7280" />
-          <Text style={styles.statValue}>{videoData.videos?.length || 0}</Text>
-          <Text style={styles.statLabel}>Videos Uploaded</Text>
-        </View>
+        {[
+          { icon: Users, value: videoData.followers.toLocaleString(), label: 'Followers', color: '#8B5CF6', index: 0 },
+          { icon: Star, value: videoData.subscribers.toLocaleString(), label: 'Subscribers', color: '#F59E0B', index: 1 },
+          { icon: TrendingUp, value: videoData.totalViews.toLocaleString(), label: 'Total Views', color: '#10B981', index: 2 },
+          { icon: DollarSign, value: `$${videoData.totalEarnings.toFixed(2)}`, label: 'Total Earnings', color: '#EF4444', index: 3 },
+          { icon: Crown, value: videoData.experience.toLocaleString(), label: 'Experience', color: '#8B5CF6', index: 4 },
+          { icon: Video, value: (videoData.videos?.length || 0).toString(), label: 'Videos', color: '#6366F1', index: 5 },
+        ].map((stat) => (
+          <MotiView
+            key={stat.label}
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'timing', duration: 400, delay: stat.index * 50 }}
+          >
+            <View style={[styles.statCard, isDarkMode && styles.statCardDark]}>
+              <LinearGradient
+                colors={isDarkMode 
+                  ? ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.9)']
+                  : ['rgba(255, 255, 255, 0.95)', 'rgba(249, 250, 251, 0.95)']
+                }
+                style={styles.statCardGradient}
+              >
+                <View style={[styles.statIconContainer, { backgroundColor: stat.color + '20' }]}>
+                  <stat.icon size={24} color={stat.color} />
+                </View>
+                <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
+                  {stat.value}
+                </Text>
+                <Text style={[styles.statLabel, isDarkMode && styles.statLabelDark]}>
+                  {stat.label}
+                </Text>
+              </LinearGradient>
+            </View>
+          </MotiView>
+        ))}
       </View>
 
       {/* Uploaded Videos Section */}
-      <Text style={styles.sectionTitle}>Recent Videos</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
+          Recent Videos
+        </Text>
+        <Text style={[styles.sectionSubtitle, isDarkMode && styles.sectionSubtitleDark]}>
+          {videoData.videos?.length || 0} total videos
+        </Text>
+      </View>
       {videoData.videos && videoData.videos.length > 0 ? (
-        videoData.videos.slice(0, 10).map((video: VideoType) => (
-          <View key={video.id} style={styles.uploadedVideoCard}>
-            <View style={styles.videoHeader}>
-              <Text style={styles.videoTitle}>{video.title}</Text>
-              <Text style={styles.videoDate}>
-                {formatGameDate()}
-              </Text>
+        videoData.videos.slice(0, 10).map((video: VideoType, index: number) => (
+          <MotiView
+            key={video.id}
+            from={{ opacity: 0, translateX: -20 }}
+            animate={{ opacity: 1, translateX: 0 }}
+            transition={{ type: 'timing', duration: 400, delay: index * 50 }}
+          >
+            <View style={[styles.uploadedVideoCard, isDarkMode && styles.uploadedVideoCardDark]}>
+              <LinearGradient
+                colors={isDarkMode 
+                  ? ['rgba(30, 41, 59, 0.8)', 'rgba(15, 23, 42, 0.9)']
+                  : ['rgba(255, 255, 255, 0.95)', 'rgba(249, 250, 251, 0.95)']
+                }
+                style={styles.cardGradient}
+              >
+                <View style={styles.videoHeader}>
+                  <View style={styles.videoHeaderLeft}>
+                    <Video size={18} color={isDarkMode ? '#8B5CF6' : '#6366F1'} />
+                    <Text style={[styles.videoTitle, isDarkMode && styles.videoTitleDark]}>
+                      {video.title}
+                    </Text>
+                  </View>
+                  <Text style={[styles.videoDate, isDarkMode && styles.videoDateDark]}>
+                    {formatGameDate()}
+                  </Text>
+                </View>
+                <View style={styles.videoMetrics}>
+                  <View style={styles.metricBadge}>
+                    <Eye size={14} color={isDarkMode ? '#60A5FA' : '#3B82F6'} />
+                    <Text style={[styles.metricText, isDarkMode && styles.metricTextDark]}>
+                      {video.views.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.metricBadge}>
+                    <Heart size={14} color="#EF4444" />
+                    <Text style={[styles.metricText, isDarkMode && styles.metricTextDark]}>
+                      {video.likes.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.metricBadge}>
+                    <MessageCircle size={14} color={isDarkMode ? '#10B981' : '#059669'} />
+                    <Text style={[styles.metricText, isDarkMode && styles.metricTextDark]}>
+                      {video.comments.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.metricBadge}>
+                    <DollarSign size={14} color="#F59E0B" />
+                    <Text style={[styles.metricText, isDarkMode && styles.metricTextDark]}>
+                      ${video.earnings.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
             </View>
-            <View style={styles.videoMetrics}>
-              <View style={styles.metric}>
-                <Eye size={scale(16)} color="#6B7280" />
-                <Text style={styles.metricText}>{video.views.toLocaleString()}</Text>
-              </View>
-              <View style={styles.metric}>
-                <Heart size={scale(16)} color="#EF4444" />
-                <Text style={styles.metricText}>{video.likes.toLocaleString()}</Text>
-              </View>
-              <View style={styles.metric}>
-                <MessageCircle size={scale(16)} color="#10B981" />
-                <Text style={styles.metricText}>{video.comments.toLocaleString()}</Text>
-              </View>
-              <View style={styles.metric}>
-                <DollarSign size={scale(16)} color="#F59E0B" />
-                <Text style={styles.metricText}>${video.earnings.toFixed(2)}</Text>
-              </View>
-            </View>
-          </View>
+          </MotiView>
         ))
       ) : (
-        <Text style={styles.noVideosText}>No videos uploaded yet. Start creating!</Text>
+        <View style={styles.emptyState}>
+          <MotiView
+            from={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 10 }}
+          >
+            <View style={styles.emptyIconContainer}>
+              <Video size={64} color={isDarkMode ? '#8B5CF6' : '#6366F1'} />
+            </View>
+          </MotiView>
+          <Text style={[styles.emptyStateText, isDarkMode && styles.emptyStateTextDark]}>
+            No Videos Yet
+          </Text>
+          <Text style={[styles.emptyStateSubtext, isDarkMode && styles.emptyStateSubtextDark]}>
+            Start creating your first video to see it here!
+          </Text>
+        </View>
       )}
     </ScrollView>
   );
@@ -1264,7 +1507,11 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                       borderColor: videoTitle.trim() ? '#10B981' : (isDarkMode ? '#4B5563' : '#D1D5DB'),
                     }}
               value={videoTitle}
-              onChangeText={setVideoTitle}
+              onChangeText={(text) => {
+                setVideoTitle(text);
+                // Only clear saved progress if videoId changes (not just title)
+                // Title can be edited without losing progress
+              }}
                     placeholder="Enter a catchy title..."
               placeholderTextColor="#9CA3AF"
                     maxLength={60}
@@ -1280,43 +1527,56 @@ export default function GamingApp({ onBack }: GamingAppProps) {
           </View>
           
                 {/* Action Buttons */}
-            <TouchableOpacity
-                  style={{
-                    borderRadius: scale(12),
-                    overflow: 'hidden',
-                    marginBottom: scale(12),
-                    opacity: videoTitle.trim() ? 1 : 0.5,
-                  }}
-              onPress={startRecording}
-              disabled={!videoTitle.trim()}
-            >
-                  <LinearGradient
-                    colors={['#EF4444', '#DC2626']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: scale(16),
-                    }}
-                  >
-                    <View style={{
-                      width: scale(12),
-                      height: scale(12),
-                      borderRadius: scale(6),
-                      backgroundColor: '#FFFFFF',
-                      marginRight: scale(10),
-                    }} />
-                    <Text style={{
-                      fontSize: fontScale(16),
-                      fontWeight: 'bold',
-                      color: '#FFFFFF',
-                    }}>
-                      Start Recording
-                    </Text>
-                  </LinearGradient>
-            </TouchableOpacity>
+                {(() => {
+                  // Calculate total energy required for complete process
+                  const totalEnergyRequired = selectedVideo ? calculateTotalEnergyCost(selectedVideo) : 0;
+                  const hasEnoughEnergy = energy >= totalEnergyRequired;
+                  const buttonText = hasEnoughEnergy ? 'Start Recording' : `No Energy (Need ${totalEnergyRequired})`;
+                  
+                  return (
+                    <TouchableOpacity
+                      style={{
+                        borderRadius: scale(12),
+                        overflow: 'hidden',
+                        marginBottom: scale(12),
+                        opacity: (videoTitle.trim() && hasEnoughEnergy) ? 1 : 0.5,
+                      }}
+                      onPress={startRecording}
+                      disabled={!videoTitle.trim() || !hasEnoughEnergy}
+                    >
+                      <LinearGradient
+                        colors={hasEnoughEnergy ? ['#EF4444', '#DC2626'] : ['#9CA3AF', '#6B7280']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: scale(16),
+                        }}
+                      >
+                        {hasEnoughEnergy ? (
+                          <View style={{
+                            width: scale(12),
+                            height: scale(12),
+                            borderRadius: scale(6),
+                            backgroundColor: '#FFFFFF',
+                            marginRight: scale(10),
+                          }} />
+                        ) : (
+                          <Zap size={scale(16)} color="#FFFFFF" style={{ marginRight: scale(8) }} />
+                        )}
+                        <Text style={{
+                          fontSize: fontScale(16),
+                          fontWeight: 'bold',
+                          color: '#FFFFFF',
+                        }}>
+                          {buttonText}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  );
+                })()}
 
                 <TouchableOpacity
                   style={{
@@ -1404,7 +1664,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                 />
               </View>
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: scale(12) }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Zap size={scale(14)} color="#F59E0B" />
                     <Text style={{ fontSize: fontScale(12), color: '#F59E0B', marginLeft: scale(4) }}>
@@ -1417,11 +1677,111 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                     color: currentPhase === 'recording' ? '#EF4444' : 
                           currentPhase === 'rendering' ? '#A855F7' : '#3B82F6',
                   }}>
-                    {currentPhase === 'recording' && `${Math.round(recordingProgress)}%`}
-                    {currentPhase === 'rendering' && `${Math.round(renderingProgress)}%`}
-                    {currentPhase === 'uploading' && `${Math.round(uploadingProgress)}%`}
+                    {currentPhase === 'recording' && `${Math.min(100, Math.max(0, Math.round(recordingProgress)))}%`}
+                    {currentPhase === 'rendering' && `${Math.min(100, Math.max(0, Math.round(renderingProgress)))}%`}
+                    {currentPhase === 'uploading' && `${Math.min(100, Math.max(0, Math.round(uploadingProgress)))}%`}
                   </Text>
               </View>
+
+              {/* Upgrade Speed Bonuses */}
+              {(() => {
+                const modifiers = calculateUpgradeModifiers();
+                const hasSpeedBonuses = modifiers.renderTimeReduction > 0 || modifiers.processingTimeReduction > 0 || modifiers.uploadSpeed > 0 || modifiers.energyReduction > 0;
+                
+                if (!hasSpeedBonuses) return null;
+                
+                return (
+                  <View style={{
+                    backgroundColor: isDarkMode ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.08)',
+                    borderRadius: scale(12),
+                    padding: scale(12),
+                    borderWidth: 1,
+                    borderColor: isDarkMode ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.15)',
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(8) }}>
+                      <Sparkles size={scale(14)} color="#8B5CF6" />
+                      <Text style={{
+                        fontSize: fontScale(13),
+                        fontWeight: '700',
+                        color: isDarkMode ? '#A78BFA' : '#7C3AED',
+                        marginLeft: scale(6),
+                      }}>
+                        Active Upgrades
+                      </Text>
+                    </View>
+                    <View style={{ gap: scale(6) }}>
+                      {currentPhase === 'recording' && modifiers.energyReduction > 0 && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: fontScale(11), color: isDarkMode ? '#D1D5DB' : '#6B7280' }}>
+                            Energy Reduction
+                          </Text>
+                          <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#10B981' }}>
+                            -{Math.round(modifiers.energyReduction * 100)}%
+                          </Text>
+                        </View>
+                      )}
+                      {currentPhase === 'rendering' && (
+                        <>
+                          {modifiers.renderTimeReduction > 0 && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={{ fontSize: fontScale(11), color: isDarkMode ? '#D1D5DB' : '#6B7280' }}>
+                                Render Speed
+                              </Text>
+                              <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#10B981' }}>
+                                +{Math.round(modifiers.renderTimeReduction * 100)}%
+                              </Text>
+                            </View>
+                          )}
+                          {modifiers.processingTimeReduction > 0 && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={{ fontSize: fontScale(11), color: isDarkMode ? '#D1D5DB' : '#6B7280' }}>
+                                Processing Speed
+                              </Text>
+                              <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#10B981' }}>
+                                +{Math.round(modifiers.processingTimeReduction * 100)}%
+                              </Text>
+                            </View>
+                          )}
+                          {modifiers.energyReduction > 0 && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={{ fontSize: fontScale(11), color: isDarkMode ? '#D1D5DB' : '#6B7280' }}>
+                                Energy Reduction
+                              </Text>
+                              <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#10B981' }}>
+                                -{Math.round(modifiers.energyReduction * 100)}%
+                              </Text>
+                            </View>
+                          )}
+                        </>
+                      )}
+                      {currentPhase === 'uploading' && (
+                        <>
+                          {modifiers.uploadSpeed > 0 && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={{ fontSize: fontScale(11), color: isDarkMode ? '#D1D5DB' : '#6B7280' }}>
+                                Upload Speed
+                              </Text>
+                              <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#10B981' }}>
+                                +{Math.round(modifiers.uploadSpeed * 100)}%
+                              </Text>
+                            </View>
+                          )}
+                          {modifiers.energyReduction > 0 && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={{ fontSize: fontScale(11), color: isDarkMode ? '#D1D5DB' : '#6B7280' }}>
+                                Energy Reduction
+                              </Text>
+                              <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#10B981' }}>
+                                -{Math.round(modifiers.energyReduction * 100)}%
+                              </Text>
+                            </View>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  </View>
+                );
+              })()}
           
                 {/* Cancel Button */}
           <TouchableOpacity
@@ -1768,7 +2128,6 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   const getStyles = () => StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#0A0F1A',
     },
     header: {
       flexDirection: 'row',
@@ -1776,19 +2135,26 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       paddingHorizontal: scale(20),
       paddingTop: scale(16),
       paddingBottom: scale(16),
-      backgroundColor: 'rgba(15, 23, 42, 0.8)',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
       borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+      borderBottomColor: 'rgba(0,0,0,0.05)',
+      shadowColor: 'rgba(0,0,0,0.08)',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    headerDark: {
+      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
     },
     backButton: {
       width: scale(44),
       height: scale(44),
       borderRadius: scale(22),
-      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      backgroundColor: 'rgba(0,0,0,0.04)',
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
       marginRight: scale(12),
     },
     headerContent: {
@@ -1796,46 +2162,55 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       alignItems: 'center',
       flex: 1,
     },
+    headerIconContainer: {
+      width: scale(44),
+      height: scale(44),
+      borderRadius: scale(22),
+      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: scale(12),
+    },
     headerTitle: {
-      fontSize: fontScale(22),
+      fontSize: fontScale(24),
       fontWeight: '700',
-      color: '#FFFFFF',
-      marginLeft: scale(10),
+      color: '#111827',
       letterSpacing: 0.3,
+    },
+    headerTitleDark: {
+      color: '#F9FAFB',
     },
     tabs: {
       flexDirection: 'row',
       paddingHorizontal: scale(16),
       paddingVertical: scale(12),
-      gap: scale(8),
+      gap: scale(12),
+      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(0,0,0,0.05)',
+    },
+    tabsDark: {
+      backgroundColor: 'rgba(15, 23, 42, 0.5)',
+      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
     },
     tab: {
       flex: 1,
-      paddingVertical: scale(14),
+      paddingVertical: scale(12),
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: scale(14),
-      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+      borderRadius: scale(12),
+      backgroundColor: 'rgba(0,0,0,0.03)',
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.06)',
+      borderColor: 'rgba(0,0,0,0.05)',
     },
     activeTab: {
       backgroundColor: 'rgba(139, 92, 246, 0.15)',
-      borderColor: 'rgba(139, 92, 246, 0.3)',
+      borderColor: 'rgba(139, 92, 246, 0.4)',
       shadowColor: '#8B5CF6',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.25,
-      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
       elevation: 4,
-    },
-    tabText: {
-      fontSize: fontScale(14),
-      color: 'rgba(255, 255, 255, 0.5)',
-      fontWeight: '600',
-    },
-    activeTabText: {
-      color: '#FFFFFF',
-      fontWeight: '700',
     },
     tabContent: {
       flex: 1,
@@ -1846,27 +2221,158 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     tabContentContainer: {
       flexGrow: 1,
     },
+    sectionHeader: {
+      marginBottom: scale(20),
+    },
     sectionTitle: {
-      fontSize: fontScale(18),
+      fontSize: fontScale(22),
       fontWeight: '700',
-      color: '#FFFFFF',
-      marginBottom: scale(14),
+      color: '#111827',
+      marginBottom: scale(4),
       letterSpacing: 0.2,
     },
+    sectionTitleDark: {
+      color: '#F9FAFB',
+    },
+    sectionSubtitle: {
+      fontSize: fontScale(13),
+      color: '#6B7280',
+      fontWeight: '500',
+    },
+    sectionSubtitleDark: {
+      color: '#9CA3AF',
+    },
     videoCard: {
-      backgroundColor: 'rgba(255, 255, 255, 0.03)',
-      borderRadius: scale(16),
-      padding: scale(16),
-      marginBottom: scale(12),
-      flexDirection: 'row',
-      alignItems: 'center',
+      borderRadius: scale(20),
+      marginBottom: scale(16),
+      overflow: 'hidden',
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.08)',
+      borderColor: 'rgba(0,0,0,0.08)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 12,
       elevation: 4,
+    },
+    videoCardDark: {
+      borderColor: 'rgba(255,255,255,0.1)',
+    },
+    cardGradient: {
+      padding: scale(20),
+      borderRadius: scale(20),
+    },
+    videoCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: scale(16),
+    },
+    videoIconContainer: {
+      width: scale(48),
+      height: scale(48),
+      borderRadius: scale(12),
+      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: scale(12),
+    },
+    videoNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: scale(8),
+    },
+    videoName: {
+      fontSize: fontScale(18),
+      fontWeight: '700',
+      color: '#111827',
+      flex: 1,
+      letterSpacing: 0.2,
+    },
+    videoNameDark: {
+      color: '#F9FAFB',
+    },
+    ownedBadge: {
+      backgroundColor: '#10B981',
+      paddingHorizontal: scale(8),
+      paddingVertical: scale(4),
+      borderRadius: scale(6),
+    },
+    ownedBadgeText: {
+      color: '#FFF',
+      fontSize: fontScale(10),
+      fontWeight: '700',
+    },
+    videoDescription: {
+      fontSize: fontScale(14),
+      color: '#6B7280',
+      marginTop: scale(4),
+      lineHeight: fontScale(20),
+    },
+    videoDescriptionDark: {
+      color: '#9CA3AF',
+    },
+    videoStatsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: scale(8),
+      marginBottom: scale(16),
+    },
+    videoStatBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.03)',
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(6),
+      borderRadius: scale(8),
+      gap: scale(6),
+    },
+    videoStatText: {
+      fontSize: fontScale(12),
+      color: '#374151',
+      fontWeight: '600',
+    },
+    videoStatTextDark: {
+      color: '#D1D5DB',
+    },
+    videoCardFooter: {
+      marginTop: scale(8),
+    },
+    createButtonCard: {
+      borderRadius: scale(12),
+      overflow: 'hidden',
+    },
+    createButtonGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: scale(14),
+      paddingHorizontal: scale(20),
+      gap: scale(8),
+    },
+    createButtonText: {
+      color: '#FFF',
+      fontSize: fontScale(15),
+      fontWeight: '700',
+    },
+    buyButtonCard: {
+      borderRadius: scale(12),
+      overflow: 'hidden',
+    },
+    buyButtonGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: scale(14),
+      paddingHorizontal: scale(20),
+      gap: scale(8),
+    },
+    buyButtonText: {
+      color: '#FFF',
+      fontSize: fontScale(15),
+      fontWeight: '700',
+    },
+    disabledButtonCard: {
+      opacity: 0.5,
     },
     videoInfo: {
       flex: 1,
@@ -1934,82 +2440,156 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       flexWrap: 'wrap',
       justifyContent: 'space-between',
       gap: scale(10),
+      width: '100%',
     },
     statCard: {
-      backgroundColor: 'rgba(255, 255, 255, 0.03)',
-      borderRadius: scale(16),
-      padding: scale(16),
+      borderRadius: scale(20),
       width: '48%',
-      alignItems: 'center',
-      marginBottom: scale(4),
+      minWidth: scale(140),
+      marginBottom: scale(12),
+      overflow: 'hidden',
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.08)',
+      borderColor: 'rgba(0,0,0,0.08)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 12,
       elevation: 4,
     },
+    statCardDark: {
+      borderColor: 'rgba(255,255,255,0.1)',
+    },
+    statCardGradient: {
+      padding: scale(20),
+      alignItems: 'center',
+      borderRadius: scale(20),
+    },
+    statIconContainer: {
+      width: scale(48),
+      height: scale(48),
+      borderRadius: scale(24),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: scale(12),
+    },
     statValue: {
-      fontSize: fontScale(22),
+      fontSize: fontScale(24),
       fontWeight: '700',
-      color: '#FFFFFF',
-      marginTop: scale(8),
+      color: '#111827',
       marginBottom: scale(4),
+    },
+    statValueDark: {
+      color: '#F9FAFB',
     },
     statLabel: {
       fontSize: fontScale(12),
-      color: 'rgba(255, 255, 255, 0.5)',
+      color: '#6B7280',
       textAlign: 'center',
-      fontWeight: '500',
+      fontWeight: '600',
+      writingDirection: 'ltr',
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+    },
+    statLabelDark: {
+      color: '#9CA3AF',
     },
     uploadedVideoCard: {
-      backgroundColor: 'rgba(255, 255, 255, 0.03)',
-      borderRadius: scale(16),
-      padding: scale(16),
-      marginBottom: scale(12),
+      borderRadius: scale(20),
+      marginBottom: scale(16),
+      overflow: 'hidden',
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.08)',
+      borderColor: 'rgba(0,0,0,0.08)',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 12,
       elevation: 4,
+    },
+    uploadedVideoCardDark: {
+      borderColor: 'rgba(255,255,255,0.1)',
     },
     videoHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       marginBottom: scale(12),
     },
-    videoTitle: {
-      fontSize: fontScale(15),
-      fontWeight: '700',
-      color: '#FFFFFF',
+    videoHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
       flex: 1,
+      gap: scale(8),
+    },
+    videoTitle: {
+      fontSize: fontScale(16),
+      fontWeight: '700',
+      color: '#111827',
+      flex: 1,
+    },
+    videoTitleDark: {
+      color: '#F9FAFB',
     },
     videoDate: {
       fontSize: fontScale(11),
-      color: 'rgba(255, 255, 255, 0.45)',
+      color: '#9CA3AF',
+      fontWeight: '500',
+    },
+    videoDateDark: {
+      color: '#6B7280',
     },
     videoMetrics: {
       flexDirection: 'row',
-      justifyContent: 'space-around',
+      flexWrap: 'wrap',
+      gap: scale(8),
     },
-    metric: {
+    metricBadge: {
+      flexDirection: 'row',
       alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.03)',
+      paddingHorizontal: scale(10),
+      paddingVertical: scale(6),
+      borderRadius: scale(8),
+      gap: scale(6),
     },
     metricText: {
-      fontSize: fontScale(11),
-      color: 'rgba(255, 255, 255, 0.65)',
-      marginTop: scale(4),
+      fontSize: fontScale(12),
+      color: '#374151',
+      fontWeight: '600',
     },
-    noVideosText: {
+    metricTextDark: {
+      color: '#D1D5DB',
+    },
+    emptyState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: scale(60),
+    },
+    emptyIconContainer: {
+      width: scale(120),
+      height: scale(120),
+      borderRadius: scale(60),
+      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: scale(20),
+    },
+    emptyStateText: {
+      fontSize: fontScale(20),
+      fontWeight: '700',
+      color: '#111827',
+      marginBottom: scale(8),
+    },
+    emptyStateTextDark: {
+      color: '#F9FAFB',
+    },
+    emptyStateSubtext: {
       fontSize: fontScale(14),
-      color: 'rgba(255, 255, 255, 0.45)',
+      color: '#6B7280',
       textAlign: 'center',
-      fontStyle: 'italic',
-      marginTop: scale(20),
+      paddingHorizontal: scale(40),
+    },
+    emptyStateSubtextDark: {
+      color: '#9CA3AF',
     },
     studioContent: {
       width: '100%',
@@ -2737,55 +3317,91 @@ export default function GamingApp({ onBack }: GamingAppProps) {
 
   return (
     <LinearGradient
-      colors={['#0A0F1A', '#131B2E']}
+      colors={isDarkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F8FAFC', '#FFFFFF', '#F1F5F9']}
       style={styles.container}
     >
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft size={scale(24)} color="white" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Video size={scale(32)} color="#8B5CF6" />
-          <Text style={styles.headerTitle}>YouVideo</Text>
+      <MotiView
+        from={{ opacity: 0, translateY: -20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 400 }}
+      >
+        <View style={[styles.header, isDarkMode && styles.headerDark]}>
+          <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
+            <ArrowLeft size={scale(24)} color={isDarkMode ? '#F9FAFB' : '#111827'} />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <View style={styles.headerIconContainer}>
+              <Video size={scale(28)} color={isDarkMode ? '#8B5CF6' : '#6366F1'} />
+            </View>
+            <Text style={[styles.headerTitle, isDarkMode && styles.headerTitleDark]}>
+              YouVideo
+            </Text>
+          </View>
         </View>
-      </View>
+      </MotiView>
 
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'videos' && styles.activeTab]}
-          onPress={() => setActiveTab('videos')}
-        >
-          <Text style={[styles.tabText, activeTab === 'videos' && styles.activeTabText]}>
-            Videos
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'stats' && styles.activeTab]}
-          onPress={() => setActiveTab('stats')}
-        >
-          <Text style={[styles.tabText, activeTab === 'stats' && styles.activeTabText]}>
-            Stats
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'studio' && styles.activeTab]}
-          onPress={() => setActiveTab('studio')}
-        >
-          <Text style={[styles.tabText, activeTab === 'studio' && styles.activeTabText]}>
-            Studio
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'store' && styles.activeTab]}
-          onPress={() => setActiveTab('store')}
-        >
-          <Text style={[styles.tabText, activeTab === 'store' && styles.activeTabText]}>
-            Store
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Tabs - Icon Only */}
+      <MotiView
+        from={{ opacity: 0, translateY: 20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 400, delay: 100 }}
+      >
+        <View style={[styles.tabs, isDarkMode && styles.tabsDark]}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'videos' && styles.activeTab]}
+            onPress={() => setActiveTab('videos')}
+            activeOpacity={0.7}
+          >
+            <Video 
+              size={24} 
+              color={activeTab === 'videos' 
+                ? '#8B5CF6' 
+                : (isDarkMode ? '#9CA3AF' : '#6B7280')
+              } 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'stats' && styles.activeTab]}
+            onPress={() => setActiveTab('stats')}
+            activeOpacity={0.7}
+          >
+            <TrendingUp 
+              size={24} 
+              color={activeTab === 'stats' 
+                ? '#8B5CF6' 
+                : (isDarkMode ? '#9CA3AF' : '#6B7280')
+              } 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'studio' && styles.activeTab]}
+            onPress={() => setActiveTab('studio')}
+            activeOpacity={0.7}
+          >
+            <Play 
+              size={24} 
+              color={activeTab === 'studio' 
+                ? '#8B5CF6' 
+                : (isDarkMode ? '#9CA3AF' : '#6B7280')
+              } 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'store' && styles.activeTab]}
+            onPress={() => setActiveTab('store')}
+            activeOpacity={0.7}
+          >
+            <Settings 
+              size={24} 
+              color={activeTab === 'store' 
+                ? '#8B5CF6' 
+                : (isDarkMode ? '#9CA3AF' : '#6B7280')
+              } 
+            />
+          </TouchableOpacity>
+        </View>
+      </MotiView>
 
       {/* Tab Content */}
       {activeTab === 'videos' && renderVideosTab()}
@@ -3080,7 +3696,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
             >
               <View style={allStyles.modalHeader}>
                 <Text style={[styles.modalTitle, isDarkMode && styles.modalTitleDark]}>
-                  🏆 Max Level Reached
+                  🏆† Max Level Reached
                 </Text>
               </View>
               
@@ -3232,3 +3848,4 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     </LinearGradient>
   );
 }
+

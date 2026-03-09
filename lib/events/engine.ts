@@ -1,9 +1,19 @@
 import type { GameState, GameStats } from '@/contexts/GameContext';
 import { marketCrash, sideGig, earningsReport } from './economy';
 import { getSeasonalEvents } from './seasonalEvents';
+import { economyEventTemplates, shouldTriggerEconomicEvent, generateEconomicEvent, getCurrentEconomicState } from './economyEvents';
+import { personalCrisisEventTemplates } from './personalCrises';
+import { enhancedEventTemplates } from './enhancedEvents';
+import { lifeMilestoneEventTemplates } from './lifeMilestoneEvents';
+import { careerEventTemplates } from './careerEvents';
+import { travelEventTemplates } from './travelEvents';
+import { nearMissEventTemplates } from './nearMissEvents';
+import { fameEventTemplates } from './fameEvents';
+import { secretEventTemplates } from './secretEvents';
 import { POLICIES } from '@/lib/politics/policies';
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
 import { logger } from '@/utils/logger';
+import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 
 export interface EventChoiceEffects {
   money?: number;
@@ -13,13 +23,37 @@ export interface EventChoiceEffects {
   policy?: string; // Policy ID that gets enacted
   approvalRating?: number; // Change to political approval rating
   policyInfluence?: number; // Change to policy influence
+  /** Karma change applied when this choice is selected */
+  karma?: { dimension: KarmaDimension; amount: number; reason: string };
 }
 
 export interface EventChoice {
   id: string;
   text: string;
   effects: EventChoiceEffects;
-  special?: string; // STABILITY FIX: Special effects (e.g., 'grant_free_education')
+  special?: string; // STABILITY FIX: Special effects (e.g., 'grant_free_education', 'add_disease')
+  followUpEventId?: string; // ID of follow-up event to trigger after this choice
+  chainId?: string; // ID of event chain this choice continues
+  diseaseId?: string; // Disease ID to add when special === 'add_disease'
+}
+
+/**
+ * Enhanced event choice with tradeoffs and hidden consequences
+ * Extends the base EventChoice interface
+ */
+export interface EnhancedEventChoice extends EventChoice {
+  // Visual tradeoff indicators (shown in UI)
+  tradeoffs?: {
+    gain: Array<{ stat: string; amount: number; label: string }>;
+    lose: Array<{ stat: string; amount: number; label: string }>;
+  };
+  // Hidden consequences (long-term effects)
+  hiddenConsequences?: Array<Omit<import('@/lib/lifeMoments/types').HiddenConsequence, 'id' | 'eventId' | 'choiceId' | 'active' | 'weeksSinceCreated' | 'createdAt'>>;
+  // Emotional weight indicator
+  emotionalImpact?: 'low' | 'medium' | 'high';
+  // Memory creation
+  createsMemory?: boolean;
+  memoryText?: string;
 }
 
 export interface WeeklyEvent {
@@ -27,6 +61,10 @@ export interface WeeklyEvent {
   description: string;
   choices: EventChoice[];
   relationId?: string;
+  chainId?: string; // ID of event chain this belongs to
+  chainStage?: number; // Stage number in the chain (0-based)
+  followUpEventId?: string; // ID of follow-up event to trigger after choice
+  generatedAtWeeksLived?: number; // Absolute week generated; used for persistence hygiene
 }
 
 export interface EventTemplate {
@@ -104,7 +142,7 @@ const lotteryWin: EventTemplate = {
 const burglary: EventTemplate = {
   id: 'burglary',
   category: 'economy',
-  weight: (state: GameState) => (state.realEstate.some(r => r.owned) ? 0.1 : 0.4),
+  weight: (state: GameState) => ((state.realEstate || []).some(r => r.owned) ? 0.1 : 0.4),
   generate: () => ({
     id: 'burglary',
     description: 'A burglary occurs at your place.',
@@ -149,16 +187,17 @@ const friendNeedsHelp: EventTemplate = {
   id: 'friend_help',
   category: 'relationship',
   weight: 0.5,
-  condition: state => state.relationships.length > 0,
+  condition: state => state.relationships?.length > 0,
   generate: state => {
+    if (!state.relationships?.length) return { id: 'friend_help', description: 'A friend reaches out.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     const friend = state.relationships[Math.floor(Math.random() * state.relationships.length)];
     return {
       id: 'friend_help',
       description: `${friend.name} asks to borrow $50.`,
       relationId: friend.id,
       choices: [
-        { id: 'lend', text: 'Lend the money', effects: { money: -50, relationship: 10, stats: { happiness: 5 } } },
-        { id: 'refuse', text: 'Refuse', effects: { relationship: -10, stats: { happiness: -5 } } },
+        { id: 'lend', text: 'Lend the money', effects: { money: -50, relationship: 10, stats: { happiness: 5 }, karma: { dimension: 'generosity', amount: 4, reason: 'Helped a friend in need' } } },
+        { id: 'refuse', text: 'Refuse', effects: { relationship: -10, stats: { happiness: -5 }, karma: { dimension: 'generosity', amount: -3, reason: 'Refused to help a friend' } } },
       ],
     };
   },
@@ -170,12 +209,13 @@ const weddingEvent: EventTemplate = {
   weight: 0.2,
   // Only allow wedding consideration after week 36 and if a partner exists
   // TESTFLIGHT FIX: Use weeksLived for deterministic behavior (week 1-4 resets monthly)
-  condition: state => (state.weeksLived || 0) >= 36 && state.relationships.some(r => r.type === 'partner'),
+  condition: state => (state.weeksLived || 0) >= 36 && state.relationships?.some(r => r.type === 'partner'),
   generate: state => {
-    const partner = state.relationships.find(r => r.type === 'partner')!;
+    const partner = state.relationships?.find(r => r.type === 'partner');
+    if (!partner) return { id: 'wedding', description: 'You think about the future.', choices: [{ id: 'wait', text: 'Continue', effects: {} }] };
     return {
       id: 'wedding',
-      description: `You consider marrying ${partner.name}.` ,
+      description: `You consider marrying ${partner.name}.`,
       relationId: partner.id,
       choices: [
         { id: 'marry', text: 'Plan wedding ($2000)', effects: { money: -2000, relationship: 20, stats: { happiness: 15 } } },
@@ -191,7 +231,9 @@ const schoolFees: EventTemplate = {
   weight: 0.3,
   condition: state => state.family?.children?.length > 0,
   generate: state => {
-    const child = state.family.children[Math.floor(Math.random() * state.family.children.length)];
+    const children = state.family?.children;
+    if (!children?.length) return { id: 'school_fees', description: 'School fees are due.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
+    const child = children[Math.floor(Math.random() * children.length)];
     return {
       id: 'school_fees',
       description: `${child.name}'s school fees of $100 are due.`,
@@ -226,8 +268,8 @@ const foundWallet: EventTemplate = {
     id: 'found_wallet',
     description: 'You find a wallet on the street.',
     choices: [
-      { id: 'keep', text: 'Keep the cash', effects: { money: 40, stats: { reputation: -10 } } },
-      { id: 'return', text: 'Return it to the owner', effects: { stats: { reputation: 10, happiness: 5 } } },
+      { id: 'keep', text: 'Keep the cash', effects: { money: 40, stats: { reputation: -10 }, karma: { dimension: 'honesty', amount: -5, reason: 'Kept a found wallet' } } },
+      { id: 'return', text: 'Return it to the owner', effects: { stats: { reputation: 10, happiness: 5 }, karma: { dimension: 'honesty', amount: 5, reason: 'Returned a found wallet' } } },
     ],
   }),
 };
@@ -240,8 +282,8 @@ const charityEvent: EventTemplate = {
     id: 'charity_event',
     description: 'A charity asks for a $30 donation.',
     choices: [
-      { id: 'donate', text: 'Donate', effects: { money: -30, stats: { reputation: 10, happiness: 5 } } },
-      { id: 'decline', text: 'Decline', effects: { stats: { reputation: -5 } } },
+      { id: 'donate', text: 'Donate', effects: { money: -30, stats: { reputation: 10, happiness: 5 }, karma: { dimension: 'generosity', amount: 5, reason: 'Donated to charity' } } },
+      { id: 'decline', text: 'Decline', effects: { stats: { reputation: -5 }, karma: { dimension: 'generosity', amount: -2, reason: 'Declined a charity appeal' } } },
     ],
   }),
 };
@@ -250,8 +292,9 @@ const gymInvitation: EventTemplate = {
   id: 'gym_invite',
   category: 'health',
   weight: 0.3,
-  condition: state => state.relationships.length > 0,
+  condition: state => state.relationships?.length > 0,
   generate: state => {
+    if (!state.relationships?.length) return { id: 'gym_invite', description: 'A friend invites you to the gym.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     const friend = state.relationships[Math.floor(Math.random() * state.relationships.length)];
     return {
       id: 'gym_invite',
@@ -326,8 +369,9 @@ const petIllness: EventTemplate = {
   id: 'pet_illness',
   category: 'general',
   weight: 0.3,
-  condition: state => state.pets.length > 0,
+  condition: state => state.pets?.length > 0,
   generate: state => {
+    if (!state.pets?.length) return { id: 'pet_illness', description: 'You hear about a sick animal.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     const pet = state.pets[Math.floor(Math.random() * state.pets.length)];
     return {
       id: 'pet_illness',
@@ -353,9 +397,10 @@ const petContest: EventTemplate = {
   id: 'pet_contest',
   category: 'general',
   weight: 0.2,
-  condition: state => state.pets.some(p => p.happiness > 60),
+  condition: state => state.pets?.some(p => p.happiness > 60),
   generate: state => {
-    const candidates = state.pets.filter(p => p.happiness > 60);
+    const candidates = (state.pets || []).filter(p => p.happiness > 60);
+    if (!candidates.length) return { id: 'pet_contest', description: 'A local contest is happening.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     const pet = candidates[Math.floor(Math.random() * candidates.length)];
     return {
       id: 'pet_contest',
@@ -558,7 +603,7 @@ const policyVotingEvent: EventTemplate = {
   generate: (state) => {
     const politics = state.politics!;
     const careerLevel = politics.careerLevel;
-    
+
     // Get available policies for voting
     const availablePolicies = POLICIES.filter(p => p.requiredLevel <= careerLevel);
     if (availablePolicies.length === 0) {
@@ -571,15 +616,15 @@ const policyVotingEvent: EventTemplate = {
         ],
       };
     }
-    
+
     // Pick a random policy
     const policy = availablePolicies[Math.floor(Math.random() * availablePolicies.length)];
-    
+
     // Determine party preferences based on policy type
     const playerParty = politics.party || 'independent';
     let democraticSupport = 50;
     let republicanSupport = 50;
-    
+
     // Party preferences by policy type
     if (policy.type === 'economic') {
       if (policy.approvalImpact > 0) {
@@ -599,30 +644,30 @@ const policyVotingEvent: EventTemplate = {
       democraticSupport = 45;
       republicanSupport = 55;
     }
-    
+
     // Add randomness
     democraticSupport += (Math.random() - 0.5) * 20;
     republicanSupport += (Math.random() - 0.5) * 20;
     democraticSupport = Math.max(0, Math.min(100, democraticSupport));
     republicanSupport = Math.max(0, Math.min(100, republicanSupport));
-    
+
     // Calculate if policy passes (needs >50% support from majority party)
-    const majoritySupport = playerParty === 'democratic' ? democraticSupport : 
-                           playerParty === 'republican' ? republicanSupport : 
-                           (democraticSupport + republicanSupport) / 2;
+    const majoritySupport = playerParty === 'democratic' ? democraticSupport :
+      playerParty === 'republican' ? republicanSupport :
+        (democraticSupport + republicanSupport) / 2;
     const willPass = majoritySupport > 50;
-    
+
     const policyEffects = policy.effects;
     const approvalChange = policy.approvalImpact;
-    
+
     return {
       id: 'policy_voting',
       description: `A vote on "${policy.name}" is scheduled. ${policy.description} The ${playerParty === 'democratic' ? 'Democratic' : playerParty === 'republican' ? 'Republican' : 'Independent'} party ${willPass ? 'supports' : 'opposes'} this policy (${Math.round(majoritySupport)}% support).`,
       choices: [
-        { 
-          id: 'vote_yes', 
-          text: `Vote Yes ${willPass ? '(Will Pass)' : '(Will Fail)'}`, 
-          effects: { 
+        {
+          id: 'vote_yes',
+          text: `Vote Yes ${willPass ? '(Will Pass)' : '(Will Fail)'}`,
+          effects: {
             policy: policy.id,
             approvalRating: willPass ? approvalChange : approvalChange - 10,
             stats: willPass ? {
@@ -631,25 +676,25 @@ const policyVotingEvent: EventTemplate = {
               health: policyEffects.health || 0,
               reputation: (policyEffects.reputation || 0) + (willPass ? 5 : -5),
             } : { reputation: -5 },
-          } 
+          }
         },
-        { 
-          id: 'vote_no', 
-          text: `Vote No ${willPass ? '(Will Pass Anyway)' : '(Will Fail)'}`, 
-          effects: { 
+        {
+          id: 'vote_no',
+          text: `Vote No ${willPass ? '(Will Pass Anyway)' : '(Will Fail)'}`,
+          effects: {
             approvalRating: willPass ? -approvalChange : -approvalChange + 10,
             stats: {
               reputation: willPass ? -10 : 5,
             },
-          } 
+          }
         },
-        { 
-          id: 'abstain', 
-          text: 'Abstain from Voting', 
-          effects: { 
+        {
+          id: 'abstain',
+          text: 'Abstain from Voting',
+          effects: {
             approvalRating: -5,
             stats: { reputation: -2 },
-          } 
+          }
         },
       ],
     };
@@ -839,7 +884,7 @@ const policyBacklash: EventTemplate = {
     const enactedPolicies = state.politics!.policiesEnacted || [];
     const randomPolicyId = enactedPolicies[Math.floor(Math.random() * enactedPolicies.length)];
     const policy = POLICIES.find(p => p.id === randomPolicyId);
-    
+
     return {
       id: 'policy_backlash',
       description: `Your "${policy?.name || 'recent policy'}" faces strong public backlash.`,
@@ -861,7 +906,7 @@ const stockMarketRegulation: EventTemplate = {
   generate: state => {
     const stockPolicies = (state.politics!.policiesEnacted || []).filter(p => POLICIES.find(pol => pol.id === p)?.type === 'stock');
     const policy = stockPolicies.length > 0 ? POLICIES.find(p => p.id === stockPolicies[Math.floor(Math.random() * stockPolicies.length)]) : null;
-    
+
     return {
       id: 'stock_market_regulation',
       description: `Your "${policy?.name || 'stock market policy'}" is affecting market volatility. Investors are ${policy?.effects.stocks?.volatilityModifier && policy.effects.stocks.volatilityModifier < 1 ? 'grateful for the stability' : 'concerned about the changes'}.`,
@@ -1213,17 +1258,17 @@ const investmentTip: EventTemplate = {
     // Cap at $25K/$50K to prevent excessive risk/reward
     const { netWorth } = require('@/lib/progress/achievements');
     const currentNetWorth = netWorth(state);
-    
+
     // Small investment: 0.1-0.2% of net worth, floor $1K, cap $25K
     const smallPercentage = 0.001 + (Math.random() * 0.001); // 0.1-0.2%
     const baseSmall = Math.floor(currentNetWorth * smallPercentage);
     const smallAmount = Math.max(1000, Math.min(25000, baseSmall));
-    
+
     // Big investment: 0.3-0.5% of net worth, floor $5K, cap $50K
     const bigPercentage = 0.003 + (Math.random() * 0.002); // 0.3-0.5%
     const baseBig = Math.floor(currentNetWorth * bigPercentage);
     const bigAmount = Math.max(5000, Math.min(50000, baseBig));
-    
+
     return {
       id: 'investment_tip',
       description: 'A successful investor shares a tip about an undervalued stock. It could double or lose 50%.',
@@ -1251,10 +1296,10 @@ const businessPartnership: EventTemplate = {
     const percentage = 0.02 + (Math.random() * 0.03); // 2-5% of net worth
     const baseOffer = Math.floor(currentNetWorth * percentage);
     const scaledOffer = Math.max(10000, Math.min(100000, baseOffer)); // Floor $10K, cap $100K
-    
+
     // Negotiate option gives 50% more (same ratio as before)
     const negotiateOffer = Math.floor(scaledOffer * 1.5);
-    
+
     return {
       id: 'business_partnership',
       description: `A successful entrepreneur wants to partner with your business. They offer $${scaledOffer.toLocaleString()} capital for equity.`,
@@ -1281,7 +1326,7 @@ const distantRelativeInheritance: EventTemplate = {
     const percentage = 0.001 + (Math.random() * 0.002); // 0.1-0.3% of net worth
     const baseInheritance = Math.floor(currentNetWorth * percentage);
     const inheritance = Math.max(5000, Math.min(50000, baseInheritance)); // Floor $5K, cap $50K
-    
+
     return {
       id: 'distant_relative_inheritance',
       description: `You receive news that a distant relative passed away and left you $${inheritance.toLocaleString()} in their will.`,
@@ -1504,7 +1549,7 @@ const scholarshipOpportunity: EventTemplate = {
   condition: state => {
     // Only trigger if player has been in poverty (low money) for extended period
     // STABILITY FIX: Reduced from 20 weeks to 12 weeks for faster recovery
-    const weeksInPoverty = (state as any).weeksInPoverty || 0; // Type assertion for new field
+    const weeksInPoverty = 'weeksInPoverty' in state && typeof state.weeksInPoverty === 'number' ? state.weeksInPoverty : 0;
     const hasLowMoney = state.stats.money < 500;
     const hasNoEducation = !state.educations?.some(e => e.completed);
     return weeksInPoverty >= 12 && hasLowMoney && hasNoEducation; // Reduced from 20 to 12 weeks
@@ -2061,25 +2106,25 @@ const vehicleTheft: EventTemplate = {
     const vehicle = vehicles[Math.floor(Math.random() * vehicles.length)];
     const hasInsurance = vehicle.insurance?.active;
     const recoveryChance = Math.random();
-    
+
     return {
       id: 'vehicle_theft',
       description: `Your ${vehicle.name} was stolen! ${recoveryChance > 0.3 ? 'Police found it, but it needs repairs.' : 'It\'s gone for good.'}`,
       choices: recoveryChance > 0.3
         ? [
-            { 
-              id: 'repair', 
-              text: hasInsurance ? 'File insurance claim (covers most costs)' : `Pay $${Math.floor(vehicle.price * 0.3)} for repairs`, 
-              effects: { money: hasInsurance ? -Math.floor(vehicle.price * 0.05) : -Math.floor(vehicle.price * 0.3), stats: { happiness: -10 } } 
-            },
-          ]
+          {
+            id: 'repair',
+            text: hasInsurance ? 'File insurance claim (covers most costs)' : `Pay $${Math.floor(vehicle.price * 0.3)} for repairs`,
+            effects: { money: hasInsurance ? -Math.floor(vehicle.price * 0.05) : -Math.floor(vehicle.price * 0.3), stats: { happiness: -10 } }
+          },
+        ]
         : [
-            { 
-              id: 'accept', 
-              text: hasInsurance ? 'File insurance claim (get partial reimbursement)' : 'Accept the loss', 
-              effects: { money: hasInsurance ? Math.floor(vehicle.price * 0.5) : 0, stats: { happiness: -20, reputation: -5 } } 
-            },
-          ],
+          {
+            id: 'accept',
+            text: hasInsurance ? 'File insurance claim (get partial reimbursement)' : 'Accept the loss',
+            effects: { money: hasInsurance ? Math.floor(vehicle.price * 0.5) : 0, stats: { happiness: -20, reputation: -5 } }
+          },
+        ],
     };
   },
 };
@@ -2092,24 +2137,24 @@ const vehicleBreakdown: EventTemplate = {
   generate: state => {
     const vehicle = (state.vehicles || []).find(v => v.id === state.activeVehicleId);
     if (!vehicle) return { id: 'vehicle_breakdown', description: '', choices: [] };
-    
+
     const repairCost = vehicle.condition < 30 ? 500 : vehicle.condition < 60 ? 300 : 150;
     const hasInsurance = vehicle.insurance?.active;
     const coveredCost = hasInsurance ? Math.floor(repairCost * (1 - (vehicle.insurance?.coveragePercent || 0) / 100)) : repairCost;
-    
+
     return {
       id: 'vehicle_breakdown',
       description: `Your ${vehicle.name} broke down on the highway! ${vehicle.condition < 30 ? 'The engine needs major repairs.' : 'It needs immediate attention.'}`,
       choices: [
-        { 
-          id: 'repair', 
-          text: hasInsurance ? `Get it repaired (insurance covers ${vehicle.insurance?.coveragePercent || 0}%, pay $${coveredCost})` : `Pay $${repairCost} for repairs`, 
-          effects: { money: -coveredCost, stats: { happiness: -5 } } 
+        {
+          id: 'repair',
+          text: hasInsurance ? `Get it repaired (insurance covers ${vehicle.insurance?.coveragePercent || 0}%, pay $${coveredCost})` : `Pay $${repairCost} for repairs`,
+          effects: { money: -coveredCost, stats: { happiness: -5 } }
         },
-        { 
-          id: 'delay', 
-          text: 'Wait and see (condition will worsen)', 
-          effects: { stats: { happiness: -10, energy: -5 } } 
+        {
+          id: 'delay',
+          text: 'Wait and see (condition will worsen)',
+          effects: { stats: { happiness: -10, energy: -5 } }
         },
       ],
     };
@@ -2135,6 +2180,11 @@ const parkingTicket: EventTemplate = {
 };
 
 export const eventTemplates: EventTemplate[] = [
+  // Personal Crisis Events (added first for priority)
+  ...personalCrisisEventTemplates,
+  // Economic Event Templates (for individual economic events, not global state)
+  ...economyEventTemplates,
+  // Regular Events
   jobBonus,
   sickDay,
   unexpectedBill,
@@ -2275,33 +2325,547 @@ export const eventTemplates: EventTemplate[] = [
   antiqueFinding,
   volunteerCoach,
   wineSurvey,
+  // Enhanced events with tradeoffs and hidden consequences
+  ...enhancedEventTemplates,
+  // Life milestone events (relationships, family, age, wellness)
+  ...lifeMilestoneEventTemplates,
+  // Career events (performance, workplace, firing)
+  ...careerEventTemplates,
+  // Travel events (experiences while on trips)
+  ...travelEventTemplates,
+  // Near-miss events (tension builders — "you almost died!")
+  ...nearMissEventTemplates,
+  // Fame tier events (paparazzi, talk shows, stalkers — fame = double-edged sword)
+  ...fameEventTemplates,
+  // Secret/Easter egg events (hidden triggers, community discovery)
+  ...secretEventTemplates,
 ];
 
-const MAX_EVENTS_PER_WEEK = 2;
-const EVENT_FREQUENCY_MODIFIER = 0.25; // 25% base chance (1 in 4 weeks)
+// ── ENGAGEMENT: Multi-week event chain definitions ──
+// Each chain is a sequence of events that create "one more turn" cliffhangers.
+// Chains use the existing activeEventChain / eventChains fields on GameState.
+
+interface EventChainDefinition {
+  chainId: string;
+  /** Minimum weeksLived before this chain can trigger */
+  minWeeksLived: number;
+  maxWeeksLived?: number;
+  /** Base probability per eligible week (before pity) */
+  triggerChance: number;
+  /** Additional condition */
+  condition?: (state: GameState) => boolean;
+  /** Ordered stages — each generates a WeeklyEvent */
+  stages: ((state: GameState, stageIndex: number) => WeeklyEvent)[];
+}
+
+const eventChainDefinitions: EventChainDefinition[] = [
+  // ── Health Scare: 3-stage chain ──
+  {
+    chainId: 'health_scare',
+    minWeeksLived: 15,
+    triggerChance: 0.03,
+    condition: (s) => (s.stats?.health ?? 50) < 70,
+    stages: [
+      (_s, _i) => ({
+        id: 'health_scare_symptoms',
+        description:
+          'You wake up with persistent chest pain and shortness of breath. Something feels wrong.',
+        chainId: 'health_scare',
+        chainStage: 0,
+        choices: [
+          {
+            id: 'see_doctor',
+            text: 'See a doctor immediately (-$200)',
+            effects: { money: -200, stats: { energy: -10 } },
+          },
+          {
+            id: 'ignore',
+            text: 'Push through it',
+            effects: { stats: { health: -8, energy: -5 } },
+          },
+        ],
+      }),
+      (s, _i) => {
+        const sawDoctor = (s.eventLog || []).some(
+          (e: any) => e.id === 'health_scare_symptoms' && e.choiceId === 'see_doctor',
+        );
+        return {
+          id: 'health_scare_diagnosis',
+          description: sawDoctor
+            ? 'The doctor found the issue early. "Good thing you came in — we caught it before it got serious."'
+            : 'The pain got worse. A trip to the ER reveals a condition that could have been caught earlier.',
+          chainId: 'health_scare',
+          chainStage: 1,
+          choices: [
+            {
+              id: 'treatment',
+              text: sawDoctor ? 'Start treatment (-$500)' : 'Emergency treatment (-$1,500)',
+              effects: {
+                money: sawDoctor ? -500 : -1500,
+                stats: { health: sawDoctor ? 5 : -5, happiness: -10 },
+              },
+            },
+            {
+              id: 'alternative',
+              text: 'Try lifestyle changes instead',
+              effects: { stats: { happiness: -5, fitness: 5 } },
+            },
+          ],
+        };
+      },
+      (s, _i) => {
+        const gotTreatment = (s.eventLog || []).some(
+          (e: any) => e.id === 'health_scare_diagnosis' && e.choiceId === 'treatment',
+        );
+        return {
+          id: 'health_scare_recovery',
+          description: gotTreatment
+            ? 'After weeks of treatment, you feel better than ever. The experience changed your perspective on life.'
+            : 'You managed to improve through sheer willpower, but the doctor warns it could return.',
+          chainId: 'health_scare',
+          chainStage: 2,
+          choices: [
+            {
+              id: 'grateful',
+              text: gotTreatment ? 'Embrace the new chapter' : 'Commit to healthier living',
+              effects: {
+                stats: {
+                  health: gotTreatment ? 20 : 10,
+                  happiness: 15,
+                  fitness: gotTreatment ? 10 : 15,
+                },
+              },
+            },
+          ],
+        };
+      },
+    ],
+  },
+
+  // ── Business Opportunity: 4-stage chain ──
+  {
+    chainId: 'business_opportunity',
+    minWeeksLived: 20,
+    triggerChance: 0.025,
+    condition: (s) => (s.stats?.money ?? 0) >= 2000 && !!s.currentJob,
+    stages: [
+      (_s, _i) => ({
+        id: 'biz_meet_investor',
+        description:
+          'At a networking event, a well-dressed stranger says: "I\'ve been watching your career. I have a proposition."',
+        chainId: 'business_opportunity',
+        chainStage: 0,
+        choices: [
+          { id: 'listen', text: 'Hear them out', effects: { stats: { happiness: 5 } } },
+          { id: 'decline', text: 'Politely decline', effects: { stats: { happiness: -3 } } },
+        ],
+      }),
+      (s, _i) => {
+        const listened = (s.eventLog || []).some(
+          (e: any) => e.id === 'biz_meet_investor' && e.choiceId === 'listen',
+        );
+        if (!listened) {
+          return {
+            id: 'biz_pitch',
+            description:
+              'You run into the investor again. "Last chance — this deal closes Friday."',
+            chainId: 'business_opportunity',
+            chainStage: 1,
+            choices: [
+              { id: 'invest_small', text: 'Invest a small amount (-$1,000)', effects: { money: -1000 } },
+              { id: 'pass', text: 'Pass again', effects: {} },
+            ],
+          };
+        }
+        return {
+          id: 'biz_pitch',
+          description:
+            'The investor presents the deal: a new venture in your field. "I need $2,000 to get started. You\'d own 20%."',
+          chainId: 'business_opportunity',
+          chainStage: 1,
+          choices: [
+            { id: 'invest_big', text: 'Go all in (-$2,000)', effects: { money: -2000, stats: { happiness: 10 } } },
+            { id: 'invest_small', text: 'Invest half (-$1,000)', effects: { money: -1000 } },
+            { id: 'pass', text: 'Too risky, pass', effects: {} },
+          ],
+        };
+      },
+      (_s, _i) => ({
+        id: 'biz_waiting',
+        description:
+          'Weeks pass. The investment is showing early signs of activity. You receive a brief update: "Things are moving."',
+        chainId: 'business_opportunity',
+        chainStage: 2,
+        choices: [
+          { id: 'patient', text: 'Stay patient', effects: { stats: { happiness: -5 } } },
+          { id: 'check_in', text: 'Check in on progress', effects: { stats: { energy: -5 } } },
+        ],
+      }),
+      (s, _i) => {
+        const investedBig = (s.eventLog || []).some(
+          (e: any) => e.id === 'biz_pitch' && e.choiceId === 'invest_big',
+        );
+        const investedSmall = (s.eventLog || []).some(
+          (e: any) => e.id === 'biz_pitch' && e.choiceId === 'invest_small',
+        );
+        const passed = !investedBig && !investedSmall;
+        if (passed) {
+          return {
+            id: 'biz_results',
+            description:
+              'You hear the venture succeeded massively. The investors tripled their money. You feel a pang of regret.',
+            chainId: 'business_opportunity',
+            chainStage: 3,
+            choices: [{ id: 'accept', text: 'Accept the lesson learned', effects: { stats: { happiness: -10 } } }],
+          };
+        }
+        const payout = investedBig ? 6000 : 3000;
+        return {
+          id: 'biz_results',
+          description: `The venture paid off! Your ${investedBig ? '$2,000' : '$1,000'} investment returned $${payout.toLocaleString()}.`,
+          chainId: 'business_opportunity',
+          chainStage: 3,
+          choices: [
+            {
+              id: 'celebrate',
+              text: `Collect your triple return (+$${payout.toLocaleString()})`,
+              effects: { money: payout, stats: { happiness: 20 } },
+            },
+          ],
+        };
+      },
+    ],
+  },
+
+  // ── Family Crisis: 3-stage chain ──
+  {
+    chainId: 'family_crisis',
+    minWeeksLived: 25,
+    triggerChance: 0.02,
+    condition: (s) => (s.relationships || []).length > 0,
+    stages: [
+      (s, _i) => {
+        const relationName = (s.relationships || [])[0]?.name || 'A close friend';
+        return {
+          id: 'family_crisis_call',
+          description: `${relationName} calls you in tears: "I'm in serious trouble and I don't know who else to ask."`,
+          chainId: 'family_crisis',
+          chainStage: 0,
+          choices: [
+            { id: 'help_money', text: 'Send them money (-$500)', effects: { money: -500, stats: { happiness: -5 } } },
+            { id: 'help_time', text: 'Drop everything and go help', effects: { stats: { energy: -25, happiness: -5 } } },
+            { id: 'cant_help', text: '"I\'m sorry, I can\'t right now"', effects: { stats: { happiness: -15 } } },
+          ],
+        };
+      },
+      (s, _i) => {
+        const helped =
+          (s.eventLog || []).some(
+            (e: any) =>
+              e.id === 'family_crisis_call' && (e.choiceId === 'help_money' || e.choiceId === 'help_time'),
+          );
+        return {
+          id: 'family_crisis_deepen',
+          description: helped
+            ? 'Your help made a real difference, but the situation is more complicated than expected. They need one more favor.'
+            : "Things got worse. You hear through others that they're struggling badly. Guilt weighs on you.",
+          chainId: 'family_crisis',
+          chainStage: 1,
+          choices: helped
+            ? [
+                { id: 'continue_help', text: 'See it through (-$300)', effects: { money: -300, stats: { energy: -10 } } },
+                { id: 'set_boundary', text: '"I\'ve done what I can"', effects: { stats: { happiness: -10 } } },
+              ]
+            : [
+                { id: 'reach_out', text: 'Reach out and apologize', effects: { stats: { happiness: 5, energy: -10 } } },
+                { id: 'stay_away', text: 'Stay out of it', effects: { stats: { happiness: -15 } } },
+              ],
+        };
+      },
+      (s, _i) => {
+        const helpedAtAll = (s.eventLog || []).some(
+          (e: any) =>
+            (e.id === 'family_crisis_call' && (e.choiceId === 'help_money' || e.choiceId === 'help_time')) ||
+            (e.id === 'family_crisis_deepen' && (e.choiceId === 'continue_help' || e.choiceId === 'reach_out')),
+        );
+        return {
+          id: 'family_crisis_resolution',
+          description: helpedAtAll
+            ? 'The crisis passed. They call you with tears of gratitude: "I will never forget what you did for me."'
+            : 'The crisis eventually resolved, but the relationship may never be the same.',
+          chainId: 'family_crisis',
+          chainStage: 2,
+          choices: [
+            {
+              id: 'reflect',
+              text: helpedAtAll ? 'Feel proud of being there' : 'Reflect on what happened',
+              effects: { stats: { happiness: helpedAtAll ? 25 : -5 }, money: helpedAtAll ? 200 : 0 },
+            },
+          ],
+        };
+      },
+    ],
+  },
+];
 
 /**
- * Weekly Event System:
- * - Events now occur randomly with approximately 1 in 4 weeks frequency (20-30% chance)
- * - This makes events feel more natural and less predictable
- * - Players will experience periods of calm followed by eventful weeks
- * - The base chance varies slightly each week for more realistic randomness
+ * Check if any chain should start this week (used by rollWeeklyEvents).
+ */
+export function rollEventChain(state: GameState): WeeklyEvent | null {
+  if (state.activeEventChain) return null;
+
+  const wl = state.weeksLived || 0;
+  const completedChainIds = (state.eventChains || [])
+    .filter((c: any) => c.completed)
+    .map((c: any) => c.chainId);
+
+  for (const chain of eventChainDefinitions) {
+    if (wl < chain.minWeeksLived) continue;
+    if (chain.maxWeeksLived && wl > chain.maxWeeksLived) continue;
+    if (completedChainIds.includes(chain.chainId)) continue;
+    if (chain.condition && !chain.condition(state)) continue;
+
+    const seed = (wl * 997 + chain.chainId.length * 31) % 10000;
+    const roll = Math.sin(seed) * 10000 - Math.floor(Math.sin(seed) * 10000);
+    if (roll < chain.triggerChance) {
+      return chain.stages[0](state, 0);
+    }
+  }
+  return null;
+}
+
+/**
+ * Get the next event in an active chain.
+ */
+function getNextChainEvent(state: GameState): WeeklyEvent | null {
+  const active = state.activeEventChain;
+  if (!active) return null;
+
+  const chain = eventChainDefinitions.find((c) => c.chainId === active.chainId);
+  if (!chain) return null;
+
+  const nextStage = active.currentStage + 1;
+  if (nextStage >= chain.stages.length) return null;
+
+  return chain.stages[nextStage](state, nextStage);
+}
+
+// ── ENGAGEMENT: Guaranteed starter events for new players ──
+// These fire once at specific weeks to create positive first impressions
+const starterEventTemplates: EventTemplate[] = [
+  {
+    id: 'starter_luck',
+    category: 'economy',
+    weight: 100,
+    condition: (state) => (state.weeksLived || 0) === 0,
+    generate: () => ({
+      id: 'starter_luck',
+      description: 'A relative left you a small envelope with a note: "Use this wisely — the world is yours."',
+      choices: [
+        {
+          id: 'save',
+          text: 'Save it wisely (+$300)',
+          effects: { money: 300, stats: { happiness: 10 } },
+        },
+        {
+          id: 'invest',
+          text: 'Invest in yourself (+$150, +Energy)',
+          effects: { money: 150, stats: { happiness: 15, energy: 20 } },
+        },
+      ],
+    }),
+  },
+  {
+    id: 'first_paycheck_bonus',
+    category: 'economy',
+    weight: 100,
+    condition: (state) => {
+      const wl = state.weeksLived || 0;
+      return wl >= 2 && wl <= 5 && !!state.currentJob &&
+        !(state.eventLog || []).some(e => e.id === 'first_paycheck_bonus');
+    },
+    generate: () => ({
+      id: 'first_paycheck_bonus',
+      description: 'Your boss pulls you aside: "Great start — here\'s a little extra for your hard work."',
+      choices: [
+        {
+          id: 'accept',
+          text: 'Accept gratefully (+$150)',
+          effects: { money: 150, stats: { happiness: 10, reputation: 5 } },
+        },
+      ],
+    }),
+  },
+  {
+    id: 'surprise_windfall',
+    category: 'economy',
+    weight: 100,
+    condition: (state) => {
+      const wl = state.weeksLived || 0;
+      return wl >= 5 && wl <= 8 &&
+        !(state.eventLog || []).some(e => e.id === 'surprise_windfall');
+    },
+    generate: (state) => {
+      const baseAmount = 200 + Math.floor(((state.weeksLived || 0) * 37) % 300);
+      return {
+        id: 'surprise_windfall',
+        description: `You found a scratch-off ticket in your jacket pocket — and it\'s a winner!`,
+        choices: [
+          {
+            id: 'cash_it',
+            text: `Cash it in (+$${baseAmount})`,
+            effects: { money: baseAmount, stats: { happiness: 15 } },
+          },
+          {
+            id: 'share_it',
+            text: `Share the winnings (+$${Math.floor(baseAmount / 2)}, +Reputation)`,
+            effects: { money: Math.floor(baseAmount / 2), stats: { happiness: 10, reputation: 10 } },
+          },
+        ],
+      };
+    },
+  },
+];
+
+const MAX_EVENTS_PER_WEEK = 1; // Only one event per week maximum
+const EVENT_FREQUENCY_MODIFIER = 0.06; // 6% multiplier (was 10%) - less annoying for players
+
+/**
+ * Roll weekly events with reduced frequency
+ * 
+ * KEY CHANGES (UX improvement):
+ * - Events now occur randomly with approximately 1 in 25-35 weeks frequency (3-5% chance)
+ * - Pity system extended to 10 weeks to reduce guaranteed events
+ * - This makes events feel more special and less annoying
+ * - Players will experience longer periods of calm gameplay
  */
 
 export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   const events: WeeklyEvent[] = [];
-  
-  // Check for seasonal events first (they have priority)
-  const seasonalEvents = getSeasonalEvents(state);
-  if (seasonalEvents.length > 0) {
-    events.push(...seasonalEvents);
+
+  // Check for economic events first (they affect all players globally)
+  // Economic events are checked and updated before other events
+  const currentState = getCurrentEconomicState(state);
+  const weeksLived = state.weeksLived || 0;
+
+  if (shouldTriggerEconomicEvent(state)) {
+    const newEconomicState = generateEconomicEvent(state);
+    // Note: The actual state update should be handled in the week progression
+    // Here we just generate the event notification
+
+    // Check if this is a transition event (start or end)
+    if (currentState && currentState.currentState !== 'normal') {
+      const weeksInState = weeksLived - currentState.stateStartWeek;
+      if (weeksInState >= currentState.stateDuration) {
+        // Event ending - check for end notification event
+        for (const template of economyEventTemplates) {
+          if (template.id === 'economic_event_end' && template.condition && template.condition(state)) {
+            const event = template.generate(state);
+            if (event) {
+              events.push(event);
+              break;
+            }
+          }
+        }
+      }
+    } else {
+      // New economic event starting (currentState is null or normal)
+      // Check if the new state is different from current (i.e., starting a new event)
+      if (newEconomicState.currentState !== 'normal') {
+        // Generate start notification event
+        // Create a temporary state with the new economic state to check conditions
+        const tempState = {
+          ...state,
+          economy: {
+            ...state.economy,
+            economyEvents: newEconomicState,
+          },
+          weeksLived: weeksLived,
+        };
+
+        for (const template of economyEventTemplates) {
+          if (template.id !== 'economic_event_end' && template.condition && template.condition(tempState)) {
+            const event = template.generate(tempState);
+            if (event) {
+              events.push(event);
+              break;
+            }
+          }
+        }
+      }
+    }
   }
-  
-  // If we already have 2 events (max), return early
+
+  // Check for seasonal events (they have priority after economic events)
+  const seasonalEvents = getSeasonalEvents(state);
+  if (seasonalEvents.length > 0 && events.length < MAX_EVENTS_PER_WEEK) {
+    const remainingSlots = MAX_EVENTS_PER_WEEK - events.length;
+    events.push(...seasonalEvents.slice(0, remainingSlots));
+  }
+
+  // If we already have max events, return early
   if (events.length >= MAX_EVENTS_PER_WEEK) {
     return events;
   }
-  
+
+  // ENGAGEMENT: Check for guaranteed starter events (new player onboarding)
+  // These fire with 100% probability when conditions are met, before random events
+  for (const starter of starterEventTemplates) {
+    if (events.length >= MAX_EVENTS_PER_WEEK) break;
+    if (starter.condition && starter.condition(state)) {
+      try {
+        const event = starter.generate(state);
+        if (event) {
+          events.push(event);
+        }
+      } catch (e) {
+        // Starter event generation failed — continue without it
+      }
+    }
+  }
+  if (events.length >= MAX_EVENTS_PER_WEEK) {
+    return events;
+  }
+
+  // ENGAGEMENT: Check for active event chain continuation
+  // Chain events take priority over random events to maintain narrative flow
+  if (state.activeEventChain && events.length < MAX_EVENTS_PER_WEEK) {
+    const chainEvent = getNextChainEvent(state);
+    if (chainEvent) {
+      events.push(chainEvent);
+      return events; // Chain events are exclusive — no random events this week
+    }
+  }
+
+  // ENGAGEMENT: Roll for starting a new event chain (if none active)
+  if (!state.activeEventChain && events.length < MAX_EVENTS_PER_WEEK) {
+    const chainStarter = rollEventChain(state);
+    if (chainStarter) {
+      events.push(chainStarter);
+      return events;
+    }
+  }
+
+  // Get consequence state (NEW - integrates with existing system)
+  const { initializeConsequenceState } = require('@/lib/lifeMoments/consequenceTracker');
+  const consequenceState = initializeConsequenceState(state);
+
+  // Filter event templates based on consequences (NEW)
+  // This happens after economic/seasonal events but before main selection
+  const baseEventTemplates = eventTemplates.filter(template => {
+    // Skip locked events
+    if (consequenceState.lockedEvents.includes(template.id)) {
+      return false;
+    }
+
+    // Check existing conditions (preserve existing logic)
+    if (template.condition && !template.condition(state)) {
+      return false;
+    }
+
+    return true;
+  });
+
   // RANDOMNESS FIX: Pity system for weekly events - guaranteed event after 6 weeks without
   // MIGRATION NOTE: For old saves without lastEventWeek, default to 0 (treats as "just had event")
   // This prevents immediate guaranteed event on first load of old saves
@@ -2313,10 +2877,11 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     ? state.lastEventWeeksLived
     : (state.lastEventWeek !== undefined ? state.lastEventWeek : 0); // Fallback for old saves
   const weeksSinceLastEvent = currentWeeksLived - lastEventWeeksLived;
-  const pityThreshold = PITY_THRESHOLD_WEEKLY_EVENTS; // Guaranteed event after 6 weeks
+  // ENGAGEMENT: Shorter pity timer during mid-game to prevent long event droughts
+  const pityThreshold = currentWeeksLived < 50 ? 8 : PITY_THRESHOLD_WEEKLY_EVENTS;
   // Seasonal events count as events, so they reset the pity counter (guaranteedEvent only triggers if NO events)
   const guaranteedEvent = weeksSinceLastEvent >= pityThreshold && seasonalEvents.length === 0;
-  
+
   // TESTFLIGHT FIX: Deterministic random based on week number for consistency on resume
   // Use a simple seeded random function based on week number
   // TIME PROGRESSION FIX: Use weeksLived for deterministic seeding to handle year boundaries correctly
@@ -2325,17 +2890,24 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     return x - Math.floor(x);
   };
   const weekSeed = (state.weeksLived || 0) * 1000 + (state.date?.year || 2025) * 100;
-  
-  // Base random chance for any event to occur (approximately 1 in 4 weeks)
-  // Add some variation: 20-30% chance to make it feel more natural
-  // TESTFLIGHT FIX: Use deterministic random for consistency
-  let baseEventChance = 0.2 + (seededRandom(weekSeed) * 0.1); // 20-30% chance (deterministic)
-  
+
+  // ENGAGEMENT: Phase-based event frequency scaling
+  // Early game: rare (player is learning). Mid-game: frequent (content variety). Late game: moderate.
+  let baseEventChance: number;
+  if (currentWeeksLived < 8) {
+    baseEventChance = 0.02; // 2% — player still learning
+  } else if (currentWeeksLived < 50) {
+    baseEventChance = 0.08 + Math.min(0.07, currentWeeksLived * 0.001); // 8-15% — mid-game variety
+  } else {
+    baseEventChance = 0.06; // 6% — moderate late game
+  }
+  baseEventChance += seededRandom(weekSeed) * 0.01; // Small deterministic jitter
+
   // Apply prestige event frequency reduction (QoL bonus)
   const unlockedBonuses = state.prestige?.unlockedBonuses || [];
   const eventFrequencyModifier = getEventFrequencyModifier(unlockedBonuses);
   baseEventChance = baseEventChance * eventFrequencyModifier;
-  
+
   // Force event if pity threshold reached
   // TESTFLIGHT FIX: Use deterministic random for consistency
   if (guaranteedEvent || seededRandom(weekSeed + 1) < baseEventChance) {
@@ -2344,19 +2916,19 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     return events; // Return seasonal events if any, otherwise empty
   }
 
-  const economyRisk = state.stats.money < 200 ? 0.6 : 0.2;
-  const healthRisk = state.stats.health < 60 ? 0.6 : 0.2;
+  const economyRisk = state.stats.money < 200 ? 0.4 : 0.15;
+  const healthRisk = state.stats.health < 60 ? 0.4 : 0.15;
   const avgRelation =
     state.relationships.length > 0
       ? state.relationships.reduce((sum, r) => sum + r.relationshipScore, 0) / state.relationships.length
       : 50;
-  const relationRisk = avgRelation < 50 ? 0.5 : 0.2;
+  const relationRisk = avgRelation < 50 ? 0.35 : 0.15;
 
   const riskByCategory = {
     economy: economyRisk,
     health: healthRisk,
     relationship: relationRisk,
-    general: 0.3,
+    general: 0.2,
   } as const;
 
   // RANDOMNESS FIX: If guaranteed event (pity system), force at least one event
@@ -2364,20 +2936,22 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   let eventForced = false;
   if (guaranteedEvent && events.length === 0) {
     // Force the highest weight event that meets conditions
-    const eligibleEvents = eventTemplates
+    const eligibleEvents = baseEventTemplates
       .filter(t => !t.condition || t.condition(state))
       .sort((a, b) => {
         const weightA = typeof a.weight === 'function' ? a.weight(state) : a.weight;
         const weightB = typeof b.weight === 'function' ? b.weight(state) : b.weight;
-        return weightB - weightA;
+        const modifierA = consequenceState.eventWeightModifiers[a.id] || 0;
+        const modifierB = consequenceState.eventWeightModifiers[b.id] || 0;
+        return (weightB + modifierB) - (weightA + modifierA); // Include modifiers in sort
       });
-    
+
     if (eligibleEvents.length > 0) {
       events.push(eligibleEvents[0].generate(state));
       eventForced = true;
     } else {
       // Fallback: Force a general event if no eligible events (should never happen, but defensive)
-      const generalEvent = eventTemplates.find(t => t.category === 'general');
+      const generalEvent = baseEventTemplates.find(t => t.category === 'general');
       if (generalEvent) {
         events.push(generalEvent.generate(state));
         eventForced = true;
@@ -2387,22 +2961,42 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
       }
     }
   }
-  
+
   // If event was forced, skip random selection
   if (!eventForced) {
-    for (const template of eventTemplates) {
+    // Track if we've already added a personal crisis event this week
+    // Personal crisis events: medical_emergency, identity_theft, relationship_crisis, legal_issue
+    // (investment_opportunity and job_offer are opportunities, not crises)
+    const personalCrisisEventIds = ['medical_emergency', 'identity_theft', 'relationship_crisis', 'legal_issue'];
+    let hasPersonalCrisis = false;
+
+    for (const template of baseEventTemplates) {
       if (events.length >= MAX_EVENTS_PER_WEEK) break;
       if (template.condition && !template.condition(state)) continue;
+
+      // Prevent multiple personal crisis events in the same week
+      const isPersonalCrisis = personalCrisisEventIds.includes(template.id);
+      if (isPersonalCrisis && hasPersonalCrisis) {
+        continue; // Skip this personal crisis event if we already have one
+      }
+
       const weight = typeof template.weight === 'function' ? template.weight(state) : template.weight;
-      const chance = weight * riskByCategory[template.category] * EVENT_FREQUENCY_MODIFIER;
+
+      // Apply weight modifiers from consequences (NEW)
+      const weightModifier = consequenceState.eventWeightModifiers[template.id] || 0;
+      const adjustedWeight = Math.max(0, weight + weightModifier);
+
+      const chance = adjustedWeight * riskByCategory[template.category] * EVENT_FREQUENCY_MODIFIER;
       // TESTFLIGHT FIX: Use deterministic random based on template index for consistency
       const templateSeed = weekSeed + 100 + eventTemplates.indexOf(template);
       if (seededRandom(templateSeed) < chance) {
         events.push(template.generate(state));
+        if (isPersonalCrisis) {
+          hasPersonalCrisis = true; // Mark that we've added a personal crisis event
+        }
       }
     }
   }
 
   return events;
 }
-

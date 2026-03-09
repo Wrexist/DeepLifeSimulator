@@ -1,16 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
-import { Activity, Utensils, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { HealthActivity } from '@/contexts/game/types';
+import { Activity, Utensils, CircleCheck as CheckCircle, AlertTriangle, Heart } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
+import { initialGameState } from '@/contexts/game/initialState';
 
-export default function HealthScreen() {
+function HealthScreen() {
+  return (
+    <ErrorBoundary>
+      <HealthScreenContent />
+    </ErrorBoundary>
+  );
+}
+
+function HealthScreenContent() {
   const { t } = useTranslation();
   const router = useRouter();
   const { gameState, performHealthActivity, toggleDietPlan, setGameState } = useGame();
   const { settings } = gameState;
   const [healthFeedback, setHealthFeedback] = useState<{ [key: string]: string }>({});
+
+  // Merge health activities with initialState to ensure latest values are always displayed
+  // This fixes the issue where saved games have old energy cost values
+  const { mergedHealthActivities, needsStateSync } = useMemo(() => {
+    const initialStateActivities = initialGameState.healthActivities || [];
+    const savedActivities = gameState.healthActivities || [];
+
+    // Create a map of latest values from initialState
+    const latestValues = new Map<string, HealthActivity>();
+    initialStateActivities.forEach(activity => {
+      latestValues.set(activity.id, activity);
+    });
+
+    // Merge: use saved activity if it exists, but update with latest values from initialState
+    const merged = savedActivities.map(savedActivity => {
+      const latestActivity = latestValues.get(savedActivity.id);
+      if (latestActivity) {
+        return {
+          ...savedActivity,
+          happinessGain: latestActivity.happinessGain,
+          healthGain: latestActivity.healthGain,
+          energyCost: latestActivity.energyCost,
+          price: latestActivity.price,
+        };
+      }
+      return savedActivity;
+    });
+
+    // Check if state needs updating (without performing the side effect here)
+    const needsUpdate = merged.some((activity, index) => {
+      const saved = savedActivities[index];
+      return !saved ||
+        saved.happinessGain !== activity.happinessGain ||
+        saved.healthGain !== activity.healthGain ||
+        saved.energyCost !== activity.energyCost ||
+        saved.price !== activity.price;
+    });
+
+    return { mergedHealthActivities: merged, needsStateSync: needsUpdate };
+  }, [gameState.healthActivities]);
+
+  // Sync merged values back to game state in a separate useEffect (not in useMemo)
+  useEffect(() => {
+    if (needsStateSync && mergedHealthActivities.length > 0) {
+      setGameState(prevState => ({
+        ...prevState,
+        healthActivities: mergedHealthActivities,
+      }));
+    }
+  }, [needsStateSync, mergedHealthActivities, setGameState]);
 
   // Prevent staying on health screen when in prison - redirect to work tab
   useEffect(() => {
@@ -20,7 +82,7 @@ export default function HealthScreen() {
   }, [gameState.jailWeeks, router]);
 
   const canAfford = (price: number) => gameState.stats.money >= price;
-  const canPerformActivity = (activity: any) => {
+  const canPerformActivity = (activity: HealthActivity) => {
     const energyCost = activity.energyCost || 0;
     // Only check energy requirement if the activity costs energy (positive value)
     const hasEnoughEnergy = energyCost <= 0 || gameState.stats.energy >= energyCost;
@@ -28,8 +90,10 @@ export default function HealthScreen() {
     return hasEnoughMoney && hasEnoughEnergy;
   };
   const activeDietPlan = gameState.dietPlans.find(plan => plan.active);
+  const currentDiseases = gameState.diseases || [];
+  const hasDiseases = currentDiseases.length > 0;
 
-  const handleHealthActivityPress = (activity: any) => {
+  const handleHealthActivityPress = (activity: HealthActivity) => {
     const result = performHealthActivity(activity.id);
     if (result) {
       setHealthFeedback({ [activity.id]: result.message });
@@ -54,6 +118,32 @@ export default function HealthScreen() {
             </View>
           </View>
         </View>
+        {/* Disease Status Section */}
+        {hasDiseases && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <AlertTriangle size={24} color="#EF4444" />
+              <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Current Health Conditions</Text>
+            </View>
+            <View style={[styles.diseaseStatusCard, settings.darkMode && styles.diseaseStatusCardDark]}>
+              <Text style={[styles.diseaseStatusText, settings.darkMode && styles.diseaseStatusTextDark]}>
+                You have {currentDiseases.length} active condition{currentDiseases.length !== 1 ? 's' : ''}:
+              </Text>
+              {currentDiseases.map((disease, index) => (
+                <View key={index} style={styles.diseaseStatusItem}>
+                  <Heart size={16} color={disease.severity === 'critical' ? '#DC2626' : disease.severity === 'serious' ? '#EF4444' : '#F59E0B'} />
+                  <Text style={[styles.diseaseStatusName, settings.darkMode && styles.diseaseStatusNameDark]}>
+                    {disease.name} ({disease.severity})
+                  </Text>
+                </View>
+              ))}
+              <Text style={[styles.diseaseStatusHint, settings.darkMode && styles.diseaseStatusHintDark]}>
+                Visit a doctor or hospital to treat these conditions
+              </Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Activity size={24} color="#EF4444" />
@@ -63,7 +153,7 @@ export default function HealthScreen() {
             {t('health.investMentalPhysical')}
           </Text>
 
-          {gameState.healthActivities.filter(activity => activity.id !== 'vacation').map(activity => (
+          {mergedHealthActivities.filter(activity => activity.id !== 'vacation').map(activity => (
             <View key={activity.id} style={[styles.activityCard, settings.darkMode && styles.activityCardDark]}>
               <View style={styles.activityInfo}>
                 <Text style={[styles.activityName, settings.darkMode && styles.activityNameDark]}>{activity.name}</Text>
@@ -185,14 +275,14 @@ export default function HealthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFBFC',
   },
   containerDark: {
     backgroundColor: '#111827',
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: responsiveSpacing.xl,
   },
   contentDark: {
     backgroundColor: '#111827',
@@ -206,40 +296,58 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginLeft: 12,
+    fontSize: responsiveFontSize['2xl'],
+    fontWeight: '800',
+    color: '#0F172A',
+    marginLeft: responsiveSpacing.md,
+    letterSpacing: -0.5,
+    // Light mode: subtle text shadow for emphasis
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   sectionTitleDark: {
     color: '#F9FAFB',
+    textShadowColor: 'transparent',
+    fontWeight: '700',
   },
   sectionDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 20,
-    lineHeight: 20,
+    fontSize: responsiveFontSize.sm,
+    color: '#64748B',
+    marginBottom: responsiveSpacing.xl,
+    lineHeight: responsiveFontSize.lg,
+    fontWeight: '500',
   },
   sectionDescriptionDark: {
     color: '#D1D5DB',
+    fontWeight: '400',
   },
   activityCard: {
     backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: responsiveSpacing.lg,
+    borderRadius: responsiveBorderRadius.xl,
+    marginBottom: responsiveSpacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    // Beautiful light mode shadows
+    shadowColor: 'rgba(0,0,0,0.06)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+    // Subtle border for definition
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
   },
   activityCardDark: {
     backgroundColor: '#374151',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 1,
+    borderWidth: 0,
   },
   activityInfo: {
     flex: 1,
@@ -495,4 +603,50 @@ const styles = StyleSheet.create({
   testButtonTextDark: {
     color: '#FFFFFF',
   },
+  diseaseStatusCard: {
+    backgroundColor: '#FEF2F2',
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.md,
+    marginBottom: responsiveSpacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+  },
+  diseaseStatusCardDark: {
+    backgroundColor: '#7F1D1D',
+    borderLeftColor: '#DC2626',
+  },
+  diseaseStatusText: {
+    fontSize: responsiveFontSize.sm,
+    color: '#DC2626',
+    fontWeight: '600',
+    marginBottom: responsiveSpacing.sm,
+  },
+  diseaseStatusTextDark: {
+    color: '#FCA5A5',
+  },
+  diseaseStatusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: responsiveSpacing.xs,
+  },
+  diseaseStatusName: {
+    fontSize: responsiveFontSize.sm,
+    color: '#991B1B',
+    marginLeft: responsiveSpacing.xs,
+    fontWeight: '500',
+  },
+  diseaseStatusNameDark: {
+    color: '#FCA5A5',
+  },
+  diseaseStatusHint: {
+    fontSize: responsiveFontSize.xs,
+    color: '#991B1B',
+    marginTop: responsiveSpacing.xs,
+    fontStyle: 'italic',
+  },
+  diseaseStatusHintDark: {
+    color: '#FCA5A5',
+  },
 });
+
+export default React.memo(HealthScreen);

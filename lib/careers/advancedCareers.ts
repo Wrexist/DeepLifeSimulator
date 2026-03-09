@@ -5,22 +5,15 @@
  */
 
 import { Career } from '@/contexts/game/types';
+import { AdvancedCareerUnlockRequirements } from '@/lib/types/requirements';
 
 export interface AdvancedCareer extends Career {
-  unlockRequirements: {
-    education?: string[]; // Required education IDs
-    experience?: number; // Years of experience in related field
-    reputation?: number; // Minimum reputation
-    achievements?: string[]; // Required achievement IDs
-    netWorth?: number; // Minimum net worth
-  };
+  unlockRequirements: AdvancedCareerUnlockRequirements;
 }
 
 export const ADVANCED_CAREERS: AdvancedCareer[] = [
   {
     id: 'ceo',
-    name: 'CEO',
-    category: 'business',
     description: 'Chief Executive Officer - Lead a major corporation',
     levels: [
       {
@@ -51,6 +44,11 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     level: 0,
     applied: false,
     accepted: false,
+    requirements: {
+      education: ['masters', 'mba'],
+      reputation: 50,
+    },
+    progress: 0,
     unlockRequirements: {
       education: ['masters', 'mba'],
       experience: 260, // 5 years
@@ -60,8 +58,6 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
   },
   {
     id: 'research_scientist',
-    name: 'Research Scientist',
-    category: 'science',
     description: 'Conduct cutting-edge research and publish findings',
     levels: [
       {
@@ -92,6 +88,11 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     level: 0,
     applied: false,
     accepted: false,
+    requirements: {
+      education: ['phd'],
+      reputation: 40,
+    },
+    progress: 0,
     unlockRequirements: {
       education: ['phd'],
       reputation: 40,
@@ -100,8 +101,6 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
   },
   {
     id: 'creative_director',
-    name: 'Creative Director',
-    category: 'creative',
     description: 'Lead creative teams and develop brand strategies',
     levels: [
       {
@@ -132,6 +131,11 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     level: 0,
     applied: false,
     accepted: false,
+    requirements: {
+      education: ['bachelors'],
+      reputation: 35,
+    },
+    progress: 0,
     unlockRequirements: {
       education: ['bachelors'],
       experience: 156, // 3 years
@@ -141,8 +145,6 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
   },
   {
     id: 'investment_banker',
-    name: 'Investment Banker',
-    category: 'finance',
     description: 'High-stakes financial transactions and mergers',
     levels: [
       {
@@ -173,6 +175,11 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     level: 0,
     applied: false,
     accepted: false,
+    requirements: {
+      education: ['masters', 'mba'],
+      reputation: 45,
+    },
+    progress: 0,
     unlockRequirements: {
       education: ['masters', 'mba'],
       reputation: 45,
@@ -181,8 +188,6 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
   },
   {
     id: 'surgeon',
-    name: 'Surgeon',
-    category: 'medical',
     description: 'Perform complex surgical procedures',
     levels: [
       {
@@ -213,6 +218,11 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     level: 0,
     applied: false,
     accepted: false,
+    requirements: {
+      education: ['medical_school'],
+      reputation: 60,
+    },
+    progress: 0,
     unlockRequirements: {
       education: ['medical_school'],
       experience: 312, // 6 years (residency + fellowship)
@@ -238,7 +248,7 @@ export function isCareerUnlocked(
   const req = career.unlockRequirements;
 
   // Check education
-  if (req.education && req.education.length > 0) {
+  if ('education' in req && req.education && req.education.length > 0) {
     const hasRequiredEducation = req.education.every(eduId =>
       gameState.education.some(edu => edu.id === eduId && edu.completed)
     );
@@ -246,17 +256,17 @@ export function isCareerUnlocked(
   }
 
   // Check experience (weeks lived)
-  if (req.experience && gameState.weeksLived < req.experience) {
+  if ('experience' in req && req.experience && gameState.weeksLived < req.experience) {
     return false;
   }
 
   // Check reputation
-  if (req.reputation && gameState.stats.reputation < req.reputation) {
+  if ('reputation' in req && req.reputation && gameState.stats.reputation < req.reputation) {
     return false;
   }
 
   // Check achievements
-  if (req.achievements && req.achievements.length > 0) {
+  if ('achievements' in req && req.achievements && req.achievements.length > 0) {
     const hasRequiredAchievements = req.achievements.every(achId =>
       gameState.achievements.some(ach => ach.id === achId && ach.completed)
     );
@@ -264,7 +274,7 @@ export function isCareerUnlocked(
   }
 
   // Check net worth
-  if (req.netWorth) {
+  if ('netWorth' in req && req.netWorth) {
     const companyValue = gameState.companies.reduce((sum, c) => sum + c.weeklyIncome * 10, 0);
     const realEstateValue = gameState.realEstate
       .filter(p => p.owned)

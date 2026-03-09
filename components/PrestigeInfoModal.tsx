@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+﻿import React, { useRef, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -9,7 +9,8 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, Crown, Award, TrendingUp, Zap, Unlock, Settings, Star, Check, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { PRESTIGE_BONUSES, getBonusLevel, PrestigeBonusCategory } from '@/lib/prestige/prestigeBonuses';
@@ -528,4 +529,5 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 });
+
 

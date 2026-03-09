@@ -47,6 +47,16 @@ if ($confirm -ne "y" -and $confirm -ne "Y") {
 }
 Write-Host ""
 
+# Run preflight checks before starting any release build
+Write-Host "Running mandatory preflight checks..." -ForegroundColor Yellow
+npm run preflight -- --platform ios
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Preflight checks failed. Aborting TestFlight build." -ForegroundColor Red
+    exit 1
+}
+Write-Host "✓ Preflight checks passed" -ForegroundColor Green
+Write-Host ""
+
 # Step 1: Build iOS app
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Step 1: Building iOS app..." -ForegroundColor Cyan

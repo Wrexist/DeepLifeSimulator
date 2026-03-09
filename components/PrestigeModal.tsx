@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -11,13 +11,14 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Crown, X, Sparkles, RotateCcw, Users, TrendingUp, Award, Calendar, DollarSign } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { Crown, X, Sparkles, RotateCcw, Users, TrendingUp, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
+import LifeStoryModal from './LifeStoryModal';
+import { useGame } from '@/contexts/game';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 import { getCharacterImage } from '@/utils/characterImages';
+import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -26,21 +27,29 @@ interface PrestigeModalProps {
   onClose: () => void;
 }
 
-export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
+function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
   const { gameState, executePrestige } = useGame();
   const [selectedPath, setSelectedPath] = useState<'reset' | 'child'>('reset');
   const [selectedChildId, setSelectedChildId] = useState<string | undefined>();
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showLifeStory, setShowLifeStory] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
 
-  const currentNetWorth = netWorth(gameState);
-  const prestigeData = gameState.prestige;
-  const children = gameState.family?.children || [];
+  const prestigeData = gameState?.prestige;
+  const children = gameState?.family?.children || [];
+
+  // Only calculate net worth when modal is visible to prevent unnecessary calculations
+  const currentNetWorth = useMemo(() => {
+    if (!gameState || !visible) return 0;
+    return netWorth(gameState);
+  }, [gameState, visible, gameState?.stats?.money, gameState?.bankSavings, gameState?.realEstate, gameState?.stocks]);
 
   const pointsBreakdown = useMemo(() => {
+    if (!gameState || !visible) return null;
     return calculatePrestigePoints(
       gameState,
       currentNetWorth,
@@ -57,56 +66,75 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
       }, unlockedBonuses: [], prestigeHistory: [] },
       selectedPath
     );
-  }, [gameState, currentNetWorth, prestigeData, selectedPath]);
+  }, [visible, gameState, currentNetWorth, prestigeData?.prestigeLevel, prestigeData?.prestigePoints, prestigeData?.totalPrestiges, selectedPath]);
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 400,
           useNativeDriver: true,
         }),
         Animated.spring(scaleAnim, {
           toValue: 1,
-          tension: 100,
-          friction: 8,
+          tension: 80,
+          friction: 10,
           useNativeDriver: true,
         }),
       ]).start();
 
+      // Gentle glow animation (opacity — safe for native driver)
       const glow = Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {
             toValue: 1,
-            duration: 2000,
-            useNativeDriver: false,
+            duration: 3000,
+            useNativeDriver: true,
           }),
           Animated.timing(glowAnim, {
             toValue: 0,
-            duration: 2000,
-            useNativeDriver: false,
+            duration: 3000,
+            useNativeDriver: true,
           }),
         ])
       );
       glow.start();
 
+      // Shimmer effect for prestige points
+      const shimmer = Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerAnim, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      shimmer.start();
+
       return () => {
         glow.stop();
+        shimmer.stop();
       };
     } else {
       fadeAnim.setValue(0);
-      scaleAnim.setValue(0.8);
+      scaleAnim.setValue(0.9);
       glowAnim.setValue(0);
+      shimmerAnim.setValue(0);
     }
-  }, [visible, fadeAnim, scaleAnim, glowAnim]);
+  }, [visible, fadeAnim, scaleAnim, glowAnim, shimmerAnim]);
 
   const handleConfirm = () => {
     if (selectedPath === 'child' && !selectedChildId && children.length > 0) {
-      return; // Must select a child
+      return;
     }
 
-    // Validate net worth requirement
     const prestigeLevel = prestigeData?.prestigeLevel || 0;
     const threshold = getPrestigeThreshold(prestigeLevel);
     
@@ -126,13 +154,18 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
   const formatMoney = (amount: number) => {
     if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
     if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-    if (amount >= 1_000) return `$${(amount / 1_000).toFixed(2)}K`;
-    return `$${amount}`;
+    if (amount > 10_000) return `$${(amount / 1_000).toFixed(2)}K`;
+    return `$${Math.floor(amount).toLocaleString()}`;
   };
 
   const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0.6],
+    outputRange: [0.2, 0.4],
+  });
+
+  const shimmerTranslateX = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-100, 100],
   });
 
   if (!visible) return null;
@@ -149,15 +182,11 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
             },
           ]}
         >
-          <LinearGradient
-            colors={gameState.settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.content}
-          >
-            {/* Header */}
+          {/* Main Content */}
+          <View style={styles.content}>
+            {/* Elegant Header */}
             <View style={styles.header}>
-              <View style={styles.headerLeft}>
+              <View style={styles.headerContent}>
                 <Animated.View
                   style={[
                     styles.iconContainer,
@@ -166,37 +195,47 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
                     },
                   ]}
                 >
-                  <Crown size={32} color="#F59E0B" />
+                  <Crown size={28} color="#FBBF24" />
                 </Animated.View>
-                <View>
-                  <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]}>
-                    Prestige Available!
-                  </Text>
-                  <Text style={[styles.subtitle, gameState.settings.darkMode && styles.subtitleDark]}>
-                    {formatMoney(currentNetWorth)} Net Worth
-                  </Text>
+                <View style={styles.headerText}>
+                  <Text style={styles.title}>Prestige Available</Text>
+                  <Text style={styles.subtitle}>{formatMoney(currentNetWorth)} Net Worth</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={gameState.settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7}>
+                <X size={20} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
 
+            <ScrollView 
+              style={styles.scrollView} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
             {!showConfirmation ? (
-              <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                {/* Prestige Points Preview */}
+              <>
+                {/* Prestige Points Card - Beautiful and Prominent */}
                 <View style={styles.pointsCard}>
-                  <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.pointsGradient}
-                  >
+                  <View style={styles.pointsCardInner}>
                     <View style={styles.pointsHeader}>
-                      <Sparkles size={24} color="#FFFFFF" />
-                      <Text style={styles.pointsTitle}>Prestige Points Earned</Text>
+                      <Sparkles size={20} color="#FBBF24" />
+                      <Text style={styles.pointsTitle}>Prestige Points</Text>
                     </View>
-                    <Text style={styles.pointsValue}>{pointsBreakdown.total.toLocaleString()}</Text>
+                    <View style={styles.pointsValueContainer}>
+                      <Animated.View
+                        style={[
+                          styles.shimmerOverlay,
+                          {
+                            transform: [{ translateX: shimmerTranslateX }],
+                            opacity: shimmerAnim.interpolate({
+                              inputRange: [0, 0.5, 1],
+                              outputRange: [0, 0.3, 0],
+                            }),
+                          },
+                        ]}
+                      />
+                      <Text style={styles.pointsValue}>{pointsBreakdown.total.toLocaleString()}</Text>
+                    </View>
                     
                     <View style={styles.breakdown}>
                       <View style={styles.breakdownRow}>
@@ -258,132 +297,123 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
                         </View>
                       )}
                     </View>
-                  </LinearGradient>
+                  </View>
                 </View>
 
-                {/* Lifetime Stats */}
-                <View style={[styles.statsCard, gameState.settings.darkMode && styles.statsCardDark]}>
-                  <Text style={[styles.sectionTitle, gameState.settings.darkMode && styles.sectionTitleDark]}>
-                    Lifetime Achievements
-                  </Text>
+                {/* Lifetime Stats - Clean Grid */}
+                <View style={styles.statsCard}>
+                  <Text style={styles.sectionTitle}>Lifetime Achievements</Text>
                   <View style={styles.statsGrid}>
                     <View style={styles.statItem}>
-                      <DollarSign size={16} color="#10B981" />
-                      <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+                      <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                        <DollarSign size={18} color="#10B981" />
+                      </View>
+                      <Text style={styles.statValue}>
                         {formatMoney(prestigeData?.lifetimeStats?.totalMoneyEarned || 0)}
                       </Text>
-                      <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
-                        Total Earned
-                      </Text>
+                      <Text style={styles.statLabel}>Total Earned</Text>
                     </View>
                     <View style={styles.statItem}>
-                      <Calendar size={16} color="#3B82F6" />
-                      <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+                      <View style={[styles.statIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+                        <Calendar size={18} color="#3B82F6" />
+                      </View>
+                      <Text style={styles.statValue}>
                         {prestigeData?.lifetimeStats?.totalWeeksLived || 0}
                       </Text>
-                      <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
-                        Weeks Lived
-                      </Text>
+                      <Text style={styles.statLabel}>Weeks Lived</Text>
                     </View>
                     <View style={styles.statItem}>
-                      <Award size={16} color="#F59E0B" />
-                      <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+                      <View style={[styles.statIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                        <Award size={18} color="#F59E0B" />
+                      </View>
+                      <Text style={styles.statValue}>
                         {prestigeData?.lifetimeStats?.achievementsUnlocked || 0}
                       </Text>
-                      <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
-                        Achievements
-                      </Text>
+                      <Text style={styles.statLabel}>Achievements</Text>
                     </View>
                     <View style={styles.statItem}>
-                      <Users size={16} color="#8B5CF6" />
-                      <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+                      <View style={[styles.statIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
+                        <Users size={18} color="#8B5CF6" />
+                      </View>
+                      <Text style={styles.statValue}>
                         {prestigeData?.lifetimeStats?.totalChildren || 0}
                       </Text>
-                      <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
-                        Children
-                      </Text>
+                      <Text style={styles.statLabel}>Children</Text>
                     </View>
                   </View>
                 </View>
 
-                {/* Path Selection */}
-                <Text style={[styles.sectionTitle, gameState.settings.darkMode && styles.sectionTitleDark, { marginTop: 20 }]}>
-                  Choose Your Path
-                </Text>
+                {/* Path Selection - Elegant Cards */}
+                <Text style={[styles.sectionTitle, styles.pathSectionTitle]}>Choose Your Path</Text>
 
                 {/* Reset Path */}
                 <TouchableOpacity
                   style={[
                     styles.pathCard,
-                    gameState.settings.darkMode && styles.pathCardDark,
                     selectedPath === 'reset' && styles.pathCardSelected,
                   ]}
                   onPress={() => setSelectedPath('reset')}
                   activeOpacity={0.8}
                 >
-                  <LinearGradient
-                    colors={
-                      selectedPath === 'reset'
-                        ? ['#3B82F6', '#2563EB']
-                        : gameState.settings.darkMode
-                        ? ['#374151', '#1F2937']
-                        : ['#F3F4F6', '#E5E7EB']
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.pathGradient}
-                  >
+                  <View style={[
+                    styles.pathCardInner,
+                    selectedPath === 'reset' && styles.pathCardInnerSelected,
+                  ]}>
                     <View style={styles.pathHeader}>
-                      <RotateCcw size={24} color={selectedPath === 'reset' ? '#FFFFFF' : '#9CA3AF'} />
+                      <View style={[
+                        styles.pathIconContainer,
+                        selectedPath === 'reset' && styles.pathIconContainerSelected,
+                      ]}>
+                        <RotateCcw size={22} color={selectedPath === 'reset' ? '#3B82F6' : '#6B7280'} />
+                      </View>
                       <View style={styles.pathTextContainer}>
-                        <Text
-                          style={[
-                            styles.pathTitle,
-                            gameState.settings.darkMode && styles.pathTitleDark,
-                            selectedPath === 'reset' && styles.pathTitleSelected,
-                          ]}
-                        >
+                        <Text style={[
+                          styles.pathTitle,
+                          selectedPath === 'reset' && styles.pathTitleSelected,
+                        ]}>
                           Reset to Age 18
                         </Text>
-                        <Text
-                          style={[
-                            styles.pathDescription,
-                            gameState.settings.darkMode && styles.pathDescriptionDark,
-                            selectedPath === 'reset' && styles.pathDescriptionSelected,
-                          ]}
-                        >
+                        <Text style={[
+                          styles.pathDescription,
+                          selectedPath === 'reset' && styles.pathDescriptionSelected,
+                        ]}>
                           Start fresh with a new character at age 18. All starting bonuses apply.
                         </Text>
                       </View>
+                      {selectedPath === 'reset' && (
+                        <View style={styles.checkmarkContainer}>
+                          <Check size={20} color="#3B82F6" />
+                        </View>
+                      )}
                     </View>
                     <View style={styles.pathBenefits}>
-                      <Text
-                        style={[
+                      <View style={styles.benefitItem}>
+                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#6B7280'} />
+                        <Text style={[
                           styles.benefitText,
-                          gameState.settings.darkMode && styles.benefitTextDark,
                           selectedPath === 'reset' && styles.benefitTextSelected,
-                        ]}
-                      >
-                        ✓ Full reset
-                      </Text>
-                      <Text
-                        style={[
+                        ]}>
+                          Full reset
+                        </Text>
+                      </View>
+                      <View style={styles.benefitItem}>
+                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#6B7280'} />
+                        <Text style={[
                           styles.benefitText,
-                          gameState.settings.darkMode && styles.benefitTextDark,
                           selectedPath === 'reset' && styles.benefitTextSelected,
-                        ]}
-                      >
-                        ✓ All starting bonuses
-                      </Text>
-                      <Text
-                        style={[
+                        ]}>
+                          All starting bonuses
+                        </Text>
+                      </View>
+                      <View style={styles.benefitItem}>
+                        <Check size={14} color={selectedPath === 'reset' ? '#60A5FA' : '#6B7280'} />
+                        <Text style={[
                           styles.benefitText,
-                          gameState.settings.darkMode && styles.benefitTextDark,
                           selectedPath === 'reset' && styles.benefitTextSelected,
-                        ]}
-                      >
-                        ✓ Clean slate
-                      </Text>
+                        ]}>
+                          Clean slate
+                        </Text>
+                      </View>
                     </View>
                     {selectedPath === 'reset' && (
                       <Image
@@ -391,14 +421,13 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
                         style={styles.characterImage}
                       />
                     )}
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
 
                 {/* Child Path */}
                 <TouchableOpacity
                   style={[
                     styles.pathCard,
-                    gameState.settings.darkMode && styles.pathCardDark,
                     selectedPath === 'child' && styles.pathCardSelected,
                     children.length === 0 && styles.pathCardDisabled,
                   ]}
@@ -406,75 +435,73 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
                   activeOpacity={children.length > 0 ? 0.8 : 1}
                   disabled={children.length === 0}
                 >
-                  <LinearGradient
-                    colors={
-                      children.length === 0
-                        ? ['#6B7280', '#4B5563']
-                        : selectedPath === 'child'
-                        ? ['#8B5CF6', '#7C3AED']
-                        : gameState.settings.darkMode
-                        ? ['#374151', '#1F2937']
-                        : ['#F3F4F6', '#E5E7EB']
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.pathGradient}
-                  >
+                  <View style={[
+                    styles.pathCardInner,
+                    selectedPath === 'child' && styles.pathCardInnerSelected,
+                    children.length === 0 && styles.pathCardInnerDisabled,
+                  ]}>
                     <View style={styles.pathHeader}>
-                      <Users size={24} color={selectedPath === 'child' ? '#FFFFFF' : '#9CA3AF'} />
+                      <View style={[
+                        styles.pathIconContainer,
+                        selectedPath === 'child' && styles.pathIconContainerSelected,
+                        children.length === 0 && styles.pathIconContainerDisabled,
+                      ]}>
+                        <Users size={22} color={selectedPath === 'child' ? '#8B5CF6' : children.length === 0 ? '#4B5563' : '#6B7280'} />
+                      </View>
                       <View style={styles.pathTextContainer}>
-                        <Text
-                          style={[
-                            styles.pathTitle,
-                            gameState.settings.darkMode && styles.pathTitleDark,
-                            selectedPath === 'child' && styles.pathTitleSelected,
-                          ]}
-                        >
+                        <Text style={[
+                          styles.pathTitle,
+                          selectedPath === 'child' && styles.pathTitleSelected,
+                          children.length === 0 && styles.pathTitleDisabled,
+                        ]}>
                           Continue as Child
                         </Text>
-                        <Text
-                          style={[
-                            styles.pathDescription,
-                            gameState.settings.darkMode && styles.pathDescriptionDark,
-                            selectedPath === 'child' && styles.pathDescriptionSelected,
-                          ]}
-                        >
+                        <Text style={[
+                          styles.pathDescription,
+                          selectedPath === 'child' && styles.pathDescriptionSelected,
+                          children.length === 0 && styles.pathDescriptionDisabled,
+                        ]}>
                           {children.length === 0
                             ? 'Have children to unlock this path'
                             : 'Continue your legacy as one of your children. Inherit some stats and family connections.'}
                         </Text>
                       </View>
+                      {selectedPath === 'child' && children.length > 0 && (
+                        <View style={styles.checkmarkContainer}>
+                          <Check size={20} color="#8B5CF6" />
+                        </View>
+                      )}
                     </View>
                     {children.length > 0 && (
                       <>
                         <View style={styles.pathBenefits}>
-                          <Text
-                            style={[
+                          <View style={styles.benefitItem}>
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#6B7280'} />
+                            <Text style={[
                               styles.benefitText,
-                              gameState.settings.darkMode && styles.benefitTextDark,
                               selectedPath === 'child' && styles.benefitTextSelected,
-                            ]}
-                          >
-                            ✓ Inherit stats
-                          </Text>
-                          <Text
-                            style={[
+                            ]}>
+                              Inherit stats
+                            </Text>
+                          </View>
+                          <View style={styles.benefitItem}>
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#6B7280'} />
+                            <Text style={[
                               styles.benefitText,
-                              gameState.settings.darkMode && styles.benefitTextDark,
                               selectedPath === 'child' && styles.benefitTextSelected,
-                            ]}
-                          >
-                            ✓ Family connections
-                          </Text>
-                          <Text
-                            style={[
+                            ]}>
+                              Family connections
+                            </Text>
+                          </View>
+                          <View style={styles.benefitItem}>
+                            <Check size={14} color={selectedPath === 'child' ? '#A78BFA' : '#6B7280'} />
+                            <Text style={[
                               styles.benefitText,
-                              gameState.settings.darkMode && styles.benefitTextDark,
                               selectedPath === 'child' && styles.benefitTextSelected,
-                            ]}
-                          >
-                            ✓ +25% prestige points
-                          </Text>
+                            ]}>
+                              +25% prestige points
+                            </Text>
+                          </View>
                         </View>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.childrenScroll}>
                           {children.map(child => {
@@ -485,7 +512,6 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
                                 key={child.id}
                                 style={[
                                   styles.childCard,
-                                  gameState.settings.darkMode && styles.childCardDark,
                                   isSelected && styles.childCardSelected,
                                 ]}
                                 onPress={() => {
@@ -498,21 +524,13 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
                                   source={getCharacterImage(childAge, child.gender || 'male')}
                                   style={styles.childImage}
                                 />
-                                <Text
-                                  style={[
-                                    styles.childName,
-                                    gameState.settings.darkMode && styles.childNameDark,
-                                    isSelected && styles.childNameSelected,
-                                  ]}
-                                >
+                                <Text style={[
+                                  styles.childName,
+                                  isSelected && styles.childNameSelected,
+                                ]}>
                                   {child.name}
                                 </Text>
-                                <Text
-                                  style={[
-                                    styles.childAge,
-                                    gameState.settings.darkMode && styles.childAgeDark,
-                                  ]}
-                                >
+                                <Text style={styles.childAge}>
                                   Age {childAge}
                                 </Text>
                               </TouchableOpacity>
@@ -521,143 +539,125 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
                         </ScrollView>
                       </>
                     )}
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
 
-                {/* Current Bonuses */}
+                {/* Active Bonuses */}
                 {prestigeData && prestigeData.unlockedBonuses.length > 0 && (
-                  <View style={[styles.bonusesCard, gameState.settings.darkMode && styles.bonusesCardDark]}>
-                    <Text style={[styles.sectionTitle, gameState.settings.darkMode && styles.sectionTitleDark]}>
-                      Active Bonuses
-                    </Text>
+                  <View style={styles.bonusesCard}>
+                    <Text style={styles.sectionTitle}>Active Bonuses</Text>
                     <View style={styles.bonusesList}>
-                      {prestigeData.unlockedBonuses.slice(0, 5).map(bonusId => (
-                        <View key={bonusId} style={styles.bonusBadge}>
+                      {prestigeData.unlockedBonuses.slice(0, 5).map((bonusId, index) => (
+                        <View key={`${bonusId}-${index}`} style={styles.bonusBadge}>
                           <Text style={styles.bonusBadgeText}>{bonusId.replace(/_/g, ' ')}</Text>
                         </View>
                       ))}
                       {prestigeData.unlockedBonuses.length > 5 && (
-                        <Text style={[styles.moreBonuses, gameState.settings.darkMode && styles.moreBonusesDark]}>
+                        <Text style={styles.moreBonuses}>
                           +{prestigeData.unlockedBonuses.length - 5} more
                         </Text>
                       )}
                     </View>
                   </View>
                 )}
-
-                {/* Action Buttons */}
-                <View style={styles.actions}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={onClose}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.button,
-                      styles.prestigeButton,
-                      (selectedPath === 'child' && children.length > 0 && !selectedChildId) && styles.buttonDisabled,
-                    ]}
-                    onPress={() => {
-                      if (selectedPath === 'child' && children.length > 0 && !selectedChildId) {
-                        return;
-                      }
-                      setShowConfirmation(true);
-                    }}
-                    activeOpacity={0.8}
-                    disabled={selectedPath === 'child' && children.length > 0 && !selectedChildId}
-                  >
-                    <LinearGradient
-                      colors={
-                        selectedPath === 'child' && children.length > 0 && !selectedChildId
-                          ? ['#6B7280', '#4B5563']
-                          : ['#F59E0B', '#D97706']
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.prestigeButtonGradient}
-                    >
-                      <Crown size={20} color="#FFFFFF" />
-                      <Text style={styles.prestigeButtonText}>Prestige Now</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
+              </>
             ) : (
               // Confirmation View
               <View style={styles.confirmationView}>
-                <Text style={[styles.confirmationTitle, gameState.settings.darkMode && styles.confirmationTitleDark]}>
-                  Confirm Prestige
-                </Text>
-                <Text style={[styles.confirmationText, gameState.settings.darkMode && styles.confirmationTextDark]}>
+                <Text style={styles.confirmationTitle}>Prestige</Text>
+                <Text style={styles.confirmationText}>
                   You will reset your character and lose:
                 </Text>
                 <View style={styles.warningList}>
-                  <Text style={[styles.warningItem, gameState.settings.darkMode && styles.warningItemDark]}>
-                    • All money, items, properties, and companies
-                  </Text>
-                  <Text style={[styles.warningItem, gameState.settings.darkMode && styles.warningItemDark]}>
-                    • Current career progress
-                  </Text>
-                  <Text style={[styles.warningItem, gameState.settings.darkMode && styles.warningItemDark]}>
-                    • Current relationships (except family tree)
-                  </Text>
+                  <View style={styles.listItem}>
+                    <Text style={styles.listBullet}>•</Text>
+                    <Text style={styles.warningItem}>
+                      All money, items, properties, and companies
+                    </Text>
+                  </View>
+                  <View style={styles.listItem}>
+                    <Text style={styles.listBullet}>•</Text>
+                    <Text style={styles.warningItem}>Current career progress</Text>
+                  </View>
+                  <View style={styles.listItem}>
+                    <Text style={styles.listBullet}>•</Text>
+                    <Text style={styles.warningItem}>Current relationships (except family tree)</Text>
+                  </View>
                 </View>
-                <Text style={[styles.confirmationText, gameState.settings.darkMode && styles.confirmationTextDark, { marginTop: 20 }]}>
+                <Text style={[styles.confirmationText, styles.confirmationTextSpacing]}>
                   You will keep:
                 </Text>
                 <View style={styles.keepList}>
-                  <Text style={[styles.keepItem, gameState.settings.darkMode && styles.keepItemDark]}>
-                    • Prestige points and bonuses
-                  </Text>
-                  <Text style={[styles.keepItem, gameState.settings.darkMode && styles.keepItemDark]}>
-                    • Achievements and gems
-                  </Text>
-                  <Text style={[styles.keepItem, gameState.settings.darkMode && styles.keepItemDark]}>
-                    • Family tree and lineage
-                  </Text>
+                  <View style={styles.listItem}>
+                    <Text style={styles.listBullet}>•</Text>
+                    <Text style={styles.keepItem}>Prestige points and bonuses</Text>
+                  </View>
+                  <View style={styles.listItem}>
+                    <Text style={styles.listBullet}>•</Text>
+                    <Text style={styles.keepItem}>Achievements and gems</Text>
+                  </View>
+                  <View style={styles.listItem}>
+                    <Text style={styles.listBullet}>•</Text>
+                    <Text style={styles.keepItem}>Family tree and lineage</Text>
+                  </View>
                 </View>
-                <Text style={[styles.pointsEarned, gameState.settings.darkMode && styles.pointsEarnedDark]}>
-                  You will earn {pointsBreakdown.total.toLocaleString()} prestige points!
-                </Text>
-                <View style={styles.confirmationActions}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={() => setShowConfirmation(false)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.cancelButtonText}>Back</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.button, styles.confirmButton]}
-                    onPress={handleConfirm}
-                    activeOpacity={0.8}
-                    disabled={currentNetWorth < getPrestigeThreshold(prestigeData?.prestigeLevel || 0)}
-                  >
-                    <LinearGradient
-                      colors={currentNetWorth >= getPrestigeThreshold(prestigeData?.prestigeLevel || 0) 
-                        ? ['#10B981', '#059669'] 
-                        : ['#6B7280', '#4B5563']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.confirmButtonGradient}
-                    >
-                      <Crown size={20} color="#FFFFFF" />
-                      <Text style={styles.confirmButtonText}>
-                        {currentNetWorth >= getPrestigeThreshold(prestigeData?.prestigeLevel || 0)
-                          ? 'Confirm Prestige'
-                          : `Need $${((getPrestigeThreshold(prestigeData?.prestigeLevel || 0) - currentNetWorth) / 1_000_000).toFixed(0)}M More`}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.lifeStoryButton}
+                  onPress={() => setShowLifeStory(true)}
+                  activeOpacity={0.7}
+                >
+                  <BookOpen size={18} color="#8B5CF6" />
+                  <Text style={styles.lifeStoryButtonText}>View Your Life Story</Text>
+                </TouchableOpacity>
+
+                <View style={styles.pointsEarnedContainer}>
+                  <Text style={styles.pointsEarned}>
+                    You will earn {pointsBreakdown.total.toLocaleString()} prestige points!
+                  </Text>
                 </View>
               </View>
             )}
-          </LinearGradient>
+            </ScrollView>
+
+            {/* Action Buttons */}
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={showConfirmation ? () => setShowConfirmation(false) : onClose}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelButtonText}>
+                  {showConfirmation ? 'Back' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.prestigeButton,
+                  (selectedPath === 'child' && children.length > 0 && !selectedChildId) && styles.buttonDisabled,
+                ]}
+                onPress={() => {
+                  if (selectedPath === 'child' && children.length > 0 && !selectedChildId) {
+                    return;
+                  }
+                  if (showConfirmation) {
+                    handleConfirm();
+                  } else {
+                    setShowConfirmation(true);
+                  }
+                }}
+                activeOpacity={0.8}
+                disabled={selectedPath === 'child' && children.length > 0 && !selectedChildId}
+              >
+                <Crown size={18} color="#FFFFFF" />
+                <Text style={styles.prestigeButtonText}>
+                  Prestige
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Animated.View>
       </View>
+      <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
     </Modal>
   );
 }
@@ -665,7 +665,7 @@ export default function PrestigeModal({ visible, onClose }: PrestigeModalProps) 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -673,54 +673,61 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 500,
-    maxHeight: '90%',
+    height: '85%',
+    maxHeight: 700,
   },
   content: {
-    borderRadius: 20,
+    backgroundColor: '#111827',
+    borderRadius: 24,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 20,
+    height: '100%',
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
-  headerLeft: {
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
     flex: 1,
   },
   iconContainer: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  titleDark: {
+    fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  subtitleDark: {
     color: '#9CA3AF',
+    marginTop: 4,
+    fontWeight: '500',
   },
   closeButton: {
     width: 36,
@@ -728,37 +735,64 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   scrollView: {
-    maxHeight: screenWidth * 1.2,
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   pointsCard: {
     margin: 20,
-    borderRadius: 16,
+    marginBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.2)',
+  },
+  pointsCardInner: {
+    padding: 24,
+    position: 'relative',
     overflow: 'hidden',
   },
-  pointsGradient: {
-    padding: 20,
+  shimmerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 50,
   },
   pointsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 16,
   },
   pointsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#FBBF24',
+    letterSpacing: 0.5,
+  },
+  pointsValueContainer: {
+    position: 'relative',
+    marginBottom: 20,
   },
   pointsValue: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 42,
+    fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 16,
+    letterSpacing: -1,
   },
   breakdown: {
-    gap: 8,
+    gap: 12,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(251, 191, 36, 0.2)',
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -767,31 +801,32 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 13,
-    color: '#FEF3C7',
+    color: '#D1D5DB',
+    fontWeight: '500',
   },
   breakdownValue: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    color: '#FBBF24',
   },
   statsCard: {
     marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-  },
-  statsCardDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 24,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  sectionTitleDark: {
+    fontWeight: '700',
     color: '#FFFFFF',
+    marginBottom: 16,
+    letterSpacing: -0.3,
+  },
+  pathSectionTitle: {
+    marginTop: 8,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -802,26 +837,29 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: '45%',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   statValue: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginTop: 4,
-  },
-  statValueDark: {
+    fontWeight: '700',
     color: '#FFFFFF',
+    marginTop: 4,
   },
   statLabel: {
     fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  statLabelDark: {
     color: '#9CA3AF',
+    marginTop: 4,
+    fontWeight: '500',
   },
   pathCard: {
     marginHorizontal: 20,
@@ -829,130 +867,154 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  pathCardDark: {
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   pathCardSelected: {
-    borderColor: '#F59E0B',
+    borderColor: 'rgba(59, 130, 246, 0.5)',
   },
   pathCardDisabled: {
     opacity: 0.5,
   },
-  pathGradient: {
-    padding: 16,
+  pathCardInner: {
+    padding: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  pathCardInnerSelected: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+  },
+  pathCardInnerDisabled: {
+    backgroundColor: 'rgba(75, 85, 99, 0.1)',
   },
   pathHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 12,
+    gap: 16,
+    marginBottom: 16,
+  },
+  pathIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(107, 114, 128, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pathIconContainerSelected: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  pathIconContainerDisabled: {
+    backgroundColor: 'rgba(75, 85, 99, 0.2)',
   },
   pathTextContainer: {
     flex: 1,
   },
   pathTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  pathTitleDark: {
+    fontWeight: '700',
     color: '#FFFFFF',
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   pathTitleSelected: {
-    color: '#FFFFFF',
+    color: '#60A5FA',
+  },
+  pathTitleDisabled: {
+    color: '#6B7280',
   },
   pathDescription: {
     fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
-  },
-  pathDescriptionDark: {
     color: '#9CA3AF',
+    lineHeight: 20,
   },
   pathDescriptionSelected: {
-    color: '#FEF3C7',
+    color: '#93C5FD',
+  },
+  pathDescriptionDisabled: {
+    color: '#6B7280',
+  },
+  checkmarkContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   pathBenefits: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    gap: 12,
+    marginTop: 4,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   benefitText: {
     fontSize: 12,
-    color: '#6B7280',
-  },
-  benefitTextDark: {
     color: '#9CA3AF',
+    fontWeight: '500',
   },
   benefitTextSelected: {
-    color: '#FEF3C7',
+    color: '#93C5FD',
   },
   characterImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginTop: 12,
+    marginTop: 16,
     alignSelf: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   childrenScroll: {
-    marginTop: 12,
+    marginTop: 16,
   },
   childCard: {
     width: 100,
     marginRight: 12,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  childCardDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
   childCardSelected: {
-    borderColor: '#F59E0B',
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: '#8B5CF6',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
   },
   childImage: {
     width: 60,
     height: 60,
     borderRadius: 30,
     marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
   },
   childName: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
-  childNameDark: {
-    color: '#FFFFFF',
-  },
   childNameSelected: {
-    color: '#F59E0B',
+    color: '#A78BFA',
   },
   childAge: {
     fontSize: 10,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  childAgeDark: {
     color: '#9CA3AF',
+    marginTop: 4,
   },
   bonusesCard: {
     marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-  },
-  bonusesCardDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 24,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   bonusesList: {
     flexDirection: 'row',
@@ -960,140 +1022,158 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bonusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#3B82F6',
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   bonusBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#60A5FA',
     textTransform: 'capitalize',
   },
   moreBonuses: {
     fontSize: 12,
-    color: '#6B7280',
-    alignSelf: 'center',
-  },
-  moreBonusesDark: {
     color: '#9CA3AF',
+    alignSelf: 'center',
+    fontWeight: '500',
+  },
+  confirmationView: {
+    padding: 24,
+  },
+  confirmationTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 20,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  confirmationText: {
+    fontSize: 15,
+    color: '#D1D5DB',
+    marginBottom: 16,
+    fontWeight: '500',
+    lineHeight: 22,
+  },
+  confirmationTextSpacing: {
+    marginTop: 8,
+  },
+  warningList: {
+    marginBottom: 20,
+  },
+  keepList: {
+    marginBottom: 20,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+    gap: 8,
+  },
+  listBullet: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  warningItem: {
+    fontSize: 14,
+    color: '#F87171',
+    flex: 1,
+    lineHeight: 20,
+  },
+  keepItem: {
+    fontSize: 14,
+    color: '#34D399',
+    flex: 1,
+    lineHeight: 20,
+  },
+  lifeStoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  lifeStoryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#A78BFA',
+  },
+  pointsEarnedContainer: {
+    marginTop: 24,
+    marginBottom: 8,
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.2)',
+  },
+  pointsEarned: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FBBF24',
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
   actions: {
     flexDirection: 'row',
     gap: 12,
     padding: 20,
     paddingTop: 0,
-  },
-  button: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 12,
-    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   cancelButton: {
-    backgroundColor: '#E5E7EB',
+    flex: 1,
+    minHeight: 52,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: '#9CA3AF',
   },
   prestigeButton: {
-    overflow: 'hidden',
-  },
-  prestigeButtonGradient: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: 12,
+    backgroundColor: '#F59E0B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 8,
+    gap: 6,
+    paddingHorizontal: 12,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   prestigeButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#FFFFFF',
+    letterSpacing: 0.2,
+    flexShrink: 1,
   },
   buttonDisabled: {
     opacity: 0.5,
-  },
-  confirmationView: {
-    padding: 20,
-  },
-  confirmationTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  confirmationTitleDark: {
-    color: '#FFFFFF',
-  },
-  confirmationText: {
-    fontSize: 16,
-    color: '#374151',
-    marginBottom: 12,
-  },
-  confirmationTextDark: {
-    color: '#D1D5DB',
-  },
-  warningList: {
-    marginLeft: 20,
-    marginBottom: 20,
-  },
-  warningItem: {
-    fontSize: 14,
-    color: '#EF4444',
-    marginBottom: 8,
-  },
-  warningItemDark: {
-    color: '#F87171',
-  },
-  keepList: {
-    marginLeft: 20,
-    marginBottom: 20,
-  },
-  keepItem: {
-    fontSize: 14,
-    color: '#10B981',
-    marginBottom: 8,
-  },
-  keepItemDark: {
-    color: '#34D399',
-  },
-  pointsEarned: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#F59E0B',
-    textAlign: 'center',
-    marginVertical: 20,
-  },
-  pointsEarnedDark: {
-    color: '#FBBF24',
-  },
-  confirmationActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
-  confirmButton: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  confirmButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 8,
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    backgroundColor: '#4B5563',
   },
 });
 
+export default React.memo(PrestigeModal);

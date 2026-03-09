@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Political App Component
  * 
  * Clean, organized political office management
@@ -14,14 +14,14 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   Vote,
   FileText,
   Handshake,
   Users,
-  TrendingUp,
   DollarSign,
   CheckCircle,
   XCircle,
@@ -33,7 +33,7 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS } from '@/lib/careers/political';
-import { POLICIES, getAvailablePolicies, Policy, PolicyType } from '@/lib/politics/policies';
+import { getAvailablePolicies, Policy, PolicyType } from '@/lib/politics/policies';
 import { getWeeksUntilElection, getElectionType } from '@/lib/politics/elections';
 import {
   runForOffice,
@@ -45,8 +45,10 @@ import {
   hireLobbyist,
   fireLobbyist,
 } from '@/contexts/game/actions/PoliticalActions';
-import { AVAILABLE_LOBBYISTS, getAvailableLobbyists, getHiredLobbyists, calculateTotalLobbyistInfluence } from '@/lib/politics/lobbyists';
-import { updateMoney, updateStats } from '@/contexts/game/actions/MoneyActions';
+import { getAvailableLobbyists, getHiredLobbyists, calculateTotalLobbyistInfluence } from '@/lib/politics/lobbyists';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { updateStats } from '@/contexts/game/actions/StatsActions';
+import { getActivePerks } from '@/lib/politics/perks';
 import { scale, fontScale } from '@/utils/scaling';
 
 type TabType = 'overview' | 'career' | 'policies' | 'support';
@@ -109,7 +111,7 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
   // Get next office to run for
   const getNextOffice = () => {
     const offices = Object.keys(POLITICAL_CAREER_REQUIREMENTS) as (keyof typeof POLITICAL_CAREER_REQUIREMENTS)[];
-    const officeLevels = {
+    const officeLevels: Record<keyof typeof POLITICAL_CAREER_REQUIREMENTS, number> = {
       council_member: 0,
       mayor: 1,
       state_representative: 2,
@@ -119,12 +121,12 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
     };
     
     for (const office of offices) {
-      const level = officeLevels[office];
+      const level = officeLevels[office as keyof typeof POLITICAL_CAREER_REQUIREMENTS];
       if (currentLevel < level) {
         const requirements = POLITICAL_CAREER_REQUIREMENTS[office];
         const hasEducation = (id: string) => 
           (gameState.educations || []).some(e => e.id === id && e.completed);
-        const hasRequiredEducation = requirements.education 
+        const hasRequiredEducation = ('education' in requirements && requirements.education && Array.isArray(requirements.education)) 
           ? requirements.education.every(edu => hasEducation(edu))
           : true;
         
@@ -144,7 +146,8 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
   const nextOffice = getNextOffice();
 
   const handleRunForOffice = useCallback((office: keyof typeof POLITICAL_CAREER_REQUIREMENTS) => {
-    const result = runForOffice(gameState, setGameState, office, { updateMoney });
+    const officeKey = office as 'council_member' | 'mayor' | 'state_representative' | 'governor' | 'senator' | 'president';
+    const result = runForOffice(gameState, setGameState, officeKey, { updateMoney });
     if (result.success) {
       saveGame();
       Alert.alert('Success', result.message);
@@ -298,7 +301,7 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
     const weeklyPoliticalSalary = passiveIncome.breakdown.political || 0;
 
     // Get active perks
-    const { getActivePerks, getCombinedPerkEffects } = require('@/lib/politics/perks');
+    const { getCombinedPerkEffects } = require('@/lib/politics/perks');
     const activePerks = currentLevel > 0 ? getActivePerks(currentLevel) : [];
     const perkEffects = currentLevel > 0 ? getCombinedPerkEffects(currentLevel) : {
       loanInterestReduction: 0,
@@ -439,7 +442,7 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
                     setActiveTab('career');
                   }}
                 >
-                  <LinearGradient colors={['#10B981', '#059669']} style={styles.goalButtonGradient}>
+                  <LinearGradient colors={['#10B981', '#059669'] as const} style={styles.goalButtonGradient}>
                     <Text style={styles.goalButtonText}>View Requirements</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -533,7 +536,7 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
                 {getElectionType(politics.careerLevel as 0 | 1 | 2 | 3 | 4 | 5)}
               </Text>
               <Text style={[styles.electionText, { color: '#FFF', marginTop: scale(4), fontWeight: '600' }]}>
-                {getWeeksUntilElection(gameState.week, politics.nextElectionWeek)} weeks away
+                {getWeeksUntilElection(gameState.weeksLived, politics.nextElectionWeek)} weeks away
               </Text>
             </LinearGradient>
           </View>
@@ -553,7 +556,8 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
           Progress through political offices by meeting requirements and winning elections.
         </Text>
 
-        {Object.entries(POLITICAL_CAREER_REQUIREMENTS).map(([office, requirements]) => {
+        {(Object.keys(POLITICAL_CAREER_REQUIREMENTS) as (keyof typeof POLITICAL_CAREER_REQUIREMENTS)[]).map((office) => {
+          const requirements = POLITICAL_CAREER_REQUIREMENTS[office];
           const officeLevel = {
             council_member: 0,
             mayor: 1,
@@ -565,17 +569,19 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
 
           const hasEducation = (id: string) => 
             (gameState.educations || []).some(e => e.id === id && e.completed);
-          const hasRequiredEducation = requirements.education 
+          const hasRequiredEducation = ('education' in requirements && requirements.education && Array.isArray(requirements.education)) 
             ? requirements.education.every(edu => hasEducation(edu))
             : true;
 
-          const meetsPreviousLevel = requirements.previousLevel 
+          const meetsPreviousLevel = ('previousLevel' in requirements && requirements.previousLevel) 
             ? (() => {
+                const previousLevel = requirements.previousLevel;
+                if (!previousLevel) return false;
                 const previousLevelIndex = POLITICAL_CAREER.levels.findIndex(
-                  l => l.name.toLowerCase().includes(requirements.previousLevel!.split('_')[0])
+                  l => l.name.toLowerCase().includes(previousLevel.split('_')[0])
                 );
                 const career = gameState.careers.find(c => c.id === 'political');
-                const weeksInCurrentLevel = career?.level > 0 ? career.progress : 0;
+                const weeksInCurrentLevel = career && career.level !== undefined && career.level > 0 ? career.progress : 0;
                 return currentLevel > previousLevelIndex && 
                        weeksInCurrentLevel >= (requirements.minWeeksInPrevious || 0);
               })()
@@ -593,7 +599,10 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
             <TouchableOpacity
               key={office}
               style={[styles.officeCard, settings.darkMode && styles.officeCardDark]}
-              onPress={() => handleRunForOffice(office as keyof typeof POLITICAL_CAREER_REQUIREMENTS)}
+              onPress={() => {
+                const officeKey = office as keyof typeof POLITICAL_CAREER_REQUIREMENTS;
+                handleRunForOffice(officeKey);
+              }}
               disabled={!canRun}
             >
               <LinearGradient
@@ -611,23 +620,23 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
                 </View>
                 <Text style={[styles.officeDescription, settings.darkMode && styles.officeDescriptionDark]}>
                   Age {requirements.minAge}+ • Reputation {requirements.minReputation}+
-                  {requirements.education && ` • ${requirements.education.map(e => e === 'business_degree' ? 'Business Degree' : e).join(', ')}`}
+                  {'education' in requirements && requirements.education && Array.isArray(requirements.education) && ` • ${requirements.education.map(e => e === 'business_degree' ? 'Business Degree' : e).join(', ')}`}
                 </Text>
                 {!canRun && currentLevel < officeLevel && (
                   <View style={{ marginTop: scale(8) }}>
                     {gameState.date.age < requirements.minAge && (
                       <Text style={[styles.requirementText, settings.darkMode && styles.requirementTextDark]}>
-                        ❌ Age: {Math.floor(gameState.date.age)}/{requirements.minAge}
+                        ❌Œ Age: {Math.floor(gameState.date.age)}/{requirements.minAge}
                       </Text>
                     )}
                     {gameState.stats.reputation < requirements.minReputation && (
                       <Text style={[styles.requirementText, settings.darkMode && styles.requirementTextDark]}>
-                        ❌ Reputation: {gameState.stats.reputation}/{requirements.minReputation}
+                        ❌Œ Reputation: {gameState.stats.reputation}/{requirements.minReputation}
                       </Text>
                     )}
-                    {requirements.education && !hasRequiredEducation && (
+                    {'education' in requirements && requirements.education && Array.isArray(requirements.education) && !hasRequiredEducation && (
                       <Text style={[styles.requirementText, settings.darkMode && styles.requirementTextDark]}>
-                        ❌ Education: Missing {requirements.education.filter(e => !hasEducation(e)).map(e => e === 'business_degree' ? 'Business Degree' : e).join(', ')}
+                        ❌Œ Education: Missing {requirements.education.filter(e => !hasEducation(e)).map(e => e === 'business_degree' ? 'Business Degree' : e).join(', ')}
                       </Text>
                     )}
                   </View>
@@ -791,7 +800,7 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
                   value={lobbyAmount}
                   onChangeText={setLobbyAmount}
                   placeholder="Enter amount"
-                  placeholderTextColor={settings.darkMode ? '#FFFFFF' : '#FFFFFF'}
+                  placeholderTextColor={settings.darkMode ? '#FFFFFF80' : '#00000060'}
                   keyboardType="numeric"
                 />
                 <TouchableOpacity
@@ -836,10 +845,10 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
             republican: 'Republican Party',
             independent: 'Independent',
           };
-          const partyColors = {
-            democratic: ['#3B82F6', '#2563EB'],
-            republican: ['#EF4444', '#DC2626'],
-            independent: ['#6B7280', '#4B5563'],
+          const partyColors: Record<string, readonly [string, string]> = {
+            democratic: ['#3B82F6', '#2563EB'] as const,
+            republican: ['#EF4444', '#DC2626'] as const,
+            independent: ['#6B7280', '#4B5563'] as const,
           };
 
           return (
@@ -1060,7 +1069,7 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
             value={campaignAmount}
             onChangeText={setCampaignAmount}
             placeholder="Enter amount"
-            placeholderTextColor={settings.darkMode ? '#FFFFFF' : '#FFFFFF'}
+            placeholderTextColor={settings.darkMode ? '#FFFFFF80' : '#00000060'}
             keyboardType="numeric"
           />
           <TouchableOpacity
@@ -1203,7 +1212,7 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
 
                 <View style={styles.helpSection}>
                   <Text style={[styles.helpSectionTitle, settings.darkMode && styles.helpSectionTitleDark]}>
-                    📋 Overview Tab
+                    📄 Overview Tab
                   </Text>
                   <Text style={[styles.helpText, settings.darkMode && styles.helpTextDark]}>
                     See your current status, goals, and quick actions. Check your approval rating and next election date.
@@ -1230,7 +1239,7 @@ export default function PoliticalApp({ onBack }: PoliticalAppProps) {
 
                 <View style={styles.helpSection}>
                   <Text style={[styles.helpSectionTitle, settings.darkMode && styles.helpSectionTitleDark]}>
-                    🤝 Support Tab
+                    🤝 Support Tab
                   </Text>
                   <Text style={[styles.helpText, settings.darkMode && styles.helpTextDark]}>
                     Join a party, form alliances with relationships, hire lobbyists, and spend on campaigns to boost your political power.
@@ -1888,3 +1897,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+

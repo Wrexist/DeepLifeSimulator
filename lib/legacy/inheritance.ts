@@ -1,12 +1,13 @@
 import { GameState } from '@/contexts/GameContext';
 import { RealEstate, Company, Heirloom, DynastyStats } from '@/contexts/game/types';
 import { Memory, MEMORY_TEMPLATES, generateMemoryId } from './memories';
-import { 
-  generateHeirloom, 
+import {
+  generateHeirloom,
   updateHeirloomGenerations,
   updateDynastyOnDeath,
   getHeirloomBonuses,
 } from './dynasty';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 export interface InheritanceSummary {
   totalNetWorth: number;
@@ -52,7 +53,7 @@ export function computeInheritance(state: GameState): InheritanceSummary {
     .reduce((sum, p) => sum + (p.price ?? 0), 0);
 
   const companyValue = companies.reduce(
-    (sum, c) => sum + (c.weeklyIncome ?? 0) * 52 * 5,
+    (sum, c) => sum + (c.weeklyIncome ?? 0) * WEEKS_PER_YEAR * 5,
     0
   );
 
@@ -160,7 +161,7 @@ export function computeInheritance(state: GameState): InheritanceSummary {
   const playerAge = state.date?.age || 18;
   const childrenCount = state.family?.children?.length || 0;
   const unlockedAchievements = (state.achievements || [])
-    .filter(a => a.unlocked)
+    .filter(a => a.completed)
     .map(a => a.name);
   
   // Update dynasty stats with this life's accomplishments
@@ -208,7 +209,7 @@ export function computeInheritance(state: GameState): InheritanceSummary {
       reputationBonus: finalReputationBonus,
     },
     // Dynasty & Heirloom System
-    newHeirloom,
+    newHeirloom: newHeirloom || undefined,
     updatedHeirlooms,
     updatedDynastyStats,
   };

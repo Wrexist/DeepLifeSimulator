@@ -9,8 +9,10 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-// import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const BlurView = BlurViewFallback;
 import {
   Trophy,
   Star,
@@ -106,7 +108,10 @@ export default function DailyChallengesModal({ visible, onClose }: DailyChalleng
     return null;
   }
 
-  const todaysChallenges = generateDailyChallenges();
+  const todaysChallenges = generateDailyChallenges({
+    weeksLived: gameState.weeksLived,
+    day: gameState.day,
+  });
 
   const handleClaim = (difficulty: 'easy' | 'medium' | 'hard') => {
     const result = claimDailyChallengeReward(difficulty);
@@ -329,7 +334,7 @@ export default function DailyChallengesModal({ visible, onClose }: DailyChalleng
                 >
                   <Star size={scale(18)} color="#FFF" />
                   <Text style={styles.streakBonusText}>
-                    🔥 {Math.min(((dailyChallenges.streak || 0) - 2) * 5, 25)}% Streak Bonus Active!
+                    ðŸ”¥ {Math.min(((dailyChallenges.streak || 0) - 2) * 5, 25)}% Streak Bonus Active!
                   </Text>
                 </LinearGradient>
               </View>
@@ -425,10 +430,10 @@ export default function DailyChallengesModal({ visible, onClose }: DailyChalleng
 
             <View style={styles.milestonesRow}>
               {[
-                { days: 3, reward: 25, icon: '🔥' },
-                { days: 7, reward: 75, icon: '⚡' },
-                { days: 14, reward: 150, icon: '🏆' },
-                { days: 30, reward: 500, icon: '👑' },
+                { days: 3, reward: 25, icon: 'ðŸ”¥' },
+                { days: 7, reward: 75, icon: 'âš¡' },
+                { days: 14, reward: 150, icon: 'ðŸ†' },
+                { days: 30, reward: 500, icon: 'ðŸ‘‘' },
               ].map((milestone, index) => {
                 const currentStreak = dailyChallenges.streak || 0;
                 const isReached = currentStreak >= milestone.days;
@@ -494,7 +499,7 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     maxHeight: screenHeight * 0.85,
     backgroundColor: '#FFFFFF',
-    borderRadius: scale(20),
+    borderRadius: 20,
     overflow: 'hidden',
     boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)',
     shadowColor: '#000',
@@ -507,8 +512,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#1F2937',
   },
   header: {
-    padding: scale(20),
-    paddingTop: scale(24),
+    padding: 20,
+    paddingTop: 24,
   },
   headerContent: {
     flexDirection: 'row',
@@ -967,5 +972,6 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
 });
+
 
 

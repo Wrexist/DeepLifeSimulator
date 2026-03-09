@@ -35,7 +35,9 @@ export default function TombstonePopup() {
         deathReason: undefined,
       }));
       
-      await AsyncStorage.removeItem(`save_slot_${currentSlot}`);
+      // CRASH FIX (A-1): Delete all double-buffer keys for this slot
+      const { deleteSaveSlot } = await import('@/utils/saveValidation');
+      await deleteSaveSlot(currentSlot);
       await AsyncStorage.removeItem('lastSlot');
       await restartGame();
       router.replace('/(onboarding)/MainMenu');
@@ -48,7 +50,7 @@ export default function TombstonePopup() {
     }
   };
 
-  const isDark = settings.darkMode;
+  const isDark = settings?.darkMode ?? false;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
@@ -84,16 +86,16 @@ export default function TombstonePopup() {
 
               <View style={[styles.statsCard, isDark && styles.statsCardDark]}>
                 <Text style={[styles.statRow, isDark && styles.statRowDark]}>
-                  Age: {Math.floor(date.age)} years
+                  Age: {Math.floor(date?.age ?? 0)} years
                 </Text>
                 <Text style={[styles.statRow, isDark && styles.statRowDark]}>
-                  Money: ${stats.money.toLocaleString()}
+                  Money: ${(stats?.money ?? 0).toLocaleString()}
                 </Text>
                 <Text style={[styles.statRow, isDark && styles.statRowDark]}>
-                  Health: {stats.health}
+                  Health: {stats?.health ?? 0}
                 </Text>
                 <Text style={[styles.statRow, isDark && styles.statRowDark]}>
-                  Happiness: {stats.happiness}
+                  Happiness: {stats?.happiness ?? 0}
                 </Text>
               </View>
 

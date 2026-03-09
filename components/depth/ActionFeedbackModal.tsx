@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Rich Action Feedback Modal
  * Detailed breakdown modal after major actions
  */
@@ -13,7 +13,8 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import {
   X,
   TrendingUp,
@@ -586,4 +587,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 
