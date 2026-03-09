@@ -573,6 +573,14 @@ export function runScenarioCrashTests(): TestResult[] {
   return results;
 }
 
+describe('Scenario Crash Test', () => {
+  it('runs all scenario simulations without crashes', () => {
+    const results = runScenarioCrashTests();
+    expect(results).toHaveLength(10);
+    expect(results.filter((result) => !result.success)).toEqual([]);
+  });
+});
+
 // Run tests if this file is executed directly
 if (require.main === module) {
   runScenarioCrashTests();

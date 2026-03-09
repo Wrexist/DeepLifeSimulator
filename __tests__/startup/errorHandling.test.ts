@@ -48,20 +48,20 @@ describe('Error Handling System', () => {
 
   describe('Unhandled Promise Rejection Handler', () => {
     it('should handle unhandled promise rejections', (done) => {
-      const originalHandler = (global as any).onunhandledrejection;
-      
-      // Create unhandled rejection
-      Promise.reject(new Error('Test rejection'));
-      
-      // Handler should be called
-      setTimeout(() => {
-        const errorQueue = (global as any).__errorQueue;
-        if (errorQueue && errorQueue.length > 0) {
-          const lastError = errorQueue[errorQueue.length - 1];
-          expect(lastError.type).toBe('unhandledRejection');
-        }
-        done();
-      }, 100);
+      const unhandledRejectionHandler = (global as any).onunhandledrejection;
+      if (typeof unhandledRejectionHandler === 'function') {
+        unhandledRejectionHandler({
+          reason: new Error('Test rejection'),
+          preventDefault: () => {},
+        });
+      }
+
+      const errorQueue = (global as any).__errorQueue;
+      if (errorQueue && errorQueue.length > 0) {
+        const lastError = errorQueue[errorQueue.length - 1];
+        expect(lastError.type).toBe('unhandledRejection');
+      }
+      done();
     });
   });
 

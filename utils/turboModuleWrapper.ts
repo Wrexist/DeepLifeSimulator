@@ -38,6 +38,27 @@ const DEFAULT_TIMEOUT = 5000; // 5 seconds
 // Maximum registry size to prevent memory leaks
 const MAX_REGISTRY_SIZE = 100;
 
+function shouldRetryAfterError(error: Error | undefined): boolean {
+  if (!error || typeof error.message !== 'string') {
+    return true;
+  }
+
+  const message = error.message;
+  // Deterministic failures (unsupported module, missing module, syntax/import errors)
+  // should not trigger expensive retry loops.
+  if (
+    message.includes('not supported') ||
+    message.includes('Cannot find module') ||
+    message.includes('Cannot use import statement outside a module') ||
+    message.includes('Unexpected token') ||
+    message.includes('is not a function')
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * Module dependency graph
  * Defines which modules should be loaded before others
@@ -457,6 +478,16 @@ export async function lazyLoadTurboModule<T = any>(
     // Continue to retry logic
     lastError = error as Error;
   }
+
+  const firstAttemptEntry = moduleRegistry.get(moduleName);
+  if (firstAttemptEntry?.error) {
+    lastError = firstAttemptEntry.error;
+    if (!shouldRetryAfterError(firstAttemptEntry.error)) {
+      loadingLocks.delete(moduleName);
+      return fallback || null;
+    }
+  }
+
   for (let attempt = 0; attempt < retries; attempt++) {
     // Wait before retry
     await new Promise((resolve) => setTimeout(resolve, retryDelay * (attempt + 1)));
@@ -480,6 +511,9 @@ export async function lazyLoadTurboModule<T = any>(
     const entry = moduleRegistry.get(moduleName);
     if (entry?.error) {
       lastError = entry.error;
+      if (!shouldRetryAfterError(entry.error)) {
+        break;
+      }
     }
   }
 

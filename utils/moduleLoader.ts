@@ -142,6 +142,7 @@ export async function loadModuleSafely<T = any>(
     return {
       success: false,
       module: fallback || null,
+      error: new Error(`Failed to load optional module: ${moduleName}`),
       skipped: true,
     };
   } catch (error) {

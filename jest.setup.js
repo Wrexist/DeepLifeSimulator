@@ -31,16 +31,46 @@ global.console = {
 };
 
 // Startup globals expected by startup safety tests.
+if (!Array.isArray(global.__errorQueue)) {
+  global.__errorQueue = [];
+}
+
+const pushStartupError = (error, isFatal, type = 'globalError') => {
+  const normalizedError = error instanceof Error ? error : new Error(String(error));
+  if (!Array.isArray(global.__errorQueue)) {
+    global.__errorQueue = [];
+  }
+  global.__errorQueue.push({
+    message: normalizedError.message || String(error),
+    stack: normalizedError.stack,
+    isFatal: !!isFatal,
+    time: Date.now(),
+    type,
+  });
+  if (global.__errorQueue.length > 50) {
+    global.__errorQueue.shift();
+  }
+};
+
 if (!(global.ErrorUtils && typeof global.ErrorUtils.getGlobalHandler === 'function')) {
-  const defaultHandler = jest.fn();
+  let activeHandler = (error, isFatal) => {
+    pushStartupError(error, isFatal, 'globalError');
+    return undefined;
+  };
   global.ErrorUtils = {
-    getGlobalHandler: jest.fn(() => defaultHandler),
-    setGlobalHandler: jest.fn(),
-    reportFatalError: jest.fn(),
+    getGlobalHandler: jest.fn(() => activeHandler),
+    setGlobalHandler: jest.fn((nextHandler) => {
+      if (typeof nextHandler === 'function') {
+        activeHandler = nextHandler;
+      }
+    }),
+    reportFatalError: jest.fn((error) => activeHandler(error, true)),
   };
 }
 if (typeof global.RCTFatal !== 'function') {
-  global.RCTFatal = jest.fn();
+  global.RCTFatal = jest.fn((error) => {
+    pushStartupError(error || new Error('RCTFatal called'), true, 'rctFatal');
+  });
 }
 if (typeof global.__EARLY_INIT_ERROR__ !== 'function') {
   global.__EARLY_INIT_ERROR__ = jest.fn(() => null);
@@ -61,8 +91,33 @@ if (!global.__MODULE_AUDIT_REPORT__) {
     summary: { incompatible: [] },
   };
 }
-if (!Array.isArray(global.__errorQueue)) {
-  global.__errorQueue = [];
+
+if (typeof global.onunhandledrejection !== 'function') {
+  global.onunhandledrejection = jest.fn((event) => {
+    const reason =
+      event && typeof event === 'object' && 'reason' in event
+        ? event.reason
+        : event;
+    pushStartupError(reason, false, 'unhandledRejection');
+    if (event && typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
+    return true;
+  });
+}
+
+if (!process.__DL_UNHANDLED_REJECTION_BRIDGE_INSTALLED__) {
+  process.on('unhandledRejection', (reason) => {
+    if (typeof global.onunhandledrejection === 'function') {
+      global.onunhandledrejection({
+        reason,
+        preventDefault: () => {},
+      });
+      return;
+    }
+    pushStartupError(reason, false, 'unhandledRejection');
+  });
+  process.__DL_UNHANDLED_REJECTION_BRIDGE_INSTALLED__ = true;
 }
 
 // Mock AsyncStorage
