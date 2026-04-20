@@ -393,6 +393,10 @@ try {
   } else {
     log('[PASS] Save signing environment variables are production-safe', GREEN);
   }
+
+  if (Array.isArray(signingCheck.warnings) && signingCheck.warnings.length > 0) {
+    signingCheck.warnings.forEach((warning) => log(`[WARN] ${warning}`, YELLOW));
+  }
 } catch (error) {
   log('[FAIL] Save signing configuration check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
   hasErrors = true;

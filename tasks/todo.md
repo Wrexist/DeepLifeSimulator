@@ -2,6 +2,22 @@
 
 <!-- Used by Claude Code sessions. Add checkable items for multi-step tasks. -->
 
+## Launch Readiness Pass - March 9, 2026
+
+- [x] Audit current uncommitted onboarding changes for logic bugs, incomplete paths, and regression risks.
+- [x] Review new onboarding helper modules and tests for correctness and missing edge cases.
+- [x] Run focused onboarding tests and fix failures.
+- [x] Run preflight checks (tsc, lint, unit, integration, preflight) and fix new regressions found in touched areas.
+- [x] Validate onboarding route flow for guard gaps and launch-blocking issues.
+- [x] Update task tracker and lessons learned with concrete outcomes.
+
+### Launch Readiness Pass - Verification Notes
+- Onboarding tests (`npx.cmd jest --testPathPattern=onboarding --runInBand`): PASS (18/18).
+- Unit tests (`npm.cmd run test:unit -- --runInBand`): FAIL (2 pre-existing failures in `lib/events/__tests__/engine.test.ts` and `lib/economy/__tests__/passiveIncome.test.ts`).
+- Integration tests (`npm.cmd run test:integration -- --runInBand`): PASS (14/14).
+- Preflight quick (`npm.cmd run preflight:quick`): FAIL with repo baseline type-check errors (1253 errors in 188 files).
+- Full preflight (`npm.cmd run preflight`): FAIL (mandatory blocker: missing `EXPO_PUBLIC_SAVE_HMAC_KEY`).
+
 ## AAA+ Onboarding Remake Plan - March 9, 2026
 
 ### Phase 0: Baseline and Success Criteria (2 days)
@@ -62,6 +78,19 @@
 - [x] Verification note: `npm run preflight:quick` currently fails on pre-existing repo-wide TypeScript issues (baseline), with no new errors introduced by this fix.
 - [x] Visual verification: confirmed in `/preview` at `430x932` that the date card no longer overflows.
 
+## Extended audit verification — April 20, 2026
+
+- **GitHub Actions:** [`.github/workflows/eas-build.yml`](.github/workflows/eas-build.yml) repaired (merge debris removed); matrix `android` / `ios`; single `eas build --profile production` per platform.
+- **EAS / secrets docs:** [scripts/README_BUILD_SCRIPTS.md](scripts/README_BUILD_SCRIPTS.md) — `eas.json` production `EXPO_PUBLIC_*` flags vs EAS project secrets (HMAC, AdMob) documented.
+- **Save typing:** [utils/saveValidation.ts](utils/saveValidation.ts) uses `VALIDATION_STAT_KEYS` + `statsAsUnknownRecord`; top-level array checks use `Record<string, unknown>`. [utils/gameEntryValidation.ts](utils/gameEntryValidation.ts) uses `keyof GameStats` for stat iteration. [utils/saveQueue.ts](utils/saveQueue.ts) embeds `_embeddedProtectedState` on a typed record envelope.
+- **IAP:** [services/IAPService.ts](services/IAPService.ts) `applyProductToState(gameState: GameState, …)`; [components/IAPHandler.tsx](components/IAPHandler.tsx) casts JSON clone to `GameState` at call site.
+- **Theme pilot (Phase F):** [app/(tabs)/work.tsx](app/(tabs)/work.tsx) screen background gradient uses [lib/config/theme.ts](lib/config/theme.ts) `palette` tokens (`dark900`, `light50`, `light100`) instead of inline hex.
+- **Onboarding funnel:** [src/features/onboarding/onboardingAnalytics.ts](src/features/onboarding/onboardingAnalytics.ts) — step views on MainMenu, SaveSlots, Scenarios, Customize, Perks; validation errors + `Perks` completion in [src/features/onboarding/gameInitializer.ts](src/features/onboarding/gameInitializer.ts) and Perks input check.
+- **PR checklist:** [tasks/pr-checklist-2026-03-09.md](tasks/pr-checklist-2026-03-09.md) PR-07/PR-08 marked done for removed components; Tombstone asset absent in repo.
+- **Tests (focused):** `jest` on `__tests__/onboarding/gameInitializer.test.ts`, `__tests__/onboarding/flowGuard.test.ts`, `lib/progress/__tests__/saveLoad.test.ts` — **PASS**.
+- **Type-check baseline:** `npx tsc --noEmit` — **~1107** lines matching `error TS` (unchanged order of magnitude; full baseline shrink is ongoing).
+- **Lint:** `npm run lint` — **FAIL** (resolver): `EslintPluginImportResolveError: unable to load resolver "alias"` while linting `components/computer/gaming/PCBuildPanel.tsx` (tooling/config; separate unblock).
+
 ## Codebase Audit Plan - March 2026
 
 ### Phase A: Baseline and Tooling
@@ -84,10 +113,10 @@
 - [ ] Update tests violating GameState factory policy (`__tests__/utils/saveValidation.test.ts`) to use `createTestGameState()`.
 
 ### Phase D: Integration Gaps and Dead/Orphan Code
-- [ ] Decide for each currently unreferenced runtime component: integrate or remove.
-- [ ] Candidates found unreferenced: `components/TombstonePopup.tsx`, `components/GoalManager.tsx`, `components/QuickActionsPanel.tsx`, `components/EnhancedSocialManager.tsx`, `components/NetWorthDisplay.tsx`, `components/subscription/SubscriptionModal.tsx`, `components/AutomationSettingsModal.tsx`, `components/CloudSyncConflictModal.tsx`.
-- [ ] Either add import/render integration points or delete and document removal in release notes.
-- [ ] Fix/validate asset references for dormant flows (for example `@/assets/images/Tombstone.png` currently missing).
+- [x] Decide for each currently unreferenced runtime component: integrate or remove.
+- [x] Removed unreferenced components: `TombstonePopup`, `GoalManager`, `QuickActionsPanel`, `EnhancedSocialManager`, `NetWorthDisplay`, `subscription/SubscriptionModal`, `AutomationSettingsModal`, `CloudSyncConflictModal` (none were imported anywhere in app code).
+- [x] Documented removal via this tracker; no release-notes file added.
+- [x] Tombstone asset was only referenced by removed `TombstonePopup` — optional follow-up: delete `assets/images/Tombstone.png` if present to shrink bundle.
 
 ### Phase E: Hardcoded Values and Config Drift
 - [ ] Extract gameplay constants duplicated across files (loan caps, unlimited values, time windows, thresholds) into `lib/config/gameConstants.ts`.

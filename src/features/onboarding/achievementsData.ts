@@ -18,6 +18,89 @@ export interface Achievement {
 }
 
 export const achievements: Achievement[] = [
+  // ── Beginner Achievements ─────────────────────────────────────────────
+  // Designed to fire in the first 10 weeks so new players get early dopamine hits.
+  // Research shows 3-5 achievements in the first session dramatically reduces Day 1 churn.
+  {
+    id: 'beginner_first_gig',
+    title: 'First Gig',
+    description: 'Complete your first street job.',
+    progressSpec: { kind: 'counter', current: gs => gs.streetJobsCompleted ?? 0, goal: 1 },
+    goldReward: 10,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_triple_digits',
+    title: 'Triple Digits',
+    description: 'Have $100 in cash.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.money ?? 0, goal: 100 },
+    goldReward: 5,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_hustler',
+    title: 'Hustler',
+    description: 'Have $500 in cash.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.money ?? 0, goal: 500 },
+    goldReward: 10,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_four_figures',
+    title: 'Four Figures',
+    description: 'Have $1,000 in cash.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.money ?? 0, goal: 1_000 },
+    goldReward: 15,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_five_k',
+    title: 'Stacking Up',
+    description: 'Have $5,000 in cash.',
+    progressSpec: { kind: 'counter', current: gs => gs.stats?.money ?? 0, goal: 5_000 },
+    goldReward: 20,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_social_life',
+    title: 'Social Life',
+    description: 'Make your first friend or connection.',
+    progressSpec: { kind: 'counter', current: gs => gs.relationships?.length ?? 0, goal: 1 },
+    goldReward: 10,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_connected',
+    title: 'Connected',
+    description: 'Buy your first smartphone.',
+    progressSpec: { kind: 'boolean', met: gs => gs.items?.some((i: any) => i.owned && i.id === 'smartphone') ?? false },
+    goldReward: 10,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_survivor',
+    title: 'Survivor',
+    description: 'Survive your first month (4 weeks).',
+    progressSpec: { kind: 'counter', current: gs => gs.weeksLived ?? 0, goal: 4 },
+    goldReward: 5,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_getting_started',
+    title: 'Getting Started',
+    description: 'Survive 10 weeks.',
+    progressSpec: { kind: 'counter', current: gs => gs.weeksLived ?? 0, goal: 10 },
+    goldReward: 10,
+    group: 'beginner',
+  },
+  {
+    id: 'beginner_grinder',
+    title: 'Grinder',
+    description: 'Complete 10 street jobs.',
+    progressSpec: { kind: 'counter', current: gs => gs.streetJobsCompleted ?? 0, goal: 10 },
+    goldReward: 15,
+    group: 'beginner',
+  },
   {
     id: 'wealth_1m',
     title: 'Seven Figures',

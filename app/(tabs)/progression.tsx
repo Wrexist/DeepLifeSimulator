@@ -10,8 +10,6 @@ import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
 import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
-import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
-
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LifeStoryModal from '@/components/LifeStoryModal';
 import SkillTreeModal from '@/components/SkillTreeModal';
@@ -213,11 +211,11 @@ function ProgressionScreenContent() {
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <TrendingUp size={20} color="#3B82F6" />
-              <Text style={styles.statValue}>{Math.floor(gameState.date.age)}</Text>
+              <Text style={styles.statValue}>{Math.floor(gameState.date?.age ?? 18)}</Text>
               <Text style={[styles.statLabel, settings?.darkMode && styles.statLabelDark]}>Age</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{gameState.week}</Text>
+              <Text style={styles.statValue}>{gameState.weeksLived}</Text>
               <Text style={styles.statLabel}>Weeks Lived</Text>
             </View>
             <View style={styles.statCard}>
@@ -233,11 +231,15 @@ function ProgressionScreenContent() {
       </ScrollView>
       
       {/* Enhanced Components */}
-        <EnhancedDataVisualization darkMode={gameState.settings.darkMode} compact={false} />
+        {showDataVisualization && (
+          <EnhancedDataVisualization darkMode={gameState.settings.darkMode} compact={false} />
+        )}
         <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
         <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
         <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
         <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
+        <PrestigeHistoryModal visible={showPrestigeHistory} onClose={() => setShowPrestigeHistory(false)} />
+        <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
     </View>
   );
 }

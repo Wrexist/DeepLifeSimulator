@@ -583,7 +583,7 @@ const thanksgiving: EventTemplate = {
     return season.holiday === 'thanksgiving' && shouldTriggerSeasonalEvent(state, 'thanksgiving');
   },
   generate: (state) => {
-    const hasFamily = state.family?.children?.length > 0 || state.relationships.some(r => r.type === 'partner' || r.type === 'family');
+    const hasFamily = state.family?.children?.length > 0 || state.relationships.some(r => r.type === 'partner' || r.type === 'parent' || r.type === 'child');
     return {
       id: 'thanksgiving',
       description: hasFamily

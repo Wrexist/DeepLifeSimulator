@@ -59,19 +59,12 @@ This checklist converts the audit plan into executable PRs with file-level owner
 - [ ] All tests use `createTestGameState()` and avoid `as GameState`
 
 ## PR-07 - Unintegrated Runtime Components (Integrate or Delete)
-- [ ] `components/TombstonePopup.tsx` - Owner: `UI/UX + Core Gameplay` - Effort: `1h`
-- [ ] `components/GoalManager.tsx` - Owner: `UI/UX + Core Gameplay` - Effort: `1h`
-- [ ] `components/QuickActionsPanel.tsx` - Owner: `UI/UX` - Effort: `1h`
-- [ ] `components/EnhancedSocialManager.tsx` - Owner: `UI/UX + Core Gameplay` - Effort: `1h`
-- [ ] `components/NetWorthDisplay.tsx` - Owner: `UI/UX + Economy` - Effort: `1h`
-- [ ] `components/subscription/SubscriptionModal.tsx` - Owner: `UI/UX + Save/Platform` - Effort: `1h`
-- [ ] `components/AutomationSettingsModal.tsx` - Owner: `UI/UX` - Effort: `1h`
-- [ ] `components/CloudSyncConflictModal.tsx` - Owner: `UI/UX + Save/Platform` - Effort: `1h`
+- [x] Removed unused components (April 2026): `TombstonePopup`, `GoalManager`, `QuickActionsPanel`, `EnhancedSocialManager`, `NetWorthDisplay`, `subscription/SubscriptionModal`, `AutomationSettingsModal`, `CloudSyncConflictModal` (none were imported in app code).
 - Exit criteria:
-- [ ] Each candidate has a validated integration point or is removed with release-note entry
+- [x] Each former candidate removed from tree; tracked in `tasks/todo.md` Phase D.
 
 ## PR-08 - Missing/Dormant Asset Integrity
-- [ ] `assets/images/Tombstone.png` reference audit and fix - Owner: `UI/UX` - Effort: `1h`
+- [x] `assets/images/Tombstone.png` — not present in repo; only referenced by removed `TombstonePopup`. No action.
 - [ ] `components/*` dormant flow asset references - Owner: `UI/UX` - Effort: `2h`
 - Exit criteria:
 - [ ] No unresolved runtime image requires in shipping flows

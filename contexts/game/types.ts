@@ -1070,6 +1070,9 @@ export interface GameState {
   };
   showDailyRewardPopup?: boolean;
   dailyRewardAmount?: number;
+  loginStreak?: number;
+  lastLoginDate?: string;
+  lastLoginRewardDate?: string;
   gamingStreaming?: GamingStreamingState;
   goldUpgrades?: Record<string, boolean>;
   pendingEvents: WeeklyEvent[];

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import type { GameState } from '@/contexts/game/types';
 import { IAP_PRODUCTS, getProductConfig, getAllProductIds, isConsumableProduct } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
@@ -1321,7 +1322,10 @@ export class IAPService {
 
   // Pure function to apply benefits to a game state object
   // Returns true if benefits were applied, false otherwise
-  public applyProductToState(gameState: any, productId: string): boolean {
+  /**
+   * Mutates `gameState` in place (legacy pattern). Prefer tightening callers to pass a full `GameState`.
+   */
+  public applyProductToState(gameState: GameState, productId: string): boolean {
     const config = getProductConfig(productId);
     if (!config) return false;
 

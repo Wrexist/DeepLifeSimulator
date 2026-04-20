@@ -36,6 +36,12 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
   const { gameState } = useGameState();
   const { settings } = gameState || { darkMode: false };
   const isDarkMode = settings?.darkMode || false;
+  const loginStreak = gameState?.loginStreak || 1;
+  // Guard: ensure rewardAmount is always a valid number to prevent toLocaleString crash
+  const safeRewardAmount = typeof rewardAmount === 'number' && isFinite(rewardAmount) && rewardAmount >= 0 ? rewardAmount : 0;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { DAILY_LOGIN_REWARDS } = require('@/lib/config/gameConstants');
+  const nextDayReward = DAILY_LOGIN_REWARDS[loginStreak % DAILY_LOGIN_REWARDS.length] || 50;
 
   // Unmount safety: prevent state updates and callbacks after unmount
   const isMountedRef = useRef(true);
@@ -124,7 +130,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
             friction: 7,
             useNativeDriver: true,
           }),
-          ...(rewardAmount > 0
+          ...(safeRewardAmount > 0
             ? [Animated.spring(coinAnim, {
                 toValue: 0,
                 tension: 50,
@@ -305,7 +311,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
                 Daily Reward! ðŸŽ
               </Text>
               <Text style={[styles.subtitle, isDarkMode && styles.subtitleDark]}>
-                Your daily login bonus
+                Day {loginStreak} streak — keep it going!
               </Text>
             </View>
 
@@ -335,7 +341,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
               </Animated.View>
               
               {/* Money Reward - Shown if there is one */}
-              {rewardAmount > 0 && (
+              {safeRewardAmount > 0 && (
                 <Animated.View
                   style={{
                     transform: [{ translateY: coinAnim }],
@@ -350,7 +356,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
                     </View>
                     <View style={styles.rewardTextContainer}>
                       <Text style={styles.rewardAmount}>
-                        ${rewardAmount.toLocaleString()}
+                        ${safeRewardAmount.toLocaleString()}
                       </Text>
                       <Text style={styles.rewardLabel}>Money Bonus</Text>
                     </View>
@@ -367,13 +373,13 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
               <View style={styles.infoRow}>
                 <Calendar size={scale(18)} color={isDarkMode ? '#8B5CF6' : '#7C3AED'} />
                 <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                  Come back daily for bigger rewards!
+                  Tomorrow: +{nextDayReward} gems (Day {loginStreak + 1})
                 </Text>
               </View>
               <View style={styles.infoRow}>
                 <Zap size={scale(18)} color={isDarkMode ? '#F59E0B' : '#D97706'} />
                 <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                  Rewards scale with your net worth
+                  {loginStreak >= 7 ? 'Max streak! Keep collecting daily!' : `${7 - loginStreak} days to max streak bonus!`}
                 </Text>
               </View>
             </View>

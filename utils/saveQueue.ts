@@ -132,12 +132,12 @@ class SaveQueue {
 
     // ANTI-EXPLOIT: Embed critical protected state inside the save data itself
     // This prevents bypass by deleting AsyncStorage protected_state keys
-    const dataWithProtection = { ...operation.data };
+    const dataWithProtection: Record<string, unknown> = { ...operation.data };
     try {
       const { getProtectedState } = await import('./saveBackup');
       const protectedState = await getProtectedState(operation.slot);
       if (protectedState) {
-        (dataWithProtection as any)._embeddedProtectedState = protectedState;
+        dataWithProtection._embeddedProtectedState = protectedState;
       }
     } catch (err) {
       this.log.warn('Failed to embed protected state (non-critical):', { error: err instanceof Error ? err.message : String(err) });

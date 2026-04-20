@@ -23,6 +23,20 @@ const STORAGE_KEY = 'lastReviewPromptWeek';
 const PROMPT_COOLDOWN_WEEKS = 60;
 const MIN_WEEKS_PLAYED = 20;
 
+function normalizeErrorContext(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      errorName: error.name,
+      errorMessage: error.message,
+      errorStack: error.stack,
+    };
+  }
+
+  return {
+    errorValue: String(error),
+  };
+}
+
 /**
  * Checks conditions and requests app review if appropriate
  *
@@ -72,7 +86,7 @@ export async function maybeRequestReview(
         return false;
       }
     } catch (err) {
-      logger.warn('[RatingPrompt] Error reading last prompt week from storage', err);
+      logger.warn('[RatingPrompt] Error reading last prompt week from storage', normalizeErrorContext(err));
       // Continue anyway - assume this is first time
     }
 
@@ -92,7 +106,7 @@ export async function maybeRequestReview(
             week: gameState.weeksLived,
           });
         } catch (storageErr) {
-          logger.warn('[RatingPrompt] Failed to record prompt week in storage', storageErr);
+          logger.warn('[RatingPrompt] Failed to record prompt week in storage', normalizeErrorContext(storageErr));
           // Don't fail the whole operation if storage fails
         }
 
@@ -103,7 +117,7 @@ export async function maybeRequestReview(
       }
     } catch (moduleErr) {
       // expo-store-review may not be installed or available
-      logger.debug('[RatingPrompt] expo-store-review not available', moduleErr);
+      logger.debug('[RatingPrompt] expo-store-review not available', normalizeErrorContext(moduleErr));
       return false;
     }
   } catch (err) {
@@ -121,7 +135,7 @@ export async function resetRatingPromptCooldown(): Promise<void> {
     await AsyncStorage.removeItem(STORAGE_KEY);
     logger.info('[RatingPrompt] Cooldown reset');
   } catch (err) {
-    logger.warn('[RatingPrompt] Failed to reset cooldown', err);
+    logger.warn('[RatingPrompt] Failed to reset cooldown', normalizeErrorContext(err));
   }
 }
 
@@ -134,7 +148,7 @@ export async function getLastReviewPromptWeek(): Promise<number | null> {
     const weekStr = await AsyncStorage.getItem(STORAGE_KEY);
     return weekStr ? parseInt(weekStr, 10) : null;
   } catch (err) {
-    logger.warn('[RatingPrompt] Failed to read last prompt week', err);
+    logger.warn('[RatingPrompt] Failed to read last prompt week', normalizeErrorContext(err));
     return null;
   }
 }

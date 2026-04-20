@@ -1,12 +1,16 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { Check, Gem, Play, Sparkles, Target } from 'lucide-react-native';
-import GlassActionButton from '@/components/onboarding/GlassActionButton';
-import GlassPanel from '@/components/onboarding/GlassPanel';
-import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
-import OnboardingTopBar from '@/components/onboarding/OnboardingTopBar';
+import { Check, Gem, Play, Sparkles, Star, Target } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const BlurView = BlurViewFallback;
+import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
+import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
+import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
+import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import { useGame } from '@/contexts/GameContext';
 import {
   getDifficultyColor,
@@ -14,14 +18,23 @@ import {
   SCENARIOS as CHALLENGE_SCENARIOS,
   Scenario as ChallengeScenarioDefinition,
 } from '@/lib/scenarios/scenarioDefinitions';
-import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { scenarios as LIFE_PATH_SCENARIOS, Scenario as OnboardingScenario } from '@/src/features/onboarding/scenarioData';
+import {
+  applyChallengeSelectionToOnboardingState,
+  applyLifePathSelectionToOnboardingState,
+  canContinueFromScenarioSelection,
+  getInitialScenarioTab,
+} from '@/src/features/onboarding/scenariosFlow';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
+import { haptic } from '@/utils/haptics';
 import { formatMoney } from '@/utils/moneyFormatting';
 import {
   fontScale,
   responsiveBorderRadius,
+  responsiveFontSize,
+  responsivePadding,
   responsiveSpacing,
   scale,
   verticalScale,
@@ -38,8 +51,9 @@ interface ChallengeScenarioCard extends OnboardingScenario {
 
 type ScenarioCard = OnboardingScenario | ChallengeScenarioCard;
 
-const BACKGROUND = require('@/assets/images/Main_Menu_3.png');
 const CHALLENGE_FALLBACK_ICON = require('@/assets/images/Scenarios/Street Hustler.png');
+
+const RECOMMENDED_SCENARIO_ID = 'food_courier';
 
 const isChallengeDifficulty = (
   difficulty: unknown
@@ -129,11 +143,12 @@ export default function Scenarios() {
   const navigation = useNavigation();
   const { gameState } = useGame();
   const { state, setState } = useOnboarding();
-  const [activeTab, setActiveTab] = useState<TabType>(state.challengeScenarioId ? 'challenges' : 'life_paths');
+  const [activeTab, setActiveTab] = useState<TabType>(getInitialScenarioTab(state.challengeScenarioId));
   const [selectedId, setSelectedId] = useState<string | null>(state.scenario?.id ?? null);
 
-  const isDarkMode = Boolean(gameState?.settings?.darkMode);
-  const theme = getOnboardingTheme(isDarkMode);
+  useEffect(() => {
+    logOnboardingStepView('Scenarios');
+  }, []);
 
   const challengeScenarios = useMemo<ChallengeScenarioCard[]>(() => {
     if (!Array.isArray(CHALLENGE_SCENARIOS)) {
@@ -141,7 +156,7 @@ export default function Scenarios() {
       return [];
     }
 
-    return CHALLENGE_SCENARIOS.map((challenge, index) => {
+    return CHALLENGE_SCENARIOS.map((challenge, index): ChallengeScenarioCard | null => {
       if (!challenge || typeof challenge !== 'object') {
         log.warn('Skipping invalid challenge scenario entry.', { index });
         return null;
@@ -175,6 +190,7 @@ export default function Scenarios() {
           ? challenge.description
           : 'Complete this challenge to earn bonus rewards.';
       const rewardGems = typeof challenge.rewards?.gems === 'number' ? challenge.rewards.gems : 0;
+      const startingEducation = educationList.length > 0 ? educationList[0] : undefined;
 
       return {
         id: challengeId,
@@ -186,7 +202,7 @@ export default function Scenarios() {
         start: {
           age: typeof startingConditions.age === 'number' ? startingConditions.age : 18,
           cash: typeof startingConditions.money === 'number' ? startingConditions.money : 0,
-          education: educationList[0],
+          education: startingEducation,
           items: startItems,
           traits: [],
         },
@@ -221,12 +237,9 @@ export default function Scenarios() {
       return;
     }
 
+    haptic.selection();
     setSelectedId(selected.id);
-    setState((prev) => ({
-      ...prev,
-      scenario: selected,
-      challengeScenarioId: undefined,
-    }));
+    setState((prev) => applyLifePathSelectionToOnboardingState(prev, selected));
   };
 
   const selectChallenge = (scenarioId: string) => {
@@ -236,36 +249,34 @@ export default function Scenarios() {
       return;
     }
 
+    haptic.selection();
     setSelectedId(selected.id);
-    setState((prev) => ({
-      ...prev,
-      scenario: {
-        id: selected.id,
-        title: selected.title,
-        difficulty: selected.difficulty,
-        lifeGoal: selected.lifeGoal,
-        description: selected.description,
-        bonus: selected.bonus,
-        start: selected.start,
-        icon: CHALLENGE_FALLBACK_ICON,
-      },
-      challengeScenarioId: selected.id,
-    }));
+    setState((prev) => applyChallengeSelectionToOnboardingState(prev, selected, CHALLENGE_FALLBACK_ICON));
   };
 
   const continueToCustomize = () => {
-    if (!selectedScenario) {
+    if (!canContinueFromScenarioSelection(selectedScenario)) {
+      haptic.error();
       Alert.alert('Pick A Scenario', 'Choose a life path or challenge before continuing.');
       return;
     }
+    haptic.medium();
     router.push('/(onboarding)/Customize');
   };
 
   return (
-    <OnboardingScreenShell backgroundSource={BACKGROUND}>
-      <OnboardingTopBar
+    <OnboardingScreenShellV2
+      floatingButton={
+        <OnboardingFloatingButton
+          title="Continue To Identity"
+          onPress={continueToCustomize}
+          disabled={!selectedScenario}
+          icon={<Play size={24} color="#FFFFFF" />}
+        />
+      }
+    >
+      <OnboardingGlassHeader
         title="Choose Scenario"
-        subtitle="Select your starting conditions for this life."
         onBack={handleBack}
         onInfo={() =>
           Alert.alert(
@@ -277,58 +288,74 @@ export default function Scenarios() {
         }
       />
 
-      <GlassPanel strong style={styles.heroPanel}>
-        <Text style={[styles.heroTitle, { color: theme.title }]}>Set The Story Premise</Text>
-        <Text style={[styles.heroSubtitle, { color: theme.subtitle }]}>
-          {activeTab === 'life_paths'
-            ? 'Classic starts for your next life run.'
-            : 'Harder modes with challenge IDs and reward tracking.'}
-        </Text>
-      </GlassPanel>
+      <OnboardingStepBar currentStep={1} totalSteps={3} />
 
-      <GlassPanel style={styles.tabPanel}>
-        <View style={styles.tabRow}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            onPress={() => setActiveTab('life_paths')}
-            style={[
-              styles.tabButton,
+      <Text style={styles.guidanceText}>
+        Pick how your life begins. Easy paths are great for your first playthrough.
+      </Text>
+
+      {/* Tab Selector */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'life_paths' && styles.tabActive]}
+          onPress={() => { haptic.light(); setActiveTab('life_paths'); }}
+        >
+          <LinearGradient
+            colors={
               activeTab === 'life_paths'
-                ? { borderColor: 'rgba(52, 211, 153, 0.5)', backgroundColor: 'rgba(16, 185, 129, 0.22)' }
-                : undefined,
-            ]}
+                ? ['#10B981', '#059669']
+                : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+            }
+            style={styles.tabGradient}
           >
-            <Target color={theme.title} size={scale(16)} />
-            <Text style={[styles.tabText, { color: theme.title }]}>Life Paths</Text>
-          </TouchableOpacity>
+            <Target size={18} color={activeTab === 'life_paths' ? '#FFFFFF' : '#9CA3AF'} />
+            <Text style={[styles.tabText, activeTab === 'life_paths' && styles.tabTextActive]}>
+              Life Paths
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            accessibilityRole="button"
-            onPress={() => setActiveTab('challenges')}
-            style={[
-              styles.tabButton,
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'challenges' && styles.tabActiveRed]}
+          onPress={() => { haptic.light(); setActiveTab('challenges'); }}
+        >
+          <LinearGradient
+            colors={
               activeTab === 'challenges'
-                ? { borderColor: 'rgba(248, 113, 113, 0.55)', backgroundColor: 'rgba(239, 68, 68, 0.22)' }
-                : undefined,
-            ]}
+                ? ['#EF4444', '#DC2626']
+                : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+            }
+            style={styles.tabGradient}
           >
-            <Sparkles color={theme.title} size={scale(16)} />
-            <Text style={[styles.tabText, { color: theme.title }]}>Challenges</Text>
-          </TouchableOpacity>
-        </View>
-      </GlassPanel>
+            <Sparkles size={18} color={activeTab === 'challenges' ? '#FFFFFF' : '#9CA3AF'} />
+            <Text style={[styles.tabText, activeTab === 'challenges' && styles.tabTextActive]}>
+              Challenges
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         {currentScenarios.map((scenario) => {
           const isSelected = scenario.id === selectedId;
           const isChallenge = 'isChallenge' in scenario && scenario.isChallenge;
+          const isRecommended = !isChallenge && scenario.id === RECOMMENDED_SCENARIO_ID;
           const rewardGems = isChallenge ? scenario.rewardGems : 0;
-          const difficultyBadgeColor = isChallenge ? safeGetDifficultyColor(scenario.difficultyKey) : theme.glassBorder;
+          const difficultyBadgeColor = isChallenge ? safeGetDifficultyColor(scenario.difficultyKey) : '#6B7280';
+          const difficultyColor =
+            scenario.difficulty === 'Easy' ? '#10B981' :
+            scenario.difficulty === 'Moderate' ? '#3B82F6' :
+            scenario.difficulty === 'Hard' ? '#F59E0B' : '#6B7280';
 
           return (
             <TouchableOpacity
               key={scenario.id}
               activeOpacity={0.92}
+              style={styles.cardContainer}
               onPress={() => {
                 if (isChallenge) {
                   selectChallenge(scenario.id);
@@ -337,153 +364,226 @@ export default function Scenarios() {
                 selectLifePath(scenario.id);
               }}
             >
-              <GlassPanel style={[styles.card, isSelected ? styles.cardSelected : undefined]}>
-                <View style={styles.cardHeader}>
-                  <Image source={scenario.icon} style={styles.cardImage} />
-                  <View style={styles.cardTextWrap}>
-                    <View style={styles.cardTitleRow}>
-                      <Text style={[styles.cardTitle, { color: theme.title }]}>{scenario.title}</Text>
-                      {isChallenge ? (
-                        <Text style={[styles.difficultyChip, { backgroundColor: difficultyBadgeColor }]}>
-                          {scenario.difficulty.toUpperCase()}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Text style={[styles.cardDescription, { color: theme.subtitle }]}>{scenario.description}</Text>
-                    <Text style={[styles.goalText, { color: theme.accentText }]}>Goal: {scenario.lifeGoal}</Text>
-                  </View>
-                  {isSelected ? (
-                    <View style={[styles.selectedDot, { borderColor: theme.glassBorder }]}>
-                      <Check size={scale(14)} color={theme.title} />
+              <BlurView intensity={20} style={styles.cardBlur}>
+                <LinearGradient
+                  colors={
+                    isSelected
+                      ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
+                      : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.card, isSelected && styles.cardSelected]}
+                >
+                  {isRecommended ? (
+                    <View style={styles.recommendedBanner}>
+                      <Star size={12} color="#FFFFFF" />
+                      <Text style={styles.recommendedBannerText}>RECOMMENDED FOR BEGINNERS</Text>
                     </View>
                   ) : null}
-                </View>
 
-                <View style={styles.statsRow}>
-                  <View style={styles.statCell}>
-                    <Text style={[styles.statLabel, { color: theme.subtitle }]}>Age</Text>
-                    <Text style={[styles.statValue, { color: theme.title }]}>{scenario.start.age}</Text>
-                  </View>
-                  <View style={styles.statCell}>
-                    <Text style={[styles.statLabel, { color: theme.subtitle }]}>Cash</Text>
-                    <Text style={[styles.statValue, { color: theme.title }]}>{formatMoney(scenario.start.cash)}</Text>
-                  </View>
-                  <View style={styles.statCell}>
-                    <Text style={[styles.statLabel, { color: theme.subtitle }]}>Study</Text>
-                    <Text style={[styles.statValue, { color: theme.title }]}>
-                      {scenario.start.education || 'None'}
-                    </Text>
-                  </View>
-                  {isChallenge ? (
-                    <View style={styles.statCell}>
-                      <Text style={[styles.statLabel, { color: theme.subtitle }]}>Reward</Text>
-                      <View style={styles.rewardRow}>
-                        <Gem size={scale(13)} color="#FBBF24" />
-                        <Text style={[styles.rewardValue, { color: theme.title }]}>{rewardGems}</Text>
+                  <View style={styles.cardHeader}>
+                    <Image source={scenario.icon} style={styles.cardImage} />
+                    <View style={styles.cardTextWrap}>
+                      <View style={styles.cardTitleRow}>
+                        <Text style={styles.cardTitle}>{scenario.title}</Text>
+                        {isChallenge ? (
+                          <View style={[styles.difficultyChip, { backgroundColor: difficultyBadgeColor }]}>
+                            <Text style={styles.difficultyText}>
+                              {scenario.difficulty.toUpperCase()}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.difficultyChip, { backgroundColor: difficultyColor }]}>
+                            <Text style={styles.difficultyText}>
+                              {scenario.difficulty.toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
                       </View>
+                      <Text style={styles.cardDescription}>{scenario.description}</Text>
+                      <Text style={styles.goalText}>Goal: {scenario.lifeGoal}</Text>
                     </View>
-                  ) : null}
-                </View>
-
-                {(scenario.start.items?.length || scenario.start.traits?.length || (isChallenge && scenario.iconEmoji)) ? (
-                  <View style={styles.tagsWrap}>
-                    {isChallenge && scenario.iconEmoji ? (
-                      <View style={styles.tag}>
-                        <Text style={[styles.tagText, { color: theme.accentText }]}>{scenario.iconEmoji} Challenge</Text>
+                    {isSelected ? (
+                      <View style={styles.selectedDot}>
+                        <Check size={scale(14)} color="#10B981" />
                       </View>
                     ) : null}
-                    {scenario.start.items?.map((item) => (
-                      <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
-                        <Text style={[styles.tagText, { color: theme.accentText }]}>
-                          {getScenarioItemIcon(item)} {formatTokenLabel(item)}
-                        </Text>
-                      </View>
-                    ))}
-                    {scenario.start.traits?.map((trait) => (
-                      <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
-                        <Text style={[styles.tagText, { color: theme.accentText }]}>TRAIT {formatTokenLabel(trait)}</Text>
-                      </View>
-                    ))}
                   </View>
-                ) : null}
-              </GlassPanel>
+
+                  <View style={styles.statsRow}>
+                    <View style={styles.statCell}>
+                      <Text style={styles.statLabel}>Age</Text>
+                      <Text style={styles.statValue}>{scenario.start.age}</Text>
+                    </View>
+                    <View style={styles.statCell}>
+                      <Text style={styles.statLabel}>Cash</Text>
+                      <Text style={styles.statValue}>{formatMoney(scenario.start.cash)}</Text>
+                    </View>
+                    <View style={styles.statCell}>
+                      <Text style={styles.statLabel}>Study</Text>
+                      <Text style={styles.statValue}>
+                        {scenario.start.education || 'None'}
+                      </Text>
+                    </View>
+                    {isChallenge ? (
+                      <View style={styles.statCell}>
+                        <Text style={styles.statLabel}>Reward</Text>
+                        <View style={styles.rewardRow}>
+                          <Gem size={scale(13)} color="#FBBF24" />
+                          <Text style={styles.rewardValue}>{rewardGems}</Text>
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {(scenario.start.items?.length || scenario.start.traits?.length || (isChallenge && scenario.iconEmoji)) ? (
+                    <View style={styles.tagsWrap}>
+                      {isChallenge && scenario.iconEmoji ? (
+                        <View style={styles.tag}>
+                          <Text style={styles.tagText}>{scenario.iconEmoji} Challenge</Text>
+                        </View>
+                      ) : null}
+                      {scenario.start.items?.map((item) => (
+                        <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
+                          <Text style={styles.tagText}>
+                            {getScenarioItemIcon(item)} {formatTokenLabel(item)}
+                          </Text>
+                        </View>
+                      ))}
+                      {scenario.start.traits?.map((trait) => (
+                        <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
+                          <Text style={styles.tagText}>TRAIT {formatTokenLabel(trait)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </LinearGradient>
+              </BlurView>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
 
-      <GlassActionButton
-        disabled={!selectedScenario}
-        highlighted
-        icon={<Play color={theme.title} size={scale(22)} />}
-        onPress={continueToCustomize}
-        subtitle={
-          selectedScenario
-            ? `Continue with ${selectedScenario.title}`
-            : 'Select a life path or challenge to continue'
-        }
-        title="Continue To Identity"
-      />
-    </OnboardingScreenShell>
+        <View style={{ height: 140 }} />
+      </ScrollView>
+    </OnboardingScreenShellV2>
   );
 }
 
 const styles = StyleSheet.create({
-  heroPanel: {
-    marginBottom: responsiveSpacing.md,
-  },
-  heroTitle: {
-    fontSize: fontScale(20),
-    fontWeight: '800',
-    marginBottom: verticalScale(4),
-  },
-  heroSubtitle: {
-    fontSize: fontScale(12),
-    fontWeight: '500',
-    lineHeight: fontScale(16),
-  },
-  tabPanel: {
-    marginBottom: responsiveSpacing.md,
-    padding: responsiveSpacing.sm,
-  },
-  tabRow: {
+  tabContainer: {
     flexDirection: 'row',
-    gap: responsiveSpacing.sm,
+    paddingHorizontal: responsivePadding.large,
+    paddingTop: responsiveSpacing.sm,
+    paddingBottom: responsiveSpacing.md,
+    gap: 12,
   },
-  tabButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.22)',
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
+  tab: {
     flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  tabActive: {
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabActiveRed: {
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabGradient: {
     flexDirection: 'row',
-    gap: responsiveSpacing.xs,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: verticalScale(10),
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
   },
   tabText: {
-    fontSize: fontScale(12),
-    fontWeight: '700',
+    fontSize: responsiveFontSize.base,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+  },
+  guidanceText: {
+    fontSize: fontScale(13),
+    fontWeight: '500',
+    color: '#9CA3AF',
+    textAlign: 'center',
+    paddingHorizontal: responsivePadding.large,
+    paddingBottom: responsiveSpacing.xs,
+  },
+  recommendedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    paddingVertical: 6,
+    marginBottom: 4,
+  },
+  recommendedBannerText: {
+    fontSize: fontScale(10),
+    fontWeight: '800',
+    color: '#34D399',
+    letterSpacing: 0.8,
+  },
+  scrollContainer: {
+    flex: 1,
   },
   scrollContent: {
-    gap: responsiveSpacing.md,
-    paddingBottom: responsiveSpacing.md,
+    gap: responsiveSpacing.lg,
+    paddingHorizontal: responsivePadding.large,
+    paddingTop: 8,
+    paddingBottom: responsiveSpacing.lg,
+  },
+  cardContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  cardBlur: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   card: {
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     gap: responsiveSpacing.sm,
   },
   cardSelected: {
-    borderWidth: 1.7,
+    borderColor: 'rgba(16, 185, 129, 0.5)',
+    borderWidth: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
   },
   cardImage: {
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: 16,
     height: scale(74),
     width: scale(74),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   cardTextWrap: {
     flex: 1,
@@ -496,37 +596,43 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     flex: 1,
-    fontSize: fontScale(17),
+    fontSize: responsiveFontSize.xl,
     fontWeight: '800',
+    color: '#FFFFFF',
   },
   difficultyChip: {
     borderRadius: responsiveBorderRadius.full,
-    color: '#FFFFFF',
-    fontSize: fontScale(9),
-    fontWeight: '800',
     overflow: 'hidden',
     paddingHorizontal: responsiveSpacing.xs,
     paddingVertical: verticalScale(4),
   },
+  difficultyText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(9),
+    fontWeight: '800',
+  },
   cardDescription: {
-    fontSize: fontScale(12),
+    fontSize: responsiveFontSize.base,
     fontWeight: '500',
+    color: '#D1D5DB',
     lineHeight: fontScale(16),
     marginBottom: verticalScale(3),
   },
   goalText: {
     fontSize: fontScale(11),
     fontWeight: '700',
+    color: '#60A5FA',
     lineHeight: fontScale(15),
   },
   selectedDot: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.13)',
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-    height: scale(24),
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    height: scale(28),
     justifyContent: 'center',
-    width: scale(24),
+    width: scale(28),
   },
   statsRow: {
     flexDirection: 'row',
@@ -534,8 +640,10 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
   },
   statCell: {
-    backgroundColor: 'rgba(15, 23, 42, 0.28)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: responsiveBorderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     flex: 1,
     minWidth: scale(70),
     paddingHorizontal: responsiveSpacing.xs,
@@ -544,11 +652,13 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
+    color: '#9CA3AF',
     marginBottom: verticalScale(2),
   },
   statValue: {
     fontSize: fontScale(11),
     fontWeight: '800',
+    color: '#FFFFFF',
   },
   rewardRow: {
     alignItems: 'center',
@@ -558,6 +668,7 @@ const styles = StyleSheet.create({
   rewardValue: {
     fontSize: fontScale(11),
     fontWeight: '800',
+    color: '#FFFFFF',
   },
   tagsWrap: {
     flexDirection: 'row',
@@ -575,5 +686,6 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: fontScale(10),
     fontWeight: '700',
+    color: '#60A5FA',
   },
 });

@@ -169,6 +169,8 @@ export const responsiveFontSize = {
   xs: fontScale(10),
   sm: fontScale(12),
   base: fontScale(14),
+  /** Between base and lg — used by tab headers and category labels */
+  md: fontScale(15),
   lg: fontScale(16),
   xl: fontScale(18),
   '2xl': fontScale(20),
@@ -424,7 +426,7 @@ export const getResponsiveSpacing = (size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2
   return responsiveSpacing[size] || responsiveSpacing.md; // Safe fallback
 };
 
-export const getResponsiveFontSize = (size: 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl') => {
+export const getResponsiveFontSize = (size: 'xs' | 'sm' | 'base' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl') => {
   return responsiveFontSize[size] || responsiveFontSize.base; // Safe fallback
 };
 

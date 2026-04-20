@@ -2,6 +2,10 @@
 .expo/
 node_modules/
 
+# Native folders — let EAS Build regenerate via CNG/Prebuild
+/ios
+/android
+
 # Documentation and markdown files (not needed for build)
 *.md
 docs/

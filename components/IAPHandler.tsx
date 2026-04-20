@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import type { GameState } from '@/contexts/game/types';
 import { useGame } from '@/contexts/GameContext';
 import { iapService } from '@/services/IAPService';
 import { logger } from '@/utils/logger';
@@ -31,7 +32,7 @@ export function IAPHandler() {
                     }
 
                     // Apply logic using the shared helper
-                    const applied = iapService.applyProductToState(newState, productId);
+                    const applied = iapService.applyProductToState(newState as GameState, productId);
 
                     if (applied) {
                         logger.info('IAPHandler: State updated successfully');

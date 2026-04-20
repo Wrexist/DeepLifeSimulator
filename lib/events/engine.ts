@@ -429,6 +429,224 @@ const careerSpotlight: EventTemplate = {
   }),
 };
 
+// ── Early Game "Welcome" Events ────────────────────────────────────────────
+// These fire only in weeks 0-12 to hook new players with narrative from day one.
+// High weight ensures they compete well in the template pool during early game.
+
+const findCash: EventTemplate = {
+  id: 'find_cash',
+  category: 'economy',
+  weight: 0.8,
+  condition: state => (state.weeksLived || 0) < 12,
+  generate: () => ({
+    id: 'find_cash',
+    description: 'You spot a crumpled bill on the sidewalk. Looks like $50!',
+    choices: [
+      { id: 'keep', text: 'Pocket it', effects: { money: 50, stats: { happiness: 5 } } },
+      { id: 'donate', text: 'Give it to a street musician nearby', effects: { stats: { happiness: 10, reputation: 5 }, karma: { dimension: 'generosity', amount: 3, reason: 'Gave found money to a street musician' } } },
+    ],
+  }),
+};
+
+const neighborJobTip: EventTemplate = {
+  id: 'neighbor_job_tip',
+  category: 'economy',
+  weight: 0.8,
+  condition: state => (state.weeksLived || 0) < 12,
+  generate: () => ({
+    id: 'neighbor_job_tip',
+    description: 'Your neighbor mentions a delivery gig that pays really well. "Street jobs are where the real money is early on," they say.',
+    choices: [
+      { id: 'check', text: 'Check it out', effects: { money: 75, stats: { happiness: 5, energy: -5 } } },
+      { id: 'ignore', text: 'Maybe later', effects: {} },
+    ],
+  }),
+};
+
+const freeMeal: EventTemplate = {
+  id: 'free_meal',
+  category: 'health',
+  weight: 0.8,
+  condition: state => (state.weeksLived || 0) < 12,
+  generate: () => ({
+    id: 'free_meal',
+    description: 'A food truck is giving away free samples to celebrate their grand opening!',
+    choices: [
+      { id: 'grab', text: 'Grab some food', effects: { stats: { health: 10, happiness: 5, energy: 5 } } },
+      { id: 'pass', text: 'Pass on it', effects: {} },
+    ],
+  }),
+};
+
+const bankingAppTip: EventTemplate = {
+  id: 'banking_app_tip',
+  category: 'general',
+  weight: 0.7,
+  condition: state => (state.weeksLived || 0) < 12 && !state.items?.some((i: any) => i.owned && i.id?.includes('phone')),
+  generate: () => ({
+    id: 'banking_app_tip',
+    description: 'You overhear someone at a café bragging about banking apps on their phone. "I earn interest just by having the app open," they say.',
+    choices: [
+      { id: 'ask', text: 'Ask them about it', effects: { stats: { happiness: 5 } } },
+      { id: 'ignore', text: 'Mind your own business', effects: {} },
+    ],
+  }),
+};
+
+const friendlyStranger: EventTemplate = {
+  id: 'friendly_stranger',
+  category: 'relationship',
+  weight: 0.8,
+  condition: state => (state.weeksLived || 0) < 12 && (state.relationships?.length || 0) < 2,
+  generate: () => ({
+    id: 'friendly_stranger',
+    description: 'A friendly stranger at the park strikes up a conversation. They seem genuinely interested in getting to know you.',
+    choices: [
+      { id: 'chat', text: 'Chat with them', effects: { stats: { happiness: 10, energy: -3 }, karma: { dimension: 'loyalty', amount: 2, reason: 'Made a new connection' } } },
+      { id: 'walk', text: 'Politely walk away', effects: { stats: { energy: 3 } } },
+    ],
+  }),
+};
+
+const luckyCoin: EventTemplate = {
+  id: 'lucky_coin',
+  category: 'economy',
+  weight: 0.7,
+  condition: state => (state.weeksLived || 0) < 12,
+  generate: state => {
+    // Variable reward: $20-$100 based on seeded random for anti-exploit consistency
+    const seed = (state.weeksLived || 0) * 777 + 42;
+    const x = Math.sin(seed) * 10000;
+    const roll = x - Math.floor(x);
+    const reward = Math.floor(20 + roll * 80); // $20-$100
+    return {
+      id: 'lucky_coin',
+      description: 'You find a shiny coin on the ground. It feels lucky!',
+      choices: [
+        { id: 'keep', text: 'Keep it for luck', effects: { money: reward, stats: { happiness: 8 } } },
+        { id: 'flip', text: 'Flip it and make a wish', effects: { money: Math.floor(reward * 0.5), stats: { happiness: 15 } } },
+      ],
+    };
+  },
+};
+
+// ── Variable Reward Events (all game stages) ──────────────────────────────
+// These exploit variable-ratio reinforcement: outcomes vary per instance,
+// keeping players engaged through anticipation of "what might I get?"
+
+const mysteryPackage: EventTemplate = {
+  id: 'mystery_package',
+  category: 'economy',
+  weight: 0.25,
+  generate: state => {
+    const seed = (state.weeksLived || 0) * 333 + 7;
+    const x = Math.sin(seed) * 10000;
+    const roll = x - Math.floor(x);
+    const reward = Math.floor(50 + roll * 450); // $50-$500
+    const statBoost = Math.floor(3 + roll * 7); // 3-10
+    return {
+      id: 'mystery_package',
+      description: 'A package arrives at your door with no return address.',
+      choices: [
+        { id: 'open', text: 'Open it', effects: { money: reward, stats: { happiness: statBoost } } },
+        { id: 'leave', text: 'Leave it outside', effects: { stats: { reputation: 5 } } },
+      ],
+    };
+  },
+};
+
+const scratchTicket: EventTemplate = {
+  id: 'scratch_ticket',
+  category: 'economy',
+  weight: 0.2,
+  generate: state => {
+    // Weighted random from SCRATCH_TICKET_REWARDS distribution
+    const rewards = [10, 25, 50, 100, 250, 500, 1000];
+    const weights = [30, 25, 20, 12, 8, 4, 1];
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    const seed = (state.weeksLived || 0) * 555 + 13;
+    const x = Math.sin(seed) * 10000;
+    const roll = (x - Math.floor(x)) * totalWeight;
+    let cumulative = 0;
+    let reward = rewards[0];
+    for (let i = 0; i < weights.length; i++) {
+      cumulative += weights[i];
+      if (roll < cumulative) { reward = rewards[i]; break; }
+    }
+    return {
+      id: 'scratch_ticket',
+      description: 'You find a scratch-off lottery ticket on the ground.',
+      choices: [
+        { id: 'scratch', text: 'Scratch it!', effects: { money: reward, stats: { happiness: reward > 100 ? 15 : 5 } } },
+        { id: 'toss', text: 'Toss it', effects: {} },
+      ],
+    };
+  },
+};
+
+const talentScout: EventTemplate = {
+  id: 'talent_scout',
+  category: 'economy',
+  weight: 0.2,
+  condition: state => (state.weeksLived || 0) > 4,
+  generate: state => {
+    const seed = (state.weeksLived || 0) * 888 + 21;
+    const x = Math.sin(seed) * 10000;
+    const roll = x - Math.floor(x);
+    const cashBonus = Math.floor(50 + roll * 200); // $50-$250
+    return {
+      id: 'talent_scout',
+      description: 'Someone noticed your hustle and offers you a freelance opportunity.',
+      choices: [
+        { id: 'accept', text: 'Hear them out', effects: { money: cashBonus, stats: { reputation: 5, energy: -10 } } },
+        { id: 'decline', text: 'Decline politely', effects: { stats: { happiness: 3 } } },
+      ],
+    };
+  },
+};
+
+const generousTipper: EventTemplate = {
+  id: 'generous_tipper',
+  category: 'economy',
+  weight: 0.25,
+  condition: state => Boolean(state.careers?.some((c: any) => c.accepted)),
+  generate: state => {
+    const seed = (state.weeksLived || 0) * 444 + 99;
+    const x = Math.sin(seed) * 10000;
+    const roll = x - Math.floor(x);
+    const tip = Math.floor(25 + roll * 225); // $25-$250
+    return {
+      id: 'generous_tipper',
+      description: `A customer at your job leaves an enormous tip — $${tip}!`,
+      choices: [
+        { id: 'keep', text: 'Keep it all', effects: { money: tip, stats: { happiness: 8 } } },
+        { id: 'share', text: 'Split it with coworkers', effects: { money: Math.floor(tip * 0.5), stats: { happiness: 5, reputation: 8 }, karma: { dimension: 'generosity', amount: 3, reason: 'Shared a generous tip with coworkers' } } },
+      ],
+    };
+  },
+};
+
+const viralMomentRandom: EventTemplate = {
+  id: 'viral_moment_random',
+  category: 'general',
+  weight: 0.15,
+  condition: state => (state.weeksLived || 0) > 10,
+  generate: state => {
+    const seed = (state.weeksLived || 0) * 666 + 17;
+    const x = Math.sin(seed) * 10000;
+    const roll = x - Math.floor(x);
+    const cashReward = Math.floor(roll * 200); // $0-$200
+    return {
+      id: 'viral_moment_random',
+      description: 'Something funny happens to you in public and someone films it. The video is blowing up online!',
+      choices: [
+        { id: 'embrace', text: 'Embrace the fame', effects: { money: cashReward, stats: { happiness: 10, reputation: 8 } } },
+        { id: 'delete', text: 'Ask them to take it down', effects: { stats: { happiness: -5, reputation: 3 } } },
+      ],
+    };
+  },
+};
+
 // Political Events
 const politicalScandal: EventTemplate = {
   id: 'political_scandal',
@@ -2209,6 +2427,19 @@ export const eventTemplates: EventTemplate[] = [
   sideGig,
   earningsReport,
   careerSpotlight,
+  // Early Game Welcome Events (high weight, weeks 0-12 only)
+  findCash,
+  neighborJobTip,
+  freeMeal,
+  bankingAppTip,
+  friendlyStranger,
+  luckyCoin,
+  // Variable Reward Events (all game stages)
+  mysteryPackage,
+  scratchTicket,
+  talentScout,
+  generousTipper,
+  viralMomentRandom,
   // Political Events
   politicalScandal,
   electionCampaign,
@@ -2681,8 +2912,11 @@ const starterEventTemplates: EventTemplate[] = [
     weight: 100,
     condition: (state) => {
       const wl = state.weeksLived || 0;
-      return wl >= 2 && wl <= 5 && !!state.currentJob &&
-        !(state.eventLog || []).some(e => e.id === 'first_paycheck_bonus');
+      // Guard: validate eventLog entries have .id before comparison (prevents corrupt log bypass)
+      const alreadyFired = (state.eventLog || []).some(e =>
+        e && typeof e === 'object' && e.id === 'first_paycheck_bonus'
+      );
+      return wl >= 2 && wl <= 5 && !!state.currentJob && !alreadyFired;
     },
     generate: () => ({
       id: 'first_paycheck_bonus',
@@ -2877,8 +3111,11 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     ? state.lastEventWeeksLived
     : (state.lastEventWeek !== undefined ? state.lastEventWeek : 0); // Fallback for old saves
   const weeksSinceLastEvent = currentWeeksLived - lastEventWeeksLived;
-  // ENGAGEMENT: Shorter pity timer during mid-game to prevent long event droughts
-  const pityThreshold = currentWeeksLived < 50 ? 8 : PITY_THRESHOLD_WEEKLY_EVENTS;
+  // ENGAGEMENT: Shorter pity timer during early/mid-game to prevent long event droughts
+  const { EARLY_GAME_THRESHOLD_WEEKS, EARLY_GAME_PITY_THRESHOLD } = require('@/lib/config/gameConstants');
+  const pityThreshold = currentWeeksLived < EARLY_GAME_THRESHOLD_WEEKS
+    ? EARLY_GAME_PITY_THRESHOLD
+    : (currentWeeksLived < 50 ? 8 : PITY_THRESHOLD_WEEKLY_EVENTS);
   // Seasonal events count as events, so they reset the pity counter (guaranteedEvent only triggers if NO events)
   const guaranteedEvent = weeksSinceLastEvent >= pityThreshold && seasonalEvents.length === 0;
 
@@ -2892,10 +3129,11 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   const weekSeed = (state.weeksLived || 0) * 1000 + (state.date?.year || 2025) * 100;
 
   // ENGAGEMENT: Phase-based event frequency scaling
-  // Early game: rare (player is learning). Mid-game: frequent (content variety). Late game: moderate.
+  // Early game: high (hook the player with narrative). Mid-game: frequent (content variety). Late game: moderate.
+  const { EARLY_GAME_EVENT_CHANCE } = require('@/lib/config/gameConstants');
   let baseEventChance: number;
-  if (currentWeeksLived < 8) {
-    baseEventChance = 0.02; // 2% — player still learning
+  if (currentWeeksLived < EARLY_GAME_THRESHOLD_WEEKS) {
+    baseEventChance = EARLY_GAME_EVENT_CHANCE; // 45% — hook player with events early
   } else if (currentWeeksLived < 50) {
     baseEventChance = 0.08 + Math.min(0.07, currentWeeksLived * 0.001); // 8-15% — mid-game variety
   } else {

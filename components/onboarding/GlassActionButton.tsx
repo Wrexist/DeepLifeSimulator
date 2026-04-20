@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -21,6 +21,8 @@ interface GlassActionButtonProps {
   onPress: () => void;
   highlighted?: boolean;
   disabled?: boolean;
+  loading?: boolean;
+  loadingText?: string;
 }
 
 export default function GlassActionButton({
@@ -30,6 +32,8 @@ export default function GlassActionButton({
   onPress,
   highlighted = false,
   disabled = false,
+  loading = false,
+  loadingText,
 }: GlassActionButtonProps) {
   const { gameState } = useGame();
   const isDarkMode = Boolean(gameState?.settings?.darkMode);
@@ -37,12 +41,17 @@ export default function GlassActionButton({
   const blurTint = isDarkMode ? 'dark' : 'light';
   const glassStyle = getGlassButton(isDarkMode, highlighted);
 
+  const isDisabled = disabled || loading;
+
   return (
     <TouchableOpacity
+      accessibilityLabel={title}
+      accessibilityHint={subtitle}
+      accessibilityRole="button"
       activeOpacity={0.9}
-      disabled={disabled}
+      disabled={isDisabled}
       onPress={onPress}
-      style={[styles.touchable, disabled ? styles.touchableDisabled : undefined]}
+      style={[styles.touchable, isDisabled ? styles.touchableDisabled : undefined]}
     >
       <BlurViewFallback
         intensity={highlighted ? 32 : 24}
@@ -56,16 +65,20 @@ export default function GlassActionButton({
       >
         <View style={[styles.topHighlight, { backgroundColor: theme.glassHighlight }]} />
         <View style={styles.content}>
-          <View style={styles.iconWrap}>{icon}</View>
+          <View style={styles.iconWrap}>{loading ? null : icon}</View>
           <View style={styles.textWrap}>
             <Text numberOfLines={1} style={[styles.title, { color: theme.title }]}>
-              {title}
+              {loading ? (loadingText ?? 'Loading...') : title}
             </Text>
             <Text numberOfLines={2} style={[styles.subtitle, { color: theme.subtitle }]}>
-              {subtitle}
+              {loading ? 'Please wait' : subtitle}
             </Text>
           </View>
-          <ChevronRight size={responsiveIconSize.md} color={theme.accentText} />
+          {loading ? (
+            <ActivityIndicator color={theme.accentText} size="small" />
+          ) : (
+            <ChevronRight size={responsiveIconSize.md} color={theme.accentText} />
+          )}
         </View>
       </BlurViewFallback>
     </TouchableOpacity>

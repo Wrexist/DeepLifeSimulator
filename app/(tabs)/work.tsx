@@ -54,6 +54,7 @@ import { getResponsiveValue } from '@/utils/responsiveDesign';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { logger } from '@/utils/logger';
+import { colors as themeColors } from '@/lib/config/theme';
 import { CareerPathCard } from '@/components/CareerPathCard';
 
 // Hobbies removed - all hobby images removed
@@ -759,9 +760,13 @@ function WorkScreenContent() {
     const advancedIds = ['politician', 'celebrity', 'athlete'];
     const basicCareers = sortedCareers.filter(c => !advancedIds.includes(c.id));
 
+    const workScreenGradient = settings.darkMode
+        ? [themeColors.palette.dark900, themeColors.palette.dark900]
+        : [themeColors.palette.light50, themeColors.palette.light100];
+
     return (
         <LinearGradient
-            colors={settings.darkMode ? ['#0F172A', '#0F172A'] : ['#F8FAFC', '#F1F5F9']}
+            colors={workScreenGradient}
             style={styles.background}
         >
             {gameState.jailWeeks > 0 ? (

@@ -60,6 +60,31 @@ export const PET_LIFESPANS: Record<string, number> = {
   turtle: 30,
 };
 
+// ── Early Game Engagement ────────────────────────────────
+export const EARLY_GAME_EVENT_CHANCE = 0.45; // 45% base event chance weeks 1-8 (was 2%)
+export const EARLY_GAME_THRESHOLD_WEEKS = 8;
+export const EARLY_GAME_PITY_THRESHOLD = 3; // Force event after 3 dry weeks (was 8)
+
+// ── Beginner Luck ───────────────────────────────────────
+export const BEGINNER_LUCK_WEEKS = 20;
+export const BEGINNER_LUCK_BASE_BONUS = 15; // Guaranteed weekly cash bonus
+export const BEGINNER_LUCK_RANDOM_MAX = 25; // Additional random bonus 0-25
+
+// ── Variable Rewards ────────────────────────────────────
+export const SCRATCH_TICKET_REWARDS = [10, 25, 50, 100, 250, 500, 1000];
+export const SCRATCH_TICKET_WEIGHTS = [30, 25, 20, 12, 8, 4, 1]; // Heavily weighted toward small
+
+// ── Milestone Proximity ─────────────────────────────────
+export const MILESTONE_MONEY_THRESHOLDS = [100, 500, 1000, 5000, 10000, 50000, 100000, 1000000];
+export const MILESTONE_WEEKS_THRESHOLDS = [4, 10, 26, 52, 104];
+export const MILESTONE_RELATIONSHIP_THRESHOLDS = [1, 3, 5, 10];
+export const MILESTONE_FITNESS_THRESHOLDS = [25, 50, 75, 100];
+export const MILESTONE_PROXIMITY_PERCENT = 0.15; // Show "almost there" at 85%+
+
+// ── Daily Login Rewards ─────────────────────────────────
+export const DAILY_LOGIN_REWARDS = [25, 50, 75, 100, 150, 200, 500]; // 7-day gem cycle
+export const LOGIN_STREAK_GRACE_HOURS = 48; // Forgiving: miss 1 day, keep streak
+
 // ── Prestige & Gems ───────────────────────────────────────
 export const REVIVE_GEM_COST = 15_000;
 export const DISCORD_JOIN_REWARD_GEMS = 500;

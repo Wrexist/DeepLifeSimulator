@@ -39,7 +39,7 @@ function getMedicalRisk(state: GameState): number {
 function getFinancialRisk(state: GameState): number {
   const money = state.stats.money || 0;
   const loans = state.loans || [];
-  const totalDebt = loans.reduce((sum, loan) => sum + loan.remainingBalance, 0);
+  const totalDebt = loans.reduce((sum, loan) => sum + loan.remaining, 0);
   const bankSavings = state.bankSavings || 0;
   const netWorth = money + bankSavings - totalDebt;
   
@@ -48,7 +48,8 @@ function getFinancialRisk(state: GameState): number {
   
   // High debt relative to income increases risk
   if (totalDebt > 0) {
-    const weeklyIncome = state.job?.weeklySalary || 0;
+    const currentCareer = (state.careers || []).find(c => c.id === state.currentJob && c.accepted);
+    const weeklyIncome = currentCareer?.levels?.[currentCareer.level]?.salary || 0;
     if (weeklyIncome > 0 && totalDebt > weeklyIncome * 20) {
       risk += 0.3;
     }
@@ -77,7 +78,7 @@ export const medicalEmergency: EventTemplate = {
   generate: (state: GameState) => {
     const health = state.stats.health || 100;
     const money = state.stats.money || 0;
-    const hasInsurance = state.insurance?.health || false;
+    const hasInsurance = false; // Health insurance not yet implemented
     
     // Determine severity based on health
     const isSevere = health < 40;
@@ -288,13 +289,14 @@ export const jobOffer: EventTemplate = {
   id: 'job_offer',
   category: 'economy',
   weight: (state: GameState) => {
-    const hasJob = !!state.job;
+    const hasJob = !!state.currentJob;
     const reputation = state.stats.reputation || 0;
     // More likely if player has a job (shows they're employable) or high reputation (reduced frequency)
     return hasJob ? 0.1 : (reputation > 50 ? 0.08 : 0.05);
   },
   generate: (state: GameState) => {
-    const currentSalary = state.job?.weeklySalary || 0;
+    const jobCareer = (state.careers || []).find(c => c.id === state.currentJob && c.accepted);
+    const currentSalary = jobCareer?.levels?.[jobCareer.level]?.salary || 0;
     const reputation = state.stats.reputation || 0;
     
     // New job offers 20-50% more salary based on reputation

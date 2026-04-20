@@ -4,8 +4,8 @@ export const INITIAL_CAREERS: Career[] = [
     {
         id: 'fast_food',
         levels: [
-            { name: 'Fast Food Worker', salary: 30 },
-            { name: 'Crew Member', salary: 40 },
+            { name: 'Fast Food Worker', salary: 50 },
+            { name: 'Crew Member', salary: 60 },
             { name: 'Shift Leader', salary: 55 },
             { name: 'Assistant Manager', salary: 70 },
             { name: 'Restaurant Manager', salary: 85 },
@@ -21,7 +21,7 @@ export const INITIAL_CAREERS: Career[] = [
     {
         id: 'retail',
         levels: [
-            { name: 'Retail Associate', salary: 55 },
+            { name: 'Retail Associate', salary: 65 },
             { name: 'Senior Associate', salary: 70 },
             { name: 'Floor Supervisor', salary: 85 },
             { name: 'Assistant Manager', salary: 100 },
@@ -38,8 +38,8 @@ export const INITIAL_CAREERS: Career[] = [
     {
         id: 'janitor',
         levels: [
-            { name: 'Janitor', salary: 35 },
-            { name: 'Senior Janitor', salary: 45 },
+            { name: 'Janitor', salary: 55 },
+            { name: 'Senior Janitor', salary: 65 },
             { name: 'Maintenance Lead', salary: 55 },
             { name: 'Maintenance Supervisor', salary: 70 },
             { name: 'Facility Manager', salary: 85 },

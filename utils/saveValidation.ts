@@ -37,6 +37,22 @@ export {
   isSaveSigningConfigError,
 } from '@/utils/saveSigningConfig';
 
+/** Core numeric stats validated on every save payload */
+const VALIDATION_STAT_KEYS = [
+  'health',
+  'happiness',
+  'energy',
+  'fitness',
+  'money',
+  'reputation',
+  'gems',
+] as const;
+
+function statsAsUnknownRecord(stats: unknown): Record<string, unknown> | null {
+  if (stats === null || typeof stats !== 'object') return null;
+  return stats as Record<string, unknown>;
+}
+
 const SAVE_SIGNATURE_KEY = process.env.EXPO_PUBLIC_SAVE_SIGNATURE_KEY;
 // Expo only inlines EXPO_PUBLIC_* vars for direct member access,
 // not when iterating process.env dynamically.
@@ -653,11 +669,13 @@ export function validateGameState(state: any, autoFix: boolean = false): { valid
     errors.push('Missing stats object');
   } else {
     // Validate stats structure
-    const requiredStats = ['health', 'happiness', 'energy', 'fitness', 'money', 'reputation', 'gems'];
-    for (const stat of requiredStats) {
-      const statValue = (state.stats as any)[stat];
-      if (!isValidNumber(statValue)) {
-        errors.push(`Invalid ${stat} value: expected number, got ${typeof statValue}`);
+    const statsRecord = statsAsUnknownRecord(state.stats);
+    if (statsRecord) {
+      for (const stat of VALIDATION_STAT_KEYS) {
+        const statValue = statsRecord[stat];
+        if (!isValidNumber(statValue)) {
+          errors.push(`Invalid ${stat} value: expected number, got ${typeof statValue}`);
+        }
       }
     }
 
@@ -715,10 +733,10 @@ export function validateGameState(state: any, autoFix: boolean = false): { valid
 
   // NaN/Infinity corruption detection for all key numeric fields
   // These always indicate corruption regardless of autoFix setting
-  if (state.stats) {
-    const numericStatFields = ['health', 'happiness', 'energy', 'fitness', 'money', 'reputation', 'gems'];
-    for (const stat of numericStatFields) {
-      const val = (state.stats as any)[stat];
+  const statsForNaN = statsAsUnknownRecord(state.stats);
+  if (statsForNaN) {
+    for (const stat of VALIDATION_STAT_KEYS) {
+      const val = statsForNaN[stat];
       if (typeof val === 'number' && (!isFinite(val) || isNaN(val))) {
         errors.push(`${stat} is ${val} (NaN/Infinity indicates corruption)`);
       }
@@ -774,9 +792,10 @@ export function validateGameState(state: any, autoFix: boolean = false): { valid
 
   // Validate arrays exist (even if empty) - only check fields that should always exist
   // If auto-fix is enabled, repair function already fixed these, so just warn
+  const stateRecord = state as Record<string, unknown>;
   const requiredArrayFields = ['careers', 'hobbies', 'items', 'relationships', 'achievements', 'educations'];
   for (const field of requiredArrayFields) {
-    if (!Array.isArray((state as any)[field])) {
+    if (!Array.isArray(stateRecord[field])) {
       if (autoFix) {
         // Should have been fixed by repair, but if not, it's an error
         errors.push(`${field} must be an array (repair failed)`);
@@ -789,7 +808,10 @@ export function validateGameState(state: any, autoFix: boolean = false): { valid
   // Optional array fields - only validate if they exist
   const optionalArrayFields = ['log', 'history', 'properties', 'pets', 'companies', 'realEstate', 'cryptos'];
   for (const field of optionalArrayFields) {
-    if ((state as any)[field] !== undefined && !Array.isArray((state as any)[field])) {
+    if (
+      stateRecord[field] !== undefined &&
+      !Array.isArray(stateRecord[field])
+    ) {
       errors.push(`${field} must be an array if present`);
     }
   }

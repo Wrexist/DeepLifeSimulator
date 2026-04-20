@@ -37,7 +37,29 @@ chmod +x scripts/build-and-submit-testflight.sh
    eas secret:create --scope project --name EXPO_PUBLIC_SAVE_HMAC_KEY --value "<long-random-secret>"
    ```
    Keep this value stable across releases. Rotating it can invalidate signature verification for existing saves.
+   Legacy fallback is supported for compatibility (`EXPO_PUBLIC_SAVE_SIGNATURE_KEY`) but is deprecated.
+   Prefer `EXPO_PUBLIC_SAVE_HMAC_KEY` for all new and existing environments.
    For local preflight runs, also export `EXPO_PUBLIC_SAVE_HMAC_KEY` in your shell or `.env.local`.
+
+### Optional feature flags (EAS / local)
+
+| Variable | When to set | Notes |
+|----------|-------------|-------|
+| `EXPO_PUBLIC_ENABLE_IAP` | `false` | Skips treating IAP as required in some checks; use only for local experiments. |
+| `EXPO_PUBLIC_ENABLE_ADMOB` | `true` | Opt-in ads at runtime; `npm run preflight` still requires valid AdMob app IDs in `app.config.js` while `react-native-google-mobile-ads` is installed. |
+| `EXPO_PUBLIC_REQUIRE_SIGNED_SAVES` | `false` | Weakens save integrity; preflight warns. Not for production. |
+| `EXPO_PUBLIC_ALLOW_WEAK_SAVE_MIGRATION` | must be unset or `false` for release | Preflight fails if `true` when signed saves are enforced. |
+| `EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES` | must be unset or `false` for release | Same as above. |
+
+### `eas.json` production profile vs EAS secrets
+
+The `production` build profile in [eas.json](../eas.json) sets `EXPO_PUBLIC_ENABLE_ADMOB`, `EXPO_PUBLIC_ENABLE_IAP`, and `EXPO_PUBLIC_ENABLE_ATT` to `"true"`. That means:
+
+1. **Save signing**: `EXPO_PUBLIC_SAVE_HMAC_KEY` is **not** in `eas.json` (secrets must not be committed). Create it with `eas secret:create --scope project` (see above). Every production/TestFlight build must have this secret or saves will fail signing checks at runtime and `npm run preflight` will fail locally without it.
+
+2. **AdMob**: With ads enabled, [app.config.js](../app.config.js) must define the `react-native-google-mobile-ads` plugin with valid `ca-app-pub-…~…` app IDs (or equivalent env vars documented in Expo). Preflight section 5 enforces this when the npm package is present.
+
+3. **GitHub Actions**: [.github/workflows/eas-build.yml](../.github/workflows/eas-build.yml) runs `eas build --profile production`. Ensure the EAS project has the same secrets as your local release machine (`EXPO_TOKEN` in GitHub, plus project-scoped `EXPO_PUBLIC_SAVE_HMAC_KEY` on Expo).
 
 ## What the Scripts Do
 

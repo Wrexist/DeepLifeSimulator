@@ -41,7 +41,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  const languages = ['English', 'Svenska', 'EspaÃ±ol', 'FranÃ§ais', 'Deutsch'];
+  const languages = ['English', 'Svenska', 'Español', 'Français', 'Deutsch'];
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'settings' | 'lifeGoals'>('settings');
   const [showBugReport, setShowBugReport] = useState(false);
@@ -52,9 +52,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
   const [showDevTools, setShowDevTools] = useState(false);
   const [showBackupManager, setShowBackupManager] = useState(false);
-  
+  const [showRewardPopup, setShowRewardPopup] = useState(false);
+  const [rewardPopupMessage, setRewardPopupMessage] = useState('');
+
   // Animation for Discord button
   const discordGlowAnim = useRef(new Animated.Value(0)).current;
+  const rewardScaleAnim = useRef(new Animated.Value(0)).current;
+  const rewardOpacityAnim = useRef(new Animated.Value(0)).current;
+  const rewardGemAnim = useRef(new Animated.Value(0)).current;
   
   // Check if Discord reward has been claimed
   useEffect(() => {
@@ -233,13 +238,58 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     }
   };
 
+  const showRewardAnimation = (message: string) => {
+    setRewardPopupMessage(message);
+    setShowRewardPopup(true);
+    rewardScaleAnim.setValue(0);
+    rewardOpacityAnim.setValue(0);
+    rewardGemAnim.setValue(0);
+
+    Animated.parallel([
+      Animated.spring(rewardScaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rewardOpacityAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(300),
+        Animated.spring(rewardGemAnim, {
+          toValue: 1,
+          friction: 5,
+          tension: 60,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  };
+
+  const dismissRewardPopup = () => {
+    Animated.parallel([
+      Animated.timing(rewardScaleAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rewardOpacityAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setShowRewardPopup(false));
+  };
+
   const handleJoinDiscord = async () => {
     try {
       const discordUrl = DISCORD_URL;
-      
+
       // Check if reward already claimed
       if (discordRewardClaimed) {
-        // Just open Discord link
         const canOpen = await Linking.canOpenURL(discordUrl);
         if (canOpen) {
           await Linking.openURL(discordUrl);
@@ -248,7 +298,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         }
         return;
       }
-      
+
       // Give reward
       setGameState(prev => ({
         ...prev,
@@ -257,33 +307,29 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
           gems: prev.stats.gems + DISCORD_JOIN_REWARD_GEMS,
         },
       }));
-      
+
       // Mark as claimed
       const saved = await safeSetItem('discord_reward_claimed', 'true');
       if (!saved) {
         logger.warn('Could not save discord reward claim status');
       }
       setDiscordRewardClaimed(true);
-      
+
       // Save game to persist the gems
       await saveGame();
-      
+
       // Open Discord link
       const canOpen = await Linking.canOpenURL(discordUrl);
       if (canOpen) {
         await Linking.openURL(discordUrl);
-        Alert.alert(
-          'ðŸŽ‰ Reward Claimed!',
-          `You received ${DISCORD_JOIN_REWARD_GEMS} gems for joining our Discord! Welcome to the community!`,
-          [{ text: 'OK', style: 'default' }]
-        );
-      } else {
-        Alert.alert(
-          'ðŸŽ‰ Reward Claimed!',
-          `You received ${DISCORD_JOIN_REWARD_GEMS} gems! Please visit ${DISCORD_URL} in your browser to join our Discord.`,
-          [{ text: 'OK', style: 'default' }]
-        );
       }
+
+      // Show liquid glass reward popup
+      showRewardAnimation(
+        canOpen
+          ? `You received ${DISCORD_JOIN_REWARD_GEMS} gems for joining our Discord!\nWelcome to the community!`
+          : `You received ${DISCORD_JOIN_REWARD_GEMS} gems!\nVisit ${DISCORD_URL} to join our Discord.`
+      );
     } catch (error) {
       logger.error('Error joining Discord:', error);
       Alert.alert('Error', `Could not open Discord link. Please visit ${DISCORD_URL} in your browser.`);
@@ -774,11 +820,84 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       <LeaderboardModal visible={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       <LegacyOverviewTab visible={showLegacyOverview} onClose={() => setShowLegacyOverview(false)} />
       <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
-      <BackupRecoveryModal 
-        visible={showBackupManager} 
-        slot={currentSlot || 1} 
-        onClose={() => setShowBackupManager(false)} 
+      <BackupRecoveryModal
+        visible={showBackupManager}
+        slot={currentSlot || 1}
+        onClose={() => setShowBackupManager(false)}
       />
+
+      {/* Liquid Glass Reward Popup */}
+      {showRewardPopup && (
+        <Animated.View style={[styles.rewardOverlay, { opacity: rewardOpacityAnim }]}>
+          <TouchableOpacity style={styles.rewardOverlayTouch} activeOpacity={1} onPress={dismissRewardPopup}>
+            <Animated.View style={[
+              styles.rewardCard,
+              {
+                transform: [
+                  { scale: rewardScaleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) },
+                ],
+              },
+            ]}>
+              <LinearGradient
+                colors={['rgba(88, 101, 242, 0.25)', 'rgba(99, 102, 241, 0.15)', 'rgba(15, 23, 42, 0.6)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.rewardGradient}
+              >
+                {/* Top accent line */}
+                <LinearGradient
+                  colors={['#5865F2', '#818CF8', '#5865F2']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.rewardAccentLine}
+                />
+
+                {/* Gem icon with bounce */}
+                <Animated.View style={[
+                  styles.rewardGemContainer,
+                  {
+                    transform: [
+                      { scale: rewardGemAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1.15] }) },
+                    ],
+                  },
+                ]}>
+                  <LinearGradient
+                    colors={['#818CF8', '#6366F1', '#4F46E5']}
+                    style={styles.rewardGemCircle}
+                  >
+                    <Sparkles size={scale(28)} color="#FFFFFF" />
+                  </LinearGradient>
+                </Animated.View>
+
+                {/* Title */}
+                <Text style={styles.rewardTitle}>Reward Claimed!</Text>
+
+                {/* Gem amount */}
+                <View style={styles.rewardAmountRow}>
+                  <Text style={styles.rewardAmountText}>+{DISCORD_JOIN_REWARD_GEMS}</Text>
+                  <Sparkles size={scale(16)} color="#A5B4FC" />
+                  <Text style={styles.rewardAmountLabel}>Gems</Text>
+                </View>
+
+                {/* Message */}
+                <Text style={styles.rewardMessage}>{rewardPopupMessage}</Text>
+
+                {/* Dismiss button */}
+                <TouchableOpacity style={styles.rewardDismissButton} onPress={dismissRewardPopup} activeOpacity={0.8}>
+                  <LinearGradient
+                    colors={['#5865F2', '#4752C4']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.rewardDismissGradient}
+                  >
+                    <Text style={styles.rewardDismissText}>Awesome!</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </LinearGradient>
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
     </Modal>
   );
 }
@@ -1816,6 +1935,123 @@ const styles = StyleSheet.create({
   },
   disclosureLevelTextDark: {
     color: '#9CA3AF',
+  },
+  // Liquid Glass Reward Popup
+  rewardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    zIndex: 999,
+  },
+  rewardOverlayTouch: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rewardCard: {
+    width: '82%',
+    maxWidth: scale(340),
+    borderRadius: responsiveBorderRadius.xl + 4,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(129, 140, 248, 0.3)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.35,
+        shadowRadius: 24,
+      },
+      android: { elevation: 16 },
+    }),
+  },
+  rewardGradient: {
+    alignItems: 'center',
+    paddingTop: scale(8),
+    paddingBottom: scale(24),
+    paddingHorizontal: scale(24),
+  },
+  rewardAccentLine: {
+    width: '60%',
+    height: 3,
+    borderRadius: 2,
+    marginBottom: scale(20),
+    opacity: 0.8,
+  },
+  rewardGemContainer: {
+    marginBottom: scale(16),
+  },
+  rewardGemCircle: {
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(165, 180, 252, 0.4)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#818CF8',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+      },
+      android: { elevation: 8 },
+    }),
+  },
+  rewardTitle: {
+    fontSize: fontScale(22),
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    marginBottom: scale(8),
+  },
+  rewardAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(8),
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.25)',
+    marginBottom: scale(12),
+  },
+  rewardAmountText: {
+    fontSize: fontScale(26),
+    fontWeight: '800',
+    color: '#A5B4FC',
+  },
+  rewardAmountLabel: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    color: '#C7D2FE',
+  },
+  rewardMessage: {
+    fontSize: fontScale(14),
+    color: 'rgba(255, 255, 255, 0.75)',
+    textAlign: 'center',
+    lineHeight: fontScale(20),
+    marginBottom: scale(20),
+  },
+  rewardDismissButton: {
+    width: '100%',
+    borderRadius: responsiveBorderRadius.lg,
+    overflow: 'hidden',
+  },
+  rewardDismissGradient: {
+    paddingVertical: scale(14),
+    alignItems: 'center',
+    borderRadius: responsiveBorderRadius.lg,
+  },
+  rewardDismissText: {
+    fontSize: fontScale(16),
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
 });
 

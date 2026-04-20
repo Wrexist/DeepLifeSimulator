@@ -11,6 +11,7 @@ export default function OnboardingLayout() {
   return (
     <Stack
       screenOptions={{
+        animation: 'slide_from_right',
         headerTitle: '',
         headerStyle: { backgroundColor: colors.surfaceElevated },
         headerShadowVisible: false,

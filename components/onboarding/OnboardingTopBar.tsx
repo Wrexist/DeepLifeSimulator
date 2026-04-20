@@ -5,47 +5,75 @@ import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
+import { haptic } from '@/utils/haptics';
+import OnboardingStepBar from './OnboardingStepBar';
 
 interface OnboardingTopBarProps {
   title: string;
   subtitle?: string;
   onBack?: () => void;
   onInfo?: () => void;
+  currentStep?: number;
+  totalSteps?: number;
 }
 
-export default function OnboardingTopBar({ title, subtitle, onBack, onInfo }: OnboardingTopBarProps) {
+export default function OnboardingTopBar({
+  title,
+  subtitle,
+  onBack,
+  onInfo,
+  currentStep,
+  totalSteps,
+}: OnboardingTopBarProps) {
   const router = useRouter();
   const { gameState } = useGame();
   const isDarkMode = Boolean(gameState?.settings?.darkMode);
   const theme = getOnboardingTheme(isDarkMode);
 
+  const handleBack = () => {
+    haptic.light();
+    (onBack ?? (() => router.back()))();
+  };
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        accessibilityRole="button"
-        onPress={onBack ?? (() => router.back())}
-        style={[styles.iconButton, { borderColor: theme.glassBorder }]}
-      >
-        <ArrowLeft color={theme.title} size={scale(20)} />
-      </TouchableOpacity>
+      <View style={styles.topRow}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={handleBack}
+          style={[styles.iconButton, { borderColor: theme.glassBorder }]}
+        >
+          <ArrowLeft color={theme.title} size={scale(20)} />
+        </TouchableOpacity>
 
-      <View style={styles.textBlock}>
-        <Text numberOfLines={1} style={[styles.title, { color: theme.title }]}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text numberOfLines={2} style={[styles.subtitle, { color: theme.subtitle }]}>
-            {subtitle}
+        <View style={styles.textBlock}>
+          <Text numberOfLines={1} style={[styles.title, { color: theme.title }]}>
+            {title}
           </Text>
-        ) : null}
+          {subtitle ? (
+            <Text numberOfLines={2} style={[styles.subtitle, { color: theme.subtitle }]}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+
+        {onInfo ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="More information"
+            onPress={onInfo}
+            style={[styles.iconButton, { borderColor: theme.glassBorder }]}
+          >
+            <Info color={theme.title} size={scale(18)} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.placeholder} />
+        )}
       </View>
 
-      {onInfo ? (
-        <TouchableOpacity accessibilityRole="button" onPress={onInfo} style={[styles.iconButton, { borderColor: theme.glassBorder }]}>
-          <Info color={theme.title} size={scale(18)} />
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.placeholder} />
+      {currentStep != null && totalSteps != null && (
+        <OnboardingStepBar currentStep={currentStep} totalSteps={totalSteps} />
       )}
     </View>
   );
@@ -53,10 +81,12 @@ export default function OnboardingTopBar({ title, subtitle, onBack, onInfo }: On
 
 const styles = StyleSheet.create({
   container: {
+    marginBottom: responsiveSpacing.lg,
+  },
+  topRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: responsiveSpacing.md,
-    marginBottom: responsiveSpacing.lg,
   },
   iconButton: {
     alignItems: 'center',

@@ -218,6 +218,7 @@ export const performStreetJob = (
         jailWeeks: job.jailWeeks || 1,
         wantedLevel: prev.wantedLevel + (job.wantedIncrease || 1),
         streetJobFailureCount: newFailureCount,
+        streetJobsCompleted: prev.streetJobsCompleted || 0, // Don't count caught jobs as completed
         rngCommitLog: nextRngCommitLog,
         stats: {
           ...prev.stats,
@@ -228,7 +229,7 @@ export const performStreetJob = (
         },
       };
     });
-    
+
     // Set caught message with penalty info
     const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
     if (moneyLost > 0) {
@@ -332,6 +333,7 @@ export const performStreetJob = (
           [jobId]: currentCount + 1,
         },
         streetJobFailureCount: newFailureCount,
+        streetJobsCompleted: (prev.streetJobsCompleted || 0) + (success ? 1 : 0),
         rngCommitLog: nextRngCommitLog,
         karma: updatedKarma,
         wantedLevel: updatedWantedLevel,

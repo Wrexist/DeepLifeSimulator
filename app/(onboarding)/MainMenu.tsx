@@ -7,50 +7,22 @@ import { Play, Plus, Save, Settings } from 'lucide-react-native';
 import SettingsModal from '@/components/SettingsModal';
 import GlassActionButton from '@/components/onboarding/GlassActionButton';
 import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
+import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import { useGame } from '@/contexts/GameContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
+import { hasSaveStateShape, hasMeaningfulSaveData, checkIfAllSlotsFull } from '@/src/features/onboarding/saveSlotHelpers';
+import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
-
-type SaveSlotSnapshot = {
-  weeksLived?: number;
-  stats?: { money?: number };
-  userProfile?: { firstName?: string; lastName?: string };
-  achievements?: { completed?: boolean }[];
-  relationships?: unknown[];
-  items?: { owned?: boolean }[];
-};
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MAIN_MENU_BACKGROUNDS = [
   require('@/assets/images/Main_Menu.png'),
   require('@/assets/images/Main_Menu_2.png'),
   require('@/assets/images/Main_Menu_3.png'),
 ];
-
-const hasSaveStateShape = (state: unknown): state is SaveSlotSnapshot => {
-  if (!state || typeof state !== 'object') return false;
-  const candidate = state as Record<string, unknown>;
-  return (
-    typeof candidate.userProfile === 'object' &&
-    candidate.userProfile !== null &&
-    typeof candidate.stats === 'object' &&
-    candidate.stats !== null
-  );
-};
-
-const hasMeaningfulSaveData = (state: SaveSlotSnapshot): boolean => {
-  return Boolean(
-    (typeof state.weeksLived === 'number' && state.weeksLived > 0) ||
-      (typeof state.stats?.money === 'number' && state.stats.money > 0) ||
-      (Array.isArray(state.achievements) && state.achievements.some((a) => a?.completed)) ||
-      (Array.isArray(state.relationships) && state.relationships.length > 0) ||
-      (Array.isArray(state.items) && state.items.some((item) => item?.owned)) ||
-      state.userProfile?.firstName ||
-      state.userProfile?.lastName
-  );
-};
 
 export default function MainMenu() {
   const log = logger.scope('MainMenu');
@@ -62,6 +34,11 @@ export default function MainMenu() {
   const [selectedBackground] = useState(
     () => MAIN_MENU_BACKGROUNDS[Math.floor(Math.random() * MAIN_MENU_BACKGROUNDS.length)]
   );
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    logOnboardingStepView('MainMenu');
+  }, []);
 
   const isDarkMode = Boolean(gameState?.settings?.darkMode);
   const onboardingTheme = getOnboardingTheme(isDarkMode);
@@ -217,39 +194,6 @@ export default function MainMenu() {
     }
   };
 
-  const checkIfAllSlotsFull = async (): Promise<boolean> => {
-    try {
-      const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
-        '@/utils/saveValidation'
-      );
-      const allowLegacy = shouldAllowUnsignedLegacySaves();
-      let fullSlots = 0;
-      for (let i = 1; i <= 3; i++) {
-        const data = await readSaveSlot(i, undefined, { allowLegacy });
-        if (data) {
-          try {
-            const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
-            if (!decoded.valid || typeof decoded.data !== 'string') {
-              fullSlots++;
-              continue;
-            }
-
-            const parsed = JSON.parse(decoded.data);
-            if (hasSaveStateShape(parsed) && hasMeaningfulSaveData(parsed)) {
-              fullSlots++;
-            }
-          } catch {
-            fullSlots++;
-          }
-        }
-      }
-      return fullSlots >= 3;
-    } catch (error) {
-      log.error('Error checking save slots:', error);
-      return false;
-    }
-  };
-
   const startNew = async () => {
     try {
       const allSlotsFull = await checkIfAllSlotsFull();
@@ -286,25 +230,6 @@ export default function MainMenu() {
           </View>
         }
       >
-        <View
-          style={[
-            styles.heroCard,
-            {
-              borderColor: onboardingTheme.glassBorder,
-              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.42)' : 'rgba(255, 255, 255, 0.36)',
-            },
-          ]}
-        >
-          <View style={[styles.heroHighlight, { backgroundColor: onboardingTheme.glassHighlight }]} />
-          <Text style={[styles.eyebrow, { color: onboardingTheme.eyebrow }]}>DEEP LIFE SIMULATOR</Text>
-          <Text style={[styles.heroTitle, { color: onboardingTheme.title }]}>Build a life worth remembering</Text>
-          <Text style={[styles.heroSubtitle, { color: onboardingTheme.subtitle }]}>
-            {hasSave
-              ? 'Continue your journey instantly, or create a brand-new path with fresh choices.'
-              : 'Start a new life in minutes with guided setup and polished onboarding.'}
-          </Text>
-        </View>
-
         <View style={styles.menuSection}>
           {hasSave ? (
             <GlassActionButton
@@ -346,38 +271,6 @@ export default function MainMenu() {
 }
 
 const styles = StyleSheet.create({
-  heroCard: {
-    borderRadius: responsiveBorderRadius['2xl'],
-    borderWidth: 1.2,
-    overflow: 'hidden',
-    marginBottom: responsiveSpacing.lg,
-    paddingVertical: verticalScale(18),
-    paddingHorizontal: responsiveSpacing.lg,
-  },
-  heroHighlight: {
-    position: 'absolute',
-    left: scale(14),
-    right: scale(14),
-    top: 0,
-    height: verticalScale(1),
-  },
-  eyebrow: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    marginBottom: verticalScale(8),
-  },
-  heroTitle: {
-    fontSize: fontScale(28),
-    fontWeight: '800',
-    lineHeight: fontScale(32),
-    marginBottom: verticalScale(8),
-  },
-  heroSubtitle: {
-    fontSize: fontScale(13),
-    fontWeight: '500',
-    lineHeight: fontScale(18),
-  },
   menuSection: {
     width: '100%',
     paddingBottom: responsiveSpacing.md,

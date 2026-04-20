@@ -37,6 +37,11 @@ interface StartupHealthCheck {
   ready: boolean;
 }
 
+interface ErrorUtilsBridge {
+  setGlobalHandler?: (handler: (error: unknown, isFatal?: boolean) => void) => void;
+  getGlobalHandler?: () => ErrorHandler | undefined;
+}
+
 // Store any early errors so the app can surface them later
 let layoutEarlyError: EarlyError | null = null;
 
@@ -54,6 +59,19 @@ function safeRequireReactNative(): { Platform?: any; NativeModules?: any } | nul
     }
     return null;
   }
+}
+
+function getErrorUtilsBridge(): ErrorUtilsBridge | null {
+  if (typeof global === 'undefined' || !('ErrorUtils' in global)) {
+    return null;
+  }
+
+  const candidate = (global as { ErrorUtils?: unknown }).ErrorUtils;
+  if (!candidate || typeof candidate !== 'object') {
+    return null;
+  }
+
+  return candidate as ErrorUtilsBridge;
 }
 
 // PHASE 1.2: Initialize global object if undefined
@@ -132,7 +150,7 @@ function checkMetroConnection(): boolean {
     // Log available indicators for diagnostics but don't block on their absence.
     if (typeof global !== 'undefined') {
       const indicators: string[] = [];
-      if (global.ErrorUtils) indicators.push('ErrorUtils');
+      if (getErrorUtilsBridge()) indicators.push('ErrorUtils');
       if ((global as any).__METRO_GLOBAL_PREFIX__) indicators.push('METRO_PREFIX');
       if ((global as any).nativeExtensions) indicators.push('nativeExtensions');
       if (indicators.length === 0) {
@@ -227,7 +245,7 @@ setTimeout(() => {
 setTimeout(() => markBootStage('layout_error_handlers_setup'), 0);
 
 try {
-  const errorUtils = typeof global !== 'undefined' ? global.ErrorUtils : null;
+  const errorUtils = getErrorUtilsBridge();
   if (errorUtils?.setGlobalHandler) {
     // Cache original handler lookup - only do it once
     let cachedOriginalHandler: ErrorHandler | undefined;
@@ -342,7 +360,10 @@ if (typeof global !== 'undefined') {
 
 // 7) Unhandled Promise Rejection Handler
 if (typeof global !== 'undefined' && typeof global.Promise !== 'undefined') {
-  const originalUnhandledRejection = global.onunhandledrejection;
+  const originalUnhandledRejection =
+    typeof global.onunhandledrejection === 'function'
+      ? (global.onunhandledrejection as (this: unknown, event: unknown) => void).bind(globalThis)
+      : null;
 
   function handleUnhandledRejection(event: UnhandledRejectionEvent | unknown): boolean {
     try {
@@ -405,7 +426,7 @@ if (typeof global !== 'undefined' && typeof global.Promise !== 'undefined') {
         }
       }
 
-      if (typeof originalUnhandledRejection === 'function') {
+      if (originalUnhandledRejection) {
         try {
           originalUnhandledRejection(event);
         } catch {
@@ -504,7 +525,7 @@ if (typeof global !== 'undefined') {
 // OPTIMIZATION: Defer startup health check - diagnostic only, not critical for render
 setTimeout(() => {
   try {
-    const rn = safeRequireReactNative();
+    safeRequireReactNative();
     startupHealthCheck.ready = true;
   } catch (platformError) {
     if (__DEV__) {
@@ -537,7 +558,24 @@ import StatusBarFallback from '@/components/fallbacks/StatusBarFallback';
 
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { View, StyleSheet, Platform, TouchableOpacity, Text, ScrollView, InteractionManager } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity, Text, ScrollView, InteractionManager, LogBox } from 'react-native';
+
+// Suppress non-critical warnings that show as orange banner bar at top of screen
+// These are framework/library warnings that don't affect gameplay
+LogBox.ignoreLogs([
+  'Network monitoring disabled',
+  'Require cycle:',
+  'Non-serializable values were found in the navigation state',
+  'ViewPropTypes will be removed',
+  'AsyncStorage has been extracted',
+  'Sending `onAnimatedValueUpdate`',
+  'Failed to initialize circuit breaker',
+  'new NativeEventEmitter',
+  'Overwriting fontFamily',
+  // Suppress all [RootLayout] and [StatusBarWrapper] warnings
+  '[RootLayout]',
+  '[StatusBarWrapper]',
+]);
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -1090,7 +1128,6 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // This component only needs gameState, not actions
   // Add defensive check - if hook fails, ErrorBoundary will catch it
   const { gameState } = useGameState();
-  const isDarkMode = true; // Always use dark mode
 
   // CRITICAL FIX: Always use StatusBarFallback - do NOT dynamically load StatusBar
   // Dynamic loading causes React Hook violations because StatusBar uses hooks internally

@@ -1,8 +1,7 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { View, StyleSheet, ScrollView, Text } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import { useGame } from '@/contexts/GameContext';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsProgress from '@/components/AchievementsProgress';
@@ -15,11 +14,9 @@ import PrestigeShopModal from '@/components/PrestigeShopModal';
 import PrestigeInfoModal from '@/components/PrestigeInfoModal';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, scale, responsiveBorderRadius } from '@/utils/scaling';
-import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
-import { generateDailyChallenges } from '@/utils/dailyChallenges';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
@@ -41,7 +38,6 @@ function HomeScreen() {
 
 function HomeScreenContent() {
   const insets = useSafeAreaInsets();
-  const topStatsBarHeight = useTopStatsBarHeight();
   const { gameState, dismissWelcomePopup, setGameState } = useGame();
   const { theme, isDark } = useTheme();
   const { hasCompletedTutorial, startTutorial } = useTutorial();
@@ -50,7 +46,6 @@ function HomeScreenContent() {
   const [showGoalCompletion, setShowGoalCompletion] = useState(false);
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
   const [nextGoal, setNextGoal] = useState<Goal | null>(null);
-  const [showDailyChallenges, setShowDailyChallenges] = useState(false);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
@@ -68,29 +63,14 @@ function HomeScreenContent() {
     }
   }, [gameState.jailWeeks, router]);
 
-  // Calculate unclaimed challenges
-  const getUnclaimedCount = () => {
-    if (!gameState.dailyChallenges) return 0;
-    const todaysChallenges = generateDailyChallenges({
-      weeksLived: gameState.weeksLived,
-      day: gameState.day,
-    });
-    let count = 0;
-
-    if (gameState.dailyChallenges.easy.progress >= todaysChallenges.easy.maxProgress && !gameState.dailyChallenges.easy.claimed) count++;
-    if (gameState.dailyChallenges.medium.progress >= todaysChallenges.medium.maxProgress && !gameState.dailyChallenges.medium.claimed) count++;
-    if (gameState.dailyChallenges.hard.progress >= todaysChallenges.hard.maxProgress && !gameState.dailyChallenges.hard.claimed) count++;
-
-    return count;
-  };
-
-  const unclaimedCount = getUnclaimedCount();
-
-  // Check for goal completion
+  // Check for goal completion — only re-evaluate on week advance or job change
+  // Using weeksLived (not stats) prevents cascading re-renders when reward changes stats
   useEffect(() => {
-    const { completedGoal: newCompletedGoal, nextGoal: newNextGoal } = checkGoalCompletion(gameState as any);
+    if (showGoalCompletion) return; // Already showing a completion popup
 
-    if (newCompletedGoal && !showGoalCompletion) {
+    const { completedGoal: newCompletedGoal, nextGoal: newNextGoal } = checkGoalCompletion(gameState);
+
+    if (newCompletedGoal) {
       setCompletedGoal(newCompletedGoal);
       setNextGoal(newNextGoal);
       setShowGoalCompletion(true);
@@ -98,6 +78,9 @@ function HomeScreenContent() {
       // Apply reward inside updater to avoid stale closure on gameState.stats
       const reward = newCompletedGoal.reward;
       setGameState(prev => {
+        // Guard: skip if already completed (prevents double-processing)
+        if ((prev.completedGoals || []).includes(newCompletedGoal.id)) return prev;
+
         const freshStats = { ...prev.stats };
         switch (reward.type) {
           case 'money':
@@ -123,7 +106,7 @@ function HomeScreenContent() {
         };
       });
     }
-  }, [gameState.stats, gameState.week, gameState.currentJob, gameState.bankSavings, gameState.completedGoals]);
+  }, [gameState.weeksLived, gameState.week, gameState.currentJob, gameState.bankSavings, gameState.completedGoals]);
 
   // Show tutorial for new users (replaces the old WelcomePopup)
   useEffect(() => {
@@ -138,25 +121,71 @@ function HomeScreenContent() {
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [hasCompletedTutorial, gameState.week, gameState.showWelcomePopup, startTutorial, dismissWelcomePopup]);
+
+  // ENGAGEMENT: Daily login reward with streak system
+  // Forgiving streak: 48-hour grace period so missing one day doesn't break the streak
+  useEffect(() => {
+    if ((gameState.weeksLived || 0) < 1 || !hasCompletedTutorial) return undefined;
+    if (gameState.showDailyRewardPopup) return undefined; // Already showing
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const lastRewardDate = gameState.lastLoginRewardDate;
+
+    // Already claimed today
+    if (lastRewardDate === today) return undefined;
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { DAILY_LOGIN_REWARDS, LOGIN_STREAK_GRACE_HOURS } = require('@/lib/config/gameConstants');
+    const currentStreak = gameState.loginStreak || 0;
+    const lastLogin = gameState.lastLoginDate;
+
+    let newStreak = 1;
+    if (lastLogin) {
+      const hoursSinceLast = (Date.now() - new Date(lastLogin).getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLast <= LOGIN_STREAK_GRACE_HOURS) {
+        newStreak = currentStreak + 1; // Continue streak
+      }
+      // else: streak resets to 1 (missed > 48 hours)
+    }
+
+    const rewardIndex = (newStreak - 1) % DAILY_LOGIN_REWARDS.length;
+    const gemReward = DAILY_LOGIN_REWARDS[rewardIndex] || 25;
+
+    const timer = setTimeout(() => {
+      setGameState(prev => ({
+        ...prev,
+        showDailyRewardPopup: true,
+        dailyRewardAmount: gemReward,
+        loginStreak: newStreak,
+        lastLoginDate: today,
+        lastLoginRewardDate: today,
+        stats: {
+          ...prev.stats,
+          gems: (prev.stats?.gems || 0) + gemReward, // Escalating 7-day cycle
+        },
+      }));
+    }, 800); // Small delay for smooth UX
+
+    return () => clearTimeout(timer);
+  }, [gameState.weeksLived, gameState.lastLoginRewardDate, hasCompletedTutorial, gameState.showDailyRewardPopup]);
 
   // Show welcome back popup for returning players (NOT for new players)
   useEffect(() => {
-    // Only show for returning players, not new players (week === 1)
     if ((gameState.weeksLived || 0) > 1 && gameState.lastLogin) {
       const lastLogin = gameState.lastLogin || Date.now();
       const hoursAway = (Date.now() - lastLogin) / (1000 * 60 * 60);
 
-      // Show welcome back if away for more than 6 hours and not showing daily reward or tutorial
       if (hoursAway > 6 && !gameState.showDailyRewardPopup && !showWelcomeBack && hasCompletedTutorial) {
-        // Delay to show after daily reward if it exists
         const timer = setTimeout(() => {
           setShowWelcomeBack(true);
-        }, 500);
+        }, 1500); // Delay more to show after daily reward
 
         return () => clearTimeout(timer);
       }
     }
+    return undefined;
   }, [gameState.lastLogin, gameState.weeksLived, gameState.week, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
 
   return (

@@ -1,17 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { Archive, Play, Trash2 } from 'lucide-react-native';
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const BlurView = BlurViewFallback;
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import BackupRecoveryModal from '@/components/BackupRecoveryModal';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import GlassActionButton from '@/components/onboarding/GlassActionButton';
-import GlassPanel from '@/components/onboarding/GlassPanel';
-import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
-import OnboardingTopBar from '@/components/onboarding/OnboardingTopBar';
+import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
+import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
+import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import { useGame } from '@/contexts/GameContext';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
-import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
+import {
+  type SaveSlotData,
+  hasSaveStateShape,
+  hasMeaningfulSaveData,
+  checkIfAllSlotsFull,
+} from '@/src/features/onboarding/saveSlotHelpers';
+import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { clearProtectedState, deleteAllBackupsForSlot, listBackups } from '@/utils/saveBackup';
@@ -19,53 +28,12 @@ import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation
 import {
   fontScale,
   responsiveBorderRadius,
+  responsiveFontSize,
+  responsivePadding,
   responsiveSpacing,
   scale,
   verticalScale,
 } from '@/utils/scaling';
-
-type SaveSlotSnapshot = {
-  weeksLived?: number;
-  stats?: { money?: number };
-  date?: { age?: number; month?: string };
-  userProfile?: { firstName?: string; lastName?: string };
-  achievements?: { completed?: boolean }[];
-  relationships?: unknown[];
-  items?: { owned?: boolean }[];
-};
-
-interface SaveSlotData extends SaveSlotSnapshot {
-  id: number;
-  hasData: boolean;
-  error?: boolean;
-}
-
-const BACKGROUND = require('@/assets/images/Main_Menu_2.png');
-
-const hasSaveStateShape = (state: unknown): state is SaveSlotSnapshot => {
-  if (!state || typeof state !== 'object') return false;
-  const candidate = state as Record<string, unknown>;
-  return (
-    typeof candidate.userProfile === 'object' &&
-    candidate.userProfile !== null &&
-    typeof candidate.stats === 'object' &&
-    candidate.stats !== null &&
-    typeof candidate.date === 'object' &&
-    candidate.date !== null
-  );
-};
-
-const hasMeaningfulSaveData = (state: SaveSlotSnapshot): boolean => {
-  return Boolean(
-    (typeof state.weeksLived === 'number' && state.weeksLived > 0) ||
-      (typeof state.stats?.money === 'number' && state.stats.money > 0) ||
-      (Array.isArray(state.achievements) && state.achievements.some((a) => a?.completed)) ||
-      (Array.isArray(state.relationships) && state.relationships.length > 0) ||
-      (Array.isArray(state.items) && state.items.some((item) => item?.owned)) ||
-      state.userProfile?.firstName ||
-      state.userProfile?.lastName
-  );
-};
 
 export default function SaveSlots() {
   const log = logger.scope('SaveSlots');
@@ -76,12 +44,14 @@ export default function SaveSlots() {
   const [slots, setSlots] = useState<SaveSlotData[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+
+  useEffect(() => {
+    logOnboardingStepView('SaveSlots');
+  }, []);
+
   const [showBackupManager, setShowBackupManager] = useState<number | null>(null);
   const [backupCounts, setBackupCounts] = useState<Record<number, number>>({});
   const [isBusy, setIsBusy] = useState(false);
-
-  const isDarkMode = Boolean(gameState?.settings?.darkMode);
-  const theme = getOnboardingTheme(isDarkMode);
 
   const selectedCard = useMemo(
     () => slots.find((slot) => slot.id === selectedSlot) ?? null,
@@ -164,40 +134,6 @@ export default function SaveSlots() {
       void loadBackupCounts();
     }, [loadBackupCounts, loadSlots])
   );
-
-  const checkIfAllSlotsFull = useCallback(async (): Promise<boolean> => {
-    try {
-      const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
-        '@/utils/saveValidation'
-      );
-      const allowLegacy = shouldAllowUnsignedLegacySaves();
-      let fullSlots = 0;
-
-      for (let i = 1; i <= 3; i++) {
-        const data = await readSaveSlot(i, undefined, { allowLegacy });
-        if (!data) continue;
-
-        try {
-          const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
-          if (!decoded.valid || typeof decoded.data !== 'string') {
-            fullSlots++;
-            continue;
-          }
-          const parsed = JSON.parse(decoded.data);
-          if (hasSaveStateShape(parsed) && hasMeaningfulSaveData(parsed)) {
-            fullSlots++;
-          }
-        } catch {
-          fullSlots++;
-        }
-      }
-
-      return fullSlots >= 3;
-    } catch (error) {
-      log.error('Error checking full slots', error);
-      return false;
-    }
-  }, [log]);
 
   const selectSlot = (slotId: number) => {
     setSelectedSlot(slotId);
@@ -298,7 +234,7 @@ export default function SaveSlots() {
     } finally {
       setIsBusy(false);
     }
-  }, [checkIfAllSlotsFull, isBusy, router, selectedCard]);
+  }, [isBusy, router, selectedCard]);
 
   const primaryAction = async () => {
     if (!selectedSlot) {
@@ -314,10 +250,18 @@ export default function SaveSlots() {
 
   return (
     <>
-      <OnboardingScreenShell backgroundSource={BACKGROUND}>
-        <OnboardingTopBar
+      <OnboardingScreenShellV2
+        floatingButton={
+          <OnboardingFloatingButton
+            title={selectedCard?.hasData ? 'Continue Game' : 'Start New Game'}
+            onPress={() => { void primaryAction(); }}
+            disabled={!selectedSlot || isBusy}
+            icon={<Play size={24} color="#FFFFFF" />}
+          />
+        }
+      >
+        <OnboardingGlassHeader
           title="Save Slots"
-          subtitle="Choose where your life story lives."
           onBack={() => {
             if (navigation.canGoBack()) {
               router.back();
@@ -333,99 +277,94 @@ export default function SaveSlots() {
           }
         />
 
-        <GlassPanel strong style={styles.heroPanel}>
-          <Text style={[styles.heroTitle, { color: theme.title }]}>Smart Save Manager</Text>
-          <Text style={[styles.heroSubtitle, { color: theme.subtitle }]}>
-            Slot health, backups, and restore options are all available before you continue.
-          </Text>
-        </GlassPanel>
-
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+        >
           {slots.map((slot) => {
             const isSelected = selectedSlot === slot.id;
             const statusText = slot.error ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
-            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#34D399' : theme.subtitle;
+            const statusColor = slot.error ? '#F97316' : slot.hasData ? '#34D399' : '#9CA3AF';
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
 
             return (
               <TouchableOpacity key={slot.id} activeOpacity={0.9} onPress={() => selectSlot(slot.id)}>
-                <GlassPanel style={[styles.slotCard, isSelected ? styles.slotCardSelected : undefined]}>
-                  <View style={styles.slotHeader}>
-                    <Text style={[styles.slotTitle, { color: theme.title }]}>Slot {slot.id}</Text>
-                    <Text style={[styles.statusChip, { color: statusColor }]}>{statusText}</Text>
-                  </View>
-
-                  <Text style={[styles.slotName, { color: theme.subtitle }]}>
-                    {slot.hasData ? fullName || 'Unnamed Character' : 'Start a new life here'}
-                  </Text>
-
-                  {slot.hasData ? (
-                    <View style={styles.statsRow}>
-                      <View style={styles.statBlock}>
-                        <Text style={[styles.statLabel, { color: theme.subtitle }]}>Money</Text>
-                        <Text style={[styles.statValue, { color: theme.title }]}>
-                          {formatMoney(slot.stats?.money || 0)}
-                        </Text>
+                <View style={styles.cardContainer}>
+                  <BlurView intensity={20} style={styles.cardBlur}>
+                    <LinearGradient
+                      colors={
+                        isSelected
+                          ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
+                          : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[styles.card, isSelected && styles.cardSelected]}
+                    >
+                      <View style={styles.slotHeader}>
+                        <Text style={styles.slotTitle}>Slot {slot.id}</Text>
+                        <Text style={[styles.statusChip, { color: statusColor }]}>{statusText}</Text>
                       </View>
-                      <View style={styles.statBlock}>
-                        <Text style={[styles.statLabel, { color: theme.subtitle }]}>Age</Text>
-                        <Text style={[styles.statValue, { color: theme.title }]}>
-                          {Math.ceil(slot.date?.age || 0)}
-                        </Text>
-                      </View>
-                      <View style={styles.statBlock}>
-                        <Text style={[styles.statLabel, { color: theme.subtitle }]}>Weeks</Text>
-                        <Text style={[styles.statValue, { color: theme.title }]}>{slot.weeksLived || 0}</Text>
-                      </View>
-                    </View>
-                  ) : null}
 
-                  {slot.hasData ? (
-                    <View style={styles.slotActions}>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        onPress={() => setShowBackupManager(slot.id)}
-                        style={[styles.smallAction, { borderColor: theme.glassBorder }]}
-                      >
-                        <Archive size={scale(14)} color={theme.accentText} />
-                        <Text style={[styles.smallActionText, { color: theme.accentText }]}>
-                          Backups ({backupCounts[slot.id] || 0})
-                        </Text>
-                      </TouchableOpacity>
+                      <Text style={styles.slotName}>
+                        {slot.hasData ? fullName || 'Unnamed Character' : 'Start a new life here'}
+                      </Text>
 
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        onPress={() => setShowDeleteConfirm(slot.id)}
-                        style={[styles.smallAction, styles.deleteAction]}
-                      >
-                        <Trash2 size={scale(14)} color="#F87171" />
-                        <Text style={styles.deleteText}>Delete Slot</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : null}
-                </GlassPanel>
+                      {slot.hasData ? (
+                        <View style={styles.statsRow}>
+                          <View style={styles.statBlock}>
+                            <Text style={styles.statLabel}>Money</Text>
+                            <Text style={styles.statValue}>
+                              {formatMoney(slot.stats?.money || 0)}
+                            </Text>
+                          </View>
+                          <View style={styles.statBlock}>
+                            <Text style={styles.statLabel}>Age</Text>
+                            <Text style={styles.statValue}>
+                              {Math.ceil(slot.date?.age || 0)}
+                            </Text>
+                          </View>
+                          <View style={styles.statBlock}>
+                            <Text style={styles.statLabel}>Weeks</Text>
+                            <Text style={styles.statValue}>{slot.weeksLived || 0}</Text>
+                          </View>
+                        </View>
+                      ) : null}
+
+                      {slot.hasData ? (
+                        <View style={styles.slotActions}>
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            onPress={() => setShowBackupManager(slot.id)}
+                            style={styles.smallAction}
+                          >
+                            <Archive size={scale(14)} color="#60A5FA" />
+                            <Text style={styles.smallActionText}>
+                              Backups ({backupCounts[slot.id] || 0})
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            onPress={() => setShowDeleteConfirm(slot.id)}
+                            style={[styles.smallAction, styles.deleteAction]}
+                          >
+                            <Trash2 size={scale(14)} color="#F87171" />
+                            <Text style={styles.deleteText}>Delete Slot</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                    </LinearGradient>
+                  </BlurView>
+                </View>
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
 
-        <GlassActionButton
-          disabled={!selectedSlot || isBusy}
-          highlighted
-          icon={<Play color={theme.title} size={scale(22)} />}
-          onPress={() => {
-            void primaryAction();
-          }}
-          subtitle={
-            !selectedSlot
-              ? 'Select a slot first'
-              : selectedCard?.hasData
-                ? 'Validate and continue your current life'
-                : 'Create a new life in this slot'
-          }
-          title={selectedCard?.hasData ? 'Continue Game' : 'Start New Game'}
-        />
-      </OnboardingScreenShell>
+          <View style={{ height: 140 }} />
+        </ScrollView>
+      </OnboardingScreenShellV2>
 
       <ConfirmDialog
         visible={showDeleteConfirm !== null}
@@ -462,42 +401,61 @@ export default function SaveSlots() {
 }
 
 const styles = StyleSheet.create({
-  heroPanel: {
-    marginBottom: responsiveSpacing.md,
-  },
-  heroTitle: {
-    fontSize: fontScale(20),
-    fontWeight: '800',
-    marginBottom: verticalScale(4),
-  },
-  heroSubtitle: {
-    fontSize: fontScale(12),
-    fontWeight: '500',
-    lineHeight: fontScale(16),
+  scrollContainer: {
+    flex: 1,
   },
   scrollContent: {
-    gap: responsiveSpacing.md,
-    paddingBottom: responsiveSpacing.md,
+    gap: responsiveSpacing.lg,
+    paddingHorizontal: responsivePadding.large,
+    paddingTop: responsiveSpacing.sm,
+    paddingBottom: responsiveSpacing.lg,
   },
-  slotCard: {
-    paddingVertical: responsiveSpacing.md,
+  cardContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  slotCardSelected: {
-    borderWidth: 1.6,
+  cardBlur: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  card: {
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    gap: responsiveSpacing.sm,
+  },
+  cardSelected: {
+    borderColor: 'rgba(16, 185, 129, 0.5)',
+    borderWidth: 2,
   },
   slotHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: verticalScale(8),
   },
   slotTitle: {
-    fontSize: fontScale(18),
+    fontSize: responsiveFontSize.xl,
     fontWeight: '800',
+    color: '#FFFFFF',
+    ...Platform.select({
+      web: { textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
   },
   statusChip: {
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: responsiveBorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     fontSize: fontScale(11),
     fontWeight: '700',
     overflow: 'hidden',
@@ -507,16 +465,17 @@ const styles = StyleSheet.create({
   slotName: {
     fontSize: fontScale(13),
     fontWeight: '500',
-    marginBottom: verticalScale(10),
+    color: '#D1D5DB',
   },
   statsRow: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
-    marginBottom: verticalScale(10),
   },
   statBlock: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: responsiveBorderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     flex: 1,
     paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: verticalScale(8),
@@ -524,11 +483,13 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: fontScale(10),
     fontWeight: '600',
+    color: '#9CA3AF',
     marginBottom: verticalScale(2),
   },
   statValue: {
     fontSize: fontScale(12),
     fontWeight: '800',
+    color: '#FFFFFF',
   },
   slotActions: {
     flexDirection: 'row',
@@ -536,9 +497,10 @@ const styles = StyleSheet.create({
   },
   smallAction: {
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: responsiveBorderRadius.md,
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     flex: 1,
     flexDirection: 'row',
     gap: responsiveSpacing.xs,
@@ -548,9 +510,10 @@ const styles = StyleSheet.create({
   smallActionText: {
     fontSize: fontScale(11),
     fontWeight: '700',
+    color: '#60A5FA',
   },
   deleteAction: {
-    borderColor: 'rgba(248, 113, 113, 0.4)',
+    borderColor: 'rgba(248, 113, 113, 0.3)',
   },
   deleteText: {
     color: '#F87171',

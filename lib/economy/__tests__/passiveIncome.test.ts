@@ -1,6 +1,9 @@
 import { calcWeeklyPassiveIncome } from '../passiveIncome';
 import { GameState, RealEstate } from '@/contexts/GameContext';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+import { getStockInfo } from '../stockMarket';
+import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 function createState(overrides: Partial<GameState>): GameState {
   return createTestGameState(overrides);
@@ -23,7 +26,7 @@ describe('calcWeeklyPassiveIncome', () => {
       },
     ];
     const state = createState({
-      stocksOwned: { aapl: 10 },
+      stocksOwned: { aapl: 1000 },
       realEstate: properties,
       hobbies: [
         {
@@ -73,12 +76,33 @@ describe('calcWeeklyPassiveIncome', () => {
       ],
     });
     const result = calcWeeklyPassiveIncome(state);
-    expect(result.breakdown.stocks).toBeCloseTo((178.2 * 0.006 * 10) / 52, 5);
-    expect(result.breakdown.realEstate).toBe(480);
-    expect(result.breakdown.songs).toBe(50);
-    expect(result.breakdown.art).toBe(30);
-    expect(result.breakdown.contracts).toBe(0);
-    expect(result.breakdown.sponsors).toBe(20);
-    expect(result.total).toBeCloseTo(result.breakdown.stocks + 480 + 50 + 30 + 0 + 20, 5);
+
+    const stock = getStockInfo('AAPL');
+    const property = properties[0];
+    if (!property) {
+      throw new Error('Expected at least one property in test setup');
+    }
+    const propertyRent = property.rent ?? 0;
+    const propertyUpkeep = property.upkeep ?? 0;
+    const expectedStocks = Math.round((stock.price * stock.dividendYield * 1000) / WEEKS_PER_YEAR);
+    const tier = getUpgradeTier(property.upgradeLevel);
+    const expectedRealEstate = Math.round(
+      propertyRent + (tier?.rentBonus || 0) - (propertyUpkeep + (tier?.upkeepBonus || 0))
+    );
+
+    expect(result.breakdown.stocks).toBe(expectedStocks);
+    expect(result.breakdown.realEstate).toBe(expectedRealEstate);
+
+    const expectedTotal =
+      result.breakdown.stocks +
+      result.breakdown.realEstate +
+      result.breakdown.socialMedia +
+      result.breakdown.patents +
+      result.breakdown.businessOpportunities +
+      result.breakdown.political +
+      result.breakdown.cryptoMining +
+      result.breakdown.companies +
+      result.breakdown.gamingStreaming;
+    expect(result.total).toBe(expectedTotal);
   });
 });

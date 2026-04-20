@@ -56,7 +56,7 @@ const GUIDE_STEPS: GuideStep[] = [
         id: 'work_first',
         week: 1,
         title: 'Find Work',
-        description: 'Visit the Work tab to do street jobs or apply for a career. You need money to survive!',
+        description: 'Street jobs pay 2-4x more than entry careers! Start with street jobs to build cash, then apply for a career later.',
         icon: Briefcase,
         iconColor: '#3B82F6',
         action: 'Go to Work Tab',
@@ -106,6 +106,18 @@ const GUIDE_STEPS: GuideStep[] = [
         action: 'Buy Smartphone',
         priority: 'medium',
         reward: { type: 'gems', amount: 10 },
+    },
+
+    // Week 2 - Daily Challenges
+    {
+        id: 'daily_challenges',
+        week: 2,
+        title: 'Daily Challenges',
+        description: 'Check the Challenges tab for daily tasks that reward gems! Complete all 3 daily challenges to build a streak multiplier.',
+        icon: Sparkles,
+        iconColor: '#F59E0B',
+        priority: 'medium',
+        reward: { type: 'gems', amount: 5 },
     },
 
     // Week 3 - Career
@@ -167,9 +179,15 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
     }, [currentWeek]);
 
     const handleDismiss = async () => {
-        await AsyncStorage.setItem(FIRST_WEEK_GUIDE_KEY, 'true');
+        // Set local state first to immediately hide the guide (prevents stale UI)
         setHasSeenGuide(true);
         onDismiss?.();
+        // Persist to AsyncStorage in background (non-blocking)
+        try {
+            await AsyncStorage.setItem(FIRST_WEEK_GUIDE_KEY, 'true');
+        } catch {
+            // Non-critical: guide will re-show on next launch, but won't freeze
+        }
     };
 
     const handleStepComplete = (stepId: string) => {
@@ -355,45 +373,54 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
 export function useContextualTip(gameState: any) {
     const [dismissedTips, setDismissedTips] = useState<Set<string>>(new Set());
 
+    // Extract specific values to avoid re-evaluating on every gameState object change
+    const health = gameState?.stats?.health ?? 100;
+    const happiness = gameState?.stats?.happiness ?? 100;
+    const energy = gameState?.stats?.energy ?? 100;
+    const money = gameState?.stats?.money ?? 0;
+    const currentJob = gameState?.currentJob;
+    const weeksLived = gameState?.weeksLived || 0;
+    const careers = gameState?.careers;
+
     const activeTip = useMemo(() => {
         if (!gameState?.stats) return null;
 
         // Check conditions in priority order
-        if (gameState.stats.health < 25 && !dismissedTips.has('low_health')) {
+        if (health < 25 && !dismissedTips.has('low_health')) {
             return 'low_health';
         }
-        if (gameState.stats.happiness < 25 && !dismissedTips.has('low_happiness')) {
+        if (happiness < 25 && !dismissedTips.has('low_happiness')) {
             return 'low_happiness';
         }
-        if (gameState.stats.energy < 15 && !dismissedTips.has('low_energy')) {
+        if (energy < 15 && !dismissedTips.has('low_energy')) {
             return 'low_energy';
         }
-        if (!gameState.currentJob && (gameState.weeksLived || 0) > 2 && !dismissedTips.has('no_job')) {
+        if (!currentJob && weeksLived > 2 && !dismissedTips.has('no_job')) {
             return 'no_job';
         }
-        if (gameState.stats.money < 50 && !dismissedTips.has('low_money')) {
+        if (money < 50 && !dismissedTips.has('low_money')) {
             return 'low_money';
         }
 
         // Check for promotion ready
-        const career = gameState.careers?.find((c: any) =>
-            c.id === gameState.currentJob && c.accepted && c.progress >= 100
+        const career = careers?.find((c: any) =>
+            c.id === currentJob && c.accepted && c.progress >= 100
         );
         if (career && !dismissedTips.has('promotion_ready')) {
             return 'promotion_ready';
         }
 
         return null;
-    }, [gameState, dismissedTips]);
+    }, [health, happiness, energy, money, currentJob, weeksLived, careers, dismissedTips, gameState?.stats]);
 
     const dismissTip = (tipType: string) => {
         setDismissedTips(prev => new Set([...prev, tipType]));
     };
 
-    // Reset dismissed tips when week changes
+    // Reset dismissed tips when week changes (allows tips to re-show each week)
     useEffect(() => {
         setDismissedTips(new Set());
-    }, [gameState?.week]);
+    }, [weeksLived]);
 
     return { activeTip, dismissTip };
 }

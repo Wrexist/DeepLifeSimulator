@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/game/types';
+import { GameState, type GameStats } from '@/contexts/game/types';
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import { validateGameState } from '@/utils/saveValidation';
 import { logger } from '@/utils/logger';
@@ -28,6 +28,16 @@ const MIN_SUPPORTED_VERSION = 5;
  * Saves above this version are from future versions
  */
 const MAX_SUPPORTED_VERSION = STATE_VERSION;
+
+const ENTRY_REQUIRED_STATS: (keyof GameStats)[] = [
+  'health',
+  'happiness',
+  'energy',
+  'fitness',
+  'money',
+  'reputation',
+  'gems',
+];
 
 /**
  * Validates that a game state is safe to enter gameplay with
@@ -119,13 +129,12 @@ export function validateGameEntry(state: GameState | null | undefined): GameEntr
     errors.push('Stats object is missing or invalid');
     stateComplete = false;
   } else {
-    const requiredStats = ['health', 'happiness', 'energy', 'fitness', 'money', 'reputation', 'gems'];
-    for (const stat of requiredStats) {
+    for (const stat of ENTRY_REQUIRED_STATS) {
       if (!(stat in state.stats)) {
         errors.push(`Missing stat: ${stat}`);
         stateComplete = false;
       } else {
-        const statValue = (state.stats as any)[stat];
+        const statValue = state.stats[stat];
         // CRITICAL FIX: Handle null/undefined values - treat as missing and use default
         if (statValue === null || statValue === undefined) {
           errors.push(`Missing stat: ${stat} (value is null or undefined)`);
@@ -172,8 +181,9 @@ export function validateGameEntry(state: GameState | null | undefined): GameEntr
     'healthActivities', 'dietPlans', 'darkWebItems', 'hacks'
   ];
 
+  const stateFields = state as unknown as Record<string, unknown>;
   for (const field of requiredArrays) {
-    if (!Array.isArray((state as any)[field])) {
+    if (!Array.isArray(stateFields[field])) {
       errors.push(`${field} must be an array`);
       stateComplete = false;
     }

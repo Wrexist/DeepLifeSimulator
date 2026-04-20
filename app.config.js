@@ -1,7 +1,7 @@
 // Single source of truth: version from package.json
 const { version } = require('./package.json');
 // Build number can be overridden via EAS: BUILD_NUMBER env variable
-const buildNumber = process.env.BUILD_NUMBER || "94";
+const buildNumber = process.env.BUILD_NUMBER || "98";
 const admobAppId = process.env.ADMOB_APP_ID || process.env.EXPO_PUBLIC_ADMOB_APP_ID || "ca-app-pub-2286247955186424~3290819490";
 const admobIosAppId = process.env.ADMOB_IOS_APP_ID || process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || admobAppId;
 const admobAndroidAppId = process.env.ADMOB_ANDROID_APP_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || admobAppId;

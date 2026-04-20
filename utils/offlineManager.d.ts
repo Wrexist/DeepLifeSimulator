@@ -13,6 +13,6 @@ export interface OfflineManagerInstance {
   processQueue(): Promise<void>;
 }
 
-export function useNetworkStatus(): { isConnected: boolean };
+export function useNetworkStatus(): { isOnline: boolean; pendingActions: number };
 
 export const offlineManager: OfflineManagerInstance;

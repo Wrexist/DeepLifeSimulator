@@ -785,9 +785,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 // Exam check (every ~13 weeks)
                 try {
                   const { isExamWeek, runExam } = require('@/lib/education/educationSystem');
-                  if (isExamWeek(edu, newWeeksLived)) {
+                  if (isExamWeek(edu, nextWeeksLived)) {
                     const examResult = runExam(edu, newStats.energy, !!edu.studyGroupActive);
-                    updatedEdu.lastExamWeek = newWeeksLived;
+                    updatedEdu.lastExamWeek = nextWeeksLived;
                     updatedEdu.examsPassed = (edu.examsPassed || 0) + (examResult.passed ? 1 : 0);
                     updatedEdu.examsFailed = (edu.examsFailed || 0) + (examResult.passed ? 0 : 1);
                     const totalExams = (updatedEdu.examsPassed || 0) + (updatedEdu.examsFailed || 0);
@@ -814,8 +814,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 // Campus event check (random, every 4-8 weeks)
                 try {
                   const { shouldTriggerCampusEvent } = require('@/lib/education/educationSystem');
-                  if (shouldTriggerCampusEvent(edu, newWeeksLived)) {
-                    updatedEdu.lastCampusEventWeek = newWeeksLived;
+                  if (shouldTriggerCampusEvent(edu, nextWeeksLived)) {
+                    updatedEdu.lastCampusEventWeek = nextWeeksLived;
                     // Campus events are handled via pending events in the UI
                     // Store a flag for the UI to pick up
                     pendingCampusEvent = edu.id;
@@ -868,7 +868,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           const safeIncomeMultiplier = typeof incomeMultiplier === 'number' && isFinite(incomeMultiplier) && incomeMultiplier > 0 ? incomeMultiplier : 1.0;
 
           // Total weekly income (before multiplier)
-          const baseTotalIncome = careerSalary + passiveIncome + partnerIncome;
+          let baseTotalIncome = careerSalary + passiveIncome + partnerIncome;
+
+          // ENGAGEMENT: Beginner luck bonus — small random cash boost for first 20 weeks
+          // Prevents the "going backwards" death spiral that kills retention in life sims
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { BEGINNER_LUCK_WEEKS, BEGINNER_LUCK_BASE_BONUS, BEGINNER_LUCK_RANDOM_MAX } = require('@/lib/config/gameConstants');
+          const weeksLivedNow = prevState.weeksLived || 0;
+          if (weeksLivedNow < BEGINNER_LUCK_WEEKS) {
+            const luckSeed = weeksLivedNow * 777 + 42;
+            const luckX = Math.sin(luckSeed) * 10000;
+            const luckRoll = luckX - Math.floor(luckX);
+            const luckBonus = BEGINNER_LUCK_BASE_BONUS + Math.floor(luckRoll * BEGINNER_LUCK_RANDOM_MAX);
+            baseTotalIncome += luckBonus;
+          }
 
           // Apply prestige income multiplier
           const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier);
@@ -956,7 +969,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           let housingUpkeep = 0;
           try {
             const housingModule = require('@/lib/realEstate/housing');
-            const housingResult = housingModule.processWeeklyHousing(updatedRealEstate, newWeeksLived);
+            const housingResult = housingModule.processWeeklyHousing(updatedRealEstate, nextWeeksLived);
             updatedRealEstate = housingResult.properties;
             housingHappinessBonus = housingResult.totalHappinessBonus;
             housingRentalIncome = housingResult.totalRentalIncome;
@@ -1338,7 +1351,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           // NPC Depth System — process life events, moods, opinions
           try {
             const npcDepth = require('@/lib/social/npcDepth');
-            const npcResult = npcDepth.processWeeklyNPCDepth(processedRelationships, newWeeksLived);
+            const npcResult = npcDepth.processWeeklyNPCDepth(processedRelationships, nextWeeksLived);
             // Replace relationships in-place
             processedRelationships.length = 0;
             processedRelationships.push(...npcResult.relationships);
@@ -2316,6 +2329,28 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         }, 100);
       }
 
+      // ENGAGEMENT: Milestone proximity hints — "just one more week" pull
+      // Shows a motivational notification when player is close to a milestone
+      try {
+        const { MILESTONE_MONEY_THRESHOLDS, MILESTONE_PROXIMITY_PERCENT } = require('@/lib/config/gameConstants');
+        const currentState = gameStateRef.current;
+        if (currentState) {
+          const currentMoney = currentState.stats?.money || 0;
+          for (const threshold of MILESTONE_MONEY_THRESHOLDS) {
+            if (currentMoney < threshold && currentMoney >= threshold * (1 - MILESTONE_PROXIMITY_PERCENT)) {
+              const remaining = threshold - currentMoney;
+              const formatted = remaining >= 1000 ? `$${(remaining / 1000).toFixed(1)}k` : `$${remaining}`;
+              setTimeout(() => {
+                showWarning('milestone-hint', `${formatted} away from $${threshold >= 1000 ? (threshold / 1000).toLocaleString() + 'k' : threshold}!`, 'Almost There');
+              }, 2000); // Delay so it shows after other notifications
+              break; // Only show one hint per week
+            }
+          }
+        }
+      } catch (e) {
+        // Non-critical — don't break week progression for milestone hints
+      }
+
       // CRITICAL: Validate state after update to ensure no corruption
       // Use a small delay to ensure state has updated
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -2550,16 +2585,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         if (choice.special) {
           // Handle special effects like 'grant_free_education'
           if (choice.special === 'grant_free_education') {
-            // Grant the player a free education level upgrade
-            const currentLevel = prevState.education?.level || 'none';
-            const nextLevel = currentLevel === 'none' ? 'highSchool'
-              : currentLevel === 'highSchool' ? 'university'
-              : currentLevel === 'university' ? 'graduate'
-              : currentLevel; // Already at max
-            if (nextLevel !== currentLevel) {
-              updatedStats.reputation = Math.min(100, (updatedStats.reputation || 0) + 10);
-              logger.info('Free education granted:', { from: currentLevel, to: nextLevel });
-            }
+            // Grant the player a reputation bonus for education opportunity
+            updatedStats.reputation = Math.min(100, (updatedStats.reputation || 0) + 10);
+            logger.info('Free education bonus granted');
           }
 
           // Handle disease addition from events
@@ -2597,11 +2625,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
         // Handle career special effects: fire_from_job, add_career_warning
         let updatedCurrentJob = prevState.currentJob;
         let updatedCareersFromEvent = prevState.careers;
-        let updatedJobHistory = prevState.jobHistory || [];
 
         if (choice.special === 'fire_from_job' && prevState.currentJob) {
           // Fire the player from their current job
-          const firedCareer = (prevState.careers || []).find(c => c && c.id === prevState.currentJob && c.accepted);
           updatedCurrentJob = undefined;
           // Reset the career's accepted/applied status so they can reapply later
           updatedCareersFromEvent = (prevState.careers || []).map(c => {
@@ -2610,16 +2636,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             }
             return c;
           });
-          // Add to job history
-          if (firedCareer) {
-            updatedJobHistory = [...updatedJobHistory, {
-              job: firedCareer.id,
-              weeks: (prevState.weeksLived || 0) - (firedCareer.startedWeeksLived || 0),
-              earnings: 0,
-              startWeek: firedCareer.startedWeeksLived || 0,
-              endWeek: prevState.weeksLived || 0,
-            }];
-          }
           logger.info('Player fired from job:', { job: prevState.currentJob });
         }
 
@@ -2805,7 +2821,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           // Career event effects (firing, warnings)
           ...(updatedCurrentJob !== prevState.currentJob && { currentJob: updatedCurrentJob }),
           ...(updatedCareersFromEvent !== prevState.careers && { careers: updatedCareersFromEvent }),
-          ...(updatedJobHistory !== prevState.jobHistory && { jobHistory: updatedJobHistory }),
         };
 
         // Clear the resolving flag after a delay

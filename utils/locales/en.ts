@@ -31,6 +31,7 @@ export default {
         work: 'Work',
         mobile: 'Phone',
         computer: 'Computer',
+        progression: 'Progress',
         market: 'Market',
         health: 'Health',
     },

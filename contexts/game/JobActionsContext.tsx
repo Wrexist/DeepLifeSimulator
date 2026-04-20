@@ -176,17 +176,21 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
     const state = stateRef.current;
     if (!state?.currentJob) return;
 
-    setGameState(prevState => ({
-      ...prevState,
-      currentJob: undefined,
-      jobHistory: [
-        ...(prevState.jobHistory || []),
-        {
-          ...prevState.currentJob,
-          endWeek: prevState.week,
+    setGameState(prevState => {
+      // Reset the career's accepted/applied status so they can reapply later
+      const updatedCareers = (prevState.careers || []).map(c => {
+        if (c.id === prevState.currentJob) {
+          return { ...c, accepted: false, applied: false, progress: 0 };
         }
-      ],
-    }));
+        return c;
+      });
+
+      return {
+        ...prevState,
+        currentJob: undefined,
+        careers: updatedCareers,
+      };
+    });
 
     logger.info('Quit current job');
   }, [setGameState]);

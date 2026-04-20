@@ -44,7 +44,6 @@ module.exports = {
   testPathIgnorePatterns: [
     '[\\\\/]node_modules[\\\\/]',
     '[\\\\/]__tests__[\\\\/]helpers[\\\\/]',
-    '[\\\\/]__tests__[\\\\/]integration[\\\\/]gameFlow\\.test\\.tsx$',
     '[\\\\/]lib[\\\\/]skillTrees[\\\\/]__tests__[\\\\/]careerSkillTrees\\.test\\.ts$',
   ],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],

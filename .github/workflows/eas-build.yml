@@ -3,16 +3,15 @@ name: EAS Build
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
- codex/add-more-automation-for-eas-rj0k1x
     strategy:
+      fail-fast: false
       matrix:
         platform: [android, ios]
- main
     steps:
       - uses: actions/checkout@v4
 
@@ -23,9 +22,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Install expo-cli
-        run: npm install -g expo-cli@6.3.10
 
       - name: Expo/EAS login
         uses: expo/expo-github-action@v8
@@ -43,10 +39,5 @@ jobs:
       - name: Test
         run: npm test -- --passWithNoTests
 
- codex/add-more-automation-for-eas-rj0k1x
-      - name: EAS Build iOS
-        run: eas build --platform ios --non-interactive
-
       - name: EAS Build ${{ matrix.platform }}
-        run: eas build --platform ${{ matrix.platform }} --non-interactive
- main
+        run: eas build --platform ${{ matrix.platform }} --profile production --non-interactive

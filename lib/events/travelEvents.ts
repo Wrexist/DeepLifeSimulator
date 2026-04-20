@@ -10,7 +10,7 @@ function isOnTrip(state: GameState): boolean {
 }
 
 function getCurrentDestinationName(state: GameState): string {
-  return state.travel?.currentTrip?.destinationName || 'your destination';
+  return state.travel?.currentTrip?.destinationId || 'your destination';
 }
 
 function hasVisitedCount(state: GameState): number {

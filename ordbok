@@ -1,1 +1,22 @@
  perfect now look though comletely everything added and fixed look for bugs and failes. and other incomleted stuff  and fix them
+
+ npx eas-cli build --platform ios --profile production --auto-submit --non-interactive 2>&1
+
+
+ Look comprehensivly though everything  changed/added, Please look for improvments and stuff to fix. make stuff better and make it polished
+
+
+look though and find if Math.random() is used anywhere pleae make it more proffesional and well coded.
+
+Make the game scale better, so its easy at the start to get players addicted and keep playing, make a bunch of research for these types of games to amke the perfect hooked game addictive and fun
+
+Look though then complete project, look for improvements and features to add. also look for stuff to make better like ux/ui or graphics. please make a full comprehensive plan with everything you find
+
+
+ perfect now look though comletely everything added and fixed look for bugs and failes. and other incomleted stuff  and fix them
+
+ 
+ Look though the whole codebase comprehensivly and eveyrhting changed and updated in these recent phases and plan for bugs / errors and other stuff thats broken or hardcoded stuff. and make a whole plan to fix all. also lok for improvements and features to added to add to player experience and gameplay. also lok for groundbreaking features to implement.
+
+
+Look though the whole codebase comprehensivly and eveyrhting changed and updated in these recent phases and plan for bugs / errors and other stuff thats broken or hardcoded stuff. and make a whole plan to fix all.1

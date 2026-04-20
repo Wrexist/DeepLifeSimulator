@@ -13,10 +13,12 @@ export default function OfflineIndicator() {
     return null;
   }
 
+  const isDarkMode = gameState?.settings?.darkMode ?? false;
+
   return (
     <View style={[
       styles.container,
-      gameState.settings.darkMode && styles.containerDark,
+      isDarkMode && styles.containerDark,
       !isOnline && styles.containerOffline,
     ]}>
       {!isOnline ? (
@@ -24,7 +26,7 @@ export default function OfflineIndicator() {
           <WifiOff size={16} color="#EF4444" />
           <Text style={[
             styles.text,
-            gameState.settings.darkMode && styles.textDark,
+            isDarkMode && styles.textDark,
             styles.textOffline,
           ]}>
             Offline Mode
@@ -35,7 +37,7 @@ export default function OfflineIndicator() {
           <Wifi size={16} color="#10B981" />
           <Text style={[
             styles.text,
-            gameState.settings.darkMode && styles.textDark,
+            isDarkMode && styles.textDark,
           ]}>
             Syncing {pendingActions} action{pendingActions !== 1 ? 's' : ''}...
           </Text>
