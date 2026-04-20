@@ -114,6 +114,24 @@ function DeathPopup() {
     };
   }, [fadeAnim, scaleAnim]);
 
+  const checkpoints = useMemo(() => gameState.checkpoints ?? [], [gameState.checkpoints]);
+  const rewindCost = useMemo(() => {
+    try {
+      const { getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
+      return getRewindCost(gameState.timeMachineUsesThisLife ?? 0);
+    } catch {
+      return 500;
+    }
+  }, [gameState.timeMachineUsesThisLife]);
+  const lifeRibbon = useMemo(() => {
+    try {
+      const { classifyLife } = require('@/lib/legacy/ribbonSystem');
+      return classifyLife(gameState);
+    } catch {
+      return null;
+    }
+  }, [gameState]);
+
   const handleContinueLegacy = async () => {
     if (!selectedHeirId) {
       Alert.alert('No Heir Selected', 'Please select a child to continue your legacy.');
@@ -297,25 +315,7 @@ function DeathPopup() {
     ? currentJob.level + 1
     : null;
 
-  // Time Machine checkpoints
-  const checkpoints = useMemo(() => gameState.checkpoints ?? [], [gameState.checkpoints]);
-  const rewindCost = useMemo(() => {
-    try {
-      const { getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
-      return getRewindCost(gameState.timeMachineUsesThisLife ?? 0);
-    } catch { return 500; }
-  }, [gameState.timeMachineUsesThisLife]);
   const canAffordRewind = (gameState.stats?.gems ?? 0) >= rewindCost;
-
-  // Life Ribbon classification
-  const lifeRibbon = useMemo(() => {
-    try {
-      const { classifyLife } = require('@/lib/legacy/ribbonSystem');
-      return classifyLife(gameState);
-    } catch {
-      return null;
-    }
-  }, [gameState]);
 
   return (
     <>

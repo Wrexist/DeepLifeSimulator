@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved -- optional devDependency for local screenshot runs */
 import puppeteer from 'puppeteer';
 import { mkdir } from 'fs/promises';
 import { join } from 'path';

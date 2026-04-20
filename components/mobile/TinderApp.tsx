@@ -2334,7 +2334,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
             </Text>
             
             <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
+              <View style={styles.statGridItem}>
                 <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
                   {datingStats.totalSwipes}
                 </Text>
@@ -2342,7 +2342,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
                   Total Swipes
                 </Text>
               </View>
-              <View style={styles.statItem}>
+              <View style={styles.statGridItem}>
                 <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
                   {datingStats.totalMatches}
                 </Text>
@@ -2350,7 +2350,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
                   Matches
                 </Text>
               </View>
-              <View style={styles.statItem}>
+              <View style={styles.statGridItem}>
                 <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
                   {datingStats.totalLikes}
                 </Text>
@@ -2358,7 +2358,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
                   Likes
                 </Text>
               </View>
-              <View style={styles.statItem}>
+              <View style={styles.statGridItem}>
                 <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
                   {datingStats.totalPasses}
                 </Text>
@@ -2689,14 +2689,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 8,
-  },
-  profileName: {
-    color: '#1F2937',
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  profileNameDark: {
-    color: '#FFFFFF',
   },
   ageBadge: {
     backgroundColor: '#3B82F6',
@@ -3767,7 +3759,7 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 20,
   },
-  statItem: {
+  statGridItem: {
     flex: 1,
     minWidth: '45%',
     backgroundColor: 'rgba(59, 130, 246, 0.1)',

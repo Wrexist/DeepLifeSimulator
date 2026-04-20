@@ -33,11 +33,6 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
   const godModeStatsRef = useRef<{ health: number; happiness: number; energy: number; fitness: number } | null>(null);
   const lastWeekRef = useRef<number>(0);
 
-  // Add null check for gameState
-  if (!gameState) {
-    return null;
-  }
-
   // Initialize lastWeekRef when gameState is available
   useEffect(() => {
     if (gameState?.weeksLived !== undefined && lastWeekRef.current === 0) {
@@ -153,6 +148,10 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     step();
 
   }, [gameState.weeksLived, targetWeek, nextWeek]);
+
+  if (!gameState) {
+    return null;
+  }
 
   const updateStats = (updates: Partial<typeof gameState.stats>) => {
     setGameState(prev => ({

@@ -13,60 +13,62 @@ export default function LifeMomentModal() {
   
   const moment = gameState.lifeMoments?.pendingMoment;
   const settings = gameState.settings;
-  
-  if (!moment) return null;
-  
-  const handleChoice = useCallback((choiceId: string) => {
-    const choice = moment.choices.find(c => c.id === choiceId);
-    if (!choice) return;
-    
-    // Apply quick effects
-    choice.quickEffect.forEach(effect => {
-      if (effect.stat === 'money') {
-        updateMoney(effect.amount, `Life moment: ${moment.situation.substring(0, 30)}...`);
-      } else {
-        updateStats({ [effect.stat]: effect.amount }, false);
-      }
-    });
-    
-    // Apply hidden consequences
-    if (choice.hiddenConsequences && choice.hiddenConsequences.length > 0) {
-      const { applyChoiceConsequences } = require('@/lib/lifeMoments/consequenceTracker');
-      const consequenceResult = applyChoiceConsequences(
-        gameState,
-        moment.id,
-        choiceId,
-        choice.hiddenConsequences
-      );
-      
-      setGameState(prev => {
-        const { initializeConsequenceState } = require('@/lib/lifeMoments/consequenceTracker');
-        const currentState = initializeConsequenceState(prev);
-        return {
-          ...prev,
-          consequenceState: {
-            ...currentState,
-            ...consequenceResult.updatedState,
-            consequences: consequenceResult.newConsequences,
-          },
-        };
+
+  const handleChoice = useCallback(
+    (choiceId: string) => {
+      const pending = gameState.lifeMoments?.pendingMoment;
+      if (!pending) return;
+      const choice = pending.choices.find(c => c.id === choiceId);
+      if (!choice) return;
+
+      choice.quickEffect.forEach(effect => {
+        if (effect.stat === 'money') {
+          updateMoney(effect.amount, `Life moment: ${pending.situation.substring(0, 30)}...`);
+        } else {
+          updateStats({ [effect.stat]: effect.amount }, false);
+        }
       });
-    }
-    
-    // Clear pending moment
-    setGameState(prev => ({
-      ...prev,
-      lifeMoments: {
-        ...prev.lifeMoments || {},
-        pendingMoment: undefined,
-        momentsThisWeek: ((prev.lifeMoments?.momentsThisWeek || 0) + 1),
-        totalMoments: ((prev.lifeMoments?.totalMoments || 0) + 1),
-      },
-    }));
-    
-    saveGame();
-  }, [moment, gameState, setGameState, updateStats, updateMoney, saveGame]);
-  
+
+      if (choice.hiddenConsequences && choice.hiddenConsequences.length > 0) {
+        const { applyChoiceConsequences } = require('@/lib/lifeMoments/consequenceTracker');
+        const consequenceResult = applyChoiceConsequences(
+          gameState,
+          pending.id,
+          choiceId,
+          choice.hiddenConsequences
+        );
+
+        setGameState(prev => {
+          const { initializeConsequenceState } = require('@/lib/lifeMoments/consequenceTracker');
+          const currentState = initializeConsequenceState(prev);
+          return {
+            ...prev,
+            consequenceState: {
+              ...currentState,
+              ...consequenceResult.updatedState,
+              consequences: consequenceResult.newConsequences,
+            },
+          };
+        });
+      }
+
+      setGameState(prev => ({
+        ...prev,
+        lifeMoments: {
+          ...(prev.lifeMoments || {}),
+          pendingMoment: undefined,
+          momentsThisWeek: (prev.lifeMoments?.momentsThisWeek || 0) + 1,
+          totalMoments: (prev.lifeMoments?.totalMoments || 0) + 1,
+        },
+      }));
+
+      saveGame();
+    },
+    [gameState, setGameState, updateStats, updateMoney, saveGame]
+  );
+
+  if (!moment) return null;
+
   return (
     <Modal visible transparent animationType="fade">
       <View style={styles.overlay}>

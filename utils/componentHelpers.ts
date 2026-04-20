@@ -145,7 +145,7 @@ export function createSafeComponentWrapper<T extends Record<string, any>>(
   Component: React.ComponentType<T>,
   FallbackComponent: React.ComponentType<T>
 ): React.ComponentType<T> {
-  return React.memo((props: T) => {
+  const Wrapped = React.memo((props: T) => {
     try {
       return React.createElement(Component, props);
     } catch (error) {
@@ -155,5 +155,11 @@ export function createSafeComponentWrapper<T extends Record<string, any>>(
       return React.createElement(FallbackComponent, props);
     }
   });
+  const componentLabel =
+    Component.displayName || Component.name || 'Component';
+  const fallbackLabel =
+    FallbackComponent.displayName || FallbackComponent.name || 'Fallback';
+  Wrapped.displayName = `SafeComponentWrapper(${componentLabel},${fallbackLabel})`;
+  return Wrapped;
 }
 

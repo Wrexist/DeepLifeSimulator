@@ -506,12 +506,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginLeft: 4,
   },
-  economicTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginLeft: 4,
-  },
   crisisTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -605,15 +599,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 8,
-  },
-  economicTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#DC2626',
-    marginBottom: 8,
-  },
-  economicTitleDark: {
-    color: '#FCA5A5',
   },
   economicStats: {
     gap: 6,

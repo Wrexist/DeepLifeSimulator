@@ -47,6 +47,23 @@ function DailySummaryModal() {
     };
   }, []);
 
+  const dailySummary = gameState.dailySummary;
+
+  const highlight = useMemo(() => {
+    const events = dailySummary?.events;
+    const moneyChange = dailySummary?.moneyChange;
+    if (events && events.length > 0) return events[0];
+    if ((moneyChange || 0) > 1000) return `Earned $${Math.round(moneyChange || 0).toLocaleString()} this week!`;
+    if ((moneyChange || 0) < -1000) return `Spent $${Math.abs(Math.round(moneyChange || 0)).toLocaleString()} this week`;
+    return null;
+  }, [dailySummary?.events, dailySummary?.moneyChange]);
+
+  const netStatDirection = useMemo(() => {
+    const statsChange = dailySummary?.statsChange;
+    if (!statsChange) return 0;
+    return Object.values(statsChange).reduce((sum, v) => sum + (v || 0), 0);
+  }, [dailySummary?.statsChange]);
+
   const handleClose = () => {
     if (isClosing) return; // Prevent multiple close calls
 
@@ -74,20 +91,6 @@ function DailySummaryModal() {
   if (!shouldShow || !isVisible) return null;
 
   const { moneyChange, statsChange, events, earningsBreakdown } = gameState.dailySummary || {};
-
-  // Pick "highlight of the week" — the first event, or a financial milestone
-  const highlight = useMemo(() => {
-    if (events && events.length > 0) return events[0];
-    if ((moneyChange || 0) > 1000) return `Earned $${Math.round(moneyChange || 0).toLocaleString()} this week!`;
-    if ((moneyChange || 0) < -1000) return `Spent $${Math.abs(Math.round(moneyChange || 0)).toLocaleString()} this week`;
-    return null;
-  }, [events, moneyChange]);
-
-  // Calculate net stat direction
-  const netStatDirection = useMemo(() => {
-    if (!statsChange) return 0;
-    return Object.values(statsChange).reduce((sum, v) => sum + (v || 0), 0);
-  }, [statsChange]);
 
   const weekLabel = isMonthly ? 'Monthly Report' : 'Weekly Report';
 

@@ -41,6 +41,8 @@ module.exports = [
     rules: {
       // Allow @/ imports - they're resolved by TypeScript
       'import/no-unresolved': ['off'],
+      // Game copy uses apostrophes and quotes; escaping hurts readability in RN Text
+      'react/no-unescaped-entities': 'off',
     },
   },
   {
@@ -57,6 +59,9 @@ module.exports = [
         beforeAll: "readonly",
         afterAll: "readonly",
       },
+    },
+    rules: {
+      'react/display-name': 'off',
     },
   },
   {

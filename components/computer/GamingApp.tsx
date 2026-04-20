@@ -2377,18 +2377,6 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     videoInfo: {
       flex: 1,
     },
-    videoName: {
-      fontSize: fontScale(16),
-      fontWeight: '700',
-      color: '#FFFFFF',
-      marginBottom: scale(4),
-      letterSpacing: 0.2,
-    },
-    videoDescription: {
-      fontSize: fontScale(13),
-      color: 'rgba(255, 255, 255, 0.55)',
-      marginBottom: scale(8),
-    },
     videoStatsRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
