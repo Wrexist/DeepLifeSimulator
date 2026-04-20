@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "ios": {
+      "bundleIdentifier": "com.deeplife.simulator"
+    }
+  }
+}
+

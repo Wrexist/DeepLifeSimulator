@@ -57,6 +57,9 @@ google-play-service-account.json
 .eas/
 .cursorrules
 
+# Windows device-name artifact (invalid as a real tracked path on Windows)
+/nul
+
 # temp files
 YOOO
 Testf*light*command*
