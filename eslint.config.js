@@ -36,10 +36,6 @@ module.exports = [
           alwaysTryTypes: true,
           project: path.resolve(__dirname, './tsconfig.json'),
         },
-        alias: {
-          map: [['@', path.resolve(__dirname, '.')]],
-          extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
-        },
       },
     },
     rules: {
