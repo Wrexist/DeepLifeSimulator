@@ -1,0 +1,280 @@
+Incident Identifier: 97330D8F-7F18-4277-99CD-D6270BF5D435
+Distributor ID:      com.apple.TestFlight
+Hardware Model:      iPhone15,4
+Process:             DeepLifeSimulator [25171]
+Path:                /private/var/containers/Bundle/Application/0554A72A-6D60-4360-8B4C-BDF6FA2E6B71/DeepLifeSimulator.app/DeepLifeSimulator
+Identifier:          com.deeplife.simulator
+Version:             2.2.7 (74)
+AppStoreTools:       17C53
+AppVariant:          1:iPhone15,4:26
+Beta:                YES
+Code Type:           ARM-64 (Native)
+Role:                Foreground
+Parent Process:      launchd [1]
+Coalition:           com.deeplife.simulator [5866]
+
+Date/Time:           2026-01-01 19:58:04.4873 +0100
+Launch Time:         2026-01-01 19:58:04.0481 +0100
+OS Version:          iPhone OS 26.1 (23B85)
+Release Type:        User
+Baseband Version:    3.10.04
+Report Version:      104
+
+Exception Type:  EXC_CRASH (SIGABRT)
+Exception Codes: 0x0000000000000000, 0x0000000000000000
+Exception Reason: *** -[__NSPlaceholderDictionary initWithObjects:forKeys:count:]: attempt to insert nil object from objects[0]
+Termination Reason: SIGNAL 6 Abort trap: 6
+Terminating Process: DeepLifeSimulator [25171]
+
+Triggered by Thread:  11
+
+Last Exception Backtrace:
+0   CoreFoundation                	0x19a25f994 __exceptionPreprocess + 164 (NSException.m:249)
+1   libobjc.A.dylib               	0x197179814 objc_exception_throw + 88 (objc-exception.mm:356)
+2   CoreFoundation                	0x19a3351e8 -[__NSPlaceholderDictionary initWithObjects:forKeys:count:] + 724 (:-1)
+3   CoreFoundation                	0x19a2e6680 +[NSDictionary dictionaryWithObjects:forKeys:count:] + 52 (NSDictionary.m:614)
+4   DeepLifeSimulator             	0x1045a55c8 __61+[RCTThirdPartyComponentsProvider thirdPartyFabricComponents]_block_invoke + 1140 (RCTThirdPartyComponentsProvider.mm:22)
+5   libdispatch.dylib             	0x1d26127ec _dispatch_client_callout + 16 (client_callout.mm:85)
+6   libdispatch.dylib             	0x1d25fb9e0 _dispatch_once_callout + 32 (once.c:52)
+7   DeepLifeSimulator             	0x1045a5150 _dispatch_once(long*, void () block_pointer) + 20 (once.h:85)
+8   DeepLifeSimulator             	0x1045a5150 +[RCTThirdPartyComponentsProvider thirdPartyFabricComponents] + 60 (RCTThirdPartyComponentsProvider.mm:21)
+9   DeepLifeSimulator             	0x104497cf8 -[RCTDefaultReactNativeFactoryDelegate thirdPartyFabricComponents] + 64 (RCTDefaultReactNativeFactoryDelegate.mm:82)
+10  DeepLifeSimulator             	0x104498ad8 -[RCTReactNativeFactory thirdPartyFabricComponents] + 84 (RCTReactNativeFactory.mm:217)
+11  DeepLifeSimulator             	0x1044b797c -[RCTComponentViewFactory _registerComponentIfPossible:] + 304 (RCTComponentViewFactory.mm:145)
+12  DeepLifeSimulator             	0x1044b9be4 +[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1::operator()(char const*) const + 28 (RCTComponentViewFactory.mm:91)
+13  DeepLifeSimulator             	0x1044b9be4 decltype(std::declval<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1&>()(std::declval<char const*>())) std::__1::__invoke[abi:ne180100]<+[RCTComponentViewFactory curre... + 32 (invoke.h:344)
+14  DeepLifeSimulator             	0x1044b9be4 void std::__1::__invoke_void_return_wrapper<void, true>::__call[abi:ne180100]<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1&, char const*>(+[RCTComponentViewFactory c... + 32 (invoke.h:419)
+15  DeepLifeSimulator             	0x1044b9be4 std::__1::__function::__alloc_func<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1, std::__1::allocator<+[RCTComponentViewFactory currentComponentViewFactory]::'block-l... + 32 (function.h:169)
+16  DeepLifeSimulator             	0x1044b9be4 std::__1::__function::__func<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1, std::__1::allocator<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal... + 48 (function.h:311)
+17  DeepLifeSimulator             	0x1043e511c std::__1::__function::__value_func<void (char const*)>::operator()[abi:ne180100](char const*&&) const + 16 (function.h:428)
+18  DeepLifeSimulator             	0x1043e511c std::__1::function<void (char const*)>::operator()(char const*) const + 16 (function.h:981)
+19  DeepLifeSimulator             	0x1043e511c facebook::react::ComponentDescriptorProviderRegistry::request(char const*) const + 108 (ComponentDescriptorProviderRegistry.cpp:62)
+20  DeepLifeSimulator             	0x1043e64d0 facebook::react::ComponentDescriptorRegistry::at(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) const + 168 (ComponentDescriptorRegistry.cpp:71)
+21  DeepLifeSimulator             	0x10442cbb4 facebook::react::UIManager::createNode(int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, int, facebook::react::RawProps, std::__1::shared_ptr<faceboo... + 116 (UIManager.cpp:69)
+22  DeepLifeSimulator             	0x104435e90 facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNameID const&)::$_0::operator()(facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*,... + 224 (UIManagerBinding.cpp:225)
+23  DeepLifeSimulator             	0x104435e90 decltype(std::declval<facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNameID const&)::$_0&>()(std::declval<facebook::jsi::Runtime&>(), std::declval<facebook::jsi:... + 232 (invoke.h:344)
+24  DeepLifeSimulator             	0x104435e90 facebook::jsi::Value std::__1::__invoke_void_return_wrapper<facebook::jsi::Value, false>::__call[abi:ne180100]<facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNam... + 232 (invoke.h:411)
+25  DeepLifeSimulator             	0x104435e90 std::__1::__function::__alloc_func<facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNameID const&)::$_0, std::__1::allocator<facebook::react::UIManagerBinding::get... + 232 (function.h:169)
+26  DeepLifeSimulator             	0x104435e90 std::__1::__function::__func<facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNameID const&)::$_0, std::__1::allocator<facebook::react::UIManagerBinding::get(faceb... + 296 (function.h:311)
+27  hermes                        	0x10521f894 std::__1::function<facebook::jsi::Value (facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long)>::operator()(facebook::jsi::Runtime&, facebook::jsi::Value... + 44 (:-1)
+28  hermes                        	0x10521f56c facebook::hermes::(anonymous namespace)::HermesRuntimeImpl::HFContext::func(void*, hermes::vm::Runtime&, hermes::vm::NativeArgs) + 204 (:-1)
+29  hermes                        	0x1052321a0 hermes::vm::NativeFunction::_nativeCall(hermes::vm::NativeFunction*, hermes::vm::Runtime&) + 140 (:-1)
+30  hermes                        	0x10523e928 hermes::vm::Interpreter::handleCallSlowPath(hermes::vm::Runtime&, hermes::vm::PinnedHermesValue*) + 60 (:-1)
+31  hermes                        	0x105240118 hermes::vm::CallResult<hermes::vm::HermesValue, (hermes::vm::detail::CallResultSpecialize)2> hermes::vm::Interpreter::interpretFunction<false, false>(hermes::vm::Runtime&, hermes::vm::InterpreterSt... + 1992 (:-1)
+32  hermes                        	0x10523f928 hermes::vm::Runtime::interpretFunctionImpl(hermes::vm::CodeBlock*) + 52 (:-1)
+33  hermes                        	0x105232288 hermes::vm::JSFunction::_callImpl(hermes::vm::Handle<hermes::vm::Callable>, hermes::vm::Runtime&) + 40 (:-1)
+34  hermes                        	0x105231e94 hermes::vm::BoundFunction::_boundCall(hermes::vm::BoundFunction*, hermes::inst::Inst const*, hermes::vm::Runtime&) + 344 (:-1)
+35  hermes                        	0x105217804 facebook::hermes::(anonymous namespace)::HermesRuntimeImpl::call(facebook::jsi::Function const&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long) + 300 (:-1)
+36  DeepLifeSimulator             	0x1045a3914 facebook::jsi::Function::call(facebook::jsi::Runtime&, facebook::jsi::Value const*, unsigned long) const + 40 (jsi-inl.h:282)
+37  DeepLifeSimulator             	0x1045a3914 facebook::jsi::Function::call(facebook::jsi::Runtime&, std::initializer_list<facebook::jsi::Value>) const + 40 (jsi-inl.h:287)
+38  DeepLifeSimulator             	0x1045a3914 facebook::react::Task::execute(facebook::jsi::Runtime&, bool) + 172 (Task.cpp:57)
+39  DeepLifeSimulator             	0x10459f108 facebook::react::RuntimeScheduler_Modern::executeTask(facebook::jsi::Runtime&, facebook::react::Task&, bool) const + 116 (RuntimeScheduler_Modern.cpp:375)
+40  DeepLifeSimulator             	0x10459f7c0 facebook::react::RuntimeScheduler_Modern::runEventLoopTick(facebook::jsi::Runtime&, facebook::react::Task&) + 160 (RuntimeScheduler_Modern.cpp:312)
+41  DeepLifeSimulator             	0x10459f540 facebook::react::RuntimeScheduler_Modern::runEventLoop(facebook::jsi::Runtime&) + 96 (RuntimeScheduler_Modern.cpp:266)
+42  DeepLifeSimulator             	0x10453dce0 std::__1::__function::__value_func<void (facebook::jsi::Runtime&)>::operator()[abi:ne180100](facebook::jsi::Runtime&) const + 24 (function.h:428)
+43  DeepLifeSimulator             	0x10453dce0 std::__1::function<void (facebook::jsi::Runtime&)>::operator()(facebook::jsi::Runtime&) const + 24 (function.h:981)
+44  DeepLifeSimulator             	0x10453dce0 _ZZZN8facebook5react13ReactInstanceC1ENSt3__110unique_ptrINS0_9JSRuntimeENS2_14default_deleteIS4_EEEENS2_10shared_ptrINS0_18MessageQueueThreadEEENS8_INS0_12TimerManagerEEENS2_8functionIFvRNS_3jsi7R... + 92 (ReactInstance.cpp:84)
+45  DeepLifeSimulator             	0x10453dce0 _ZNSt3__18__invokeB8ne180100IRZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS2_9JSRuntimeENS_14default_deleteIS5_EEEENS_10shared_ptrINS2_18MessageQueueThreadEEENS9_INS2_12TimerManagerEEENS_8... + 92 (invoke.h:344)
+46  DeepLifeSimulator             	0x10453dce0 _ZNSt3__128__invoke_void_return_wrapperIvLb1EE6__callB8ne180100IJRZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS4_9JSRuntimeENS_14default_deleteIS7_EEEENS_10shared_ptrINS4_18MessageQueueThr... + 92 (invoke.h:419)
+47  DeepLifeSimulator             	0x10453dce0 _ZNSt3__110__function12__alloc_funcIZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS3_9JSRuntimeENS_14default_deleteIS6_EEEENS_10shared_ptrINS3_18MessageQueueThreadEEENSA_INS3_12TimerManagerE... + 92 (function.h:169)
+48  DeepLifeSimulator             	0x10453dce0 _ZNSt3__110__function6__funcIZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS3_9JSRuntimeENS_14default_deleteIS6_EEEENS_10shared_ptrINS3_18MessageQueueThreadEEENSA_INS3_12TimerManagerEEENS_8f... + 116 (function.h:311)
+49  DeepLifeSimulator             	0x10435aecc std::__1::__function::__value_func<void ()>::operator()[abi:ne180100]() const + 20 (function.h:428)
+50  DeepLifeSimulator             	0x10435aecc std::__1::function<void ()>::operator()() const + 20 (function.h:981)
+51  DeepLifeSimulator             	0x10435aecc facebook::react::tryAndReturnError(std::__1::function<void ()> const&) + 32 (RCTCxxUtils.mm:76)
+52  DeepLifeSimulator             	0x104367eac facebook::react::RCTMessageThread::tryFunc(std::__1::function<void ()> const&) + 24 (RCTMessageThread.mm:68)
+53  DeepLifeSimulator             	0x104367cb0 std::__1::__function::__value_func<void ()>::operator()[abi:ne180100]() const + 20 (function.h:428)
+54  DeepLifeSimulator             	0x104367cb0 std::__1::function<void ()>::operator()() const + 20 (function.h:981)
+55  DeepLifeSimulator             	0x104367cb0 invocation function for block in facebook::react::RCTMessageThread::runAsync(std::__1::function<void ()>) + 44 (RCTMessageThread.mm:44)
+56  CoreFoundation                	0x19a1b6320 __CFRUNLOOP_IS_CALLING_OUT_TO_A_BLOCK__ + 28 (CFRunLoop.c:1845)
+57  CoreFoundation                	0x19a1b5fec __CFRunLoopDoBlocks + 396 (CFRunLoop.c:1897)
+58  CoreFoundation                	0x19a1b7cd8 __CFRunLoopRun + 2356 (CFRunLoop.c:3231)
+59  CoreFoundation                	0x19a1b6a6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+60  DeepLifeSimulator             	0x104539850 +[RCTJSThreadManager runRunLoop] + 212 (RCTJSThreadManager.mm:102)
+61  Foundation                    	0x19787221c __NSThread__start__ + 732 (NSThread.m:997)
+62  libsystem_pthread.dylib       	0x1f620544c _pthread_start + 136 (pthread.c:931)
+63  libsystem_pthread.dylib       	0x1f62018cc thread_start + 8 (:-1)
+
+Thread 0 name:
+Thread 0:
+0   libsystem_kernel.dylib        	0x0000000243af7cd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000243afb2f8 mach_msg2_internal + 76 (mach_msg.c:201)
+2   libsystem_kernel.dylib        	0x0000000243afb214 mach_msg_overwrite + 428 (mach_msg.c:0)
+3   libsystem_kernel.dylib        	0x0000000243afb05c mach_msg + 24 (mach_msg.c:323)
+4   CoreFoundation                	0x000000019a1e0868 __CFRunLoopServiceMachPort + 160 (CFRunLoop.c:2650)
+5   CoreFoundation                	0x000000019a1b7848 __CFRunLoopRun + 1188 (CFRunLoop.c:3035)
+6   CoreFoundation                	0x000000019a1b6a6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+7   GraphicsServices              	0x000000023addc498 GSEventRunModal + 120 (GSEvent.c:2049)
+8   UIKitCore                     	0x000000019fb7aba4 -[UIApplication _run] + 792 (UIApplication.m:3902)
+9   UIKitCore                     	0x000000019fb23a78 UIApplicationMain + 336 (UIApplication.m:5577)
+10  DeepLifeSimulator             	0x00000001041cd824 main + 64 (AppDelegate.swift:6)
+11  dyld                          	0x00000001971cee28 start + 7116 (dyldMain.cpp:1477)
+
+Thread 1:
+
+Thread 2:
+
+Thread 3:
+
+Thread 4 name:
+Thread 4:
+0   CoreFoundation                	0x000000019a1a4204 CFEqual + 1388 (CFRuntime.c:1416)
+1   CoreFoundation                	0x000000019a1ca484 CFCachedStringEqual + 52 (CFXNotificationRegistrar.c:210)
+2   CoreFoundation                	0x000000019a1ca420 _CFXNotificationRegistrarFindName + 108 (CFXNotificationRegistrar.c:1534)
+3   CoreFoundation                	0x000000019a1ce584 _CFXNotificationRegistrarAddName + 60 (CFXNotificationRegistrar.c:2184)
+4   CoreFoundation                	0x000000019a1ce498 CFXNotificationRegistrarAdd + 516 (CFXNotificationRegistrar.c:2276)
+5   CoreFoundation                	0x000000019a1ba1d4 _CFXNotificationRegisterObserver + 248 (CFNotificationCenter.c:1059)
+6   libdispatch.dylib             	0x00000001d25f8adc _dispatch_call_block_and_release + 32 (init.c:1575)
+7   libdispatch.dylib             	0x00000001d26127ec _dispatch_client_callout + 16 (client_callout.mm:85)
+8   libdispatch.dylib             	0x00000001d262f42c <deduplicated_symbol> + 32 (:-1)
+9   libdispatch.dylib             	0x00000001d260b0bc _dispatch_root_queue_drain + 736 (queue.c:7409)
+10  libdispatch.dylib             	0x00000001d260b6fc _dispatch_worker_thread2 + 180 (queue.c:7487)
+11  libsystem_pthread.dylib       	0x00000001f620237c _pthread_wqthread + 232 (pthread.c:2709)
+12  libsystem_pthread.dylib       	0x00000001f62018c0 start_wqthread + 8 (:-1)
+
+Thread 5:
+
+Thread 6:
+
+Thread 7 name:
+Thread 7:
+0   libsystem_kernel.dylib        	0x0000000243af7cd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000243afb2f8 mach_msg2_internal + 76 (mach_msg.c:201)
+2   libsystem_kernel.dylib        	0x0000000243afb214 mach_msg_overwrite + 428 (mach_msg.c:0)
+3   libsystem_kernel.dylib        	0x0000000243afb05c mach_msg + 24 (mach_msg.c:323)
+4   CoreFoundation                	0x000000019a1e0868 __CFRunLoopServiceMachPort + 160 (CFRunLoop.c:2650)
+5   CoreFoundation                	0x000000019a1b7848 __CFRunLoopRun + 1188 (CFRunLoop.c:3035)
+6   CoreFoundation                	0x000000019a1b6a6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+7   Foundation                    	0x00000001981b2d60 -[NSRunLoop(NSRunLoop) runMode:beforeDate:] + 212 (NSRunLoop.m:375)
+8   Foundation                    	0x00000001981b2f38 -[NSRunLoop(NSRunLoop) runUntilDate:] + 64 (NSRunLoop.m:422)
+9   UIKitCore                     	0x000000019fb4fcac -[UIEventFetcher threadMain] + 408 (UIEventFetcher.m:1333)
+10  Foundation                    	0x000000019787221c __NSThread__start__ + 732 (NSThread.m:997)
+11  libsystem_pthread.dylib       	0x00000001f620544c _pthread_start + 136 (pthread.c:931)
+12  libsystem_pthread.dylib       	0x00000001f62018cc thread_start + 8 (:-1)
+
+Thread 8:
+
+Thread 9:
+
+Thread 10:
+
+Thread 11 name:
+Thread 11 Crashed:
+0   libsystem_kernel.dylib        	0x0000000243b020cc __pthread_kill + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001f6208810 pthread_kill + 268 (pthread.c:1721)
+2   libsystem_c.dylib             	0x00000001a5a3bf64 abort + 124 (abort.c:122)
+3   libc++abi.dylib               	0x000000019727b808 __abort_message + 132 (abort_message.cpp:66)
+4   libc++abi.dylib               	0x000000019726a484 demangling_terminate_handler() + 304 (cxa_default_handlers.cpp:76)
+5   libobjc.A.dylib               	0x000000019717bf78 _objc_terminate() + 156 (objc-exception.mm:496)
+6   libc++abi.dylib               	0x000000019727abdc std::__terminate(void (*)()) + 16 (cxa_handlers.cpp:59)
+7   libc++abi.dylib               	0x000000019727e314 __cxxabiv1::failed_throw(__cxxabiv1::__cxa_exception*) + 88 (cxa_exception.cpp:152)
+8   libc++abi.dylib               	0x000000019727e2bc __cxa_throw + 92 (cxa_exception.cpp:299)
+9   libobjc.A.dylib               	0x000000019717997c objc_exception_throw + 448 (objc-exception.mm:385)
+10  CoreFoundation                	0x000000019a3351e8 -[__NSPlaceholderDictionary initWithObjects:forKeys:count:] + 724 (:-1)
+11  CoreFoundation                	0x000000019a2e6680 +[NSDictionary dictionaryWithObjects:forKeys:count:] + 52 (NSDictionary.m:614)
+12  DeepLifeSimulator             	0x00000001045a55c8 __61+[RCTThirdPartyComponentsProvider thirdPartyFabricComponents]_block_invoke + 1140 (RCTThirdPartyComponentsProvider.mm:22)
+13  libdispatch.dylib             	0x00000001d26127ec _dispatch_client_callout + 16 (client_callout.mm:85)
+14  libdispatch.dylib             	0x00000001d25fb9e0 _dispatch_once_callout + 32 (once.c:52)
+15  DeepLifeSimulator             	0x00000001045a5150 _dispatch_once(long*, void () block_pointer) + 20 (once.h:85)
+16  DeepLifeSimulator             	0x00000001045a5150 +[RCTThirdPartyComponentsProvider thirdPartyFabricComponents] + 60 (RCTThirdPartyComponentsProvider.mm:21)
+17  DeepLifeSimulator             	0x0000000104497cf8 -[RCTDefaultReactNativeFactoryDelegate thirdPartyFabricComponents] + 64 (RCTDefaultReactNativeFactoryDelegate.mm:82)
+18  DeepLifeSimulator             	0x0000000104498ad8 -[RCTReactNativeFactory thirdPartyFabricComponents] + 84 (RCTReactNativeFactory.mm:217)
+19  DeepLifeSimulator             	0x00000001044b797c -[RCTComponentViewFactory _registerComponentIfPossible:] + 304 (RCTComponentViewFactory.mm:145)
+20  DeepLifeSimulator             	0x00000001044b9be4 +[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1::operator()(char const*) const + 28 (RCTComponentViewFactory.mm:91)
+21  DeepLifeSimulator             	0x00000001044b9be4 decltype(std::declval<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1&>()(std::declval<char const*>())) std::__1::__invoke[abi:ne180100]<+[RCTComponentViewFactory curre... + 32 (invoke.h:344)
+22  DeepLifeSimulator             	0x00000001044b9be4 void std::__1::__invoke_void_return_wrapper<void, true>::__call[abi:ne180100]<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1&, char const*>(+[RCTComponentViewFactory c... + 32 (invoke.h:419)
+23  DeepLifeSimulator             	0x00000001044b9be4 std::__1::__function::__alloc_func<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1, std::__1::allocator<+[RCTComponentViewFactory currentComponentViewFactory]::'block-l... + 32 (function.h:169)
+24  DeepLifeSimulator             	0x00000001044b9be4 std::__1::__function::__func<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal'::$_1, std::__1::allocator<+[RCTComponentViewFactory currentComponentViewFactory]::'block-literal... + 48 (function.h:311)
+25  DeepLifeSimulator             	0x00000001043e511c std::__1::__function::__value_func<void (char const*)>::operator()[abi:ne180100](char const*&&) const + 16 (function.h:428)
+26  DeepLifeSimulator             	0x00000001043e511c std::__1::function<void (char const*)>::operator()(char const*) const + 16 (function.h:981)
+27  DeepLifeSimulator             	0x00000001043e511c facebook::react::ComponentDescriptorProviderRegistry::request(char const*) const + 108 (ComponentDescriptorProviderRegistry.cpp:62)
+28  DeepLifeSimulator             	0x00000001043e64d0 facebook::react::ComponentDescriptorRegistry::at(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) const + 168 (ComponentDescriptorRegistry.cpp:71)
+29  DeepLifeSimulator             	0x000000010442cbb4 facebook::react::UIManager::createNode(int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, int, facebook::react::RawProps, std::__1::shared_ptr<faceboo... + 116 (UIManager.cpp:69)
+30  DeepLifeSimulator             	0x0000000104435e90 facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNameID const&)::$_0::operator()(facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*,... + 224 (UIManagerBinding.cpp:225)
+31  DeepLifeSimulator             	0x0000000104435e90 decltype(std::declval<facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNameID const&)::$_0&>()(std::declval<facebook::jsi::Runtime&>(), std::declval<facebook::jsi:... + 232 (invoke.h:344)
+32  DeepLifeSimulator             	0x0000000104435e90 facebook::jsi::Value std::__1::__invoke_void_return_wrapper<facebook::jsi::Value, false>::__call[abi:ne180100]<facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNam... + 232 (invoke.h:411)
+33  DeepLifeSimulator             	0x0000000104435e90 std::__1::__function::__alloc_func<facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNameID const&)::$_0, std::__1::allocator<facebook::react::UIManagerBinding::get... + 232 (function.h:169)
+34  DeepLifeSimulator             	0x0000000104435e90 std::__1::__function::__func<facebook::react::UIManagerBinding::get(facebook::jsi::Runtime&, facebook::jsi::PropNameID const&)::$_0, std::__1::allocator<facebook::react::UIManagerBinding::get(faceb... + 296 (function.h:311)
+35  hermes                        	0x000000010521f894 std::__1::function<facebook::jsi::Value (facebook::jsi::Runtime&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long)>::operator()(facebook::jsi::Runtime&, facebook::jsi::Value... + 44 (:-1)
+36  hermes                        	0x000000010521f56c facebook::hermes::(anonymous namespace)::HermesRuntimeImpl::HFContext::func(void*, hermes::vm::Runtime&, hermes::vm::NativeArgs) + 204 (:-1)
+37  hermes                        	0x00000001052321a0 hermes::vm::NativeFunction::_nativeCall(hermes::vm::NativeFunction*, hermes::vm::Runtime&) + 140 (:-1)
+38  hermes                        	0x000000010523e928 hermes::vm::Interpreter::handleCallSlowPath(hermes::vm::Runtime&, hermes::vm::PinnedHermesValue*) + 60 (:-1)
+39  hermes                        	0x0000000105240118 hermes::vm::CallResult<hermes::vm::HermesValue, (hermes::vm::detail::CallResultSpecialize)2> hermes::vm::Interpreter::interpretFunction<false, false>(hermes::vm::Runtime&, hermes::vm::InterpreterSt... + 1992 (:-1)
+40  hermes                        	0x000000010523f928 hermes::vm::Runtime::interpretFunctionImpl(hermes::vm::CodeBlock*) + 52 (:-1)
+41  hermes                        	0x0000000105232288 hermes::vm::JSFunction::_callImpl(hermes::vm::Handle<hermes::vm::Callable>, hermes::vm::Runtime&) + 40 (:-1)
+42  hermes                        	0x0000000105231e94 hermes::vm::BoundFunction::_boundCall(hermes::vm::BoundFunction*, hermes::inst::Inst const*, hermes::vm::Runtime&) + 344 (:-1)
+43  hermes                        	0x0000000105217804 facebook::hermes::(anonymous namespace)::HermesRuntimeImpl::call(facebook::jsi::Function const&, facebook::jsi::Value const&, facebook::jsi::Value const*, unsigned long) + 300 (:-1)
+44  DeepLifeSimulator             	0x00000001045a3914 facebook::jsi::Function::call(facebook::jsi::Runtime&, facebook::jsi::Value const*, unsigned long) const + 40 (jsi-inl.h:282)
+45  DeepLifeSimulator             	0x00000001045a3914 facebook::jsi::Function::call(facebook::jsi::Runtime&, std::initializer_list<facebook::jsi::Value>) const + 40 (jsi-inl.h:287)
+46  DeepLifeSimulator             	0x00000001045a3914 facebook::react::Task::execute(facebook::jsi::Runtime&, bool) + 172 (Task.cpp:57)
+47  DeepLifeSimulator             	0x000000010459f108 facebook::react::RuntimeScheduler_Modern::executeTask(facebook::jsi::Runtime&, facebook::react::Task&, bool) const + 116 (RuntimeScheduler_Modern.cpp:375)
+48  DeepLifeSimulator             	0x000000010459f7c0 facebook::react::RuntimeScheduler_Modern::runEventLoopTick(facebook::jsi::Runtime&, facebook::react::Task&) + 160 (RuntimeScheduler_Modern.cpp:312)
+49  DeepLifeSimulator             	0x000000010459f540 facebook::react::RuntimeScheduler_Modern::runEventLoop(facebook::jsi::Runtime&) + 96 (RuntimeScheduler_Modern.cpp:266)
+50  DeepLifeSimulator             	0x000000010453dce0 std::__1::__function::__value_func<void (facebook::jsi::Runtime&)>::operator()[abi:ne180100](facebook::jsi::Runtime&) const + 24 (function.h:428)
+51  DeepLifeSimulator             	0x000000010453dce0 std::__1::function<void (facebook::jsi::Runtime&)>::operator()(facebook::jsi::Runtime&) const + 24 (function.h:981)
+52  DeepLifeSimulator             	0x000000010453dce0 _ZZZN8facebook5react13ReactInstanceC1ENSt3__110unique_ptrINS0_9JSRuntimeENS2_14default_deleteIS4_EEEENS2_10shared_ptrINS0_18MessageQueueThreadEEENS8_INS0_12TimerManagerEEENS2_8functionIFvRNS_3jsi7R... + 92 (ReactInstance.cpp:84)
+53  DeepLifeSimulator             	0x000000010453dce0 _ZNSt3__18__invokeB8ne180100IRZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS2_9JSRuntimeENS_14default_deleteIS5_EEEENS_10shared_ptrINS2_18MessageQueueThreadEEENS9_INS2_12TimerManagerEEENS_8... + 92 (invoke.h:344)
+54  DeepLifeSimulator             	0x000000010453dce0 _ZNSt3__128__invoke_void_return_wrapperIvLb1EE6__callB8ne180100IJRZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS4_9JSRuntimeENS_14default_deleteIS7_EEEENS_10shared_ptrINS4_18MessageQueueThr... + 92 (invoke.h:419)
+55  DeepLifeSimulator             	0x000000010453dce0 _ZNSt3__110__function12__alloc_funcIZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS3_9JSRuntimeENS_14default_deleteIS6_EEEENS_10shared_ptrINS3_18MessageQueueThreadEEENSA_INS3_12TimerManagerE... + 92 (function.h:169)
+56  DeepLifeSimulator             	0x000000010453dce0 _ZNSt3__110__function6__funcIZZN8facebook5react13ReactInstanceC1ENS_10unique_ptrINS3_9JSRuntimeENS_14default_deleteIS6_EEEENS_10shared_ptrINS3_18MessageQueueThreadEEENSA_INS3_12TimerManagerEEENS_8f... + 116 (function.h:311)
+57  DeepLifeSimulator             	0x000000010435aecc std::__1::__function::__value_func<void ()>::operator()[abi:ne180100]() const + 20 (function.h:428)
+58  DeepLifeSimulator             	0x000000010435aecc std::__1::function<void ()>::operator()() const + 20 (function.h:981)
+59  DeepLifeSimulator             	0x000000010435aecc facebook::react::tryAndReturnError(std::__1::function<void ()> const&) + 32 (RCTCxxUtils.mm:76)
+60  DeepLifeSimulator             	0x0000000104367eac facebook::react::RCTMessageThread::tryFunc(std::__1::function<void ()> const&) + 24 (RCTMessageThread.mm:68)
+61  DeepLifeSimulator             	0x0000000104367cb0 std::__1::__function::__value_func<void ()>::operator()[abi:ne180100]() const + 20 (function.h:428)
+62  DeepLifeSimulator             	0x0000000104367cb0 std::__1::function<void ()>::operator()() const + 20 (function.h:981)
+63  DeepLifeSimulator             	0x0000000104367cb0 invocation function for block in facebook::react::RCTMessageThread::runAsync(std::__1::function<void ()>) + 44 (RCTMessageThread.mm:44)
+64  CoreFoundation                	0x000000019a1b6320 __CFRUNLOOP_IS_CALLING_OUT_TO_A_BLOCK__ + 28 (CFRunLoop.c:1845)
+65  CoreFoundation                	0x000000019a1b5fec __CFRunLoopDoBlocks + 396 (CFRunLoop.c:1897)
+66  CoreFoundation                	0x000000019a1b7cd8 __CFRunLoopRun + 2356 (CFRunLoop.c:3231)
+67  CoreFoundation                	0x000000019a1b6a6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+68  DeepLifeSimulator             	0x0000000104539850 +[RCTJSThreadManager runRunLoop] + 212 (RCTJSThreadManager.mm:102)
+69  Foundation                    	0x000000019787221c __NSThread__start__ + 732 (NSThread.m:997)
+70  libsystem_pthread.dylib       	0x00000001f620544c _pthread_start + 136 (pthread.c:931)
+71  libsystem_pthread.dylib       	0x00000001f62018cc thread_start + 8 (:-1)
+
+Thread 12 name:
+Thread 12:
+0   libsystem_kernel.dylib        	0x0000000243afd5d4 __psynch_cvwait + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001f6203b58 _pthread_cond_wait + 984 (pthread_cond.c:862)
+2   libc++.1.dylib                	0x00000001a93696fc std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 32 (condition_variable.cpp:30)
+3   hermes                        	0x00000001052db9c4 void std::__1::condition_variable::wait<hermes::vm::HadesGC::Executor::worker()::'lambda'()>(std::__1::unique_lock<std::__1::mutex>&, hermes::vm::HadesGC::Executor::worker()::'lambda'()) + 28 (condition_variable.h:146)
+4   hermes                        	0x00000001052db9c4 hermes::vm::HadesGC::Executor::worker() + 116 (HadesGC.cpp:1062)
+5   hermes                        	0x00000001052db92c hermes::vm::HadesGC::Executor::Executor()::'lambda'()::operator()() const + 4 (HadesGC.cpp:1033)
+6   hermes                        	0x00000001052db92c decltype(std::declval<hermes::vm::HadesGC::Executor::Executor()::'lambda'()>()()) std::__1::__invoke[abi:nn180100]<hermes::vm::HadesGC::Executor::Executor()::'lambda'()>(hermes::vm::HadesGC::Execut... + 4 (invoke.h:344)
+7   hermes                        	0x00000001052db92c void std::__1::__thread_execute[abi:nn180100]<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, hermes::vm::HadesGC::Executor::Executor()::'lambd... + 4 (thread.h:199)
+8   hermes                        	0x00000001052db92c void* std::__1::__thread_proxy[abi:nn180100]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, hermes::vm::HadesGC::Executor::Exe... + 44 (thread.h:208)
+9   libsystem_pthread.dylib       	0x00000001f620544c _pthread_start + 136 (pthread.c:931)
+10  libsystem_pthread.dylib       	0x00000001f62018cc thread_start + 8 (:-1)
+
+
+Thread 11 crashed with ARM Thread State (64-bit):
+    x0: 0x0000000000000000   x1: 0x0000000000000000   x2: 0x0000000000000000   x3: 0x0000000000000000
+    x4: 0x000000019727ff43   x5: 0x000000016c237760   x6: 0x000000000000006e   x7: 0xfffff0003ffff800
+    x8: 0x97cefad478e8f12f   x9: 0x97cefad514cb412f  x10: 0x0000000000000002  x11: 0x0000010000000000
+   x12: 0x00000000fffffffd  x13: 0x0000000000000000  x14: 0x0000000000000000  x15: 0x0000000000000000
+   x16: 0x0000000000000148  x17: 0x000000016c23b000  x18: 0x0000000000000000  x19: 0x0000000000000006
+   x20: 0x0000000000007b03  x21: 0x000000016c23b0e0  x22: 0x0000000201850000  x23: 0x000000010e077b40
+   x24: 0x0000000109e3a080  x25: 0x000000000000000b  x26: 0x0000000000000002  x27: 0x00000001047e0000
+   x28: 0x0000000109eeca00   fp: 0x000000016c2376d0   lr: 0x00000001f6208810
+    sp: 0x000000016c2376b0   pc: 0x0000000243b020cc cpsr: 0x40001000
+   esr: 0x56000080 (Syscall)
+
+
+Binary Images:
+        0x1041c4000 -         0x10473bfff DeepLifeSimulator arm64  <60eeee38e42a3815a903a7b854caea01> /var/containers/Bundle/Application/0554A72A-6D60-4360-8B4C-BDF6FA2E6B71/DeepLifeSimulator.app/DeepLifeSimulator
+        0x10493c000 -         0x104947fff libobjc-trampolines.dylib arm64e  <a068c18d51c33c9aa2875c9c122ada7d> /private/preboot/Cryptexes/OS/usr/lib/libobjc-trampolines.dylib
+        0x10520c000 -         0x10540ffff hermes arm64  <80d5528f2c783b90b90f747e89a9f880> /private/var/containers/Bundle/Application/0554A72A-6D60-4360-8B4C-BDF6FA2E6B71/DeepLifeSimulator.app/Frameworks/hermes.framework/hermes
+        0x197148000 -         0x197199b2f libobjc.A.dylib arm64e  <af9349a3834f369eace5c50571c9c7ba> /usr/lib/libobjc.A.dylib
+        0x1971ca000 -         0x197268ad7 dyld arm64e  <ef27e3863cff3752b152d96a0aa9effd> /usr/lib/dyld
+        0x197269000 -         0x1972836c7 libc++abi.dylib arm64e  <15769a08e2653b56a58f292ba6cca306> /usr/lib/libc++abi.dylib
+        0x197810000 -         0x1986567df Foundation arm64e  <218da4dc727a3341b59e8fdb39a2d7c4> /System/Library/Frameworks/Foundation.framework/Foundation
+        0x19a19a000 -         0x19a71e5ff CoreFoundation arm64e  <b4a0233bf37d3ef6a977e4f36199c5a4> /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+        0x19fadd000 -         0x1a1f2b0df UIKitCore arm64e  <a0e1cefbfd0136f9b82351b092e4dbc6> /System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore
+        0x1a59c4000 -         0x1a5a445af libsystem_c.dylib arm64e  <30fa7d3557d53b47a6306fa25fbd0bfb> /usr/lib/system/libsystem_c.dylib
+        0x1a9347000 -         0x1a93d9de3 libc++.1.dylib arm64e  <e48ff12207063a36980f32612622047e> /usr/lib/libc++.1.dylib
+        0x1d25f7000 -         0x1d263d25f libdispatch.dylib arm64e  <6a1b4fabb32633738bab8e8464c68c66> /usr/lib/system/libdispatch.dylib
+        0x1f6201000 -         0x1f620d44f libsystem_pthread.dylib arm64e  <6e1be86b581a306790653412103e1df4> /usr/lib/system/libsystem_pthread.dylib
+        0x23addb000 -         0x23ade37ff GraphicsServices arm64e  <3688150f0fff38a4914910b3c47b53b1> /System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices
+        0x243af7000 -         0x243b31d2b libsystem_kernel.dylib arm64e  <ff136c45738b3f6e82e57340e51a1478> /usr/lib/system/libsystem_kernel.dylib
+
+EOF
