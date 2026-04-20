@@ -32,7 +32,6 @@ module.exports = {
       supportsTablet: true,
       bundleIdentifier: "com.deeplife.simulator",
       buildNumber: buildNumber,
-      deploymentTarget: "13.0",
       infoPlist: {
         NSUserTrackingUsageDescription: "This app would like to track your activity to provide personalized ads and improve your experience.",
         ITSAppUsesNonExemptEncryption: false
@@ -63,6 +62,14 @@ module.exports = {
     // Missing iosAppId causes native startup aborts in TestFlight builds.
     // IMPORTANT: Plugin uses camelCase property names (iosAppId, NOT ios_app_id)
     plugins: [
+      [
+        "expo-build-properties",
+        {
+          ios: {
+            deploymentTarget: "15.1",
+          },
+        },
+      ],
       [
         "expo-router",
         {
