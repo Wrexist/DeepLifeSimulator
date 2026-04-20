@@ -1,0 +1,4 @@
+Total messages: 200 (Errors: 0, Warnings: 1)
+Returning 1 messages for level "warning"
+
+[WARNING] props.pointerEvents is deprecated. Use style.pointerEvents @ http://localhost:8096/app/entry.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fapp&unstable_transformProfile=hermes-stable:24316

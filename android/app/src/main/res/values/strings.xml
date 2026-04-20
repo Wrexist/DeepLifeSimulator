@@ -1,0 +1,4 @@
+<resources>
+  <string name="app_name">DeepLife Simulator</string>
+  <string name="expo_runtime_version">exposdk:54.0.0</string>
+</resources>

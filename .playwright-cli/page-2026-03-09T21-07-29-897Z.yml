@@ -1,0 +1,28 @@
+- generic [ref=e12]:
+  - generic [ref=e13]: Viewport Preview (web)
+  - generic [ref=e14]:
+    - generic [ref=e16] [cursor=pointer]: iPhone SE (375×667)
+    - generic [ref=e18] [cursor=pointer]: iPhone 6/7/8 (375×667)
+    - generic [ref=e20] [cursor=pointer]: iPhone 6/7/8 Plus (414×736)
+    - generic [ref=e22] [cursor=pointer]: iPhone X/XS (375×812)
+    - generic [ref=e24] [cursor=pointer]: iPhone XR/XS Max (414×896)
+    - generic [ref=e26] [cursor=pointer]: iPhone 11/12/13 (390×844)
+    - generic [ref=e28] [cursor=pointer]: iPhone 11/12/13 Pro Max (428×926)
+    - generic [ref=e30] [cursor=pointer]: iPhone 14/15 (393×852)
+    - generic [ref=e32] [cursor=pointer]: iPhone 14/15 Plus (430×932)
+    - generic [ref=e34] [cursor=pointer]: iPhone 14/15 Pro (393×852)
+    - generic [ref=e36] [cursor=pointer]: iPhone 14/15 Pro Max (430×932)
+    - generic [ref=e38] [cursor=pointer]: iPhone 16 (393×852)
+    - generic [ref=e40] [cursor=pointer]: iPhone 16 Plus (430×932)
+    - generic [ref=e42] [cursor=pointer]: iPhone 16 Pro (393×852)
+    - generic [ref=e44] [cursor=pointer]: iPhone 16 Pro Max (430×932)
+    - generic [ref=e46] [cursor=pointer]: iPad 9/10 (768×1024)
+    - generic [ref=e48] [cursor=pointer]: iPad Air (820×1180)
+    - generic [ref=e50] [cursor=pointer]: iPad Pro 11" (834×1194)
+    - generic [ref=e52] [cursor=pointer]: iPad Pro 12.9" (1024×1366)
+    - generic [ref=e54] [cursor=pointer]: iPad Mini (744×1133)
+    - generic [ref=e56] [cursor=pointer]: Desktop 1280
+    - generic [ref=e58] [cursor=pointer]: Desktop 1440
+    - generic [ref=e60] [cursor=pointer]: Desktop 1920
+    - generic [ref=e62] [cursor=pointer]: Reset
+  - generic [ref=e64]: "Tips: Klicka på en preset för att gå till spelet med den upplösningen. Du kan också sätta ?w=393&h=852 i URL:en."

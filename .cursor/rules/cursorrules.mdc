@@ -1,0 +1,484 @@
+---
+alwaysApply: false
+---
+# DeepLifeSim - Cursor IDE Rules
+
+## Project Overview
+DeepLifeSim is a React Native life simulation game built with Expo, TypeScript, and React Navigation. The game features complex state management, multiple game systems (careers, travel, politics, R&D, etc.), and requires careful attention to performance, state persistence, and user experience.
+
+## Core Architecture Principles
+
+### 1. State Management
+- **Centralized State**: All game state is managed in `contexts/game/` directory
+- **Action-Based Updates**: Use action functions from `contexts/game/actions/` (e.g., `TravelActions`, `PoliticalActions`, `RDActions`)
+- **Never Mutate State Directly**: Always use `setGameState` with functional updates: `setGameState(prev => ({ ...prev, ... }))`
+- **State Migration**: Always add migration logic in `migrateState()` function when changing state structure
+- **Save Game Integration**: Call `saveGame()` after all state-changing actions
+
+### 2. File Organization
+- **Components**: 
+  - `components/computer/` - Desktop app components (Travel, Political, Gaming, etc.)
+  - `components/mobile/` - Mobile app components (Bank, Social, Stocks, etc.)
+  - `components/ui/` - Reusable UI components
+- **Game Logic**: `lib/` directory organized by feature (travel, politics, rd, economy, etc.)
+- **Contexts**: `contexts/game/` for game state, separate contexts for UI/UX, Tutorial, Toast
+- **Actions**: `contexts/game/actions/` - One file per feature area (TravelActions.ts, PoliticalActions.ts, etc.)
+- **Types**: All types defined in `contexts/game/types.ts`
+
+### 3. Component Patterns
+
+#### Component Structure
+```typescript
+// Always use this structure:
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ... } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useGame } from '@/contexts/GameContext';
+import { scale, fontScale } from '@/utils/scaling';
+
+interface ComponentProps {
+  onBack: () => void;
+  // ... other props
+}
+
+export default function Component({ onBack }: ComponentProps) {
+  const { gameState, setGameState, saveGame } = useGame();
+  const { settings } = gameState;
+  
+  // State
+  const [localState, setLocalState] = useState(...);
+  
+  // Memoized values
+  const memoizedValue = useMemo(() => {
+    // Expensive calculations
+  }, [dependencies]);
+  
+  // Callbacks
+  const handleAction = useCallback(() => {
+    // Action logic
+    saveGame();
+  }, [dependencies]);
+  
+  // Effects
+  useEffect(() => {
+    // Side effects
+    return () => {
+      // Cleanup
+    };
+  }, [dependencies]);
+  
+  return (
+    <LinearGradient
+      colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFC']}
+      style={styles.container}
+    >
+      {/* Component JSX */}
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
+```
+
+#### Required Patterns
+- **Always use `useCallback`** for event handlers passed to child components
+- **Always use `useMemo`** for expensive calculations (filtering, sorting, transformations)
+- **Always use `LinearGradient`** for backgrounds with dark mode support
+- **Always check `settings.darkMode`** for styling
+- **Always use scaling utilities** from `@/utils/scaling` (scale, fontScale, responsivePadding, etc.)
+- **Always add cleanup** in useEffect when using timers, intervals, or subscriptions
+
+### 4. Responsive Design & Scaling
+
+#### Scaling Utilities (ALWAYS USE THESE)
+- `scale(value)` - For dimensions, padding, margins
+- `fontScale(value)` - For font sizes
+- `responsivePadding` - For padding values
+- `responsiveSpacing` - For spacing values
+- `responsiveFontSize` - For font sizes
+- `responsiveIconSize` - For icon sizes
+- `responsiveBorderRadius` - For border radius
+
+#### Example:
+```typescript
+import { scale, fontScale, responsivePadding } from '@/utils/scaling';
+
+const styles = StyleSheet.create({
+  container: {
+    padding: responsivePadding.horizontal,
+    marginTop: scale(16),
+  },
+  text: {
+    fontSize: fontScale(14),
+  },
+});
+```
+
+**EXCEPTION**: `GamingStreamingApp.tsx` uses its own scaling system - DO NOT change it.
+
+### 5. Type Safety
+
+#### Type Definitions
+- All game state types in `contexts/game/types.ts`
+- Use TypeScript interfaces, not types for object shapes
+- Always type function parameters and return values
+- Use `GameState` type from `@/contexts/game/types` for state
+- Use `GameStats` for stats objects
+
+#### Type Guards
+- Always validate data before using (check for null/undefined)
+- Use type guards for complex validations
+- Example: `if (!state.items || !Array.isArray(state.items)) return;`
+
+### 6. State Updates & Actions
+
+#### Action Functions Pattern
+```typescript
+// In contexts/game/actions/FeatureActions.ts
+export const actionName = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  param: string,
+  deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
+): { success: boolean; message: string } => {
+  // Validation
+  if (!gameState.feature) {
+    return { success: false, message: 'Feature not initialized' };
+  }
+  
+  // Business logic
+  const newValue = calculateNewValue();
+  
+  // State update
+  setGameState(prev => ({
+    ...prev,
+    feature: {
+      ...prev.feature!,
+      property: newValue,
+    },
+  }));
+  
+  // Logging
+  log.info('Action completed');
+  return { success: true, message: 'Success!' };
+};
+```
+
+#### State Update Rules
+- **Always use functional updates**: `setGameState(prev => ({ ...prev, ... }))`
+- **Always preserve nested state**: `...prev.feature!` when updating nested objects
+- **Always handle null/undefined**: Check `prev.feature || { defaultValues }`
+- **Always batch updates**: Combine multiple updates in single `setGameState` call
+- **Always add null checks**: Use `(array || []).method()` pattern for arrays
+
+### 7. Performance Optimization
+
+#### Required Optimizations
+- **Memoization**: Use `useMemo` for expensive calculations
+- **Callback Memoization**: Use `useCallback` for all handlers
+- **Array Null Checks**: Always use `(array || []).method()` pattern
+- **Timer Cleanup**: Always clear timers in useEffect cleanup
+- **Lazy Loading**: Use `React.lazy()` for large components (but prefer direct imports for stability)
+- **State Batching**: Batch multiple state updates together
+
+#### Performance Anti-Patterns (NEVER DO)
+- Don't create functions inside render
+- Don't use inline objects in StyleSheet
+- Don't forget to clean up timers/intervals
+- Don't mutate state directly
+- Don't create new arrays/objects in render without memoization
+
+### 8. Error Handling
+
+#### Error Handling Patterns
+```typescript
+try {
+  await asyncOperation();
+} catch (error: any) {
+  // Handle quota exceeded
+  if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
+    // Cleanup and retry
+    await AsyncStorage.removeItem('unsynced_logs');
+    // Retry operation
+  }
+  log.error('Operation failed:', error);
+  Alert.alert('Error', 'Operation failed. Please try again.');
+}
+```
+
+#### Required Error Handling
+- Always handle `QuotaExceededError` for AsyncStorage operations
+- Always validate user input before processing
+- Always show user-friendly error messages
+- Always log errors using `logger` from `@/utils/logger`
+- Always handle null/undefined states gracefully
+
+### 9. Save System
+
+#### Save Game Integration
+- **Always call `saveGame()`** after state-changing actions
+- **Use saveQueue** for batched saves (via `queueSave()`)
+- **Handle save errors** gracefully with user feedback
+- **Migration**: Always add migration logic when changing state structure
+
+#### Save Migration Pattern
+```typescript
+// In migrateState function
+// Update existing items
+if (state.items && Array.isArray(state.items)) {
+  const itemIndex = state.items.findIndex(item => item.id === 'itemId');
+  if (itemIndex !== -1) {
+    const newItem = initialState.items.find(item => item.id === 'itemId');
+    if (newItem) {
+      state.items[itemIndex] = { ...state.items[itemIndex], ...newItem };
+    }
+  }
+  
+  // Add missing items
+  const missingItem = initialState.items.find(item => item.id === 'newItem');
+  if (missingItem && !state.items.find(i => i.id === 'newItem')) {
+    state.items.push({ ...missingItem });
+  }
+}
+```
+
+### 10. UI/UX Patterns
+
+#### Dark Mode Support
+- Always check `settings.darkMode` for conditional styling
+- Always provide dark mode color variants
+- Use `LinearGradient` with dark mode colors
+
+#### Component Styling
+```typescript
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: scale(16),
+  },
+  text: {
+    fontSize: fontScale(14),
+    color: '#111827',
+  },
+  textDark: {
+    color: '#F9FAFB',
+  },
+});
+
+// Usage
+<Text style={[styles.text, settings.darkMode && styles.textDark]}>
+  Content
+</Text>
+```
+
+#### Icons
+- Use `lucide-react-native` for icons
+- Always provide size and color props
+- Use `responsiveIconSize` for icon sizes
+
+### 11. Game Logic Patterns
+
+#### Feature Implementation Checklist
+1. **Define Types**: Add interfaces to `contexts/game/types.ts`
+2. **Create Actions**: Add action functions in `contexts/game/actions/FeatureActions.ts`
+3. **Add Initial State**: Update `initialState.ts` with default values
+4. **Add Migration**: Update `migrateState()` for existing saves
+5. **Create Component**: Build UI component in appropriate directory
+6. **Integrate**: Add to main screens (computer.tsx, mobile.tsx, etc.)
+7. **Add Save Calls**: Call `saveGame()` after all actions
+8. **Test**: Verify on new and existing saves
+
+#### Business Logic Location
+- **Game Rules**: `lib/` directory (e.g., `lib/travel/destinations.ts`, `lib/politics/policies.ts`)
+- **State Management**: `contexts/game/actions/`
+- **UI Logic**: Component files
+- **Utilities**: `utils/` directory
+
+### 12. Code Style
+
+#### Naming Conventions
+- **Components**: PascalCase (e.g., `TravelApp.tsx`)
+- **Functions**: camelCase (e.g., `handleTravel`, `travelTo`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_LOGS`, `DESTINATIONS`)
+- **Types/Interfaces**: PascalCase (e.g., `GameState`, `TravelDestination`)
+- **Files**: Match export name (e.g., `TravelApp.tsx` exports `TravelApp`)
+
+#### Import Order
+1. React and React Native
+2. Third-party libraries (expo, lucide, etc.)
+3. Internal contexts and hooks
+4. Internal components
+5. Internal utilities and libs
+6. Types
+7. Styles
+
+#### Code Comments
+- Use JSDoc comments for exported functions
+- Add comments for complex business logic
+- Document why, not what
+- Add TODO comments for future improvements
+
+### 13. Testing Considerations
+
+#### Test Coverage
+- Unit tests for game logic in `lib/`
+- Integration tests for save/load in `lib/progress/__tests__/`
+- Component tests for critical UI flows
+
+#### Test Patterns
+- Mock AsyncStorage for save/load tests
+- Use test fixtures for game state
+- Test migration logic with old state structures
+
+### 14. Common Pitfalls to Avoid
+
+#### State Management
+- ❌ Don't mutate state directly
+- ❌ Don't forget to handle null/undefined
+- ❌ Don't forget to add migration logic
+- ❌ Don't forget to call `saveGame()`
+
+#### Performance
+- ❌ Don't create functions in render
+- ❌ Don't forget to clean up timers
+- ❌ Don't forget array null checks
+- ❌ Don't skip memoization for expensive calculations
+
+#### UI/UX
+- ❌ Don't forget dark mode support
+- ❌ Don't forget responsive scaling
+- ❌ Don't forget error handling
+- ❌ Don't forget user feedback (alerts, toasts)
+
+### 15. Specific Feature Patterns
+
+#### Travel System
+- Destinations defined in `lib/travel/destinations.ts`
+- Actions in `contexts/game/actions/TravelActions.ts`
+- Component in `components/computer/TravelApp.tsx`
+- State in `GameState.travel`
+
+#### Political System
+- Career levels in `lib/careers/political.ts`
+- Policies in `lib/politics/policies.ts`
+- Lobbyists in `lib/politics/lobbyists.ts`
+- Elections in `lib/politics/elections.ts`
+- Actions in `contexts/game/actions/PoliticalActions.ts`
+- Component in `components/computer/PoliticalApp.tsx`
+- State in `GameState.politics`
+
+#### R&D System
+- Labs in `lib/rd/labs.ts`
+- Technology tree in `lib/rd/technologyTree.ts`
+- Patents in `lib/rd/patents.ts`
+- Competitions in `lib/rd/competitions.ts`
+- Actions in `contexts/game/actions/RDActions.ts`
+- Integrated in `components/mobile/CompanyApp.tsx`
+- State in `Company.rdLab`, `Company.unlockedTechnologies`, `Company.patents`
+
+### 16. Money & Number Formatting
+
+#### Money Display
+- Use `.toLocaleString()` for formatting: `money.toLocaleString()`
+- For large numbers, use suffixes (M, B, T, Q) with max 2 decimal places
+- Example: `formatMoney(1000000)` → `"1.00M"`
+
+#### Number Validation
+- Always validate numbers before calculations
+- Use `isNaN()` and `isFinite()` checks
+- Clamp values to safe ranges
+
+### 17. AsyncStorage & Persistence
+
+#### Storage Patterns
+- Use `AsyncStorage` from `@react-native-async-storage/async-storage`
+- Handle `QuotaExceededError` gracefully
+- Implement cleanup for old data
+- Use save queue for batched saves
+
+#### Storage Keys
+- Save slots: `save_slot_{number}`
+- Logs: `unsynced_logs`
+- Settings: `globalGems`, `permanentPerks`, etc.
+
+### 18. Logging
+
+#### Logger Usage
+```typescript
+import { logger } from '@/utils/logger';
+
+const log = logger.scope('ComponentName');
+
+log.info('Operation started');
+log.debug('Debug info', { data });
+log.error('Error occurred', error);
+log.warn('Warning message');
+```
+
+#### Logging Rules
+- Use appropriate log levels (info, debug, error, warn)
+- Include context in log messages
+- Don't log sensitive user data
+- Use scoped loggers for better organization
+
+### 19. Component Props & Interfaces
+
+#### Props Interface Pattern
+```typescript
+interface ComponentProps {
+  onBack: () => void;
+  optionalProp?: string;
+  requiredProp: number;
+}
+
+export default function Component({ 
+  onBack, 
+  optionalProp = 'default',
+  requiredProp 
+}: ComponentProps) {
+  // Component implementation
+}
+```
+
+### 20. Error Boundaries
+
+#### Error Boundary Usage
+- Wrap major sections in `ErrorBoundary`
+- Provide fallback UI for errors
+- Log errors for debugging
+- Don't let errors crash the entire app
+
+## Quick Reference Checklist
+
+When adding a new feature:
+- [ ] Define types in `contexts/game/types.ts`
+- [ ] Create action functions in `contexts/game/actions/`
+- [ ] Update `initialState.ts` with defaults
+- [ ] Add migration logic in `migrateState()`
+- [ ] Create component with proper structure
+- [ ] Add dark mode support
+- [ ] Use responsive scaling
+- [ ] Add error handling
+- [ ] Call `saveGame()` after actions
+- [ ] Test on new and existing saves
+- [ ] Add null checks for arrays
+- [ ] Use memoization for expensive operations
+- [ ] Clean up timers/intervals
+- [ ] Add user feedback (alerts/toasts)
+
+## Critical Rules Summary
+
+1. **NEVER mutate state directly** - Always use functional updates
+2. **ALWAYS call `saveGame()`** after state changes
+3. **ALWAYS add migration logic** when changing state structure
+4. **ALWAYS use scaling utilities** for responsive design
+5. **ALWAYS support dark mode** in UI components
+6. **ALWAYS handle null/undefined** for arrays and objects
+7. **ALWAYS clean up timers** in useEffect cleanup
+8. **ALWAYS use `useCallback`** for event handlers
+9. **ALWAYS use `useMemo`** for expensive calculations
+10. **ALWAYS handle `QuotaExceededError`** for storage operations

@@ -1,0 +1,69 @@
+# dependencies
+node_modules/
+
+# expo
+.expo/
+.expo-test-build/
+dist/
+web-build/
+expo-env.d.ts
+
+# native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# builds
+build/
+android/app/build/
+ios/build/
+
+# metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# crash logs
+*.crash
+
+# macos
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+.env
+
+# typescript
+*.tsbuildinfo
+
+# secrets
+google-play-service-account.json
+
+# IDE & tool state
+.cursor/
+.claude/
+.Claude/
+.codex/
+.bolt/
+.idea/
+.vscode/
+.eas/
+.cursorrules
+
+# Windows device-name artifact (invalid as a real tracked path on Windows)
+/nul
+
+# temp files
+YOOO
+Testf*light*command*
+test_economy_fixes.js
+test_onboarding_simulations.js
+feedbackapple.txt
+installcli.sh

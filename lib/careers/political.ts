@@ -1,0 +1,99 @@
+/**
+ * Political Career Definitions
+ * 
+ * Career progression from local council member to president
+ */
+import { Career } from '@/contexts/game/types';
+import { PoliticalOfficeRequirements } from '@/lib/types/requirements';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+
+export const POLITICAL_CAREER: Career = {
+  id: 'political',
+  levels: [
+    { name: 'Local Council Member', salary: 800 },
+    { name: 'Mayor', salary: 2000 },
+    { name: 'State Representative', salary: 5000 },
+    { name: 'Governor', salary: 15000 },
+    { name: 'Senator', salary: 25000 },
+    { name: 'President', salary: 100000 },
+  ],
+  level: 0,
+  description: 'Serve the public through politics and governance',
+  requirements: {
+    reputation: 30,
+    education: ['business_degree'],
+  },
+  progress: 0,
+  applied: false,
+  accepted: false,
+};
+
+export const POLITICAL_CAREER_REQUIREMENTS: Record<string, PoliticalOfficeRequirements> = {
+  council_member: {
+    minAge: 25,
+    minReputation: 30,
+    education: ['business_degree'],
+  },
+  mayor: {
+    minAge: 30,
+    minReputation: 50,
+    previousLevel: 'council_member',
+    minWeeksInPrevious: WEEKS_PER_YEAR, // 1 year
+  },
+  state_representative: {
+    minAge: 35,
+    minReputation: 70,
+    previousLevel: 'mayor',
+    minWeeksInPrevious: WEEKS_PER_YEAR * 2, // 2 years
+  },
+  governor: {
+    minAge: 40,
+    minReputation: 85,
+    previousLevel: 'state_representative',
+    minWeeksInPrevious: WEEKS_PER_YEAR * 4, // 4 years
+  },
+  senator: {
+    minAge: 45,
+    minReputation: 90,
+    previousLevel: 'governor',
+    minWeeksInPrevious: WEEKS_PER_YEAR * 4, // 4 years
+  },
+  president: {
+    minAge: 35, // STABILITY FIX: Lowered from 50 to 35 to make "President by 30" goal achievable (with some buffer)
+    minReputation: 95,
+    previousLevel: 'senator',
+    minWeeksInPrevious: WEEKS_PER_YEAR * 5, // 5 years
+    specialEvent: true, // Requires special election event
+  },
+};
+
+export function canRunForOffice(
+  office: keyof typeof POLITICAL_CAREER_REQUIREMENTS,
+  age: number,
+  reputation: number,
+  currentLevel: number,
+  weeksInCurrentLevel: number,
+  hasEducation: (id: string) => boolean
+): boolean {
+  const requirements = POLITICAL_CAREER_REQUIREMENTS[office];
+  
+  if (age < requirements.minAge) return false;
+  if (reputation < requirements.minReputation) return false;
+  
+  // Type guard: check if requirements has education property
+  if ('education' in requirements && requirements.education) {
+    if (!requirements.education.every((edu: string) => hasEducation(edu))) return false;
+  }
+  
+  // Type guard: check if requirements has previousLevel property
+  if ('previousLevel' in requirements && requirements.previousLevel) {
+    const previousLevelIndex = POLITICAL_CAREER.levels.findIndex(
+      l => l.name.toLowerCase().includes(requirements.previousLevel!.split('_')[0])
+    );
+    if (currentLevel <= previousLevelIndex) return false;
+    if ('minWeeksInPrevious' in requirements && requirements.minWeeksInPrevious !== undefined && weeksInCurrentLevel < requirements.minWeeksInPrevious) return false;
+  }
+  
+  return true;
+}
+

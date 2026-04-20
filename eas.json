@@ -1,0 +1,38 @@
+{
+  "cli": {
+    "version": ">= 9.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_ENABLE_ADMOB": "true",
+        "EXPO_PUBLIC_ENABLE_IAP": "true",
+        "EXPO_PUBLIC_ENABLE_ATT": "true"
+      },
+      "ios": {
+        "resourceClass": "m-medium",
+        "autoIncrement": false,
+        "buildConfiguration": "Release",
+        "simulator": false
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      }
+    },
+    "preview": {
+      "developmentClient": true,
+      "channel": "preview"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleTeamId": "S3U8B8HH96",
+        "ascAppId": "6749675615",
+        "language": "en-US"
+      }
+    }
+  }
+}

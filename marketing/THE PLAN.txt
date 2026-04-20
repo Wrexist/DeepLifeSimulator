@@ -1,0 +1,2 @@
+Quick Reference: What Lives Where
+WhatFileApp Store copy (paste into Connect)marketing/app_store_listing.md10 TikTok scripts (ready to film)marketing/tiktok_scripts.mdReddit posts + outreach templatesmarketing/reddit_and_outreach.md30-day content calendarmarketing/content-calendar.mdPress kit for YouTubersmarketing/press-kit.htmlCode: rating promptutils/ratingPrompt.tsCode: share cardcomponents/ShareLifeCard.tsxHow to wire it all upmarketing/INTEGRATION.mdFull 90-day strategy docDeep_Life_Simulator_Complete_Plan.docx

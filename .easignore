@@ -1,0 +1,96 @@
+# Force EAS to not use cache
+.expo/
+node_modules/
+
+# Native folders — let EAS Build regenerate via CNG/Prebuild
+/ios
+/android
+
+# Documentation and markdown files (not needed for build)
+*.md
+docs/
+.cursor/
+
+# Test files (not needed for build)
+__tests__/
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.jsx
+jest.config.js
+jest.setup.js
+
+# Development and debug files
+# Note: src/debug/ is needed for production builds (aiDebugConfig is imported in _layout.tsx)
+# Note: components/dev/ is needed for production builds (LogViewer is imported in DevToolsModal.tsx)
+# Only exclude root-level dev/ directory, not components/dev/ (use /dev/ to match root only)
+/dev/
+src/dev/
+test_*.js
+*.crash
+
+# Build artifacts
+build/
+dist/
+*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Scripts (not needed for build)
+# Keep fix-podspec.js and preflight-check.js as they're needed for builds
+scripts/build-and-submit-testflight.*
+scripts/eas-build-on-success.sh
+scripts/polyfill-toReversed.js
+scripts/run-tests.ts
+scripts/testScenarioFix.ts
+scripts/verify-podspec-patches.js
+scripts/verifyIAPConfig.ts
+scripts/README_BUILD_SCRIPTS.md
+*.sh
+*.ps1
+
+# Old documentation and reports
+*_SCAN*.md
+*_AUDIT*.md
+*_FIXES*.md
+*_REPORT*.md
+*_SUMMARY*.md
+*_GUIDE*.md
+*_NOTES*.md
+CRITICAL_*.md
+FINAL_*.md
+COMPLETE_*.md
+BUILD_*.md
+RELEASE_*.md
+PATCH_*.md
+CORRUPTION_*.md
+CRASH_*.md
+TURBOMODULE_*.md
+LIFECYCLE_*.md
+LONG_TERM_*.md
+MONEY_*.md
+RELATIONSHIP_*.md
+TIME_*.md
+SILENT_*.md
+MAIN_MENU_*.md
+ONBOARDING_*.md
+TESTFLIGHT_*.md
+RC0_*.md
+DEEP_*.md
+PREFLIGHT_*.md
+TEST_*.md
+QUICK_*.md
+COMPREHENSIVE_*.md
