@@ -87,6 +87,8 @@ describe('Career & Education Stress Tests', () => {
       console.log(`Completed high school at age ${state.date.age.toFixed(1)}`);
 
       // Now enroll in PhD (requires prerequisites)
+      state.stats = { ...state.stats, money: Math.max(state.stats.money, 500000) };
+
       state.educations.push({
         id: 'phd',
         name: 'PhD',

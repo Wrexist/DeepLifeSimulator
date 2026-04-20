@@ -6,9 +6,7 @@ module.exports = {
       'ts-jest',
       {
         diagnostics: false,
-        tsconfig: {
-          jsx: 'react-jsx',
-        },
+        tsconfig: '<rootDir>/tsconfig.json',
       },
     ],
   },
@@ -44,10 +42,13 @@ module.exports = {
   testPathIgnorePatterns: [
     '[\\\\/]node_modules[\\\\/]',
     '[\\\\/]__tests__[\\\\/]helpers[\\\\/]',
+    '[\\\\/]__tests__[\\\\/]stress[\\\\/]helpers[\\\\/]',
     '[\\\\/]lib[\\\\/]skillTrees[\\\\/]__tests__[\\\\/]careerSkillTrees\\.test\\.ts$',
   ],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testTimeout: 10000,
+  // Avoid parallel OOM / SIGTERM on large suites (criticalPaths + stress together)
+  maxWorkers: process.env.CI === 'true' ? 2 : '50%',
   verbose: true,
   transformIgnorePatterns: [
     'node_modules/(?!(expo|@expo|react-native|@react-native|@react-navigation)/)',

@@ -1,5 +1,10 @@
 import { GameState } from '@/contexts/GameContext';
-import { advanceWeeks, advanceYears, advanceToAge } from './helpers/timeHelpers';
+import {
+  advanceWeeks,
+  advanceYears,
+  advanceToAge,
+  simulateWeekWithBasicCare,
+} from './helpers/timeHelpers';
 import { setupWealthyPlayer, setupCompanyMogul, setupLargeFamily, setupMaxedStats } from './helpers/scenarioBuilders';
 import { expectNumericalStability, expectValidAge, expectNoNaN, expectNoInfinity } from './helpers/assertions';
 
@@ -290,14 +295,11 @@ describe('Integration Stress Tests', () => {
         ...setupMaxedStats(),
       };
 
-      // Simulate 80 years with stat management
+      // Simulate 80 years with stat maintenance (advanceWeeks drains happiness weekly)
       for (let year = 0; year < 80; year++) {
-        state = advanceWeeks(state, 52);
-
-        // Simulate stat maintenance
-        state.stats.health = Math.min(100, state.stats.health + 10);
-        state.stats.happiness = Math.min(100, state.stats.happiness + 10);
-        state.stats.energy = Math.min(100, state.stats.energy + 30);
+        for (let w = 0; w < 52; w++) {
+          state = simulateWeekWithBasicCare(state);
+        }
       }
 
       expect(state.stats.health).toBeGreaterThan(50);

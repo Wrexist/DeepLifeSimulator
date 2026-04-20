@@ -6,16 +6,30 @@ import { GameState } from '@/contexts/GameContext';
  */
 export function advanceWeeks(state: GameState, weeks: number): GameState {
   let newState = { ...state };
+  const initialWeeksLived = newState.weeksLived;
+  const initialAge = newState.date.age;
 
   for (let i = 0; i < weeks; i++) {
-    // Calculate new age by adding 1/52 year per week
-    const newAge = newState.date.age + (1 / 52);
-
-    // Calculate month based on week number
     const totalWeeksLived = newState.weeksLived + 1;
+    const deltaWeeks = totalWeeksLived - initialWeeksLived;
+    const newAge = Number((initialAge + deltaWeeks / 52).toFixed(4));
+
     const yearWeek = totalWeeksLived % 52;
     const month = Math.floor(yearWeek / 4.33);
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
 
     newState = {
       ...newState,
@@ -24,7 +38,7 @@ export function advanceWeeks(state: GameState, weeks: number): GameState {
       date: {
         ...newState.date,
         week: ((newState.week) % 4) + 1,
-        age: Number(newAge.toFixed(4)),
+        age: newAge,
         month: monthNames[Math.min(month, 11)] || 'January',
         year: newState.date.year + Math.floor(totalWeeksLived / 52),
       },
@@ -67,7 +81,6 @@ export function advanceToAge(state: GameState, targetAge: number): GameState {
 export function simulateWeekWithBasicCare(state: GameState): GameState {
   const newState = advanceWeeks(state, 1);
 
-  // Boost stats to simulate basic self-care
   return {
     ...newState,
     stats: {

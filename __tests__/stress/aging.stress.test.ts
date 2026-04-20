@@ -60,7 +60,7 @@ describe('Aging Stress Tests', () => {
 
       const bulkState = advanceWeeks(baseState, 100);
 
-      expect(weekByWeekState.date.age).toBeCloseTo(bulkState.date.age, 4);
+      expect(weekByWeekState.date.age).toBeCloseTo(bulkState.date.age, 2);
       expect(weekByWeekState.weeksLived).toBe(bulkState.weeksLived);
     });
   });

@@ -2,7 +2,7 @@
  * Lightweight "game flow" checks that run in the Node Jest environment.
  * Full GameProvider + RTL integration is deferred until a jest-expo / native test host is configured.
  */
-import { initialGameState } from '@/contexts/game';
+import { initialGameState } from '@/contexts/game/initialState';
 
 describe('Game flow bootstrap (Node)', () => {
   it('exposes consistent starting economy and vitals', () => {

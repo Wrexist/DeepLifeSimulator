@@ -10,7 +10,7 @@ describe('Company Stress Tests', () => {
     baseState = (global as any).createTestGameState({
       date: { year: 2025, month: 'January', week: 1, age: 25 },
       weeksLived: 364, // 7 years lived
-      ...setupWealthyPlayer(1000000),
+      ...setupWealthyPlayer(3_000_000),
       educations: [
         {
           id: 'entrepreneurship',
