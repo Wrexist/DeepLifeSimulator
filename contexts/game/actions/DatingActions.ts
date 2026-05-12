@@ -648,20 +648,29 @@ export const fileDivorce = (
   const quoteRoll = getDeterministicRoll(gameState, quoteRollKey);
   rngCommitKeys.push(quoteRollKey);
 
-  // Compute all financial effects from `gameState` (the action snapshot) BEFORE
-  // calling setGameState. Doing the math inside a `setGameState(prev => …)`
-  // updater would leave the audit values (used in the log and the returned
-  // message below) unread until React processes the queued update — which is
-  // asynchronous. The variables would still be 0 when log.info / message
-  // composition ran. Computing here against `gameState` is safe: divorce is a
-  // user-confirmed action with a 26-week cooldown, so concurrent state churn is
-  // not a realistic concern, and the user already accepts that the displayed
-  // settlement is based on the state they saw when they clicked.
-  const currentMoney = Math.max(0, safeNumber(gameState.stats?.money));
-  const currentSavings = Math.max(0, safeNumber(gameState.bankSavings));
+  // Two-phase commit so we don't trample concurrent updates (e.g. the weekly
+  // tick firing between this action's snapshot and the actual setGameState
+  // apply, modifying money/loans/relationships):
+  //
+  // Phase 1 (eager, against gameState): compute the SETTLEMENT terms — the
+  //   numbers the user just agreed to via the confirmation modal. These are
+  //   stable across re-renders and feed both the log and the return message.
+  //   We also compute the resulting portfolio (updatedHoldings, updatedRealEstate)
+  //   here, since liquidation against the portfolio the user saw is the
+  //   reasonable expectation.
+  //
+  // Phase 2 (inside setGameState(prev =>): RE-DERIVE money / savings / loans /
+  //   relationships / rngCommitLog from prev. The user owes `totalObligation`
+  //   plus the proceeds from `stockLiquidationGained + propertyLiquidationGained`
+  //   come in on top of prev's current cash, then the obligation is drained
+  //   from money → savings → debt. This keeps any in-flight income or
+  //   loan-payment updates from the weekly tick.
+  const currentMoneyAtSnapshot = Math.max(0, safeNumber(gameState.stats?.money));
+  const currentSavingsAtSnapshot = Math.max(0, safeNumber(gameState.bankSavings));
 
-  const availableWithoutLiquidation = Math.max(0, currentMoney - MIN_DIVORCE_CASH_BUFFER) + currentSavings;
-  let requiredFromAssetLiquidation = Math.max(0, totalObligation - availableWithoutLiquidation);
+  const availableAtSnapshot =
+    Math.max(0, currentMoneyAtSnapshot - MIN_DIVORCE_CASH_BUFFER) + currentSavingsAtSnapshot;
+  let requiredFromAssetLiquidation = Math.max(0, totalObligation - availableAtSnapshot);
 
   const originalHoldings = Array.isArray(gameState.stocks?.holdings) ? gameState.stocks.holdings : [];
   const updatedHoldings: NonNullable<GameState['stocks']>['holdings'] = [];
@@ -747,100 +756,126 @@ export const fileDivorce = (
     }
   }
 
-  let remainingObligation = totalObligation;
-  let newMoney = currentMoney + stockLiquidationGained + propertyLiquidationGained;
-  let newSavings = currentSavings;
+  // Audit estimates against the snapshot — these are what the modal/log show.
+  // The actual amounts applied to state are recomputed below against `prev`
+  // and will match these in the common case (no concurrent state change in
+  // the gap between snapshot and commit).
+  let estimatedRemaining = totalObligation;
+  let estimatedMoney = currentMoneyAtSnapshot + stockLiquidationGained + propertyLiquidationGained;
+  let estimatedSavings = currentSavingsAtSnapshot;
+  const estFromMoney = Math.min(
+    estimatedRemaining,
+    Math.max(0, estimatedMoney - MIN_DIVORCE_CASH_BUFFER),
+  );
+  estimatedMoney -= estFromMoney;
+  estimatedRemaining -= estFromMoney;
+  const estFromSavings = Math.min(estimatedRemaining, Math.max(0, estimatedSavings));
+  estimatedSavings -= estFromSavings;
+  estimatedRemaining -= estFromSavings;
+  const estimatedDebtShortfall = Math.max(0, Math.ceil(estimatedRemaining));
+  const estimatedImmediatePayment = totalObligation - estimatedDebtShortfall;
 
-  const fromMoney = Math.min(remainingObligation, Math.max(0, newMoney - MIN_DIVORCE_CASH_BUFFER));
-  newMoney -= fromMoney;
-  remainingObligation -= fromMoney;
-
-  const fromSavings = Math.min(remainingObligation, Math.max(0, newSavings));
-  newSavings -= fromSavings;
-  remainingObligation -= fromSavings;
-
-  const debtShortfall = Math.max(0, Math.ceil(remainingObligation));
-  const immediatePayment = totalObligation - debtShortfall;
-
-  const existingLoans = [...(gameState.loans || [])];
-  if (debtShortfall > 0) {
-    const weeklyPayment = Math.max(
-      50,
-      Math.round(
-        Math.max(
-          debtShortfall / DIVORCE_DEBT_TERM_WEEKS,
-          debtShortfall * 0.005
-        )
-      )
-    );
-    existingLoans.push({
-      id: `divorce_loan_${spouseId}_${gameState.weeksLived || 0}_${existingLoans.length + 1}`,
-      name: 'Divorce Settlement Debt',
-      principal: debtShortfall,
-      remaining: debtShortfall,
-      rateAPR: DIVORCE_DEBT_APR,
-      termWeeks: DIVORCE_DEBT_TERM_WEEKS,
-      weeklyPayment,
-      startWeek: gameState.weeksLived || 0,
-      autoPay: true,
-      type: 'personal',
-      weeksRemaining: DIVORCE_DEBT_TERM_WEEKS,
-      interestRate: DIVORCE_DEBT_APR,
-    });
-  }
-  const updatedLoans = existingLoans;
-
-  const baseStats = gameState.stats || ({} as GameState['stats']);
-  const updatedStats: GameState['stats'] = { ...baseStats };
-  updatedStats.money = Math.max(0, newMoney);
-  updatedStats.happiness = Math.max(0, Math.min(100, safeNumber(updatedStats.happiness) - 40));
-  updatedStats.reputation = Math.max(0, Math.min(100, safeNumber(updatedStats.reputation) - 10));
-
-  const updatedRelationships = (gameState.relationships || [])
-    .map(r => (r.id === spouseId ? { ...r, livingTogether: false } : r))
-    .filter(r => r.id !== spouseId);
-
-  const nextRngCommitLog = commitDeterministicRolls(gameState, rngCommitKeys, gameState.weeksLived || 0);
-
-  const immediatePaymentApplied = immediatePayment;
-  const divorceDebtCreated = debtShortfall;
+  const immediatePaymentApplied = estimatedImmediatePayment;
+  const divorceDebtCreated = estimatedDebtShortfall;
   const forcedStockLiquidationPaid = stockLiquidationGained;
   const forcedPropertyLiquidationPaid = propertyLiquidationGained;
-  const newWeeksLived = gameState.weeksLived || 0;
 
-  setGameState(prev => ({
-    ...prev,
-    stats: updatedStats,
-    bankSavings: Math.max(0, newSavings),
-    stocks: prev.stocks
-      ? {
-          ...prev.stocks,
-          holdings: updatedHoldings,
-        }
-      : prev.stocks,
-    realEstate: updatedRealEstate,
-    loans: updatedLoans,
-    relationships: updatedRelationships,
-    family: {
-      ...prev.family,
-      spouse: undefined,
-    },
-    // ANTI-EXPLOIT: Track divorce week for cooldown (prevent marry/divorce cycling)
-    lastDivorceWeek: newWeeksLived,
-    // Merge our deltas with whatever dailySummary `prev` has so a concurrent
-    // weekly tick's summary entries aren't blown away.
-    dailySummary: {
-      ...prev.dailySummary,
-      moneyChange: (prev.dailySummary?.moneyChange || 0) - immediatePayment,
-      statsChange: {
-        ...(prev.dailySummary?.statsChange || {}),
-        happiness: (prev.dailySummary?.statsChange?.happiness || 0) - 40,
-        reputation: (prev.dailySummary?.statsChange?.reputation || 0) - 10,
+  setGameState(prev => {
+    // Phase 2: derive cash/loans/relationships/RNG from prev so a concurrent
+    // weekly tick (or any other queued action) isn't clobbered.
+    const prevMoney = Math.max(0, safeNumber(prev.stats?.money));
+    const prevSavings = Math.max(0, safeNumber(prev.bankSavings));
+
+    let remaining = totalObligation;
+    let workingMoney = prevMoney + stockLiquidationGained + propertyLiquidationGained;
+    let workingSavings = prevSavings;
+
+    const fromMoney = Math.min(remaining, Math.max(0, workingMoney - MIN_DIVORCE_CASH_BUFFER));
+    workingMoney -= fromMoney;
+    remaining -= fromMoney;
+
+    const fromSavings = Math.min(remaining, Math.max(0, workingSavings));
+    workingSavings -= fromSavings;
+    remaining -= fromSavings;
+
+    const actualDebtShortfall = Math.max(0, Math.ceil(remaining));
+    const actualImmediatePayment = totalObligation - actualDebtShortfall;
+
+    const newLoans = [...(prev.loans || [])];
+    if (actualDebtShortfall > 0) {
+      const weeklyPayment = Math.max(
+        50,
+        Math.round(
+          Math.max(
+            actualDebtShortfall / DIVORCE_DEBT_TERM_WEEKS,
+            actualDebtShortfall * 0.005,
+          ),
+        ),
+      );
+      newLoans.push({
+        id: `divorce_loan_${spouseId}_${prev.weeksLived || 0}_${newLoans.length + 1}`,
+        name: 'Divorce Settlement Debt',
+        principal: actualDebtShortfall,
+        remaining: actualDebtShortfall,
+        rateAPR: DIVORCE_DEBT_APR,
+        termWeeks: DIVORCE_DEBT_TERM_WEEKS,
+        weeklyPayment,
+        startWeek: prev.weeksLived || 0,
+        autoPay: true,
+        type: 'personal',
+        weeksRemaining: DIVORCE_DEBT_TERM_WEEKS,
+        interestRate: DIVORCE_DEBT_APR,
+      });
+    }
+
+    const baseStats = prev.stats || ({} as GameState['stats']);
+    const nextStats: GameState['stats'] = { ...baseStats };
+    nextStats.money = Math.max(0, workingMoney);
+    nextStats.happiness = Math.max(0, Math.min(100, safeNumber(nextStats.happiness) - 40));
+    nextStats.reputation = Math.max(0, Math.min(100, safeNumber(nextStats.reputation) - 10));
+
+    const nextRelationships = (prev.relationships || [])
+      .map(r => (r.id === spouseId ? { ...r, livingTogether: false } : r))
+      .filter(r => r.id !== spouseId);
+
+    const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
+
+    return {
+      ...prev,
+      stats: nextStats,
+      bankSavings: Math.max(0, workingSavings),
+      stocks: prev.stocks
+        ? {
+            ...prev.stocks,
+            holdings: updatedHoldings,
+          }
+        : prev.stocks,
+      realEstate: updatedRealEstate,
+      loans: newLoans,
+      relationships: nextRelationships,
+      family: {
+        ...prev.family,
+        spouse: undefined,
       },
-      events: prev.dailySummary?.events || [],
-    },
-    rngCommitLog: nextRngCommitLog,
-  }));
+      // ANTI-EXPLOIT: Track divorce week for cooldown (prevent marry/divorce cycling)
+      lastDivorceWeek: prev.weeksLived || 0,
+      // Merge our deltas with whatever dailySummary `prev` has so a concurrent
+      // weekly tick's summary entries aren't blown away. Use the ACTUAL
+      // immediate payment (derived from prev) so the running money tally is
+      // consistent with what we just deducted.
+      dailySummary: {
+        ...prev.dailySummary,
+        moneyChange: (prev.dailySummary?.moneyChange || 0) - actualImmediatePayment,
+        statsChange: {
+          ...(prev.dailySummary?.statsChange || {}),
+          happiness: (prev.dailySummary?.statsChange?.happiness || 0) - 40,
+          reputation: (prev.dailySummary?.statsChange?.reputation || 0) - 10,
+        },
+        events: prev.dailySummary?.events || [],
+      },
+      rngCommitLog: nextRngCommitLog,
+    };
+  });
 
   const funnyDivorceQuotes = [
     "'I thought till death do us part meant something.'",
