@@ -367,7 +367,7 @@ export function stakeCrypto(
       cryptoId,
       amount,
       lockWeeks,
-      startWeek: prev.week,
+      startWeek: prev.weeksLived || 0,
       startAbsoluteWeek: prev.weeksLived || 0,
       lastClaimAbsoluteWeek: prev.weeksLived || 0,
       rewardRate,
@@ -603,7 +603,9 @@ export function updateMiningStatistics(
       miningHistory: [
         ...(stats.miningHistory || []).slice(-99), // Keep last 100 entries
         {
-          week: prev.week,
+          // Absolute week so history is time-ordered. `prev.week` is the 1-4
+          // week-of-month cycle and would corrupt the chronological order.
+          week: prev.weeksLived || 0,
           earnings,
           cryptoMined,
           powerCost,

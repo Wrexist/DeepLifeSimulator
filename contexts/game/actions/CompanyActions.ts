@@ -6,6 +6,7 @@ import { GameState, Company, CompanyUpgrade } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('CompanyActions');
 
@@ -48,7 +49,11 @@ export const createCompany = (
   const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
   
   if (currentMoney < cost) {
-    return { success: false, message: 'Insufficient funds' };
+    const shortfall = cost - currentMoney;
+    return {
+      success: false,
+      message: `Need ${formatMoney(cost)} to start this company — you have ${formatMoney(currentMoney)} (${formatMoney(shortfall)} short).`,
+    };
   }
 
   if ((gameState.companies || []).find(c => c.id === companyType)) {
@@ -217,7 +222,7 @@ export const buyCompanyUpgrade = (
   const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
 
   if (currentMoney < costOuter) {
-    return { success: false, message: `You need $${costOuter.toLocaleString()} to purchase this upgrade.` };
+    return { success: false, message: `Need ${formatMoney(costOuter)} for this upgrade — you have ${formatMoney(gameState.stats.money)} (${formatMoney(costOuter - gameState.stats.money)} short).` };
   }
 
   // Track whether the updater actually applied the upgrade (not stale/rejected)

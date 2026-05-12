@@ -19,9 +19,12 @@ import {
   Heart,
   DollarSign,
   Zap,
+  Mail,
+  BookOpen,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/GameContext';
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 const { width: _screenWidth } = Dimensions.get('window');
 
@@ -256,7 +259,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                     Net Worth
                   </Text>
                   <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
-                    ${((gameState.stats.money || 0) + (gameState.bankSavings || 0)).toLocaleString()}
+                    {formatMoney((gameState.stats.money || 0) + (gameState.bankSavings || 0))}
                   </Text>
                 </View>
               </View>
@@ -276,7 +279,10 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
               </View>
             </View>
 
-            {/* ENGAGEMENT: Scaled Welcome Back Bonus */}
+            {/* ENGAGEMENT: Scaled Welcome Back Bonus + "what's waiting" preview.
+                Surfacing pending events / cliffhanger / partner status creates a
+                forward narrative hook ("I want to see what happens") rather than
+                just a stats snapshot ("here's what you had"). */}
             <View style={styles.infoContainer}>
               {(() => {
                 // Calculate welcome bonus based on player income level
@@ -285,6 +291,14 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 const rewardWeeks = Math.min(Math.max(daysAway, 1), 7);
                 const welcomeBonus = Math.max(100, Math.round(weeklySalary * rewardWeeks * 0.5));
                 const streakCount = gameState.playStreak?.count || 0;
+                const pendingEventsCount = (gameState.pendingEvents || []).length;
+                const hasCliffhanger = !!gameState.pendingCliffhanger;
+                const neglectedPartner = (gameState.relationships || []).find(
+                  (r: any) =>
+                    (r?.type === 'partner' || r?.type === 'spouse') &&
+                    typeof r?.relationshipScore === 'number' &&
+                    r.relationshipScore <= 40
+                );
                 return (
                   <>
                     <View style={styles.infoRow}>
@@ -292,7 +306,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                         <DollarSign size={scale(18)} color="#10B981" />
                       </View>
                       <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                        Welcome back bonus: +${welcomeBonus.toLocaleString()}
+                        Welcome back bonus: +{formatMoney(welcomeBonus)}
                       </Text>
                     </View>
                     {streakCount > 1 && (
@@ -302,6 +316,38 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                         </View>
                         <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
                           Play streak: {streakCount} days (+{Math.min(streakCount * 2, 20)}% income)
+                        </Text>
+                      </View>
+                    )}
+                    {pendingEventsCount > 0 && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIcon}>
+                          <Mail size={scale(18)} color="#3B82F6" />
+                        </View>
+                        <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                          {pendingEventsCount === 1
+                            ? '1 event is waiting for your decision'
+                            : `${pendingEventsCount} events are waiting for your decision`}
+                        </Text>
+                      </View>
+                    )}
+                    {hasCliffhanger && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIcon}>
+                          <BookOpen size={scale(18)} color="#A855F7" />
+                        </View>
+                        <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]} numberOfLines={2}>
+                          Story unresolved: {gameState.pendingCliffhanger?.teaser || 'something happened while you were away.'}
+                        </Text>
+                      </View>
+                    )}
+                    {neglectedPartner && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIcon}>
+                          <Heart size={scale(18)} color="#EF4444" />
+                        </View>
+                        <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                          {neglectedPartner.name || 'Your partner'} has been missing you.
                         </Text>
                       </View>
                     )}

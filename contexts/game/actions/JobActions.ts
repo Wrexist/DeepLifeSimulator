@@ -52,7 +52,10 @@ export const performStreetJob = (
   }
 
   if (gameState.stats.energy < job.energyCost) {
-    return { success: false, message: 'Not enough energy' };
+    return {
+      success: false,
+      message: `This job needs ${job.energyCost} energy — you have ${gameState.stats.energy}. Rest up or eat something first.`,
+    };
   }
 
   // Check prerequisites - items
