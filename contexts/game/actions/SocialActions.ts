@@ -54,7 +54,10 @@ export const interactRelation = (
   if (!relation) return { success: false, message: 'Person not found' };
 
   if (gameState.stats.energy < 10) {
-    return { success: false, message: 'Not enough energy' };
+    return {
+      success: false,
+      message: `Need 10 energy to interact — you have ${gameState.stats.energy}. Try eating, sleeping, or skipping a week to recover.`,
+    };
   }
 
   // ANTI-EXPLOIT: Check weekly interaction count for this relationship

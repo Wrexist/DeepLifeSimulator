@@ -1,5 +1,6 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
+import { Briefcase, ChevronRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
@@ -213,6 +214,37 @@ function HomeScreenContent() {
           />
         )}
 
+        {/* FTUE: prominent "Find Your First Job" CTA for brand-new players
+            who have not yet earned money any way. Goes away as soon as they
+            have a career or have completed even one street job. */}
+        {(() => {
+          const weeksLived = gameState.weeksLived || 0;
+          const hasJob = !!gameState.currentJob;
+          const hasDoneStreetJob = (gameState.streetJobsCompleted ?? 0) > 0;
+          const isBrandNew = weeksLived <= 5 && !hasJob && !hasDoneStreetJob;
+          if (!isBrandNew) return null;
+          return (
+            <FadeInUp delay={30}>
+              <TouchableOpacity
+                style={styles.findJobCta}
+                onPress={() => router.push('/(tabs)/work')}
+                activeOpacity={0.85}
+              >
+                <View style={styles.findJobIconBubble}>
+                  <Briefcase size={scale(22)} color="#10B981" />
+                </View>
+                <View style={styles.findJobTextWrap}>
+                  <Text style={styles.findJobTitle}>Find your first job</Text>
+                  <Text style={styles.findJobSubtitle}>
+                    Tap to open the Work tab — street jobs pay 2-4× more than entry careers.
+                  </Text>
+                </View>
+                <ChevronRight size={scale(18)} color="#10B981" />
+              </TouchableOpacity>
+            </FadeInUp>
+          );
+        })()}
+
         {/* Prestige Button */}
         {gameState.prestigeAvailable && (
           <PrestigeButton onPress={() => setShowPrestigeModal(true)} />
@@ -227,8 +259,11 @@ function HomeScreenContent() {
           />
         )}
 
-        {/* Prestige Preview Card - Show if player hasn't prestiged yet */}
-        {(!gameState.prestige || gameState.prestige.prestigeLevel === 0) && (
+        {/* Prestige Preview Card - Show if player hasn't prestiged yet.
+            Hide for brand-new players: prestige is an abstract end-game
+            concept and lands like noise in the first session. */}
+        {(!gameState.prestige || gameState.prestige.prestigeLevel === 0) &&
+          (gameState.weeksLived || 0) > 5 && (
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
 
@@ -237,15 +272,15 @@ function HomeScreenContent() {
           <ActiveGoalsCard compact={false} />
         </FadeInUp>
 
-        {/* Legacy Goal Card (fallback) */}
-        {/* <NextGoalCard /> */}
-
-        {/* Discovery Progress Indicator */}
-        <DiscoveryIndicator
-          gameState={gameState}
-          compact={false}
-          darkMode={isDark}
-        />
+        {/* Discovery Progress Indicator. Hidden in the first few weeks so
+            the home screen isn't a wall of cards for first-time players. */}
+        {(gameState.weeksLived || 0) > 5 && (
+          <DiscoveryIndicator
+            gameState={gameState}
+            compact={false}
+            darkMode={isDark}
+          />
+        )}
 
         <FadeInUp delay={120}>
           <AchievementsProgress />
@@ -424,6 +459,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#60A5FA',
     borderRadius: responsiveBorderRadius.md,
     shadowColor: 'transparent',
+  },
+  findJobCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: responsiveSpacing.lg,
+    marginTop: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
+    padding: responsiveSpacing.lg,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderRadius: responsiveBorderRadius.xl,
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.5)',
+    gap: responsiveSpacing.md,
+  },
+  findJobIconBubble: {
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  findJobTextWrap: {
+    flex: 1,
+  },
+  findJobTitle: {
+    fontSize: responsiveFontSize.lg,
+    fontWeight: '700',
+    color: '#ECFDF5',
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
+  findJobSubtitle: {
+    fontSize: responsiveFontSize.sm,
+    color: '#A7F3D0',
+    lineHeight: 18,
   },
   rewardPreview: {
     flexDirection: 'row',

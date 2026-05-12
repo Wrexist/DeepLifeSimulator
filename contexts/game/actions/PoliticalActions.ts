@@ -10,6 +10,7 @@ import { updateStats } from './StatsActions';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS, canRunForOffice } from '@/lib/careers/political';
 import { POLICIES, getPolicyById, calculatePolicyEffects } from '@/lib/politics/policies';
 import { AVAILABLE_LOBBYISTS, getLobbyistById, calculateTotalLobbyistInfluence } from '@/lib/politics/lobbyists';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { getNextElectionWeek } from '@/lib/politics/elections';
 import type { Dispatch, SetStateAction } from 'react';
 import { CAMPAIGN_MINIMUM_AMOUNT } from '@/lib/config/gameConstants';
@@ -255,7 +256,10 @@ export const runForOffice = (
   const campaignCost = campaignCosts[office];
   
   if (gameState.stats.money < campaignCost) {
-    return { success: false, message: `You need $${campaignCost.toLocaleString()} to run for this office` };
+    return {
+      success: false,
+      message: `Need ${formatMoney(campaignCost)} to run for ${office} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(campaignCost - gameState.stats.money)} short).`,
+    };
   }
 
   // Pre-roll impure values before updater
@@ -405,7 +409,10 @@ export const enactPolicy = (
 
   // Check implementation cost
   if (gameState.stats.money < policy.implementationCost) {
-    return { success: false, message: `You need $${policy.implementationCost.toLocaleString()} to implement this policy` };
+    return {
+      success: false,
+      message: `Need ${formatMoney(policy.implementationCost)} to implement this policy — you have ${formatMoney(gameState.stats.money)} (${formatMoney(policy.implementationCost - gameState.stats.money)} short).`,
+    };
   }
 
   // Apply approval impact
@@ -469,7 +476,10 @@ export const lobby = (
   }
 
   if (gameState.stats.money < amount) {
-    return { success: false, message: 'Insufficient funds' };
+    return {
+      success: false,
+      message: `Need ${formatMoney(amount)} to lobby — you have ${formatMoney(gameState.stats.money)} (${formatMoney(amount - gameState.stats.money)} short).`,
+    };
   }
 
   if (amount < 1000) {
@@ -593,7 +603,10 @@ export const campaign = (
   deps: { updateMoney: typeof updateMoney }
 ): { success: boolean; message: string } => {
   if (gameState.stats.money < amount) {
-    return { success: false, message: 'Insufficient funds' };
+    return {
+      success: false,
+      message: `Need ${formatMoney(amount)} to fund this campaign — you have ${formatMoney(gameState.stats.money)} (${formatMoney(amount - gameState.stats.money)} short).`,
+    };
   }
 
   if (amount < CAMPAIGN_MINIMUM_AMOUNT) {
@@ -659,7 +672,10 @@ export const hireLobbyist = (
 
   // Check if player has enough money
   if (gameState.stats.money < lobbyist.cost) {
-    return { success: false, message: `You need $${lobbyist.cost.toLocaleString()} to hire ${lobbyist.name}` };
+    return {
+      success: false,
+      message: `Hiring ${lobbyist.name} costs ${formatMoney(lobbyist.cost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(lobbyist.cost - gameState.stats.money)} short).`,
+    };
   }
 
   // Add lobbyist to list
