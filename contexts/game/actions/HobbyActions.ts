@@ -24,7 +24,10 @@ export const trainHobby = (
   }
 
   if (gameState.stats.energy < hobby.energyCost) {
-    return { success: false, message: 'Not enough energy' };
+    return {
+      success: false,
+      message: `Need ${hobby.energyCost} energy to train ${hobby.name} — you have ${gameState.stats.energy}.`,
+    };
   }
 
   // ANTI-EXPLOIT: Limit hobby training to 5 sessions per hobby per week
@@ -84,7 +87,10 @@ export const enterHobbyTournament = (
   if (!hobby) return { success: false, message: 'Hobby not found' };
 
   if (gameState.stats.energy < 20) {
-    return { success: false, message: 'Not enough energy' };
+    return {
+      success: false,
+      message: `Need 20 energy for a tournament — you have ${gameState.stats.energy}.`,
+    };
   }
 
   deps.updateStats(setGameState, { energy: -20 });

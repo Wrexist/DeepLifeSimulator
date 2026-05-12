@@ -3,6 +3,7 @@ import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
+import { formatMoney } from '@/utils/moneyFormatting';
 import type { Dispatch, SetStateAction } from 'react';
 
 const log = logger.scope('TravelActions');
@@ -27,10 +28,19 @@ export const travelTo = (
   // Check requirements
   if (destination.requirements) {
     if ('money' in destination.requirements && destination.requirements.money && gameState.stats.money < destination.requirements.money) {
-      return { success: false, message: 'Insufficient funds for this destination' };
+      const needed = destination.requirements.money;
+      const shortfall = needed - gameState.stats.money;
+      return {
+        success: false,
+        message: `This destination needs ${formatMoney(needed)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(shortfall)} short).`,
+      };
     }
     if ('happiness' in destination.requirements && destination.requirements.happiness && gameState.stats.happiness < destination.requirements.happiness) {
-      return { success: false, message: 'You need higher happiness to visit this destination' };
+      const needed = destination.requirements.happiness;
+      return {
+        success: false,
+        message: `Need ${needed} happiness to visit (you have ${gameState.stats.happiness}). Try resting or socializing first.`,
+      };
     }
     if ('items' in destination.requirements && destination.requirements.items) {
       const hasPassport = destination.requirements.items.includes('passport');
@@ -48,7 +58,10 @@ export const travelTo = (
   const adjustedCost = Math.max(0, Math.floor(destination.cost * (1 - travelCostReduction / 100)));
 
   if (gameState.stats.money < adjustedCost) {
-    return { success: false, message: 'Insufficient funds' };
+    return {
+      success: false,
+      message: `${destination.name} costs ${formatMoney(adjustedCost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(adjustedCost - gameState.stats.money)} short).`,
+    };
   }
 
   deps.updateMoney(setGameState, -adjustedCost, `Travel to ${destination.name}`);
@@ -207,7 +220,10 @@ export const purchasePassport = (
   }
 
   if (gameState.stats.money < passportCost) {
-    return { success: false, message: 'Insufficient funds' };
+    return {
+      success: false,
+      message: `Passport costs ${formatMoney(passportCost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(passportCost - gameState.stats.money)} short).`,
+    };
   }
 
   deps.updateMoney(setGameState, -passportCost, 'Passport purchase');

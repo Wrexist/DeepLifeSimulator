@@ -412,7 +412,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
 
 /**
  * Roll for a cliffhanger to show on the weekly result sheet.
- * Returns null if no cliffhanger triggers (~10% chance when eligible).
+ * Returns null if no cliffhanger triggers (~22% chance when eligible).
  */
 export function rollCliffhanger(
   state: GameState,
@@ -421,9 +421,13 @@ export function rollCliffhanger(
   // Only roll if no cliffhanger is already pending
   if (state.pendingCliffhanger) return null;
 
-  // ~12% base chance
+  // Base chance: ~22% normally, bumped to ~32% in the first 12 weeks so new
+  // players hit the "what happens next?" narrative hook early in their first
+  // session rather than playing 10+ weeks without seeing one.
+  const weeksLived = state.weeksLived || 0;
+  const threshold = weeksLived <= 12 ? 0.32 : 0.22;
   const roll = ((seed * 997 + 31) % 100) / 100;
-  if (roll > 0.12) return null;
+  if (roll > threshold) return null;
 
   // Filter eligible cliffhangers
   const eligible = CLIFFHANGERS.filter(

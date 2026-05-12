@@ -8,6 +8,7 @@ import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { LAB_TYPES, getLabUpgradeCost, LabType } from '@/lib/rd/labs';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { getTechnologyById, getAvailableTechnologies, Technology } from '@/lib/rd/technologyTree';
 import { createPatent, updatePatents, calculatePatentIncome } from '@/lib/rd/patents';
 import { 
@@ -37,7 +38,10 @@ export const buildRDLab = (
   const cost = getLabUpgradeCost(currentLabType, labType);
 
   if (gameState.stats.money < cost) {
-    return { success: false, message: `You need $${cost.toLocaleString()} to build/upgrade the lab` };
+    return {
+      success: false,
+      message: `Lab upgrade costs ${formatMoney(cost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(cost - gameState.stats.money)} short).`,
+    };
   }
 
   // Update state: deduct money AND update company in a single state update to avoid race conditions
@@ -115,7 +119,10 @@ export const startResearch = (
 
   // Check cost
   if (gameState.stats.money < technology.researchCost) {
-    return { success: false, message: `You need $${technology.researchCost.toLocaleString()} to start this research` };
+    return {
+      success: false,
+      message: `Research costs ${formatMoney(technology.researchCost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(technology.researchCost - gameState.stats.money)} short).`,
+    };
   }
 
   // Apply technology policy effects (R&D bonus)

@@ -168,6 +168,11 @@ export default function AchievementsProgress() {
     return filtered;
   }, [categorizedAchievements, selectedCategory, showSecret]);
 
+  // ENGAGEMENT: for the first 12 weeks, bias the not-started list to show
+  // beginner-tier achievements first. Otherwise a brand-new player sees a wall
+  // of $1B-cash targets at the top and feels the game is unwinnable.
+  const isEarlyGame = (gameState.weeksLived ?? 0) <= 12;
+
   // Sort achievements - show completed ones first, then by sort option
   const sortedAchievements = useMemo(() => {
     return [...filteredAchievements].sort((a, b) => {
@@ -176,11 +181,11 @@ export default function AchievementsProgress() {
       const bCompleted = b.claimed || b.progress >= 1;
       const aInProgress = a.progress > 0 && a.progress < 1;
       const bInProgress = b.progress > 0 && b.progress < 1;
-      
+
       // Completed achievements first
       if (aCompleted && !bCompleted) return -1;
       if (!aCompleted && bCompleted) return 1;
-      
+
       // Within completed, sort by completion time (claimed first, then by progress)
       if (aCompleted && bCompleted) {
         if (a.claimed && !b.claimed) return -1;
@@ -189,11 +194,19 @@ export default function AchievementsProgress() {
           return b.progress - a.progress;
         }
       }
-      
+
       // In-progress achievements next
       if (aInProgress && !bInProgress) return -1;
       if (!aInProgress && bInProgress) return 1;
-      
+
+      // Early-game bias: float beginner-tier achievements ahead of others.
+      if (isEarlyGame) {
+        const aIsBeginner = a.group === 'beginner';
+        const bIsBeginner = b.group === 'beginner';
+        if (aIsBeginner && !bIsBeginner) return -1;
+        if (!aIsBeginner && bIsBeginner) return 1;
+      }
+
       // Then apply the selected sort
       if (sort === 'progress') {
         return b.progress - a.progress;
@@ -207,7 +220,7 @@ export default function AchievementsProgress() {
       }
       return 0;
     });
-  }, [filteredAchievements, sort]);
+  }, [filteredAchievements, sort, isEarlyGame]);
 
   // Stats
   const stats = useMemo(() => {

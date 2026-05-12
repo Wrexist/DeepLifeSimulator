@@ -394,9 +394,12 @@ export function getSocialMediaData(state: GameState): SocialMediaData & {
     }
   }
   
-  const currentWeek = state.week;
+  // `lastPostWeek` is written as `weeksLived` (absolute) at the call sites,
+  // so compare against `weeksLived` here too. Comparing against `state.week`
+  // (the 1-4 week-of-month cycle) would always produce negative or wrapped values.
+  const currentWeek = state.weeksLived || 0;
   const lastPostWeek = socialMedia.lastPostWeek || 0;
-  const weeksSinceLastPost = currentWeek - lastPostWeek;
+  const weeksSinceLastPost = Math.max(0, currentWeek - lastPostWeek);
   
   // Calculate current influence level (using adjusted follower count)
   const influenceLevel = getInfluenceLevel(followers);
@@ -619,8 +622,11 @@ export function canCreateContentFull(
     };
   }
   
-  // Check weekly limit for this specific content type
-  const activeWeek = typeof currentWeek === 'number' ? currentWeek : state.week;
+  // Check weekly limit for this specific content type.
+  // `lastPostWeeks` entries should be stored as `weeksLived` (absolute); compare
+  // against the same scale. Falling back to `state.week` (1-4 cycle) would cause
+  // a year-long lockout whenever the cycle repeats.
+  const activeWeek = typeof currentWeek === 'number' ? currentWeek : (state.weeksLived || 0);
   if (lastPostWeeks && lastPostWeeks[contentType] === activeWeek) {
     return {
       canPost: false,

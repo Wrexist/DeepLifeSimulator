@@ -2,6 +2,7 @@ import React from 'react';
 import { GameState, FamilyBusiness, Company } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('FamilyBusinessActions');
 
@@ -80,8 +81,11 @@ export const manageFamilyBusiness = (
   }
 
   if (gameState.stats.money < cost) {
-    // Should handle insufficient funds in UI, but check here too
-    return { success: false, message: 'Insufficient funds' };
+    const shortfall = cost - gameState.stats.money;
+    return {
+      success: false,
+      message: `Need ${formatMoney(cost)} for "${action}" — you have ${formatMoney(gameState.stats.money)} (${formatMoney(shortfall)} short).`,
+    };
   }
 
   deps.updateMoney(setGameState, -cost, `Family Business: ${action}`);

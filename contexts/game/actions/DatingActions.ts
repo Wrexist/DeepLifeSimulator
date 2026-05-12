@@ -30,6 +30,7 @@ import {
 } from '@/lib/dating/weddingVenues';
 import type { Dispatch, SetStateAction } from 'react';
 import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('DatingActions');
 
@@ -269,7 +270,11 @@ export const proposeMarriage = (
 
   // Check if can afford
   if (gameState.stats.money < ring.price) {
-    return { success: false, message: `You need $${ring.price.toLocaleString()} for this ring.`, accepted: false };
+    return {
+      success: false,
+      message: `This ring costs ${formatMoney(ring.price)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(ring.price - gameState.stats.money)} short).`,
+      accepted: false,
+    };
   }
 
   // Check relationship score
@@ -402,7 +407,10 @@ export const planWedding = (
   // Check if can afford deposit (25% upfront)
   const deposit = Math.floor(plan.budget * 0.25);
   if (gameState.stats.money < deposit) {
-    return { success: false, message: `You need $${deposit.toLocaleString()} for the deposit.` };
+    return {
+      success: false,
+      message: `Wedding deposit is ${formatMoney(deposit)} (25% of budget) — you have ${formatMoney(gameState.stats.money)} (${formatMoney(deposit - gameState.stats.money)} short).`,
+    };
   }
 
   // Save wedding plan
@@ -449,7 +457,10 @@ export const executeWedding = (
   // Pay remaining balance (75%)
   const remainingBalance = Math.floor(plan.budget * 0.75);
   if (gameState.stats.money < remainingBalance) {
-    return { success: false, message: `You need $${remainingBalance.toLocaleString()} to finalize the wedding!` };
+    return {
+      success: false,
+      message: `Wedding balance is ${formatMoney(remainingBalance)} (the remaining 75%) — you have ${formatMoney(gameState.stats.money)} (${formatMoney(remainingBalance - gameState.stats.money)} short).`,
+    };
   }
 
   // Calculate bonuses
@@ -637,150 +648,188 @@ export const fileDivorce = (
   const quoteRoll = getDeterministicRoll(gameState, quoteRollKey);
   rngCommitKeys.push(quoteRollKey);
 
-  let immediatePaymentApplied = 0;
-  let divorceDebtCreated = 0;
-  let forcedStockLiquidationPaid = 0;
-  let forcedPropertyLiquidationPaid = 0;
+  // Compute all financial effects from `gameState` (the action snapshot) BEFORE
+  // calling setGameState. Doing the math inside a `setGameState(prev => …)`
+  // updater would leave the audit values (used in the log and the returned
+  // message below) unread until React processes the queued update — which is
+  // asynchronous. The variables would still be 0 when log.info / message
+  // composition ran. Computing here against `gameState` is safe: divorce is a
+  // user-confirmed action with a 26-week cooldown, so concurrent state churn is
+  // not a realistic concern, and the user already accepts that the displayed
+  // settlement is based on the state they saw when they clicked.
+  const currentMoney = Math.max(0, safeNumber(gameState.stats?.money));
+  const currentSavings = Math.max(0, safeNumber(gameState.bankSavings));
 
-  setGameState(prev => {
-    const currentMoney = Math.max(0, safeNumber(prev.stats?.money));
-    const currentSavings = Math.max(0, safeNumber(prev.bankSavings));
+  const availableWithoutLiquidation = Math.max(0, currentMoney - MIN_DIVORCE_CASH_BUFFER) + currentSavings;
+  let requiredFromAssetLiquidation = Math.max(0, totalObligation - availableWithoutLiquidation);
 
-    const availableWithoutLiquidation = Math.max(0, currentMoney - MIN_DIVORCE_CASH_BUFFER) + currentSavings;
-    let requiredFromAssetLiquidation = Math.max(0, totalObligation - availableWithoutLiquidation);
+  const originalHoldings = Array.isArray(gameState.stocks?.holdings) ? gameState.stocks.holdings : [];
+  const updatedHoldings: NonNullable<GameState['stocks']>['holdings'] = [];
+  let stockLiquidationGained = 0;
 
-    const originalHoldings = Array.isArray(prev.stocks?.holdings) ? prev.stocks.holdings : [];
-    const updatedHoldings: NonNullable<GameState['stocks']>['holdings'] = [];
-    let stockLiquidationGained = 0;
+  originalHoldings.forEach(holding => {
+    const shares = Math.max(0, safeNumber(holding.shares));
+    const currentPrice = Math.max(0, safeNumber(holding.currentPrice));
+    const proceedsPerShare = currentPrice * FORCED_STOCK_LIQUIDATION_RATE;
 
-    originalHoldings.forEach(holding => {
-      const shares = Math.max(0, safeNumber(holding.shares));
-      const currentPrice = Math.max(0, safeNumber(holding.currentPrice));
-      const proceedsPerShare = currentPrice * FORCED_STOCK_LIQUIDATION_RATE;
+    if (requiredFromAssetLiquidation <= 0 || shares <= 0 || proceedsPerShare <= 0) {
+      updatedHoldings.push(holding);
+      return;
+    }
 
-      if (requiredFromAssetLiquidation <= 0 || shares <= 0 || proceedsPerShare <= 0) {
-        updatedHoldings.push(holding);
-        return;
-      }
-
-      const maxProceeds = shares * proceedsPerShare;
-      if (maxProceeds <= requiredFromAssetLiquidation + 0.0001) {
-        const realized = Math.floor(maxProceeds);
-        stockLiquidationGained += realized;
-        requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - realized);
-        return;
-      }
-
-      const sharesToSell = Math.min(shares, Math.ceil(requiredFromAssetLiquidation / proceedsPerShare));
-      const realized = Math.floor(sharesToSell * proceedsPerShare);
-      if (realized <= 0) {
-        updatedHoldings.push(holding);
-        return;
-      }
-
+    const maxProceeds = shares * proceedsPerShare;
+    if (maxProceeds <= requiredFromAssetLiquidation + 0.0001) {
+      const realized = Math.floor(maxProceeds);
       stockLiquidationGained += realized;
       requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - realized);
+      return;
+    }
 
-      const remainingShares = Math.max(0, shares - sharesToSell);
-      if (remainingShares > 0) {
-        updatedHoldings.push({
-          ...holding,
-          shares: remainingShares,
-        });
-      }
+    const sharesToSell = Math.min(shares, Math.ceil(requiredFromAssetLiquidation / proceedsPerShare));
+    const realized = Math.floor(sharesToSell * proceedsPerShare);
+    if (realized <= 0) {
+      updatedHoldings.push(holding);
+      return;
+    }
+
+    stockLiquidationGained += realized;
+    requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - realized);
+
+    const remainingShares = Math.max(0, shares - sharesToSell);
+    if (remainingShares > 0) {
+      updatedHoldings.push({
+        ...holding,
+        shares: remainingShares,
+      });
+    }
+  });
+
+  let propertyLiquidationGained = 0;
+  let updatedRealEstate = Array.isArray(gameState.realEstate) ? [...gameState.realEstate] : [];
+  if (requiredFromAssetLiquidation > 0 && updatedRealEstate.length > 0) {
+    const liquidationCandidates = updatedRealEstate
+      .filter(property => property?.owned)
+      .map(property => {
+        const currentValue = safeNumber(property.currentValue);
+        const baseValue = safeNumber(property.price);
+        const liquidationBase = Math.max(0, currentValue || baseValue);
+        const proceeds = Math.floor(liquidationBase * FORCED_REAL_ESTATE_LIQUIDATION_RATE);
+        return { id: property.id, proceeds };
+      })
+      .filter(candidate => candidate.proceeds > 0)
+      .sort((a, b) => b.proceeds - a.proceeds);
+
+    const liquidatedPropertyIds = new Set<string>();
+    liquidationCandidates.forEach(candidate => {
+      if (requiredFromAssetLiquidation <= 0) return;
+      liquidatedPropertyIds.add(candidate.id);
+      propertyLiquidationGained += candidate.proceeds;
+      requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - candidate.proceeds);
     });
 
-    let propertyLiquidationGained = 0;
-    let updatedRealEstate = Array.isArray(prev.realEstate) ? [...prev.realEstate] : [];
-    if (requiredFromAssetLiquidation > 0 && updatedRealEstate.length > 0) {
-      const liquidationCandidates = updatedRealEstate
-        .filter(property => property?.owned)
-        .map(property => {
-          const currentValue = safeNumber(property.currentValue);
-          const baseValue = safeNumber(property.price);
-          const liquidationBase = Math.max(0, currentValue || baseValue);
-          const proceeds = Math.floor(liquidationBase * FORCED_REAL_ESTATE_LIQUIDATION_RATE);
-          return { id: property.id, proceeds };
-        })
-        .filter(candidate => candidate.proceeds > 0)
-        .sort((a, b) => b.proceeds - a.proceeds);
+    if (liquidatedPropertyIds.size > 0) {
+      updatedRealEstate = updatedRealEstate.map(property => {
+        if (!property?.owned || !liquidatedPropertyIds.has(property.id)) {
+          return property;
+        }
 
-      const liquidatedPropertyIds = new Set<string>();
-      liquidationCandidates.forEach(candidate => {
-        if (requiredFromAssetLiquidation <= 0) return;
-        liquidatedPropertyIds.add(candidate.id);
-        propertyLiquidationGained += candidate.proceeds;
-        requiredFromAssetLiquidation = Math.max(0, requiredFromAssetLiquidation - candidate.proceeds);
+        const propertyAny = property as any;
+        const { currentResidence: _ignoredCurrentResidence, ...withoutResidence } = propertyAny;
+        return {
+          ...withoutResidence,
+          owned: false,
+          status: 'vacant' as const,
+          rent: 0,
+          upkeep: 0,
+          currentValue: safeNumber(property.price),
+        };
       });
-
-      if (liquidatedPropertyIds.size > 0) {
-        updatedRealEstate = updatedRealEstate.map(property => {
-          if (!property?.owned || !liquidatedPropertyIds.has(property.id)) {
-            return property;
-          }
-
-          const propertyAny = property as any;
-          const { currentResidence: _ignoredCurrentResidence, ...withoutResidence } = propertyAny;
-          return {
-            ...withoutResidence,
-            owned: false,
-            status: 'vacant' as const,
-            rent: 0,
-            upkeep: 0,
-            currentValue: safeNumber(property.price),
-          };
-        });
-      }
     }
+  }
 
-    let remainingObligation = totalObligation;
-    let newMoney = currentMoney + stockLiquidationGained + propertyLiquidationGained;
-    let newSavings = currentSavings;
+  let remainingObligation = totalObligation;
+  let newMoney = currentMoney + stockLiquidationGained + propertyLiquidationGained;
+  let newSavings = currentSavings;
 
-    const fromMoney = Math.min(remainingObligation, Math.max(0, newMoney - MIN_DIVORCE_CASH_BUFFER));
-    newMoney -= fromMoney;
-    remainingObligation -= fromMoney;
+  const fromMoney = Math.min(remainingObligation, Math.max(0, newMoney - MIN_DIVORCE_CASH_BUFFER));
+  newMoney -= fromMoney;
+  remainingObligation -= fromMoney;
 
-    const fromSavings = Math.min(remainingObligation, Math.max(0, newSavings));
-    newSavings -= fromSavings;
-    remainingObligation -= fromSavings;
+  const fromSavings = Math.min(remainingObligation, Math.max(0, newSavings));
+  newSavings -= fromSavings;
+  remainingObligation -= fromSavings;
 
-    const debtShortfall = Math.max(0, Math.ceil(remainingObligation));
-    const immediatePayment = totalObligation - debtShortfall;
+  const debtShortfall = Math.max(0, Math.ceil(remainingObligation));
+  const immediatePayment = totalObligation - debtShortfall;
 
-    const updatedLoans = [...(prev.loans || [])];
-    if (debtShortfall > 0) {
-      const weeklyPayment = Math.max(
-        50,
-        Math.round(
-          Math.max(
-            debtShortfall / DIVORCE_DEBT_TERM_WEEKS,
-            debtShortfall * 0.005
-          )
+  const existingLoans = [...(gameState.loans || [])];
+  if (debtShortfall > 0) {
+    const weeklyPayment = Math.max(
+      50,
+      Math.round(
+        Math.max(
+          debtShortfall / DIVORCE_DEBT_TERM_WEEKS,
+          debtShortfall * 0.005
         )
-      );
-      updatedLoans.push({
-        id: `divorce_loan_${spouseId}_${prev.weeksLived || 0}_${updatedLoans.length + 1}`,
-        name: 'Divorce Settlement Debt',
-        principal: debtShortfall,
-        remaining: debtShortfall,
-        rateAPR: DIVORCE_DEBT_APR,
-        termWeeks: DIVORCE_DEBT_TERM_WEEKS,
-        weeklyPayment,
-        startWeek: prev.weeksLived || prev.week || 0,
-        autoPay: true,
-        type: 'personal',
-        weeksRemaining: DIVORCE_DEBT_TERM_WEEKS,
-        interestRate: DIVORCE_DEBT_APR,
-      });
-    }
+      )
+    );
+    existingLoans.push({
+      id: `divorce_loan_${spouseId}_${gameState.weeksLived || 0}_${existingLoans.length + 1}`,
+      name: 'Divorce Settlement Debt',
+      principal: debtShortfall,
+      remaining: debtShortfall,
+      rateAPR: DIVORCE_DEBT_APR,
+      termWeeks: DIVORCE_DEBT_TERM_WEEKS,
+      weeklyPayment,
+      startWeek: gameState.weeksLived || 0,
+      autoPay: true,
+      type: 'personal',
+      weeksRemaining: DIVORCE_DEBT_TERM_WEEKS,
+      interestRate: DIVORCE_DEBT_APR,
+    });
+  }
+  const updatedLoans = existingLoans;
 
-    const updatedStats = { ...prev.stats };
-    updatedStats.money = Math.max(0, newMoney);
-    updatedStats.happiness = Math.max(0, Math.min(100, safeNumber(updatedStats.happiness) - 40));
-    updatedStats.reputation = Math.max(0, Math.min(100, safeNumber(updatedStats.reputation) - 10));
+  const baseStats = gameState.stats || ({} as GameState['stats']);
+  const updatedStats: GameState['stats'] = { ...baseStats };
+  updatedStats.money = Math.max(0, newMoney);
+  updatedStats.happiness = Math.max(0, Math.min(100, safeNumber(updatedStats.happiness) - 40));
+  updatedStats.reputation = Math.max(0, Math.min(100, safeNumber(updatedStats.reputation) - 10));
 
-    const dailySummary = {
+  const updatedRelationships = (gameState.relationships || [])
+    .map(r => (r.id === spouseId ? { ...r, livingTogether: false } : r))
+    .filter(r => r.id !== spouseId);
+
+  const nextRngCommitLog = commitDeterministicRolls(gameState, rngCommitKeys, gameState.weeksLived || 0);
+
+  const immediatePaymentApplied = immediatePayment;
+  const divorceDebtCreated = debtShortfall;
+  const forcedStockLiquidationPaid = stockLiquidationGained;
+  const forcedPropertyLiquidationPaid = propertyLiquidationGained;
+  const newWeeksLived = gameState.weeksLived || 0;
+
+  setGameState(prev => ({
+    ...prev,
+    stats: updatedStats,
+    bankSavings: Math.max(0, newSavings),
+    stocks: prev.stocks
+      ? {
+          ...prev.stocks,
+          holdings: updatedHoldings,
+        }
+      : prev.stocks,
+    realEstate: updatedRealEstate,
+    loans: updatedLoans,
+    relationships: updatedRelationships,
+    family: {
+      ...prev.family,
+      spouse: undefined,
+    },
+    // ANTI-EXPLOIT: Track divorce week for cooldown (prevent marry/divorce cycling)
+    lastDivorceWeek: newWeeksLived,
+    // Merge our deltas with whatever dailySummary `prev` has so a concurrent
+    // weekly tick's summary entries aren't blown away.
+    dailySummary: {
       ...prev.dailySummary,
       moneyChange: (prev.dailySummary?.moneyChange || 0) - immediatePayment,
       statsChange: {
@@ -789,42 +838,9 @@ export const fileDivorce = (
         reputation: (prev.dailySummary?.statsChange?.reputation || 0) - 10,
       },
       events: prev.dailySummary?.events || [],
-    };
-
-    const relationships = (prev.relationships || [])
-      .map(r => (r.id === spouseId ? { ...r, livingTogether: false } : r))
-      .filter(r => r.id !== spouseId);
-
-    const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
-
-    immediatePaymentApplied = immediatePayment;
-    divorceDebtCreated = debtShortfall;
-    forcedStockLiquidationPaid = stockLiquidationGained;
-    forcedPropertyLiquidationPaid = propertyLiquidationGained;
-
-    return {
-      ...prev,
-      stats: updatedStats,
-      bankSavings: Math.max(0, newSavings),
-      stocks: prev.stocks
-        ? {
-            ...prev.stocks,
-            holdings: updatedHoldings,
-          }
-        : prev.stocks,
-      realEstate: updatedRealEstate,
-      loans: updatedLoans,
-      relationships,
-      family: {
-        ...prev.family,
-        spouse: undefined,
-      },
-      // ANTI-EXPLOIT: Track divorce week for cooldown (prevent marry/divorce cycling)
-      lastDivorceWeek: prev.weeksLived || 0,
-      dailySummary,
-      rngCommitLog: nextRngCommitLog,
-    };
-  });
+    },
+    rngCommitLog: nextRngCommitLog,
+  }));
 
   const funnyDivorceQuotes = [
     "'I thought till death do us part meant something.'",

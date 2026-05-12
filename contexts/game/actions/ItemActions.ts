@@ -6,6 +6,7 @@ import { GameState, HackResult } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('ItemActions');
 
@@ -41,7 +42,11 @@ export const buyItem = (
   const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
   
   if (currentMoney < price) {
-    return { success: false, message: 'Not enough money' }; // Not enough money
+    const shortfall = price - currentMoney;
+    return {
+      success: false,
+      message: `Need ${formatMoney(price)} — you have ${formatMoney(currentMoney)} (${formatMoney(shortfall)} short).`,
+    };
   }
 
   // CRITICAL FIX: Combine money update and item update into a single atomic state update

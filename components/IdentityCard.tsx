@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame } from 'lucide-react-native';
 import { MINDSET_TRAITS, MindsetId } from '@/lib/mindset/config';
 import YouthPillModal from './YouthPillModal';
 import LegacyTimeline from './LegacyTimeline';
@@ -353,6 +353,16 @@ function IdentityCard() {
         </View>
         <View style={styles.nameContainer}>
           <Text style={[styles.name, styles.nameDark]}>{name}</Text>
+          {/* Persistent login-streak badge — surfaces the daily-reward streak
+              outside the popup so loss aversion can do its job. */}
+          {(gameState?.loginStreak ?? 0) >= 2 && (
+            <View style={styles.streakBadge}>
+              <Flame size={fontScale(13)} color="#FB923C" />
+              <Text style={styles.streakBadgeText}>
+                {gameState.loginStreak}-day streak
+              </Text>
+            </View>
+          )}
         </View>
         <Text style={[styles.scenarioText, styles.scenarioTextDark]}>
           {scenario?.title || t('common.unknown')}
@@ -1714,6 +1724,24 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: responsiveSpacing.xs,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(251, 146, 60, 0.15)',
+    borderRadius: responsiveBorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 146, 60, 0.4)',
+  },
+  streakBadgeText: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
+    color: '#FB923C',
+    letterSpacing: 0.2,
   },
 });
 
