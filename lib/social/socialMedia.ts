@@ -625,8 +625,12 @@ export function canCreateContentFull(
   // Check weekly limit for this specific content type.
   // `lastPostWeeks` entries should be stored as `weeksLived` (absolute); compare
   // against the same scale. Falling back to `state.week` (1-4 cycle) would cause
-  // a year-long lockout whenever the cycle repeats.
-  const activeWeek = typeof currentWeek === 'number' ? currentWeek : (state.weeksLived || 0);
+  // a year-long lockout whenever the cycle repeats. Reject NaN/Infinity inputs
+  // before equality so a corrupted save can never trigger a permanent lockout.
+  const isValidWeek = (v: unknown): v is number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 0;
+  const fallbackWeek = isValidWeek(state.weeksLived) ? Math.floor(state.weeksLived) : 0;
+  const activeWeek = isValidWeek(currentWeek) ? Math.floor(currentWeek) : fallbackWeek;
   if (lastPostWeeks && lastPostWeeks[contentType] === activeWeek) {
     return {
       canPost: false,
