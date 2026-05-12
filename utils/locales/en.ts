@@ -52,6 +52,7 @@ export default {
         perks: 'Perks',
         traits: 'Traits',
         weeklyModifiers: 'Modifiers',
+        dayStreak: 'day streak',
     },
     work: {
         title: 'Work',
