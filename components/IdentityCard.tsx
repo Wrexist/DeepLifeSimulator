@@ -359,7 +359,7 @@ function IdentityCard() {
             <View style={styles.streakBadge}>
               <Flame size={fontScale(13)} color="#FB923C" />
               <Text style={styles.streakBadgeText}>
-                {gameState.loginStreak}-day streak
+                {gameState.loginStreak} {t('game.dayStreak')}
               </Text>
             </View>
           )}
@@ -1728,10 +1728,14 @@ const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     marginTop: responsiveSpacing.xs,
     paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
+    // Color matches the Flame icon (Tailwind orange-400) — consistent with
+    // the prestige badge above which also uses inline orange/amber. There is
+    // no semantic "streak" token in lib/config/theme.ts; keep literal until
+    // theme tokens grow a `streak` entry, then migrate.
     backgroundColor: 'rgba(251, 146, 60, 0.15)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
@@ -1741,7 +1745,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     fontWeight: '700',
     color: '#FB923C',
-    letterSpacing: 0.2,
+    letterSpacing: scale(0.2),
   },
 });
 
