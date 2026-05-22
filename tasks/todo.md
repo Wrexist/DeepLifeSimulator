@@ -35,7 +35,13 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 1,098 type errors)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 1,066 type errors)
+
+> **Logic bug needing design review:** `MoneyActionsContext.buyPerk` reads
+> `perk.cost` from `perksData`, but those perks are achievement-unlocked and
+> have no `cost` field — at runtime `gems - undefined` makes gems `NaN`.
+> Either point `buyPerk` at a real purchasable-perk list or remove it.
+
 - [x] Net-worth / FIRE / retirement / legacy: fixed wrong field names that
       silently read `undefined` (`loan.remaining`, `realEstate.currentValue`,
       company annual-income valuation, career-derived salary).
