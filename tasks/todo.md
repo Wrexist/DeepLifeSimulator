@@ -35,20 +35,30 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (NOT STARTED)
-- [ ] Triage `TS2339` (270): split genuine missing-type-def gaps (e.g. `Video`
-      missing `rpm`/`ctr`/`likes`/`comments`/`quality`/`source`) from real bugs.
-- [ ] Sweep `TS18047`/`TS18048` (69) null/undefined accesses in live components.
-- [ ] Sweep `TS2345`/`TS2322`/`TS2353` (122) type mismatches; verify each is a
-      type fix and not a behavior change.
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 1,181 type errors)
+- [x] Net-worth / FIRE / retirement / legacy: fixed wrong field names that
+      silently read `undefined` (`loan.remaining`, `realEstate.currentValue`,
+      company annual-income valuation, career-derived salary).
+- [x] Core game loop: typed the weekly-loop lazy `require()`s, removed an
+      unsafe cast, fixed `logger.warn` LogContext calls, `doubleBufferLoad`
+      storage arg.
+- [x] `VehicleInsurance.type`/`monthlyCost` made required (always present).
+- [x] Finance & Stats UI: fixed `realEstates`/`salary`/`achievement.unlocked`/
+      `achievement.secret`/`pastLives` — all were reading undefined.
+- [ ] Remaining `TS2339` (~230) — incl. `Video` type missing
+      `rpm`/`ctr`/`likes`/`comments`/`quality`/`source`.
+- [ ] Remaining `TS18047`/`TS18048` (~65) null/undefined accesses.
+- [ ] Remaining `TS2345`/`TS2322`/`TS2353` (~110) type mismatches.
+- [ ] Simulation tooling (`BugHunterSimulator`, `RealActionSimulator`,
+      `ComprehensiveGameSimulator`) — ~80 errors, internal tools, lower priority.
 - [ ] Re-verify game-logic claims independently (free-week save timing, marriage
-      migration heuristic, jail cooldown `week` vs `weeksLived`) — original audit
-      unreliable; treat as unconfirmed until read.
-- [ ] Save system: confirm migration coverage; `saveGame` version write verified
-      correct (writes `STATE_VERSION`, NOT `1` — original claim was false).
-- [ ] IAP: `IAPService.validateReceipt` returns `true` unconditionally — needs a
-      real verification path (server-side; out of scope for a client-only branch).
+      migration heuristic, jail cooldown `week` vs `weeksLived`).
+- [ ] IAP: `IAPService.validateReceipt` returns `true` unconditionally; the
+      mutation-heavy `applyProductToState` needs the typed-transform refactor.
+      Needs server-side verification — out of scope for a client-only branch.
 - [ ] Make `preflight` blocking in CI once the type baseline is clean.
+- Note: `saveGame` version write verified correct (writes `STATE_VERSION`,
+  not `1` — the original audit claim was false).
 
 ### Phase 3 — Code quality & architecture (NOT STARTED)
 - [ ] Sweep `TS6133`/`TS6192`/`TS6196`/`TS6198` (~720) unused code — mechanical
