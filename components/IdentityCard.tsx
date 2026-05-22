@@ -51,14 +51,6 @@ function hasLoanPrincipal(loan: Loan | unknown): loan is Loan & { principal: num
   return typeof loan === 'object' && loan !== null && 'principal' in loan && typeof (loan as { principal?: unknown }).principal === 'number' && isFinite((loan as { principal: number }).principal) && (loan as { principal: number }).principal >= 0;
 }
 
-function hasLoanWeeksRemaining(loan: Loan | unknown): loan is Loan & { weeksRemaining: number } {
-  return typeof loan === 'object' && loan !== null && 'weeksRemaining' in loan && typeof (loan as { weeksRemaining?: unknown }).weeksRemaining === 'number' && isFinite((loan as { weeksRemaining: number }).weeksRemaining) && (loan as { weeksRemaining: number }).weeksRemaining > 0;
-}
-
-function hasLoanTermWeeks(loan: Loan | unknown): loan is Loan & { termWeeks: number } {
-  return typeof loan === 'object' && loan !== null && 'termWeeks' in loan && typeof (loan as { termWeeks?: unknown }).termWeeks === 'number' && isFinite((loan as { termWeeks: number }).termWeeks) && (loan as { termWeeks: number }).termWeeks > 0;
-}
-
 function hasLoanInterestRate(loan: Loan | unknown): loan is Loan & { interestRate: number } {
   return typeof loan === 'object' && loan !== null && 'interestRate' in loan && typeof (loan as { interestRate?: unknown }).interestRate === 'number' && isFinite((loan as { interestRate: number }).interestRate);
 }
@@ -325,7 +317,7 @@ function IdentityCard() {
         colors={['#1F2937', '#111827']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.card, styles.cardDark]}
+        style={styles.card}
       >
         <View style={styles.avatarContainer}>
           <Image source={avatar} style={styles.avatar} />
@@ -576,34 +568,6 @@ function IdentityCard() {
               </Text>
             </View>
           )}
-          {passiveInfo.breakdown.songs > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🎵 Songs: {formatMoney(passiveInfo.breakdown.songs)}
-              </Text>
-            </View>
-          )}
-          {passiveInfo.breakdown.art > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🎨 Art: {formatMoney(passiveInfo.breakdown.art)}
-              </Text>
-            </View>
-          )}
-          {passiveInfo.breakdown.contracts > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                📋 Contracts: {formatMoney(passiveInfo.breakdown.contracts)}
-              </Text>
-            </View>
-          )}
-          {passiveInfo.breakdown.sponsors > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🤝 Sponsors: {formatMoney(passiveInfo.breakdown.sponsors)}
-              </Text>
-            </View>
-          )}
           {passiveInfo.breakdown.socialMedia > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
@@ -732,7 +696,7 @@ function IdentityCard() {
               </View>
               {(() => {
                 const loanExpenses: Array<{ name: string; cost: number }> = [];
-                const loans = gameState.loans || [];
+                const loans: Loan[] = gameState.loans || [];
                 
                 loans.forEach(loan => {
                   if (!loan) return;
@@ -745,8 +709,8 @@ function IdentityCard() {
                     });
                   } else {
                     // For loans with 0 weeklyPayment, calculate minimum payment
-                    const remaining = hasLoanRemaining(loan) ? loan.remaining : (hasLoanPrincipal(loan) ? loan.principal : 0);
-                    const weeksRemaining = hasLoanWeeksRemaining(loan) ? loan.weeksRemaining : (hasLoanTermWeeks(loan) ? loan.termWeeks : 520);
+                    const remaining = loan.remaining || loan.principal || 0;
+                    const weeksRemaining = loan.weeksRemaining || loan.termWeeks || 520;
                     
                     if (remaining > 0 && weeksRemaining > 0 && isFinite(remaining) && isFinite(weeksRemaining)) {
                       const minPayment = Math.max(remaining / weeksRemaining, remaining * 0.001);
