@@ -114,8 +114,8 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       if (updateDailySummary && newState.dailySummary) {
         newState.dailySummary = {
           ...newState.dailySummary,
-          totalMoneyEarned: newState.dailySummary.totalMoneyEarned + Math.max(0, amount),
-          totalMoneySpent: newState.dailySummary.totalMoneySpent + Math.max(0, -amount),
+          totalMoneyEarned: (newState.dailySummary.totalMoneyEarned || 0) + Math.max(0, amount),
+          totalMoneySpent: (newState.dailySummary.totalMoneySpent || 0) + Math.max(0, -amount),
         };
       }
 
@@ -514,7 +514,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
       logger.info('[purchasePrestigeBonus] After update:', {
         money: newState.stats.money,
-        prestigePoints: newState.prestige.prestigePoints,
+        prestigePoints: newState.prestige?.prestigePoints,
       });
 
       return newState;

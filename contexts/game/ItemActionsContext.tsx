@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useCallback, ReactNode, useRef, useMemo, useEffect } from 'react';
 import * as ItemActions from './actions/ItemActions';
 import * as StatsActions from './actions/StatsActions';
+import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import { logger } from '@/utils/logger';
 import { useGameState } from './GameStateContext';
 import { useMoneyActions } from './MoneyActionsContext';
@@ -58,7 +59,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     const state = stateRef.current;
     if (!state) return;
 
-    const result = ItemActions.buyItem(state, setGameState, itemId, { updateMoney });
+    const result = ItemActions.buyItem(state, setGameState, itemId, { updateMoney: updateMoneyModule });
     if (result?.success) {
       haptic.medium(); // Item purchased
     } else {
@@ -70,7 +71,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     const state = stateRef.current;
     if (!state) return;
 
-    const result = ItemActions.sellItem(state, setGameState, itemId, { updateMoney });
+    const result = ItemActions.sellItem(state, setGameState, itemId, { updateMoney: updateMoneyModule });
     if (!result?.success) {
       showError('Sale Failed', result?.message || 'Could not sell item');
     }
@@ -89,7 +90,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   const performHack = useCallback((hackId: string): HackResult => {
     // Implementation for performing hack
     logger.info('Hack performed:', { hackId });
-    return { success: true, message: 'Hack successful', reward: 100 };
+    return { success: true, caught: false, reward: 100, btcReward: 0, risk: 0 };
   }, []);
 
   const buyFood = useCallback((foodId: string) => {
@@ -133,7 +134,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
 
     // Prevent double-clicks: if activity is already being processed, ignore
     if (processingActivities.current.has(activityId)) {
-      logger.warn('Health activity already being processed:', activityId);
+      logger.warn('Health activity already being processed:', { activityId });
       return { message: 'Activity is already in progress...' };
     }
 

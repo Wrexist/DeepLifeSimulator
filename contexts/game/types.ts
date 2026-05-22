@@ -1071,6 +1071,8 @@ export interface GameState {
   };
   dailySummary?: {
     moneyChange: number;
+    totalMoneyEarned?: number;
+    totalMoneySpent?: number;
     statsChange: Partial<GameStats>;
     events: string[];
     earningsBreakdown?: {
