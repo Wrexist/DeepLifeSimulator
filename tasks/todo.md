@@ -35,7 +35,7 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 1,151 type errors)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 1,098 type errors)
 - [x] Net-worth / FIRE / retirement / legacy: fixed wrong field names that
       silently read `undefined` (`loan.remaining`, `realEstate.currentValue`,
       company annual-income valuation, career-derived salary).
@@ -47,13 +47,16 @@
       `achievement.secret`/`pastLives` — all were reading undefined.
 - [x] GamingApp: timer typing, duplicate 66-line fallback literal, and three
       modals pointing at the wrong StyleSheet (34 → 4 substantive errors).
-- [ ] `Video` type / video-object shape reconciliation — the interface
-      (`uploadDate`, `subscribers`, `followers`) and the objects the code
-      builds (`uploadedAt`, `subscribersGained`, `duration`, `likes`,
-      `comments`, `quality`…) have diverged. Touches save persistence;
-      needs the app running to verify. Blocks ~30 errors in GamingApp /
-      GamingStreamingApp.
-- [ ] Remaining `TS2339` (~210).
+- [x] `Video` type reconciled with the shapes the code builds/reads;
+      `StreamSession`/`StreamHistoryItem` and the gaming timer types
+      sorted out. GamingApp and GamingStreamingApp now have zero
+      substantive type errors.
+- [x] `prestigeExecution`: typed child simulation so the `selectedChild`
+      null-guard narrowing holds (was 17 spurious errors).
+- [ ] Remaining ~400 substantive errors, top files: BugHunterSimulator
+      (33, sim tooling), career.stress.test (22), ImmersiveTutorial (18,
+      needs `moti`), GoalManager (13), RealActionSimulator (12, sim),
+      PremiumStore (11), IdentityCard (11).
 - [ ] Remaining `TS18047`/`TS18048` (~65) null/undefined accesses.
 - [ ] Remaining `TS2345`/`TS2322`/`TS2353` (~110) type mismatches.
 - [ ] Simulation tooling (`BugHunterSimulator`, `RealActionSimulator`,
