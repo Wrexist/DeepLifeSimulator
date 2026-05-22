@@ -35,7 +35,7 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 1,181 type errors)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 1,151 type errors)
 - [x] Net-worth / FIRE / retirement / legacy: fixed wrong field names that
       silently read `undefined` (`loan.remaining`, `realEstate.currentValue`,
       company annual-income valuation, career-derived salary).
@@ -45,8 +45,15 @@
 - [x] `VehicleInsurance.type`/`monthlyCost` made required (always present).
 - [x] Finance & Stats UI: fixed `realEstates`/`salary`/`achievement.unlocked`/
       `achievement.secret`/`pastLives` — all were reading undefined.
-- [ ] Remaining `TS2339` (~230) — incl. `Video` type missing
-      `rpm`/`ctr`/`likes`/`comments`/`quality`/`source`.
+- [x] GamingApp: timer typing, duplicate 66-line fallback literal, and three
+      modals pointing at the wrong StyleSheet (34 → 4 substantive errors).
+- [ ] `Video` type / video-object shape reconciliation — the interface
+      (`uploadDate`, `subscribers`, `followers`) and the objects the code
+      builds (`uploadedAt`, `subscribersGained`, `duration`, `likes`,
+      `comments`, `quality`…) have diverged. Touches save persistence;
+      needs the app running to verify. Blocks ~30 errors in GamingApp /
+      GamingStreamingApp.
+- [ ] Remaining `TS2339` (~210).
 - [ ] Remaining `TS18047`/`TS18048` (~65) null/undefined accesses.
 - [ ] Remaining `TS2345`/`TS2322`/`TS2353` (~110) type mismatches.
 - [ ] Simulation tooling (`BugHunterSimulator`, `RealActionSimulator`,
