@@ -35,12 +35,19 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 1,066 type errors)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 908 type errors)
 
-> **Logic bug needing design review:** `MoneyActionsContext.buyPerk` reads
-> `perk.cost` from `perksData`, but those perks are achievement-unlocked and
-> have no `cost` field — at runtime `gems - undefined` makes gems `NaN`.
-> Either point `buyPerk` at a real purchasable-perk list or remove it.
+> **Dead code removed:** 9 unreferenced components (GoalManager,
+> EnhancedSocialManager, ImmersiveTutorial, PremiumStore, SubscriptionModal,
+> DailyChallengesModal, anim/LoadingSpinner, useStreamingLogic, useVideoLogic)
+> — ~6,000 lines, nothing imported them.
+>
+> **Recurring root cause fixed in 5 places:** untyped lazy `require()` of an
+> already-typed module degrades everything downstream to `any`/`never`
+> (getAllStocks, processAutomationRules, simulateChildToAge, + the
+> hook-vs-module updateMoney/updateStats signature trap in Item/Job actions,
+> which was silently passing setGameState as a dollar amount). Worth a lint
+> rule banning `require()` of internal modules.
 
 - [x] Net-worth / FIRE / retirement / legacy: fixed wrong field names that
       silently read `undefined` (`loan.remaining`, `realEstate.currentValue`,
@@ -59,10 +66,13 @@
       substantive type errors.
 - [x] `prestigeExecution`: typed child simulation so the `selectedChild`
       null-guard narrowing holds (was 17 spurious errors).
-- [ ] Remaining ~400 substantive errors, top files: BugHunterSimulator
-      (33, sim tooling), career.stress.test (22), ImmersiveTutorial (18,
-      needs `moti`), GoalManager (13), RealActionSimulator (12, sim),
-      PremiumStore (11), IdentityCard (11).
+- [x] Cleared gaming, prestige, finance/stats, automation, money/item,
+      hobby/job action clusters; deleted dead components.
+- [ ] Remaining ~256 substantive errors are now concentrated in internal
+      tooling — BugHunterSimulator (33), career/health/integration stress
+      tests (~33), RealActionSimulator (12), ComprehensiveGameSimulator (8)
+      — plus IAPService (8) and small (≤4) scattered live-code clusters.
+- [ ] ~650 remaining errors are cosmetic `TS6133` unused-variable warnings.
 - [ ] Remaining `TS18047`/`TS18048` (~65) null/undefined accesses.
 - [ ] Remaining `TS2345`/`TS2322`/`TS2353` (~110) type mismatches.
 - [ ] Simulation tooling (`BugHunterSimulator`, `RealActionSimulator`,
