@@ -18,7 +18,8 @@ import { evaluateAchievements } from '@/lib/progress/achievements';
 import { GameState, GameStats, Relationship, ChildInfo } from './types';
 import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
-import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
+import { simulateWeek, getStockPricesSnapshot, getAllStocks } from '@/lib/economy/stockMarket';
+import { processAutomationRules } from '@/lib/automation/automationEngine';
 import { repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
@@ -912,8 +913,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
             // If no existing holdings, pick a random stock
             if (!targetStock) {
-              // eslint-disable-next-line @typescript-eslint/no-require-imports
-              const { getAllStocks } = require('@/lib/economy/stockMarket');
               const allStocks = getAllStocks();
               const stockEntries = Object.entries(allStocks);
               if (stockEntries.length > 0) {
@@ -2414,7 +2413,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       if (currentState) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { processAutomationRules } = require('@/lib/automation/automationEngine');
           const executions = processAutomationRules(currentState);
 
           if (executions.length > 0) {
@@ -2744,11 +2742,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           const chainedEvent = checkForChainedEvent(eventId, choiceId, prevState.weeksLived || 0);
           if (chainedEvent) {
             const pendingChains = prevState.pendingChainedEvents || [];
-            (prevState as Record<string, unknown>).pendingChainedEvents = [...pendingChains, chainedEvent];
+            prevState.pendingChainedEvents = [...pendingChains, chainedEvent];
             logger.info('Chained event queued:', { eventId: chainedEvent.eventId, triggerWeek: chainedEvent.triggerWeek });
           }
         } catch (e) {
-          logger.warn('Failed to check for chained events:', e);
+          logger.warn('Failed to check for chained events:', { error: e });
         }
 
         // Update activeEventChain if this is part of a chain
@@ -3215,7 +3213,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       // CRASH FIX (A-1): Use double-buffer load with automatic fallback
       const { doubleBufferLoad, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import('@/utils/saveValidation');
       const allowLegacy = shouldAllowUnsignedLegacySaves();
-      const loadResult = await doubleBufferLoad(`save_slot_${slot}`, AsyncStorage, { allowLegacy });
+      const loadResult = await doubleBufferLoad(`save_slot_${slot}`, undefined, { allowLegacy });
 
       if (!loadResult.data) {
         logger.warn('No save data found for slot:', { slot });
@@ -3360,7 +3358,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           }
         }
       } catch (iapMergeError) {
-        logger.warn('[LOAD_GAME] Failed to merge IAP transactions (non-critical):', iapMergeError);
+        logger.warn('[LOAD_GAME] Failed to merge IAP transactions (non-critical):', { error: iapMergeError });
       }
 
       // CRITICAL: Merge family - ensure children from both family.children and relationships are preserved

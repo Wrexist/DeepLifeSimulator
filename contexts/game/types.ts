@@ -901,11 +901,11 @@ export type AccidentSeverity = 'minor' | 'moderate' | 'severe' | 'total';
 
 export interface VehicleInsurance {
   id?: string;
-  type?: 'basic' | 'comprehensive' | 'premium';
+  type: 'basic' | 'comprehensive' | 'premium';
   active: boolean;
   coveragePercent: number;
   expiresWeek: number;
-  monthlyCost?: number;
+  monthlyCost: number;
   premiumCost?: number; // Deprecated, use monthlyCost instead
 }
 
