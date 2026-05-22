@@ -3,7 +3,7 @@ import { Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions }
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
-import { Heart, Sparkles, Crown, PartyPopper, Rings } from 'lucide-react-native';
+import { Heart, Sparkles, Crown, PartyPopper, Gem as Rings } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 

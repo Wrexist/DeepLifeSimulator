@@ -20,7 +20,7 @@ import {
   Users,
   Heart,
   Baby,
-  Ring,
+  Gem as Ring,
   Home,
   GraduationCap,
   DollarSign,

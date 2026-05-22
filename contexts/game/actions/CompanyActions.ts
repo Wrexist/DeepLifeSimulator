@@ -120,7 +120,7 @@ export const createCompany = (
 
 export const buyCompanyUpgrade = (
   gameState: GameState,
-  setGameState: Dispatch<SetStateAction<GameState>>,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   upgradeId: string,
   deps: { updateMoney: typeof updateMoney },
   companyId?: string
