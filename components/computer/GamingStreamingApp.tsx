@@ -50,6 +50,7 @@ import {
 , Snowflake, Square } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { GameState, Video, StreamSession, StreamHistoryItem, GamingStreamingState } from '@/contexts/game/types';
+import { initialGameState } from '@/contexts/game/initialState';
 import StreamingPanel from './gaming/StreamingPanel';
 import VideoPanel from './gaming/VideoPanel';
 import EquipmentPanel from './gaming/EquipmentPanel';
@@ -138,16 +139,16 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const [isStreaming, setIsStreaming] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string>('');
   const [streamDuration, setStreamDuration] = useState(0);
-  const [streamTimer, setStreamTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [streamTimer, setStreamTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [streamProgress, setStreamProgress] = useState(0);
-  const [progressTimer, setProgressTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [progressTimer, setProgressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [streamDonations, setStreamDonations] = useState<{id: string, amount: number, message: string, position: {top: number, left: number}}[]>([]);
-  const [donationTimer, setDonationTimer] = useState<NodeJS.Timeout | number | null>(null);
-  const [viewersTimer, setViewersTimer] = useState<NodeJS.Timeout | number | null>(null);
-  const [energyTimer, setEnergyTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [donationTimer, setDonationTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [viewersTimer, setViewersTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [energyTimer, setEnergyTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [currentViewers, setCurrentViewers] = useState(0);
   const [totalDonations, setTotalDonations] = useState(0);
-  const [subsTimer, setSubsTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [subsTimer, setSubsTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [currentSubsGained, setCurrentSubsGained] = useState(0);
   const [subPopups, setSubPopups] = useState<{id: string, name: string, position: { top: number, left: number }}[]>([]);
   
@@ -178,9 +179,9 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoGame, setVideoGame] = useState<string>('');
-  const [recordTimer, setRecordTimer] = useState<NodeJS.Timeout | number | null>(null);
-  const [renderTimer, setRenderTimer] = useState<NodeJS.Timeout | number | null>(null);
-  const [uploadTimer, setUploadTimer] = useState<NodeJS.Timeout | number | null>(null);
+  const [recordTimer, setRecordTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [renderTimer, setRenderTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [uploadTimer, setUploadTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   // Stream goals overlay
   const [subsGoal, setSubsGoal] = useState(0);
   const [donGoal, setDonGoal] = useState(0);
@@ -206,15 +207,15 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   // Cleanup timers on unmount to prevent memory leaks - enhanced with useMemoryCleanup
   useEffect(() => {
     const cleanup = () => {
-      if (streamTimer) clearInterval(streamTimer as NodeJS.Timeout);
-      if (progressTimer) clearInterval(progressTimer as NodeJS.Timeout);
-      if (donationTimer) clearInterval(donationTimer as NodeJS.Timeout);
-      if (viewersTimer) clearInterval(viewersTimer as NodeJS.Timeout);
-      if (energyTimer) clearInterval(energyTimer as NodeJS.Timeout);
-      if (subsTimer) clearInterval(subsTimer as NodeJS.Timeout);
-      if (recordTimer) clearInterval(recordTimer as NodeJS.Timeout);
-      if (renderTimer) clearInterval(renderTimer as NodeJS.Timeout);
-      if (uploadTimer) clearInterval(uploadTimer as NodeJS.Timeout);
+      if (streamTimer) clearInterval(streamTimer as ReturnType<typeof setTimeout>);
+      if (progressTimer) clearInterval(progressTimer as ReturnType<typeof setTimeout>);
+      if (donationTimer) clearInterval(donationTimer as ReturnType<typeof setTimeout>);
+      if (viewersTimer) clearInterval(viewersTimer as ReturnType<typeof setTimeout>);
+      if (energyTimer) clearInterval(energyTimer as ReturnType<typeof setTimeout>);
+      if (subsTimer) clearInterval(subsTimer as ReturnType<typeof setTimeout>);
+      if (recordTimer) clearInterval(recordTimer as ReturnType<typeof setTimeout>);
+      if (renderTimer) clearInterval(renderTimer as ReturnType<typeof setTimeout>);
+      if (uploadTimer) clearInterval(uploadTimer as ReturnType<typeof setTimeout>);
     };
     
     addCleanup(cleanup);
@@ -522,7 +523,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         });
       }
     }, 1000);
-    setRecordTimer(timer as unknown as NodeJS.Timeout);
+    setRecordTimer(timer as unknown as ReturnType<typeof setTimeout>);
   };
 
   const resumeVideoRecording = () => {
@@ -567,7 +568,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
           });
         }
       }, 1000);
-      setRecordTimer(timer as unknown as NodeJS.Timeout);
+      setRecordTimer(timer as unknown as ReturnType<typeof setTimeout>);
     }
     // Resume rendering if it was in progress
     else if (videoState.isRendering && videoState.renderProgress < 100) {
@@ -602,7 +603,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
           });
         }
     }, Math.max(50, Math.round(renderMs / steps)));
-      setRenderTimer(renderInt as unknown as NodeJS.Timeout);
+      setRenderTimer(renderInt as unknown as ReturnType<typeof setTimeout>);
     }
     // Resume uploading if it was in progress
     else if (videoState.isUploading && videoState.uploadProgress < 100) {
@@ -657,7 +658,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         safeTimeout(() => setShowConfetti(false), 1600);
       }
     }, Math.max(50, Math.round(uploadMs / usteps)));
-      setUploadTimer(uploadInt as unknown as NodeJS.Timeout);
+      setUploadTimer(uploadInt as unknown as ReturnType<typeof setTimeout>);
     }
   };
 
@@ -702,7 +703,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         });
       }
     }, Math.max(50, Math.round(renderMs / steps)));
-    setRenderTimer(renderInt as unknown as NodeJS.Timeout);
+    setRenderTimer(renderInt as unknown as ReturnType<typeof setTimeout>);
   };
 
   const startUpload = () => {
@@ -767,7 +768,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
         safeTimeout(() => setShowConfetti(false), 1600);
       }
     }, Math.max(50, Math.round(uploadMs / usteps)));
-    setUploadTimer(uploadInt as unknown as NodeJS.Timeout);
+    setUploadTimer(uploadInt as unknown as ReturnType<typeof setTimeout>);
   };
 
   const finalizeVideo = (game: { id: string; name: string; baseViewers: number }, title: string) => {
@@ -935,75 +936,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     if (!gamingStreaming) {
       setGameState(prev => ({
         ...prev,
-        gamingStreaming: {
-          followers: 0,
-          subscribers: 0,
-          totalViews: 0,
-          totalEarnings: 0,
-          totalDonations: 0,
-          totalSubEarnings: 0,
-          level: 1,
-          experience: 0,
-          gamesPlayed: [],
-          streamHours: 0,
-          averageViewers: 0,
-          bestStream: null,
-          currentStream: null,
-          equipment: {
-            microphone: false,
-            webcam: false,
-            gamingChair: false,
-            greenScreen: false,
-            lighting: false,
-          },
-          pcComponents: {
-            cpu: false,
-            gpu: false,
-            ram: false,
-            ssd: false,
-            motherboard: false,
-            cooling: false,
-            psu: false,
-            case: false,
-          },
-          pcUpgradeLevels: {
-            cpu: 0,
-            gpu: 0,
-            ram: 0,
-            ssd: 0,
-            motherboard: 0,
-            cooling: 0,
-            psu: 0,
-            case: 0,
-          },
-          unlockedGames: [],
-          ownedGames: [],
-          streamHistory: [],
-          videos: [],
-          videoTitleCounters: {},
-          // Initialize persistent video recording state
-          videoRecordingState: {
-            isRecording: false,
-            isRendering: false,
-            isUploading: false,
-            recordProgress: 0,
-            renderProgress: 0,
-            uploadProgress: 0,
-            currentPhase: 'idle' as const,
-            videoTitle: '',
-            videoGame: '',
-          },
-          // Initialize persistent streaming state
-          streamingState: {
-            isStreaming: false,
-            streamProgress: 0,
-            streamDuration: 0,
-            selectedGame: '',
-            currentViewers: 0,
-            totalDonations: 0,
-            currentSubsGained: 0,
-          },
-        }
+        gamingStreaming: initialGameState.gamingStreaming!,
       }));
     }
   }, []);
@@ -1179,15 +1112,15 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
 
   // CRITICAL: Use refs to track timers to avoid stale closures in AppState listener
   // This prevents race conditions when timers change while listener is active
-  const streamTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const donationTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const viewersTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const subsTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const energyTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const recordTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const renderTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const uploadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const donationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewersTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const subsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const energyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const renderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const uploadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync refs with state to keep them current
   useEffect(() => {
@@ -1208,7 +1141,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') {
         // Use refs to access current timer values - avoids stale closures
-        const clearTimer = (timerRef: React.MutableRefObject<NodeJS.Timeout | null>, setter: (val: null) => void) => {
+        const clearTimer = (timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>, setter: (val: null) => void) => {
           if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
@@ -1996,7 +1929,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
 
   const buyEquipment = (k: string, price: number) => {
     const eq = gamingData.equipment;
-    if (eq && (eq as Record<string, boolean>)[k]) return;
+    if (eq && (eq as unknown as Record<string, boolean>)[k]) return;
     if (money < price) {
       setModalData({ cost: price });
       setShowInsufficientFundsModal(true);
@@ -2014,7 +1947,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
 
   const upgradeComponent = (k: string) => {
     const lv = gamingData.pcUpgradeLevels || {};
-    const level = (lv as Record<string, number>)[k] || 0;
+    const level = (lv as unknown as Record<string, number>)[k] || 0;
     const price = getNextUpgradePrice(k, level);
     if (price == null) return;
     if (money < price) {
@@ -2447,7 +2380,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
                 {v.title}
               </Text>
               <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>
-                ðŸŽ® {v.game} â€¢ ðŸ‘€ {v.views.toLocaleString()} â€¢ ðŸ‘ {v.likes.toLocaleString()} â€¢ ðŸ’¬ {v.comments.toLocaleString()} â€¢ ðŸ’° ${v.earnings.toLocaleString()}
+                ðŸŽ® {v.game} â€¢ ðŸ‘€ {v.views.toLocaleString()} â€¢ ðŸ‘ {(v.likes || 0).toLocaleString()} â€¢ ðŸ’¬ {(v.comments || 0).toLocaleString()} â€¢ ðŸ’° ${v.earnings.toLocaleString()}
               </Text>
               {/* Simple analytics breakdown */}
               <Text style={[styles.streamHistoryStats, settings.darkMode && styles.streamHistoryStatsDark]}>

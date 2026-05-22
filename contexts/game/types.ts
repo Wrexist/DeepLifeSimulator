@@ -777,13 +777,26 @@ export interface FamilyBusiness {
 export interface Video {
   id: string;
   title: string;
-  description: string;
-  game: string;
   views: number;
   earnings: number;
-  followers: number;
-  subscribers: number;
-  uploadDate: string;
+  // Optional: different creation paths populate different subsets of these.
+  description?: string;
+  game?: string;
+  gameId?: string;
+  followers?: number;
+  subscribers?: number;
+  subscribersGained?: number;
+  quality?: number;
+  duration?: string | number;
+  likes?: number;
+  comments?: number;
+  uploadDate?: string | number;
+  uploadedAt?: number;
+  timestamp?: number;
+  rpm?: number;
+  ctr?: number;
+  avgViewDuration?: number;
+  source?: string;
 }
 
 export interface VideoRecordingState {

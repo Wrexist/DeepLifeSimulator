@@ -1270,13 +1270,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
                   <View style={styles.metricBadge}>
                     <Heart size={14} color="#EF4444" />
                     <Text style={[styles.metricText, isDarkMode && styles.metricTextDark]}>
-                      {video.likes.toLocaleString()}
+                      {(video.likes || 0).toLocaleString()}
                     </Text>
                   </View>
                   <View style={styles.metricBadge}>
                     <MessageCircle size={14} color={isDarkMode ? '#10B981' : '#059669'} />
                     <Text style={[styles.metricText, isDarkMode && styles.metricTextDark]}>
-                      {video.comments.toLocaleString()}
+                      {(video.comments || 0).toLocaleString()}
                     </Text>
                   </View>
                   <View style={styles.metricBadge}>
