@@ -296,7 +296,7 @@ function DeathPopup() {
     : null;
   
   const ownedProperties = (gameState.realEstate || []).filter(p => p.owned);
-  const ownedCompanies = (gameState.companies || []).filter(c => c.owned);
+  const ownedCompanies = gameState.companies || [];
   
   const spouse = gameState.family?.spouse;
   const children = gameState.family?.children || [];
@@ -411,7 +411,7 @@ function DeathPopup() {
                             Final Career
                           </Text>
                           <Text style={[styles.summaryValue, settings.darkMode && styles.summaryValueDark]}>
-                            {currentJob.name || 'Unknown'}
+                            {('name' in currentJob ? currentJob.name : currentJob.levels?.[currentJob.level]?.name) || 'Unknown'}
                           </Text>
                         </View>
                       </View>

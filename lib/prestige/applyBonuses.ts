@@ -109,12 +109,11 @@ export function applyStartingBonuses(
   if (unlockedBonuses.includes('starting_real_estate')) {
     // Find a basic rental property to give
     const basicProperties = (newState.realEstate || []).filter(
-      prop => prop.type === 'apartment' && !prop.owned && (prop.price || 0) <= 150000
+      prop => !prop.owned && (prop.price || 0) <= 150000
     );
     if (basicProperties.length > 0) {
       const property = basicProperties[0];
       property.owned = true;
-      property.purchaseDate = newState.date;
     }
   }
 

@@ -290,7 +290,7 @@ export function evaluatePrestigeAchievement(
     }
     case 'prestige_no_debt': {
       const loans = state.loans || [];
-      return loans.length === 0 || loans.every(loan => loan.remainingBalance <= 0);
+      return loans.length === 0 || loans.every(loan => (loan.remaining || 0) <= 0);
     }
     case 'prestige_max_relationships':
       return (state.relationships || []).length >= 20;

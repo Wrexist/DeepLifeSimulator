@@ -1,5 +1,6 @@
 import type { GameState, FamilyBusiness } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 /**
  * Legacy bonus data structure
@@ -138,22 +139,22 @@ function calculateNetWorth(state: GameState): number {
   
   // Real estate value
   const realEstateValue = state.realEstate?.reduce((sum, property) => {
-    return sum + (property.owned ? property.value : 0);
+    return sum + (property.owned ? (property.currentValue ?? property.price) : 0);
   }, 0) || 0;
-  
-  // Company value
+
+  // Company value (annual income, per codebase convention)
   const companyValue = state.companies?.reduce((sum, company) => {
-    return sum + (company.owned ? company.value : 0);
+    return sum + (company.weeklyIncome || 0) * WEEKS_PER_YEAR;
   }, 0) || 0;
-  
+
   // Vehicle value
   const vehicleValue = state.vehicles?.reduce((sum, vehicle) => {
-    return sum + (vehicle.owned ? vehicle.value : 0);
+    return sum + (vehicle.owned ? vehicle.price : 0);
   }, 0) || 0;
-  
+
   // Subtract debts
   const totalDebt = state.loans?.reduce((sum, loan) => {
-    return sum + loan.remainingBalance;
+    return sum + (loan.remaining || 0);
   }, 0) || 0;
   
   return money + bankSavings + stockValue + realEstateValue + companyValue + vehicleValue - totalDebt;
@@ -167,13 +168,12 @@ export function prepareFamilyBusinessesForLegacy(state: GameState): FamilyBusine
   const currentGeneration = state.generationNumber || 1;
   
   return companies
-    .filter(company => company.owned)
     .map(company => ({
       companyId: company.id,
       foundedGeneration: currentGeneration,
       generationsHeld: 1,
-      brandValue: company.value || 0,
-      // Additional business data could be stored here
+      brandValue: (company.weeklyIncome || 0) * WEEKS_PER_YEAR,
+      reputation: 0,
     }));
 }
 
