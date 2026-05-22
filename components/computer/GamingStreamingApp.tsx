@@ -49,7 +49,7 @@ import {
   Activity
 , Snowflake, Square } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { GameState, Video, StreamSession, StreamHistoryItem, GamingStreamingState } from '@/contexts/game/types';
+import { GameState, Video, StreamSession, StreamHistoryItem, GamingStreamingState, PCUpgradeLevels, PCComponents } from '@/contexts/game/types';
 import { initialGameState } from '@/contexts/game/initialState';
 import StreamingPanel from './gaming/StreamingPanel';
 import VideoPanel from './gaming/VideoPanel';
@@ -1818,8 +1818,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     const chatMessages = Math.floor(finalViewers * 0.5);
     // Use actual live totalDonations from state rather than estimate
 
-    // Create stream session
-    const streamSession: StreamSession = {
+    // Create stream session (StreamHistoryItem = StreamSession + required subscribers)
+    const streamSession: StreamHistoryItem = {
       id: Date.now().toString(),
       game: game.name,
       duration: finalStreamDuration,
@@ -1960,8 +1960,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       stats: { ...prev.stats, money: prev.stats.money - price },
       gamingStreaming: {
         ...prev.gamingStreaming!,
-        pcUpgradeLevels: { ...(prev.gamingStreaming?.pcUpgradeLevels || {}), [k]: level + 1 },
-        pcComponents: { ...prev.gamingStreaming!.pcComponents, [k]: true },
+        pcUpgradeLevels: { ...prev.gamingStreaming!.pcUpgradeLevels, [k as keyof PCUpgradeLevels]: level + 1 },
+        pcComponents: { ...prev.gamingStreaming!.pcComponents, [k as keyof PCComponents]: true },
       }
     }));
   };

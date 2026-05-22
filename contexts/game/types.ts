@@ -829,6 +829,7 @@ export interface StreamSession {
   viewers: number;
   earnings: number;
   followers: number;
+  subscribers?: number;
   chatMessages: number;
   donations: number;
 }
