@@ -48,7 +48,8 @@ import {
   Clock,
   Activity
 , Snowflake, Square } from 'lucide-react-native';
-import { useGame, GameState, Video, StreamSession, StreamHistoryItem } from '@/contexts/game/types';
+import { useGame } from '@/contexts/GameContext';
+import { GameState, Video, StreamSession, StreamHistoryItem, GamingStreamingState } from '@/contexts/game/types';
 import StreamingPanel from './gaming/StreamingPanel';
 import VideoPanel from './gaming/VideoPanel';
 import EquipmentPanel from './gaming/EquipmentPanel';
@@ -134,9 +135,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const energy = gameState.stats.energy;
   const money = gameState.stats.money;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'stream' | 'videos' | 'shop'>('dashboard');
-  const {
-    isStreaming,
-  } = useStreamingLogic(gameState, setGameState, AVAILABLE_GAMES);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string>('');
   const [streamDuration, setStreamDuration] = useState(0);
   const [streamTimer, setStreamTimer] = useState<NodeJS.Timeout | number | null>(null);
