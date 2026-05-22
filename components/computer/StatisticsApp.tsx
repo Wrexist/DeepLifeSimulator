@@ -542,8 +542,8 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
   ), [stats]);
   
   const renderAchievementsTab = useCallback(() => {
-    const unlockedAchievements = (gameState.achievements || []).filter(a => a.unlocked);
-    const lockedAchievements = (gameState.achievements || []).filter(a => !a.unlocked);
+    const unlockedAchievements = (gameState.achievements || []).filter(a => a.completed);
+    const lockedAchievements = (gameState.achievements || []).filter(a => !a.completed);
     
     return (
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
@@ -623,10 +623,10 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
                 </View>
                 <View style={styles.achievementContent}>
                   <Text style={[styles.achievementName, { color: '#6B7280' }]}>
-                    {achievement.secret ? '???' : achievement.name}
+                    {achievement.category === 'secret' ? '???' : achievement.name}
                   </Text>
                   <Text style={[styles.achievementDesc, { color: '#4B5563' }]}>
-                    {achievement.secret ? 'Secret Achievement' : achievement.description}
+                    {achievement.category === 'secret' ? 'Secret Achievement' : achievement.description}
                   </Text>
                 </View>
               </LinearGradient>
@@ -734,7 +734,7 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
         </View>
 
         {/* Past Lives Comparison */}
-        {gameState.pastLives && gameState.pastLives.length > 0 && (
+        {gameState.previousLives && gameState.previousLives.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Past Lives Comparison</Text>
             <Text style={styles.sectionSubtitle}>Compare your current life to previous ones</Text>
@@ -751,13 +751,13 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
                 </LinearGradient>
               </View>
 
-              {(gameState.pastLives || []).slice(-3).reverse().map((pastLife: any, index: number) => (
+              {(gameState.previousLives || []).slice(-3).reverse().map((pastLife: any, index: number) => (
                 <View key={index} style={styles.pastLifeCard}>
                   <LinearGradient
                     colors={['#1F2937', '#111827']}
                     style={styles.pastLifeGradient}
                   >
-                    <Text style={styles.pastLifeLabel}>Life #{gameState.pastLives!.length - index}</Text>
+                    <Text style={styles.pastLifeLabel}>Life #{gameState.previousLives!.length - index}</Text>
                     <Text style={styles.pastLifeValue}>
                       {formatStatMoney(pastLife.finalNetWorth || pastLife.peakNetWorth || 0)}
                     </Text>
@@ -770,14 +770,14 @@ export default function StatisticsApp({ onBack }: StatisticsAppProps) {
             </View>
 
             {/* Improvement indicator */}
-            {gameState.pastLives && gameState.pastLives.length > 0 && (
+            {gameState.previousLives && gameState.previousLives.length > 0 && (
               <View style={styles.improvementCard}>
-                <TrendingUp size={scale(20)} color={currentNetWorth > (gameState.pastLives[gameState.pastLives.length - 1]?.finalNetWorth || 0) ? '#10B981' : '#EF4444'} />
+                <TrendingUp size={scale(20)} color={currentNetWorth > (gameState.previousLives[gameState.previousLives.length - 1]?.finalNetWorth || 0) ? '#10B981' : '#EF4444'} />
                 <Text style={[
                   styles.improvementText,
-                  { color: currentNetWorth > (gameState.pastLives[gameState.pastLives.length - 1]?.finalNetWorth || 0) ? '#10B981' : '#EF4444' }
+                  { color: currentNetWorth > (gameState.previousLives[gameState.previousLives.length - 1]?.finalNetWorth || 0) ? '#10B981' : '#EF4444' }
                 ]}>
-                  {currentNetWorth > (gameState.pastLives[gameState.pastLives.length - 1]?.finalNetWorth || 0) 
+                  {currentNetWorth > (gameState.previousLives[gameState.previousLives.length - 1]?.finalNetWorth || 0) 
                     ? 'Doing better than your last life!' 
                     : 'Keep going to surpass your last life!'}
                 </Text>
@@ -826,7 +826,7 @@ Week ${gameState.week || 0}
         </View>
       </ScrollView>
     );
-  }, [currentNetWorth, stats, careerSummary, achievementProgress, gameState.pastLives, gameState.week]);
+  }, [currentNetWorth, stats, careerSummary, achievementProgress, gameState.previousLives, gameState.week]);
   
   const renderPlanningTab = useCallback(() => {
     const lifeExpectancy = calculateLifeExpectancy(gameState);
