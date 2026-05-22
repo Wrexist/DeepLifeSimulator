@@ -2,6 +2,70 @@
 
 <!-- Used by Claude Code sessions. Add checkable items for multi-step tasks. -->
 
+## Full-App Audit & Remediation — May 22, 2026
+
+> **Baseline correction:** the first audit pass ran against a repo with no
+> `node_modules` installed, so its headline numbers (18,985 / "1,198" type
+> errors, test counts, several "broken component" claims) were invalid noise.
+> After installing dependencies the real baseline is **1,316 type errors**
+> (~696 are harmless `TS6133` unused-variable warnings; ~620 are substantive).
+> All figures below are from the corrected environment.
+
+### Phase 1 — Runtime-breaking bugs & build integrity  ✅ DONE (this session)
+- [x] Untrack committed `google-play-service-account.json` (real private key).
+- [x] Fix `CompanyActions.buyCompanyUpgrade` bare `Dispatch`/`SetStateAction`.
+- [x] Replace nonexistent lucide icons `Ring`/`Rings` (→ `Gem`) in
+      `FamilyTab.tsx` / `WeddingPopup.tsx` — they resolved to `undefined`
+      and crashed on render.
+- [x] Repair `GamingStreamingApp.tsx`: incomplete hook extraction left an
+      unimported `useStreamingLogic` + removed `setIsStreaming` → guaranteed
+      `ReferenceError` whenever the streaming app opened.
+- [x] Remove `DeathPopup.tsx` unreachable heir-selection branch (dead `true ?`)
+      referencing undefined `setShowHeirSelection`/`confirmHeirSelection`.
+- [x] Guard `PrestigeModal.tsx` null `pointsBreakdown` (13 crash-risk accesses).
+- [x] Sync `android/app/build.gradle` versionCode 84→98, versionName 2.3.0→2.3.5
+      to match `app.config.js` (documented single source of truth).
+- Result: 1,316 → 1,261 type errors; all `TS2304`/`TS2305` runtime crashers cleared.
+
+#### Phase 1 — owner action items (cannot be done from this branch)
+- [ ] **Rotate the leaked Google Play service-account key in Google Cloud IAM** —
+      it is already exposed; untracking the file does not un-expose it.
+- [ ] **Purge the key from `main` history** — requires rewriting `main` and a
+      force-push, which this branch is not authorized to do:
+      `git filter-repo --path google-play-service-account.json --invert-paths`
+      then `git push --force origin main`.
+
+### Phase 2 — Correctness (NOT STARTED)
+- [ ] Triage `TS2339` (270): split genuine missing-type-def gaps (e.g. `Video`
+      missing `rpm`/`ctr`/`likes`/`comments`/`quality`/`source`) from real bugs.
+- [ ] Sweep `TS18047`/`TS18048` (69) null/undefined accesses in live components.
+- [ ] Sweep `TS2345`/`TS2322`/`TS2353` (122) type mismatches; verify each is a
+      type fix and not a behavior change.
+- [ ] Re-verify game-logic claims independently (free-week save timing, marriage
+      migration heuristic, jail cooldown `week` vs `weeksLived`) — original audit
+      unreliable; treat as unconfirmed until read.
+- [ ] Save system: confirm migration coverage; `saveGame` version write verified
+      correct (writes `STATE_VERSION`, NOT `1` — original claim was false).
+- [ ] IAP: `IAPService.validateReceipt` returns `true` unconditionally — needs a
+      real verification path (server-side; out of scope for a client-only branch).
+- [ ] Make `preflight` blocking in CI once the type baseline is clean.
+
+### Phase 3 — Code quality & architecture (NOT STARTED)
+- [ ] Sweep `TS6133`/`TS6192`/`TS6196`/`TS6198` (~720) unused code — mechanical
+      but high-volume; do per-directory with type-check after each batch.
+- [ ] Decide fate of orphaned modules (`components/computer/gaming/useStreamingLogic.ts`
+      now unused; `GoalManager.tsx`/`EnhancedSocialManager.tsx` were marked removed
+      in a prior pass yet still present — confirm).
+- [ ] Architecture items deferred from prior passes: `_layout.tsx` size, single
+      `gameState` atom re-render cost, source-root consolidation, asset compression.
+
+### Phases 4–9 — Liquid Glass design system (DEFERRED until base is type-clean)
+Unified design tokens, real `expo-blur` materials, `GlassSurface`/`GlassButton`
+primitives, per-screen migration, animation polish, accessibility. Not started —
+gated on Phases 2–3 per the user's chosen sequencing.
+
+---
+
 ## Launch Readiness Pass - March 9, 2026
 
 - [x] Audit current uncommitted onboarding changes for logic bugs, incomplete paths, and regression risks.

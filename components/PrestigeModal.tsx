@@ -212,7 +212,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}
             >
-            {!showConfirmation ? (
+            {pointsBreakdown == null ? null : !showConfirmation ? (
               <>
                 {/* Prestige Points Card - Beautiful and Prominent */}
                 <View style={styles.pointsCard}>
