@@ -42,6 +42,7 @@ import {
 } from 'lucide-react-native';
 import { MotiView, MotiText } from '@/components/anim/MotiStub';
 import { useGame, Video as VideoType } from '@/contexts/GameContext';
+import { initialGameState } from '@/contexts/game/initialState';
 import { useMemoryCleanup } from '@/utils/performanceOptimization';
 
 // Use shared scaling utils so tablet/web-tablet scale up correctly
@@ -325,10 +326,10 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   }, [date]);
 
   // Refs for intervals
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const renderingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const uploadingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
+  const recordingIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const renderingIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const uploadingIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   
 
   // Cleanup intervals on unmount
@@ -438,78 +439,12 @@ export default function GamingApp({ onBack }: GamingAppProps) {
     }
   }, [gamingStreaming, updateGameState]);
 
-  const videoData = gamingStreaming || {
-    followers: 0,
-    subscribers: 0,
-    totalViews: 0,
-    totalEarnings: 0,
-    experience: 0,
-    gamesPlayed: [],
-    ownedGames: [],
-    equipment: {},
-    pcUpgradeLevels: {},
-    pcComponents: {},
-    videos: [],
-    videoTitleCounters: {},
-    streamHistory: [],
-    bestStream: null,
-    streamHours: 0,
-    totalSubEarnings: 0,
-    totalDonations: 0,
-    upgrades: {},
-    videoRecordingState: {
-      isRecording: false,
-      recordProgress: 0,
-      renderProgress: 0,
-      uploadProgress: 0,
-      currentPhase: 'idle',
-      videoTitle: '',
-      videoGame: '',
-      isRendering: false,
-      isUploading: false,
-    },
-    streamingState: {
-      isStreaming: false,
-      streamProgress: 0,
-      selectedGame: null,
-      streamDuration: 0,
-      currentViewers: 0,
-      currentEarnings: 0,
-      streamStartTime: 0,
-      streamPauseTime: 0,
-      totalPausedTime: 0,
-      isPaused: false,
-      streamQuality: 'medium',
-      chatEnabled: true,
-      donationsEnabled: true,
-      subsEnabled: true,
-      streamTitle: '',
-      streamDescription: '',
-      streamTags: [],
-      streamCategory: 'gaming',
-      streamLanguage: 'en',
-      streamAgeRestriction: false,
-      streamMonetization: true,
-      streamAds: true,
-      streamSchedule: [],
-      streamNotifications: true,
-      streamAnalytics: {
-        peakViewers: 0,
-        averageViewers: 0,
-        totalChatMessages: 0,
-        totalEmotes: 0,
-        totalShares: 0,
-        totalClips: 0,
-        streamRating: 0,
-        streamFeedback: [],
-      },
-    },
-  };
+  const videoData = gamingStreaming || initialGameState.gamingStreaming!;
 
   // Calculate upgrade modifiers for video creation
   // NOTE: This function should only be called in event handlers or effects, not during render
   const calculateUpgradeModifiers = () => {
-    const currentUpgrades = videoData.upgrades || {};
+    const currentUpgrades: Record<string, number> = videoData.upgrades || {};
     let modifiers = {
       energyReduction: 0,
       renderTimeReduction: 0,
@@ -1863,7 +1798,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   };
 
   const renderStoreTab = () => {
-    const currentUpgrades = videoData.upgrades || {};
+    const currentUpgrades: Record<string, number> = videoData.upgrades || {};
     
     const purchaseUpgrade = (upgradeId: string) => {
       const upgrade = UPGRADE_STORE[upgradeId as keyof typeof UPGRADE_STORE];
@@ -3442,7 +3377,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       {/* Not Enough Energy Modal */}
       <Modal visible={showNotEnoughEnergyModal} transparent animationType="fade" onRequestClose={() => setShowNotEnoughEnergyModal(false)}>
         <View style={allStyles.modalOverlay}>
-          <View style={[styles.modalContainer, isDarkMode && styles.modalContainerDark]}>
+          <View style={[modalStyles.modalContainer, isDarkMode && modalStyles.modalContainerDark]}>
             <LinearGradient
               colors={isDarkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
               start={{ x: 0, y: 0 }}
@@ -3450,13 +3385,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
               style={allStyles.modalGradient}
             >
               <View style={allStyles.modalHeader}>
-                <Text style={[styles.modalTitle, isDarkMode && styles.modalTitleDark]}>
+                <Text style={[modalStyles.modalTitle, isDarkMode && modalStyles.modalTitleDark]}>
                   ⚡ Not Enough Energy
                 </Text>
               </View>
               
               <View style={allStyles.modalContent}>
-                <Text style={[styles.modalMessage, isDarkMode && styles.modalMessageDark]}>
+                <Text style={[modalStyles.modalMessage, isDarkMode && modalStyles.modalMessageDark]}>
                   You need {modalData.requiredEnergy} energy to create this video. You have {modalData.currentEnergy}.
                 </Text>
               </View>
@@ -3630,7 +3565,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       {/* Insufficient Funds Modal */}
       <Modal visible={showInsufficientFundsModal} transparent animationType="fade" onRequestClose={() => setShowInsufficientFundsModal(false)}>
         <View style={allStyles.modalOverlay}>
-          <View style={[styles.modalContainer, isDarkMode && styles.modalContainerDark]}>
+          <View style={[modalStyles.modalContainer, isDarkMode && modalStyles.modalContainerDark]}>
             <LinearGradient
               colors={isDarkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
               start={{ x: 0, y: 0 }}
@@ -3638,13 +3573,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
               style={allStyles.modalGradient}
             >
               <View style={allStyles.modalHeader}>
-                <Text style={[styles.modalTitle, isDarkMode && styles.modalTitleDark]}>
+                <Text style={[modalStyles.modalTitle, isDarkMode && modalStyles.modalTitleDark]}>
                   💰 Insufficient Funds
                 </Text>
               </View>
               
               <View style={allStyles.modalContent}>
-                <Text style={[styles.modalMessage, isDarkMode && styles.modalMessageDark]}>
+                <Text style={[modalStyles.modalMessage, isDarkMode && modalStyles.modalMessageDark]}>
                   {modalData.videoName ? 
                     `You need $${modalData.videoCost} to buy ${modalData.videoName}.` :
                     `You need $${modalData.cost} to upgrade ${modalData.upgradeName}.`
@@ -3675,7 +3610,7 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       {/* Max Level Modal */}
       <Modal visible={showMaxLevelModal} transparent animationType="fade" onRequestClose={() => setShowMaxLevelModal(false)}>
         <View style={allStyles.modalOverlay}>
-          <View style={[styles.modalContainer, isDarkMode && styles.modalContainerDark]}>
+          <View style={[modalStyles.modalContainer, isDarkMode && modalStyles.modalContainerDark]}>
             <LinearGradient
               colors={isDarkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
               start={{ x: 0, y: 0 }}
@@ -3683,13 +3618,13 @@ export default function GamingApp({ onBack }: GamingAppProps) {
               style={allStyles.modalGradient}
             >
               <View style={allStyles.modalHeader}>
-                <Text style={[styles.modalTitle, isDarkMode && styles.modalTitleDark]}>
+                <Text style={[modalStyles.modalTitle, isDarkMode && modalStyles.modalTitleDark]}>
                   🏆† Max Level Reached
                 </Text>
               </View>
               
               <View style={allStyles.modalContent}>
-                <Text style={[styles.modalMessage, isDarkMode && styles.modalMessageDark]}>
+                <Text style={[modalStyles.modalMessage, isDarkMode && modalStyles.modalMessageDark]}>
                   This upgrade is already at maximum level!
                 </Text>
               </View>
