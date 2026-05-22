@@ -220,7 +220,7 @@ function WorkScreenContent() {
 
             // Show toast notification
             if (result.success) {
-                showSuccess(result.message);
+                showSuccess(result.message ?? '');
 
                 // Show mindset feedback if applicable
                 if (job && gameState.mindset?.activeTraitId) {
@@ -243,10 +243,10 @@ function WorkScreenContent() {
             } else if ('inJail' in result && result.inJail) {
                 showError(result.message || 'You were caught!');
             } else {
-                showWarning(result.message);
+                showWarning(result.message ?? '');
             }
 
-            setWorkFeedback({ [jobId]: result.message });
+            setWorkFeedback({ [jobId]: result.message ?? '' });
             const timeoutId = setTimeout(() => {
                 setWorkFeedback(prev => {
                     const newFeedback = { ...prev };

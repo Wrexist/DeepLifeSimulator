@@ -162,6 +162,9 @@ export interface Hobby {
   divisions?: Division[];
   league?: League;
   upgrades: HobbyUpgrade[];
+  // ANTI-EXPLOIT: weekly training cap tracking
+  lastTrainWeek?: number;
+  trainsThisWeek?: number;
 }
 
 export interface HobbyUpgrade {
@@ -1015,6 +1018,7 @@ export interface GameState {
     reputationBonus: number;
   };
   familyBusinesses?: FamilyBusiness[];
+  hasFamilyBusinessLegacy?: boolean; // Prestige legacy_business bonus flag
   mindset?: {
     activeTraitId?: string;
     [key: string]: any;

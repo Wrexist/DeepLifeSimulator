@@ -1,15 +1,16 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import * as JobActions from './actions/JobActions';
 import { updateStats } from './actions/StatsActions';
+import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import { logger } from '@/utils/logger';
 import { useGameState } from './GameStateContext';
 import { useMoneyActions } from './MoneyActionsContext';
-import { CrimeSkillId, GameState } from './types';
+import { CrimeSkillId, GameState, GameStats } from './types';
 import { haptic } from '@/utils/haptics';
 
 interface JobActionsContextType {
   // Jobs & Careers
-  performStreetJob: (jobId: string) => { success: boolean; message: string; events?: string[] } | void;
+  performStreetJob: (jobId: string) => { success: boolean; message?: string; events?: string[]; inJail?: boolean } | void;
   gainCriminalXp: (amount: number) => void;
   gainCrimeSkillXp: (skillId: CrimeSkillId, amount: number) => void;
   unlockCrimeSkillUpgrade: (skillId: CrimeSkillId, upgradeId: string, cost: number, levelReq: number) => void;
@@ -109,9 +110,8 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
     if (!state) return;
 
     const result = JobActions.performStreetJob(state, setGameState, jobId, {
-      updateMoney,
-      updateStats: (newStats: Partial<import('./types').GameStats>, updateDailySummary?: boolean) =>
-        updateStats(setGameState, newStats, updateDailySummary),
+      updateMoney: updateMoneyModule,
+      updateStats,
       gainCriminalXp,
       gainCrimeSkillXp,
     });
