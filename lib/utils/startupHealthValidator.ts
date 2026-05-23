@@ -47,7 +47,7 @@ export async function validateStartupHealth(): Promise<HealthCheckResult> {
 
   // Check 1: Error handlers are set up
   try {
-    if (typeof global !== 'undefined' && global.ErrorUtils) {
+    if (typeof global !== 'undefined' && (global as { ErrorUtils?: unknown }).ErrorUtils) {
       criticalSystemsReady.errorHandlers = true;
     } else {
       issues.push('Global error handlers not initialized');

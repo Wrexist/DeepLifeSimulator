@@ -1143,6 +1143,7 @@ export interface GameState {
   happinessZeroWeeks: number;
   healthZeroWeeks: number;
   healthWeeks: number;
+  perfectWeeks?: number; // consecutive weeks with all stats > 90 (Perfectionist achievement)
   showZeroStatPopup: boolean;
   zeroStatType?: 'happiness' | 'health';
   showDeathPopup: boolean;
