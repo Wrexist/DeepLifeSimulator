@@ -55,7 +55,7 @@ export default function EnhancedAchievementScreen({
   visible,
   onClose,
 }: EnhancedAchievementScreenProps) {
-  const { gameState, updateSettings } = useGame();
+  const { gameState } = useGame();
   const { buttonPress, haptic } = useFeedback(gameState?.settings?.hapticFeedback || false);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,7 +128,7 @@ export default function EnhancedAchievementScreen({
       const progress = calculateAchievementProgress(achievement, gameState);
       return progress >= 1;
     }).length;
-    const claimed = gameState.achievementProgress?.filter((p: any) => p.claimed).length || 0;
+    const claimed = gameState.achievements?.filter((p: any) => p.claimed).length || 0;
     const totalGems = ENHANCED_ACHIEVEMENTS.reduce((sum, achievement) => sum + achievement.rewards.gems, 0);
     const earnedGems = ENHANCED_ACHIEVEMENTS.filter(achievement => {
       const progress = calculateAchievementProgress(achievement, gameState);
@@ -467,7 +467,7 @@ export default function EnhancedAchievementScreen({
             ) : (
               achievements.map(achievement => {
                 const progress = calculateAchievementProgress(achievement, gameState);
-                const achievementProgress = gameState.achievementProgress?.find((p: any) => p.id === achievement.id) || {
+                const achievementProgress = gameState.achievements?.find((p: any) => p.id === achievement.id) || {
                   id: achievement.id,
                   progress: 0,
                   completed: false,
