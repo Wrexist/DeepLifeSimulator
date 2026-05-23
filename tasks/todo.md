@@ -35,7 +35,7 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 783 type errors, 40% cleared)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 740 type errors, 44% cleared)
 
 > **Dead code removed:** 10 items — 9 unreferenced components
 > (~6,000 lines) plus `MoneyActionsContext.buyPerk`, which had zero
@@ -91,11 +91,21 @@
 - [x] Replaced GameState.automation's inline shape with the canonical
       AutomationState; replaced BankApp's local Loan with the
       canonical one.
-- [ ] Remaining ~129 substantive errors are concentrated in stress
+- [x] Caught a half-dozen "broken-on-render" UI bugs while clearing
+      small clusters: TinderApp.handleLike had its own useCallback in
+      its deps array (TDZ ReferenceError every render); NetWorthDisplay
+      destructured the long-removed createMemoizedValue and would have
+      thrown TypeError; CompanyApp's "Create Family Business" and
+      "Enter Competition" buttons called context methods that were
+      never wired (TypeError on tap); GemsStoreModal's loading
+      spinner padding was undefined; ribbonSystem's "Jailbird" ribbon
+      read the wrong path and never triggered;
+      runComprehensiveTests was simulating with default money because
+      a stats override was nested wrong.
+- [ ] Remaining ~88 substantive errors are concentrated in stress
       tests (~37, the currentJob/isDead model drift is a deeper test
-      rewrite) and scattered 2-3-error UI clusters
-      (DevToolsModal needs restartGame design, CompanyApp /
-      TinderApp small fixes).
+      rewrite) and DevToolsModal (3, needs restartGame design). The
+      rest are 1-2-error UI clusters that need individual auditing.
 - [ ] ~654 remaining errors are cosmetic `TS6133` unused-variable
       warnings — biggest single batch left; a single eslint
       --fix-unused-imports pass would clear most of these.
