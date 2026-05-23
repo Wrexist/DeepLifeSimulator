@@ -35,7 +35,7 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 740 type errors, 44% cleared)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 714 type errors, 46% cleared)
 
 > **Dead code removed:** 10 items — 9 unreferenced components
 > (~6,000 lines) plus `MoneyActionsContext.buyPerk`, which had zero
@@ -91,17 +91,35 @@
 - [x] Replaced GameState.automation's inline shape with the canonical
       AutomationState; replaced BankApp's local Loan with the
       canonical one.
-- [x] Caught a half-dozen "broken-on-render" UI bugs while clearing
-      small clusters: TinderApp.handleLike had its own useCallback in
-      its deps array (TDZ ReferenceError every render); NetWorthDisplay
-      destructured the long-removed createMemoizedValue and would have
-      thrown TypeError; CompanyApp's "Create Family Business" and
-      "Enter Competition" buttons called context methods that were
-      never wired (TypeError on tap); GemsStoreModal's loading
-      spinner padding was undefined; ribbonSystem's "Jailbird" ribbon
-      read the wrong path and never triggered;
-      runComprehensiveTests was simulating with default money because
-      a stats override was nested wrong.
+- [x] Caught a dozen "broken-on-render" / "broken-on-tap" UI bugs while
+      clearing small clusters: TinderApp.handleLike TDZ-cycled deps;
+      NetWorthDisplay destructured the long-removed createMemoizedValue
+      (TypeError on render); CompanyApp's "Create Family Business" /
+      "Enter Competition" / TombstonePopup's "New Life" /
+      ActivityCommitmentModal's "Save" / TravelModal's quick-travel
+      buttons all called context methods that were never wired
+      (TypeError on tap — and TombstonePopup's death-loop trap was
+      especially brutal); GemsStoreModal's loading-spinner padding,
+      WeeklyEventModal's petText dark style, and tutorial-modal dark
+      mode all silently resolved to undefined; ribbonSystem's
+      "Jailbird" never triggered (wrong field path);
+      runComprehensiveTests was simulating with default money.
+- [x] WIRED ALL ELEVEN previously-dead perk + gold-upgrade IAPs:
+      - Perks ($1.99 each, four flags set on purchase that nothing
+        ever read): Work Pay Boost (+50% job income), Good Credit
+        (+50% bank interest), Fast Learner (2x education speed),
+        Mindset (+50% career-promotion progress).
+      - Gold upgrades (gem purchases): Money Multiplier (5k —
+        +50% all earnings), Energy Boost (7.5k — +50% energy regen,
+        reframed from misleading "max 100" copy), Happiness Boost
+        (6k — 50% slower happiness decay, same reframe), Fitness
+        Boost (9k — 50% slower fitness decay), Skill Mastery
+        (15k — +50% hobby skill gains).
+      - Still unwired pending product decisions: Time Machine
+        (discount-rewinds?) and Immortality (needs an age-death
+        mechanic added to game first).
+      - Plus SKILL_BOOST ($12.99) wired earlier in the session
+        (boosted every hobby's skillLevel through the canonical clamp).
 - [ ] Remaining ~88 substantive errors are concentrated in stress
       tests (~37, the currentJob/isDead model drift is a deeper test
       rewrite) and DevToolsModal (3, needs restartGame design). The
