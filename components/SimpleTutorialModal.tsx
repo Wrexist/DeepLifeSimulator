@@ -35,7 +35,7 @@ export default function SimpleTutorialModal({
   // Use useGameState directly (only requires GameStateProvider, not GameActionsProvider)
   // This component is rendered inside AppProviders which includes GameProvider,
   // so GameStateProvider should be available
-  const gameState = useGameState();
+  const { gameState } = useGameState();
   const darkMode = gameState?.settings?.darkMode ?? false;
 
   logger.debug('[SimpleTutorialModal] Render:', { visible, stepTitle: step?.title, currentStep, totalSteps });

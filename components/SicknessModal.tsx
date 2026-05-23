@@ -430,8 +430,8 @@ function SicknessModal() {
                     activeOpacity={0.7}
                   >
                     <LinearGradient
-                      colors={playerMoney >= 2000 && !isClosing && performHealthActivity
-                        ? ['rgba(239, 68, 68, 0.7)', 'rgba(220, 38, 38, 0.8)'] 
+                      colors={playerMoney >= 2000 && !isClosing
+                        ? ['rgba(239, 68, 68, 0.7)', 'rgba(220, 38, 38, 0.8)']
                         : ['rgba(107, 114, 128, 0.4)', 'rgba(75, 85, 99, 0.5)']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
