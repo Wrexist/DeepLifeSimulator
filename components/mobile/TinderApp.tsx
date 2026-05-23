@@ -1621,7 +1621,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
       }
     }
     nextProfile();
-  }, [currentProfile, gameState.relationships, gameState.stats.reputation, boostActive, calculateMatchRate, setGameState, saveGame, handleLike]);
+  }, [currentProfile, gameState.relationships, gameState.stats.reputation, boostActive, calculateMatchRate, setGameState, saveGame]);
 
   const handlePass = useCallback(() => {
     // Add haptic feedback
