@@ -909,8 +909,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             baseTotalIncome += luckBonus;
           }
 
-          // Apply prestige income multiplier
-          const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier);
+          // Apply prestige income multiplier + Money Multiplier gold upgrade
+          // ("All earnings increased by 50% forever" — was set on purchase
+          // but never read by any income pipeline).
+          const moneyMultiplierBonus = prevState.goldUpgrades?.multiplier ? 1.5 : 1;
+          const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus);
 
           // BUG FIX: Auto-reinvest dividends if enabled
           let reinvestedStocks: { symbol: string; shares: number; averagePrice: number; currentPrice: number }[] = [];
