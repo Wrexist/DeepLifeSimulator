@@ -35,12 +35,12 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 908 type errors)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 896 type errors, 32% cleared)
 
-> **Dead code removed:** 9 unreferenced components (GoalManager,
-> EnhancedSocialManager, ImmersiveTutorial, PremiumStore, SubscriptionModal,
-> DailyChallengesModal, anim/LoadingSpinner, useStreamingLogic, useVideoLogic)
-> — ~6,000 lines, nothing imported them.
+> **Dead code removed:** 10 items — 9 unreferenced components
+> (~6,000 lines) plus `MoneyActionsContext.buyPerk`, which had zero
+> callers and would have corrupted gems to `NaN` if ever invoked
+> (it subtracts a non-existent `perk.cost` field from gems).
 >
 > **Recurring root cause fixed in 5 places:** untyped lazy `require()` of an
 > already-typed module degrades everything downstream to `any`/`never`
@@ -48,6 +48,18 @@
 > hook-vs-module updateMoney/updateStats signature trap in Item/Job actions,
 > which was silently passing setGameState as a dollar amount). Worth a lint
 > rule banning `require()` of internal modules.
+>
+> **Two shipped IAP/finance bugs fixed:**
+> - The \$1.99 Mindset perk in ShopModal was advertised but never wired
+>   into IAP_PRODUCTS/PRODUCT_CONFIGS — purchase ID resolved to
+>   `undefined` so the button silently failed. Now plumbed end-to-end
+>   (the "50% faster promotions" game effect itself still needs to be
+>   implemented in the promotion code path).
+> - BankApp defined its own local `Loan` type missing `autoPay`/`type`/
+>   `weeksRemaining`, so every loan opened via the bank UI was missing
+>   the `autoPay` flag and `lib/automation/autoPay.ts:169`
+>   (`if (loan.autoPay)`) skipped it forever. Replaced with the
+>   canonical type and a `autoPay: true` default.
 
 - [x] Net-worth / FIRE / retirement / legacy: fixed wrong field names that
       silently read `undefined` (`loan.remaining`, `realEstate.currentValue`,
