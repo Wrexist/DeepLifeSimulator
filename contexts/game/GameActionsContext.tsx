@@ -710,7 +710,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                     : performance >= 50 ? 1.0
                     : performance >= 30 ? 0.7
                     : 0.3;
-                  const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier);
+                  // Mindset perk + gold upgrade: +50% promotion speed each
+                  // (stacks at 2.25x with both — was previously dead-wired in
+                  // applyPerkEffects 'energy' case which never ran).
+                  let mindsetMultiplier = 1;
+                  if (prevState.goldUpgrades?.mindset) mindsetMultiplier *= 1.5;
+                  if (prevState.perks?.mindset) mindsetMultiplier *= 1.5;
+                  const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier);
                   const newProgress = Math.min(100, (c.progress || 0) + progressRate);
                   return {
                     ...c,
