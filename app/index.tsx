@@ -55,40 +55,40 @@ export default function Index() {
   }, [router]);
 
   useEffect(() => {
-    if (isPreloaded) {
-      const loadingSteps = [
-        { progress: 20, message: 'Loading game assets...' },
-        { progress: 40, message: 'Initializing game state...' },
-        { progress: 60, message: 'Loading scaling utilities...' },
-        { progress: 80, message: 'Preparing UI components...' },
-        { progress: 95, message: 'Almost ready...' },
-        { progress: 100, message: 'Welcome to DeepLife!' },
-      ];
+    if (!isPreloaded) return;
 
-      let currentStep = 0;
-      let timeoutId: NodeJS.Timeout | null = null;
-      const interval = setInterval(() => {
-        if (currentStep < loadingSteps.length) {
-          const step = loadingSteps[currentStep];
-          setProgress(step.progress);
-          setLoadingMessage(step.message);
-          currentStep++;
-        } else {
-          clearInterval(interval);
-          timeoutId = setTimeout(() => {
-            setIsLoading(false);
-            timeoutId = null;
-          }, 500);
-        }
-      }, 800);
+    const loadingSteps = [
+      { progress: 20, message: 'Loading game assets...' },
+      { progress: 40, message: 'Initializing game state...' },
+      { progress: 60, message: 'Loading scaling utilities...' },
+      { progress: 80, message: 'Preparing UI components...' },
+      { progress: 95, message: 'Almost ready...' },
+      { progress: 100, message: 'Welcome to DeepLife!' },
+    ];
 
-      return () => {
+    let currentStep = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const interval = setInterval(() => {
+      if (currentStep < loadingSteps.length) {
+        const step = loadingSteps[currentStep];
+        setProgress(step.progress);
+        setLoadingMessage(step.message);
+        currentStep++;
+      } else {
         clearInterval(interval);
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-      };
-    }
+        timeoutId = setTimeout(() => {
+          setIsLoading(false);
+          timeoutId = null;
+        }, 500);
+      }
+    }, 800);
+
+    return () => {
+      clearInterval(interval);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [isPreloaded]);
 
   // CRITICAL: Programmatic navigation in useEffect, NOT in render
