@@ -59,11 +59,11 @@ export default function TutorialTrigger({
     }
   };
 
-  const getColors = () => {
+  const getColors = (): readonly [string, string] => {
     if (!hasCompletedTutorial) {
       return ['#10B981', '#059669'];
     }
-    
+
     switch (context) {
       case 'onboarding':
         return ['#8B5CF6', '#7C3AED'];
