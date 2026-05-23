@@ -3,10 +3,11 @@
  *
  * Drop-in replacements for moti's MotiView and MotiText using React Native's
  * built-in Animated API. Supports from → animate transitions with timing and
- * spring configs. Exit animations are not supported (require unmount delay).
+ * spring configs, optional looping. Exit animations are not supported.
  *
  * Supported animated properties:
- *   opacity, translateY, translateX, scale, shadowOpacity, shadowRadius
+ *   opacity, translateY, translateX, scale, scaleX, scaleY, rotate,
+ *   shadowOpacity, shadowRadius, width, height
  */
 
 import React, { useEffect, useRef, useMemo } from 'react';
@@ -25,6 +26,10 @@ interface TransitionConfig {
   damping?: number;
   stiffness?: number;
   mass?: number;
+  loop?: boolean;
+  // Accepted for moti compatibility; the stub always restarts (does not reverse)
+  // on loop, which matches repeatReverse: false. repeatReverse: true is ignored.
+  repeatReverse?: boolean;
 }
 
 interface AnimatedStyleValues {
@@ -32,6 +37,9 @@ interface AnimatedStyleValues {
   translateY?: number;
   translateX?: number;
   scale?: number;
+  scaleX?: number;
+  scaleY?: number;
+  rotate?: string; // e.g. '360deg'
   shadowOpacity?: number;
   shadowRadius?: number;
   width?: number;
@@ -46,9 +54,17 @@ interface MotiProps {
 }
 
 // The set of properties we can animate via transforms or direct style
-const TRANSFORM_KEYS = new Set(['translateY', 'translateX', 'scale']);
+const TRANSFORM_KEYS = new Set(['translateY', 'translateX', 'scale', 'scaleX', 'scaleY', 'rotate']);
 const STYLE_KEYS = new Set(['opacity', 'shadowOpacity', 'shadowRadius', 'width', 'height']);
 const ALL_KEYS = [...TRANSFORM_KEYS, ...STYLE_KEYS] as const;
+
+// `rotate` takes string degree values like '360deg'; everything else is numeric.
+function toNumber(key: string, val: number | string | undefined): number {
+  if (val == null) return 0;
+  if (typeof val === 'number') return val;
+  if (key === 'rotate') return parseFloat(val) || 0;
+  return 0;
+}
 
 function useAnimatedValues(
   from: AnimatedStyleValues | undefined,
@@ -69,7 +85,7 @@ function useAnimatedValues(
   const animatedValues = useRef<Record<string, Animated.Value>>({});
   if (keys.length > 0 && Object.keys(animatedValues.current).length === 0) {
     for (const key of keys) {
-      const initialValue = from?.[key] ?? animate?.[key] ?? 0;
+      const initialValue = toNumber(key, from?.[key] ?? animate?.[key]);
       animatedValues.current[key] = new Animated.Value(initialValue);
     }
   }
@@ -79,10 +95,10 @@ function useAnimatedValues(
   useEffect(() => {
     if (!animate || keys.length === 0) return;
 
-    const animations = keys.map((key) => {
+    let animations = keys.map((key) => {
       const av = animatedValues.current[key];
       if (!av) return null;
-      const toValue = animate[key] ?? 0;
+      const toValue = toNumber(key, animate[key]);
 
       if (transition?.type === 'spring') {
         return Animated.spring(av, {
@@ -103,6 +119,10 @@ function useAnimatedValues(
       });
     }).filter(Boolean) as Animated.CompositeAnimation[];
 
+    if (transition?.loop) {
+      animations = animations.map((anim) => Animated.loop(anim));
+    }
+
     if (animations.length > 0) {
       Animated.parallel(animations).start();
     }
@@ -111,14 +131,25 @@ function useAnimatedValues(
   // Build transform array and flat style
   const animatedStyle = useMemo(() => {
     const style: Record<string, any> = {};
-    const transform: Array<Record<string, Animated.Value>> = [];
+    const transform: Array<Record<string, any>> = [];
 
     for (const key of keys) {
       const av = animatedValues.current[key];
       if (!av) continue;
 
       if (TRANSFORM_KEYS.has(key)) {
-        transform.push({ [key]: av });
+        if (key === 'rotate') {
+          // Transform.rotate needs a degree string, so interpolate the
+          // numeric Animated.Value into 'Ndeg' across a wide identity range.
+          transform.push({
+            rotate: av.interpolate({
+              inputRange: [-3600, 3600],
+              outputRange: ['-3600deg', '3600deg'],
+            }),
+          });
+        } else {
+          transform.push({ [key]: av });
+        }
       } else {
         style[key] = av;
       }
