@@ -5,7 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
 import { useGame } from '@/contexts/GameContext';
 import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
-import { usePerformanceOptimization } from '@/hooks/usePerformanceOptimization';
 
 const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
@@ -69,7 +68,6 @@ const PieChart = ({ data }: { data: PieSlice[] }) => {
 export default function NetWorthDisplay() {
   const { gameState } = useGame();
   const { settings } = gameState;
-  const { createMemoizedValue } = usePerformanceOptimization();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const previous = useRef(0);
 
@@ -84,7 +82,7 @@ export default function NetWorthDisplay() {
   };
 
   // Optimize breakdown calculation with specific dependencies
-  const breakdown = createMemoizedValue(() => {
+  const breakdown = useMemo(() => {
     const assets: Asset[] = [
       { id: 'cash', type: 'cash', baseValue: gameState.stats.money },
       { id: 'savings', type: 'cash', baseValue: gameState.bankSavings || 0 },
@@ -158,7 +156,7 @@ export default function NetWorthDisplay() {
   const chartData: PieSlice[] = Object.entries(breakdown.byAssetType).map(
     ([label, value], idx) => ({
       label,
-      value,
+      value: value as number,
       color: colors[idx % colors.length],
     })
   );
