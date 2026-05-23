@@ -576,6 +576,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 // Salary is stored as weekly amount (e.g., 55 = $55/week)
                 // Use it directly without conversion
                 careerSalary = Math.round(levelData.salary);
+
+                // Apply Work Pay Boost perk (+50% earnings). Previously the
+                // \$1.99 perks.workBoost IAP set the flag but no callsite
+                // consumed it — paying users got nothing. Match the
+                // applyPerkEffects 'income' case: gold upgrade and IAP each
+                // stack at 1.5x.
+                let payMultiplier = 1;
+                if (prevState.goldUpgrades?.work_boost) payMultiplier *= 1.5;
+                if (prevState.perks?.workBoost) payMultiplier *= 1.5;
+                if (payMultiplier !== 1) {
+                  careerSalary = Math.round(careerSalary * payMultiplier);
+                }
+
                 logger.info(`[WEEK PROGRESSION] Career salary: $${careerSalary}/week from ${levelData.name} (level ${safeLevel + 1})`);
               } else {
                 logger.warn(`[WEEK PROGRESSION] Career ${prevState.currentJob} level ${safeLevel} has invalid salary: ${levelData?.salary}`);
