@@ -2794,7 +2794,7 @@ export class ComprehensiveGameSimulator {
               if (currentMiners < maxCapacity) {
                 const availableMoney = money - reserveFund;
                 const maxSpend = Math.floor(availableMoney * 0.9); // Use 90% of available (after reserve)
-                let minerToBuy: { id: string; name: string; price: number; weeklyIncome: number } | null = null;
+                let minerToBuy: { id: string; name: string; price: number; roi: number } | null = null;
                 
                 // Miner earnings (approximate weekly income per miner)
                 const MINER_EARNINGS: Record<string, number> = {
@@ -3224,7 +3224,7 @@ export class ComprehensiveGameSimulator {
               if (availableProperties.length > 0) {
                 // Calculate ROI for each property (rental income / price)
                 const propertyOptions = availableProperties.map(prop => {
-                  const weeklyRent = (prop.weeklyIncome || prop.rent || 0);
+                  const weeklyRent = prop.rent || 0;
                   const roi = prop.price > 0 ? weeklyRent / prop.price : 0;
                   return { prop, roi, weeklyRent };
                 });
@@ -3286,7 +3286,7 @@ export class ComprehensiveGameSimulator {
                   
                   if (upgradeCost > availableMoney) continue;
                   
-                  const currentRent = property.rent || property.weeklyIncome || 0;
+                  const currentRent = property.rent || 0;
                   const incomeIncrease = Math.floor(currentRent * 0.2); // 20% income increase
                   const valueIncrease = Math.floor(currentValue * 0.08); // 8% value increase
                   
@@ -3307,7 +3307,7 @@ export class ComprehensiveGameSimulator {
                     const updatedRealEstate = (prev.realEstate || []).map(p => {
                       if (p.id === bestUpgrade!.property.id) {
                         const newUpgradeLevel = (p.upgradeLevel || 0) + 1;
-                        const currentRent = p.rent || p.weeklyIncome || 0;
+                        const currentRent = p.rent || 0;
                         const incomeIncrease = Math.floor(currentRent * 0.2);
                         const currentValue = p.currentValue || p.price || 0;
                         const valueIncrease = Math.floor(currentValue * 0.08);
@@ -3397,6 +3397,7 @@ export class ComprehensiveGameSimulator {
                       stocks: {
                         ...prev.stocks,
                         holdings: updatedHoldings,
+                        watchlist: prev.stocks?.watchlist || [],
                       },
                       stats: {
                         ...prev.stats,
@@ -3758,7 +3759,7 @@ export class ComprehensiveGameSimulator {
                   
                   // Calculate earnings and follower growth
                   const earnings = calculatePostAdRevenue(followers, influenceLevel, 'text');
-                  const engagement = { likes: Math.floor(followers * 0.05), comments: Math.floor(followers * 0.01), reposts: Math.floor(followers * 0.002), views: followers * 2 };
+                  const engagement = { likes: Math.floor(followers * 0.05), comments: Math.floor(followers * 0.01), reposts: Math.floor(followers * 0.002), views: followers * 2, bookmarks: 0 };
                   const followerGrowth = calculateNewFollowersFromPost(followers, engagement, false);
                   
                   // Update state with post
@@ -3773,14 +3774,14 @@ export class ComprehensiveGameSimulator {
                         {
                           id: `post-${Date.now()}`,
                           content: 'Just posted!',
-                          author: prev.character.name || 'Player',
+                          author: (prev as { character?: { name?: string } }).character?.name || 'Player',
                           timestamp: Date.now(),
                           likes: engagement.likes,
                           comments: engagement.comments,
                           reposts: engagement.reposts,
                           views: engagement.views,
                         },
-                        ...(prev.socialMedia!.posts || []).slice(0, 49), // Keep last 50 posts
+                        ...(prev.socialMedia!.recentPosts || []).slice(0, 49), // Keep last 50 posts
                       ],
                     },
                     stats: {
