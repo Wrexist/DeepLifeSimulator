@@ -39,7 +39,7 @@ import {
   ChevronUp,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { EnhancedAchievement, ACHIEVEMENT_CATEGORIES, ENHANCED_ACHIEVEMENTS } from '@/utils/enhancedAchievements';
+import { EnhancedAchievement, ACHIEVEMENT_CATEGORIES, ENHANCED_ACHIEVEMENTS, AchievementProgress } from '@/utils/enhancedAchievements';
 import EnhancedAchievementCard from './EnhancedAchievementCard';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { DesignSystem } from '@/utils/designSystem';
@@ -467,10 +467,14 @@ export default function EnhancedAchievementScreen({
             ) : (
               achievements.map(achievement => {
                 const progress = calculateAchievementProgress(achievement, gameState);
-                const achievementProgress = gameState.achievements?.find((p: any) => p.id === achievement.id) || {
+                // Project to AchievementProgress shape — gameState.achievements
+                // entries are Achievement (has \`completed\` but not progress/
+                // claimed), so build the progress object explicitly.
+                const found = gameState.achievements?.find((a: { id: string }) => a.id === achievement.id);
+                const achievementProgress: AchievementProgress = {
                   id: achievement.id,
-                  progress: 0,
-                  completed: false,
+                  progress,
+                  completed: found?.completed ?? false,
                   claimed: false,
                 };
 
