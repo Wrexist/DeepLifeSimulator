@@ -18,7 +18,6 @@ import { shouldAutoCollectRent, shouldAutoReinvestDividends } from '@/lib/presti
 import { useGameState } from './GameStateContext';
 import { useGameData } from './GameDataContext';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
-import { perks as perksData } from '@/src/features/onboarding/perksData';
 import { CacheManager } from '@/utils/cacheManager';
 import { useGameUI } from './GameUIContext';
 import { useUIUX } from '@/contexts/UIUXContext';
@@ -56,7 +55,6 @@ interface MoneyActionsContextType {
   applyPerkEffects: (baseValue: number, perkType: string) => number;
 
   // IAP & Perks
-  buyPerk: (perkId: string) => void;
   buyStarterPack: () => void;
   buyGoldPack: () => void;
   buyGoldUpgrade: (upgradeId: string) => void;
@@ -187,35 +185,6 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, []);
 
   // IAP & Perks Actions
-  const buyPerk = useCallback((perkId: string) => {
-    const perk = perksData.find(p => p.id === perkId);
-    if (!perk) {
-      showError('Invalid Perk', `Perk ${perkId} not found`);
-      return;
-    }
-
-    const state = stateRef.current;
-    if (!state || state.stats.gems < perk.cost) {
-      showError('Insufficient Gems', `You need ${perk.cost} gems to purchase this perk`);
-      return;
-    }
-
-    haptic.success(); // Purchase confirmed
-    setGameState(prevState => ({
-      ...prevState,
-      stats: {
-        ...prevState.stats,
-        gems: prevState.stats.gems - perk.cost,
-      },
-      perks: {
-        ...prevState.perks,
-        [perkId]: true,
-      },
-    }));
-
-    logger.info('Perk purchased:', { perkId, cost: perk.cost });
-  }, [setGameState, showError]);
-
   const buyStarterPack = useCallback(() => {
     // Implementation for starter pack purchase
     logger.info('Starter pack purchase initiated');
@@ -528,7 +497,6 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     updateMoney,
     batchUpdateMoney,
     applyPerkEffects,
-    buyPerk,
     buyStarterPack,
     buyGoldPack,
     buyGoldUpgrade,
@@ -537,7 +505,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     sellCrypto,
     swapCrypto,
     purchasePrestigeBonus,
-  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyPerk, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus]);
+  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus]);
 
   return (
     <MoneyActionsContext.Provider value={value}>

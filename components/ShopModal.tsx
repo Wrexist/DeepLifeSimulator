@@ -48,11 +48,10 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
   const [iapLoading, setIapLoading] = useState(false);
 
   useEffect(() => {
-    if (visible) {
-      setLoading(true);
-      const t = setTimeout(() => setLoading(false), 500);
-      return () => clearTimeout(t);
-    }
+    if (!visible) return;
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(t);
   }, [visible]);
 
   const perkItems = [
@@ -766,7 +765,9 @@ const styles = StyleSheet.create({
   ownedItemText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   ownedItemDescription: {
     color: '#D1FAE5',
