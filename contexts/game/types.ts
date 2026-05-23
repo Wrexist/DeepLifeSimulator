@@ -12,6 +12,7 @@ import { WeeklyEvent } from '@/lib/events/engine';
 import { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 import { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
 import { KarmaState } from '@/lib/karma/karmaSystem';
+import type { AutomationState } from '@/lib/automation/automationTypes';
 
 export interface GameStats {
   health: number;
@@ -1192,41 +1193,7 @@ export interface GameState {
     lastSeason: string;
     completedEvents: string[];
   };
-  automation?: {
-    rules: Array<{
-      id: string;
-      type: 'invest' | 'save' | 'pay' | 'renew';
-      name: string;
-      enabled: boolean;
-      conditions: Array<{
-        type: string;
-        value: number;
-      }>;
-      actions: Array<{
-        type: string;
-        value: number;
-        target?: string;
-      }>;
-      priority: number;
-      lastExecuted?: number;
-      executionCount?: number;
-    }>;
-    executionHistory: Array<{
-      ruleId: string;
-      ruleName: string;
-      type: string;
-      executedAt: number;
-      success: boolean;
-      message: string;
-      actionsTaken: Array<{
-        type: string;
-        value: number;
-        result: string;
-      }>;
-    }>;
-    maxSlots: number;
-    enabled: boolean;
-  };
+  automation?: AutomationState;
   socialMedia?: {
     followers: number;
     influenceLevel: 'novice' | 'rising' | 'popular' | 'influencer' | 'celebrity';
