@@ -41,7 +41,7 @@ interface ShareLifeCardProps {
  * Generate a tagline based on player's current life situation
  */
 function generateTagline(gameState: GameState): string {
-  const { stats, career: currentCareer, family, generationNumber } = gameState;
+  const { stats, family, generationNumber } = gameState;
   const netWorth = calculateNetWorth(gameState);
 
   // Get current career if any
@@ -174,7 +174,7 @@ ${tagline}
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      logger.warn('[ShareLifeCard] Copy failed', error);
+      logger.warn('[ShareLifeCard] Copy failed', { error });
     }
   };
 
