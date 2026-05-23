@@ -366,75 +366,15 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   // Initialize gaming data if it doesn't exist
   useEffect(() => {
     if (!gamingStreaming) {
+      // Seed from the canonical initial state shape rather than maintaining
+      // a parallel literal here. The previous inline literal was missing
+      // canonical fields (level, averageViewers, currentStream, unlockedGames)
+      // and carried many StreamingState fields that aren't on the type at all
+      // (chatEnabled, streamTitle, streamAds, streamAnalytics, etc.) — TS
+      // rejected the shape on every game without saved streaming data.
       updateGameState(prev => ({
         ...prev,
-        gamingStreaming: {
-          followers: 0,
-          subscribers: 0,
-          totalViews: 0,
-          totalEarnings: 0,
-          experience: 0,
-          gamesPlayed: [],
-          ownedGames: [],
-          equipment: {},
-          pcUpgradeLevels: {},
-          pcComponents: {},
-          videos: [],
-          videoTitleCounters: {},
-          streamHistory: [],
-          bestStream: null,
-          streamHours: 0,
-          totalSubEarnings: 0,
-          totalDonations: 0,
-          upgrades: {},
-          videoRecordingState: {
-            isRecording: false,
-            recordProgress: 0,
-            renderProgress: 0,
-            uploadProgress: 0,
-            currentPhase: 'idle',
-            videoTitle: '',
-            videoGame: '',
-            isRendering: false,
-            isUploading: false,
-          },
-          streamingState: {
-            isStreaming: false,
-            streamProgress: 0,
-            selectedGame: null,
-            streamDuration: 0,
-            currentViewers: 0,
-            currentEarnings: 0,
-            streamStartTime: 0,
-            streamPauseTime: 0,
-            totalPausedTime: 0,
-            isPaused: false,
-            streamQuality: 'medium',
-            chatEnabled: true,
-            donationsEnabled: true,
-            subsEnabled: true,
-            streamTitle: '',
-            streamDescription: '',
-            streamTags: [],
-            streamCategory: 'gaming',
-            streamLanguage: 'en',
-            streamAgeRestriction: false,
-            streamMonetization: true,
-            streamAds: true,
-            streamSchedule: [],
-            streamNotifications: true,
-            streamAnalytics: {
-              peakViewers: 0,
-              averageViewers: 0,
-              totalChatMessages: 0,
-              totalEmotes: 0,
-              totalShares: 0,
-              totalClips: 0,
-              streamRating: 0,
-              streamFeedback: [],
-            },
-          },
-        },
+        gamingStreaming: initialGameState.gamingStreaming,
       }));
     }
   }, [gamingStreaming, updateGameState]);
