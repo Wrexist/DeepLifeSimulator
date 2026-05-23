@@ -9,7 +9,7 @@ import { logger } from '@/utils/logger';
 import { buyItem } from '@/contexts/game/actions/ItemActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { getDriversLicense, purchaseVehicle, refuelVehicle, repairVehicle, purchaseVehicleInsurance } from '@/contexts/game/actions/VehicleActions';
+import { getDriversLicense, purchaseVehicle, refuelVehicle, repairVehicle, purchaseInsurance } from '@/contexts/game/actions/VehicleActions';
 import { createCompany, buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { goOnDate, proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
@@ -877,7 +877,7 @@ export class RealActionSimulator {
           };
         }
 
-        const result = purchaseVehicleInsurance(gameState, setGameState, vehicle.id, 'basic', { updateMoney });
+        const result = purchaseInsurance(gameState, setGameState, vehicle.id, 'basic', { updateMoney });
         await new Promise(resolve => setTimeout(resolve, 100));
 
         return {
@@ -949,7 +949,7 @@ export class RealActionSimulator {
         
         // Try to sell a vehicle with a fake ID
         const { sellVehicle } = await import('@/contexts/game/actions/VehicleActions');
-        const result = sellVehicle(gameState, setGameState, 'nonexistent-vehicle-id', { updateMoney });
+        const result = sellVehicle(gameState, setGameState, 'nonexistent-vehicle-id', { updateMoney, updateStats });
 
         return {
           success: !result.success, // Should fail
@@ -1197,7 +1197,7 @@ export class RealActionSimulator {
           };
         }
 
-        const workerCount = company.workers?.length || 0;
+        const workerCount = company.employees || 0;
         const workerSalary = company.workerSalary || 0;
         const totalExpenses = workerCount * workerSalary;
         
@@ -1399,7 +1399,7 @@ export class RealActionSimulator {
         }
 
         const { planWedding } = await import('@/contexts/game/actions/DatingActions');
-        const result = planWedding(gameState, setGameState, partner.id, 'simple', { updateMoney, updateStats });
+        const result = planWedding(gameState, setGameState, partner.id, 'simple', 50, 4, {});
 
         return {
           success: !result.success, // Should fail
@@ -1510,7 +1510,7 @@ export class RealActionSimulator {
         }
 
         const loans = gameState.loans || [];
-        const activeLoan = loans.find(l => l.remainingAmount > 0);
+        const activeLoan = loans.find(l => l.remaining > 0);
         
         if (!activeLoan) {
           return {
@@ -1521,7 +1521,7 @@ export class RealActionSimulator {
           };
         }
 
-        const paymentAmount = Math.min(activeLoan.monthlyPayment, gameState.stats.money, activeLoan.remainingAmount);
+        const paymentAmount = Math.min(activeLoan.weeklyPayment, gameState.stats.money, activeLoan.remaining);
         if (paymentAmount <= 0) {
           return {
             success: false,
@@ -1536,9 +1536,9 @@ export class RealActionSimulator {
         
         setGameState(prev => ({
           ...prev,
-          loans: prev.loans.map(l =>
+          loans: (prev.loans || []).map(l =>
             l.id === activeLoan.id
-              ? { ...l, remainingAmount: Math.max(0, l.remainingAmount - paymentAmount) }
+              ? { ...l, remaining: Math.max(0, l.remaining - paymentAmount) }
               : l
           ),
         }));
@@ -1644,13 +1644,13 @@ export class RealActionSimulator {
       testFunction: async (gameState, setGameState) => {
         const startTime = Date.now();
         
-        const result = validateProperties(gameState.properties || []);
+        const result = validateProperties(gameState.realEstate || []);
 
         return {
           success: result.valid,
           error: result.errors.length > 0 ? result.errors.join(', ') : undefined,
           details: result.valid 
-            ? `Properties valid: ${(gameState.properties || []).length} properties` 
+            ? `Properties valid: ${(gameState.realEstate || []).length} properties` 
             : `Issues: ${result.errors.join(', ')}${result.warnings.length > 0 ? ` Warnings: ${result.warnings.join(', ')}` : ''}`,
           duration: Date.now() - startTime,
           timestamp: Date.now(),
@@ -1870,7 +1870,7 @@ export class RealActionSimulator {
       testFunction: async (gameState, setGameState) => {
         const startTime = Date.now();
         
-        const propertyCount = (gameState.properties || []).length;
+        const propertyCount = (gameState.realEstate || []).length;
         const maxProperties = 10; // Example limit
         
         return {
