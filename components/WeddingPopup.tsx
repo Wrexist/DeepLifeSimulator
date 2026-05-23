@@ -100,6 +100,7 @@ export default function WeddingPopup() {
         confettiLoop.stop();
       };
     }
+    return;
   }, [showWeddingPopup]);
 
   const closePopup = () => {

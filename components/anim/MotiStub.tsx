@@ -17,6 +17,7 @@ import {
   TextProps,
   ViewStyle,
   TextStyle,
+  StyleProp,
 } from 'react-native';
 
 interface TransitionConfig {
@@ -166,7 +167,7 @@ function useAnimatedValues(
 }
 
 export const MotiView: React.FC<
-  ViewProps & MotiProps & { style?: ViewStyle | ViewStyle[] }
+  ViewProps & MotiProps & { style?: StyleProp<ViewStyle> }
 > = ({ from, animate, exit, transition, style, children, ...rest }) => {
   const animatedStyle = useAnimatedValues(from, animate, transition);
 
@@ -178,7 +179,7 @@ export const MotiView: React.FC<
 };
 
 export const MotiText: React.FC<
-  TextProps & MotiProps & { style?: TextStyle | TextStyle[] }
+  TextProps & MotiProps & { style?: StyleProp<TextStyle> }
 > = ({ from, animate, exit, transition, style, children, ...rest }) => {
   const animatedStyle = useAnimatedValues(from, animate, transition);
 

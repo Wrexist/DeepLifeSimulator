@@ -16,12 +16,11 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
   const [filterLevel, setFilterLevel] = useState<string | null>(null);
 
   useEffect(() => {
-    if (visible) {
-      const unsubscribe = remoteLogger.subscribe((newLogs) => {
-        setLogs(newLogs);
-      });
-      return unsubscribe;
-    }
+    if (!visible) return;
+    const unsubscribe = remoteLogger.subscribe((newLogs) => {
+      setLogs(newLogs);
+    });
+    return unsubscribe;
   }, [visible]);
 
   const filteredLogs = useMemo(() => {

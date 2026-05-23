@@ -535,6 +535,9 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
     fontSize: 14,
   },
+  petTextDark: {
+    color: '#F9FAFB',
+  },
   choicesContainer: {
     gap: 12,
   },
