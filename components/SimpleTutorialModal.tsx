@@ -6,12 +6,7 @@ import { X, ArrowRight, Lightbulb } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { logger } from '@/utils/logger';
-
-interface TutorialStep {
-  id: string;
-  title: string;
-  description: string;
-}
+import type { TutorialStep } from '@/types/tutorial';
 
 interface SimpleTutorialModalProps {
   visible: boolean;
