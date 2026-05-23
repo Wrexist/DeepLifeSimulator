@@ -765,9 +765,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             logger.info(`[WEEK PROGRESSION] Education penalties applied (${numActiveEducations} active, non-paused): ${educationHappinessPenalty} happiness, ${educationHealthPenalty} health, ${educationEnergyPenalty} energy`);
 
             // Progress each enrolled, non-paused education by 1 week
+            // (Fast Learner perk + gold upgrade speed up the decrement.)
+            let educationSpeedMultiplier = 1;
+            if (prevState.goldUpgrades?.fast_learner) educationSpeedMultiplier *= 1.5;
+            if (prevState.perks?.fastLearner) educationSpeedMultiplier *= 1.5;
+            const educationDecrement = Math.max(1, Math.ceil(educationSpeedMultiplier));
+
             updatedEducations = updatedEducations.map(edu => {
               if (edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0) {
-                const newWeeksRemaining = Math.max(0, edu.weeksRemaining - 1);
+                const newWeeksRemaining = Math.max(0, edu.weeksRemaining - educationDecrement);
                 const isCompleted = newWeeksRemaining === 0;
 
                 if (isCompleted) {
