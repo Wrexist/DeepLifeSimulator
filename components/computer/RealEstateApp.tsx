@@ -1446,7 +1446,7 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
                 icon="🏠"
                 title="No Properties"
                 description="Browse available properties and invest in real estate to build your portfolio."
-                darkMode={settings?.darkMode ?? true}
+                darkMode={darkMode}
               />
             ) : (
               filteredProperties.map((property, index) => renderPropertyCard(property, index))
@@ -2211,6 +2211,19 @@ const styles = StyleSheet.create({
     borderRadius: scale(20),
   },
   rentedBadgeText: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  livingBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(4),
+    borderRadius: scale(12),
+    marginTop: scale(8),
+  },
+  livingBadgeText: {
     fontSize: fontScale(11),
     fontWeight: '700',
     color: '#FFFFFF',

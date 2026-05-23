@@ -21,7 +21,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
   const [activeTab, setActiveTab] = useState<'shop' | 'forum' | 'terminal'>('shop');
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
   const [isHacking, setIsHacking] = useState(false);
-  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
+  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Extract frequently used values from gameState
   const darkWebItems = gameState.darkWebItems || [];

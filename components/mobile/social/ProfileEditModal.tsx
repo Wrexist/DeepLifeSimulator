@@ -138,37 +138,21 @@ export default function ProfileEditModal({
   }, [hasChanges, onClose]);
   
   const handlePickProfilePhoto = useCallback(() => {
-    showImageSourcePicker(
-      async () => {
-        const result = await pickProfilePhoto();
-        if (result.success && result.base64) {
-          setProfilePhoto(result.base64);
-        }
-      },
-      async () => {
-        const result = await takePhoto({ aspect: [1, 1] });
-        if (result.success && result.base64) {
-          setProfilePhoto(result.base64);
-        }
+    showImageSourcePicker(async () => {
+      const result = await pickProfilePhoto();
+      if (result.success && result.base64) {
+        setProfilePhoto(result.base64);
       }
-    );
+    });
   }, []);
-  
+
   const handlePickHeaderPhoto = useCallback(() => {
-    showImageSourcePicker(
-      async () => {
-        const result = await pickHeaderPhoto();
-        if (result.success && result.base64) {
-          setHeaderPhoto(result.base64);
-        }
-      },
-      async () => {
-        const result = await takePhoto({ aspect: [3, 1] });
-        if (result.success && result.base64) {
-          setHeaderPhoto(result.base64);
-        }
+    showImageSourcePicker(async () => {
+      const result = await pickHeaderPhoto();
+      if (result.success && result.base64) {
+        setHeaderPhoto(result.base64);
       }
-    );
+    });
   }, []);
   
   return (

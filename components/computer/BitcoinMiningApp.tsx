@@ -4773,7 +4773,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
             const value = amount * (crypto?.price || 0);
             return (
               <View key={cryptoId} style={[styles.cryptoStatCard, isDarkMode && styles.cryptoStatCardDark]}>
-                <View style={styles.cryptoStatHeader}>
+                <View style={styles.cryptoHeader}>
                   <Text style={[styles.cryptoStatSymbol, isDarkMode && styles.cryptoStatSymbolDark]}>
                     {crypto?.symbol.toUpperCase() || cryptoId}
                   </Text>
