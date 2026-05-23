@@ -17,7 +17,7 @@ interface NetWorthBreakdownModalProps {
 
 export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBreakdownModalProps) {
   const { gameState } = useGame();
-  const { settings, stats, bankSavings, items, companies, realEstate, vehicles } = gameState;
+  const { settings, stats, bankSavings = 0, items, companies, realEstate, vehicles } = gameState;
   const isDarkMode = settings?.darkMode ?? false;
 
   const breakdown = useMemo(() => {

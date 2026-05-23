@@ -71,7 +71,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
       newyear: { name: 'New Year', icon: Sparkles, color: '#3B82F6' },
     };
     
-    return holidays[seasonData.holiday];
+    return holidays[seasonData.holiday as keyof typeof holidays] || null;
   };
 
   const holiday = getHolidayInfo();
