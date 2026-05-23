@@ -900,9 +900,6 @@ export class IAPService {
 
     // Handle money multiplier
     if (config.moneyMultiplier) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.moneyMultiplier = true;
     }
 
@@ -922,9 +919,6 @@ export class IAPService {
 
     // Handle everything unlocked
     if (config.everythingUnlocked) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.everythingUnlocked = true;
       gameState.settings.adsRemoved = true;
       gameState.settings.lifetimePremium = true;
@@ -943,9 +937,6 @@ export class IAPService {
 
     // Handle unlimited youth pills
     if (config.unlimitedYouthPills) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.unlimitedYouthPills = true;
       // Set a very high number for practical purposes
       gameState.youthPills = 999999;
@@ -953,9 +944,6 @@ export class IAPService {
 
     // Handle lifetime premium
     if (config.lifetimePremium) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.lifetimePremium = true;
       gameState.settings.adsRemoved = true;
     }
@@ -1387,9 +1375,6 @@ export class IAPService {
 
     // Handle money multiplier
     if (config.moneyMultiplier) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.moneyMultiplier = true;
     }
 
@@ -1409,9 +1394,6 @@ export class IAPService {
 
     // Handle everything unlocked
     if (config.everythingUnlocked) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.everythingUnlocked = true;
       gameState.settings.adsRemoved = true;
       gameState.settings.lifetimePremium = true;
@@ -1430,9 +1412,6 @@ export class IAPService {
 
     // Handle unlimited youth pills
     if (config.unlimitedYouthPills) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.unlimitedYouthPills = true;
       // Set a very high number for practical purposes
       gameState.youthPills = 999999;
@@ -1440,9 +1419,6 @@ export class IAPService {
 
     // Handle lifetime premium
     if (config.lifetimePremium) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.lifetimePremium = true;
       gameState.settings.adsRemoved = true;
     }
