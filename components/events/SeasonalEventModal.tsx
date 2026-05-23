@@ -189,10 +189,8 @@ export default function SeasonalEventModal({
         >
           {/* Animated Header */}
           <LinearGradient
-            colors={event.type === 'holiday' 
-              ? ['#EF4444', '#DC2626'] 
-              : event.type === 'birthday'
-              ? ['#F59E0B', '#D97706']
+            colors={event.holiday
+              ? ['#EF4444', '#DC2626']
               : ['#667EEA', '#764BA2']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

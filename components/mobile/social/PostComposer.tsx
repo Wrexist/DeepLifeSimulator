@@ -78,19 +78,12 @@ export default function PostComposer({
   }, [content, photo, canPost, onPost, onClose]);
   
   const handleAddPhoto = useCallback(() => {
-    showImageSourcePicker(
-      async () => {
-        const result = await pickPostPhoto();
-        if (result.success && result.base64) {
-          setPhoto(result.base64);
-        }
-      },
-      async () => {
-        const result = await takePhoto({ aspect: [4, 3] });
-        if (result.success && result.base64) {
-          setPhoto(result.base64);
-        }
+    showImageSourcePicker(async () => {
+      const result = await pickPostPhoto();
+      if (result.success && result.base64) {
+        setPhoto(result.base64);
       }
+    }
     );
   }, []);
   

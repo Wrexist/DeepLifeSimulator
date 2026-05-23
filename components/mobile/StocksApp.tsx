@@ -6,7 +6,7 @@ import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, BarChart3, Plus, Minus
 import { useGame } from '@/contexts/GameContext';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
-import { SkeletonLoader, SkeletonList } from '@/components/ui/SkeletonLoader';
+import SkeletonLoader, { SkeletonList } from '@/components/ui/SkeletonLoader';
 import EmptyState from '@/components/ui/EmptyState';
 import { getStockInfo, getAllStockSymbols } from '@/lib/economy/stockMarket';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -906,7 +906,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                       loading={tradingLoading}
                       variant={tradeType === 'buy' ? 'success' : 'danger'}
                       size="medium"
-                      style={[styles.modalConfirmButton, tradeType === 'buy' ? styles.modalConfirmButtonBuy : styles.modalConfirmButtonSell]}
+                      style={StyleSheet.flatten([styles.modalConfirmButton, tradeType === 'buy' ? styles.modalConfirmButtonBuy : styles.modalConfirmButtonSell])}
                       loadingText={tradeType === 'buy' ? 'Buying...' : 'Selling...'}
                     />
                   </View>
