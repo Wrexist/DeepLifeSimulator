@@ -3,6 +3,7 @@ import type { GameState } from '@/contexts/game/types';
 import { IAP_PRODUCTS, getProductConfig, getAllProductIds, isConsumableProduct } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
+import { clampHobbySkillLevel } from '@/utils/stateValidation';
 
 // CRITICAL: Do NOT create logger scope here - logger may not be initialized yet
 // This module is imported at app startup before UI renders
@@ -847,11 +848,12 @@ export class IAPService {
     }
 
     if (config.skillBoost) {
-      // Add to all skills
-      if (gameState.skills) {
-        Object.keys(gameState.skills).forEach(skill => {
-          gameState.skills[skill] = (gameState.skills[skill] || 0) + config.skillBoost;
-        });
+      // Bump every hobby's skillLevel by the boost amount (hobbies are
+      // the game's skill system; gameState.skills doesn't exist).
+      if (gameState.hobbies) {
+        for (const hobby of gameState.hobbies) {
+          hobby.skillLevel = clampHobbySkillLevel(hobby.skillLevel + config.skillBoost);
+        }
       }
     }
 
@@ -1336,11 +1338,12 @@ export class IAPService {
     }
 
     if (config.skillBoost) {
-      // Add to all skills
-      if (gameState.skills) {
-        Object.keys(gameState.skills).forEach(skill => {
-          gameState.skills[skill] = (gameState.skills[skill] || 0) + config.skillBoost;
-        });
+      // Bump every hobby's skillLevel by the boost amount (hobbies are
+      // the game's skill system; gameState.skills doesn't exist).
+      if (gameState.hobbies) {
+        for (const hobby of gameState.hobbies) {
+          hobby.skillLevel = clampHobbySkillLevel(hobby.skillLevel + config.skillBoost);
+        }
       }
     }
 

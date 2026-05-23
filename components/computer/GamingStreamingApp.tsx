@@ -1829,6 +1829,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       subscribers: newSubscribers,
       chatMessages: chatMessages,
       donations: totalDonations,
+      timestamp: Date.now(),
     };
 
     // Update gaming data

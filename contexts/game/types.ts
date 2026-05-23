@@ -836,6 +836,7 @@ export interface StreamSession {
   subscribers?: number;
   chatMessages: number;
   donations: number;
+  timestamp?: number; // ms since epoch; used to sort recent streams for income decay
 }
 
 export interface StreamHistoryItem extends StreamSession {
