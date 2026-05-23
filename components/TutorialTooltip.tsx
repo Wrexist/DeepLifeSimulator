@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, ArrowRight } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
@@ -58,7 +58,7 @@ export default function TutorialTooltip({
     }
   }, [visible]);
 
-  const getPositionStyle = () => {
+  const getPositionStyle = (): ViewStyle => {
     switch (position) {
       case 'top':
         return { justifyContent: 'flex-start', paddingTop: 100 };

@@ -89,7 +89,9 @@ export default function BackupRecoveryModal({ visible, onClose, slot, onRestoreC
       
       // Handle results - use defaults if any fail
       const backupList = results[0].status === 'fulfilled' ? results[0].value : [];
-      const storage = results[1].status === 'fulfilled' ? results[1].value : { total: 0, used: 0, available: 0 };
+      const storage: BackupStorageInfo = results[1].status === 'fulfilled'
+        ? results[1].value
+        : { totalSize: 0, maxSize: 0, backupsBySlot: {} };
       
       // Log any failures
       if (results[0].status === 'rejected') {

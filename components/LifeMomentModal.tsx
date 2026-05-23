@@ -55,6 +55,7 @@ export default function LifeMomentModal() {
       setGameState(prev => ({
         ...prev,
         lifeMoments: {
+          lastMomentWeek: prev.lifeMoments?.lastMomentWeek ?? prev.weeksLived,
           ...(prev.lifeMoments || {}),
           pendingMoment: undefined,
           momentsThisWeek: (prev.lifeMoments?.momentsThisWeek || 0) + 1,

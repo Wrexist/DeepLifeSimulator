@@ -10,7 +10,7 @@ interface QuickAction {
   id: string;
   label: string;
   icon: React.ComponentType<{ size?: number; color?: string }>;
-  color: string[];
+  color: readonly [string, string, ...string[]];
   onPress: () => void;
   disabled?: boolean;
 }

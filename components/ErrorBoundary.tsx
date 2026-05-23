@@ -416,7 +416,7 @@ class ErrorBoundary extends Component<Props, State> {
               : undefined,
           }));
       } catch (logError) {
-        logger.warn('Failed to get logs from remoteLogger:', logError);
+        logger.warn('Failed to get logs from remoteLogger:', { error: logError });
       }
 
       // Get essential game state information
