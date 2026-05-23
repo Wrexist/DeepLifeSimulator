@@ -951,6 +951,7 @@ export function checkScenarioWin(
     companies: Array<{ weeklyIncome: number }>;
     realEstate: Array<{ owned: boolean; value: number }>;
     weeksLived: number;
+    bankSavings?: number;
   }
 ): { won: boolean; unmetConditions: ScenarioCondition[] } {
   const unmetConditions: ScenarioCondition[] = [];

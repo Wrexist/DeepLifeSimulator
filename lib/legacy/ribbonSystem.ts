@@ -238,7 +238,7 @@ export const RIBBONS: RibbonDefinition[] = [
     description: 'Spent significant time behind bars.',
     hidden: false,
     priority: 20,
-    condition: (s) => (s.jailWeeks ?? 0) > 0 || (s.totalJailTime ?? 0) >= 26,
+    condition: (s) => (s.jailWeeks ?? 0) > 0 || (s.lifetimeStatistics?.totalJailTime ?? 0) >= 26,
   },
   {
     id: 'ribbon_famous',
