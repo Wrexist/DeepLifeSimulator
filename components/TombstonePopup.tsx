@@ -4,9 +4,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useGame } from '@/contexts/GameContext';
+import { initialGameState } from '@/contexts/game/initialState';
 
 export default function TombstonePopup() {
-  const { gameState, setGameState, restartGame, reviveCharacter, currentSlot } = useGame();
+  const { gameState, setGameState, reviveCharacter, currentSlot } = useGame();
   const router = useRouter();
   const { settings, deathReason, stats, date } = gameState;
   const completed = gameState.achievements?.filter(a => a.completed) || [];
@@ -26,10 +27,20 @@ export default function TombstonePopup() {
       // Clear the current save slot
       await AsyncStorage.removeItem(`save_slot_${currentSlot}`);
       await AsyncStorage.removeItem('lastSlot');
-      
-      // Restart the game with preserved achievements and gems
-      await restartGame();
-      
+
+      // Reset game state to a fresh life while preserving meta-progress
+      // (achievements + gems). The previous \`await restartGame()\` here
+      // called an unwired action that didn't exist — the catch below
+      // re-showed the death popup, trapping the player in a death loop.
+      setGameState(prev => ({
+        ...initialGameState,
+        achievements: prev.achievements,
+        stats: {
+          ...initialGameState.stats,
+          gems: prev.stats?.gems || 0,
+        },
+      }));
+
       // Navigate to main menu
       router.replace('/(onboarding)/MainMenu');
     } catch (error) {
