@@ -67,8 +67,6 @@ describe('Career & Education Stress Tests', () => {
             duration: 104,
             weeksRemaining: 104,
             completed: false,
-            requirements: [],
-            unlocks: [],
           },
         ],
       };
@@ -97,8 +95,6 @@ describe('Career & Education Stress Tests', () => {
         duration: 208,
         weeksRemaining: 208,
         completed: false,
-        requirements: ['masters'],
-        unlocks: ['advanced_doctor'],
       });
 
       // Deduct cost
@@ -131,8 +127,6 @@ describe('Career & Education Stress Tests', () => {
             duration: 72,
             weeksRemaining: 72,
             completed: false,
-            requirements: [],
-            unlocks: [],
           },
           {
             id: 'computer-science',
@@ -142,8 +136,6 @@ describe('Career & Education Stress Tests', () => {
             duration: 104,
             weeksRemaining: 104,
             completed: false,
-            requirements: [],
-            unlocks: [],
           },
         ],
       };

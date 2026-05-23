@@ -32,7 +32,7 @@ export function setupCompanyMogul(): Partial<GameState> {
         money: 100000,
         baseWeeklyIncome: 2000,
         createdAt: Date.now(),
-        upgrades: {},
+        upgrades: [],
         warehouse: { capacity: 10, items: {}, miners: {} },
       },
       {
@@ -44,7 +44,7 @@ export function setupCompanyMogul(): Partial<GameState> {
         money: 50000,
         baseWeeklyIncome: 2000,
         createdAt: Date.now(),
-        upgrades: {},
+        upgrades: [],
         warehouse: { capacity: 10, items: {}, miners: {} },
       },
       {
@@ -56,7 +56,7 @@ export function setupCompanyMogul(): Partial<GameState> {
         money: 75000,
         baseWeeklyIncome: 2000,
         createdAt: Date.now(),
-        upgrades: {},
+        upgrades: [],
         warehouse: { capacity: 10, items: {}, miners: {} },
       },
     ],
@@ -72,8 +72,6 @@ export function setupCompanyMogul(): Partial<GameState> {
         duration: 72,
         weeksRemaining: 0,
         completed: true,
-        requirements: [],
-        unlocks: ['company_creation'],
       },
     ],
   };
