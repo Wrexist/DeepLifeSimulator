@@ -1010,6 +1010,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             const belowCap = Math.min(currentSavings, SAVINGS_BALANCE_SOFT_CAP);
             const aboveCap = Math.max(0, currentSavings - SAVINGS_BALANCE_SOFT_CAP);
             savingsInterest = (belowCap * savingsAPR) / WEEKS_PER_YEAR + (aboveCap * savingsAPR * SAVINGS_CAP_EFFICIENCY) / WEEKS_PER_YEAR;
+
+            // Apply Good Credit perk (+50% bank interest). Previously the
+            // $1.99 perks.goodCredit IAP set the flag but no callsite
+            // consumed it. Stack with the gold-shop equivalent.
+            let interestMultiplier = 1;
+            if (prevState.goldUpgrades?.good_credit) interestMultiplier *= 1.5;
+            if (prevState.perks?.goodCredit) interestMultiplier *= 1.5;
+            savingsInterest *= interestMultiplier;
           }
           const newBankSavings = Math.max(0, currentSavings + savingsInterest);
 
