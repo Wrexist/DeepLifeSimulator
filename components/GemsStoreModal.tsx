@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   Image,
+  ImageSourcePropType,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -33,7 +34,7 @@ interface GemPackage {
   description: string;
   popular?: boolean;
   bonus?: number;
-  image: string;
+  image: ImageSourcePropType;
 }
 
 const GEM_PACKAGES: GemPackage[] = [
@@ -481,7 +482,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: responsivePadding.xl,
+    padding: responsivePadding.xlarge,
   },
   loadingText: {
     fontSize: responsiveFontSize.lg,
