@@ -153,14 +153,14 @@ export class BugHunterSimulator {
       await new Promise(resolve => setTimeout(resolve, 50));
       
       // Get updated state
-      let updatedState: GameState | null = null;
+      const stateBox: { value: GameState | null } = { value: null };
       setGameState(prev => {
-        updatedState = prev;
+        stateBox.value = prev;
         return prev;
       });
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      if (updatedState && updatedState.stats.money < 0) {
+      if (stateBox.value && stateBox.value.stats.money < 0) {
         this.reportExploit({
           id: 'edgecase-001',
           type: 'bug',
@@ -169,7 +169,7 @@ export class BugHunterSimulator {
           description: 'Game allows negative money',
           stepsToReproduce: ['Set money to negative value', 'Check if game prevents it'],
           expectedBehavior: 'Money should be clamped to 0 or prevented from going negative',
-          actualBehavior: `Money is ${updatedState.stats.money}`,
+          actualBehavior: `Money is ${stateBox.value.stats.money}`,
           affectedFeatures: ['Money System', 'All Purchases'],
         });
       }
@@ -187,14 +187,14 @@ export class BugHunterSimulator {
       }));
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      let updatedState: GameState | null = null;
+      const stateBox: { value: GameState | null } = { value: null };
       setGameState(prev => {
-        updatedState = prev;
+        stateBox.value = prev;
         return prev;
       });
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      if (updatedState && !isFinite(updatedState.stats.money)) {
+      if (stateBox.value && !isFinite(stateBox.value.stats.money)) {
         this.reportExploit({
           id: 'edgecase-002',
           type: 'bug',
@@ -203,7 +203,7 @@ export class BugHunterSimulator {
           description: 'Game allows Infinity money',
           stepsToReproduce: ['Set money to Infinity', 'Check if game prevents it'],
           expectedBehavior: 'Money should be validated and clamped to finite value',
-          actualBehavior: `Money is ${updatedState.stats.money}`,
+          actualBehavior: `Money is ${stateBox.value.stats.money}`,
           affectedFeatures: ['Money System', 'All Purchases'],
         });
       }
@@ -221,14 +221,14 @@ export class BugHunterSimulator {
       }));
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      let updatedState: GameState | null = null;
+      const stateBox: { value: GameState | null } = { value: null };
       setGameState(prev => {
-        updatedState = prev;
+        stateBox.value = prev;
         return prev;
       });
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      if (updatedState && isNaN(updatedState.stats.money)) {
+      if (stateBox.value && isNaN(stateBox.value.stats.money)) {
         this.reportExploit({
           id: 'edgecase-003',
           type: 'bug',
@@ -255,14 +255,14 @@ export class BugHunterSimulator {
       }));
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      let updatedState: GameState | null = null;
+      const stateBox: { value: GameState | null } = { value: null };
       setGameState(prev => {
-        updatedState = prev;
+        stateBox.value = prev;
         return prev;
       });
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      if (updatedState && (updatedState.stats.health > 100 || updatedState.stats.happiness > 100 || updatedState.stats.energy > 100)) {
+      if (stateBox.value && (stateBox.value.stats.health > 100 || stateBox.value.stats.happiness > 100 || stateBox.value.stats.energy > 100)) {
         this.reportExploit({
           id: 'edgecase-004',
           type: 'bug',
@@ -271,7 +271,7 @@ export class BugHunterSimulator {
           description: 'Stats can exceed maximum value (100)',
           stepsToReproduce: ['Set stats to > 100', 'Check if clamped'],
           expectedBehavior: 'Stats should be clamped to 0-100',
-          actualBehavior: `Health: ${updatedState.stats.health}, Happiness: ${updatedState.stats.happiness}, Energy: ${updatedState.stats.energy}`,
+          actualBehavior: `Health: ${stateBox.value.stats.health}, Happiness: ${stateBox.value.stats.happiness}, Energy: ${stateBox.value.stats.energy}`,
           affectedFeatures: ['Stats System'],
         });
       }
@@ -285,7 +285,6 @@ export class BugHunterSimulator {
     try {
       // Try to call actions with null/undefined
       if (typeof gameActions.buyItem === 'function') {
-        // @ts-expect-error - Intentionally testing invalid type
         const result = gameActions.buyItem(null);
         if (result && result.success) {
           this.reportExploit({
@@ -346,7 +345,6 @@ export class BugHunterSimulator {
     this.testCoverage.invalidInputs++;
     try {
       if (typeof gameActions.buyItem === 'function') {
-        // @ts-expect-error - Intentionally testing invalid type
         const result = gameActions.buyItem(12345);
         if (result && result.success) {
           this.reportExploit({
@@ -371,7 +369,6 @@ export class BugHunterSimulator {
     this.testCoverage.invalidInputs++;
     try {
       if (typeof gameActions.buyItem === 'function') {
-        // @ts-expect-error - Intentionally testing invalid type
         const result = gameActions.buyItem({ id: 'test' });
         if (result && result.success) {
           this.reportExploit({
@@ -400,14 +397,14 @@ export class BugHunterSimulator {
         const result = gameActions.buyCrypto('btc', -1000);
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        let updatedState: GameState | null = null;
+        const stateBox: { value: GameState | null } = { value: null };
         setGameState(prev => {
-          updatedState = prev;
+          stateBox.value = prev;
           return prev;
         });
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        if (result && result.success && updatedState && updatedState.stats.money > initialMoney) {
+        if (result && result.success && stateBox.value && stateBox.value.stats.money > initialMoney) {
           this.reportExploit({
             id: 'invalidinput-003',
             type: 'exploit',
@@ -479,14 +476,14 @@ export class BugHunterSimulator {
         const result = gameActions.buyItem(item.id);
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        let updatedState: GameState | null = null;
+        const stateBox: { value: GameState | null } = { value: null };
         setGameState(prev => {
-          updatedState = prev;
+          stateBox.value = prev;
           return prev;
         });
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        if (updatedState && (!isFinite(updatedState.stats.money) || updatedState.stats.money < 0)) {
+        if (stateBox.value && (!isFinite(stateBox.value.stats.money) || stateBox.value.stats.money < 0)) {
           this.reportExploit({
             id: 'boundary-001',
             type: 'bug',
@@ -495,7 +492,7 @@ export class BugHunterSimulator {
             description: 'Money calculation overflows with MAX_SAFE_INTEGER',
             stepsToReproduce: ['Set money to Number.MAX_SAFE_INTEGER', 'Buy an item', 'Check money'],
             expectedBehavior: 'Should prevent overflow or clamp value',
-            actualBehavior: `Money became ${updatedState.stats.money}`,
+            actualBehavior: `Money became ${stateBox.value.stats.money}`,
             affectedFeatures: ['Money System', 'All Purchases'],
           });
         }
@@ -555,14 +552,14 @@ export class BugHunterSimulator {
         const result = gameActions.goOnDate(gameState.relationships[0].id);
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        let updatedState: GameState | null = null;
+        const stateBox: { value: GameState | null } = { value: null };
         setGameState(prev => {
-          updatedState = prev;
+          stateBox.value = prev;
           return prev;
         });
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        if (updatedState && updatedState.stats.happiness > 100) {
+        if (stateBox.value && stateBox.value.stats.happiness > 100) {
           this.reportExploit({
             id: 'boundary-003',
             type: 'bug',
@@ -571,7 +568,7 @@ export class BugHunterSimulator {
             description: 'Happiness can exceed 100',
             stepsToReproduce: ['Set happiness to 100', 'Go on date', 'Check happiness'],
             expectedBehavior: 'Happiness should be clamped to 100',
-            actualBehavior: `Happiness is ${updatedState.stats.happiness}`,
+            actualBehavior: `Happiness is ${stateBox.value.stats.happiness}`,
             affectedFeatures: ['Stats System', 'Dating'],
           });
         }
@@ -719,15 +716,15 @@ export class BugHunterSimulator {
       }
       
       await new Promise(resolve => setTimeout(resolve, 100));
-      let updatedState: GameState | null = null;
+      const stateBox: { value: GameState | null } = { value: null };
       setGameState(prev => {
-        updatedState = prev;
+        stateBox.value = prev;
         return prev;
       });
       await new Promise(resolve => setTimeout(resolve, 50));
       
       // Check if stats exceeded 100 (should be clamped)
-      if (updatedState && (updatedState.stats.happiness > 100 || updatedState.stats.health > 100)) {
+      if (stateBox.value && (stateBox.value.stats.happiness > 100 || stateBox.value.stats.health > 100)) {
         this.reportExploit({
           id: 'exploit-003',
           type: 'exploit',
@@ -736,7 +733,7 @@ export class BugHunterSimulator {
           description: 'Rapid stat-increasing actions can exceed maximum',
           stepsToReproduce: ['Set stats to 0', 'Rapidly perform stat-increasing actions 20 times', 'Check stats'],
           expectedBehavior: 'Stats should be clamped to 100',
-          actualBehavior: `Health: ${updatedState.stats.health}, Happiness: ${updatedState.stats.happiness}`,
+          actualBehavior: `Health: ${stateBox.value.stats.health}, Happiness: ${stateBox.value.stats.happiness}`,
           exploitPotential: 'Could allow stats above maximum',
           affectedFeatures: ['Stats System'],
         });
@@ -829,14 +826,14 @@ export class BugHunterSimulator {
         const result = gameActions.buyCrypto('btc', 100);
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        let updatedState: GameState | null = null;
+        const stateBox: { value: GameState | null } = { value: null };
         setGameState(prev => {
-          updatedState = prev;
+          stateBox.value = prev;
           return prev;
         });
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        if (updatedState && isNaN(updatedState.stats.money)) {
+        if (stateBox.value && isNaN(stateBox.value.stats.money)) {
           this.reportExploit({
             id: 'corruption-001',
             type: 'corruption',
@@ -870,14 +867,14 @@ export class BugHunterSimulator {
         const result = gameActions.buyCrypto('btc', 100);
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        let updatedState: GameState | null = null;
+        const stateBox: { value: GameState | null } = { value: null };
         setGameState(prev => {
-          updatedState = prev;
+          stateBox.value = prev;
           return prev;
         });
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        if (updatedState && !isFinite(updatedState.stats.money)) {
+        if (stateBox.value && !isFinite(stateBox.value.stats.money)) {
           this.reportExploit({
             id: 'corruption-002',
             type: 'corruption',
@@ -1015,15 +1012,15 @@ export class BugHunterSimulator {
       }
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      let updatedState: GameState | null = null;
+      const stateBox: { value: GameState | null } = { value: null };
       setGameState(prev => {
-        updatedState = prev;
+        stateBox.value = prev;
         return prev;
       });
       await new Promise(resolve => setTimeout(resolve, 50));
       
       // Check if final state is correct
-      if (updatedState && updatedState.stats.money !== 1099) {
+      if (stateBox.value && stateBox.value.stats.money !== 1099) {
         this.reportExploit({
           id: 'racecondition-002',
           type: 'race_condition',
@@ -1032,7 +1029,7 @@ export class BugHunterSimulator {
           description: 'Rapid state updates cause state loss',
           stepsToReproduce: ['Rapidly call setGameState 100 times', 'Check final state'],
           expectedBehavior: 'Final state should reflect last update (money = 1099)',
-          actualBehavior: `Money is ${updatedState.stats.money} (expected 1099)`,
+          actualBehavior: `Money is ${stateBox.value.stats.money} (expected 1099)`,
           affectedFeatures: ['State Management'],
         });
       }
@@ -1077,7 +1074,11 @@ export class BugHunterSimulator {
             baseWeeklyIncome: 1000,
             employees: 0,
             upgrades: [],
-            level: 1,
+            workerSalary: 0,
+            workerMultiplier: 1,
+            marketingLevel: 0,
+            miners: {},
+            warehouseLevel: 0,
           },
         ],
       }));
@@ -1132,7 +1133,11 @@ export class BugHunterSimulator {
             baseWeeklyIncome: 2000,
             employees: 0,
             upgrades: [],
-            level: 1,
+            workerSalary: 0,
+            workerMultiplier: 1,
+            marketingLevel: 0,
+            miners: {},
+            warehouseLevel: 0,
           },
         ],
       }));
@@ -1233,7 +1238,11 @@ export class BugHunterSimulator {
           baseWeeklyIncome: 1000,
           employees: 0,
           upgrades: [],
-          level: 1,
+          workerSalary: 0,
+          workerMultiplier: 1,
+          marketingLevel: 0,
+          miners: {},
+          warehouseLevel: 0,
         })),
         items: Array.from({ length: 100 }, (_, i) => ({
           id: `item_${i}`,
@@ -1298,6 +1307,18 @@ export class BugHunterSimulator {
         prestige: {
           prestigeLevel: 1,
           prestigePoints: 1000,
+          totalPrestiges: 1,
+          lifetimeStats: {
+            totalMoneyEarned: 0,
+            totalWeeksLived: 0,
+            maxNetWorth: 0,
+            achievementsUnlocked: 0,
+            generationsCompleted: 0,
+            totalChildren: 0,
+            careersMaxed: 0,
+            propertiesOwned: 0,
+            companiesBuilt: 0,
+          },
           unlockedBonuses: ['income_multiplier_2x'],
           prestigeHistory: [],
         },
@@ -1310,7 +1331,11 @@ export class BugHunterSimulator {
             baseWeeklyIncome: 1000,
             employees: 0,
             upgrades: [],
-            level: 1,
+            workerSalary: 0,
+            workerMultiplier: 1,
+            marketingLevel: 0,
+            miners: {},
+            warehouseLevel: 0,
           },
         ],
       }));
@@ -1451,7 +1476,11 @@ export class BugHunterSimulator {
             baseWeeklyIncome: 1000,
             employees: 0,
             upgrades: [],
-            level: 1,
+            workerSalary: 0,
+            workerMultiplier: 1,
+            marketingLevel: 0,
+            miners: {},
+            warehouseLevel: 0,
           },
         ],
       };
