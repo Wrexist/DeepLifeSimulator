@@ -35,7 +35,7 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 896 type errors, 32% cleared)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 783 type errors, 40% cleared)
 
 > **Dead code removed:** 10 items — 9 unreferenced components
 > (~6,000 lines) plus `MoneyActionsContext.buyPerk`, which had zero
@@ -80,11 +80,25 @@
       null-guard narrowing holds (was 17 spurious errors).
 - [x] Cleared gaming, prestige, finance/stats, automation, money/item,
       hobby/job action clusters; deleted dead components.
-- [ ] Remaining ~256 substantive errors are now concentrated in internal
-      tooling — BugHunterSimulator (33), career/health/integration stress
-      tests (~33), RealActionSimulator (12), ComprehensiveGameSimulator (8)
-      — plus IAPService (8) and small (≤4) scattered live-code clusters.
-- [ ] ~650 remaining errors are cosmetic `TS6133` unused-variable warnings.
+- [x] Wired Mindset and SKILL_BOOST IAPs end-to-end (the latter now
+      actually bumps every hobby's skillLevel through the canonical
+      clamp helper).
+- [x] Fixed silent BankApp auto-pay bug, streaming income decay,
+      Education extras drift, and 11+ closure-narrowing issues in
+      BugHunterSimulator via the boxed-ref pattern.
+- [x] Cleared all 33 substantive errors in BugHunterSimulator, all 12
+      in RealActionSimulator, all 8 in ComprehensiveGameSimulator.
+- [x] Replaced GameState.automation's inline shape with the canonical
+      AutomationState; replaced BankApp's local Loan with the
+      canonical one.
+- [ ] Remaining ~129 substantive errors are concentrated in stress
+      tests (~37, the currentJob/isDead model drift is a deeper test
+      rewrite) and scattered 2-3-error UI clusters
+      (DevToolsModal needs restartGame design, CompanyApp /
+      TinderApp small fixes).
+- [ ] ~654 remaining errors are cosmetic `TS6133` unused-variable
+      warnings — biggest single batch left; a single eslint
+      --fix-unused-imports pass would clear most of these.
 - [ ] Remaining `TS18047`/`TS18048` (~65) null/undefined accesses.
 - [ ] Remaining `TS2345`/`TS2322`/`TS2353` (~110) type mismatches.
 - [ ] Simulation tooling (`BugHunterSimulator`, `RealActionSimulator`,
