@@ -532,9 +532,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
           newStats.energy = (newStats.energy || 0) + energyRegen;
 
-          // Health and happiness decay over time if not maintained (increased decay rates)
+          // Health and happiness decay over time if not maintained (increased decay rates).
+          // Happiness Boost gold upgrade (was "Max increased to 100" — meaningless
+          // since max is already 100): reframe as halving the natural happiness decay.
+          const happinessDecayMul = prevState.goldUpgrades?.happiness_boost ? 0.5 : 1.0;
           newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6);
-          newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8);
+          newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul);
 
           // Fitness decay: increases the longer you don't visit the gym
           const lastGymVisitWeek = prevState.lastGymVisitWeek || 0;
@@ -563,7 +566,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             fitnessDecay = effectiveDecayRate * 0.2 * decayMultiplier;
           }
 
-          newStats.fitness = Math.max(0, (newStats.fitness || 0) - fitnessDecay);
+          // Fitness Boost gold upgrade (same dead-IAP reframe as the other
+          // boosts — halve the natural fitness decay).
+          const fitnessDecayMul = prevState.goldUpgrades?.fitness_boost ? 0.5 : 1.0;
+          newStats.fitness = Math.max(0, (newStats.fitness || 0) - fitnessDecay * fitnessDecayMul);
 
           // Calculate career salary (weekly payment) and apply stat penalties
           let careerSalary = 0;

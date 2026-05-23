@@ -64,7 +64,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'happiness_boost',
       name: 'Happiness Boost',
-      description: 'Maximum happiness increased to 100',
+      description: 'Happiness decays 50% slower',
       price: 6000, // Balanced: 50% of original (12000)
       icon: Star,
       image: require('@/assets/images/iap/upgrades/happiness_boost.png'),
@@ -76,7 +76,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'fitness_boost',
       name: 'Fitness Boost',
-      description: 'Maximum fitness increased to 100',
+      description: 'Fitness decays 50% slower',
       price: 9000, // Balanced: 50% of original (18000)
       icon: Shield,
       image: require('@/assets/images/iap/upgrades/fitness_boost.png'),
