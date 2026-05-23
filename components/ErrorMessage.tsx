@@ -31,6 +31,7 @@ export default function ErrorMessage({
       const timer = setTimeout(onDismiss, dismissAfter);
       return () => clearTimeout(timer);
     }
+    return;
   }, [visible, autoDismiss, onDismiss, dismissAfter]);
 
   if (!visible) return null;

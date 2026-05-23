@@ -128,6 +128,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
       glowAnim.setValue(0);
       shimmerAnim.setValue(0);
     }
+    return;
   }, [visible, fadeAnim, scaleAnim, glowAnim, shimmerAnim]);
 
   const handleConfirm = () => {

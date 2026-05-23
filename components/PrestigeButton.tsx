@@ -76,6 +76,7 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
         sparkle.stop();
       };
     }
+    return;
   }, [isAvailable, pulseAnim, glowAnim, sparkleAnim]);
 
   const glowOpacity = glowAnim.interpolate({

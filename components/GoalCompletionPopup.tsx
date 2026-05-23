@@ -81,6 +81,7 @@ export default function GoalCompletionPopup({
       slideAnim.setValue(50);
       fadeAnim.setValue(0);
     }
+    return;
   }, [visible]);
 
   const handleClose = () => {

@@ -31,6 +31,7 @@ export default function CureSuccessModal() {
 
       return () => clearTimeout(timer);
     }
+    return;
   }, [isInActiveGame, showCureSuccessModal, curedDiseases.length, dismissCureSuccessModal]);
 
   // Don't render if not in active game or if conditions aren't met
