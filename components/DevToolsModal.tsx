@@ -1,6 +1,8 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, TextInput, Switch } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
+import { initialGameState } from '@/contexts/game/initialState';
+import type { Education } from '@/contexts/game/types';
 import { X, DollarSign, Heart, Zap, Clock, Shield, Briefcase, Gift, Skull, Database, RefreshCw, Save, FileText, Package, Users, Building2, GraduationCap, CreditCard, Star, Award, Bug, ClipboardCheck, AlertTriangle, Activity } from 'lucide-react-native';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -20,7 +22,16 @@ interface DevToolsModalProps {
 }
 
 export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) {
-  const { gameState, setGameState, nextWeek, saveGame, restartGame } = useGame();
+  const { gameState, setGameState, nextWeek, saveGame } = useGame();
+
+  // Local "restart" helper — there's no canonical \`restartGame\` action
+  // on the actions surface; this matches DangerZone's reset pattern.
+  // (The previous \`useGame().restartGame\` was undefined and would have
+  // thrown TypeError both from the Clear Storage flow and the Restart
+  // Game toolbar button.)
+  const restartGame = () => {
+    setGameState(initialGameState);
+  };
   const [customMoney, setCustomMoney] = useState('');
   const [preventDrain, setPreventDrain] = useState(false);
   const [showLogViewer, setShowLogViewer] = useState(false);
@@ -306,19 +317,21 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
   const addEducation = () => {
     setGameState(prev => {
       const existingIds = new Set((prev.educations || []).map(e => e.id));
-      const allEducations = [
-        { id: 'high_school', name: 'High School Diploma', duration: 104, cost: 0, completed: true, weeksRemaining: 0 },
-        { id: 'police_academy', name: 'Police Academy', duration: 30, cost: 12000, completed: true, weeksRemaining: 0 },
-        { id: 'legal_studies', name: 'Legal Studies', duration: 46, cost: 18000, completed: true, weeksRemaining: 0 },
-        { id: 'entrepreneurship', name: 'Entrepreneurship Course', duration: 72, cost: 30000, completed: true, weeksRemaining: 0 },
-        { id: 'business_degree', name: 'Business Degree', duration: 90, cost: 48000, completed: true, weeksRemaining: 0 },
-        { id: 'computer_science', name: 'Computer Science', duration: 104, cost: 72000, completed: true, weeksRemaining: 0 },
-        { id: 'masters_degree', name: "Master's Degree", duration: 120, cost: 90000, completed: true, weeksRemaining: 0 },
-        { id: 'mba', name: 'MBA', duration: 150, cost: 120000, completed: true, weeksRemaining: 0 },
-        { id: 'medical_school', name: 'Medical School', duration: 180, cost: 150000, completed: true, weeksRemaining: 0 },
-        { id: 'law_school', name: 'Law School', duration: 156, cost: 132000, completed: true, weeksRemaining: 0 },
-        { id: 'phd', name: 'PhD', duration: 208, cost: 180000, completed: true, weeksRemaining: 0 },
-      ].filter(e => !existingIds.has(e.id));
+      const allEducations: Education[] = [
+        { id: 'high_school', name: 'High School Diploma', duration: 104, cost: 0 },
+        { id: 'police_academy', name: 'Police Academy', duration: 30, cost: 12000 },
+        { id: 'legal_studies', name: 'Legal Studies', duration: 46, cost: 18000 },
+        { id: 'entrepreneurship', name: 'Entrepreneurship Course', duration: 72, cost: 30000 },
+        { id: 'business_degree', name: 'Business Degree', duration: 90, cost: 48000 },
+        { id: 'computer_science', name: 'Computer Science', duration: 104, cost: 72000 },
+        { id: 'masters_degree', name: "Master's Degree", duration: 120, cost: 90000 },
+        { id: 'mba', name: 'MBA', duration: 150, cost: 120000 },
+        { id: 'medical_school', name: 'Medical School', duration: 180, cost: 150000 },
+        { id: 'law_school', name: 'Law School', duration: 156, cost: 132000 },
+        { id: 'phd', name: 'PhD', duration: 208, cost: 180000 },
+      ]
+        .filter(e => !existingIds.has(e.id))
+        .map(e => ({ ...e, description: e.name, completed: true, weeksRemaining: 0 }));
       
       return {
         ...prev,
@@ -375,7 +388,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
             id,
             name: id.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
             description: `Unlocked achievement: ${id}`,
-            category: 'dev',
+            category: 'special',
             completed: true,
           });
         }
@@ -663,7 +676,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
                     <TouchableOpacity
                       key={idx}
                       style={styles.toolButton}
-                      onPress={item.action}
+                      onPress={() => item.action()}
                       disabled={targetWeek !== null}
                     >
                       <LinearGradient
