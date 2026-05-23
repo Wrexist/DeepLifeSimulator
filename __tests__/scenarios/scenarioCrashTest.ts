@@ -88,7 +88,9 @@ function simulateChallengeScenariosMapping(): { success: boolean; error?: string
       return {
         id: cs.id || 'unknown',
         title: cs.name || 'Unknown Scenario',
-        difficulty: safeGetDifficultyLabel(difficulty),
+        // Cast intentional: test feeds "unknown" to verify the labeler
+        // doesn't crash on out-of-union input.
+        difficulty: safeGetDifficultyLabel(difficulty as 'easy' | 'medium' | 'hard' | 'expert'),
         lifeGoal: primaryGoalDescription,
         description: cs.description || 'No description available',
         bonus: `Rewards: ${rewards.gems || 0} gems`,
@@ -147,12 +149,13 @@ function simulation2(): TestResult {
     }
     
     // Verify all properties exist
-    const hasAllProperties = 
+    const hasAllProperties = !!(
       scenario.id &&
       scenario.title &&
       scenario.start &&
       typeof scenario.start.age === 'number' &&
-      typeof scenario.start.cash === 'number';
+      typeof scenario.start.cash === 'number'
+    );
     
     return {
       simulationNumber: 2,
@@ -196,8 +199,11 @@ function simulation3(): TestResult {
       },
     };
     
-    // Test the mapping logic with this edge case
-    const winConditions = Array.isArray(mockScenario.winConditions) ? mockScenario.winConditions : [];
+    // Test the mapping logic with this edge case. Typed as any[] because
+    // the test feeds undefined for winConditions and the defensive path
+    // needs to access \`.description\` on whatever's in [0] without TS
+    // knowing the inferred-never shape can't have it.
+    const winConditions: any[] = Array.isArray(mockScenario.winConditions) ? mockScenario.winConditions : [];
     const primaryGoalDescription = winConditions.length > 0 && winConditions[0] && typeof winConditions[0] === 'object'
       ? (winConditions[0].description || 'Complete the challenge')
       : 'Complete the challenge';
