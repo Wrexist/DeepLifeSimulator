@@ -43,7 +43,7 @@ const AREA_CONFIG: Record<CommitmentArea, { label: string; icon: typeof Briefcas
 };
 
 export default function ActivityCommitmentModal({ visible, onClose }: ActivityCommitmentModalProps) {
-  const { gameState, changeActivityCommitment } = useGame();
+  const { gameState, setGameState } = useGame();
   const insets = useSafeAreaInsets();
   const { settings } = gameState;
   const commitments = gameState.activityCommitments;
@@ -77,14 +77,28 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
       return;
     }
 
-    const result = changeActivityCommitment(selectedPrimary, selectedSecondary);
-    
-    if (result.success) {
-      Alert.alert('Success', result.message);
-      onClose();
-    } else {
-      Alert.alert('Cannot Change', result.message);
+    // The previous \`useGame().changeActivityCommitment\` was undefined and
+    // would have thrown TypeError on tap. Inline the state mutation here
+    // (the canChange validation already ran in the useMemo above).
+    if (!canChange) {
+      Alert.alert(
+        'Cannot Change',
+        `Commitments locked. ${weeksUntilChange} week${weeksUntilChange === 1 ? '' : 's'} until you can change them again.`
+      );
+      return;
     }
+
+    setGameState(prev => ({
+      ...prev,
+      activityCommitments: {
+        ...prev.activityCommitments,
+        primary: selectedPrimary,
+        secondary: selectedSecondary,
+        lastChangedWeek: prev.weeksLived,
+      },
+    }));
+    Alert.alert('Success', 'Activity commitments updated.');
+    onClose();
   };
 
   const getAreaBonuses = (area: CommitmentArea) => {
