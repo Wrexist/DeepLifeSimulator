@@ -523,7 +523,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           const { getEnergyRegenMultiplier } = require('@/lib/prestige/applyBonuses');
           const energyRegenMultiplier = getEnergyRegenMultiplier(unlockedBonuses);
           const safeEnergyRegenMultiplier = typeof energyRegenMultiplier === 'number' && isFinite(energyRegenMultiplier) && energyRegenMultiplier > 0 ? energyRegenMultiplier : 1.0;
-          const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier); // Full regen amount (don't cap here)
+          // Energy Boost gold upgrade: +50% energy regen. Was sold as
+          // "Maximum energy increased to 100" — the max is already 100,
+          // so the original framing did nothing. Reframe as a regen
+          // boost (the cap stays 100, but you reach it 50% faster).
+          const energyBoostBonus = prevState.goldUpgrades?.energy_boost ? 1.5 : 1.0;
+          const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus); // Full regen amount (don't cap here)
           // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
           newStats.energy = (newStats.energy || 0) + energyRegen;
 

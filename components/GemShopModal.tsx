@@ -52,7 +52,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'energy_boost',
       name: 'Energy Boost',
-      description: 'Maximum energy increased to 100',
+      description: 'Energy regenerates 50% faster',
       price: 7500, // Balanced: 50% of original (15000)
       icon: Zap,
       image: require('@/assets/images/iap/upgrades/energy_boost.png'),
