@@ -79,7 +79,12 @@ export const IAP_PRODUCTS = {
     ios: 'deeplife_work_boost',
     android: 'deeplife_work_boost',
   }) || 'deeplife_work_boost',
-  
+
+  MINDSET: Platform.select({
+    ios: 'deeplife_mindset',
+    android: 'deeplife_mindset',
+  }) || 'deeplife_mindset',
+
   FAST_LEARNER: Platform.select({
     ios: 'deeplife_fast_learner',
     android: 'deeplife_fast_learner',
@@ -296,7 +301,16 @@ export const PRODUCT_CONFIGS = {
     popular: false,
     bestValue: false,
   },
-  
+
+  [IAP_PRODUCTS.MINDSET]: {
+    name: 'Mindset',
+    description: '50% faster promotions',
+    mindset: true,
+    price: '$1.99',
+    popular: false,
+    bestValue: false,
+  },
+
   [IAP_PRODUCTS.FAST_LEARNER]: {
     name: 'Fast Learner',
     description: '50% faster education',
@@ -497,6 +511,7 @@ export const CONSUMABLE_PRODUCTS = [
 // (permanent perks, ad removal, lifetime features)
 export const NON_CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.WORK_BOOST,
+  IAP_PRODUCTS.MINDSET,
   IAP_PRODUCTS.FAST_LEARNER,
   IAP_PRODUCTS.GOOD_CREDIT,
   IAP_PRODUCTS.UNLOCK_ALL_PERKS,

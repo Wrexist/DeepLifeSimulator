@@ -21,7 +21,7 @@ import {
   verticalScale,
 } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
-import { GameState } from '@/contexts/game/types';
+import { GameState, Loan } from '@/contexts/game/types';
 import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle, Building } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
@@ -68,23 +68,6 @@ type Numberish = number | string;
 type TabKey = 'savings' | 'loans' | 'services';
 type RepaySource = 'cash' | 'bank'; // manual repayment source
 
-type Loan = {
-  id: string;
-  name: string;
-  principal: number;
-  remaining: number;
-  rateAPR: number;     // e.g. 0.08 for 8% APR (fixed per-loan)
-  weeklyRate: number;  // rateAPR / 52
-  termWeeks: number;
-  startWeek: number;
-  installment: number; // amortized weekly payment
-  weeklyPayment?: number; // For game loop auto-payment compatibility
-  missedPayments: number;
-  autoPay?: boolean;   // logically always true; kept for compatibility
-  type?: 'personal' | 'business' | 'mortgage' | 'auto';
-  weeksRemaining?: number;
-  interestRate?: number;
-};
 
 /* =========================
    UTILS
@@ -347,14 +330,11 @@ export default function BankApp({ onBack }: BankAppProps) {
       principal: amt,
       remaining: amt,
       rateAPR: apr,
-      weeklyRate,
       termWeeks: termW,
       startWeek: gameState.weeksLived ?? 0,
-      installment,
       weeklyPayment: installment,
-      missedPayments: 0,
       autoPay: true,
-      type: 'personal' as const,
+      type: 'personal',
       weeksRemaining: termW,
       interestRate: apr,
     };
@@ -756,7 +736,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                     </View>
                     <View style={styles.loanMetaRow}>
                       <Text style={styles.metaText}>APR: {(loan.rateAPR * 100).toFixed(2)}%</Text>
-                      <Text style={styles.metaText}>Weekly: {formatMoney(loan.installment)} $</Text>
+                      <Text style={styles.metaText}>Weekly: {formatMoney(loan.weeklyPayment)} $</Text>
                       <Text style={styles.metaText}>Term: {loan.termWeeks} weeks</Text>
                     </View>
                     <View style={styles.loanActions}>

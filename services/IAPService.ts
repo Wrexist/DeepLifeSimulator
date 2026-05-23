@@ -867,6 +867,11 @@ export class IAPService {
       await this.savePermanentPerk('workBoost');
     }
 
+    if (config.mindset) {
+      gameState.perks.mindset = true;
+      await this.savePermanentPerk('mindset');
+    }
+
     if (config.fastLearner) {
       gameState.perks.fastLearner = true;
       await this.savePermanentPerk('fastLearner');
