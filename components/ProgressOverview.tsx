@@ -370,10 +370,8 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
             {stats.completed}/{stats.total}
           </Text>
           <View style={[styles.progressBarSmall, darkMode && styles.progressBarSmallDark]}>
-            <MotiView
-              animate={{ width: `${stats.percentage}%` }}
-              transition={{ type: 'timing', duration: 500 }}
-              style={styles.progressFillSmall}
+            <View
+              style={[styles.progressFillSmall, { width: `${stats.percentage}%` }]}
             />
           </View>
         </View>
@@ -382,10 +380,8 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
       {/* Overall progress bar */}
       <View style={styles.overallProgressContainer}>
         <View style={[styles.progressBar, darkMode && styles.progressBarDark]}>
-          <MotiView
-            animate={{ width: `${stats.percentage}%` }}
-            transition={{ type: 'spring', damping: 15 }}
-            style={styles.progressFill}
+          <View
+            style={[styles.progressFill, { width: `${stats.percentage}%` }]}
           />
         </View>
         <Text style={[styles.progressPercentage, darkMode && styles.progressPercentageDark]}>
