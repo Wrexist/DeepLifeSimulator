@@ -77,21 +77,125 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     }
   }, [setGameState, updateMoney, showError]);
 
+  // Onion (dark-web) actions — were all stubs that logged and did nothing,
+  // so the entire Onion tab was non-functional: buying items, buying
+  // hacks, and performing hacks all silently no-op'd. Wire them through
+  // the canonical state (cryptos[btc].owned for BTC, hacks[i].purchased
+  // for ownership, jailWeeks for caught-while-hacking penalties).
+
   const buyDarkWebItem = useCallback((itemId: string) => {
-    // Implementation for dark web item purchase
-    logger.info('Dark web item purchase initiated:', { itemId });
-  }, []);
+    const state = stateRef.current;
+    if (!state) return;
+
+    const item = state.darkWebItems?.find(i => i.id === itemId);
+    if (!item) {
+      logger.error('Dark web item not found:', itemId);
+      return;
+    }
+    if (item.owned) {
+      showError('Already Owned', `You already own ${item.name}.`);
+      return;
+    }
+    const btcOwned = state.cryptos?.find(c => c.id === 'btc')?.owned || 0;
+    if (btcOwned < item.costBtc) {
+      showError('Insufficient BTC', `You need ${item.costBtc} BTC to buy ${item.name}.`);
+      return;
+    }
+
+    setGameState(prev => ({
+      ...prev,
+      cryptos: (prev.cryptos || []).map(c =>
+        c.id === 'btc' ? { ...c, owned: c.owned - item.costBtc } : c
+      ),
+      darkWebItems: (prev.darkWebItems || []).map(i =>
+        i.id === itemId ? { ...i, owned: true } : i
+      ),
+    }));
+    logger.info('Dark web item purchased:', { itemId, name: item.name, costBtc: item.costBtc });
+  }, [setGameState, showError]);
 
   const buyHack = useCallback((hackId: string) => {
-    // Implementation for hack purchase
-    logger.info('Hack purchase initiated:', { hackId });
-  }, []);
+    const state = stateRef.current;
+    if (!state) return;
+
+    const hack = state.hacks?.find(h => h.id === hackId);
+    if (!hack) {
+      logger.error('Hack not found:', hackId);
+      return;
+    }
+    if (hack.purchased) {
+      showError('Already Owned', `You already own ${hack.name}.`);
+      return;
+    }
+    const btcOwned = state.cryptos?.find(c => c.id === 'btc')?.owned || 0;
+    if (btcOwned < hack.costBtc) {
+      showError('Insufficient BTC', `You need ${hack.costBtc} BTC to buy ${hack.name}.`);
+      return;
+    }
+
+    setGameState(prev => ({
+      ...prev,
+      cryptos: (prev.cryptos || []).map(c =>
+        c.id === 'btc' ? { ...c, owned: c.owned - hack.costBtc } : c
+      ),
+      hacks: (prev.hacks || []).map(h =>
+        h.id === hackId ? { ...h, purchased: true } : h
+      ),
+    }));
+    logger.info('Hack purchased:', { hackId, name: hack.name, costBtc: hack.costBtc });
+  }, [setGameState, showError]);
 
   const performHack = useCallback((hackId: string): HackResult => {
-    // Implementation for performing hack
-    logger.info('Hack performed:', { hackId });
-    return { success: true, caught: false, reward: 100, btcReward: 0, risk: 0 };
-  }, []);
+    const state = stateRef.current;
+    const empty: HackResult = { success: false, caught: false, reward: 0, btcReward: 0, risk: 0 };
+    if (!state) return empty;
+
+    const hack = state.hacks?.find(h => h.id === hackId);
+    if (!hack || !hack.purchased) {
+      logger.error('Hack not available:', { hackId, found: !!hack, purchased: hack?.purchased });
+      return empty;
+    }
+    if ((state.stats.energy ?? 0) < hack.energyCost) {
+      showError('Too Tired', `You need ${hack.energyCost} energy to run ${hack.name}.`);
+      return empty;
+    }
+
+    const ownedItems = (state.darkWebItems || []).filter(i => i.owned);
+    const riskReduction = ownedItems.reduce((sum, i) => sum + (i.riskReduction || 0), 0);
+    const rewardBonus = ownedItems.reduce((sum, i) => sum + (i.rewardBonus || 0), 0);
+    const effectiveRisk = Math.max(0, hack.risk - riskReduction);
+
+    const caught = Math.random() < effectiveRisk;
+
+    if (caught) {
+      setGameState(prev => ({
+        ...prev,
+        stats: { ...prev.stats, energy: Math.max(0, (prev.stats.energy ?? 0) - hack.energyCost) },
+        jailWeeks: (prev.jailWeeks ?? 0) + 4,
+      }));
+      logger.warn('Hack caught:', { hackId, risk: effectiveRisk });
+      return { success: false, caught: true, reward: 0, btcReward: 0, risk: effectiveRisk, jailed: true };
+    }
+
+    // Reward: 80% cash, 20% BTC (deterministic split — rewardBonus adds to cash).
+    const cashReward = Math.round(hack.reward * (1 + rewardBonus));
+    const btcPrice = state.cryptos?.find(c => c.id === 'btc')?.price || 50000;
+    const btcReward = btcPrice > 0 ? (hack.reward * 0.2) / btcPrice : 0;
+
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: (prev.stats.money ?? 0) + cashReward,
+        energy: Math.max(0, (prev.stats.energy ?? 0) - hack.energyCost),
+      },
+      cryptos: (prev.cryptos || []).map(c =>
+        c.id === 'btc' ? { ...c, owned: c.owned + btcReward } : c
+      ),
+    }));
+    logger.info('Hack successful:', { hackId, cashReward, btcReward, risk: effectiveRisk });
+    return { success: true, caught: false, reward: cashReward, btcReward, risk: effectiveRisk };
+  }, [setGameState, showError]);
 
   const buyFood = useCallback((foodId: string) => {
     const state = stateRef.current;
