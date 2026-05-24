@@ -187,10 +187,14 @@ export default function EnhancedAchievementScreen({
   }, [buttonPress, haptic, gameState, setGameState, saveGame]);
 
   const handleGetHint = useCallback((achievementId: string) => {
-    // Implementation for getting hints
     buttonPress();
     haptic('light');
-    // Add logic to show hint (maybe cost gems)
+    const achievement = ENHANCED_ACHIEVEMENTS.find(a => a.id === achievementId);
+    if (!achievement) return;
+    Alert.alert(
+      `Hint: ${achievement.title}`,
+      achievement.unlockHint || 'No hint available for this achievement yet.',
+    );
   }, [buttonPress, haptic]);
 
   const clearFilters = () => {
