@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/GameContext';
+import type { Company } from '@/contexts/game/types';
 import {
   advanceWeeks,
   advanceYears,
@@ -53,15 +54,18 @@ describe('Integration Stress Tests', () => {
       companyTypes.forEach(({ type, cost }) => {
         state.companies.push({
           id: `${type}-1`,
-          type,
+          type: type as Company['type'],
           name: `${type} Company`,
-          level: 1,
           employees: 0,
           money: 0,
+          weeklyIncome: 2000,
           baseWeeklyIncome: 2000,
-          createdAt: Date.now(),
-          upgrades: {},
-          warehouse: { capacity: 10, items: {}, miners: {} },
+          upgrades: [],
+          workerSalary: 0,
+          workerMultiplier: 1,
+          marketingLevel: 0,
+          miners: {},
+          warehouseLevel: 0,
         });
         state.stats.money -= cost;
       });
@@ -215,18 +219,20 @@ describe('Integration Stress Tests', () => {
     });
 
     it('should max out Doctor career (highest paying)', () => {
-      let state = {
+      // Local job object — canonical state.currentJob is just an id.
+      let state: GameState = {
         ...baseState,
         date: { ...baseState.date, age: 28 },
         weeksLived: 520,
-        currentJob: {
-          id: 'doctor',
-          title: 'Doctor',
-          level: 0,
-          salary: 200, // Starting salary for doctor
-          progress: 0,
-          company: 'Hospital',
-        },
+        currentJob: 'doctor',
+      };
+      const job = {
+        id: 'doctor',
+        title: 'Doctor',
+        level: 0,
+        salary: 200, // Starting salary for doctor
+        progress: 0,
+        company: 'Hospital',
       };
 
       // Simulate career progression to max level (assume 5 levels)
@@ -237,15 +243,15 @@ describe('Integration Stress Tests', () => {
       const totalWeeks = weeksPerLevel * levels;
 
       state = advanceWeeks(state, totalWeeks);
-      state.currentJob.level = levels;
-      state.currentJob.salary = 500; // Maxed salary
+      job.level = levels;
+      job.salary = 500; // Maxed salary
 
-      expect(state.currentJob.level).toBe(5);
+      expect(job.level).toBe(5);
       expect(state.date.age).toBeCloseTo(30.4, 1);
 
-      console.log(`✓ Maxed Doctor career`);
-      console.log(`  Final level: ${state.currentJob.level}`);
-      console.log(`  Final salary: $${state.currentJob.salary}/week`);
+      console.log(`Maxed Doctor career`);
+      console.log(`  Final level: ${job.level}`);
+      console.log(`  Final salary: $${job.salary}/week`);
     });
 
     it('should build multiple companies and accumulate wealth', () => {
