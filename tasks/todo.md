@@ -151,6 +151,17 @@
       grant their weekly stat boosts during the weekly tick) and
       vehicle speedBonus (faster vehicles now actually shorten
       travel-trip duration).
+- [x] Wired SEVEN previously-dead lifetimeStatistics counters that
+      StatisticsApp displayed but never updated: totalCrimesCommitted,
+      totalJailTime, totalRelationships, totalCompaniesOwned,
+      totalPropertiesOwned, totalTravelDestinations, totalChildren,
+      totalWeeksWorked, highestSalary, peakNetWorth, peakNetWorthWeek,
+      totalAchievementsUnlocked.
+- [x] Wired FOUR achievement-counter fields that achievementsData
+      referenced but nothing wrote: datingMatches, totalPrisonWeeks,
+      healthWeeks (consecutive 90+ health), totalHappiness
+      (cumulative). Multiple achievements (Dating, Prisoner,
+      Healthy Lifestyle, Joyful Life) were previously unreachable.
 - [ ] The 669 remaining errors are 100% cosmetic: 648 TS6133
       (unused variable), 15 TS6192 (unused import), 4 TS6196 (unused
       private), 2 TS6198 (unused param). None block runtime; an
