@@ -2313,6 +2313,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                   // Track highest salary across the life — for "Earn $X/week"
                   // achievements and the obituary.
                   highestSalary: Math.max(prevState.lifetimeStatistics.highestSalary ?? 0, careerSalary),
+                  // Roll this week's career salary into the OPEN
+                  // careerHistory entry (the one for currentJob without an
+                  // endWeek) so the Statistics-screen timeline accumulates
+                  // earnings per job over time.
+                  careerHistory: careerSalary > 0 && prevState.currentJob
+                    ? (() => {
+                        const history = prevState.lifetimeStatistics?.careerHistory || [];
+                        let foundOpen = false;
+                        const updated = history.map((entry) => {
+                          if (!foundOpen && entry.job === prevState.currentJob && entry.endWeek === undefined) {
+                            foundOpen = true;
+                            return { ...entry, earnings: entry.earnings + careerSalary, weeks: entry.weeks + 1 };
+                          }
+                          return entry;
+                        });
+                        return updated;
+                      })()
+                    : (prevState.lifetimeStatistics.careerHistory || []),
                   // Track peak net worth + the week it occurred. \`netWorth\` was
                   // already computed at render time for the decay-rate calc, so
                   // we reuse it here rather than recomputing inside the setter.
