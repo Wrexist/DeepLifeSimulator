@@ -924,7 +924,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           // ("All earnings increased by 50% forever" — was set on purchase
           // but never read by any income pipeline).
           const moneyMultiplierBonus = prevState.goldUpgrades?.multiplier ? 1.5 : 1;
-          const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus);
+
+          // Stack any onboarding-perk incomeMultipliers (financial_guru +7%,
+          // crime_boss +10%, landlord +7%, lucky_charm +5%, etc.). The
+          // catalog declares these but no income pipeline consumed them.
+          let perkIncomeBonus = 1;
+          if (prevState.perks) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { perks: perksCatalog } = require('@/src/features/onboarding/perksData');
+            for (const [perkId, isActive] of Object.entries(prevState.perks)) {
+              if (!isActive) continue;
+              const perk = perksCatalog.find((p: { id: string; effects?: { incomeMultiplier?: number } }) => p.id === perkId);
+              const mult = perk?.effects?.incomeMultiplier;
+              if (typeof mult === 'number' && mult > 0 && mult !== 1) {
+                perkIncomeBonus *= mult;
+              }
+            }
+          }
+
+          const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus * perkIncomeBonus);
 
           // BUG FIX: Auto-reinvest dividends if enabled
           let reinvestedStocks: { symbol: string; shares: number; averagePrice: number; currentPrice: number }[] = [];
