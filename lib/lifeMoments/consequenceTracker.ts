@@ -32,7 +32,7 @@ export function applyChoiceConsequences(
   state: GameState,
   eventId: string,
   choiceId: string,
-  hiddenConsequences?: Array<Omit<HiddenConsequence, 'id' | 'eventId' | 'choiceId' | 'active' | 'weeksSinceCreated' | 'createdAt'>>,
+  hiddenConsequences?: Omit<HiddenConsequence, 'id' | 'eventId' | 'choiceId' | 'active' | 'weeksSinceCreated' | 'createdAt'>[],
   eventCategory?: 'regular' | 'seasonal' | 'economic' | 'personal_crisis'
 ): { newConsequences: HiddenConsequence[]; updatedState: Partial<ConsequenceState> } {
   const currentState = initializeConsequenceState(state);

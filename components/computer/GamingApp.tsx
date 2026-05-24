@@ -1,4 +1,4 @@
-﻿/**
+/**
  * YouVideo App Component
  * 
  * Complete video creation platform with recording, rendering, and uploading
@@ -18,7 +18,6 @@ import {
   Image,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   ArrowLeft,
   Play,
@@ -45,6 +44,7 @@ import { useMemoryCleanup } from '@/utils/performanceOptimization';
 
 // Use shared scaling utils so tablet/web-tablet scale up correctly
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 
 

@@ -34,8 +34,7 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react-native';
-import { EnhancedAchievement, AchievementProgress } from '@/utils/enhancedAchievements';
-import {
+import { EnhancedAchievement, AchievementProgress ,
   getRarityColor,
   getDifficultyText,
   getDifficultyColor,

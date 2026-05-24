@@ -14,6 +14,8 @@ import { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
 import { KarmaState } from '@/lib/karma/karmaSystem';
 import type { AutomationState } from '@/lib/automation/automationTypes';
 
+import { CareerRequirements } from '@/lib/types/requirements';
+
 export interface GameStats {
   health: number;
   happiness: number;
@@ -126,8 +128,6 @@ export interface JailActivity {
   criminalXpGain?: number;
   risk?: string;
 }
-
-import { CareerRequirements } from '@/lib/types/requirements';
 
 export interface Career {
   id: string;
@@ -497,12 +497,12 @@ export interface MiningStatistics {
   totalEarnings: number;
   totalPowerCost: number;
   bestPerformingCrypto?: string;
-  miningHistory: Array<{
+  miningHistory: {
     week: number;
     earnings: number;
     cryptoMined: Record<string, number>;
     powerCost: number;
-  }>;
+  }[];
   minerPerformance: Record<string, {
     totalEarnings: number;
     totalPowerCost: number;
@@ -1166,13 +1166,13 @@ export interface GameState {
   showCureSuccessModal: boolean;
   curedDiseases: string[];
   diseaseHistory?: {
-    diseases: Array<{
+    diseases: {
       id: string;
       name: string;
       contractedWeek: number;
       curedWeek?: number;
       severity: string;
-    }>;
+    }[];
     totalDiseases: number;
     totalCured: number;
     deathsFromDisease: number;
@@ -1353,32 +1353,32 @@ export interface GameState {
   };
   /** Ribbon collection — persists across prestiges */
   ribbonCollection?: {
-    earned: Array<{
+    earned: {
       ribbonId: string;
       generation: number;
       earnedTimestamp: number;
       lifeAge: number;
       lifeName: string;
-    }>;
+    }[];
     discoveredIds: string[];
   };
   /** Weekly themed challenge state */
   weeklyChallenge?: {
     challengeId: string;
     startedAt: number;
-    progress: Array<{ objectiveId: string; current: number; target: number; met: boolean }>;
+    progress: { objectiveId: string; current: number; target: number; met: boolean }[];
     completed: boolean;
     rewardClaimed: boolean;
   };
   /** Time machine checkpoints — max 5 snapshots */
-  checkpoints?: Array<{
+  checkpoints?: {
     id: string;
     label: string;
     weeksLived: number;
     age: number;
     timestamp: number;
     snapshot: string;
-  }>;
+  }[];
   /** Number of time machine rewinds used this life (escalates cost) */
   timeMachineUsesThisLife?: number;
 }

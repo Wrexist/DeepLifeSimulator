@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LegacyTimeline Component
  * 
  * Displays previous lives with expandable details, family tree links,
@@ -15,7 +15,6 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   Crown,
@@ -39,6 +38,7 @@ import {
   scale,
   fontScale,
 } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 const { width } = Dimensions.get('window');
 

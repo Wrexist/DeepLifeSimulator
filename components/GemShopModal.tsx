@@ -1,14 +1,14 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image, Animated } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star, Zap, Shield, Crown, CheckCircle, Sparkles, Diamond, Coins, Award, Heart, RefreshCw } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { scale, fontScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
+const LinearGradient = LinearGradientFallback;
 
 interface GemShopModalProps {
   visible: boolean;

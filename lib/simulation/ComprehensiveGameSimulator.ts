@@ -2803,7 +2803,7 @@ export class ComprehensiveGameSimulator {
                 };
                 
                 // Calculate ROI for each affordable miner and pick best
-                const affordableMiners: Array<{ id: string; name: string; price: number; roi: number }> = [];
+                const affordableMiners: { id: string; name: string; price: number; roi: number }[] = [];
                 if (maxSpend >= 50000000) affordableMiners.push({ id: 'tera', name: 'Tera Miner', price: 50000000, roi: MINER_EARNINGS.tera / 50000000 });
                 if (maxSpend >= 10000000) affordableMiners.push({ id: 'giga', name: 'Giga Miner', price: 10000000, roi: MINER_EARNINGS.giga / 10000000 });
                 if (maxSpend >= 2500000) affordableMiners.push({ id: 'mega', name: 'Mega Miner', price: 2500000, roi: MINER_EARNINGS.mega / 2500000 });

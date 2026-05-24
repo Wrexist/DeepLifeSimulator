@@ -1,11 +1,11 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { Crown, Award, DollarSign } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
+const LinearGradient = LinearGradientFallback;
 
 interface PrestigeStatsCardProps {
   onPress?: () => void;

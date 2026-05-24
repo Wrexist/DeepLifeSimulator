@@ -13,7 +13,6 @@ import {
   Alert,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { MotiView } from '@/components/anim/MotiStub';
 import {
   ArrowLeft,
@@ -39,6 +38,7 @@ import { travelTo, returnFromTrip, purchasePassport, investInBusinessOpportunity
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 
 interface TravelAppProps {

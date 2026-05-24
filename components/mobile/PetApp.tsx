@@ -1,12 +1,9 @@
-﻿import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, TextInput } from 'react-native';
 
 
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-
-
-const LinearGradient = LinearGradientFallback;
 
 
 import { ArrowLeft, PawPrint, Heart, Zap, Coffee, ShoppingCart, Plus, Settings, Stethoscope, Trophy, Clock, Star, Award, Sparkles, AlertTriangle, Edit2 } from 'lucide-react-native';
@@ -22,6 +19,9 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { WEEKS_PER_YEAR, WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
 
 import EmptyState from '@/components/ui/EmptyState';
+
+
+const LinearGradient = LinearGradientFallback;
 
 
 interface PetAppProps {

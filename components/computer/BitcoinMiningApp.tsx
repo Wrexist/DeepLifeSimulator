@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 
 
@@ -7,10 +7,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, Tex
 
 
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-
-
-
-const LinearGradient = LinearGradientFallback;
 
 
 
@@ -50,6 +46,10 @@ import { scale, fontScale, getResponsiveBorderRadius, responsiveSpacing } from '
 
 import { validateMoney, validatePositiveNumber } from '@/utils/validation';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+
+
+
+const LinearGradient = LinearGradientFallback;
 
 
 

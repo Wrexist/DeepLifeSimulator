@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SeasonalEventModal Component
  * 
  * Enhanced seasonal event modal with countdown timer, animations,
@@ -15,7 +15,6 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   Gift,
@@ -32,6 +31,7 @@ import { SeasonalEvent } from '@/lib/events/seasonal';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
 
 interface SeasonalEventModalProps {
   visible: boolean;

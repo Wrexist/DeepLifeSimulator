@@ -8,10 +8,10 @@ import {
   ScrollView,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { X, CheckCircle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
 import { useGame } from '@/contexts/game';
 import { useFeedback } from '@/utils/feedbackSystem';
+const LinearGradient = LinearGradientFallback;
 
 export default function CureSuccessModal() {
   const { gameState, dismissCureSuccessModal } = useGame();

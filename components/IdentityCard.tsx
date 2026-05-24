@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   ScrollView,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import YouthPillModal from './YouthPillModal';
@@ -23,12 +22,11 @@ import {
   fontScale,
 } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
-import { MINER_PRICES } from '@/lib/economy/constants';
+import { MINER_PRICES , PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { useGame } from '@/contexts/GameContext';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
-import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -36,6 +34,7 @@ import { getCharacterImage } from '@/utils/characterImages';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import type { Loan } from '@/contexts/game/types';
+const LinearGradient = LinearGradientFallback;
 
 // Type guard helpers for Loan properties
 function hasLoanName(loan: Loan | unknown): loan is Loan & { name: string } {
@@ -625,7 +624,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const propertyExpenses: Array<{ name: string; cost: number }> = [];
+                const propertyExpenses: { name: string; cost: number }[] = [];
                 const realEstate = gameState.realEstate || [];
                 const { getUpgradeTier } = require('@/lib/realEstate/housing');
                 
@@ -693,7 +692,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const loanExpenses: Array<{ name: string; cost: number }> = [];
+                const loanExpenses: { name: string; cost: number }[] = [];
                 const loans: Loan[] = gameState.loans || [];
                 
                 loans.forEach(loan => {
@@ -767,7 +766,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const miningExpenses: Array<{ name: string; cost: number; power?: number; miners?: Array<{ type: string; count: number; power: number }> }> = [];
+                const miningExpenses: { name: string; cost: number; power?: number; miners?: { type: string; count: number; power: number }[] }[] = [];
                 const companyMinerPower: Record<string, number> = {
                   basic: 10,
                   advanced: 35,
@@ -795,7 +794,7 @@ function IdentityCard() {
                       const weeklyBill = Math.round(monthlyBill / 4);
                       if (weeklyBill > 0) {
                         // Count miners by type
-                        const minerCounts: Array<{ type: string; count: number; power: number }> = [];
+                        const minerCounts: { type: string; count: number; power: number }[] = [];
                         Object.entries(company.miners).forEach(([id, count]) => {
                           const minerPower = companyMinerPower[id] || 0;
                           const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
@@ -845,7 +844,7 @@ function IdentityCard() {
                     const weeklyPowerCost = Math.round(totalPower * 0.60);
                     if (weeklyPowerCost > 0) {
                       // Count warehouse miners by type
-                      const minerCounts: Array<{ type: string; count: number; power: number }> = [];
+                      const minerCounts: { type: string; count: number; power: number }[] = [];
                       Object.entries(gameState.warehouse.miners).forEach(([id, count]) => {
                         const minerPower = warehouseMinerPower[id] || 0;
                         const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
@@ -908,7 +907,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const vehicleExpenses: Array<{ name: string; maintenance: number; fuel: number; insurance: number; total: number }> = [];
+                const vehicleExpenses: { name: string; maintenance: number; fuel: number; insurance: number; total: number }[] = [];
                 const vehicles = gameState.vehicles || [];
                 
                 vehicles.forEach(vehicle => {
@@ -993,7 +992,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const rentExpenses: Array<{ name: string; cost: number }> = [];
+                const rentExpenses: { name: string; cost: number }[] = [];
                 const realEstate = gameState.realEstate || [];
                 
                 realEstate.forEach(property => {

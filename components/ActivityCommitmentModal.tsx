@@ -1,14 +1,14 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { X, Target, Briefcase, Heart, Dumbbell, Music, Clock, TrendingUp, AlertCircle } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 interface ActivityCommitmentModalProps {
   visible: boolean;

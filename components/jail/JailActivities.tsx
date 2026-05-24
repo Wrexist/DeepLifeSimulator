@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
 import { Zap, DollarSign, Heart, Shield, AlertTriangle, BookOpen, Wrench, Gavel, TrendingUp } from 'lucide-react-native';
+const LinearGradient = LinearGradientFallback;
 
 export default function JailActivities() {
   const { gameState, performJailActivity } = useGame();

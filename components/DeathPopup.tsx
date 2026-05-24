@@ -1,7 +1,6 @@
-﻿import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, ScrollView, Image, Alert, Share } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
@@ -17,6 +16,7 @@ import { scale, fontScale } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import LifeStoryModal from './LifeStoryModal';
+const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
 

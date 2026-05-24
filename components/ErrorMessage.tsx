@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { MotiView } from '@/components/anim/MotiStub';
 import { X, RefreshCw } from 'lucide-react-native';
+const LinearGradient = LinearGradientFallback;
 
 interface ErrorMessageProps {
   visible: boolean;

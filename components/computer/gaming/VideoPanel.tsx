@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, TextInput } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { Zap } from 'lucide-react-native';
 import { GamingStreamingState , GameSettings } from '@/contexts/game/types';
+const LinearGradient = LinearGradientFallback;
 
 
 interface VideoPanelProps {

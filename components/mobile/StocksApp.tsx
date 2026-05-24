@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Modal, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { ArrowLeft, TrendingUp, BarChart3, Plus, Minus } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import LoadingButton from '@/components/ui/LoadingButton';
@@ -10,6 +9,7 @@ import SkeletonLoader, { SkeletonList } from '@/components/ui/SkeletonLoader';
 import EmptyState from '@/components/ui/EmptyState';
 import { getStockInfo, getAllStockSymbols } from '@/lib/economy/stockMarket';
 import { formatMoney } from '@/utils/moneyFormatting';
+const LinearGradient = LinearGradientFallback;
 
 interface StocksAppProps {
   onBack: () => void;

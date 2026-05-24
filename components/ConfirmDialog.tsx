@@ -1,8 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react-native';
+const LinearGradient = LinearGradientFallback;
 
 interface ConfirmDialogProps {
   visible: boolean;

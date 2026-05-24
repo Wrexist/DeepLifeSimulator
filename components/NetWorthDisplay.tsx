@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated , Platform } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
 import { useGame } from '@/contexts/GameContext';
 import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';

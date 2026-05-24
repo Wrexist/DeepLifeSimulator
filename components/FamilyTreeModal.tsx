@@ -1,11 +1,11 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { X } from 'lucide-react-native';
 import { getCharacterImage } from '@/utils/characterImages';
+const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
 

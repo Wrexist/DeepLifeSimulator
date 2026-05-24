@@ -24,13 +24,13 @@ import {
   Platform,
 } from 'react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { Heart, Share2, Copy, Check } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
 import { scale, fontScale, responsiveWidth } from '@/utils/scaling';
 import { getThemeColors } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { logger } from '@/utils/logger';
+const BlurView = BlurViewFallback;
 
 interface ShareLifeCardProps {
   gameState: GameState;

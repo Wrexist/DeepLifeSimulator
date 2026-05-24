@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { MotiView } from '@/components/anim/MotiStub';
 import { Loader } from 'lucide-react-native';
+const LinearGradient = LinearGradientFallback;
 
 interface LoadingSpinnerProps {
   visible: boolean;

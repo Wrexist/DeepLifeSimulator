@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -10,7 +10,6 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { X, Crown, Award, TrendingUp, Unlock, Settings, Star, Check, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { PRESTIGE_BONUSES, getBonusLevel, PrestigeBonusCategory } from '@/lib/prestige/prestigeBonuses';
@@ -29,6 +28,7 @@ import {
 import {
   getEventFrequencyModifier,
 } from '@/lib/prestige/applyQOLBonuses';
+const LinearGradient = LinearGradientFallback;
 
 
 const { width: screenWidth } = Dimensions.get('window');

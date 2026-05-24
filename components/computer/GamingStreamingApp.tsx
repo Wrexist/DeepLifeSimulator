@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Gaming & Streaming App Component
  * 
  * âš ï¸  PERMANENT SCALING FIX âš ï¸
@@ -29,7 +29,6 @@ import {
   ViewStyle,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   ArrowLeft,
   Play,
@@ -56,6 +55,7 @@ import { logger } from '@/utils/logger';
 import { useMemoryCleanup } from '@/utils/performanceOptimization';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+const LinearGradient = LinearGradientFallback;
 
 
 // PERMANENT SIMPLE SCALING - INDEPENDENT OF ANY OTHER SCALING SYSTEM

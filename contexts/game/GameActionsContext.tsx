@@ -403,7 +403,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       // PERF FIX: Collect notifications during week progression and flush them in a single
       // setTimeout afterward. Previously, each notification was its own setTimeout inside
       // setGameState, accumulating hundreds of pending callbacks over 5-10 minutes of play.
-      const pendingNotifications: Array<{ id: string; message: string; title: string }> = [];
+      const pendingNotifications: { id: string; message: string; title: string }[] = [];
 
       // PRE-ROLLS: Extract all Math.random() calls outside the updater so that
       // React StrictMode double-invocation produces identical results both times.
@@ -2583,7 +2583,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       const currentState = gameStateRef.current;
       if (currentState) {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
+           
           const executions = processAutomationRules(currentState);
 
           if (executions.length > 0) {

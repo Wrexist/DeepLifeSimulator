@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
@@ -9,6 +8,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { MINER_PRICES } from '@/lib/economy/constants';
+const LinearGradient = LinearGradientFallback;
 
 interface NetWorthBreakdownModalProps {
   visible: boolean;
@@ -71,7 +71,7 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
   }, [stats.money, bankSavings, items, companies, realEstate, vehicles]);
 
   const assetDetails = useMemo(() => {
-    const details: Array<{ label: string; value: number; icon: any; color: string; items?: Array<{ name: string; value: number }> }> = [];
+    const details: { label: string; value: number; icon: any; color: string; items?: { name: string; value: number }[] }[] = [];
     
     // Cash
     if (stats.money > 0) {
@@ -148,7 +148,7 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
     // Hardware/Miners
     const hardwareValue = breakdown.byAssetType.hardware || 0;
     if (hardwareValue > 0) {
-      const hardwareItems: Array<{ name: string; value: number }> = [];
+      const hardwareItems: { name: string; value: number }[] = [];
       companies?.forEach(company => {
         Object.entries(company.miners || {}).forEach(([id, count]) => {
           const price = MINER_PRICES[id as keyof typeof MINER_PRICES];

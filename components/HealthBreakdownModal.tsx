@@ -18,8 +18,8 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
   const { theme, isDark } = useTheme();
 
   const breakdown = useMemo(() => {
-    const drains: Array<{ label: string; value: number; icon: any; color: string; description?: string }> = [];
-    const incomes: Array<{ label: string; value: number; icon: any; color: string; description?: string }> = [];
+    const drains: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
+    const incomes: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
 
     // Calculate natural decay
     const netWorth = (stats?.money || 0) + (gameState.bankSavings || 0);

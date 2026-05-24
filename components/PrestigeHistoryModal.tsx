@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -10,10 +10,10 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { X, Crown, Calendar, DollarSign, TrendingUp, Users, RotateCcw } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { PrestigeRecord } from '@/lib/prestige/prestigeTypes';
+const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
 

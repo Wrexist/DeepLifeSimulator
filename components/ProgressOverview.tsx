@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   TextInput,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { MotiView } from '@/components/anim/MotiStub';
 import {
   Trophy,
@@ -32,6 +31,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
 import { Achievement } from '@/contexts/game/types';
+const LinearGradient = LinearGradientFallback;
 
 interface ProgressOverviewProps {
   compact?: boolean;

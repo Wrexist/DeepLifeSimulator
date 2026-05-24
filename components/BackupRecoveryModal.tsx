@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   X, 
   Clock, 
@@ -37,6 +36,7 @@ import {
 import { scale, fontScale } from '@/utils/scaling';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
+const LinearGradient = LinearGradientFallback;
 
 const { height: screenHeight } = Dimensions.get('window');
 

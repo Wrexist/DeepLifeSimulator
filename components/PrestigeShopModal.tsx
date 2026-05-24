@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -9,7 +9,6 @@ import {
   ScrollView,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { Crown, X, Sparkles, TrendingUp, Unlock, Settings, Star, Check } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import {
@@ -20,6 +19,7 @@ import {
   PrestigeBonusCategory,
 } from '@/lib/prestige/prestigeBonuses';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 
 interface PrestigeShopModalProps {

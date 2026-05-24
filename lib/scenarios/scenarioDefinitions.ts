@@ -944,12 +944,12 @@ export function checkScenarioWin(
   gameState: {
     stats: { money: number; reputation: number };
     age: number;
-    education: Array<{ id: string; completed: boolean }>;
-    careers: Array<{ id: string; accepted: boolean }>;
-    relationships: Array<{ type: string }>;
-    achievements: Array<{ id: string; completed: boolean }>;
-    companies: Array<{ weeklyIncome: number }>;
-    realEstate: Array<{ owned: boolean; value: number }>;
+    education: { id: string; completed: boolean }[];
+    careers: { id: string; accepted: boolean }[];
+    relationships: { type: string }[];
+    achievements: { id: string; completed: boolean }[];
+    companies: { weeklyIncome: number }[];
+    realEstate: { owned: boolean; value: number }[];
     weeksLived: number;
     bankSavings?: number;
   }
@@ -1108,12 +1108,12 @@ export function isScenarioCompleted(
   gameState: {
     stats: { money: number; reputation: number };
     age: number;
-    education: Array<{ id: string; completed: boolean }>;
-    careers: Array<{ id: string; accepted: boolean }>;
-    relationships: Array<{ type: string }>;
-    achievements: Array<{ id: string; completed: boolean }>;
-    companies: Array<{ weeklyIncome: number }>;
-    realEstate: Array<{ owned: boolean; value: number }>;
+    education: { id: string; completed: boolean }[];
+    careers: { id: string; accepted: boolean }[];
+    relationships: { type: string }[];
+    achievements: { id: string; completed: boolean }[];
+    companies: { weeklyIncome: number }[];
+    realEstate: { owned: boolean; value: number }[];
     weeksLived: number;
   }
 ): boolean {

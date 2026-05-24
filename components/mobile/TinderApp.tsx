@@ -1,9 +1,8 @@
-﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, ScrollView, Platform, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { MotiView } from '@/components/anim/MotiStub'; // Stub replacement for moti
 import { ArrowLeft, Heart, X, Settings, DollarSign, MapPin, MessageCircle, Sparkles, ChevronDown, Calendar, Circle } from 'lucide-react-native';
@@ -17,6 +16,7 @@ import { ENGAGEMENT_RINGS, getTierColor } from '@/lib/dating/engagementRings';
 import { getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import WeddingPlanningModal from './WeddingPlanningModal';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
 
 interface DatingAppProps {
   onBack: () => void;

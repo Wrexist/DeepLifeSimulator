@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Enhanced Progress Bar
  * Multi-layered progress bars with milestones and detailed information
  */
@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   Target,
   Clock,
@@ -19,6 +18,7 @@ import {
   Award,
 } from 'lucide-react-native';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface Milestone {
   position: number; // 0-100

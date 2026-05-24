@@ -113,7 +113,7 @@ export function useStatChangeTracker(gameState: {
             return;
         }
 
-        const statsToTrack: Array<'health' | 'happiness' | 'energy' | 'money' | 'gems' | 'fitness'> =
+        const statsToTrack: ('health' | 'happiness' | 'energy' | 'money' | 'gems' | 'fitness')[] =
             ['health', 'happiness', 'energy', 'money', 'gems', 'fitness'];
 
         for (const stat of statsToTrack) {

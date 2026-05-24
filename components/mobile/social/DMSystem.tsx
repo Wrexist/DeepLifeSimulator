@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DM System Component for Social App
  * 
  * Features mysterious messages with clues, discoveries, and secrets
@@ -21,7 +21,6 @@ import {
   TextInput,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   Mail,
@@ -41,6 +40,7 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface DMConversation {
   id: string;
@@ -142,7 +142,7 @@ const MYSTERIOUS_CONTACTS: Omit<DMConversation, 'id' | 'lastMessage' | 'timestam
 ];
 
 // Clue templates by type
-const CLUE_TEMPLATES: Record<ClueType, Array<{ message: string; hint: string; reward: string; action: string }>> = {
+const CLUE_TEMPLATES: Record<ClueType, { message: string; hint: string; reward: string; action: string }[]> = {
   money: [
     { 
       message: "Psst... I know a way to make some quick cash. Check the stock market around 3 PM - there's usually a dip you can exploit. 📈",

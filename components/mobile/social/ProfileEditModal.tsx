@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Profile Edit Modal - X.com Style
  * 
  * Modal for editing profile details including photo uploads
@@ -19,7 +19,6 @@ import {
   ImageBackground,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   Camera,
   ArrowLeft,
@@ -31,6 +30,7 @@ import {
   showImageSourcePicker,
   PLACEHOLDER_IMAGES 
 } from '@/utils/imageUtils';
+const LinearGradient = LinearGradientFallback;
 
 interface ProfileEditModalProps {
   visible: boolean;

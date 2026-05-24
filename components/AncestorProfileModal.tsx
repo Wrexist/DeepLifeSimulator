@@ -1,10 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { X, User, Star, Brain } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+const LinearGradient = LinearGradientFallback;
 
 const { height } = Dimensions.get('window');
 

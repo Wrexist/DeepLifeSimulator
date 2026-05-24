@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Political App Component
  * 
  * Clean, organized political office management
@@ -15,7 +15,6 @@ import {
   Modal,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   Vote,
@@ -50,6 +49,7 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { getActivePerks } from '@/lib/politics/perks';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 type TabType = 'overview' | 'career' | 'policies' | 'support';
 

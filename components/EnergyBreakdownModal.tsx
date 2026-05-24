@@ -18,8 +18,8 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
   const { theme, isDark } = useTheme();
 
   const breakdown = useMemo(() => {
-    const drains: Array<{ label: string; value: number; icon: any; color: string; description?: string }> = [];
-    const incomes: Array<{ label: string; value: number; icon: any; color: string; description?: string }> = [];
+    const drains: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
+    const incomes: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
 
     // Calculate energy drain from career (active job)
     if (currentJob) {

@@ -1,10 +1,10 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ColorValue, StyleProp, ViewStyle } from 'react-native';
 import { MotiView } from '@/components/anim/MotiStub';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 type GradientColors = readonly [ColorValue, ColorValue] | readonly [ColorValue, ColorValue, ...ColorValue[]];
 

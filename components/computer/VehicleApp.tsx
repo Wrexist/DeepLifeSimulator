@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Vehicle App Component
  * 
  * Complete garage management: purchase/sell vehicles, refuel, repair, insurance, and driver's license
@@ -15,7 +15,6 @@ import {
   Image,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   Car,
@@ -55,6 +54,7 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { scale, fontScale } from '@/utils/scaling';
 import { Vehicle, VehicleInsurance } from '@/contexts/game/types';
+const LinearGradient = LinearGradientFallback;
 
 
 interface VehicleAppProps {

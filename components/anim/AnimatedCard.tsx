@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { MotiView } from '@/components/anim/MotiStub';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
+const LinearGradient = LinearGradientFallback;
 
 interface AnimatedCardProps {
   children: React.ReactNode;

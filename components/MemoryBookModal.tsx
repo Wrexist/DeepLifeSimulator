@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MemoryBookModal Component
  * 
  * Enhanced memory book with gradient cards, unlock animations,
@@ -17,7 +17,6 @@ import {
 } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   BookOpen,
@@ -35,6 +34,7 @@ import {
 } from 'lucide-react-native';
 import { Memory } from '@/lib/legacy/memories';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
 

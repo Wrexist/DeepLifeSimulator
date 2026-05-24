@@ -21,7 +21,6 @@ import { useGame } from '@/contexts/GameContext';
 import { GameState, Loan } from '@/contexts/game/types';
 import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -31,6 +30,7 @@ import {
 } from '@/lib/economy/constants';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getMarketAPRForGameWeek } from '@/utils/bankMarketAPR';
+const LinearGradient = LinearGradientFallback;
 
 // Prefer expo-router for navigation; gracefully fall back if unavailable.
 let useRouterHook:
@@ -160,7 +160,7 @@ export default function BankApp({ onBack }: BankAppProps) {
   const cash = gameState?.stats?.money ?? 0;
   const initialSavings = gameState?.bankSavings ?? 0;
   const loans: Loan[] = gameState?.loans ?? [];
-  const investments: Array<{ symbol: string; shares: number; averagePrice: number; currentPrice: number; value?: number; price?: number }> = gameState?.stocks?.holdings ?? [];
+  const investments: { symbol: string; shares: number; averagePrice: number; currentPrice: number; value?: number; price?: number }[] = gameState?.stocks?.holdings ?? [];
 
   // Update savings when initialSavings changes
   useEffect(() => {

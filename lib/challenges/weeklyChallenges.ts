@@ -487,7 +487,7 @@ export function getWeeklyChallengeDefinition(
 export function evaluateChallengeProgress(
   challengeId: string,
   state: GameState
-): Array<{ id: string; description: string; target: number; current: number; completed: boolean }> {
+): { id: string; description: string; target: number; current: number; completed: boolean }[] {
   const def = getWeeklyChallengeDefinition(challengeId);
   if (!def) return [];
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Post Composer Component - X.com Style
  * 
  * Modal for creating new posts with photo upload
@@ -18,7 +18,6 @@ import {
   Alert,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   Image as ImageIcon,
@@ -28,6 +27,7 @@ import {
 } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import { pickPostPhoto, showImageSourcePicker, PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
+const LinearGradient = LinearGradientFallback;
 
 interface PostComposerProps {
   visible: boolean;

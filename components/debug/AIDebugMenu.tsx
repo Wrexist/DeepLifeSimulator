@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AI Debug Menu Component
  * Simplified and powerful debug interface for testing game mechanics
  *
@@ -22,7 +22,6 @@ import {
   TextInput,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   Play,
@@ -61,6 +60,7 @@ import {
 } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import SimulationRunner from '@/components/simulation/SimulationRunner';
+const LinearGradient = LinearGradientFallback;
 
 interface AIDebugMenuProps {
   visible: boolean;

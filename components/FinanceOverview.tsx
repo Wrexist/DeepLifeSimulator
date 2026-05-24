@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Finance Overview Component
  * 
  * Comprehensive financial dashboard with visualizations, trends, and projections
@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   TrendingUp,
   TrendingDown,
@@ -32,6 +31,7 @@ import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { getWeeklyInflationRate } from '@/lib/economy/inflation';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
 
 
 interface LoanSummary {

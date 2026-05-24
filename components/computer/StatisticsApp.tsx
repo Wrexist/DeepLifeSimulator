@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Statistics & Analytics Dashboard
  * 
  * Comprehensive statistics app showing lifetime achievements, graphs, and analytics
@@ -13,7 +13,6 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   BarChart3,
@@ -50,6 +49,7 @@ import { calculateLifeExpectancy } from '@/lib/statistics/lifeExpectancy';
 import { calculateRetirementPlanning } from '@/lib/statistics/retirementCalculator';
 import { calculateFIRETracker } from '@/lib/statistics/fireTracker';
 import { calculateAchievementAnalytics } from '@/lib/statistics/achievementAnalytics';
+const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
 

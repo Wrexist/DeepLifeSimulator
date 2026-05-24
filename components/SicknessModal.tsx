@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,15 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { X, Heart, Zap, Smile, Dumbbell, AlertTriangle, Stethoscope, Pill, Activity, Clock, Info, Sparkles } from 'lucide-react-native';
 import { useGame, useItemActions } from '@/contexts/game';
 import type { Disease } from '@/contexts/game/types';
 import { responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
 import { logger } from '@/utils/logger';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 function SicknessModal() {
   const { gameState, dismissSicknessModal } = useGame();

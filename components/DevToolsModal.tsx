@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, TextInput, Switch } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
@@ -6,14 +6,14 @@ import type { Education } from '@/contexts/game/types';
 import { X, DollarSign, Heart, Zap, Clock, Shield, Briefcase, Gift, Skull, Database, RefreshCw, Save, FileText, Package, Users, Building2, GraduationCap, CreditCard, Star, Award, Bug, ClipboardCheck, AlertTriangle, Activity } from 'lucide-react-native';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LogViewer from '@/components/dev/LogViewer';
 import AIDebugMenu from '@/components/debug/AIDebugMenu';
 import TestRunner from '@/components/TestRunner';
 import { generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 interface DevToolsModalProps {
   visible: boolean;

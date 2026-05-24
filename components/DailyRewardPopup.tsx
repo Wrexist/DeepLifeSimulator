@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   Modal, 
   View, 
@@ -8,7 +8,6 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   Gift, 
   DollarSign, 
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/game';
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 
 interface DailyRewardPopupProps {

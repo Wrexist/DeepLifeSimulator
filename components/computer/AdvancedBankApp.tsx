@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Image,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   CreditCard,
@@ -38,6 +37,7 @@ import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { validateMoney } from '@/utils/validation';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
 
 interface AdvancedBankAppProps {
   onBack: () => void;

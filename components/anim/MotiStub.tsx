@@ -79,7 +79,7 @@ function useAnimatedValues(
     if (animate) Object.keys(animate).forEach((k) => keySet.add(k));
     return Array.from(keySet).filter((k) =>
       ALL_KEYS.includes(k as any),
-    ) as Array<keyof AnimatedStyleValues>;
+    ) as (keyof AnimatedStyleValues)[];
   }, []); // Stable — animation keys don't change after mount
 
   // Create one Animated.Value per key
@@ -132,7 +132,7 @@ function useAnimatedValues(
   // Build transform array and flat style
   const animatedStyle = useMemo(() => {
     const style: Record<string, any> = {};
-    const transform: Array<Record<string, any>> = [];
+    const transform: Record<string, any>[] = [];
 
     for (const key of keys) {
       const av = animatedValues.current[key];

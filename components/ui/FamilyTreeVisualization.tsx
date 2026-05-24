@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Family Tree Visualization Component
  * 
  * Interactive family tree showing multiple generations
@@ -15,7 +15,6 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   User,
   Crown,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import type { DynastyStats } from '@/contexts/game/types';
+const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
 

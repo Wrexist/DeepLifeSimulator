@@ -1,11 +1,11 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { X, Calendar, DollarSign, Activity, Heart, Zap, Smile, Shield, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import FadeInUp from '@/components/anim/FadeInUp';
+const LinearGradient = LinearGradientFallback;
 
 const STAT_ICONS: Record<string, { icon: typeof Heart; color: string }> = {
   health: { icon: Heart, color: '#EF4444' },

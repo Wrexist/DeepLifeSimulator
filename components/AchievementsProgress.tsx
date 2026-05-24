@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AchievementsProgress Component
  * 
  * Enhanced achievements display with category filters, rarity indicators,
@@ -14,9 +14,7 @@ import {
   ScrollView,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { useGame } from '@/contexts/GameContext';
 import {
   Trophy,
@@ -47,6 +45,8 @@ import {
   verticalScale,
   fontScale,
 } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 type AchievementCategory = 'all' | 'career' | 'wealth' | 'social' | 'travel' | 'family' | 'health' | 'crime' | 'special';
 type RarityType = 'common' | 'rare' | 'epic' | 'legendary';
