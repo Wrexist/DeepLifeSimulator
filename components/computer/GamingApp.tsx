@@ -281,9 +281,9 @@ export default function GamingApp({ onBack }: GamingAppProps) {
   const [recordingProgress, setRecordingProgress] = useState(0);
   const [renderingProgress, setRenderingProgress] = useState(0);
   const [uploadingProgress, setUploadingProgress] = useState(0);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isRendering, setIsRendering] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [_isRecording, setIsRecording] = useState(false);
+  const [_isRendering, setIsRendering] = useState(false);
+  const [_isUploading, setIsUploading] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<'idle' | 'recording' | 'rendering' | 'uploading'>('idle');
   
   // Modal states

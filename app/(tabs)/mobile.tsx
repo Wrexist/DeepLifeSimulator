@@ -74,9 +74,9 @@ function MobileScreenContent() {
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
-  const [contentHeight, setContentHeight] = useState(1);
-  const [visibleHeight, setVisibleHeight] = useState(1);
-  const [scrollY, setScrollY] = useState(0);
+  const [_contentHeight, _setContentHeight] = useState(1);
+  const [_visibleHeight, _setVisibleHeight] = useState(1);
+  const [_scrollY, _setScrollY] = useState(0);
 
   // Prevent staying on mobile screen when in prison - redirect to work tab
   useEffect(() => {

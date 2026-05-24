@@ -100,8 +100,8 @@ function WorkScreenContent() {
     // Hobbies removed - unused state variables removed
     const [selectedSkillTree, setSelectedSkillTree] = useState<CrimeSkillId | null>(null);
     const [feedbackOpacity] = useState(new Animated.Value(0));
-    const [showJailReleaseMessage, setShowJailReleaseMessage] = useState(false);
-    const [previousJailWeeks, setPreviousJailWeeks] = useState(0);
+    const [_showJailReleaseMessage, _setShowJailReleaseMessage] = useState(false);
+    const [_previousJailWeeks, _setPreviousJailWeeks] = useState(0);
     const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
 

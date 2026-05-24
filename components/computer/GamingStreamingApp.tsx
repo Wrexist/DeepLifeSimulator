@@ -179,8 +179,8 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
   const [renderTimer, setRenderTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [uploadTimer, setUploadTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   // Stream goals overlay
-  const [subsGoal, setSubsGoal] = useState(0);
-  const [donGoal, setDonGoal] = useState(0);
+  const [subsGoal, _setSubsGoal] = useState(0);
+  const [donGoal, _setDonGoal] = useState(0);
   const [subsMilestone, setSubsMilestone] = useState(0);
   const [donMilestone, setDonMilestone] = useState(0);
   const mountedRef = useRef(true);
@@ -229,7 +229,7 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
     addCleanup
   ]);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [postInteractionReady, setPostInteractionReady] = useState(false);
+  const [_postInteractionReady, setPostInteractionReady] = useState(false);
 
   // Simple press scale hook for nice button interactions
   const usePressScale = () => {

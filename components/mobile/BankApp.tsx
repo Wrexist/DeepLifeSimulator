@@ -147,7 +147,7 @@ export default function BankApp({ onBack }: BankAppProps) {
   const [infoOpen, setInfoOpen] = useState(false);
   const [loanAmount, setLoanAmount] = useState<string>('10000');
   const [selectedTerm, setSelectedTerm] = useState<typeof TERM_OPTIONS[number]>(TERM_OPTIONS[0]);
-  const [repaySource, setRepaySource] = useState<RepaySource>('cash');
+  const [repaySource, _setRepaySource] = useState<RepaySource>('cash');
   const [iapState, setIapState] = useState(iapService.getState());
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedService, setSelectedService] = useState<string | null>(null);

@@ -32,7 +32,7 @@ interface JailScreenProps {
 export default function JailScreen({ onClose }: JailScreenProps) {
   const { gameState, performJailActivity, payBail, updateStats } = useGame();
   const { jailActivities, jailWeeks, stats, foods, economy } = gameState;
-  const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
+  const [_selectedActivity, _setSelectedActivity] = useState<string | null>(null);
   const [activityCooldowns, setActivityCooldowns] = useState<Record<string, number>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
 

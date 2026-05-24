@@ -224,7 +224,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
   const [shares, setShares] = useState('');
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, _setIsLoading] = useState(false);
   const [inputMode, setInputMode] = useState<'shares' | 'money'>('shares');
   const [tradingLoading, setTradingLoading] = useState(false);
 

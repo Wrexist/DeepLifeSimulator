@@ -12,7 +12,7 @@ export default function Index() {
   const [progress, setProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Initializing DeepLife Simulator...');
   const [routerReady, setRouterReady] = useState(false);
-  const [startupHealthCheck, setStartupHealthCheck] = useState<any>(null);
+  const [_startupHealthCheck, setStartupHealthCheck] = useState<any>(null);
   const hasNavigatedRef = useRef(false); // Use ref to prevent double navigation without re-render
 
   // CRITICAL: Startup health check - verify critical modules before rendering

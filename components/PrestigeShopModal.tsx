@@ -30,7 +30,7 @@ interface PrestigeShopModalProps {
 export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModalProps) {
   const { gameState, purchasePrestigeBonus } = useGame();
   const [selectedCategory, setSelectedCategory] = useState<PrestigeBonusCategory>('starting');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, _setSearchQuery] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 

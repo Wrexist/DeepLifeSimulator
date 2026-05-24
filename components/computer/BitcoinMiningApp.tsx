@@ -503,7 +503,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
 
 
 
-  const [swapAmountError, setSwapAmountError] = useState<string | undefined>();
+  const [_swapAmountError, _setSwapAmountError] = useState<string | undefined>();
 
 
 

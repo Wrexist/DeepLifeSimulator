@@ -1390,12 +1390,12 @@ export default function DatingApp({ onBack }: DatingAppProps) {
   const { haptic } = useFeedback(settings.hapticFeedback);
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [matches, setMatches] = useState<Profile[]>([]);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [_currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [showWeddingModal, setShowWeddingModal] = useState(false);
   const [selectedRingId, setSelectedRingId] = useState<string | null>(null);
-  const [scrollIndicatorOpacity, setScrollIndicatorOpacity] = useState(1);
+  const [_scrollIndicatorOpacity, _setScrollIndicatorOpacity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   
   // New feature states

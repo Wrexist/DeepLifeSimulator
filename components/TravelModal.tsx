@@ -25,7 +25,7 @@ interface TravelModalProps {
 export default function TravelModal({ visible, onClose, onOpenFullApp }: TravelModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { settings } = gameState;
-  const [selectedDestination, setSelectedDestination] = useState<TravelDestination | null>(null);
+  const [_selectedDestination, _setSelectedDestination] = useState<TravelDestination | null>(null);
 
   // Check if currently traveling
   const isOnTrip = gameState.travel?.currentTrip !== undefined;

@@ -133,8 +133,8 @@ function MarketScreenContent() {
 
   // Scroll indicator state
   const scrollY = useRef(new Animated.Value(0)).current;
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [contentHeight, _setContentHeight] = useState(0);
+  const [scrollViewHeight, _setScrollViewHeight] = useState(0);
 
   // Memoized data with stable sorting and filtering
   const sortedItems = useMemo(() => {
