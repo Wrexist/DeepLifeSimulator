@@ -878,6 +878,14 @@ export default function RealEstateApp({ onBack }: RealEstateAppProps) {
         ...prev,
         stats: { ...prev.stats, money: prev.stats.money - adjusted.price },
         realEstate: updatedRealEstate,
+        // Mirror into lifetimeStatistics for the Statistics screen +
+        // achievements (trackNewProperty was never called).
+        lifetimeStatistics: prev.lifetimeStatistics
+          ? {
+              ...prev.lifetimeStatistics,
+              totalPropertiesOwned: (prev.lifetimeStatistics.totalPropertiesOwned ?? 0) + 1,
+            }
+          : prev.lifetimeStatistics,
       };
     });
     

@@ -160,6 +160,15 @@ export const returnFromTrip = (
           ? (prev.travel?.visitedDestinations || [])
           : [...(prev.travel?.visitedDestinations || []), destination.id],
       },
+      // Mirror first-time visits into lifetimeStatistics (trackTravelDestination
+      // was never called); the achievement system reads this for the
+      // travel-themed counters.
+      lifetimeStatistics: prev.lifetimeStatistics && !alreadyVisited
+        ? {
+            ...prev.lifetimeStatistics,
+            totalTravelDestinations: (prev.lifetimeStatistics.totalTravelDestinations ?? 0) + 1,
+          }
+        : prev.lifetimeStatistics,
     };
     return newState;
   });
