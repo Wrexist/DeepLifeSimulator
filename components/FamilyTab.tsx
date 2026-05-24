@@ -35,10 +35,6 @@ import {
   TrendingUp,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
-import { updateStats } from '@/contexts/game/actions/StatsActions';
-import { getEngagementRing } from '@/lib/dating/engagementRings';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
 
@@ -49,8 +45,9 @@ interface FamilyTabProps {
 function FamilyTab({ onClose }: FamilyTabProps) {
   const {
     gameState,
-    setGameState,
     saveGame,
+    proposeToPartner,
+    moveInTogether,
   } = useGame();
   
   const { settings } = gameState;
@@ -100,31 +97,16 @@ function FamilyTab({ onClose }: FamilyTabProps) {
       return;
     }
 
-    // Use the cheapest ring as a default. (TinderApp has the rich
-    // ring-picker flow; FamilyTab is a one-tap shortcut.) Previously this
-    // called useGame().proposeToPartner, which never existed anywhere
-    // — the Propose button would TypeError on tap.
-    const ringId = 'simple_band';
-    const ring = getEngagementRing(ringId);
-    if (!ring) {
-      Alert.alert('Error', 'Engagement ring not available.');
-      return;
-    }
-    if ((gameState.stats.money ?? 0) < ring.price) {
-      Alert.alert('Not Enough Money', `You need $${ring.price} for the ${ring.name}. Earn more or pick a ring in the Dating app.`);
-      return;
-    }
-
     Alert.alert(
       'Propose Marriage',
-      `Are you ready to ask ${partner.name} to marry you with a ${ring.name} ($${ring.price})?`,
+      `Are you ready to ask ${partner.name} to marry you? This is a big step!`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Propose',
           onPress: () => {
-            const result = proposeMarriage(gameState, setGameState, partner.id, ringId, { updateMoney, updateStats });
-            if (result?.success && result.accepted) {
+            const result = proposeToPartner(partner.id);
+            if (result?.success) {
               saveGame();
               Alert.alert('Congratulations!', result.message);
             } else {
@@ -134,7 +116,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
         },
       ]
     );
-  }, [partner, gameState, setGameState, saveGame]);
+  }, [partner, proposeToPartner, saveGame]);
 
   const handleMoveIn = useCallback(() => {
     if (!partner) return;
@@ -156,9 +138,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
         {
           text: 'Move In',
           onPress: () => {
-            // moveInTogether has no canonical implementation — replaced
-            // with a placeholder until shared-housing semantics are designed.
-            const result = { success: false, message: 'Move-in feature is coming soon.' };
+            const result = moveInTogether(partner.id);
             if (result?.success) {
               saveGame();
               Alert.alert('New Home! ðŸ ', result.message);
@@ -169,7 +149,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
         },
       ]
     );
-  }, []);
+  }, [partner, moveInTogether, saveGame]);
 
   const handleHaveChild = useCallback(() => {
     if (!spouse) {
