@@ -6,7 +6,6 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Animated,
-  Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;

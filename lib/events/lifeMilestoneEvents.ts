@@ -9,7 +9,6 @@
  * - Legal & civic (jury duty, lawsuit)
  * - Workplace interactions (gossip, WFH, raise negotiation)
  */
-import type { GameState } from '@/contexts/GameContext';
 import type { EventTemplate } from './engine';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 

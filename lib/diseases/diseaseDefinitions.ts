@@ -1,4 +1,4 @@
-import type { GameState, Disease } from '@/contexts/game/types';
+import type { Disease } from '@/contexts/game/types';
 
 /**
  * Disease template interface for defining disease types

@@ -11,7 +11,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;

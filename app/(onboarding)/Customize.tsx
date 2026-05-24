@@ -11,7 +11,6 @@ import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShe
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
-import { useGame } from '@/contexts/GameContext';
 import { generateRandomName } from '@/src/features/onboarding/nameData';
 import {
   applyIdentityDraftToOnboardingState,

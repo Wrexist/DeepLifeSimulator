@@ -11,7 +11,6 @@ import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
 import { shouldAutoCollectRent, shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { useGameState } from './GameStateContext';
-import { useGameData } from './GameDataContext';
 import { useGameUI } from './GameUIContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import {

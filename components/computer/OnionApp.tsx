@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { ArrowLeft, Lock, ShoppingCart, MessageSquare, Terminal, Bitcoin, Shield, Zap, DollarSign } from 'lucide-react-native';

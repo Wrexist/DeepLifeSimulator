@@ -11,7 +11,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
   Modal,
   Image,
 } from 'react-native';

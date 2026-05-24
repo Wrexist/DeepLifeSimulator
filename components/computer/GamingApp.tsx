@@ -12,7 +12,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
   TextInput,
   Animated,
   Modal,

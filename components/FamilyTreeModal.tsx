@@ -5,7 +5,6 @@ import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { X } from 'lucide-react-native';
-import { useTranslation } from '@/hooks/useTranslation';
 import { getCharacterImage } from '@/utils/characterImages';
 
 const { width, height } = Dimensions.get('window');

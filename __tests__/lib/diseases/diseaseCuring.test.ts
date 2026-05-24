@@ -1,5 +1,4 @@
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
 
 // Mock the performHealthActivity function behavior
 describe('Disease Curing Logic', () => {

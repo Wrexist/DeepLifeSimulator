@@ -2,7 +2,6 @@ import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
-import type { LifeMoment } from '@/lib/lifeMoments/types';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
 
 const LinearGradient = LinearGradientFallback;

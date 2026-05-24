@@ -8,7 +8,6 @@ import {
   Animated,
   ScrollView,
   Image,
-  Dimensions,
   Alert,
 } from 'react-native';
 import { Crown, X, Sparkles, RotateCcw, Users, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';

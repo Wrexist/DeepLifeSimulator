@@ -28,7 +28,7 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
-import type { GameState, DynastyStats, Heirloom } from '@/contexts/game/types';
+import type { DynastyStats } from '@/contexts/game/types';
 
 const { width: screenWidth } = Dimensions.get('window');
 

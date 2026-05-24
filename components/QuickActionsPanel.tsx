@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, X, Zap, DollarSign, Briefcase, ShoppingCart, Home, TrendingUp } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
