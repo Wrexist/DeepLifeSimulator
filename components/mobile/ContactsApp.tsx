@@ -25,7 +25,6 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     proposeToPartner,
     moveInTogether,
     fileDivorce,
-    haveChild,
     recordRelationshipAction,
     saveGame,
   } = useGame();
@@ -126,7 +125,15 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         result = moveInTogether(relationshipId);
         break;
       case 'child':
-        result = haveChild(relationshipId);
+        // haveChild has no canonical implementation on the actions
+        // surface — calling it would TypeError. Children currently arrive
+        // through the relationship pregnancy tick in the weekly loop, so
+        // there's nothing for this manual button to do. Surface an
+        // honest placeholder instead of crashing.
+        result = {
+          success: false,
+          message: 'Children currently arrive over time after marriage — a manual try-for-baby flow is on the roadmap.',
+        };
         break;
       case 'play':
         // Play with child - costs money but increases relationship
