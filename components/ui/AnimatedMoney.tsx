@@ -17,8 +17,6 @@ export default function AnimatedMoney({
   style,
   prefix = '$',
   suffix = '',
-  precision = 0,
-  useNativeDriver = false,
 }: AnimatedMoneyProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
   const [displayValue, setDisplayValue] = React.useState(0);
@@ -99,7 +97,6 @@ export function AnimatedMoneyNative({
   style,
   prefix = '$',
   suffix = '',
-  precision = 0,
 }: Omit<AnimatedMoneyProps, 'useNativeDriver'>) {
   const animatedValue = useRef(new Animated.Value(0)).current;
   const [displayValue, setDisplayValue] = React.useState(0);

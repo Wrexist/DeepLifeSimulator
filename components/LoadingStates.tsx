@@ -85,7 +85,6 @@ interface LoadingButtonProps {
 
 export function LoadingButton({ 
   loading, 
-  onPress, 
   children, 
   style, 
   disabled = false 

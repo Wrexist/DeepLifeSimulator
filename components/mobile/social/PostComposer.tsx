@@ -47,9 +47,6 @@ export default function PostComposer({
   onClose,
   onPost,
   profilePhoto,
-  displayName,
-  username,
-  verified,
   maxLength = MAX_POST_LENGTH,
 }: PostComposerProps) {
   const [content, setContent] = useState('');

@@ -22,7 +22,6 @@ export default function AnimatedCard({
   style,
   gradient,
   glow = false,
-  hover = true,
   disabled = false,
   animationType = 'scale'
 }: AnimatedCardProps) {

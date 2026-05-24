@@ -35,7 +35,6 @@ export default function InteractiveTutorial({
   visible,
   step,
   onNext,
-  onClose,
   onSkip,
   currentStep,
   totalSteps,

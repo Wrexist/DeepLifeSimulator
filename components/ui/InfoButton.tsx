@@ -17,7 +17,6 @@ export default function InfoButton({
   title, 
   content, 
   size = 'medium', 
-  position = 'top-right',
   darkMode = false 
 }: InfoButtonProps) {
   const [showModal, setShowModal] = useState(false);
