@@ -44,6 +44,17 @@ errors block runtime, zero TS errors flag behavioral issues, all
 
 Substantive type errors cleared: 1,316 → 0.
 
+**Late-session wirings (statistics + decay):**
+- Career history: entries on job-acceptance + close-out on job-quit;
+  per-tick earnings + weeks accumulation. StatisticsApp's "Career
+  History" panel finally populates.
+- Video upload timestamps: GamingApp + GamingStreamingApp both now
+  populate \`timestamp\` so gamingStreamingIncome's recency-decay sort
+  works correctly (was insertion-order-bound).
+- Net-worth + weekly-earnings history sampled every 10 weeks (capped
+  to 100 samples) into lifetimeStatistics. Statistics charts
+  populate from save data going forward.
+
 > **Dead code removed:** 10 items — 9 unreferenced components
 > (~6,000 lines) plus `MoneyActionsContext.buyPerk`, which had zero
 > callers and would have corrupted gems to `NaN` if ever invoked
