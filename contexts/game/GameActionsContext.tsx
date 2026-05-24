@@ -2320,6 +2320,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                   peakNetWorthWeek: safeNetWorth > (prevState.lifetimeStatistics.peakNetWorth ?? 0)
                     ? nextWeeksLived
                     : (prevState.lifetimeStatistics.peakNetWorthWeek ?? 0),
+                  // Sample net-worth and weekly-earnings every 10 weeks for
+                  // the Statistics screen's historical charts. The schema
+                  // declares both arrays + "Sample every 10 weeks" but no
+                  // callsite ever appended a sample.
+                  netWorthHistory: nextWeeksLived % 10 === 0
+                    ? [
+                        ...(prevState.lifetimeStatistics.netWorthHistory ?? []).slice(-99),
+                        { week: nextWeeksLived, value: safeNetWorth },
+                      ]
+                    : (prevState.lifetimeStatistics.netWorthHistory ?? []),
+                  weeklyEarningsHistory: nextWeeksLived % 10 === 0
+                    ? [
+                        ...(prevState.lifetimeStatistics.weeklyEarningsHistory ?? []).slice(-99),
+                        { week: nextWeeksLived, value: totalIncome },
+                      ]
+                    : (prevState.lifetimeStatistics.weeklyEarningsHistory ?? []),
                 }
               : prevState.lifetimeStatistics,
             // Wanted level decay
