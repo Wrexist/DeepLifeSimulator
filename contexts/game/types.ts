@@ -1140,6 +1140,11 @@ export interface GameState {
   lastLogin: number;
   updatedAt?: number;
   streetJobsCompleted: number;
+  // Lifetime counters consumed by achievementsData (gs.datingMatches.length /
+  // gs.totalPrisonWeeks). Both were referenced by achievements without ever
+  // being declared on GameState — the matching achievements were stuck at 0.
+  datingMatches?: string[];
+  totalPrisonWeeks?: number;
   happinessZeroWeeks: number;
   healthZeroWeeks: number;
   healthWeeks: number;

@@ -2287,6 +2287,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             jailWeeks: policeEncounterJailWeeks > 0
               ? policeEncounterJailWeeks
               : (prevState.jailWeeks > 0 ? Math.max(0, prevState.jailWeeks - 1) : 0),
+            // Tally weeks spent in prison this life — the field was referenced
+            // by achievementsData (10-weeks-served counter) but never written.
+            totalPrisonWeeks: (prevState.totalPrisonWeeks ?? 0) + (prevState.jailWeeks > 0 ? 1 : 0),
             // Wanted level decay
             wantedLevel: newWantedLevel,
             // BUG FIX: Apply auto-reinvest stock purchases

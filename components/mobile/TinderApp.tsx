@@ -1583,8 +1583,12 @@ export default function DatingApp({ onBack }: DatingAppProps) {
       setGameState(prev => ({
         ...prev,
         relationships: [...(prev.relationships || []), newPartner],
+        // Tally lifetime matches — read by the dating achievements counter
+        // (gs.datingMatches.length), previously stuck at 0 because nothing
+        // pushed into the array.
+        datingMatches: [...(prev.datingMatches || []), newPartner.id],
       }));
-      
+
       saveGame();
       setMatches(prev => [...prev, currentProfile]);
       
