@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Family Tab Component
  * 
  * Comprehensive family management with spouse, children, and family activities
@@ -15,7 +15,6 @@ import {
   Modal,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   Users,
   Heart,
@@ -37,6 +36,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
+const LinearGradient = LinearGradientFallback;
 
 interface FamilyTabProps {
   onClose?: () => void;
