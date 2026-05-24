@@ -914,6 +914,9 @@ export default function GamingApp({ onBack }: GamingAppProps) {
       earnings,
       subscribersGained,
       uploadedAt: Date.now(), // Keep timestamp for sorting, but display will use game date
+      // Also populate \`timestamp\` so gamingStreamingIncome's recency
+      // decay sort (which reads .timestamp) ranks this video correctly.
+      timestamp: Date.now(),
       duration: '5:00',
       likes: Math.floor(views * 0.05), // 5% like rate
       comments: Math.floor(views * 0.01), // 1% comment rate
