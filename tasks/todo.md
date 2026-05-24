@@ -35,7 +35,7 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 711 type errors, 46% cleared)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 669 type errors, 49% cleared; ZERO substantive errors remaining)
 
 > **Dead code removed:** 10 items — 9 unreferenced components
 > (~6,000 lines) plus `MoneyActionsContext.buyPerk`, which had zero
@@ -141,10 +141,20 @@
         mechanic added to game first).
       - Plus SKILL_BOOST ($12.99) wired earlier in the session
         (boosted every hobby's skillLevel through the canonical clamp).
-- [ ] Remaining ~88 substantive errors are concentrated in stress
-      tests (~37, the currentJob/isDead model drift is a deeper test
-      rewrite) and DevToolsModal (3, needs restartGame design). The
-      rest are 1-2-error UI clusters that need individual auditing.
+- [x] Cleared ALL substantive errors in stress tests:
+      career.stress (20), health.stress (7), economy.stress (4),
+      integration.stress (4), relationships.stress (2), company.stress
+      (2), scenarioBuilders helper (3). Patterns: currentJob/isDead
+      model drift, Company shape with phantom fields, RealEstate
+      .cost→.price, stocks array→portfolio object.
+- [x] Wired item dailyBonus (basic_bed + gym_membership now actually
+      grant their weekly stat boosts during the weekly tick) and
+      vehicle speedBonus (faster vehicles now actually shorten
+      travel-trip duration).
+- [ ] The 669 remaining errors are 100% cosmetic: 648 TS6133
+      (unused variable), 15 TS6192 (unused import), 4 TS6196 (unused
+      private), 2 TS6198 (unused param). None block runtime; an
+      eslint --fix pass would clear most.
 - [ ] ~654 remaining errors are cosmetic `TS6133` unused-variable
       warnings — biggest single batch left; a single eslint
       --fix-unused-imports pass would clear most of these.
