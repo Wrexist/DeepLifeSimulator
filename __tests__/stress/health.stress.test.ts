@@ -21,7 +21,7 @@ describe('Health & Death Stress Tests', () => {
       },
       healthZeroWeeks: 0,
       happinessZeroWeeks: 0,
-      isDead: false,
+      showDeathPopup: false,
     });
   });
 
@@ -39,7 +39,7 @@ describe('Health & Death Stress Tests', () => {
 
       expect(state.stats.health).toBe(0);
       expect(state.healthZeroWeeks).toBe(1);
-      expect(state.isDead).toBeFalsy();
+      expect(state.showDeathPopup).toBeFalsy();
 
       console.log(`Survived 1 week at 0 health`);
     });
@@ -56,7 +56,7 @@ describe('Health & Death Stress Tests', () => {
       state.healthZeroWeeks = 2;
 
       expect(state.healthZeroWeeks).toBe(2);
-      expect(state.isDead).toBeFalsy();
+      expect(state.showDeathPopup).toBeFalsy();
 
       console.log(`Survived 2 weeks at 0 health`);
     });
@@ -73,7 +73,7 @@ describe('Health & Death Stress Tests', () => {
       state.healthZeroWeeks = 3;
 
       expect(state.healthZeroWeeks).toBe(3);
-      expect(state.isDead).toBeFalsy();
+      expect(state.showDeathPopup).toBeFalsy();
 
       console.log(`Survived 3 weeks at 0 health (critical condition)`);
     });
@@ -99,12 +99,12 @@ describe('Health & Death Stress Tests', () => {
         ...baseState,
         stats: { ...baseState.stats, health: 0 },
         healthZeroWeeks: 4,
-        isDead: true,
+        showDeathPopup: true,
         deathReason: 'health',
       };
 
       expect(state.healthZeroWeeks).toBe(4);
-      expect(state.isDead).toBe(true);
+      expect(state.showDeathPopup).toBe(true);
       expect(state.deathReason).toBe('health');
 
       console.log(`Death triggered: ${state.deathReason} after ${state.healthZeroWeeks} weeks`);
@@ -115,7 +115,7 @@ describe('Health & Death Stress Tests', () => {
         ...baseState,
         stats: { ...baseState.stats, health: 0 },
         healthZeroWeeks: 5,
-        isDead: true,
+        showDeathPopup: true,
         deathReason: 'health',
       };
 
@@ -134,7 +134,7 @@ describe('Health & Death Stress Tests', () => {
       };
 
       expect(state.happinessZeroWeeks).toBe(3);
-      expect(state.isDead).toBeFalsy();
+      expect(state.showDeathPopup).toBeFalsy();
 
       console.log(`Survived 3 weeks at 0 happiness`);
     });
@@ -144,12 +144,12 @@ describe('Health & Death Stress Tests', () => {
         ...baseState,
         stats: { ...baseState.stats, happiness: 0 },
         happinessZeroWeeks: 4,
-        isDead: true,
+        showDeathPopup: true,
         deathReason: 'happiness',
       };
 
       expect(state.happinessZeroWeeks).toBe(4);
-      expect(state.isDead).toBe(true);
+      expect(state.showDeathPopup).toBe(true);
       expect(state.deathReason).toBe('happiness');
 
       console.log(`Death triggered: ${state.deathReason} after ${state.happinessZeroWeeks} weeks`);
@@ -237,7 +237,7 @@ describe('Health & Death Stress Tests', () => {
 
       expect(state.stats.health).toBe(100);
       expect(state.healthZeroWeeks).toBe(0);
-      expect(state.isDead).toBeFalsy();
+      expect(state.showDeathPopup).toBeFalsy();
 
       console.log(`Recovered from 3 weeks at 0 health`);
     });
@@ -256,7 +256,7 @@ describe('Health & Death Stress Tests', () => {
       // Advance 10 more weeks
       state = advanceWeeks(state, 10);
 
-      expect(state.isDead).toBeFalsy();
+      expect(state.showDeathPopup).toBeFalsy();
       expect(state.healthZeroWeeks).toBe(0);
 
       console.log(`Survived 10 weeks after recovery`);
@@ -281,7 +281,7 @@ describe('Health & Death Stress Tests', () => {
       state.stats.health = 90;
       state.healthZeroWeeks = 0;
 
-      expect(state.isDead).toBeFalsy();
+      expect(state.showDeathPopup).toBeFalsy();
 
       console.log(`Survived multiple near-death experiences`);
     });
