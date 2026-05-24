@@ -847,6 +847,11 @@ export default function GamingStreamingApp({ onBack }: GamingStreamingAppProps) 
       earnings,
       quality,
       uploadedAt: Date.now(),
+      // Mirror into the decay-sort key so gamingStreamingIncome's
+      // recency-based decay ranks newer videos higher (the sort reads
+      // .timestamp; without it the income decay would treat insertion
+      // order as canonical, same bug class as the streamHistory fix).
+      timestamp: Date.now(),
       ctr,
       avgViewDuration,
       rpm,
