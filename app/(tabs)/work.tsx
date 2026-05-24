@@ -482,7 +482,7 @@ function WorkScreenContent() {
 
                         {/* Penalties - Direct display */}
                         {(() => {
-                            const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+                            const { happinessPenalty } = getJobPenalties(job);
                             if (happinessPenalty < 0) {
                                 return (
                                     <View style={styles.crimeStatCard}>
@@ -497,7 +497,7 @@ function WorkScreenContent() {
                             return null;
                         })()}
                         {(() => {
-                            const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+                            const { healthPenalty } = getJobPenalties(job);
                             if (healthPenalty < 0) {
                                 return (
                                     <View style={styles.crimeStatCard}>
@@ -635,7 +635,7 @@ function WorkScreenContent() {
 
                     {/* Penalties - Direct display */}
                     {(() => {
-                        const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+                        const { happinessPenalty } = getJobPenalties(job);
                         if (happinessPenalty < 0) {
                             return (
                                 <View style={styles.streetStatCard}>
@@ -650,7 +650,7 @@ function WorkScreenContent() {
                         return null;
                     })()}
                     {(() => {
-                        const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+                        const { healthPenalty } = getJobPenalties(job);
                         if (healthPenalty < 0) {
                             return (
                                 <View style={styles.streetStatCard}>
@@ -938,7 +938,7 @@ function WorkScreenContent() {
 
                                                     {/* Penalties - Direct display */}
                                                     {(() => {
-                                                        const { happinessPenalty, healthPenalty } = getCareerPenalties();
+                                                        const { happinessPenalty } = getCareerPenalties();
                                                         if (happinessPenalty < 0) {
                                                             return (
                                                                 <View style={styles.careerStatCard}>
@@ -953,7 +953,7 @@ function WorkScreenContent() {
                                                         return null;
                                                     })()}
                                                     {(() => {
-                                                        const { happinessPenalty, healthPenalty } = getCareerPenalties();
+                                                        const { healthPenalty } = getCareerPenalties();
                                                         if (healthPenalty < 0) {
                                                             return (
                                                                 <View style={styles.careerStatCard}>
@@ -1137,7 +1137,7 @@ function WorkScreenContent() {
                                     <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Advanced Careers</Text>
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
-                                        const { ADVANCED_CAREERS, getUnlockedAdvancedCareers, isCareerUnlocked } = require('@/lib/careers/advancedCareers');
+                                        const { getUnlockedAdvancedCareers, isCareerUnlocked } = require('@/lib/careers/advancedCareers');
                                         const unlockedCareers = getUnlockedAdvancedCareers({
                                             education: gameState.educations || [],
                                             achievements: gameState.achievements || [],

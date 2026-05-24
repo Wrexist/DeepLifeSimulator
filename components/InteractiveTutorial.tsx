@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { X, ArrowRight, Target } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface InteractiveTutorialProps {
   visible: boolean;

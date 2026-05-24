@@ -6,7 +6,7 @@ const LinearGradient = LinearGradientFallback;
 import { X, User, Star, Brain } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 interface Props {
   member: FamilyMemberNode | null;

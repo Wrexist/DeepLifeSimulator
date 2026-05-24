@@ -91,7 +91,7 @@ function ComputerScreenContent() {
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [appCategory, setAppCategory] = useState<'desktop' | 'mobile'>('desktop');
   const { gameState } = useGame();
-  const { highlightedItem, highlightMessage } = useTutorialHighlight();
+  const { highlightedItem } = useTutorialHighlight();
   const { settings } = gameState;
   const router = useRouter();
   const segments = useSegments();

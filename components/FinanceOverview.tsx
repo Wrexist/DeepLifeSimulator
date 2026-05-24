@@ -34,7 +34,6 @@ import { getWeeklyInflationRate } from '@/lib/economy/inflation';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface LoanSummary {
   principal?: number;

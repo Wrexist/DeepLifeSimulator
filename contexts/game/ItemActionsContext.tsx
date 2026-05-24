@@ -349,7 +349,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
               
               // Add immunity if applicable
               // eslint-disable-next-line @typescript-eslint/no-require-imports
-              const { doesDiseaseGrantImmunity, addDiseaseImmunity } = require('@/lib/diseases/immunitySystem');
+              const { doesDiseaseGrantImmunity } = require('@/lib/diseases/immunitySystem');
               if (doesDiseaseGrantImmunity(disease.id)) {
                 if (!updatedImmunities.includes(disease.id)) {
                   updatedImmunities = [...updatedImmunities, disease.id];

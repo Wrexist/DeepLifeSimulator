@@ -1387,7 +1387,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
   const insets = useSafeAreaInsets();
   const { gameState, setGameState, saveGame } = useGame();
   const { settings } = gameState;
-  const { buttonPress, haptic } = useFeedback(settings.hapticFeedback);
+  const { haptic } = useFeedback(settings.hapticFeedback);
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [matches, setMatches] = useState<Profile[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);

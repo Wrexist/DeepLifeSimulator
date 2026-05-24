@@ -20,14 +20,13 @@ interface QuickActionsPanelProps {
 }
 
 export default function QuickActionsPanel({ position = 'bottom-right' }: QuickActionsPanelProps) {
-  const { gameState, nextWeek, saveGame } = useGame();
+  const { nextWeek, saveGame } = useGame();
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
   const rotateAnim = React.useRef(new Animated.Value(0)).current;
   const opacityAnim = React.useRef(new Animated.Value(0)).current;
 
-  const { width } = Dimensions.get('window');
 
   const quickActions: QuickAction[] = [
     {

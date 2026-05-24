@@ -22,7 +22,6 @@ import {
 } from '@/lib/prestige/prestigeBonuses';
 import { scale, fontScale } from '@/utils/scaling';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface PrestigeShopModalProps {
   visible: boolean;

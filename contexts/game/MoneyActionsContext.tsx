@@ -57,7 +57,6 @@ interface MoneyActionsProviderProps {
 
 export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   const { gameState, setGameState } = useGameState();
-  const { initialState } = useGameData();
   const { setIsLoading, setLoadingProgress, setLoadingMessage } = useGameUI();
   const { showError } = useUIUX();
 

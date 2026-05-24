@@ -134,7 +134,6 @@ function IdentityCard() {
     scenarioId,
     dietPlans,
     date,
-    settings,
     youthPills
   } = gameState;
 

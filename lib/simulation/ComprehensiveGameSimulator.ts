@@ -2900,7 +2900,6 @@ export class ComprehensiveGameSimulator {
             if (!actionPerformed && (currentState.companies || []).length > 0 && (money - reserveFund) >= 10000) {
               try {
                 const { buyCompanyUpgrade } = await import('@/contexts/game/company');
-                const { updateMoney } = await import('@/contexts/game/actions/MoneyActions');
                 
                 const availableMoney = money - reserveFund;
                 let bestUpgrade: { company: any; upgradeId: string; roi: number; cost: number } | null = null;

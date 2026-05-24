@@ -20,7 +20,6 @@ import { netWorth } from '@/lib/progress/achievements';
 import { getCharacterImage } from '@/utils/characterImages';
 import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface PrestigeModalProps {
   visible: boolean;

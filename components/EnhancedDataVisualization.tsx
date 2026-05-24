@@ -34,7 +34,6 @@ interface EnhancedDataVisualizationProps {
   compact?: boolean;
 }
 
-const { width } = Dimensions.get('window');
 
 export default function EnhancedDataVisualization({
   darkMode = false,

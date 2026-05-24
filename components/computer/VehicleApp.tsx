@@ -57,7 +57,6 @@ import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { scale, fontScale } from '@/utils/scaling';
 import { Vehicle, VehicleInsurance } from '@/contexts/game/types';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface VehicleAppProps {
   onBack: () => void;

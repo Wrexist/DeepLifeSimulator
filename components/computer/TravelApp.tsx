@@ -41,7 +41,6 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { scale, fontScale } from '@/utils/scaling';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface TravelAppProps {
   onBack: () => void;

@@ -38,7 +38,7 @@ import { scale, fontScale } from '@/utils/scaling';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get('window');
 
 interface BackupRecoveryModalProps {
   visible: boolean;

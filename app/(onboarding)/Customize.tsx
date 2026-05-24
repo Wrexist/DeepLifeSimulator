@@ -64,7 +64,6 @@ const SEXUALITY_OPTIONS: SexualityOptionConfig[] = [
 export default function Customize() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { gameState } = useGame();
   const { state, setState } = useOnboarding();
   useOnboardingFlowGuard('Customize');
 

@@ -54,7 +54,6 @@ interface EnhancedAchievementCardProps {
   compact?: boolean;
 }
 
-const { width } = Dimensions.get('window');
 
 export default function EnhancedAchievementCard({
   achievement,

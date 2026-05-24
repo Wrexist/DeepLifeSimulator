@@ -8,7 +8,6 @@ import { useNavigation } from '@react-navigation/native';
 import { logger } from '@/utils/logger';
 import { useMemoryCleanup } from '@/utils/performanceOptimization';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface OnionAppProps {
   onBack: () => void;

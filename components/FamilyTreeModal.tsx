@@ -17,7 +17,6 @@ interface Props {
 
 export default function FamilyTreeModal({ visible, onClose }: Props) {
   const { gameState } = useGame();
-  const { t } = useTranslation();
   const { settings } = gameState;
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 

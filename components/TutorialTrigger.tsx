@@ -21,7 +21,6 @@ export default function TutorialTrigger({
   onPress
 }: TutorialTriggerProps) {
   const { startEnhancedTutorial, hasCompletedTutorial } = useTutorial();
-  const { gameState } = useGame();
 
   const handleTutorialStart = () => {
     startEnhancedTutorial(context);

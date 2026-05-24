@@ -141,7 +141,6 @@ export default function Scenarios() {
   const log = logger.scope('Scenarios');
   const router = useRouter();
   const navigation = useNavigation();
-  const { gameState } = useGame();
   const { state, setState } = useOnboarding();
   const [activeTab, setActiveTab] = useState<TabType>(getInitialScenarioTab(state.challengeScenarioId));
   const [selectedId, setSelectedId] = useState<string | null>(state.scenario?.id ?? null);

@@ -17,7 +17,6 @@ export default function FriendList({
   onSendGift,
   onCompare,
 }: FriendListProps) {
-  const { gameState } = useGame();
 
   const acceptedFriends = useMemo(
     () => friends.filter(f => f.status === 'accepted'),

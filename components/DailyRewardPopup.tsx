@@ -24,7 +24,6 @@ import {
 import { useGameState } from '@/contexts/game';
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface DailyRewardPopupProps {
   visible: boolean;

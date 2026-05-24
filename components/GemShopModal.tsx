@@ -17,7 +17,7 @@ interface GemShopModalProps {
 
 
 function GemShopModal({ visible, onClose }: GemShopModalProps) {
-  const { gameState, buyGoldUpgrade, setGameState, saveGame } = useGame();
+  const { gameState, buyGoldUpgrade, saveGame } = useGame();
   const { settings } = gameState;
   const [tab, setTab] = useState<'upgrades' | 'store' | 'perks' | 'gems'>('upgrades');
   const [iapLoading, setIapLoading] = useState(false);

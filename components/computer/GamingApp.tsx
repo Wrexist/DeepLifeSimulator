@@ -48,7 +48,6 @@ import { useMemoryCleanup } from '@/utils/performanceOptimization';
 import { scale, fontScale } from '@/utils/scaling';
 
 
-const { width: screenWidth } = Dimensions.get('window');
 
 // YouVideo Upgrade Images
 const UPGRADE_IMAGES = {

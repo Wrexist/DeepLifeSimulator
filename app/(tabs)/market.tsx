@@ -64,7 +64,7 @@ function MarketScreenContent() {
       router.replace('/(tabs)/work');
     }
   }, [gameState.jailWeeks, router]);
-  const { highlightedItem, highlightMessage, clearHighlight } = useTutorialHighlight();
+  const { highlightedItem, clearHighlight } = useTutorialHighlight();
   const { settings } = gameState;
   const { showSuccess, showError, showInfo } = useToast();
   const flatListRef = useRef<any>(null);

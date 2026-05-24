@@ -40,7 +40,7 @@ export default function SaveSlots() {
   const router = useRouter();
   const navigation = useNavigation();
   const { state, setState } = useOnboarding();
-  const { gameState, loadGame } = useGame();
+  const { loadGame } = useGame();
   const [slots, setSlots] = useState<SaveSlotData[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
