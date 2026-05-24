@@ -2299,14 +2299,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             // Tally weeks spent in prison this life — the field was referenced
             // by achievementsData (10-weeks-served counter) but never written.
             totalPrisonWeeks: (prevState.totalPrisonWeeks ?? 0) + (prevState.jailWeeks > 0 ? 1 : 0),
-            // Mirror lifetimeStatistics tallies for the weekly tick. Both
-            // were previously frozen at 0 because no callsite ran
-            // trackJailTime / trackNewChild.
+            // Mirror lifetimeStatistics tallies for the weekly tick. Each
+            // was previously frozen because no callsite ran the
+            // statisticsTracker helpers.
             lifetimeStatistics: prevState.lifetimeStatistics
               ? {
                   ...prevState.lifetimeStatistics,
                   totalJailTime: (prevState.lifetimeStatistics.totalJailTime ?? 0) + (prevState.jailWeeks > 0 ? 1 : 0),
                   totalChildren: (prevState.lifetimeStatistics.totalChildren ?? 0) + newBornChildren.length,
+                  // Count this week as a worked week if the player held a career
+                  // and earned salary from it.
+                  totalWeeksWorked: (prevState.lifetimeStatistics.totalWeeksWorked ?? 0) + (careerSalary > 0 ? 1 : 0),
+                  // Track highest salary across the life — for "Earn $X/week"
+                  // achievements and the obituary.
+                  highestSalary: Math.max(prevState.lifetimeStatistics.highestSalary ?? 0, careerSalary),
                 }
               : prevState.lifetimeStatistics,
             // Wanted level decay
