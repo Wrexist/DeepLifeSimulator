@@ -2253,6 +2253,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             // Death warning system tracking
             healthZeroWeeks: newHealthZeroWeeks,
             happinessZeroWeeks: newHappinessZeroWeeks,
+            // Achievement-counter accumulators that the achievement system
+            // reads via gs.healthWeeks (consecutive weeks at 90+ health,
+            // reset when health dips below) and gs.totalHappiness (running
+            // sum used for "average happiness" achievements). Both fields
+            // were declared on GameState but nothing wrote to them.
+            healthWeeks: newStats.health >= 90
+              ? (prevState.healthWeeks || 0) + 1
+              : 0,
+            totalHappiness: (prevState.totalHappiness || 0) + (newStats.happiness || 0),
             showZeroStatPopup: newShowZeroStatPopup,
             zeroStatType: newZeroStatType,
             showDeathPopup: newShowDeathPopup,
