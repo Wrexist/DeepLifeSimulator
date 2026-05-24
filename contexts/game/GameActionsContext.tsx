@@ -2313,6 +2313,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                   // Track highest salary across the life — for "Earn $X/week"
                   // achievements and the obituary.
                   highestSalary: Math.max(prevState.lifetimeStatistics.highestSalary ?? 0, careerSalary),
+                  // Track peak net worth + the week it occurred. \`netWorth\` was
+                  // already computed at render time for the decay-rate calc, so
+                  // we reuse it here rather than recomputing inside the setter.
+                  peakNetWorth: Math.max(prevState.lifetimeStatistics.peakNetWorth ?? 0, safeNetWorth),
+                  peakNetWorthWeek: safeNetWorth > (prevState.lifetimeStatistics.peakNetWorth ?? 0)
+                    ? nextWeeksLived
+                    : (prevState.lifetimeStatistics.peakNetWorthWeek ?? 0),
                 }
               : prevState.lifetimeStatistics,
             // Wanted level decay
