@@ -598,6 +598,23 @@ export const applyForJob = (
       careers: updatedCareers,
       currentJob: newCurrentJob,
       rngCommitLog: nextRngCommitLog,
+      // Append a CareerHistoryEntry on acceptance so the Statistics
+      // screen's "Career History" section actually populates. Entries
+      // are kept open-ended (no endWeek) until the player quits.
+      lifetimeStatistics: accepted && prev.lifetimeStatistics
+        ? {
+            ...prev.lifetimeStatistics,
+            careerHistory: [
+              ...(prev.lifetimeStatistics.careerHistory || []),
+              {
+                job: careerId,
+                weeks: 0,
+                earnings: 0,
+                startWeek: prev.weeksLived || 0,
+              },
+            ],
+          }
+        : prev.lifetimeStatistics,
     };
   });
 

@@ -185,10 +185,39 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
         return c;
       });
 
+      // Close the open careerHistory entry for this job: set endWeek
+      // on the most recent matching entry. The Statistics screen
+      // shows the closed-out timeline.
+      const quitWeek = prevState.weeksLived || 0;
+      const updatedLifetimeStatistics = prevState.lifetimeStatistics
+        ? (() => {
+            const history = prevState.lifetimeStatistics.careerHistory || [];
+            // Find the LAST open entry for this career id.
+            const lastOpenIdx = (() => {
+              for (let i = history.length - 1; i >= 0; i--) {
+                if (history[i].job === prevState.currentJob && history[i].endWeek === undefined) {
+                  return i;
+                }
+              }
+              return -1;
+            })();
+            if (lastOpenIdx === -1) return prevState.lifetimeStatistics;
+            const updated = [...history];
+            const entry = updated[lastOpenIdx];
+            updated[lastOpenIdx] = {
+              ...entry,
+              endWeek: quitWeek,
+              weeks: Math.max(0, quitWeek - entry.startWeek),
+            };
+            return { ...prevState.lifetimeStatistics, careerHistory: updated };
+          })()
+        : prevState.lifetimeStatistics;
+
       return {
         ...prevState,
         currentJob: undefined,
         careers: updatedCareers,
+        lifetimeStatistics: updatedLifetimeStatistics,
       };
     });
 
