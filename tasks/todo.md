@@ -35,7 +35,7 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (IN PROGRESS — 1,316 → 714 type errors, 46% cleared)
+### Phase 2 — Correctness (IN PROGRESS — 1,316 → 711 type errors, 46% cleared)
 
 > **Dead code removed:** 10 items — 9 unreferenced components
 > (~6,000 lines) plus `MoneyActionsContext.buyPerk`, which had zero
@@ -104,6 +104,27 @@
       mode all silently resolved to undefined; ribbonSystem's
       "Jailbird" never triggered (wrong field path);
       runComprehensiveTests was simulating with default money.
+- [x] Added age-based natural death (escalates after 80, quadratic to
+      ~95% annual at 120). Immortality gold upgrade now actually skips
+      these rolls — turns a previously-dead 50,000-gem upgrade into a
+      meaningful late-game purchase. DeathPopup shows warm "A Long Life"
+      / "X years well lived" copy for natural-cause deaths.
+- [x] Wired the entire Onion (dark-web) tab — buyDarkWebItem, buyHack,
+      performHack were all "Implementation for…" stubs. Implementations
+      now deduct BTC, check ownership, run risk rolls with dark-web-item
+      reductions, route caught attempts through jailWeeks, and credit
+      80/20 cash/BTC rewards. The whole feature was non-functional;
+      players who'd mined BTC can finally spend it.
+- [x] Wired achievement Claim button to actually grant gems
+      (handleClaimAchievement was a haptic-only stub) and the hint
+      button to show unlockHint copy. Added
+      \`claimedEnhancedAchievements\` to GameState for double-claim
+      protection across saves.
+- [x] Made all 20 onboarding perks deliver advertised value (was 2/20):
+      catalog-driven statBoosts aggregator + perk incomeMultiplier
+      stacked into the weekly income pipeline. iron_will / lucky_charm
+      / trust_fund / financial_guru / crime_boss / landlord / etc.
+      were tracked as flags but never granted bonuses.
 - [x] WIRED ALL ELEVEN previously-dead perk + gold-upgrade IAPs:
       - Perks ($1.99 each, four flags set on purchase that nothing
         ever read): Work Pay Boost (+50% job income), Good Credit
