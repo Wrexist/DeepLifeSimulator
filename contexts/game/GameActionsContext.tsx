@@ -532,6 +532,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
           newStats.energy = (newStats.energy || 0) + energyRegen;
 
+          // Apply weekly item bonuses (e.g., basic_bed +10 energy +5 happiness,
+          // gym_membership +2 fitness +3 health). Items declare \`dailyBonus\`
+          // but no tick had ever read it — buying the bed gave nothing.
+          for (const item of (prevState.items || [])) {
+            if (!item?.owned || !item.dailyBonus) continue;
+            for (const [statKey, delta] of Object.entries(item.dailyBonus)) {
+              if (typeof delta !== 'number') continue;
+              const current = (newStats as Record<string, number>)[statKey];
+              if (typeof current === 'number') {
+                (newStats as Record<string, number>)[statKey] = current + delta;
+              }
+            }
+          }
+
           // Health and happiness decay over time if not maintained (increased decay rates).
           // Happiness Boost gold upgrade (was "Max increased to 100" — meaningless
           // since max is already 100): reframe as halving the natural happiness decay.
