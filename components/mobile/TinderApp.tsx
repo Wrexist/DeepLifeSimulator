@@ -1587,6 +1587,14 @@ export default function DatingApp({ onBack }: DatingAppProps) {
         // (gs.datingMatches.length), previously stuck at 0 because nothing
         // pushed into the array.
         datingMatches: [...(prev.datingMatches || []), newPartner.id],
+        // Mirror into lifetimeStatistics for the Statistics screen +
+        // legacy achievements (trackNewRelationship was never called).
+        lifetimeStatistics: prev.lifetimeStatistics
+          ? {
+              ...prev.lifetimeStatistics,
+              totalRelationships: (prev.lifetimeStatistics.totalRelationships ?? 0) + 1,
+            }
+          : prev.lifetimeStatistics,
       }));
 
       saveGame();
