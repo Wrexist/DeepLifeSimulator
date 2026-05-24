@@ -66,9 +66,22 @@ export const travelTo = (
 
   deps.updateMoney(setGameState, -adjustedCost, `Travel to ${destination.name}`);
 
-  // Set current trip using absolute timeline (weeksLived) to avoid 1..4 week wrap bugs
+  // Set current trip using absolute timeline (weeksLived) to avoid 1..4 week wrap bugs.
+  // Active vehicle's speedBonus shortens the trip duration — was declared on
+  // Vehicle (and exported via getActiveVehicleSpeedBonus) but no caller
+  // consumed it. Inline the same logic here (TDZ-safe — keeps the helper
+  // declaration at the bottom of the file untouched).
   const absoluteWeek = gameState.weeksLived || 0;
-  const returnWeek = absoluteWeek + destination.duration;
+  let speedBonusPct = 0;
+  if (gameState.activeVehicleId) {
+    const activeVehicle = (gameState.vehicles || []).find(v => v.id === gameState.activeVehicleId);
+    if (activeVehicle && activeVehicle.condition >= 20 && activeVehicle.fuelLevel >= 10) {
+      speedBonusPct = activeVehicle.speedBonus || 0;
+    }
+  }
+  const speedMultiplier = Math.max(0.5, 1 - speedBonusPct / 100);
+  const adjustedDuration = Math.max(1, Math.ceil(destination.duration * speedMultiplier));
+  const returnWeek = absoluteWeek + adjustedDuration;
   setGameState(prev => ({
     ...prev,
     travel: {
@@ -92,7 +105,7 @@ export const travelTo = (
   }));
 
   log.info(`Traveled to ${destination.name}, returning week ${returnWeek}`);
-  return { success: true, message: `Enjoyed your trip to ${destination.name}! You'll return in ${destination.duration} week(s).` };
+  return { success: true, message: `Enjoyed your trip to ${destination.name}! You'll return in ${adjustedDuration} week(s).` };
 };
 
 export const returnFromTrip = (
