@@ -1293,6 +1293,10 @@ export interface GameState {
   // B-4: IAP processed transaction IDs stored in save envelope for cross-device resilience
   // Belt-and-suspenders: also stored in separate AsyncStorage key for cross-slot persistence
   processedIAPTransactions?: string[];
+  // IDs of EnhancedAchievement entries the player has already claimed —
+  // used by the achievement screen to gate the Claim button and avoid
+  // double-paying rewards.
+  claimedEnhancedAchievements?: string[];
   // Education System — campus event pending for UI display
   pendingCampusEventEducationId?: string;
 

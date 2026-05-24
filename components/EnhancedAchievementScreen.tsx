@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -55,7 +56,7 @@ export default function EnhancedAchievementScreen({
   visible,
   onClose,
 }: EnhancedAchievementScreenProps) {
-  const { gameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { buttonPress, haptic } = useFeedback(gameState?.settings?.hapticFeedback || false);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -146,11 +147,44 @@ export default function EnhancedAchievementScreen({
   }, [gameState]);
 
   const handleClaimAchievement = useCallback((achievementId: string) => {
-    // Implementation for claiming achievements
     buttonPress();
+
+    const achievement = ENHANCED_ACHIEVEMENTS.find(a => a.id === achievementId);
+    if (!achievement) return;
+
+    // Guard against double-claim
+    const alreadyClaimed = gameState.claimedEnhancedAchievements?.includes(achievementId);
+    if (alreadyClaimed) {
+      haptic('warning');
+      Alert.alert('Already Claimed', `You already collected the reward for ${achievement.title}.`);
+      return;
+    }
+
+    // Guard against unmet achievements (defensive — the Claim button is
+    // only meant to render when the achievement is complete).
+    if (calculateAchievementProgress(achievement, gameState) < 1) {
+      haptic('warning');
+      Alert.alert('Not Yet Earned', `Complete ${achievement.title} first to claim the reward.`);
+      return;
+    }
+
+    const gemReward = achievement.rewards?.gems ?? 0;
+
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        gems: (prev.stats?.gems ?? 0) + gemReward,
+      },
+      claimedEnhancedAchievements: [
+        ...(prev.claimedEnhancedAchievements ?? []),
+        achievementId,
+      ],
+    }));
+    saveGame();
     haptic('success');
-    // Add logic to claim achievement and give rewards
-  }, [buttonPress, haptic]);
+    Alert.alert('Reward Claimed', `+${gemReward} gems for ${achievement.title}!`);
+  }, [buttonPress, haptic, gameState, setGameState, saveGame]);
 
   const handleGetHint = useCallback((achievementId: string) => {
     // Implementation for getting hints
@@ -469,13 +503,16 @@ export default function EnhancedAchievementScreen({
                 const progress = calculateAchievementProgress(achievement, gameState);
                 // Project to AchievementProgress shape — gameState.achievements
                 // entries are Achievement (has \`completed\` but not progress/
-                // claimed), so build the progress object explicitly.
+                // claimed), so build the progress object explicitly. Claim
+                // status comes from gameState.claimedEnhancedAchievements,
+                // maintained by handleClaimAchievement above.
                 const found = gameState.achievements?.find((a: { id: string }) => a.id === achievement.id);
+                const claimedIds = gameState.claimedEnhancedAchievements ?? [];
                 const achievementProgress: AchievementProgress = {
                   id: achievement.id,
                   progress,
                   completed: found?.completed ?? false,
-                  claimed: false,
+                  claimed: claimedIds.includes(achievement.id),
                 };
 
                 return (
