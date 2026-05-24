@@ -1,6 +1,11 @@
 import { GameState } from '@/contexts/game/types';
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
+import {
+  resolveSaveSigningRuntimeConfig,
+  resolveActiveSaveHmacKey,
+  SaveSigningConfigError,
+} from '@/utils/saveSigningConfig';
 
 // Lazy-load AsyncStorage to prevent TurboModule crash at module load time (iOS)
 let _asyncStorage: any = null;
@@ -26,11 +31,6 @@ const AsyncStorage = {
   async multiRemove(keys: string[]) { const s = getAsyncStorage(); if (!s) return; return s.multiRemove(keys); },
   async getAllKeys() { const s = getAsyncStorage(); if (!s) return []; return s.getAllKeys(); },
 };
-import {
-  resolveSaveSigningRuntimeConfig,
-  resolveActiveSaveHmacKey,
-  SaveSigningConfigError,
-} from '@/utils/saveSigningConfig';
 export {
   SAVE_SIGNING_CONFIG_ERROR_CODE,
   SaveSigningConfigError,
