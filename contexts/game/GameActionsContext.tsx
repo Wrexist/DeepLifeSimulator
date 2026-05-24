@@ -1207,6 +1207,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
 
 
+          // Natural death from old age — escalating per-week chance after 80,
+          // capped near-certain by 120. Immortality gold-upgrade or perk
+          // skips the roll entirely (the IAP advertises "Never die of old
+          // age" and now actually delivers on it).
+          if (!deathTriggered && nextAge >= 80) {
+            const isImmortal = !!prevState.goldUpgrades?.immortality;
+            if (!isImmortal) {
+              const yearsPast80 = nextAge - 80;
+              // Quadratic ramp: ~6% annual at 90, ~24% at 100, ~95% at 120.
+              const annualChance = Math.min(0.95, Math.pow(yearsPast80 / 40, 2) * 0.95);
+              const weeklyChance = 1 - Math.pow(1 - annualChance, 1 / WEEKS_PER_YEAR);
+              if (Math.random() < weeklyChance) {
+                newShowDeathPopup = true;
+                newDeathReason = 'age';
+                newShowZeroStatPopup = false;
+                newZeroStatType = undefined;
+                deathTriggered = true;
+                haptic.error();
+                logger.warn(`[DEATH] Character died of old age at ${Math.floor(nextAge)}`);
+              }
+            }
+          }
+
           // Process weddings, pregnancy, and relationship health
           let relationshipHappinessPenalty = 0;
           const newBornChildren: Relationship[] = [];

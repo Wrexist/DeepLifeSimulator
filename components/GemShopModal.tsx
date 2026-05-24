@@ -112,7 +112,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'immortality',
       name: 'Immortality',
-      description: 'Never die of old age',
+      description: 'Never die of old age (skips age-80+ death rolls)',
       price: 50000, // Balanced: 50% of original (100000)
       icon: Crown,
       image: require('@/assets/images/iap/upgrades/immortality.png'),

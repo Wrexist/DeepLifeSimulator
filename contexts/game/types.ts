@@ -1147,7 +1147,7 @@ export interface GameState {
   showZeroStatPopup: boolean;
   zeroStatType?: 'happiness' | 'health';
   showDeathPopup: boolean;
-  deathReason?: 'happiness' | 'health';
+  deathReason?: 'happiness' | 'health' | 'age';
   showWeddingPopup: boolean;
   weddingPartnerName?: string;
   debtWeeks?: number; // STABILITY FIX: Track weeks in debt for bankruptcy system

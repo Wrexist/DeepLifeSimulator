@@ -259,26 +259,33 @@ function DeathPopup() {
   const deathTitleMessages = {
     health: ['You Died', 'Your body could no longer carry on'],
     happiness: ['You Died', 'The weight of life became too much'],
-    default: ['You Died', 'Your journey has come to an end']
+    age: ['A Long Life', `${age} years well lived`],
+    default: ['You Died', 'Your journey has come to an end'],
   };
-  
-  const deathTitle = deathReason === 'health' 
+
+  const deathTitle = deathReason === 'health'
     ? deathTitleMessages.health[0]
     : deathReason === 'happiness'
     ? deathTitleMessages.happiness[0]
+    : deathReason === 'age'
+    ? deathTitleMessages.age[0]
     : deathTitleMessages.default[0];
-    
+
   const deathSubtitle = deathReason === 'health'
     ? deathTitleMessages.health[1]
     : deathReason === 'happiness'
     ? deathTitleMessages.happiness[1]
+    : deathReason === 'age'
+    ? deathTitleMessages.age[1]
     : deathTitleMessages.default[1];
-  
+
   const deathMessage =
     deathReason === 'health'
       ? 'Your body finally gave out.'
       : deathReason === 'happiness'
       ? 'You lost the will to go on.'
+      : deathReason === 'age'
+      ? 'You passed away peacefully of natural causes.'
       : 'Your journey has ended.';
 
   // Calculate life summary statistics
