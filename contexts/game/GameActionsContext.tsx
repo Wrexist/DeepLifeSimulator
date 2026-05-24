@@ -2299,6 +2299,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             // Tally weeks spent in prison this life — the field was referenced
             // by achievementsData (10-weeks-served counter) but never written.
             totalPrisonWeeks: (prevState.totalPrisonWeeks ?? 0) + (prevState.jailWeeks > 0 ? 1 : 0),
+            // Mirror the increment into lifetimeStatistics.totalJailTime
+            // (used by Statistics screen + obituary, also previously frozen
+            // at 0 because no callsite ran trackJailTime).
+            lifetimeStatistics: prevState.lifetimeStatistics
+              ? {
+                  ...prevState.lifetimeStatistics,
+                  totalJailTime: (prevState.lifetimeStatistics.totalJailTime ?? 0) + (prevState.jailWeeks > 0 ? 1 : 0),
+                }
+              : prevState.lifetimeStatistics,
             // Wanted level decay
             wantedLevel: newWantedLevel,
             // BUG FIX: Apply auto-reinvest stock purchases
