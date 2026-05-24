@@ -47,7 +47,7 @@ export const aiDebugContext: AiDebugContext = {
 
 // Error capture storage
 let lastCaughtError: unknown = null;
-const errorHistory: Array<{ error: unknown; timestamp: number; isFatal?: boolean }> = [];
+const errorHistory: { error: unknown; timestamp: number; isFatal?: boolean }[] = [];
 const MAX_ERROR_HISTORY = 10;
 
 /**
@@ -85,7 +85,7 @@ export function getLastCaughtError(): unknown {
 /**
  * Get error history for debugging
  */
-export function getErrorHistory(): Array<{ error: unknown; timestamp: number; isFatal?: boolean }> {
+export function getErrorHistory(): { error: unknown; timestamp: number; isFatal?: boolean }[] {
   return [...errorHistory];
 }
 

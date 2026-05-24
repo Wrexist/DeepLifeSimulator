@@ -10,9 +10,7 @@ import {
     Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
@@ -54,6 +52,8 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { logger } from '@/utils/logger';
 import { colors as themeColors } from '@/lib/config/theme';
 import { CareerPathCard } from '@/components/CareerPathCard';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 // Hobbies removed - all hobby images removed
 

@@ -11,7 +11,7 @@ const log = logger.scope('SaveLoadMutex');
 
 class SaveLoadMutex {
   private isLocked = false;
-  private queue: Array<() => void> = [];
+  private queue: (() => void)[] = [];
   private currentOperation: 'save' | 'load' | null = null;
 
   /**

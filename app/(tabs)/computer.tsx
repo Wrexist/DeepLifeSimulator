@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   Platform,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   Monitor, 
   Bitcoin,
@@ -73,6 +72,7 @@ import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
 

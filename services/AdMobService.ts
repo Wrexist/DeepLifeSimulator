@@ -143,7 +143,7 @@ class AdMobServiceImpl {
     error: null,
   };
 
-  private listeners: Array<(state: AdMobState) => void> = [];
+  private listeners: ((state: AdMobState) => void)[] = [];
   private interstitial: any = null;
   private rewarded: any = null;
 

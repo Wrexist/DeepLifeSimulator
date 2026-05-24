@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   Platform,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   Smartphone, 
   Heart,
@@ -56,6 +55,7 @@ import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
 

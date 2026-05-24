@@ -1,8 +1,7 @@
-﻿import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
@@ -15,6 +14,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
 import ErrorBoundary from '@/components/ErrorBoundary';
+const LinearGradient = LinearGradientFallback;
 
 // Item category mapping - outside component for stability
 const ITEM_CATEGORIES: Record<string, 'electronics' | 'crime' | 'lifestyle'> = {

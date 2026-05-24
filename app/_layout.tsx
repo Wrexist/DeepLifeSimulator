@@ -21,6 +21,45 @@ import {
   truncateStack
 } from '@/lib/types/errors';
 
+// Boot breadcrumbs for crash diagnosis
+import { markBootStage } from '@/lib/utils/bootBreadcrumbs';
+
+import { useSegments, Slot } from 'expo-router';
+import Constants from 'expo-constants';
+
+// CRITICAL: Lazy load StatusBar to prevent TurboModule crash
+// import { StatusBar } from 'expo-status-bar'; // REMOVED - lazy load instead
+import StatusBarFallback from '@/components/fallbacks/StatusBarFallback';
+
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { View, StyleSheet, Platform, TouchableOpacity, Text, ScrollView, InteractionManager, LogBox } from 'react-native';
+
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { useGameState } from '@/contexts/GameContext';
+import { initializeDebugContext, setStateGetter } from '@/src/debug/aiDebugConfig';
+import { STATE_VERSION } from '@/contexts/game/initialState';
+import TopStatsBar from '@/components/TopStatsBar';
+import TutorialManager from '@/components/TutorialManager';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import OfflineIndicator from '@/components/OfflineIndicator';
+// Keep always-rendered components as eager imports to reduce bundler memory pressure
+import AchievementToast from '@/components/anim/AchievementToast';
+import UIUXOverlay from '@/components/UIUXOverlay';
+import { useEffect, useState, lazy, Suspense } from 'react';
+import { iapService } from '@/services/IAPService';
+import { useSaveNotifications } from '@/hooks/useSaveNotifications';
+// Re-enabled: expo-tracking-transparency added back to package.json
+import { requestTrackingPermission } from '@/utils/trackingTransparency';
+import { logger } from '@/utils/logger';
+import { safeAsyncStorage } from '@/utils/storageWrapper';
+import { AppProviders } from '@/contexts/AppProviders';
+import { markFirstFrameRendered } from '@/lib/utils/bootBreadcrumbs';
+import { isFeatureEnabled, logFeatureFlags } from '@/lib/config/featureFlags';
+import { startupOrchestrator, createSafeServiceTask } from '@/lib/utils/startupOrchestrator';
+import { startupCircuitBreaker } from '@/lib/utils/startupCircuitBreaker';
+
 // Type alias for compatibility
 type EarlyInitError = EarlyError;
 
@@ -78,9 +117,6 @@ function getErrorUtilsBridge(): ErrorUtilsBridge | null {
 if (typeof global === 'undefined') {
   (global as any) = {}; // TypeScript requires this cast for global assignment
 }
-
-// Boot breadcrumbs for crash diagnosis
-import { markBootStage } from '@/lib/utils/bootBreadcrumbs';
 markBootStage('layout_init_start');
 
 // OPTIMIZATION: Defer circuit breaker initialization - not needed for first render
@@ -549,17 +585,6 @@ function getEarlyInitError(): EarlyInitError | null {
 }
 const earlyInitError: EarlyInitError | null = getEarlyInitError();
 
-import { useSegments, Slot } from 'expo-router';
-import Constants from 'expo-constants';
-
-// CRITICAL: Lazy load StatusBar to prevent TurboModule crash
-// import { StatusBar } from 'expo-status-bar'; // REMOVED - lazy load instead
-import StatusBarFallback from '@/components/fallbacks/StatusBarFallback';
-
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { View, StyleSheet, Platform, TouchableOpacity, Text, ScrollView, InteractionManager, LogBox } from 'react-native';
-
 // Suppress non-critical warnings that show as orange banner bar at top of screen
 // These are framework/library warnings that don't affect gameplay
 LogBox.ignoreLogs([
@@ -577,19 +602,6 @@ LogBox.ignoreLogs([
   '[StatusBarWrapper]',
 ]);
 
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { useGameState } from '@/contexts/GameContext';
-import { initializeDebugContext, setStateGetter } from '@/src/debug/aiDebugConfig';
-import { STATE_VERSION } from '@/contexts/game/initialState';
-import TopStatsBar from '@/components/TopStatsBar';
-import TutorialManager from '@/components/TutorialManager';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import OfflineIndicator from '@/components/OfflineIndicator';
-// Keep always-rendered components as eager imports to reduce bundler memory pressure
-import AchievementToast from '@/components/anim/AchievementToast';
-import UIUXOverlay from '@/components/UIUXOverlay';
-
 // OPTIMIZATION: Only lazy load conditional modal components that are rarely shown
 // This reduces bundler memory pressure while still optimizing startup
 const SicknessModal = lazy(() => import('@/components/SicknessModal'));
@@ -597,7 +609,6 @@ const CureSuccessModal = lazy(() => import('@/components/CureSuccessModal'));
 const DeathPopup = lazy(() => import('@/components/DeathPopup'));
 const WeddingPopup = lazy(() => import('@/components/WeddingPopup'));
 const ZeroStatPopup = lazy(() => import('@/components/ZeroStatPopup'));
-import { useEffect, useState, lazy, Suspense } from 'react';
 
 // Expo Router Error Boundary Component
 function ExpoRouterErrorBoundary({ children }: { children: React.ReactNode }) {
@@ -662,17 +673,6 @@ function ExpoRouterErrorBoundary({ children }: { children: React.ReactNode }) {
     </ErrorBoundary>
   );
 }
-import { iapService } from '@/services/IAPService';
-import { useSaveNotifications } from '@/hooks/useSaveNotifications';
-// Re-enabled: expo-tracking-transparency added back to package.json
-import { requestTrackingPermission } from '@/utils/trackingTransparency';
-import { logger } from '@/utils/logger';
-import { safeAsyncStorage } from '@/utils/storageWrapper';
-import { AppProviders } from '@/contexts/AppProviders';
-import { markFirstFrameRendered } from '@/lib/utils/bootBreadcrumbs';
-import { isFeatureEnabled, logFeatureFlags } from '@/lib/config/featureFlags';
-import { startupOrchestrator, createSafeServiceTask } from '@/lib/utils/startupOrchestrator';
-import { startupCircuitBreaker } from '@/lib/utils/startupCircuitBreaker';
 
 // OPTIMIZATION: Defer feature flag logging - dev-only, not needed for production startup
 if (__DEV__) {

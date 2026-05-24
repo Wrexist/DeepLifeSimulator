@@ -141,7 +141,7 @@ class AnalyticsService {
   async logPurchase(
     value: number,
     currency: string,
-    items: Array<{ item_id: string; item_name: string; price: number; quantity: number }>
+    items: { item_id: string; item_name: string; price: number; quantity: number }[]
   ): Promise<void> {
     await this.logEvent('purchase', {
       value,

@@ -13,7 +13,7 @@ class IAPSyncService {
   private static instance: IAPSyncService;
   private syncQueue: IAPAction[] = [];
   private isSyncing = false;
-  private listeners: Array<(action: IAPAction) => void> = [];
+  private listeners: ((action: IAPAction) => void)[] = [];
   private maxRetries = 3;
   private retryDelays = [1000, 2000, 4000]; // Exponential backoff
 

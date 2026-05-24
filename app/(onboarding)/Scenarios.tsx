@@ -4,9 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { Check, Gem, Play, Sparkles, Star, Target } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
@@ -38,6 +36,8 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 type TabType = 'life_paths' | 'challenges';
 

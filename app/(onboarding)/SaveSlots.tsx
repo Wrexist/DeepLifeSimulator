@@ -4,9 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { Archive, Play, Trash2 } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BackupRecoveryModal from '@/components/BackupRecoveryModal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
@@ -34,6 +32,8 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+const BlurView = BlurViewFallback;
+const LinearGradient = LinearGradientFallback;
 
 export default function SaveSlots() {
   const log = logger.scope('SaveSlots');
