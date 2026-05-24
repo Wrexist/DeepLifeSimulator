@@ -3044,6 +3044,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             ...prevState.stats,
             gems: newGems,
           },
+          // Mirror the unlock into lifetimeStatistics for the
+          // StatisticsApp "Achievements Unlocked" tile.
+          lifetimeStatistics: prevState.lifetimeStatistics
+            ? {
+                ...prevState.lifetimeStatistics,
+                totalAchievementsUnlocked: (prevState.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
+              }
+            : prevState.lifetimeStatistics,
         };
       });
 
