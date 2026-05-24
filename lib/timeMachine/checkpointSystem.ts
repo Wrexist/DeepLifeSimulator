@@ -66,9 +66,14 @@ export function addCheckpoint(
 /**
  * Get the gem cost to rewind to a checkpoint.
  * Cost doubles with each use this life.
+ *
+ * The Time Machine gold upgrade halves the cost — turns the 25,000-gem
+ * upgrade into a real economic value-add (was previously a flag set on
+ * purchase that nothing read).
  */
-export function getRewindCost(usesThisLife: number): number {
-  return BASE_REWIND_COST * Math.pow(COST_MULTIPLIER, usesThisLife);
+export function getRewindCost(usesThisLife: number, hasTimeMachineUpgrade = false): number {
+  const baseCost = BASE_REWIND_COST * Math.pow(COST_MULTIPLIER, usesThisLife);
+  return hasTimeMachineUpgrade ? Math.floor(baseCost / 2) : baseCost;
 }
 
 /**
@@ -86,7 +91,7 @@ export function rewindToCheckpoint(
     return null;
   }
 
-  const cost = getRewindCost(currentState.timeMachineUsesThisLife ?? 0);
+  const cost = getRewindCost(currentState.timeMachineUsesThisLife ?? 0, !!currentState.goldUpgrades?.time_machine);
   const gems = currentState.stats?.gems ?? 0;
   if (gems < cost) {
     logger.warn(`[TIME_MACHINE] Not enough gems: have ${gems}, need ${cost}`);

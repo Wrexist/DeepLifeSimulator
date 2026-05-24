@@ -100,7 +100,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'time_machine',
       name: 'Time Machine',
-      description: 'Travel back in time',
+      description: 'Time-rewind costs halved',
       price: 25000, // Balanced: 50% of original (50000)
       icon: ArrowRightCircle,
       image: require('@/assets/images/iap/upgrades/time_machine.png'),

@@ -118,11 +118,11 @@ function DeathPopup() {
   const rewindCost = useMemo(() => {
     try {
       const { getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
-      return getRewindCost(gameState.timeMachineUsesThisLife ?? 0);
+      return getRewindCost(gameState.timeMachineUsesThisLife ?? 0, !!gameState.goldUpgrades?.time_machine);
     } catch {
       return 500;
     }
-  }, [gameState.timeMachineUsesThisLife]);
+  }, [gameState.timeMachineUsesThisLife, gameState.goldUpgrades?.time_machine]);
   const lifeRibbon = useMemo(() => {
     try {
       const { classifyLife } = require('@/lib/legacy/ribbonSystem');
@@ -179,7 +179,7 @@ function DeathPopup() {
   const handleRewind = (checkpointId: string) => {
     try {
       const { rewindToCheckpoint, getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
-      const cost = getRewindCost(gameState.timeMachineUsesThisLife ?? 0);
+      const cost = getRewindCost(gameState.timeMachineUsesThisLife ?? 0, !!gameState.goldUpgrades?.time_machine);
       const gems = gameState.stats?.gems ?? 0;
       if (gems < cost) {
         Alert.alert('Not Enough Gems', `You need ${cost.toLocaleString()} gems to rewind.`);
