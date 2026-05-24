@@ -5,7 +5,7 @@ import { useGame } from '@/contexts/GameContext';
 import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Gamepad2, Unlock, Gem, RefreshCw } from 'lucide-react-native';
 import usePressableScale from '@/hooks/usePressableScale';
 import Skeleton from '@/components/anim/Skeleton';
-import { iapService } from '@/services/IAPService';
+import { iapService, IAPService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 
 interface ScaleButtonProps {
@@ -41,7 +41,7 @@ interface ShopModalProps {
 }
 
 export default function ShopModal({ visible, onClose }: ShopModalProps) {
-  const { gameState, setGameState, saveGame, savePermanentPerk, hasPermanentPerk } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { settings, perks } = gameState;
   const [activeTab, setActiveTab] = useState<'perks' | 'packs' | 'special' | 'gold'>('perks');
   const [loading, setLoading] = useState(true);
@@ -190,7 +190,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
 
     // Handle special products - Save as permanent perks
     if (config.workBoost) {
-      await savePermanentPerk('workBoost');
+      await IAPService.savePermanentPerk('workBoost');
       setGameState(prev => ({
         ...prev,
         perks: { ...prev.perks, workBoost: true }
@@ -198,7 +198,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     }
 
     if (config.mindset) {
-      await savePermanentPerk('mindset');
+      await IAPService.savePermanentPerk('mindset');
       setGameState(prev => ({
         ...prev,
         perks: { ...prev.perks, mindset: true }
@@ -206,7 +206,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     }
 
     if (config.fastLearner) {
-      await savePermanentPerk('fastLearner');
+      await IAPService.savePermanentPerk('fastLearner');
       setGameState(prev => ({
         ...prev,
         perks: { ...prev.perks, fastLearner: true }
@@ -214,7 +214,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     }
 
     if (config.goodCredit) {
-      await savePermanentPerk('goodCredit');
+      await IAPService.savePermanentPerk('goodCredit');
       setGameState(prev => ({
         ...prev,
         perks: { ...prev.perks, goodCredit: true }
@@ -223,10 +223,10 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
 
     if (config.allPerks) {
       await Promise.all([
-        savePermanentPerk('workBoost'),
-        savePermanentPerk('mindset'),
-        savePermanentPerk('fastLearner'),
-        savePermanentPerk('goodCredit')
+        IAPService.savePermanentPerk('workBoost'),
+        IAPService.savePermanentPerk('mindset'),
+        IAPService.savePermanentPerk('fastLearner'),
+        IAPService.savePermanentPerk('goodCredit')
       ]);
       setGameState(prev => ({
         ...prev,
