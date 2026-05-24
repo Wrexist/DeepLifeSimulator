@@ -12,25 +12,6 @@
  */
 
 // Mock logger before any imports that depend on it
-jest.mock('@/utils/logger', () => ({
-  logger: {
-    debug: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-  },
-  LogLevel: { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 },
-}));
-
-jest.mock('@/services/RemoteLoggingService', () => ({
-  remoteLogger: {
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    info: jest.fn(),
-  },
-}));
-
 import { GameState } from '@/contexts/game/types';
 import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
@@ -51,6 +32,25 @@ import {
   calculateVehicleSellPrice,
   calculateRepairCost,
 } from '@/lib/vehicles/vehicles';
+
+jest.mock('@/utils/logger', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+  LogLevel: { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 },
+}));
+
+jest.mock('@/services/RemoteLoggingService', () => ({
+  remoteLogger: {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  },
+}));
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
