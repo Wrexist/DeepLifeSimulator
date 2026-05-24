@@ -180,6 +180,14 @@ export default function EnhancedAchievementScreen({
         ...(prev.claimedEnhancedAchievements ?? []),
         achievementId,
       ],
+      // Mirror into lifetimeStatistics for the StatisticsApp tile
+      // (Statistics screen shows total achievements unlocked).
+      lifetimeStatistics: prev.lifetimeStatistics
+        ? {
+            ...prev.lifetimeStatistics,
+            totalAchievementsUnlocked: (prev.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
+          }
+        : prev.lifetimeStatistics,
     }));
     saveGame();
     haptic('success');
