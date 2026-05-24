@@ -25,9 +25,9 @@ const perkList: Perk[] = [
   {
     id: 'legacy_builder',
     title: 'Legacy Builder',
-    description: 'Start new lives with +$3,000 and +3 reputation.',
+    description: 'Start new lives with +$5,000 and +5 reputation.',
     requirement: 'Accumulate $10,000,000 and have a child.',
-    effects: { statBoosts: { money: 3000, reputation: 3 }, incomeMultiplier: 1.0 },
+    effects: { statBoosts: { money: 5000, reputation: 5 }, incomeMultiplier: 1.0 },
     unlock: { type: 'achievement', achievementId: 'generational_wealth' },
     rarity: 'Legendary',
     icon: require('@/assets/images/Perks/Legacy Builder.png'),
