@@ -35,11 +35,14 @@
       `git filter-repo --path google-play-service-account.json --invert-paths`
       then `git push --force origin main`.
 
-### Phase 2 — Correctness (SUBSTANTIVE COMPLETE — 1,316 → 669 type errors)
+### Phase 2 — Correctness (SUBSTANTIVE COMPLETE — 1,316 → 254 type errors)
 
-**All 669 remaining errors are 100% cosmetic** (648 unused-variable
-+ 15 unused-import + 4 unused-private + 2 unused-param). Zero
-errors block runtime, zero TS errors flag behavioral issues, all
+**All 254 remaining errors are 100% cosmetic** (237 unused-variable
++ 15 unused-import + 2 unused-param — patterns the auto-cleanup
+intentionally skipped to avoid touching ambiguous declarations like
+multi-line const initializers or function-signature destructures
+that would risk breaking working code). Zero errors block runtime,
+zero TS errors flag behavioral issues, all
 489 tests pass.
 
 Substantive type errors cleared: 1,316 → 0.
