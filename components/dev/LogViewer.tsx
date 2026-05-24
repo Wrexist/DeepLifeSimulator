@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Share } from 'react-native';
 import { OptimizedFlatList } from '../OptimizedFlatList';
 import { remoteLogger, LogEntry } from '@/services/RemoteLoggingService';
-import { X, Share2, Trash2, Search, Filter } from 'lucide-react-native';
+import { X, Share2, Trash2, Search } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
 
 interface LogViewerProps {
@@ -16,12 +16,11 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
   const [filterLevel, setFilterLevel] = useState<string | null>(null);
 
   useEffect(() => {
-    if (visible) {
-      const unsubscribe = remoteLogger.subscribe((newLogs) => {
-        setLogs(newLogs);
-      });
-      return unsubscribe;
-    }
+    if (!visible) return;
+    const unsubscribe = remoteLogger.subscribe((newLogs) => {
+      setLogs(newLogs);
+    });
+    return unsubscribe;
   }, [visible]);
 
   const filteredLogs = useMemo(() => {

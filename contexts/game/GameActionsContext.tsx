@@ -18,7 +18,8 @@ import { evaluateAchievements } from '@/lib/progress/achievements';
 import { GameState, GameStats, Relationship, ChildInfo } from './types';
 import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
-import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
+import { simulateWeek, getStockPricesSnapshot, getAllStocks } from '@/lib/economy/stockMarket';
+import { processAutomationRules } from '@/lib/automation/automationEngine';
 import { repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { clampRelationshipScore } from '@/utils/stateValidation';
@@ -402,7 +403,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       // PERF FIX: Collect notifications during week progression and flush them in a single
       // setTimeout afterward. Previously, each notification was its own setTimeout inside
       // setGameState, accumulating hundreds of pending callbacks over 5-10 minutes of play.
-      const pendingNotifications: Array<{ id: string; message: string; title: string }> = [];
+      const pendingNotifications: { id: string; message: string; title: string }[] = [];
 
       // PRE-ROLLS: Extract all Math.random() calls outside the updater so that
       // React StrictMode double-invocation produces identical results both times.
@@ -522,13 +523,35 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           const { getEnergyRegenMultiplier } = require('@/lib/prestige/applyBonuses');
           const energyRegenMultiplier = getEnergyRegenMultiplier(unlockedBonuses);
           const safeEnergyRegenMultiplier = typeof energyRegenMultiplier === 'number' && isFinite(energyRegenMultiplier) && energyRegenMultiplier > 0 ? energyRegenMultiplier : 1.0;
-          const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier); // Full regen amount (don't cap here)
+          // Energy Boost gold upgrade: +50% energy regen. Was sold as
+          // "Maximum energy increased to 100" — the max is already 100,
+          // so the original framing did nothing. Reframe as a regen
+          // boost (the cap stays 100, but you reach it 50% faster).
+          const energyBoostBonus = prevState.goldUpgrades?.energy_boost ? 1.5 : 1.0;
+          const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus); // Full regen amount (don't cap here)
           // Apply regen - allow it to go above 100 temporarily (will be capped after penalties)
           newStats.energy = (newStats.energy || 0) + energyRegen;
 
-          // Health and happiness decay over time if not maintained (increased decay rates)
+          // Apply weekly item bonuses (e.g., basic_bed +10 energy +5 happiness,
+          // gym_membership +2 fitness +3 health). Items declare \`dailyBonus\`
+          // but no tick had ever read it — buying the bed gave nothing.
+          for (const item of (prevState.items || [])) {
+            if (!item?.owned || !item.dailyBonus) continue;
+            for (const [statKey, delta] of Object.entries(item.dailyBonus)) {
+              if (typeof delta !== 'number') continue;
+              const current = (newStats as Record<string, number>)[statKey];
+              if (typeof current === 'number') {
+                (newStats as Record<string, number>)[statKey] = current + delta;
+              }
+            }
+          }
+
+          // Health and happiness decay over time if not maintained (increased decay rates).
+          // Happiness Boost gold upgrade (was "Max increased to 100" — meaningless
+          // since max is already 100): reframe as halving the natural happiness decay.
+          const happinessDecayMul = prevState.goldUpgrades?.happiness_boost ? 0.5 : 1.0;
           newStats.health = Math.max(0, (newStats.health || 0) - effectiveDecayRate * 0.6);
-          newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8);
+          newStats.happiness = Math.max(0, (newStats.happiness || 0) - effectiveDecayRate * 0.8 * happinessDecayMul);
 
           // Fitness decay: increases the longer you don't visit the gym
           const lastGymVisitWeek = prevState.lastGymVisitWeek || 0;
@@ -557,7 +580,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             fitnessDecay = effectiveDecayRate * 0.2 * decayMultiplier;
           }
 
-          newStats.fitness = Math.max(0, (newStats.fitness || 0) - fitnessDecay);
+          // Fitness Boost gold upgrade (same dead-IAP reframe as the other
+          // boosts — halve the natural fitness decay).
+          const fitnessDecayMul = prevState.goldUpgrades?.fitness_boost ? 0.5 : 1.0;
+          newStats.fitness = Math.max(0, (newStats.fitness || 0) - fitnessDecay * fitnessDecayMul);
 
           // Calculate career salary (weekly payment) and apply stat penalties
           let careerSalary = 0;
@@ -575,6 +601,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                 // Salary is stored as weekly amount (e.g., 55 = $55/week)
                 // Use it directly without conversion
                 careerSalary = Math.round(levelData.salary);
+
+                // Apply Work Pay Boost perk (+50% earnings). Previously the
+                // \$1.99 perks.workBoost IAP set the flag but no callsite
+                // consumed it — paying users got nothing. Match the
+                // applyPerkEffects 'income' case: gold upgrade and IAP each
+                // stack at 1.5x.
+                let payMultiplier = 1;
+                if (prevState.goldUpgrades?.work_boost) payMultiplier *= 1.5;
+                if (prevState.perks?.workBoost) payMultiplier *= 1.5;
+                if (payMultiplier !== 1) {
+                  careerSalary = Math.round(careerSalary * payMultiplier);
+                }
+
                 logger.info(`[WEEK PROGRESSION] Career salary: $${careerSalary}/week from ${levelData.name} (level ${safeLevel + 1})`);
               } else {
                 logger.warn(`[WEEK PROGRESSION] Career ${prevState.currentJob} level ${safeLevel} has invalid salary: ${levelData?.salary}`);
@@ -696,7 +735,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
                     : performance >= 50 ? 1.0
                     : performance >= 30 ? 0.7
                     : 0.3;
-                  const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier);
+                  // Mindset perk + gold upgrade: +50% promotion speed each
+                  // (stacks at 2.25x with both — was previously dead-wired in
+                  // applyPerkEffects 'energy' case which never ran).
+                  let mindsetMultiplier = 1;
+                  if (prevState.goldUpgrades?.mindset) mindsetMultiplier *= 1.5;
+                  if (prevState.perks?.mindset) mindsetMultiplier *= 1.5;
+                  const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier);
                   const newProgress = Math.min(100, (c.progress || 0) + progressRate);
                   return {
                     ...c,
@@ -751,9 +796,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             logger.info(`[WEEK PROGRESSION] Education penalties applied (${numActiveEducations} active, non-paused): ${educationHappinessPenalty} happiness, ${educationHealthPenalty} health, ${educationEnergyPenalty} energy`);
 
             // Progress each enrolled, non-paused education by 1 week
+            // (Fast Learner perk + gold upgrade speed up the decrement.)
+            let educationSpeedMultiplier = 1;
+            if (prevState.goldUpgrades?.fast_learner) educationSpeedMultiplier *= 1.5;
+            if (prevState.perks?.fastLearner) educationSpeedMultiplier *= 1.5;
+            const educationDecrement = Math.max(1, Math.ceil(educationSpeedMultiplier));
+
             updatedEducations = updatedEducations.map(edu => {
               if (edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0) {
-                const newWeeksRemaining = Math.max(0, edu.weeksRemaining - 1);
+                const newWeeksRemaining = Math.max(0, edu.weeksRemaining - educationDecrement);
                 const isCompleted = newWeeksRemaining === 0;
 
                 if (isCompleted) {
@@ -883,8 +934,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             baseTotalIncome += luckBonus;
           }
 
-          // Apply prestige income multiplier
-          const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier);
+          // Apply prestige income multiplier + Money Multiplier gold upgrade
+          // ("All earnings increased by 50% forever" — was set on purchase
+          // but never read by any income pipeline).
+          const moneyMultiplierBonus = prevState.goldUpgrades?.multiplier ? 1.5 : 1;
+
+          // Stack any onboarding-perk incomeMultipliers (financial_guru +7%,
+          // crime_boss +10%, landlord +7%, lucky_charm +5%, etc.). The
+          // catalog declares these but no income pipeline consumed them.
+          let perkIncomeBonus = 1;
+          if (prevState.perks) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { perks: perksCatalog } = require('@/src/features/onboarding/perksData');
+            for (const [perkId, isActive] of Object.entries(prevState.perks)) {
+              if (!isActive) continue;
+              const perk = perksCatalog.find((p: { id: string; effects?: { incomeMultiplier?: number } }) => p.id === perkId);
+              const mult = perk?.effects?.incomeMultiplier;
+              if (typeof mult === 'number' && mult > 0 && mult !== 1) {
+                perkIncomeBonus *= mult;
+              }
+            }
+          }
+
+          const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus * perkIncomeBonus);
 
           // BUG FIX: Auto-reinvest dividends if enabled
           let reinvestedStocks: { symbol: string; shares: number; averagePrice: number; currentPrice: number }[] = [];
@@ -912,8 +984,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
             // If no existing holdings, pick a random stock
             if (!targetStock) {
-              // eslint-disable-next-line @typescript-eslint/no-require-imports
-              const { getAllStocks } = require('@/lib/economy/stockMarket');
               const allStocks = getAllStocks();
               const stockEntries = Object.entries(allStocks);
               if (stockEntries.length > 0) {
@@ -998,6 +1068,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             const belowCap = Math.min(currentSavings, SAVINGS_BALANCE_SOFT_CAP);
             const aboveCap = Math.max(0, currentSavings - SAVINGS_BALANCE_SOFT_CAP);
             savingsInterest = (belowCap * savingsAPR) / WEEKS_PER_YEAR + (aboveCap * savingsAPR * SAVINGS_CAP_EFFICIENCY) / WEEKS_PER_YEAR;
+
+            // Apply Good Credit perk (+50% bank interest). Previously the
+            // $1.99 perks.goodCredit IAP set the flag but no callsite
+            // consumed it. Stack with the gold-shop equivalent.
+            let interestMultiplier = 1;
+            if (prevState.goldUpgrades?.good_credit) interestMultiplier *= 1.5;
+            if (prevState.perks?.goodCredit) interestMultiplier *= 1.5;
+            savingsInterest *= interestMultiplier;
           }
           const newBankSavings = Math.max(0, currentSavings + savingsInterest);
 
@@ -1160,6 +1238,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
 
 
+
+          // Natural death from old age — escalating per-week chance after 80,
+          // capped near-certain by 120. Immortality gold-upgrade or perk
+          // skips the roll entirely (the IAP advertises "Never die of old
+          // age" and now actually delivers on it).
+          if (!deathTriggered && nextAge >= 80) {
+            const isImmortal = !!prevState.goldUpgrades?.immortality;
+            if (!isImmortal) {
+              const yearsPast80 = nextAge - 80;
+              // Quadratic ramp: ~6% annual at 90, ~24% at 100, ~95% at 120.
+              const annualChance = Math.min(0.95, Math.pow(yearsPast80 / 40, 2) * 0.95);
+              const weeklyChance = 1 - Math.pow(1 - annualChance, 1 / WEEKS_PER_YEAR);
+              if (Math.random() < weeklyChance) {
+                newShowDeathPopup = true;
+                newDeathReason = 'age';
+                newShowZeroStatPopup = false;
+                newZeroStatType = undefined;
+                deathTriggered = true;
+                haptic.error();
+                logger.warn(`[DEATH] Character died of old age at ${Math.floor(nextAge)}`);
+              }
+            }
+          }
 
           // Process weddings, pregnancy, and relationship health
           let relationshipHappinessPenalty = 0;
@@ -2152,6 +2253,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             // Death warning system tracking
             healthZeroWeeks: newHealthZeroWeeks,
             happinessZeroWeeks: newHappinessZeroWeeks,
+            // Achievement-counter accumulators that the achievement system
+            // reads via gs.healthWeeks (consecutive weeks at 90+ health,
+            // reset when health dips below) and gs.totalHappiness (running
+            // sum used for "average happiness" achievements). Both fields
+            // were declared on GameState but nothing wrote to them.
+            healthWeeks: newStats.health >= 90
+              ? (prevState.healthWeeks || 0) + 1
+              : 0,
+            totalHappiness: (prevState.totalHappiness || 0) + (newStats.happiness || 0),
             showZeroStatPopup: newShowZeroStatPopup,
             zeroStatType: newZeroStatType,
             showDeathPopup: newShowDeathPopup,
@@ -2186,6 +2296,66 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             jailWeeks: policeEncounterJailWeeks > 0
               ? policeEncounterJailWeeks
               : (prevState.jailWeeks > 0 ? Math.max(0, prevState.jailWeeks - 1) : 0),
+            // Tally weeks spent in prison this life — the field was referenced
+            // by achievementsData (10-weeks-served counter) but never written.
+            totalPrisonWeeks: (prevState.totalPrisonWeeks ?? 0) + (prevState.jailWeeks > 0 ? 1 : 0),
+            // Mirror lifetimeStatistics tallies for the weekly tick. Each
+            // was previously frozen because no callsite ran the
+            // statisticsTracker helpers.
+            lifetimeStatistics: prevState.lifetimeStatistics
+              ? {
+                  ...prevState.lifetimeStatistics,
+                  totalJailTime: (prevState.lifetimeStatistics.totalJailTime ?? 0) + (prevState.jailWeeks > 0 ? 1 : 0),
+                  totalChildren: (prevState.lifetimeStatistics.totalChildren ?? 0) + newBornChildren.length,
+                  // Count this week as a worked week if the player held a career
+                  // and earned salary from it.
+                  totalWeeksWorked: (prevState.lifetimeStatistics.totalWeeksWorked ?? 0) + (careerSalary > 0 ? 1 : 0),
+                  // Track highest salary across the life — for "Earn $X/week"
+                  // achievements and the obituary.
+                  highestSalary: Math.max(prevState.lifetimeStatistics.highestSalary ?? 0, careerSalary),
+                  // Roll this week's career salary into the OPEN
+                  // careerHistory entry (the one for currentJob without an
+                  // endWeek) so the Statistics-screen timeline accumulates
+                  // earnings per job over time.
+                  careerHistory: careerSalary > 0 && prevState.currentJob
+                    ? (() => {
+                        const history = prevState.lifetimeStatistics?.careerHistory || [];
+                        let foundOpen = false;
+                        const updated = history.map((entry) => {
+                          if (!foundOpen && entry.job === prevState.currentJob && entry.endWeek === undefined) {
+                            foundOpen = true;
+                            return { ...entry, earnings: entry.earnings + careerSalary, weeks: entry.weeks + 1 };
+                          }
+                          return entry;
+                        });
+                        return updated;
+                      })()
+                    : (prevState.lifetimeStatistics.careerHistory || []),
+                  // Track peak net worth + the week it occurred. \`netWorth\` was
+                  // already computed at render time for the decay-rate calc, so
+                  // we reuse it here rather than recomputing inside the setter.
+                  peakNetWorth: Math.max(prevState.lifetimeStatistics.peakNetWorth ?? 0, safeNetWorth),
+                  peakNetWorthWeek: safeNetWorth > (prevState.lifetimeStatistics.peakNetWorth ?? 0)
+                    ? nextWeeksLived
+                    : (prevState.lifetimeStatistics.peakNetWorthWeek ?? 0),
+                  // Sample net-worth and weekly-earnings every 10 weeks for
+                  // the Statistics screen's historical charts. The schema
+                  // declares both arrays + "Sample every 10 weeks" but no
+                  // callsite ever appended a sample.
+                  netWorthHistory: nextWeeksLived % 10 === 0
+                    ? [
+                        ...(prevState.lifetimeStatistics.netWorthHistory ?? []).slice(-99),
+                        { week: nextWeeksLived, value: safeNetWorth },
+                      ]
+                    : (prevState.lifetimeStatistics.netWorthHistory ?? []),
+                  weeklyEarningsHistory: nextWeeksLived % 10 === 0
+                    ? [
+                        ...(prevState.lifetimeStatistics.weeklyEarningsHistory ?? []).slice(-99),
+                        { week: nextWeeksLived, value: totalIncome },
+                      ]
+                    : (prevState.lifetimeStatistics.weeklyEarningsHistory ?? []),
+                }
+              : prevState.lifetimeStatistics,
             // Wanted level decay
             wantedLevel: newWantedLevel,
             // BUG FIX: Apply auto-reinvest stock purchases
@@ -2413,8 +2583,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       const currentState = gameStateRef.current;
       if (currentState) {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { processAutomationRules } = require('@/lib/automation/automationEngine');
+           
           const executions = processAutomationRules(currentState);
 
           if (executions.length > 0) {
@@ -2744,11 +2913,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           const chainedEvent = checkForChainedEvent(eventId, choiceId, prevState.weeksLived || 0);
           if (chainedEvent) {
             const pendingChains = prevState.pendingChainedEvents || [];
-            (prevState as Record<string, unknown>).pendingChainedEvents = [...pendingChains, chainedEvent];
+            prevState.pendingChainedEvents = [...pendingChains, chainedEvent];
             logger.info('Chained event queued:', { eventId: chainedEvent.eventId, triggerWeek: chainedEvent.triggerWeek });
           }
         } catch (e) {
-          logger.warn('Failed to check for chained events:', e);
+          logger.warn('Failed to check for chained events:', { error: e });
         }
 
         // Update activeEventChain if this is part of a chain
@@ -2909,6 +3078,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
             ...prevState.stats,
             gems: newGems,
           },
+          // Mirror the unlock into lifetimeStatistics for the
+          // StatisticsApp "Achievements Unlocked" tile.
+          lifetimeStatistics: prevState.lifetimeStatistics
+            ? {
+                ...prevState.lifetimeStatistics,
+                totalAchievementsUnlocked: (prevState.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
+              }
+            : prevState.lifetimeStatistics,
         };
       });
 
@@ -3215,7 +3392,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       // CRASH FIX (A-1): Use double-buffer load with automatic fallback
       const { doubleBufferLoad, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import('@/utils/saveValidation');
       const allowLegacy = shouldAllowUnsignedLegacySaves();
-      const loadResult = await doubleBufferLoad(`save_slot_${slot}`, AsyncStorage, { allowLegacy });
+      const loadResult = await doubleBufferLoad(`save_slot_${slot}`, undefined, { allowLegacy });
 
       if (!loadResult.data) {
         logger.warn('No save data found for slot:', { slot });
@@ -3360,7 +3537,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
           }
         }
       } catch (iapMergeError) {
-        logger.warn('[LOAD_GAME] Failed to merge IAP transactions (non-critical):', iapMergeError);
+        logger.warn('[LOAD_GAME] Failed to merge IAP transactions (non-critical):', { error: iapMergeError });
       }
 
       // CRITICAL: Merge family - ensure children from both family.children and relationships are preserved

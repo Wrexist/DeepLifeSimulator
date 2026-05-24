@@ -1,9 +1,9 @@
-﻿import React, { useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import React from 'react';
+import { StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { MotiView } from '@/components/anim/MotiStub';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
+const LinearGradient = LinearGradientFallback;
 
 interface AnimatedCardProps {
   children: React.ReactNode;
@@ -22,7 +22,6 @@ export default function AnimatedCard({
   style,
   gradient,
   glow = false,
-  hover = true,
   disabled = false,
   animationType = 'scale'
 }: AnimatedCardProps) {

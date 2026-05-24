@@ -8,6 +8,9 @@ import { useGameState } from './GameStateContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import * as CompanyActions from './company';
 import * as MiningActions from './actions/MiningActions';
+import { createFamilyBusiness as createFamilyBusinessModule } from './actions/FamilyBusinessActions';
+import { enterCompetition as enterCompetitionModule } from './actions/RDActions';
+import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import type { GameState } from './types';
 
 interface CompanyActionsContextType {
@@ -28,6 +31,10 @@ interface CompanyActionsContextType {
   claimStakingRewards: () => { success: boolean; message?: string; rewards?: number };
   upgradeEnergySystem: (energyType: 'solar' | 'wind' | 'hybrid') => { success: boolean; message?: string };
   upgradeAutomation: () => { success: boolean; message?: string };
+
+  // Family Business & R&D Competition
+  createFamilyBusiness: (companyId: string) => void;
+  enterCompetition: (companyId: string, competitionId: string) => { success: boolean; message: string };
 }
 
 const CompanyActionsContext = createContext<CompanyActionsContextType | undefined>(undefined);
@@ -193,6 +200,24 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
     return result;
   }, [setGameState, showError]);
 
+  const createFamilyBusiness = useCallback((companyId: string) => {
+    const latestState = stateRef.current;
+    if (!latestState) return;
+    createFamilyBusinessModule(latestState, setGameState, companyId, { updateMoney: updateMoneyModule });
+  }, [setGameState]);
+
+  const enterCompetition = useCallback((companyId: string, competitionId: string) => {
+    const latestState = stateRef.current;
+    if (!latestState) {
+      return { success: false, message: 'Game state not available' };
+    }
+    const result = enterCompetitionModule(latestState, setGameState, companyId, competitionId, { updateMoney: updateMoneyModule });
+    if (!result.success) {
+      showError('Competition Entry Failed', result.message);
+    }
+    return result;
+  }, [setGameState, showError]);
+
   const value = useMemo<CompanyActionsContextType>(() => ({
     buyWarehouse,
     upgradeWarehouse,
@@ -206,7 +231,9 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
     claimStakingRewards,
     upgradeEnergySystem,
     upgradeAutomation,
-  }), [buyWarehouse, upgradeWarehouse, buyMiner, sellMiner, selectMiningCrypto, buyMinerUpgrade, joinMiningPool, leaveMiningPool, stakeCrypto, claimStakingRewards, upgradeEnergySystem, upgradeAutomation]);
+    createFamilyBusiness,
+    enterCompetition,
+  }), [buyWarehouse, upgradeWarehouse, buyMiner, sellMiner, selectMiningCrypto, buyMinerUpgrade, joinMiningPool, leaveMiningPool, stakeCrypto, claimStakingRewards, upgradeEnergySystem, upgradeAutomation, createFamilyBusiness, enterCompetition]);
 
   return (
     <CompanyActionsContext.Provider value={value}>

@@ -10,7 +10,7 @@ import { getInflatedPrice } from '@/lib/economy/inflation';
 const log = logger.scope('MiningActions');
 
 // Miner upgrade definitions
-export const MINER_UPGRADE_DEFINITIONS: Record<string, Array<{
+export const MINER_UPGRADE_DEFINITIONS: Record<string, {
   id: string;
   name: string;
   description: string;
@@ -18,7 +18,7 @@ export const MINER_UPGRADE_DEFINITIONS: Record<string, Array<{
   baseCost: number;
   maxLevel: number;
   effectPerLevel: number; // percentage or multiplier
-}>> = {
+}[]> = {
   efficiency: [
     { id: 'efficiency_1', name: 'Hash Rate Boost', description: '+5% mining efficiency per level', type: 'efficiency', baseCost: 5000, maxLevel: 3, effectPerLevel: 0.05 },
     { id: 'efficiency_2', name: 'Advanced Algorithms', description: '+10% mining efficiency per level', type: 'efficiency', baseCost: 15000, maxLevel: 3, effectPerLevel: 0.10 },
@@ -61,9 +61,9 @@ export const ENERGY_TYPES = {
  */
 export function calculateMiningEarnings(
   warehouse: Warehouse | undefined,
-  miners: Array<{ id: string; weeklyEarnings: number; powerConsumption: number; owned: number }>,
+  miners: { id: string; weeklyEarnings: number; powerConsumption: number; owned: number }[],
   selectedCrypto: string | undefined,
-  cryptos: Array<{ id: string; price: number }>
+  cryptos: { id: string; price: number }[]
 ): { totalEarnings: number; totalPowerCost: number; cryptoEarned: number } {
   if (!warehouse || !selectedCrypto) {
     return { totalEarnings: 0, totalPowerCost: 0, cryptoEarned: 0 };

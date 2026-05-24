@@ -221,11 +221,11 @@ export interface ExtendedGameState {
     bankSavings: number;
     completedGoals: string[];
     // Additional tracking
-    items?: Array<{ id: string; owned: boolean }>;
-    relationships?: Array<{ type: string }>;
-    educations?: Array<{ completed: boolean }>;
-    realEstate?: Array<{ owned: boolean }>;
-    careers?: Array<{ id: string; level: number; accepted: boolean }>;
+    items?: { id: string; owned: boolean }[];
+    relationships?: { type: string }[];
+    educations?: { completed: boolean }[];
+    realEstate?: { owned: boolean }[];
+    careers?: { id: string; level: number; accepted: boolean }[];
     healthyWeeksStreak?: number; // Weeks with health > 60
 }
 

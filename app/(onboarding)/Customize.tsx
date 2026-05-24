@@ -4,14 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { Play, Shuffle } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
-import { useGame } from '@/contexts/GameContext';
 import { generateRandomName } from '@/src/features/onboarding/nameData';
 import {
   applyIdentityDraftToOnboardingState,
@@ -34,6 +31,8 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+const BlurView = BlurViewFallback;
+const LinearGradient = LinearGradientFallback;
 
 type SexOption = IdentitySex;
 type SexualityOption = IdentitySexuality;
@@ -64,7 +63,6 @@ const SEXUALITY_OPTIONS: SexualityOptionConfig[] = [
 export default function Customize() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { gameState } = useGame();
   const { state, setState } = useOnboarding();
   useOnboardingFlowGuard('Customize');
 

@@ -1,22 +1,22 @@
-﻿import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, ScrollView, Image, Alert, Share } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
-import { Skull, Heart, RotateCcw, Brain, Activity, Smile, Check, ArrowLeft, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, MapPin, BookOpen, Share2 } from 'lucide-react-native';
+import { Skull, Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2 } from 'lucide-react-native';
 import PrestigeModal from './PrestigeModal';
 import { getCharacterImage } from '@/utils/characterImages';
 import { HeirGenerator } from '@/lib/legacy/heirGeneration';
 import { computeInheritance } from '@/lib/legacy/inheritance';
 import { simulateChildrenToAdulthood } from '@/lib/legacy/childSimulation';
-import { MINDSET_TRAITS, MindsetId } from '@/lib/mindset/config';
+import { MindsetId } from '@/lib/mindset/config';
 import { logger } from '@/utils/logger';
 import { scale, fontScale } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import LifeStoryModal from './LifeStoryModal';
+const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
 
@@ -118,11 +118,11 @@ function DeathPopup() {
   const rewindCost = useMemo(() => {
     try {
       const { getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
-      return getRewindCost(gameState.timeMachineUsesThisLife ?? 0);
+      return getRewindCost(gameState.timeMachineUsesThisLife ?? 0, !!gameState.goldUpgrades?.time_machine);
     } catch {
       return 500;
     }
-  }, [gameState.timeMachineUsesThisLife]);
+  }, [gameState.timeMachineUsesThisLife, gameState.goldUpgrades?.time_machine]);
   const lifeRibbon = useMemo(() => {
     try {
       const { classifyLife } = require('@/lib/legacy/ribbonSystem');
@@ -179,7 +179,7 @@ function DeathPopup() {
   const handleRewind = (checkpointId: string) => {
     try {
       const { rewindToCheckpoint, getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
-      const cost = getRewindCost(gameState.timeMachineUsesThisLife ?? 0);
+      const cost = getRewindCost(gameState.timeMachineUsesThisLife ?? 0, !!gameState.goldUpgrades?.time_machine);
       const gems = gameState.stats?.gems ?? 0;
       if (gems < cost) {
         Alert.alert('Not Enough Gems', `You need ${cost.toLocaleString()} gems to rewind.`);
@@ -259,26 +259,33 @@ function DeathPopup() {
   const deathTitleMessages = {
     health: ['You Died', 'Your body could no longer carry on'],
     happiness: ['You Died', 'The weight of life became too much'],
-    default: ['You Died', 'Your journey has come to an end']
+    age: ['A Long Life', `${age} years well lived`],
+    default: ['You Died', 'Your journey has come to an end'],
   };
-  
-  const deathTitle = deathReason === 'health' 
+
+  const deathTitle = deathReason === 'health'
     ? deathTitleMessages.health[0]
     : deathReason === 'happiness'
     ? deathTitleMessages.happiness[0]
+    : deathReason === 'age'
+    ? deathTitleMessages.age[0]
     : deathTitleMessages.default[0];
-    
+
   const deathSubtitle = deathReason === 'health'
     ? deathTitleMessages.health[1]
     : deathReason === 'happiness'
     ? deathTitleMessages.happiness[1]
+    : deathReason === 'age'
+    ? deathTitleMessages.age[1]
     : deathTitleMessages.default[1];
-  
+
   const deathMessage =
     deathReason === 'health'
       ? 'Your body finally gave out.'
       : deathReason === 'happiness'
       ? 'You lost the will to go on.'
+      : deathReason === 'age'
+      ? 'You passed away peacefully of natural causes.'
       : 'Your journey has ended.';
 
   // Calculate life summary statistics
@@ -296,7 +303,7 @@ function DeathPopup() {
     : null;
   
   const ownedProperties = (gameState.realEstate || []).filter(p => p.owned);
-  const ownedCompanies = (gameState.companies || []).filter(c => c.owned);
+  const ownedCompanies = gameState.companies || [];
   
   const spouse = gameState.family?.spouse;
   const children = gameState.family?.children || [];
@@ -339,7 +346,7 @@ function DeathPopup() {
             },
           ]}
         >
-          {true ? (
+          {(
             <LinearGradient
               colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F8FAFC', '#FFFFFF', '#F1F5F9']}
               style={styles.card}
@@ -411,7 +418,7 @@ function DeathPopup() {
                             Final Career
                           </Text>
                           <Text style={[styles.summaryValue, settings.darkMode && styles.summaryValueDark]}>
-                            {currentJob.name || 'Unknown'}
+                            {('name' in currentJob ? currentJob.name : currentJob.levels?.[currentJob.level]?.name) || 'Unknown'}
                           </Text>
                         </View>
                       </View>
@@ -934,217 +941,6 @@ function DeathPopup() {
                   <LinearGradient colors={['#EC4899', '#F472B6']} style={styles.buttonGradient}>
                     <Share2 size={18} color="#FFF" />
                     <Text style={styles.buttonText}>Share Obituary</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          ) : (
-            // HEIR SELECTION VIEW
-            <LinearGradient
-              colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F8FAFC', '#FFFFFF', '#F1F5F9']}
-              style={styles.card}
-            >
-              <View style={styles.heirHeader}>
-                <TouchableOpacity 
-                  style={styles.backButton}
-                  onPress={() => setShowHeirSelection(false)}
-                  activeOpacity={0.7}
-                >
-                  <ArrowLeft size={24} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
-                </TouchableOpacity>
-                <View style={styles.headerContent}>
-                  <View style={[styles.headerIconContainer, settings.darkMode && styles.headerIconContainerDark]}>
-                    <Crown size={28} color={settings.darkMode ? '#FCD34D' : '#F59E0B'} />
-                  </View>
-                  <View>
-                    <Text style={[styles.heirTitle, settings.darkMode && styles.heirTitleDark]}>
-                      Choose Your Heir
-                    </Text>
-                    <Text style={[styles.heirSubtitle, settings.darkMode && styles.heirSubtitleDark]}>
-                      Who will continue your legacy?
-                    </Text>
-                    <Text style={[styles.heirNote, settings.darkMode && styles.heirNoteDark]}>
-                      Children under 18 will be simulated to age 18
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <ScrollView 
-                style={styles.heirScrollView}
-                contentContainerStyle={styles.heirScrollContent}
-                showsVerticalScrollIndicator={false}
-              >
-                {heirs.map(({ child, stats, traits, inheritance, educationLevel, careerPath, savings, age }) => {
-                  const isSelected = selectedHeirId === child.id;
-                  return (
-                    <TouchableOpacity
-                      key={child.id}
-                      style={[
-                        styles.heirCard,
-                        settings.darkMode && styles.heirCardDark,
-                        isSelected && styles.heirCardSelected
-                      ]}
-                      onPress={() => setSelectedHeirId(child.id)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.heirCardHeader}>
-                        <Image
-                          source={getCharacterImage(age, child.gender)}
-                          style={styles.heirImage}
-                        />
-                        <View style={styles.heirInfo}>
-                          <Text style={[styles.heirName, settings.darkMode && styles.heirNameDark]}>
-                            {child.name}
-                          </Text>
-                          <Text style={[styles.heirDetails, settings.darkMode && styles.heirDetailsDark]}>
-                            Age {age} • {child.gender === 'male' ? 'Son' : 'Daughter'}
-                          </Text>
-                          {educationLevel && educationLevel !== 'none' && (
-                            <View style={styles.badgeContainer}>
-                              <View style={[styles.badge, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                                <Text style={[styles.badgeText, { color: '#3B82F6' }]}>
-                                  {educationLevel === 'university' ? 'University' : 
-                                   educationLevel === 'specialized' ? 'Specialized' : 'High School'}
-                                </Text>
-                              </View>
-                            </View>
-                          )}
-                          {careerPath && (
-                            <View style={styles.badgeContainer}>
-                              <View style={[styles.badge, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                                <Text style={[styles.badgeText, { color: '#8B5CF6' }]}>
-                                  {careerPath === 'entrepreneur' ? 'Entrepreneur' :
-                                   careerPath === 'professional' ? 'Professional' :
-                                   careerPath === 'whiteCollar' ? 'White Collar' : 'Blue Collar'}
-                                </Text>
-                              </View>
-                            </View>
-                          )}
-                        </View>
-                        {isSelected && (
-                          <View style={styles.selectedBadge}>
-                            <Check size={20} color="#10B981" />
-                          </View>
-                        )}
-                      </View>
-
-                      <View style={[styles.inheritanceCard, settings.darkMode && styles.inheritanceCardDark]}>
-                        <View style={styles.inheritanceRow}>
-                          <DollarSign size={16} color="#10B981" />
-                          <Text style={[styles.inheritanceLabel, settings.darkMode && styles.inheritanceLabelDark]}>
-                            Inheritance
-                          </Text>
-                          <Text style={styles.inheritanceValue}>
-                            {formatMoney(inheritance)}
-                          </Text>
-                        </View>
-                        {savings > 0 && (
-                          <View style={styles.inheritanceRow}>
-                            <Text style={[styles.savingsText, settings.darkMode && styles.savingsTextDark]}>
-                              + {formatMoney(savings)} savings
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <View style={styles.heirStatsRow}>
-                        <View style={styles.heirStatItem}>
-                          <Activity size={14} color="#EF4444" />
-                          <Text style={[styles.heirStatValue, settings.darkMode && styles.heirStatValueDark]}>
-                            {stats.health || 50}
-                          </Text>
-                        </View>
-                        <View style={styles.heirStatItem}>
-                          <Smile size={14} color="#F59E0B" />
-                          <Text style={[styles.heirStatValue, settings.darkMode && styles.heirStatValueDark]}>
-                            {stats.happiness || 50}
-                          </Text>
-                        </View>
-                        <View style={styles.heirStatItem}>
-                          <Brain size={14} color="#8B5CF6" />
-                          <Text style={[styles.heirStatValue, settings.darkMode && styles.heirStatValueDark]}>
-                            {(stats.reputation || 0) + Math.floor((stats.fitness || 0) / 2)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {traits && traits.length > 0 && (
-                        <View style={styles.traitsContainer}>
-                          {traits.map((t: any, idx: number) => (
-                            <View key={t?.id || idx} style={[styles.traitBadge, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                              <Text style={[styles.traitText, { color: '#3B82F6' }]}>
-                                {t?.name || 'Trait'}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* Mindset Selection */}
-              <View style={styles.mindsetSection}>
-                <View style={styles.mindsetHeader}>
-                  <Brain size={18} color={settings.darkMode ? '#8B5CF6' : '#6366F1'} />
-                  <Text style={[styles.mindsetTitle, settings.darkMode && styles.mindsetTitleDark]}>
-                    Choose Mindset (Optional)
-                  </Text>
-                </View>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.mindsetScroll}
-                  contentContainerStyle={styles.mindsetScrollContent}
-                >
-                  {MINDSET_TRAITS.map(trait => {
-                    const isSelected = selectedMindset === trait.id;
-                    return (
-                      <TouchableOpacity
-                        key={trait.id}
-                        style={[
-                          styles.mindsetOption,
-                          settings.darkMode && styles.mindsetOptionDark,
-                          isSelected && styles.mindsetOptionSelected
-                        ]}
-                        onPress={() => setSelectedMindset(isSelected ? null : trait.id)}
-                        activeOpacity={0.8}
-                      >
-                        <Image source={trait.icon} style={styles.mindsetIcon} resizeMode="contain" />
-                        <Text style={[
-                          styles.mindsetOptionName,
-                          settings.darkMode && styles.mindsetOptionNameDark,
-                          isSelected && styles.mindsetOptionNameSelected
-                        ]}>
-                          {trait.name}
-                        </Text>
-                        {isSelected && (
-                          <View style={styles.mindsetCheck}>
-                            <Check size={14} color="#8B5CF6" />
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {/* Heir Actions */}
-              <View style={styles.heirActions}>
-                <TouchableOpacity
-                  style={[styles.confirmButton, !selectedHeirId && styles.disabledButton]}
-                  onPress={confirmHeirSelection}
-                  disabled={!selectedHeirId}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={selectedHeirId ? ['#6366F1', '#4F46E5'] : ['#9CA3AF', '#6B7280']}
-                    style={styles.buttonGradient}
-                  >
-                    <Crown size={18} color="#FFF" />
-                    <Text style={styles.buttonText}>Continue Legacy</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

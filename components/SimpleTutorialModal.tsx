@@ -1,17 +1,12 @@
-﻿import React from 'react';
+import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { X, ArrowRight, Lightbulb } from 'lucide-react-native';
-import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { logger } from '@/utils/logger';
-
-interface TutorialStep {
-  id: string;
-  title: string;
-  description: string;
-}
+import type { TutorialStep } from '@/types/tutorial';
+const LinearGradient = LinearGradientFallback;
 
 interface SimpleTutorialModalProps {
   visible: boolean;
@@ -35,7 +30,7 @@ export default function SimpleTutorialModal({
   // Use useGameState directly (only requires GameStateProvider, not GameActionsProvider)
   // This component is rendered inside AppProviders which includes GameProvider,
   // so GameStateProvider should be available
-  const gameState = useGameState();
+  const { gameState } = useGameState();
   const darkMode = gameState?.settings?.darkMode ?? false;
 
   logger.debug('[SimpleTutorialModal] Render:', { visible, stepTitle: step?.title, currentStep, totalSteps });

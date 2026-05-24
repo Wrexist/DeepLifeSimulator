@@ -662,7 +662,7 @@ export class AppSimulator {
   private validateAction(step: SimulationStep): void {
     if (!this.gameState) return;
 
-    const { appId, feature, action } = step;
+    const { appId, action } = step;
     const app = APP_DEFINITIONS.find(a => a.id === appId);
     if (!app) {
       throw new Error(`App ${appId} not found`);

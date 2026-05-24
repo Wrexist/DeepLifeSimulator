@@ -37,7 +37,9 @@ export function calculateRetirementPlanning(
   const currentNetWorth = calculateNetWorth(state);
   
   // Estimate annual expenses (simplified: use current weekly expenses * WEEKS_PER_YEAR)
-  const weeklyIncome = state.job?.weeklySalary || 0;
+  const career = state.careers?.find(c => c.id === state.currentJob);
+  const annualSalary = career?.levels?.[career.level]?.salary || 0;
+  const weeklyIncome = annualSalary / WEEKS_PER_YEAR;
   const estimatedAnnualExpenses = weeklyIncome * 0.7 * WEEKS_PER_YEAR; // Assume 70% of income is expenses
   
   // Calculate required net worth using 4% rule
@@ -84,17 +86,17 @@ function calculateNetWorth(state: GameState): number {
   }, 0) || 0;
   
   const realEstateValue = state.realEstate?.reduce((sum, property) => {
-    return sum + (property.owned ? property.value : 0);
+    return sum + (property.owned ? (property.currentValue ?? property.price) : 0);
   }, 0) || 0;
-  
-  // D-2: NaN guard on company valuation
+
+  // D-2: NaN guard on company valuation (annual income, per codebase convention)
   const companyValue = state.companies?.reduce((sum, company) => {
-    const val = company.owned ? (company.value || 0) : 0;
+    const val = (company.weeklyIncome || 0) * WEEKS_PER_YEAR;
     return sum + (isFinite(val) ? val : 0);
   }, 0) || 0;
 
   const totalDebt = state.loans?.reduce((sum, loan) => {
-    const bal = loan.remainingBalance || 0;
+    const bal = loan.remaining || 0;
     return sum + (isFinite(bal) ? bal : 0);
   }, 0) || 0;
 

@@ -1,8 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
+const LinearGradient = LinearGradientFallback;
 
 interface LoadingOverlayProps {
   visible: boolean;
@@ -85,7 +85,6 @@ interface LoadingButtonProps {
 
 export function LoadingButton({ 
   loading, 
-  onPress, 
   children, 
   style, 
   disabled = false 

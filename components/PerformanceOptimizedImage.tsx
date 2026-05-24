@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Image, ImageProps, StyleSheet, View, Animated, StyleProp, ImageStyle } from 'react-native';
+import { ImageProps, StyleSheet, View, Animated, StyleProp, ImageStyle } from 'react-native';
 
 interface PerformanceOptimizedImageProps extends ImageProps {
   fallbackSource?: ImageProps['source'];

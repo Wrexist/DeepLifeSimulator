@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   X, 
   Clock, 
@@ -26,7 +25,6 @@ import {
   Shield,
   ChevronRight,
 } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   saveBackupManager, 
   BackupMetadata, 
@@ -38,8 +36,9 @@ import {
 import { scale, fontScale } from '@/utils/scaling';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
+const LinearGradient = LinearGradientFallback;
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get('window');
 
 interface BackupRecoveryModalProps {
   visible: boolean;
@@ -89,7 +88,9 @@ export default function BackupRecoveryModal({ visible, onClose, slot, onRestoreC
       
       // Handle results - use defaults if any fail
       const backupList = results[0].status === 'fulfilled' ? results[0].value : [];
-      const storage = results[1].status === 'fulfilled' ? results[1].value : { total: 0, used: 0, available: 0 };
+      const storage: BackupStorageInfo = results[1].status === 'fulfilled'
+        ? results[1].value
+        : { totalSize: 0, maxSize: 0, backupsBySlot: {} };
       
       // Log any failures
       if (results[0].status === 'rejected') {

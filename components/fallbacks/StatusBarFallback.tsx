@@ -7,6 +7,13 @@
 
 import React from 'react';
 
+/**
+ * Fallback StatusBar component
+ * Returns an empty View (no-op) since we can't control the status bar without the native module
+ * Must return a valid React element, not null, to avoid "Element type is invalid" errors
+ */
+import { View } from 'react-native';
+
 interface StatusBarFallbackProps {
   style?: 'auto' | 'inverted' | 'light' | 'dark';
   hidden?: boolean;
@@ -16,13 +23,6 @@ interface StatusBarFallbackProps {
   barStyle?: 'default' | 'light-content' | 'dark-content';
   [key: string]: any; // Allow other props for compatibility
 }
-
-/**
- * Fallback StatusBar component
- * Returns an empty View (no-op) since we can't control the status bar without the native module
- * Must return a valid React element, not null, to avoid "Element type is invalid" errors
- */
-import { View } from 'react-native';
 
 export default function StatusBarFallback(_props: StatusBarFallbackProps) {
   // Status bar control requires native module

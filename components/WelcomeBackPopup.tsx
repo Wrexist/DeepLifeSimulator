@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -9,7 +9,6 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   Home,
   TrendingUp,
@@ -25,6 +24,7 @@ import {
 import { useGameState } from '@/contexts/GameContext';
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
+const LinearGradient = LinearGradientFallback;
 
 const { width: _screenWidth } = Dimensions.get('window');
 

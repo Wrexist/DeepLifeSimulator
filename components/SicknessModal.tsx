@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,15 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { X, Heart, Zap, Smile, Dumbbell, AlertTriangle, Stethoscope, Pill, Activity, Clock, Info, Sparkles } from 'lucide-react-native';
 import { useGame, useItemActions } from '@/contexts/game';
 import type { Disease } from '@/contexts/game/types';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
+import { responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
 import { logger } from '@/utils/logger';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 function SicknessModal() {
   const { gameState, dismissSicknessModal } = useGame();
@@ -430,8 +430,8 @@ function SicknessModal() {
                     activeOpacity={0.7}
                   >
                     <LinearGradient
-                      colors={playerMoney >= 2000 && !isClosing && performHealthActivity
-                        ? ['rgba(239, 68, 68, 0.7)', 'rgba(220, 38, 38, 0.8)'] 
+                      colors={playerMoney >= 2000 && !isClosing
+                        ? ['rgba(239, 68, 68, 0.7)', 'rgba(220, 38, 38, 0.8)']
                         : ['rgba(107, 114, 128, 0.4)', 'rgba(75, 85, 99, 0.5)']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}

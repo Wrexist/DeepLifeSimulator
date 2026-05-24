@@ -337,6 +337,16 @@ export const performStreetJob = (
         },
         streetJobFailureCount: newFailureCount,
         streetJobsCompleted: (prev.streetJobsCompleted || 0) + (success ? 1 : 0),
+        // Mirror successful crimes into the lifetime statistics ticker —
+        // achievementsData and the Statistics screen both read
+        // gs.lifetimeStatistics.totalCrimesCommitted, but no callsite
+        // ever ran trackCrime() to actually increment it.
+        lifetimeStatistics: prev.lifetimeStatistics && success
+          ? {
+              ...prev.lifetimeStatistics,
+              totalCrimesCommitted: (prev.lifetimeStatistics.totalCrimesCommitted ?? 0) + 1,
+            }
+          : prev.lifetimeStatistics,
         rngCommitLog: nextRngCommitLog,
         karma: updatedKarma,
         wantedLevel: updatedWantedLevel,
@@ -588,6 +598,23 @@ export const applyForJob = (
       careers: updatedCareers,
       currentJob: newCurrentJob,
       rngCommitLog: nextRngCommitLog,
+      // Append a CareerHistoryEntry on acceptance so the Statistics
+      // screen's "Career History" section actually populates. Entries
+      // are kept open-ended (no endWeek) until the player quits.
+      lifetimeStatistics: accepted && prev.lifetimeStatistics
+        ? {
+            ...prev.lifetimeStatistics,
+            careerHistory: [
+              ...(prev.lifetimeStatistics.careerHistory || []),
+              {
+                job: careerId,
+                weeks: 0,
+                earnings: 0,
+                startWeek: prev.weeksLived || 0,
+              },
+            ],
+          }
+        : prev.lifetimeStatistics,
     };
   });
 

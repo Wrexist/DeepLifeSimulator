@@ -2,12 +2,12 @@
  * Hobby Actions
  */
 import React from 'react';
-import { GameState, Contract, League } from '../types';
+import { GameState } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { clampHobbySkill, clampHobbySkillLevel } from '@/utils/stateValidation';
-import { getDeterministicRoll, commitDeterministicRolls } from '@/lib/randomness/deterministicRng';
+import { getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 
 const log = logger.scope('HobbyActions');
 
@@ -52,10 +52,14 @@ export const trainHobby = (
     const skillGainMultiplier = getSkillGainMultiplier(unlockedBonuses);
     const safeSkillGainMultiplier = typeof skillGainMultiplier === 'number' && isFinite(skillGainMultiplier) && skillGainMultiplier > 0 ? skillGainMultiplier : 1.0;
     
+    // Apply Skill Mastery gold upgrade ("All skills level up 50% faster").
+    // Was set on purchase but never read by any skill-gain path.
+    const skillMasteryBonus = prev.goldUpgrades?.skill_mastery ? 1.5 : 1;
+
     const hobbies = (prev.hobbies || []).map(h => {
       if (h.id === hobbyId) {
         const baseSkillGain = 5 + (h.skillLevel || 0); // Simple scaling
-        const skillGain = Math.round(baseSkillGain * safeSkillGainMultiplier); // Apply prestige multiplier
+        const skillGain = Math.round(baseSkillGain * safeSkillGainMultiplier * skillMasteryBonus); // prestige + Skill Mastery
         const newSkill = (h.skill || 0) + skillGain;
         const levelUp = newSkill >= (h.skillLevel + 1) * 100;
         

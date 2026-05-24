@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AchievementsProgress Component
  * 
  * Enhanced achievements display with category filters, rarity indicators,
@@ -12,12 +12,9 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { useGame } from '@/contexts/GameContext';
 import {
   Trophy,
@@ -33,7 +30,6 @@ import {
   DollarSign,
   Plane,
   Users,
-  Zap,
   Crown,
   Medal,
   Activity,
@@ -41,7 +37,6 @@ import {
 } from 'lucide-react-native';
 import { useAchievements } from '@/hooks/useAchievements';
 import {
-  responsivePadding,
   responsiveFontSize,
   responsiveSpacing,
   responsiveBorderRadius,
@@ -50,6 +45,8 @@ import {
   verticalScale,
   fontScale,
 } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 type AchievementCategory = 'all' | 'career' | 'wealth' | 'social' | 'travel' | 'family' | 'health' | 'crime' | 'special';
 type RarityType = 'common' | 'rare' | 'epic' | 'legendary';

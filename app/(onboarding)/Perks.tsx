@@ -13,9 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { useRouter, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { perks } from '@/src/features/onboarding/perksData';
@@ -53,10 +51,6 @@ import {
   logOnboardingStepView,
   logOnboardingValidationError,
 } from '@/src/features/onboarding/onboardingAnalytics';
-
-type TabType = 'perks' | 'mindset';
-
-const RECOMMENDED_MINDSETS = ['optimist', 'frugal', 'riskAverse'];
 import {
   responsiveFontSize,
   responsivePadding,
@@ -72,6 +66,12 @@ import { forceSave } from '@/utils/saveQueue';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { isSaveSigningConfigError } from '@/utils/saveValidation';
 import { IAPService } from '@/services/IAPService';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
+
+type TabType = 'perks' | 'mindset';
+
+const RECOMMENDED_MINDSETS = ['optimist', 'frugal', 'riskAverse'];
 
 const { width: screenWidth } = Dimensions.get('window');
 const NATIVE_OK = Platform.OS !== 'web';

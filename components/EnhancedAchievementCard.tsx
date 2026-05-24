@@ -5,19 +5,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Dimensions,
   Modal,
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { MotiView } from 'moti';
 import {
   Trophy,
   Star,
   Lock,
   Eye,
-  EyeOff,
   Clock,
   Target,
   Zap,
@@ -30,25 +27,20 @@ import {
   Home,
   Coins,
   Briefcase,
-  GraduationCap,
   Baby,
   Bitcoin,
-  Building,
   Sparkles,
   Info,
   CheckCircle,
   XCircle,
 } from 'lucide-react-native';
-import { EnhancedAchievement, AchievementProgress } from '@/utils/enhancedAchievements';
-import {
+import { EnhancedAchievement, AchievementProgress ,
   getRarityColor,
-  getRarityGlow,
   getDifficultyText,
   getDifficultyColor,
   calculateAchievementProgress,
 } from '@/utils/enhancedAchievements';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
 
 interface EnhancedAchievementCardProps {
   achievement: EnhancedAchievement;
@@ -60,7 +52,6 @@ interface EnhancedAchievementCardProps {
   compact?: boolean;
 }
 
-const { width } = Dimensions.get('window');
 
 export default function EnhancedAchievementCard({
   achievement,
@@ -111,6 +102,7 @@ export default function EnhancedAchievementCard({
       glowLoop.start();
       return () => glowLoop.stop();
     }
+    return;
   }, [progressValue, isCompleted, isClaimed]);
 
   const handlePress = () => {
@@ -202,13 +194,10 @@ export default function EnhancedAchievementCard({
             {isClaimed ? (
               <CheckCircle size={24} color="#10B981" />
             ) : isCompleted ? (
-              <MotiView
-                from={{ scale: 1 }}
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ type: 'timing', duration: 1000, loop: true }}
-              >
-                <Trophy size={24} color="#F59E0B" />
-              </MotiView>
+              // Note: pulse animation (scale [1, 1.2, 1] keyframes) dropped —
+              // the local MotiStub doesn't accept array values for transforms,
+              // and moti itself isn't a project dependency.
+              <Trophy size={24} color="#F59E0B" />
             ) : (
               <XCircle size={24} color="#6B7280" />
             )}

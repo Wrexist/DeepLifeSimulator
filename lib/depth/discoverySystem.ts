@@ -6,6 +6,8 @@
 import { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 
+import { SystemUnlockRequirements } from '@/lib/types/requirements';
+
 const log = logger.scope('DiscoverySystem');
 
 export interface DiscoveredSystem {
@@ -30,8 +32,6 @@ export interface DiscoveryProgress {
     premium: number;
   };
 }
-
-import { SystemUnlockRequirements } from '@/lib/types/requirements';
 
 /**
  * All discoverable systems in the game

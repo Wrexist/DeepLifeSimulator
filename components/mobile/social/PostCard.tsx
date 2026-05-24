@@ -132,7 +132,6 @@ const formatTimestamp = (
 };
 
 function PostCard({
-  id,
   authorName,
   authorHandle,
   authorPhoto,
@@ -148,7 +147,6 @@ function PostCard({
   reposts,
   replies,
   views,
-  bookmarks,
   isLiked,
   isReposted,
   isBookmarked,

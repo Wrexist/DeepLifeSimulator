@@ -8,22 +8,18 @@ import {
   TextInput,
   Modal,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import {
   Trophy,
   Star,
   Filter,
   Search,
   X,
-  TrendingUp,
   Award,
   Crown,
   Zap,
-  Target,
-  Clock,
-  Gem,
   Users,
   Heart,
   Home,
@@ -31,18 +27,14 @@ import {
   Briefcase,
   Baby,
   Bitcoin,
-  Building,
   Sparkles,
   Eye,
   EyeOff,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { EnhancedAchievement, ACHIEVEMENT_CATEGORIES, ENHANCED_ACHIEVEMENTS } from '@/utils/enhancedAchievements';
+import { EnhancedAchievement, ACHIEVEMENT_CATEGORIES, ENHANCED_ACHIEVEMENTS, AchievementProgress } from '@/utils/enhancedAchievements';
 import EnhancedAchievementCard from './EnhancedAchievementCard';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
 
 interface EnhancedAchievementScreenProps {
   visible: boolean;
@@ -55,7 +47,7 @@ export default function EnhancedAchievementScreen({
   visible,
   onClose,
 }: EnhancedAchievementScreenProps) {
-  const { gameState, updateSettings } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { buttonPress, haptic } = useFeedback(gameState?.settings?.hapticFeedback || false);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,7 +120,7 @@ export default function EnhancedAchievementScreen({
       const progress = calculateAchievementProgress(achievement, gameState);
       return progress >= 1;
     }).length;
-    const claimed = gameState.achievementProgress?.filter((p: any) => p.claimed).length || 0;
+    const claimed = gameState.achievements?.filter((p: any) => p.claimed).length || 0;
     const totalGems = ENHANCED_ACHIEVEMENTS.reduce((sum, achievement) => sum + achievement.rewards.gems, 0);
     const earnedGems = ENHANCED_ACHIEVEMENTS.filter(achievement => {
       const progress = calculateAchievementProgress(achievement, gameState);
@@ -146,17 +138,62 @@ export default function EnhancedAchievementScreen({
   }, [gameState]);
 
   const handleClaimAchievement = useCallback((achievementId: string) => {
-    // Implementation for claiming achievements
     buttonPress();
+
+    const achievement = ENHANCED_ACHIEVEMENTS.find(a => a.id === achievementId);
+    if (!achievement) return;
+
+    // Guard against double-claim
+    const alreadyClaimed = gameState.claimedEnhancedAchievements?.includes(achievementId);
+    if (alreadyClaimed) {
+      haptic('warning');
+      Alert.alert('Already Claimed', `You already collected the reward for ${achievement.title}.`);
+      return;
+    }
+
+    // Guard against unmet achievements (defensive — the Claim button is
+    // only meant to render when the achievement is complete).
+    if (calculateAchievementProgress(achievement, gameState) < 1) {
+      haptic('warning');
+      Alert.alert('Not Yet Earned', `Complete ${achievement.title} first to claim the reward.`);
+      return;
+    }
+
+    const gemReward = achievement.rewards?.gems ?? 0;
+
+    setGameState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        gems: (prev.stats?.gems ?? 0) + gemReward,
+      },
+      claimedEnhancedAchievements: [
+        ...(prev.claimedEnhancedAchievements ?? []),
+        achievementId,
+      ],
+      // Mirror into lifetimeStatistics for the StatisticsApp tile
+      // (Statistics screen shows total achievements unlocked).
+      lifetimeStatistics: prev.lifetimeStatistics
+        ? {
+            ...prev.lifetimeStatistics,
+            totalAchievementsUnlocked: (prev.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
+          }
+        : prev.lifetimeStatistics,
+    }));
+    saveGame();
     haptic('success');
-    // Add logic to claim achievement and give rewards
-  }, [buttonPress, haptic]);
+    Alert.alert('Reward Claimed', `+${gemReward} gems for ${achievement.title}!`);
+  }, [buttonPress, haptic, gameState, setGameState, saveGame]);
 
   const handleGetHint = useCallback((achievementId: string) => {
-    // Implementation for getting hints
     buttonPress();
     haptic('light');
-    // Add logic to show hint (maybe cost gems)
+    const achievement = ENHANCED_ACHIEVEMENTS.find(a => a.id === achievementId);
+    if (!achievement) return;
+    Alert.alert(
+      `Hint: ${achievement.title}`,
+      achievement.unlockHint || 'No hint available for this achievement yet.',
+    );
   }, [buttonPress, haptic]);
 
   const clearFilters = () => {
@@ -467,11 +504,18 @@ export default function EnhancedAchievementScreen({
             ) : (
               achievements.map(achievement => {
                 const progress = calculateAchievementProgress(achievement, gameState);
-                const achievementProgress = gameState.achievementProgress?.find((p: any) => p.id === achievement.id) || {
+                // Project to AchievementProgress shape — gameState.achievements
+                // entries are Achievement (has \`completed\` but not progress/
+                // claimed), so build the progress object explicitly. Claim
+                // status comes from gameState.claimedEnhancedAchievements,
+                // maintained by handleClaimAchievement above.
+                const found = gameState.achievements?.find((a: { id: string }) => a.id === achievement.id);
+                const claimedIds = gameState.claimedEnhancedAchievements ?? [];
+                const achievementProgress: AchievementProgress = {
                   id: achievement.id,
-                  progress: 0,
-                  completed: false,
-                  claimed: false,
+                  progress,
+                  completed: found?.completed ?? false,
+                  claimed: claimedIds.includes(achievement.id),
                 };
 
                 return (

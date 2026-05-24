@@ -2794,7 +2794,7 @@ export class ComprehensiveGameSimulator {
               if (currentMiners < maxCapacity) {
                 const availableMoney = money - reserveFund;
                 const maxSpend = Math.floor(availableMoney * 0.9); // Use 90% of available (after reserve)
-                let minerToBuy: { id: string; name: string; price: number; weeklyIncome: number } | null = null;
+                let minerToBuy: { id: string; name: string; price: number; roi: number } | null = null;
                 
                 // Miner earnings (approximate weekly income per miner)
                 const MINER_EARNINGS: Record<string, number> = {
@@ -2803,7 +2803,7 @@ export class ComprehensiveGameSimulator {
                 };
                 
                 // Calculate ROI for each affordable miner and pick best
-                const affordableMiners: Array<{ id: string; name: string; price: number; roi: number }> = [];
+                const affordableMiners: { id: string; name: string; price: number; roi: number }[] = [];
                 if (maxSpend >= 50000000) affordableMiners.push({ id: 'tera', name: 'Tera Miner', price: 50000000, roi: MINER_EARNINGS.tera / 50000000 });
                 if (maxSpend >= 10000000) affordableMiners.push({ id: 'giga', name: 'Giga Miner', price: 10000000, roi: MINER_EARNINGS.giga / 10000000 });
                 if (maxSpend >= 2500000) affordableMiners.push({ id: 'mega', name: 'Mega Miner', price: 2500000, roi: MINER_EARNINGS.mega / 2500000 });
@@ -2900,7 +2900,6 @@ export class ComprehensiveGameSimulator {
             if (!actionPerformed && (currentState.companies || []).length > 0 && (money - reserveFund) >= 10000) {
               try {
                 const { buyCompanyUpgrade } = await import('@/contexts/game/company');
-                const { updateMoney } = await import('@/contexts/game/actions/MoneyActions');
                 
                 const availableMoney = money - reserveFund;
                 let bestUpgrade: { company: any; upgradeId: string; roi: number; cost: number } | null = null;
@@ -3224,7 +3223,7 @@ export class ComprehensiveGameSimulator {
               if (availableProperties.length > 0) {
                 // Calculate ROI for each property (rental income / price)
                 const propertyOptions = availableProperties.map(prop => {
-                  const weeklyRent = (prop.weeklyIncome || prop.rent || 0);
+                  const weeklyRent = prop.rent || 0;
                   const roi = prop.price > 0 ? weeklyRent / prop.price : 0;
                   return { prop, roi, weeklyRent };
                 });
@@ -3286,7 +3285,7 @@ export class ComprehensiveGameSimulator {
                   
                   if (upgradeCost > availableMoney) continue;
                   
-                  const currentRent = property.rent || property.weeklyIncome || 0;
+                  const currentRent = property.rent || 0;
                   const incomeIncrease = Math.floor(currentRent * 0.2); // 20% income increase
                   const valueIncrease = Math.floor(currentValue * 0.08); // 8% value increase
                   
@@ -3307,7 +3306,7 @@ export class ComprehensiveGameSimulator {
                     const updatedRealEstate = (prev.realEstate || []).map(p => {
                       if (p.id === bestUpgrade!.property.id) {
                         const newUpgradeLevel = (p.upgradeLevel || 0) + 1;
-                        const currentRent = p.rent || p.weeklyIncome || 0;
+                        const currentRent = p.rent || 0;
                         const incomeIncrease = Math.floor(currentRent * 0.2);
                         const currentValue = p.currentValue || p.price || 0;
                         const valueIncrease = Math.floor(currentValue * 0.08);
@@ -3397,6 +3396,7 @@ export class ComprehensiveGameSimulator {
                       stocks: {
                         ...prev.stocks,
                         holdings: updatedHoldings,
+                        watchlist: prev.stocks?.watchlist || [],
                       },
                       stats: {
                         ...prev.stats,
@@ -3758,7 +3758,7 @@ export class ComprehensiveGameSimulator {
                   
                   // Calculate earnings and follower growth
                   const earnings = calculatePostAdRevenue(followers, influenceLevel, 'text');
-                  const engagement = { likes: Math.floor(followers * 0.05), comments: Math.floor(followers * 0.01), reposts: Math.floor(followers * 0.002), views: followers * 2 };
+                  const engagement = { likes: Math.floor(followers * 0.05), comments: Math.floor(followers * 0.01), reposts: Math.floor(followers * 0.002), views: followers * 2, bookmarks: 0 };
                   const followerGrowth = calculateNewFollowersFromPost(followers, engagement, false);
                   
                   // Update state with post
@@ -3773,14 +3773,14 @@ export class ComprehensiveGameSimulator {
                         {
                           id: `post-${Date.now()}`,
                           content: 'Just posted!',
-                          author: prev.character.name || 'Player',
+                          author: (prev as { character?: { name?: string } }).character?.name || 'Player',
                           timestamp: Date.now(),
                           likes: engagement.likes,
                           comments: engagement.comments,
                           reposts: engagement.reposts,
                           views: engagement.views,
                         },
-                        ...(prev.socialMedia!.posts || []).slice(0, 49), // Keep last 50 posts
+                        ...(prev.socialMedia!.recentPosts || []).slice(0, 49), // Keep last 50 posts
                       ],
                     },
                     stats: {

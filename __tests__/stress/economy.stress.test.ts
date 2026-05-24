@@ -1,5 +1,5 @@
 import { GameState } from '@/contexts/GameContext';
-import { advanceWeeks, advanceYears } from './helpers/timeHelpers';
+import { advanceYears } from './helpers/timeHelpers';
 import { setupWealthyPlayer } from './helpers/scenarioBuilders';
 import { expectNumericalStability, expectValidPriceIndex, expectNoNaN, expectNoInfinity } from './helpers/assertions';
 
@@ -10,7 +10,6 @@ describe('Economy Stress Tests', () => {
     baseState = (global as any).createTestGameState({
       date: { year: 2025, month: 'January', week: 1, age: 18 },
       weeksLived: 0,
-      priceIndex: 1,
       stats: {
         health: 100,
         happiness: 80,
@@ -32,10 +31,14 @@ describe('Economy Stress Tests', () => {
       // Expected: (1.03)^50 ≈ 4.38
       const expectedPriceIndex = Math.pow(1 + annualInflation, years);
 
-      // Simulate inflation compounding weekly
-      let stateWithInflation = {
+      // Simulate inflation compounding weekly. priceIndex lives on
+      // EconomyState (not at the top level of GameState).
+      let stateWithInflation: GameState = {
         ...baseState,
-        priceIndex: initialPriceIndex,
+        economy: {
+          ...baseState.economy,
+          priceIndex: initialPriceIndex,
+        },
       };
 
       // Advance 50 years
@@ -158,16 +161,23 @@ describe('Economy Stress Tests', () => {
   describe('Test 3: Passive income scaling', () => {
     it('should calculate weekly passive income from multiple sources', () => {
       // Simulate state with various income sources
+      // Note: stocks is a StockPortfolio object {holdings, watchlist},
+      // not an array; RealEstate uses \`price\` not \`cost\` and has no
+      // rentalBonus/upkeepBonus fields. Aligning the test with the
+      // canonical shapes.
       const richState: GameState = {
         ...baseState,
         ...setupWealthyPlayer(5000000),
-        stocks: [
-          { symbol: 'AAPL', shares: 1000, purchasePrice: 150, currentPrice: 180, dividendYield: 0.006 },
-          { symbol: 'GOOGL', shares: 500, purchasePrice: 120, currentPrice: 140, dividendYield: 0.012 },
-        ],
+        stocks: {
+          holdings: [
+            { symbol: 'AAPL', shares: 1000, averagePrice: 150, currentPrice: 180 },
+            { symbol: 'GOOGL', shares: 500, averagePrice: 120, currentPrice: 140 },
+          ],
+          watchlist: [],
+        },
         realEstate: [
-          { id: 're-1', name: 'Apartment', cost: 500000, rent: 3000, upkeep: 500, rentalBonus: 0, upkeepBonus: 0 },
-          { id: 're-2', name: 'House', cost: 800000, rent: 5000, upkeep: 800, rentalBonus: 0, upkeepBonus: 0 },
+          { id: 're-1', name: 'Apartment', price: 500000, weeklyHappiness: 0, weeklyEnergy: 0, owned: true, interior: [], upgradeLevel: 0, rent: 3000, upkeep: 500 },
+          { id: 're-2', name: 'House', price: 800000, weeklyHappiness: 0, weeklyEnergy: 0, owned: true, interior: [], upgradeLevel: 0, rent: 5000, upkeep: 800 },
         ],
       };
 

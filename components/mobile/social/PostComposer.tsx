@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Post Composer Component - X.com Style
  * 
  * Modal for creating new posts with photo upload
@@ -18,17 +18,16 @@ import {
   Alert,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   Image as ImageIcon,
   Camera,
   MapPin,
-  BadgeCheck,
   Globe,
 } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
-import { pickPostPhoto, showImageSourcePicker, takePhoto, PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
+import { pickPostPhoto, showImageSourcePicker, PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
+const LinearGradient = LinearGradientFallback;
 
 interface PostComposerProps {
   visible: boolean;
@@ -48,9 +47,6 @@ export default function PostComposer({
   onClose,
   onPost,
   profilePhoto,
-  displayName,
-  username,
-  verified,
   maxLength = MAX_POST_LENGTH,
 }: PostComposerProps) {
   const [content, setContent] = useState('');
@@ -78,19 +74,12 @@ export default function PostComposer({
   }, [content, photo, canPost, onPost, onClose]);
   
   const handleAddPhoto = useCallback(() => {
-    showImageSourcePicker(
-      async () => {
-        const result = await pickPostPhoto();
-        if (result.success && result.base64) {
-          setPhoto(result.base64);
-        }
-      },
-      async () => {
-        const result = await takePhoto({ aspect: [4, 3] });
-        if (result.success && result.base64) {
-          setPhoto(result.base64);
-        }
+    showImageSourcePicker(async () => {
+      const result = await pickPostPhoto();
+      if (result.success && result.base64) {
+        setPhoto(result.base64);
       }
+    }
     );
   }, []);
   

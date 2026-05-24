@@ -2,7 +2,7 @@
  * Social & Relationship Actions
  */
 import React from 'react';
-import { GameState, Relationship } from '../types';
+import { GameState } from '../types';
 import { logger } from '@/utils/logger';
 import { updateStats } from './StatsActions';
 import { clampRelationshipScore } from '@/utils/stateValidation';

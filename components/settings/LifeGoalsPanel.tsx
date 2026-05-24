@@ -7,10 +7,10 @@ import React from 'react';
 import { View, Text, ScrollView, Image, StyleSheet, Platform, type ViewStyle } from 'react-native';
 import { Target, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { perks } from '@/src/features/onboarding/perksData';
 import { useGame } from '@/contexts/GameContext';
 import { responsivePadding, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 export default function LifeGoalsPanel() {
   const { gameState } = useGame();

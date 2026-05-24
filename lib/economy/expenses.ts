@@ -1,23 +1,24 @@
 import { GameState } from '@/contexts/GameContext';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
-import type { Loan } from '@/contexts/game/types';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
 
-// Type guard helpers for Loan properties
-function hasLoanRemaining(loan: Loan | unknown): loan is Loan & { remaining: number } {
+// Type guard helpers for Loan properties. Field-only intersections (not `Loan & ...`)
+// so the FALSE branch doesn't narrow to `never` — Loan declares these fields
+// as required, but at runtime corrupted save data can still violate that.
+function hasLoanRemaining(loan: unknown): loan is { remaining: number } {
   return typeof loan === 'object' && loan !== null && 'remaining' in loan && typeof (loan as { remaining?: unknown }).remaining === 'number' && isFinite((loan as { remaining: number }).remaining) && (loan as { remaining: number }).remaining >= 0;
 }
 
-function hasLoanPrincipal(loan: Loan | unknown): loan is Loan & { principal: number } {
+function hasLoanPrincipal(loan: unknown): loan is { principal: number } {
   return typeof loan === 'object' && loan !== null && 'principal' in loan && typeof (loan as { principal?: unknown }).principal === 'number' && isFinite((loan as { principal: number }).principal) && (loan as { principal: number }).principal >= 0;
 }
 
-function hasLoanWeeksRemaining(loan: Loan | unknown): loan is Loan & { weeksRemaining: number } {
+function hasLoanWeeksRemaining(loan: unknown): loan is { weeksRemaining: number } {
   return typeof loan === 'object' && loan !== null && 'weeksRemaining' in loan && typeof (loan as { weeksRemaining?: unknown }).weeksRemaining === 'number' && isFinite((loan as { weeksRemaining: number }).weeksRemaining) && (loan as { weeksRemaining: number }).weeksRemaining > 0;
 }
 
-function hasLoanTermWeeks(loan: Loan | unknown): loan is Loan & { termWeeks: number } {
+function hasLoanTermWeeks(loan: unknown): loan is { termWeeks: number } {
   return typeof loan === 'object' && loan !== null && 'termWeeks' in loan && typeof (loan as { termWeeks?: unknown }).termWeeks === 'number' && isFinite((loan as { termWeeks: number }).termWeeks) && (loan as { termWeeks: number }).termWeeks > 0;
 }
 
@@ -71,10 +72,18 @@ export function calcWeeklyExpenses(
         return sum + weeklyPayment;
       } else {
         // For loans with 0 weeklyPayment, calculate minimum payment to ensure debt is paid
-        // Use remaining debt (or principal if remaining not set) divided by remaining weeks
-        const remaining = hasLoanRemaining(l) ? l.remaining : (hasLoanPrincipal(l) ? l.principal : 0);
+        // Use remaining debt (or principal if remaining not set) divided by remaining weeks.
+        // Guards are called as plain functions; the chained ternary used to narrow `l`
+        // to `never` because Loan declares these fields as required, so we read the
+        // fields directly through `unknown` casts after the guard returns true.
+        const loanData = l as unknown;
+        const remaining = hasLoanRemaining(loanData)
+          ? loanData.remaining
+          : (hasLoanPrincipal(loanData) ? loanData.principal : 0);
         if (remaining <= 0) return sum; // Skip fully paid or corrupted loans
-        const weeksRemaining = hasLoanWeeksRemaining(l) ? l.weeksRemaining : (hasLoanTermWeeks(l) ? l.termWeeks : 520);
+        const weeksRemaining = hasLoanWeeksRemaining(loanData)
+          ? loanData.weeksRemaining
+          : (hasLoanTermWeeks(loanData) ? loanData.termWeeks : 520);
 
         // CRITICAL: Validate before division to prevent division by zero
         if (remaining > 0 && weeksRemaining > 0 && isFinite(remaining) && isFinite(weeksRemaining)) {

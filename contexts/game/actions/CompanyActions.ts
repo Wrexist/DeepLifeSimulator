@@ -2,7 +2,7 @@
  * Company Actions
  */
 import React from 'react';
-import { GameState, Company, CompanyUpgrade } from '../types';
+import { GameState, Company } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
@@ -120,7 +120,7 @@ export const createCompany = (
 
 export const buyCompanyUpgrade = (
   gameState: GameState,
-  setGameState: Dispatch<SetStateAction<GameState>>,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   upgradeId: string,
   deps: { updateMoney: typeof updateMoney },
   companyId?: string

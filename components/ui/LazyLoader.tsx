@@ -14,7 +14,6 @@ export default function LazyLoader({
   delay = 100, 
   fallback,
   style,
-  threshold = 0.1 
 }: LazyLoaderProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isVisible, setIsVisible] = useState(false);

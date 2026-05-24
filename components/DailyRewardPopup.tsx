@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   Modal, 
   View, 
@@ -6,10 +6,8 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Animated,
-  Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   Gift, 
   DollarSign, 
@@ -22,9 +20,9 @@ import {
   CheckCircle,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/game';
-import { scale, fontScale, verticalScale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
+import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface DailyRewardPopupProps {
   visible: boolean;

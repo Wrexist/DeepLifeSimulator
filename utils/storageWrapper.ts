@@ -1,4 +1,6 @@
 // CRITICAL: Lazy load AsyncStorage to prevent TurboModule crash on iOS 26 Beta
+import { logger } from '@/utils/logger';
+
 let _realAsyncStorage: typeof import('@react-native-async-storage/async-storage').default | null = null;
 let _lastLoadAttempt = 0;
 const LOAD_RETRY_COOLDOWN_MS = 2000; // Retry every 2s if first attempt failed
@@ -57,8 +59,6 @@ const AsyncStorage = {
     if (storage) await storage.clear();
   },
 };
-
-import { logger } from '@/utils/logger';
 
 /**
  * Retry configuration for storage operations

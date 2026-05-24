@@ -18,10 +18,10 @@ export interface FuzzConfig<State, Event> {
   applyEvent: (state: State, event: Event) => State;
   
   /** Invariants that must hold after every step */
-  invariants: Array<{
+  invariants: {
     name: string;
     check: (state: State) => boolean;
-  }>;
+  }[];
   
   /** Number of steps to run */
   steps: number;
@@ -59,11 +59,11 @@ export interface FuzzResult<State = unknown, Event = unknown> {
   lastEvent?: Event;
   
   /** History of steps (if includeFullHistory was true, or last 10 on failure) */
-  history: Array<{
+  history: {
     step: number;
     event: Event;
     stateAfter?: State;
-  }>;
+  }[];
   
   /** Total duration in milliseconds */
   duration: number;

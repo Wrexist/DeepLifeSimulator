@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Smart Tooltips & Contextual Help
  * Intelligent tooltips that explain mechanics with progressive disclosure
  */
@@ -13,7 +13,6 @@ import {
   Modal,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   Info,
   X,
@@ -21,10 +20,10 @@ import {
   ChevronUp,
   Calculator,
   Lightbulb,
-  TrendingUp,
 } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
-import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 export type DisclosureLevel = 'simple' | 'standard' | 'advanced';
 
@@ -47,11 +46,11 @@ interface TooltipContent {
     value: number;
     breakdown?: string[];
   };
-  hiddenModifiers?: Array<{
+  hiddenModifiers?: {
     name: string;
     value: number;
     description: string;
-  }>;
+  }[];
   why?: string;
   strategyTip?: string;
   context?: GameState;

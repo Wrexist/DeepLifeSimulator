@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,12 @@ import {
   ScrollView,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame } from 'lucide-react-native';
-import { MINDSET_TRAITS, MindsetId } from '@/lib/mindset/config';
+import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import YouthPillModal from './YouthPillModal';
 import LegacyTimeline from './LegacyTimeline';
 import NetWorthBreakdownModal from './NetWorthBreakdownModal';
 import {
-  responsivePadding,
   responsiveFontSize,
   responsiveSpacing,
   responsiveBorderRadius,
@@ -24,12 +22,11 @@ import {
   fontScale,
 } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
-import { MINER_PRICES } from '@/lib/economy/constants';
+import { MINER_PRICES , PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { useGame } from '@/contexts/GameContext';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
-import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -37,6 +34,7 @@ import { getCharacterImage } from '@/utils/characterImages';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import type { Loan } from '@/contexts/game/types';
+const LinearGradient = LinearGradientFallback;
 
 // Type guard helpers for Loan properties
 function hasLoanName(loan: Loan | unknown): loan is Loan & { name: string } {
@@ -49,14 +47,6 @@ function hasLoanRemaining(loan: Loan | unknown): loan is Loan & { remaining: num
 
 function hasLoanPrincipal(loan: Loan | unknown): loan is Loan & { principal: number } {
   return typeof loan === 'object' && loan !== null && 'principal' in loan && typeof (loan as { principal?: unknown }).principal === 'number' && isFinite((loan as { principal: number }).principal) && (loan as { principal: number }).principal >= 0;
-}
-
-function hasLoanWeeksRemaining(loan: Loan | unknown): loan is Loan & { weeksRemaining: number } {
-  return typeof loan === 'object' && loan !== null && 'weeksRemaining' in loan && typeof (loan as { weeksRemaining?: unknown }).weeksRemaining === 'number' && isFinite((loan as { weeksRemaining: number }).weeksRemaining) && (loan as { weeksRemaining: number }).weeksRemaining > 0;
-}
-
-function hasLoanTermWeeks(loan: Loan | unknown): loan is Loan & { termWeeks: number } {
-  return typeof loan === 'object' && loan !== null && 'termWeeks' in loan && typeof (loan as { termWeeks?: unknown }).termWeeks === 'number' && isFinite((loan as { termWeeks: number }).termWeeks) && (loan as { termWeeks: number }).termWeeks > 0;
 }
 
 function hasLoanInterestRate(loan: Loan | unknown): loan is Loan & { interestRate: number } {
@@ -143,7 +133,6 @@ function IdentityCard() {
     scenarioId,
     dietPlans,
     date,
-    settings,
     youthPills
   } = gameState;
 
@@ -325,7 +314,7 @@ function IdentityCard() {
         colors={['#1F2937', '#111827']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.card, styles.cardDark]}
+        style={styles.card}
       >
         <View style={styles.avatarContainer}>
           <Image source={avatar} style={styles.avatar} />
@@ -576,34 +565,6 @@ function IdentityCard() {
               </Text>
             </View>
           )}
-          {passiveInfo.breakdown.songs > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🎵 Songs: {formatMoney(passiveInfo.breakdown.songs)}
-              </Text>
-            </View>
-          )}
-          {passiveInfo.breakdown.art > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🎨 Art: {formatMoney(passiveInfo.breakdown.art)}
-              </Text>
-            </View>
-          )}
-          {passiveInfo.breakdown.contracts > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                📋 Contracts: {formatMoney(passiveInfo.breakdown.contracts)}
-              </Text>
-            </View>
-          )}
-          {passiveInfo.breakdown.sponsors > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🤝 Sponsors: {formatMoney(passiveInfo.breakdown.sponsors)}
-              </Text>
-            </View>
-          )}
           {passiveInfo.breakdown.socialMedia > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
@@ -663,7 +624,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const propertyExpenses: Array<{ name: string; cost: number }> = [];
+                const propertyExpenses: { name: string; cost: number }[] = [];
                 const realEstate = gameState.realEstate || [];
                 const { getUpgradeTier } = require('@/lib/realEstate/housing');
                 
@@ -731,8 +692,8 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const loanExpenses: Array<{ name: string; cost: number }> = [];
-                const loans = gameState.loans || [];
+                const loanExpenses: { name: string; cost: number }[] = [];
+                const loans: Loan[] = gameState.loans || [];
                 
                 loans.forEach(loan => {
                   if (!loan) return;
@@ -745,8 +706,8 @@ function IdentityCard() {
                     });
                   } else {
                     // For loans with 0 weeklyPayment, calculate minimum payment
-                    const remaining = hasLoanRemaining(loan) ? loan.remaining : (hasLoanPrincipal(loan) ? loan.principal : 0);
-                    const weeksRemaining = hasLoanWeeksRemaining(loan) ? loan.weeksRemaining : (hasLoanTermWeeks(loan) ? loan.termWeeks : 520);
+                    const remaining = loan.remaining || loan.principal || 0;
+                    const weeksRemaining = loan.weeksRemaining || loan.termWeeks || 520;
                     
                     if (remaining > 0 && weeksRemaining > 0 && isFinite(remaining) && isFinite(weeksRemaining)) {
                       const minPayment = Math.max(remaining / weeksRemaining, remaining * 0.001);
@@ -805,7 +766,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const miningExpenses: Array<{ name: string; cost: number; power?: number; miners?: Array<{ type: string; count: number; power: number }> }> = [];
+                const miningExpenses: { name: string; cost: number; power?: number; miners?: { type: string; count: number; power: number }[] }[] = [];
                 const companyMinerPower: Record<string, number> = {
                   basic: 10,
                   advanced: 35,
@@ -833,7 +794,7 @@ function IdentityCard() {
                       const weeklyBill = Math.round(monthlyBill / 4);
                       if (weeklyBill > 0) {
                         // Count miners by type
-                        const minerCounts: Array<{ type: string; count: number; power: number }> = [];
+                        const minerCounts: { type: string; count: number; power: number }[] = [];
                         Object.entries(company.miners).forEach(([id, count]) => {
                           const minerPower = companyMinerPower[id] || 0;
                           const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
@@ -883,7 +844,7 @@ function IdentityCard() {
                     const weeklyPowerCost = Math.round(totalPower * 0.60);
                     if (weeklyPowerCost > 0) {
                       // Count warehouse miners by type
-                      const minerCounts: Array<{ type: string; count: number; power: number }> = [];
+                      const minerCounts: { type: string; count: number; power: number }[] = [];
                       Object.entries(gameState.warehouse.miners).forEach(([id, count]) => {
                         const minerPower = warehouseMinerPower[id] || 0;
                         const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
@@ -946,7 +907,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const vehicleExpenses: Array<{ name: string; maintenance: number; fuel: number; insurance: number; total: number }> = [];
+                const vehicleExpenses: { name: string; maintenance: number; fuel: number; insurance: number; total: number }[] = [];
                 const vehicles = gameState.vehicles || [];
                 
                 vehicles.forEach(vehicle => {
@@ -1031,7 +992,7 @@ function IdentityCard() {
                 </Text>
               </View>
               {(() => {
-                const rentExpenses: Array<{ name: string; cost: number }> = [];
+                const rentExpenses: { name: string; cost: number }[] = [];
                 const realEstate = gameState.realEstate || [];
                 
                 realEstate.forEach(property => {

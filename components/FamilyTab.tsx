@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Family Tab Component
  * 
  * Comprehensive family management with spouse, children, and family activities
@@ -15,17 +15,14 @@ import {
   Modal,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   Users,
   Heart,
   Baby,
-  Ring,
+  Gem as Ring,
   Home,
   GraduationCap,
   DollarSign,
-  Gift,
-  Calendar,
   Star,
   Crown,
   Sparkles,
@@ -35,20 +32,20 @@ import {
   TrendingUp,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { scale, fontScale, responsivePadding } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
+const LinearGradient = LinearGradientFallback;
 
 interface FamilyTabProps {
   onClose?: () => void;
 }
 
 function FamilyTab({ onClose }: FamilyTabProps) {
-  const { 
-    gameState, 
-    proposeToPartner, 
-    haveChild, 
+  const {
+    gameState,
+    saveGame,
+    proposeToPartner,
     moveInTogether,
-    saveGame 
   } = useGame();
   
   const { settings } = gameState;
@@ -88,7 +85,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
   const handlePropose = useCallback(() => {
     if (!partner) return;
-    
+
     if (partner.relationshipScore < 80) {
       Alert.alert(
         'Not Ready',
@@ -171,13 +168,18 @@ function FamilyTab({ onClose }: FamilyTabProps) {
         {
           text: 'Try for Baby',
           onPress: () => {
-            haveChild(spouse.id);
-            saveGame();
+            // haveChild has no canonical implementation — children are
+            // currently created via the relationship pregnancy tick.
+            // Surface an honest message until a manual flow is wired.
+            Alert.alert(
+              'Coming Soon',
+              'Children currently arrive through the marriage system over time. A manual "try for baby" flow is on the roadmap.',
+            );
           },
         },
       ]
     );
-  }, [spouse, gameState.date.age, haveChild, saveGame]);
+  }, [spouse, gameState.date.age]);
 
   const getLifeStageColor = (stage: string) => {
     switch (stage) {

@@ -1,6 +1,8 @@
 import { evaluateAchievements, ACHIEVEMENTS, AchievementProgress } from '../achievements';
 import { GameState, GameStats, GameDate, Relationship, GameSettings } from '@/contexts/GameContext';
 
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+
 const baseStats: GameStats = {
   health: 100,
   happiness: 100,
@@ -25,8 +27,6 @@ const settings: GameSettings = {
   showDecimalsInStats: false,
   lifetimePremium: false,
 };
-
-import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 const createState = (overrides: Partial<GameState>): GameState => createTestGameState({
   stats: baseStats,

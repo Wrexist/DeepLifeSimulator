@@ -3,6 +3,7 @@ import type { GameState } from '@/contexts/game/types';
 import { IAP_PRODUCTS, getProductConfig, getAllProductIds, isConsumableProduct } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
+import { clampHobbySkillLevel } from '@/utils/stateValidation';
 
 // CRITICAL: Do NOT create logger scope here - logger may not be initialized yet
 // This module is imported at app startup before UI renders
@@ -847,11 +848,12 @@ export class IAPService {
     }
 
     if (config.skillBoost) {
-      // Add to all skills
-      if (gameState.skills) {
-        Object.keys(gameState.skills).forEach(skill => {
-          gameState.skills[skill] = (gameState.skills[skill] || 0) + config.skillBoost;
-        });
+      // Bump every hobby's skillLevel by the boost amount (hobbies are
+      // the game's skill system; gameState.skills doesn't exist).
+      if (gameState.hobbies) {
+        for (const hobby of gameState.hobbies) {
+          hobby.skillLevel = clampHobbySkillLevel(hobby.skillLevel + config.skillBoost);
+        }
       }
     }
 
@@ -865,6 +867,11 @@ export class IAPService {
     if (config.workBoost) {
       gameState.perks.workBoost = true;
       await this.savePermanentPerk('workBoost');
+    }
+
+    if (config.mindset) {
+      gameState.perks.mindset = true;
+      await this.savePermanentPerk('mindset');
     }
 
     if (config.fastLearner) {
@@ -895,9 +902,6 @@ export class IAPService {
 
     // Handle money multiplier
     if (config.moneyMultiplier) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.moneyMultiplier = true;
     }
 
@@ -917,9 +921,6 @@ export class IAPService {
 
     // Handle everything unlocked
     if (config.everythingUnlocked) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.everythingUnlocked = true;
       gameState.settings.adsRemoved = true;
       gameState.settings.lifetimePremium = true;
@@ -938,9 +939,6 @@ export class IAPService {
 
     // Handle unlimited youth pills
     if (config.unlimitedYouthPills) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.unlimitedYouthPills = true;
       // Set a very high number for practical purposes
       gameState.youthPills = 999999;
@@ -948,9 +946,6 @@ export class IAPService {
 
     // Handle lifetime premium
     if (config.lifetimePremium) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.lifetimePremium = true;
       gameState.settings.adsRemoved = true;
     }
@@ -1343,11 +1338,12 @@ export class IAPService {
     }
 
     if (config.skillBoost) {
-      // Add to all skills
-      if (gameState.skills) {
-        Object.keys(gameState.skills).forEach(skill => {
-          gameState.skills[skill] = (gameState.skills[skill] || 0) + config.skillBoost;
-        });
+      // Bump every hobby's skillLevel by the boost amount (hobbies are
+      // the game's skill system; gameState.skills doesn't exist).
+      if (gameState.hobbies) {
+        for (const hobby of gameState.hobbies) {
+          hobby.skillLevel = clampHobbySkillLevel(hobby.skillLevel + config.skillBoost);
+        }
       }
     }
 
@@ -1382,9 +1378,6 @@ export class IAPService {
 
     // Handle money multiplier
     if (config.moneyMultiplier) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.moneyMultiplier = true;
     }
 
@@ -1404,9 +1397,6 @@ export class IAPService {
 
     // Handle everything unlocked
     if (config.everythingUnlocked) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.everythingUnlocked = true;
       gameState.settings.adsRemoved = true;
       gameState.settings.lifetimePremium = true;
@@ -1425,9 +1415,6 @@ export class IAPService {
 
     // Handle unlimited youth pills
     if (config.unlimitedYouthPills) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.unlimitedYouthPills = true;
       // Set a very high number for practical purposes
       gameState.youthPills = 999999;
@@ -1435,9 +1422,6 @@ export class IAPService {
 
     // Handle lifetime premium
     if (config.lifetimePremium) {
-      if (!gameState.settings) {
-        gameState.settings = {};
-      }
       gameState.settings.lifetimePremium = true;
       gameState.settings.adsRemoved = true;
     }

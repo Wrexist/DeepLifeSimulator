@@ -1,12 +1,12 @@
-﻿import React from 'react';
+import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
-import { X, User, Star, Briefcase, Heart, Brain } from 'lucide-react-native';
+import { X, User, Star, Brain } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+const LinearGradient = LinearGradientFallback;
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 interface Props {
   member: FamilyMemberNode | null;

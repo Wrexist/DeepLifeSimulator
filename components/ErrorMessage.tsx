@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { MotiView } from '@/components/anim/MotiStub';
+import { X, RefreshCw } from 'lucide-react-native';
 const LinearGradient = LinearGradientFallback;
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
-import { AlertTriangle, X, RefreshCw } from 'lucide-react-native';
 
 interface ErrorMessageProps {
   visible: boolean;
@@ -31,6 +31,7 @@ export default function ErrorMessage({
       const timer = setTimeout(onDismiss, dismissAfter);
       return () => clearTimeout(timer);
     }
+    return;
   }, [visible, autoDismiss, onDismiss, dismissAfter]);
 
   if (!visible) return null;

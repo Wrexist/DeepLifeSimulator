@@ -1,10 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { HelpCircle, Play, BookOpen, Sparkles } from 'lucide-react-native';
 import { useTutorial } from '@/contexts/UIUXContext';
-import { useGame } from '@/contexts/GameContext';
-import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 
 interface TutorialTriggerProps {
   context?: 'game' | 'onboarding' | 'advanced';
@@ -22,7 +20,6 @@ export default function TutorialTrigger({
   onPress
 }: TutorialTriggerProps) {
   const { startEnhancedTutorial, hasCompletedTutorial } = useTutorial();
-  const { gameState } = useGame();
 
   const handleTutorialStart = () => {
     startEnhancedTutorial(context);
@@ -59,11 +56,11 @@ export default function TutorialTrigger({
     }
   };
 
-  const getColors = () => {
+  const getColors = (): readonly [string, string] => {
     if (!hasCompletedTutorial) {
       return ['#10B981', '#059669'];
     }
-    
+
     switch (context) {
       case 'onboarding':
         return ['#8B5CF6', '#7C3AED'];

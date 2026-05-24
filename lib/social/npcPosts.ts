@@ -5,8 +5,7 @@
  * to create a dynamic, living social media feed
  */
 
-import { Relationship } from '@/contexts/game/types';
-import { SocialPost } from '@/contexts/game/types';
+import { Relationship , SocialPost } from '@/contexts/game/types';
 
 // Post templates by personality type
 const POST_TEMPLATES: Record<string, string[]> = {
@@ -194,7 +193,7 @@ export function generateDatingProfilePost(
  */
 export function generateWeeklyNPCPosts(
   relationships: Relationship[],
-  datingProfiles: Array<{ name: string; id: string; bio?: string; interests?: string[] }>,
+  datingProfiles: { name: string; id: string; bio?: string; interests?: string[] }[],
   week: number,
   includeRandom: boolean = true
 ): SocialPost[] {
@@ -217,7 +216,7 @@ export function generateWeeklyNPCPosts(
   // Ensure at least some posts are generated if we have profiles
   // If no posts were generated but we have profiles, force generate at least 2-4 posts
   if (posts.length === 0 && (relationships.length > 0 || datingProfiles.length > 0)) {
-    const allSources: Array<{ type: 'relationship' | 'dating'; data: any }> = [
+    const allSources: { type: 'relationship' | 'dating'; data: any }[] = [
       ...relationships.map(r => ({ type: 'relationship' as const, data: r })),
       ...datingProfiles.map(p => ({ type: 'dating' as const, data: p })),
     ];
@@ -271,7 +270,7 @@ export function generateWeeklyNPCPosts(
 export function getAvailableDatingProfiles(
   playerGender?: 'male' | 'female',
   playerSeekingGender?: 'male' | 'female'
-): Array<{ name: string; id: string; bio?: string; interests?: string[] }> {
+): { name: string; id: string; bio?: string; interests?: string[] }[] {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { DATING_PROFILES } = require('@/lib/dating/datingProfiles');

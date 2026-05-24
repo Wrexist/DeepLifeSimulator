@@ -7,13 +7,13 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Alert, StyleSheet } from 'react-native';
 import { Shield, Bug, RotateCcw, X } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useRouter, type Href } from 'expo-router';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface Props {
   onShowBugReport: () => void;

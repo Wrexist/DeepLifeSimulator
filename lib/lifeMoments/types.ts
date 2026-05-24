@@ -65,8 +65,8 @@ export interface LifeMoment {
 export interface LifeMomentChoice {
   id: string;
   text: string;
-  quickEffect: Array<{ stat: keyof GameStats | 'money'; amount: number; label: string }>;
+  quickEffect: { stat: keyof GameStats | 'money'; amount: number; label: string }[];
   hiddenEffect?: string; // Description shown later when consequence activates
-  hiddenConsequences?: Array<Omit<HiddenConsequence, 'id' | 'eventId' | 'choiceId' | 'active' | 'weeksSinceCreated' | 'createdAt'>>;
+  hiddenConsequences?: Omit<HiddenConsequence, 'id' | 'eventId' | 'choiceId' | 'active' | 'weeksSinceCreated' | 'createdAt'>[];
 }
 

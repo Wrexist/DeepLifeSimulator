@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,8 @@ import {
   Easing,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { DesignSystem } from '@/utils/designSystem';
+const LinearGradient = LinearGradientFallback;
 
 interface EnhancedLoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';

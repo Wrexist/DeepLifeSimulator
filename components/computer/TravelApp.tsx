@@ -11,11 +11,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 import {
   ArrowLeft,
   Plane,
@@ -28,7 +26,6 @@ import {
   History,
   Globe,
   CheckCircle,
-  XCircle,
   Brain,
   Wind,
   Sparkles,
@@ -37,12 +34,12 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
-import { travelTo, returnFromTrip, purchasePassport, unlockBusinessOpportunity, investInBusinessOpportunity } from '@/contexts/game/actions/TravelActions';
+import { travelTo, returnFromTrip, purchasePassport, investInBusinessOpportunity } from '@/contexts/game/actions/TravelActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface TravelAppProps {
   onBack: () => void;

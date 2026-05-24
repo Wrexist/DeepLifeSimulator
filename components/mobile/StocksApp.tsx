@@ -1,15 +1,15 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Modal, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, BarChart3, Plus, Minus, RefreshCw } from 'lucide-react-native';
+import { ArrowLeft, TrendingUp, BarChart3, Plus, Minus } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
-import { SkeletonLoader, SkeletonList } from '@/components/ui/SkeletonLoader';
+import SkeletonLoader, { SkeletonList } from '@/components/ui/SkeletonLoader';
 import EmptyState from '@/components/ui/EmptyState';
 import { getStockInfo, getAllStockSymbols } from '@/lib/economy/stockMarket';
 import { formatMoney } from '@/utils/moneyFormatting';
+const LinearGradient = LinearGradientFallback;
 
 interface StocksAppProps {
   onBack: () => void;
@@ -224,7 +224,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
   const [shares, setShares] = useState('');
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, _setIsLoading] = useState(false);
   const [inputMode, setInputMode] = useState<'shares' | 'money'>('shares');
   const [tradingLoading, setTradingLoading] = useState(false);
 
@@ -906,7 +906,7 @@ export default function StocksApp({ onBack }: StocksAppProps) {
                       loading={tradingLoading}
                       variant={tradeType === 'buy' ? 'success' : 'danger'}
                       size="medium"
-                      style={[styles.modalConfirmButton, tradeType === 'buy' ? styles.modalConfirmButtonBuy : styles.modalConfirmButtonSell]}
+                      style={StyleSheet.flatten([styles.modalConfirmButton, tradeType === 'buy' ? styles.modalConfirmButtonBuy : styles.modalConfirmButtonSell])}
                       loadingText={tradeType === 'buy' ? 'Buying...' : 'Selling...'}
                     />
                   </View>

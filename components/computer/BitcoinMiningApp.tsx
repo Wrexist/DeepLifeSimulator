@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 
 
@@ -10,11 +10,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 
 
 
-const LinearGradient = LinearGradientFallback;
-
-
-
-import { ArrowLeft, Bitcoin, Zap, DollarSign, TrendingUp, TrendingDown, Cpu, Activity, HardDrive, Coins, Building2, CheckCircle, Sparkles, AlertTriangle, X, BarChart3, Users, Lock, Sun, Wind, Settings, TrendingDown as TrendingDownIcon, Award, Target, ChevronRight, ChevronLeft, ShoppingCart, Plus, Minus } from 'lucide-react-native';
+import { ArrowLeft, Bitcoin, Zap, DollarSign, TrendingUp, TrendingDown, Cpu, Activity, HardDrive, Coins, Building2, CheckCircle, Sparkles, AlertTriangle, X, BarChart3, Users, Lock, Sun, Settings, Award, ChevronRight, ChevronLeft, Plus, Minus } from 'lucide-react-native';
 
 
 
@@ -24,7 +20,7 @@ import * as MiningActions from '@/contexts/game/actions/MiningActions';
 
 
 
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 
 
 
@@ -44,12 +40,16 @@ import { getShadow } from '@/utils/shadow';
 
 
 
-import { scale, fontScale, responsivePadding, getResponsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { scale, fontScale, getResponsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 
 
 
 import { validateMoney, validatePositiveNumber } from '@/utils/validation';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+
+
+
+const LinearGradient = LinearGradientFallback;
 
 
 
@@ -503,7 +503,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
 
 
 
-  const [swapAmountError, setSwapAmountError] = useState<string | undefined>();
+  const [_swapAmountError, _setSwapAmountError] = useState<string | undefined>();
 
 
 
@@ -4773,7 +4773,7 @@ export default function BitcoinMiningApp({ onBack }: BitcoinMiningAppProps) {
             const value = amount * (crypto?.price || 0);
             return (
               <View key={cryptoId} style={[styles.cryptoStatCard, isDarkMode && styles.cryptoStatCardDark]}>
-                <View style={styles.cryptoStatHeader}>
+                <View style={styles.cryptoHeader}>
                   <Text style={[styles.cryptoStatSymbol, isDarkMode && styles.cryptoStatSymbolDark]}>
                     {crypto?.symbol.toUpperCase() || cryptoId}
                   </Text>

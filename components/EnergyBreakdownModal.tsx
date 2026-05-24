@@ -18,17 +18,17 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
   const { theme, isDark } = useTheme();
 
   const breakdown = useMemo(() => {
-    const drains: Array<{ label: string; value: number; icon: any; color: string; description?: string }> = [];
-    const incomes: Array<{ label: string; value: number; icon: any; color: string; description?: string }> = [];
+    const drains: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
+    const incomes: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
 
     // Calculate energy drain from career (active job)
     if (currentJob) {
       const career = careers?.find(c => c.id === currentJob && c.accepted);
       if (career && career.levels && career.levels.length > 0) {
-        const currentLevel = career.levels.find(l => l.level === (career.currentLevel || 1));
+        const currentLevel = career.levels[career.level] || career.levels[0];
         if (currentLevel && currentLevel.energyCost) {
           drains.push({
-            label: `Career: ${career.name}`,
+            label: `Career: ${currentLevel.name}`,
             value: -currentLevel.energyCost,
             icon: Briefcase,
             color: '#EF4444',
@@ -41,8 +41,9 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
     // Show pending applications (they don't drain energy, but good to show)
     const pendingApplication = careers?.find(c => c && c.applied && !c.accepted);
     if (pendingApplication && !currentJob) {
+      const pendingLevel = pendingApplication.levels?.[0];
       drains.push({
-        label: `Pending Application: ${pendingApplication.name}`,
+        label: `Pending Application: ${pendingLevel?.name || pendingApplication.id}`,
         value: 0,
         icon: Briefcase,
         color: '#9CA3AF',

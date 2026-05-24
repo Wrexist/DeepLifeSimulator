@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, Image } from 'react-native';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useGame } from '@/contexts/GameContext';
-import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Gamepad2, Unlock, Gem, RefreshCw } from 'lucide-react-native';
+import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Unlock, Gem, RefreshCw } from 'lucide-react-native';
 import usePressableScale from '@/hooks/usePressableScale';
 import Skeleton from '@/components/anim/Skeleton';
-import { iapService } from '@/services/IAPService';
+import { iapService, IAPService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 
 interface ScaleButtonProps {
@@ -41,18 +41,17 @@ interface ShopModalProps {
 }
 
 export default function ShopModal({ visible, onClose }: ShopModalProps) {
-  const { gameState, setGameState, saveGame, savePermanentPerk, hasPermanentPerk } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { settings, perks } = gameState;
   const [activeTab, setActiveTab] = useState<'perks' | 'packs' | 'special' | 'gold'>('perks');
   const [loading, setLoading] = useState(true);
   const [iapLoading, setIapLoading] = useState(false);
 
   useEffect(() => {
-    if (visible) {
-      setLoading(true);
-      const t = setTimeout(() => setLoading(false), 500);
-      return () => clearTimeout(t);
-    }
+    if (!visible) return;
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(t);
   }, [visible]);
 
   const perkItems = [
@@ -191,7 +190,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
 
     // Handle special products - Save as permanent perks
     if (config.workBoost) {
-      await savePermanentPerk('workBoost');
+      await IAPService.savePermanentPerk('workBoost');
       setGameState(prev => ({
         ...prev,
         perks: { ...prev.perks, workBoost: true }
@@ -199,7 +198,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     }
 
     if (config.mindset) {
-      await savePermanentPerk('mindset');
+      await IAPService.savePermanentPerk('mindset');
       setGameState(prev => ({
         ...prev,
         perks: { ...prev.perks, mindset: true }
@@ -207,7 +206,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     }
 
     if (config.fastLearner) {
-      await savePermanentPerk('fastLearner');
+      await IAPService.savePermanentPerk('fastLearner');
       setGameState(prev => ({
         ...prev,
         perks: { ...prev.perks, fastLearner: true }
@@ -215,7 +214,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     }
 
     if (config.goodCredit) {
-      await savePermanentPerk('goodCredit');
+      await IAPService.savePermanentPerk('goodCredit');
       setGameState(prev => ({
         ...prev,
         perks: { ...prev.perks, goodCredit: true }
@@ -224,10 +223,10 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
 
     if (config.allPerks) {
       await Promise.all([
-        savePermanentPerk('workBoost'),
-        savePermanentPerk('mindset'),
-        savePermanentPerk('fastLearner'),
-        savePermanentPerk('goodCredit')
+        IAPService.savePermanentPerk('workBoost'),
+        IAPService.savePermanentPerk('mindset'),
+        IAPService.savePermanentPerk('fastLearner'),
+        IAPService.savePermanentPerk('goodCredit')
       ]);
       setGameState(prev => ({
         ...prev,
@@ -766,7 +765,9 @@ const styles = StyleSheet.create({
   ownedItemText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   ownedItemDescription: {
     color: '#D1FAE5',

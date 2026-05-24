@@ -9,15 +9,13 @@
  * - Weekly vehicle maintenance processing
  */
 
-import { GameState, Vehicle, VehicleInsurance } from '../types';
+import { GameState, VehicleInsurance } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import {
   VEHICLE_TEMPLATES,
-  INSURANCE_PLANS,
   DRIVERS_LICENSE,
-  VehicleTemplate,
   createVehicleFromTemplate,
   calculateVehicleSellPrice,
   calculateRepairCost,

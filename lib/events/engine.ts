@@ -44,11 +44,11 @@ export interface EventChoice {
 export interface EnhancedEventChoice extends EventChoice {
   // Visual tradeoff indicators (shown in UI)
   tradeoffs?: {
-    gain: Array<{ stat: string; amount: number; label: string }>;
-    lose: Array<{ stat: string; amount: number; label: string }>;
+    gain: { stat: string; amount: number; label: string }[];
+    lose: { stat: string; amount: number; label: string }[];
   };
   // Hidden consequences (long-term effects)
-  hiddenConsequences?: Array<Omit<import('@/lib/lifeMoments/types').HiddenConsequence, 'id' | 'eventId' | 'choiceId' | 'active' | 'weeksSinceCreated' | 'createdAt'>>;
+  hiddenConsequences?: Omit<import('@/lib/lifeMoments/types').HiddenConsequence, 'id' | 'eventId' | 'choiceId' | 'active' | 'weeksSinceCreated' | 'createdAt'>[];
   // Emotional weight indicator
   emotionalImpact?: 'low' | 'medium' | 'high';
   // Memory creation

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LegacyTimeline Component
  * 
  * Displays previous lives with expandable details, family tree links,
@@ -13,10 +13,8 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
-  Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   Crown,
@@ -37,13 +35,10 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import {
-  responsivePadding,
-  responsiveFontSize,
-  responsiveSpacing,
-  responsiveBorderRadius,
   scale,
   fontScale,
 } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 const { width } = Dimensions.get('window');
 

@@ -4,7 +4,7 @@
  * Complete social media experience with profile customization,
  * X.com-style feed, photo uploads, and engagement features
  */
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,10 +24,7 @@ import {
   Feather,
   User,
   TrendingUp,
-  Hash,
-  BadgeCheck,
   Heart,
-  DollarSign,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
@@ -37,24 +34,19 @@ import PostComposer from './social/PostComposer';
 import ProfileEditModal, { ProfileData } from './social/ProfileEditModal';
 import DMSystem from './social/DMSystem';
 import { 
-  calculateFollowerGrowth, 
   checkViralChance, 
   getInfluenceLevelInfo,
   getEnergyCost,
   getHealthCost,
   getHappinessGain,
-  getCooldownTime,
   canCreateContent,
   calculatePostAdRevenue,
   calculatePostEngagement,
   calculateNewFollowersFromPost,
-  calculateWeeklyImpressionEarnings,
-  calculateTipsRevenue,
   type ContentType,
   type InfluenceLevel,
 } from '@/lib/social/socialMedia';
 import type { SocialPost, GameDate } from '@/contexts/game/types';
-import { PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 interface SocialAppProps {

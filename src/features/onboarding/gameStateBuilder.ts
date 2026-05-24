@@ -7,6 +7,7 @@
 
 import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import type { MindsetId } from '@/lib/mindset/config';
+import { perks as perksCatalog } from './perksData';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,13 +152,32 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     scenario.start
   );
 
+  // Aggregate every selected perk's statBoosts from the catalog. Previously
+  // only legacy_builder and astute_planner were applied via inline checks;
+  // the other 18 perks were tracked as flags but never contributed their
+  // advertised stat bonuses (iron_will, lucky_charm, trust_fund, etc.
+  // were essentially cosmetic). Permanent perks earn the same boosts.
+  const perkStatBoosts: Record<string, number> = {};
+  const allActivePerkIds = [...permanentPerks, ...selectedPerks];
+  for (const perkId of allActivePerkIds) {
+    const perk = perksCatalog.find((p) => p.id === perkId);
+    if (!perk?.effects?.statBoosts) continue;
+    for (const [key, value] of Object.entries(perk.effects.statBoosts)) {
+      perkStatBoosts[key] = (perkStatBoosts[key] || 0) + (value as number);
+    }
+  }
+
+  const baseStats = initialGameState.stats;
   const newState: any = {
     ...initialGameState,
     stats: {
-      ...initialGameState.stats,
-      money: scenario.start.cash + (selectedPerks.includes('legacy_builder') ? 5000 : 0),
-      reputation: initialGameState.stats.reputation + (selectedPerks.includes('legacy_builder') ? 5 : 0),
-      energy: initialGameState.stats.energy + (selectedPerks.includes('astute_planner') ? 10 : 0),
+      ...baseStats,
+      money: scenario.start.cash + (perkStatBoosts.money || 0),
+      reputation: baseStats.reputation + (perkStatBoosts.reputation || 0),
+      energy: baseStats.energy + (perkStatBoosts.energy || 0),
+      health: baseStats.health + (perkStatBoosts.health || 0),
+      happiness: baseStats.happiness + (perkStatBoosts.happiness || 0),
+      fitness: baseStats.fitness + (perkStatBoosts.fitness || 0),
     },
     weeksLived,
     week: (weeksLived % WEEKS_PER_MONTH) + 1,

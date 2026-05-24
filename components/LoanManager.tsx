@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   ScrollView,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useGame, Loan } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -25,6 +24,7 @@ import {
   PiggyBank,
   Car,
 } from 'lucide-react-native';
+const LinearGradient = LinearGradientFallback;
 
 
 const LOAN_TYPES = [

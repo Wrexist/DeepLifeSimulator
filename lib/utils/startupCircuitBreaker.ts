@@ -8,6 +8,8 @@
 // CRITICAL: DO NOT import AsyncStorage at module level
 // This would trigger TurboModule initialization before bridge is ready on iOS 26 Beta
 // Instead, lazy-load it on first use
+import { logger } from '@/utils/logger';
+
 let _asyncStorage: typeof import('@react-native-async-storage/async-storage').default | null = null;
 let _asyncStorageLoadAttempted = false;
 
@@ -31,8 +33,6 @@ function getAsyncStorage(): typeof import('@react-native-async-storage/async-sto
     return null;
   }
 }
-
-import { logger } from '@/utils/logger';
 
 export type CircuitBreakerState = 'closed' | 'open' | 'half-open';
 

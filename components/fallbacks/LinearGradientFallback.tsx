@@ -6,10 +6,10 @@
  */
 
 import React from 'react';
-import { View, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleProp, StyleSheet, ViewStyle, ColorValue } from 'react-native';
 
 interface LinearGradientFallbackProps {
-  colors?: string[];
+  colors?: readonly ColorValue[];
   start?: { x: number; y: number };
   end?: { x: number; y: number };
   locations?: number[];

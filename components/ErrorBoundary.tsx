@@ -2,9 +2,13 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, Share, Linking } from 'react-native';
 // CRITICAL: Use fallback instead of direct expo-linear-gradient import to prevent crashes
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { RefreshCw, AlertTriangle, Home, Download, MessageCircle, FileText } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
+import { remoteLogger } from '@/services/RemoteLoggingService';
+import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
+import { validateGameState } from '@/utils/saveValidation';
+import { DISCORD_URL } from '@/lib/config/appConfig';
+const LinearGradient = LinearGradientFallback;
 
 // CRITICAL: Lazy load AsyncStorage to prevent TurboModule crash on iOS 26 Beta
 // This creates a proxy that loads the real module on first use
@@ -47,10 +51,6 @@ const AsyncStorage = {
     if (storage) await storage.multiRemove(keys);
   },
 };
-import { remoteLogger } from '@/services/RemoteLoggingService';
-import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
-import { validateGameState } from '@/utils/saveValidation';
-import { DISCORD_URL } from '@/lib/config/appConfig';
 
 interface Props {
   children: ReactNode;
@@ -416,7 +416,7 @@ class ErrorBoundary extends Component<Props, State> {
               : undefined,
           }));
       } catch (logError) {
-        logger.warn('Failed to get logs from remoteLogger:', logError);
+        logger.warn('Failed to get logs from remoteLogger:', { error: logError });
       }
 
       // Get essential game state information

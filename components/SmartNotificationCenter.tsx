@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,12 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   Bell,
   BellOff,
   X,
   Settings,
-  Filter,
   Check,
   AlertTriangle,
   Info,
@@ -25,15 +23,12 @@ import {
   Calendar,
   PartyPopper,
   MessageSquare,
-  Eye,
-  EyeOff,
   Trash2,
-  MoreHorizontal,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { SmartNotification, NotificationContext, useSmartNotifications } from '@/utils/smartNotifications';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
+const LinearGradient = LinearGradientFallback;
 
 interface SmartNotificationCenterProps {
   visible: boolean;

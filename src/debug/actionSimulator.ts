@@ -70,7 +70,7 @@ export function generateActionSimulations(): SimulatedAction[] {
   });
 
   // === STATS ACTIONS (12 actions) ===
-  const statTypes: Array<keyof GameStats> = ['health', 'happiness', 'energy', 'fitness'];
+  const statTypes: (keyof GameStats)[] = ['health', 'happiness', 'energy', 'fitness'];
   const statAmounts = [25, 50, -25, -50];
 
   statTypes.forEach((statType) => {
@@ -279,7 +279,7 @@ export interface LifeScenario {
   id: string;
   name: string;
   description: string;
-  actions: Array<{ actionId: string; delay?: number }>;
+  actions: { actionId: string; delay?: number }[];
 }
 
 export function generateLifeScenarios(): LifeScenario[] {
@@ -359,8 +359,8 @@ export async function runActionSimulation(
   getGameState: () => GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   onProgress?: (current: number, total: number, action: SimulatedAction) => void
-): Promise<{ success: number; failed: number; results: Array<{ action: SimulatedAction; result: { success: boolean; message: string } }> }> {
-  const results: Array<{ action: SimulatedAction; result: { success: boolean; message: string } }> = [];
+): Promise<{ success: number; failed: number; results: { action: SimulatedAction; result: { success: boolean; message: string } }[] }> {
+  const results: { action: SimulatedAction; result: { success: boolean; message: string } }[] = [];
   let success = 0;
   let failed = 0;
 
@@ -410,8 +410,8 @@ export async function runLifeScenario(
   getGameState: () => GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   onProgress?: (current: number, total: number, actionName: string) => void
-): Promise<{ success: number; failed: number; results: Array<{ actionId: string; result: { success: boolean; message: string } }> }> {
-  const results: Array<{ actionId: string; result: { success: boolean; message: string } }> = [];
+): Promise<{ success: number; failed: number; results: { actionId: string; result: { success: boolean; message: string } }[] }> {
+  const results: { actionId: string; result: { success: boolean; message: string } }[] = [];
   let success = 0;
   let failed = 0;
 

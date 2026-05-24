@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Profile Edit Modal - X.com Style
  * 
  * Modal for editing profile details including photo uploads
@@ -19,9 +19,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
-  X,
   Camera,
   ArrowLeft,
 } from 'lucide-react-native';
@@ -30,9 +28,9 @@ import {
   pickProfilePhoto, 
   pickHeaderPhoto, 
   showImageSourcePicker,
-  takePhoto,
   PLACEHOLDER_IMAGES 
 } from '@/utils/imageUtils';
+const LinearGradient = LinearGradientFallback;
 
 interface ProfileEditModalProps {
   visible: boolean;
@@ -138,37 +136,21 @@ export default function ProfileEditModal({
   }, [hasChanges, onClose]);
   
   const handlePickProfilePhoto = useCallback(() => {
-    showImageSourcePicker(
-      async () => {
-        const result = await pickProfilePhoto();
-        if (result.success && result.base64) {
-          setProfilePhoto(result.base64);
-        }
-      },
-      async () => {
-        const result = await takePhoto({ aspect: [1, 1] });
-        if (result.success && result.base64) {
-          setProfilePhoto(result.base64);
-        }
+    showImageSourcePicker(async () => {
+      const result = await pickProfilePhoto();
+      if (result.success && result.base64) {
+        setProfilePhoto(result.base64);
       }
-    );
+    });
   }, []);
-  
+
   const handlePickHeaderPhoto = useCallback(() => {
-    showImageSourcePicker(
-      async () => {
-        const result = await pickHeaderPhoto();
-        if (result.success && result.base64) {
-          setHeaderPhoto(result.base64);
-        }
-      },
-      async () => {
-        const result = await takePhoto({ aspect: [3, 1] });
-        if (result.success && result.base64) {
-          setHeaderPhoto(result.base64);
-        }
+    showImageSourcePicker(async () => {
+      const result = await pickHeaderPhoto();
+      if (result.success && result.base64) {
+        setHeaderPhoto(result.base64);
       }
-    );
+    });
   }, []);
   
   return (

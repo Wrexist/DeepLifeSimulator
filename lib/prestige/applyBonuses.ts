@@ -70,13 +70,12 @@ export function applyStartingBonuses(
   if (unlockedBonuses.includes('starting_investment_portfolio')) {
     const portfolioValue = 50000;
     // Initialize stocks if not present
-    if (!newState.stocks) {
-      newState.stocks = {
-        holdings: [],
-        watchlist: [],
-        realizedGains: 0,
-      };
-    }
+    const stocks = newState.stocks || {
+      holdings: [],
+      watchlist: [],
+      realizedGains: 0,
+    };
+    newState.stocks = stocks;
     // Add diversified stock holdings (simplified - add to a few major stocks)
     const { getStockInfo } = require('@/lib/economy/stockMarket');
     const majorStocks = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA'];
@@ -87,12 +86,12 @@ export function applyStartingBonuses(
       if (stockInfo && stockInfo.currentPrice > 0) {
         const shares = Math.floor(portfolioValue / majorStocks.length / stockInfo.currentPrice);
         if (shares > 0) {
-          const existingHolding = newState.stocks.holdings.find(h => h.symbol === symbol);
+          const existingHolding = stocks.holdings.find(h => h.symbol === symbol);
           if (existingHolding) {
             existingHolding.shares += shares;
             existingHolding.averagePrice = (existingHolding.averagePrice * existingHolding.shares + stockInfo.currentPrice * shares) / (existingHolding.shares + shares);
           } else {
-            newState.stocks.holdings.push({
+            stocks.holdings.push({
               symbol,
               shares,
               averagePrice: stockInfo.currentPrice,
@@ -109,12 +108,11 @@ export function applyStartingBonuses(
   if (unlockedBonuses.includes('starting_real_estate')) {
     // Find a basic rental property to give
     const basicProperties = (newState.realEstate || []).filter(
-      prop => prop.type === 'apartment' && !prop.owned && (prop.price || 0) <= 150000
+      prop => !prop.owned && (prop.price || 0) <= 150000
     );
     if (basicProperties.length > 0) {
       const property = basicProperties[0];
       property.owned = true;
-      property.purchaseDate = newState.date;
     }
   }
 
@@ -157,7 +155,18 @@ export function applyStartingBonuses(
         id: 'starting_vehicle',
         name: 'Basic Car',
         type: 'car',
+        brand: 'Generic',
+        model: 'Sedan',
+        year: 2010,
         price: 15000,
+        condition: 80,
+        fuelLevel: 100,
+        fuelCapacity: 12,
+        fuelEfficiency: 30,
+        mileage: 50000,
+        weeklyMaintenanceCost: 20,
+        weeklyFuelCost: 30,
+        maxSpeed: 120,
         owned: true,
         speedBonus: 0,
         reputationBonus: 0,

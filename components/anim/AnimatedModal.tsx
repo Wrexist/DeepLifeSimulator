@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Modal, View, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { useGame } from '@/contexts/GameContext';
+const BlurView = BlurViewFallback;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

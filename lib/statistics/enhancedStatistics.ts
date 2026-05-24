@@ -31,13 +31,13 @@ export interface EnhancedLifetimeStatistics extends LifetimeStatistics {
     systemsEngaged: number;
     averageDepthScore: number;
     peakDepthScore: number;
-    depthScoreHistory: Array<{ week: number; score: number }>;
+    depthScoreHistory: { week: number; score: number }[];
   };
-  weeklySystemEngagement?: Array<{
+  weeklySystemEngagement?: {
     week: number;
     systems: string[];
     depthScore: number;
-  }>;
+  }[];
 }
 
 /**
@@ -146,7 +146,7 @@ function calculateDepthMetrics(gameState: GameState): EnhancedLifetimeStatistics
   const activeSystems = getActiveSystems(gameState);
 
   // Calculate depth score history (simplified - can be enhanced with actual tracking)
-  const depthScoreHistory: Array<{ week: number; score: number }> = [];
+  const depthScoreHistory: { week: number; score: number }[] = [];
   const weeksLived = gameState.weeksLived || 0;
   
   // Sample every 10 weeks
@@ -185,12 +185,12 @@ function getInterconnectionHistory(gameState: GameState): SystemInterconnection[
 /**
  * Get weekly system engagement
  */
-function getWeeklySystemEngagement(gameState: GameState): Array<{
+function getWeeklySystemEngagement(gameState: GameState): {
   week: number;
   systems: string[];
   depthScore: number;
-}> {
-  const engagement: Array<{ week: number; systems: string[]; depthScore: number }> = [];
+}[] {
+  const engagement: { week: number; systems: string[]; depthScore: number }[] = [];
   const weeksLived = gameState.weeksLived || 0;
   const { calculateDepthScore } = require('@/lib/depth/discoverySystem');
 

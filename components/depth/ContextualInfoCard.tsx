@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Contextual Information Card
  * Long-press or info button reveals detailed information about a system/item
  */
@@ -14,7 +14,6 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   Info,
@@ -23,26 +22,24 @@ import {
   Link,
   Lock,
   Unlock,
-  Target,
-  Clock,
   Award,
   AlertCircle,
 } from 'lucide-react-native';
-import { GameState } from '@/contexts/game/types';
 import { SystemHealth } from '@/lib/depth/systemInterconnections';
 import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface ContextualInfoCardProps {
   title: string;
   description?: string;
   currentStatus?: string;
   progress?: number;
-  relatedSystems?: Array<{
+  relatedSystems?: {
     id: string;
     name: string;
     effect: 'positive' | 'negative';
     description: string;
-  }>;
+  }[];
   unlockRequirements?: string[];
   historicalPerformance?: {
     peak: number;

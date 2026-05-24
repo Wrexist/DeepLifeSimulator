@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Vehicle App Component
  * 
  * Complete garage management: purchase/sell vehicles, refuel, repair, insurance, and driver's license
@@ -11,12 +11,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
   Modal,
   Image,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   ArrowLeft,
   Car,
@@ -25,16 +23,11 @@ import {
   Wrench,
   Shield,
   CreditCard,
-  ShoppingCart,
   DollarSign,
   Star,
   Gauge,
-  MapPin,
   CheckCircle,
-  XCircle,
-  Award,
   AlertTriangle,
-  Settings,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import EmptyState from '@/components/ui/EmptyState';
@@ -61,8 +54,8 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { scale, fontScale } from '@/utils/scaling';
 import { Vehicle, VehicleInsurance } from '@/contexts/game/types';
+const LinearGradient = LinearGradientFallback;
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface VehicleAppProps {
   onBack: () => void;

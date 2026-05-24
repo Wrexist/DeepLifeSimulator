@@ -8,13 +8,13 @@ import {
   TouchableOpacityProps,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '@/utils/haptics';
 
 interface AnimatedButtonProps extends TouchableOpacityProps {
   children: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
-  gradient?: string[];
+  gradient?: readonly [string, string, ...string[]];
   hapticFeedback?: boolean;
   scaleValue?: number;
   duration?: number;
@@ -25,7 +25,7 @@ export default function AnimatedButton({
   children,
   style,
   textStyle,
-  gradient = ['#3B82F6', '#2563EB'],
+  gradient = ['#3B82F6', '#2563EB'] as const,
   hapticFeedback = true,
   scaleValue = 0.95,
   duration = 150,
@@ -54,7 +54,7 @@ export default function AnimatedButton({
     ]).start();
 
     if (hapticFeedback) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptic.light();
     }
   };
 
@@ -80,9 +80,9 @@ export default function AnimatedButton({
     if (disabled) return;
     
     if (hapticFeedback) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      haptic.medium();
     }
-    
+
     onPress?.(event);
   };
 
@@ -110,7 +110,7 @@ export default function AnimatedButton({
         {...props}
       >
         <LinearGradient
-          colors={disabled ? ['#6B7280', '#4B5563'] : gradient}
+          colors={disabled ? ['#6B7280', '#4B5563'] as const : gradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.gradient, disabled && styles.disabledGradient]}

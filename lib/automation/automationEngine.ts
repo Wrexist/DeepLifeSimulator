@@ -88,10 +88,13 @@ export function evaluateConditions(
         // This would need total assets, simplified for now
         result = money > condition.value;
         break;
-      case 'income_received':
+      case 'income_received': {
         // Check if player has a job with positive salary (income source exists)
-        result = (state.job?.salary || 0) > 0 || (state.company?.weeklyIncome || 0) > 0;
+        const career = state.careers?.find(c => c.id === state.currentJob);
+        const jobSalary = career?.levels?.[career.level]?.salary || 0;
+        result = jobSalary > 0 || (state.company?.weeklyIncome || 0) > 0;
         break;
+      }
       case 'week_number':
         result = week >= condition.value;
         break;

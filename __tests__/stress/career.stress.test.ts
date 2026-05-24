@@ -1,6 +1,5 @@
 import { GameState } from '@/contexts/GameContext';
 import { advanceWeeks, advanceYears } from './helpers/timeHelpers';
-import { setupWealthyPlayer } from './helpers/scenarioBuilders';
 import { expectNumericalStability } from './helpers/assertions';
 
 describe('Career & Education Stress Tests', () => {
@@ -67,8 +66,6 @@ describe('Career & Education Stress Tests', () => {
             duration: 104,
             weeksRemaining: 104,
             completed: false,
-            requirements: [],
-            unlocks: [],
           },
         ],
       };
@@ -97,8 +94,6 @@ describe('Career & Education Stress Tests', () => {
         duration: 208,
         weeksRemaining: 208,
         completed: false,
-        requirements: ['masters'],
-        unlocks: ['advanced_doctor'],
       });
 
       // Deduct cost
@@ -116,7 +111,7 @@ describe('Career & Education Stress Tests', () => {
     });
 
     it('should handle multiple simultaneous educations', () => {
-      let state = {
+      let state: GameState = {
         ...baseState,
         stats: {
           ...baseState.stats,
@@ -131,8 +126,6 @@ describe('Career & Education Stress Tests', () => {
             duration: 72,
             weeksRemaining: 72,
             completed: false,
-            requirements: [],
-            unlocks: [],
           },
           {
             id: 'computer-science',
@@ -142,8 +135,6 @@ describe('Career & Education Stress Tests', () => {
             duration: 104,
             weeksRemaining: 104,
             completed: false,
-            requirements: [],
-            unlocks: [],
           },
         ],
       };
@@ -199,39 +190,40 @@ describe('Career & Education Stress Tests', () => {
       let state = baseState;
 
       // Start Fast Food career
-      state = {
-        ...state,
-        currentJob: {
-          id: 'fast-food',
-          title: 'Fast Food Worker',
-          level: 0,
-          salary: 30,
-          progress: 0,
-          company: 'Burger King',
-        },
+      // Simulate using a local job object — canonical state.currentJob
+      // is just an id string; salary/progress/level live on a separate
+      // Career entry. For a pure-math simulation, a local object is
+      // clearer than mutating the typed state.
+      const job = {
+        id: 'fast-food',
+        title: 'Fast Food Worker',
+        level: 0,
+        salary: 30,
+        progress: 0,
+        company: 'Burger King',
       };
 
       // Simulate working for 6 months (26 weeks)
       for (let week = 0; week < 26; week++) {
         // Earn weekly salary
-        state.stats.money += state.currentJob!.salary;
+        state.stats.money += job.salary;
 
         // Gain progress (4 per week)
-        state.currentJob!.progress += 4;
+        job.progress += 4;
 
         // Check for promotion
-        if (state.currentJob!.progress >= 100) {
-          state.currentJob!.level += 1;
-          state.currentJob!.progress = 0;
-          state.currentJob!.salary += 15; // Salary increase
+        if (job.progress >= 100) {
+          job.level += 1;
+          job.progress = 0;
+          job.salary += 15; // Salary increase
         }
       }
 
       // After 26 weeks at 4 progress/week = 104 progress = 1 promotion
-      expect(state.currentJob!.level).toBe(1);
+      expect(job.level).toBe(1);
       expectNumericalStability(state);
 
-      console.log(`After 26 weeks: Level ${state.currentJob!.level}, Salary $${state.currentJob!.salary}`);
+      console.log(`After 26 weeks: Level ${job.level}, Salary $${job.salary}`);
     });
 
     it('should calculate total career earnings over 20 years', () => {
@@ -249,10 +241,12 @@ describe('Career & Education Stress Tests', () => {
 
   describe('Test 3: Career switching', () => {
     it('should handle switching between careers', () => {
-      let state = baseState;
+      // Local job object — see Test 2 note: canonical state.currentJob
+      // is just an id; we simulate full career fields locally.
+      let job: { id: string; title: string; level: number; salary: number; progress: number; company: string };
 
       // Start with Fast Food
-      state.currentJob = {
+      job = {
         id: 'fast-food',
         title: 'Fast Food',
         level: 2,
@@ -262,7 +256,7 @@ describe('Career & Education Stress Tests', () => {
       };
 
       // Switch to Software Engineer (requires education)
-      state.currentJob = {
+      job = {
         id: 'software-engineer',
         title: 'Software Engineer',
         level: 0,
@@ -271,9 +265,9 @@ describe('Career & Education Stress Tests', () => {
         company: 'Tech Corp',
       };
 
-      expect(state.currentJob.id).toBe('software-engineer');
-      expect(state.currentJob.level).toBe(0);
-      expect(state.currentJob.salary).toBe(120);
+      expect(job.id).toBe('software-engineer');
+      expect(job.level).toBe(0);
+      expect(job.salary).toBe(120);
 
       console.log(`Switched from Fast Food to Software Engineer`);
     });

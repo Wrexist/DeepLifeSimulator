@@ -1,9 +1,9 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Modal, View, ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { HelpCircle, X } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface InfoButtonProps {
   title: string;
@@ -17,7 +17,6 @@ export default function InfoButton({
   title, 
   content, 
   size = 'medium', 
-  position = 'top-right',
   darkMode = false 
 }: InfoButtonProps) {
   const [showModal, setShowModal] = useState(false);

@@ -11,7 +11,7 @@ export const trackScreenView = (screenName: string) => {
 export const trackPurchase = (
   value: number,
   currency: string,
-  items: Array<{ item_id: string; item_name: string; price: number; quantity: number }>
+  items: { item_id: string; item_name: string; price: number; quantity: number }[]
 ) => {
   analyticsService.logPurchase(value, currency, items);
 };

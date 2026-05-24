@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/GameContext';
+import type { Company } from '@/contexts/game/types';
 import { advanceWeeks, advanceYears } from './helpers/timeHelpers';
 import { setupCompanyMogul, setupWealthyPlayer } from './helpers/scenarioBuilders';
 import { expectNumericalStability, expectNoNaN } from './helpers/assertions';
@@ -44,18 +45,23 @@ describe('Company Stress Tests', () => {
         // Verify player has enough money
         expect(state.stats.money).toBeGreaterThanOrEqual(cost);
 
-        // Create company
-        const company = {
+        // Create company — match canonical Company shape (drops the
+        // phantom level/createdAt/warehouse fields, adds the required
+        // weeklyIncome/workerSalary/etc).
+        const company: Company = {
           id: `${type}-test`,
-          type,
+          type: type as Company['type'],
           name: `Test ${type}`,
-          level: 1,
           employees: 0,
           money: 0,
+          weeklyIncome: 2000,
           baseWeeklyIncome: 2000,
-          createdAt: Date.now(),
-          upgrades: {},
-          warehouse: { capacity: 10, items: {}, miners: {} },
+          upgrades: [],
+          workerSalary: 0,
+          workerMultiplier: 1,
+          marketingLevel: 0,
+          miners: {},
+          warehouseLevel: 0,
         };
 
         companies.push(company);

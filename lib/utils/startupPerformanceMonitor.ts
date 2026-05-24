@@ -9,18 +9,18 @@ import { logger } from '@/utils/logger';
 
 export interface PerformanceMetrics {
   totalStartupTime: number;
-  stageBreakdown: Array<{
+  stageBreakdown: {
     stage: string;
     duration: number;
     percentage: number;
-  }>;
+  }[];
   criticalPath: string[];
-  bottlenecks: Array<{
+  bottlenecks: {
     stage: string;
     duration: number;
     threshold: number;
     severity: 'low' | 'medium' | 'high' | 'critical';
-  }>;
+  }[];
   recommendations: string[];
 }
 
@@ -57,7 +57,7 @@ export function analyzeStartupPerformance(): PerformanceMetrics | null {
   const totalStartupTime = endTime - startTime;
 
   // Calculate stage durations
-  const stageDurations: Array<{ stage: string; start: number; end: number; duration: number }> = [];
+  const stageDurations: { stage: string; start: number; end: number; duration: number }[] = [];
 
   for (let i = 0; i < breadcrumbs.length; i++) {
     const current = breadcrumbs[i];

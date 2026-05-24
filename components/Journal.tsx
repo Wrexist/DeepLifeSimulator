@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Journal Component
  * 
  * Full-featured life diary system with categories, search, timeline,
@@ -16,12 +16,10 @@ import {
   TextInput,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   BookOpen,
   Search,
   Filter,
-  Calendar,
   Briefcase,
   Heart,
   Trophy,
@@ -32,8 +30,6 @@ import {
   X,
   ChevronRight,
   Clock,
-  Star,
-  TrendingUp,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react-native';
@@ -41,6 +37,7 @@ import { useGame } from '@/contexts/GameContext';
 import { JournalEntry } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
 
 type JournalCategory = 'all' | 'career' | 'relationship' | 'achievement' | 'travel' | 'family' | 'crime' | 'health' | 'other';
 

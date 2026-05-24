@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TutorialStep } from '@/types/tutorial';
-import { EnhancedTutorialStep, getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
+import { TutorialStep, EnhancedTutorialStep } from '@/types/tutorial';
+import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { logger } from '@/utils/logger';
 
 interface LoadingState {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Switch, Alert, Linking, Animated, Platform } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
@@ -27,6 +26,7 @@ import { logger } from '@/utils/logger';
 import { getShadow } from '@/utils/shadow';
 import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
 import { DISCORD_JOIN_REWARD_GEMS } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
 
 interface SettingsModalProps {
   visible: boolean;

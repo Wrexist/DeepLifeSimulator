@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Skill Tree Modal Component
  * 
  * General life skills and career skill tree system
@@ -17,7 +17,6 @@ import {
   Alert,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   X,
@@ -41,6 +40,7 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 

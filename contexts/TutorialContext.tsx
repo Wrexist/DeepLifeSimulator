@@ -80,7 +80,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const [completedTutorials, setCompletedTutorials] = useState<Set<string>>(new Set());
   const [currentTutorial, setCurrentTutorial] = useState<TutorialStep | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [tutorialQueue, setTutorialQueue] = useState<TutorialStep[]>([]);
+  const [_tutorialQueue, _setTutorialQueue] = useState<TutorialStep[]>([]);
 
   // Load completed tutorials from storage
   useEffect(() => {

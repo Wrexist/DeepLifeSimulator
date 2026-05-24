@@ -1,19 +1,16 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Dimensions,
   Platform,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { 
   Smartphone, 
-  ArrowLeft,
   Heart,
   Users,
   MessageCircle,
@@ -44,9 +41,6 @@ import {
   responsiveSpacing,
   responsiveBorderRadius,
   responsiveIconSize,
-  isSmallDevice,
-  isLargeDevice,
-  screenDimensions,
   isTablet,
   scale,
 } from '@/utils/scaling';
@@ -57,11 +51,11 @@ import {
 } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLazyComponent, usePerformanceMonitor } from '@/utils/performanceOptimization';
+import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -80,9 +74,9 @@ function MobileScreenContent() {
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
-  const [contentHeight, setContentHeight] = useState(1);
-  const [visibleHeight, setVisibleHeight] = useState(1);
-  const [scrollY, setScrollY] = useState(0);
+  const [_contentHeight, _setContentHeight] = useState(1);
+  const [_visibleHeight, _setVisibleHeight] = useState(1);
+  const [_scrollY, _setScrollY] = useState(0);
 
   // Prevent staying on mobile screen when in prison - redirect to work tab
   useEffect(() => {

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Profile Header Component - X.com Style
  * 
  * Displays user profile header with cover photo, profile photo, stats, and bio
@@ -13,16 +13,15 @@ import {
   ImageBackground,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   Calendar,
   MapPin,
   Link as LinkIcon,
   BadgeCheck,
-  Settings,
 } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import { PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
+const LinearGradient = LinearGradientFallback;
 
 interface ProfileHeaderProps {
   displayName: string;

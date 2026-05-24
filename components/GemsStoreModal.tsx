@@ -8,8 +8,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Platform,
   Image,
+  ImageSourcePropType,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RefreshCw } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { iapService } from '@/services/IAPService';
-import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { responsiveFontSize, responsivePadding } from '@/utils/scaling';
 
 interface GemsStoreModalProps {
@@ -33,7 +33,7 @@ interface GemPackage {
   description: string;
   popular?: boolean;
   bonus?: number;
-  image: string;
+  image: ImageSourcePropType;
 }
 
 const GEM_PACKAGES: GemPackage[] = [
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: responsivePadding.xl,
+    padding: responsivePadding.xlarge,
   },
   loadingText: {
     fontSize: responsiveFontSize.lg,

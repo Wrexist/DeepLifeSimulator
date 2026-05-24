@@ -1,49 +1,38 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   ScrollView,
   Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  PieChart,
-  LineChart,
   Activity,
   Target,
   Award,
-  Calendar,
   DollarSign,
   Users,
   Heart,
   Zap,
-  Home,
-  Briefcase,
   Star,
-  ChevronRight,
-  ChevronLeft,
   Filter,
   Download,
-  Share,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
+const LinearGradient = LinearGradientFallback;
 
 interface EnhancedDataVisualizationProps {
   darkMode?: boolean;
   compact?: boolean;
 }
 
-const { width } = Dimensions.get('window');
 
 export default function EnhancedDataVisualization({
   darkMode = false,

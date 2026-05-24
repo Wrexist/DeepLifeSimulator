@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Rich Action Feedback Modal
  * Detailed breakdown modal after major actions
  */
@@ -14,7 +14,6 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   X,
   TrendingUp,
@@ -27,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import { ActionImpact } from '@/lib/depth/systemInterconnections';
 import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface ActionFeedbackModalProps {
   visible: boolean;

@@ -24,13 +24,13 @@ import {
   Platform,
 } from 'react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import { Heart, Share2, Copy, Check } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
-import { scale, fontScale, responsiveWidth, responsiveHeight } from '@/utils/scaling';
+import { scale, fontScale, responsiveWidth } from '@/utils/scaling';
 import { getThemeColors } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { logger } from '@/utils/logger';
+const BlurView = BlurViewFallback;
 
 interface ShareLifeCardProps {
   gameState: GameState;
@@ -41,7 +41,7 @@ interface ShareLifeCardProps {
  * Generate a tagline based on player's current life situation
  */
 function generateTagline(gameState: GameState): string {
-  const { stats, career: currentCareer, family, generationNumber } = gameState;
+  const { stats, family, generationNumber } = gameState;
   const netWorth = calculateNetWorth(gameState);
 
   // Get current career if any
@@ -174,7 +174,7 @@ ${tagline}
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      logger.warn('[ShareLifeCard] Copy failed', error);
+      logger.warn('[ShareLifeCard] Copy failed', { error });
     }
   };
 

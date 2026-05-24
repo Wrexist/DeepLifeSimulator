@@ -1,11 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { isIPad } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface SeasonalIndicatorProps {
   size?: number;
@@ -71,7 +71,7 @@ export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps)
       newyear: { name: 'New Year', icon: Sparkles, color: '#3B82F6' },
     };
     
-    return holidays[seasonData.holiday];
+    return holidays[seasonData.holiday as keyof typeof holidays] || null;
   };
 
   const holiday = getHolidayInfo();

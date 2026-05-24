@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, View } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
 import { getButtonAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
+const LinearGradient = LinearGradientFallback;
 
 interface LoadingButtonProps {
   onPress: () => void | Promise<void>;

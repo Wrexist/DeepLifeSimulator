@@ -88,8 +88,11 @@ export default function TestRunner({ onClose }: TestRunnerProps = {}) {
         promoteCareer: allGameActions.promoteCareer,
         nextWeek: allGameActions.nextWeek,
         saveGame: allGameActions.saveGame, // Real save function
-        createCompany: allGameActions.createCompany, // Real company creation
-        startEducation: allGameActions.startEducation, // Real education start
+        // createCompany / startEducation aren't exposed on the actions
+        // context (createCompany is called from CompanyApp via direct
+        // module import; startEducation doesn't exist anywhere). The
+        // simulator already guards with typeof === 'function', so leaving
+        // them off the surface just skips those code paths in the sim.
         goOnDate: allGameActions.goOnDate, // Real relationship action
         // Hobbies removed - trainHobby no longer available
       };

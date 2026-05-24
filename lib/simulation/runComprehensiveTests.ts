@@ -18,14 +18,21 @@ const log = logger.scope('TestRunner');
 export async function runComprehensiveTests(options: SimulationOptions = {}): Promise<SimulationReport> {
   log.info('Starting comprehensive test suite...');
 
-  // Create a test game state
-  let testGameState = createTestGameState({
-    week: 1,
-    money: 1000000, // Give plenty of money for testing
-    health: 100,
-    happiness: 100,
-    energy: 100,
-  });
+  // Create a test game state. Stats fields live under .stats on GameState
+  // (the previous override passed money/health/etc at the top level, which
+  // Partial<GameState> silently accepted but never actually applied — the
+  // sim was running with default-initial money instead of 1,000,000).
+  let testGameState = createTestGameState({ week: 1 });
+  testGameState = {
+    ...testGameState,
+    stats: {
+      ...testGameState.stats,
+      money: 1000000, // Give plenty of money for testing
+      health: 100,
+      happiness: 100,
+      energy: 100,
+    },
+  };
 
   // Validate and repair the test state before running tests
   const { repairGameState } = require('@/utils/saveValidation');

@@ -3,14 +3,14 @@
  * 
  * Research and development actions for companies
  */
-import { GameState, Company, RDLab, Patent } from '../types';
+import { GameState, RDLab } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { LAB_TYPES, getLabUpgradeCost, LabType } from '@/lib/rd/labs';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { getTechnologyById, getAvailableTechnologies, Technology } from '@/lib/rd/technologyTree';
-import { createPatent, updatePatents, calculatePatentIncome } from '@/lib/rd/patents';
+import { getTechnologyById } from '@/lib/rd/technologyTree';
+import { createPatent } from '@/lib/rd/patents';
 import { 
   COMPETITIONS,
   getActiveCompetitions, 

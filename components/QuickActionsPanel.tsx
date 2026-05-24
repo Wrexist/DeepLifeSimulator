@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, X, Zap, DollarSign, Heart, Briefcase, ShoppingCart, Home, TrendingUp } from 'lucide-react-native';
+import { Plus, X, Zap, DollarSign, Briefcase, ShoppingCart, Home, TrendingUp } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useRouter } from 'expo-router';
 import { responsiveSpacing, responsiveBorderRadius, responsiveFontSize } from '@/utils/scaling';
@@ -10,7 +10,7 @@ interface QuickAction {
   id: string;
   label: string;
   icon: React.ComponentType<{ size?: number; color?: string }>;
-  color: string[];
+  color: readonly [string, string, ...string[]];
   onPress: () => void;
   disabled?: boolean;
 }
@@ -20,14 +20,13 @@ interface QuickActionsPanelProps {
 }
 
 export default function QuickActionsPanel({ position = 'bottom-right' }: QuickActionsPanelProps) {
-  const { gameState, nextWeek, saveGame } = useGame();
+  const { nextWeek, saveGame } = useGame();
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
   const rotateAnim = React.useRef(new Animated.Value(0)).current;
   const opacityAnim = React.useRef(new Animated.Value(0)).current;
 
-  const { width } = Dimensions.get('window');
 
   const quickActions: QuickAction[] = [
     {

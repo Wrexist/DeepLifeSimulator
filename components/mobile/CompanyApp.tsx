@@ -1,7 +1,6 @@
-﻿import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { ArrowLeft, Building2, Users, DollarSign, Settings, Plus, Minus, Lock, GraduationCap, X, Star, Zap, FlaskConical } from 'lucide-react-native';
 import { useGame, Company } from '@/contexts/GameContext';
 import { createCompany, buyCompanyUpgrade, addWorker, removeWorker, sellCompany } from '@/contexts/game/company';
@@ -11,6 +10,7 @@ import { getAvailableTechnologies, getTechnologyById } from '@/lib/rd/technology
 import { getActiveCompetitions, canEnterCompetition } from '@/lib/rd/competitions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getShadow } from '@/utils/shadow';
+const LinearGradient = LinearGradientFallback;
 
 interface CompanyAppProps {
   onBack: () => void;

@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Heart, Smile, Zap, DollarSign, Gem, Dumbbell, X, Info } from 'lucide-react-native';
-import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 
 const LinearGradient = LinearGradientFallback;

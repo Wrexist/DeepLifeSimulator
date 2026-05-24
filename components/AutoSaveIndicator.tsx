@@ -4,7 +4,7 @@ import { CheckCircle, Clock, AlertCircle, Save } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { saveQueue } from '@/utils/saveQueue';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
+import { responsiveFontSize } from '@/utils/scaling';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '@/utils/logger';
 

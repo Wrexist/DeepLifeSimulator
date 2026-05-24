@@ -1,6 +1,5 @@
 import { calculateDiseaseRisk, generateRandomDisease, shouldGenerateDisease, generateEventDisease } from '@/lib/diseases/diseaseGenerator';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import type { GameState } from '@/contexts/game/types';
 
 describe('Disease Generator', () => {
   describe('calculateDiseaseRisk', () => {

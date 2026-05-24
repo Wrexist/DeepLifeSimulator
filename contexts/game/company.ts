@@ -361,6 +361,13 @@ export function createCompany(
     ...prev,
     companies: [...(prev.companies || []), newCompany],
     company: prev.company ?? newCompany,
+    // Mirror into lifetimeStatistics (trackNewCompany was never called).
+    lifetimeStatistics: prev.lifetimeStatistics
+      ? {
+          ...prev.lifetimeStatistics,
+          totalCompaniesOwned: (prev.lifetimeStatistics.totalCompaniesOwned ?? 0) + 1,
+        }
+      : prev.lifetimeStatistics,
     stats: {
       ...prev.stats,
       money: prev.stats.money - cost,

@@ -1,22 +1,22 @@
-﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, Dimensions, ScrollView , Platform, Modal } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, ScrollView, Platform, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { MotiView } from '@/components/anim/MotiStub'; // Stub replacement for moti
-import { ArrowLeft, Heart, X, Settings, DollarSign, Star, MapPin, MessageCircle, Sparkles, Users, ChevronDown, Calendar, Circle } from 'lucide-react-native';
+import { ArrowLeft, Heart, X, Settings, DollarSign, MapPin, MessageCircle, Sparkles, ChevronDown, Calendar, Circle } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { scale, fontScale } from '@/utils/scaling';
-import { goOnDate, giveGift, proposeMarriage, getRelationshipStatus } from '@/contexts/game/actions/DatingActions';
+import { scale } from '@/utils/scaling';
+import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { ENGAGEMENT_RINGS, getTierColor } from '@/lib/dating/engagementRings';
 import { getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import WeddingPlanningModal from './WeddingPlanningModal';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
 
 interface DatingAppProps {
   onBack: () => void;
@@ -1387,15 +1387,15 @@ export default function DatingApp({ onBack }: DatingAppProps) {
   const insets = useSafeAreaInsets();
   const { gameState, setGameState, saveGame } = useGame();
   const { settings } = gameState;
-  const { buttonPress, haptic } = useFeedback(settings.hapticFeedback);
+  const { haptic } = useFeedback(settings.hapticFeedback);
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [matches, setMatches] = useState<Profile[]>([]);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [_currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [showWeddingModal, setShowWeddingModal] = useState(false);
   const [selectedRingId, setSelectedRingId] = useState<string | null>(null);
-  const [scrollIndicatorOpacity, setScrollIndicatorOpacity] = useState(1);
+  const [_scrollIndicatorOpacity, _setScrollIndicatorOpacity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   
   // New feature states
@@ -1583,8 +1583,20 @@ export default function DatingApp({ onBack }: DatingAppProps) {
       setGameState(prev => ({
         ...prev,
         relationships: [...(prev.relationships || []), newPartner],
+        // Tally lifetime matches — read by the dating achievements counter
+        // (gs.datingMatches.length), previously stuck at 0 because nothing
+        // pushed into the array.
+        datingMatches: [...(prev.datingMatches || []), newPartner.id],
+        // Mirror into lifetimeStatistics for the Statistics screen +
+        // legacy achievements (trackNewRelationship was never called).
+        lifetimeStatistics: prev.lifetimeStatistics
+          ? {
+              ...prev.lifetimeStatistics,
+              totalRelationships: (prev.lifetimeStatistics.totalRelationships ?? 0) + 1,
+            }
+          : prev.lifetimeStatistics,
       }));
-      
+
       saveGame();
       setMatches(prev => [...prev, currentProfile]);
       
@@ -1621,7 +1633,7 @@ export default function DatingApp({ onBack }: DatingAppProps) {
       }
     }
     nextProfile();
-  }, [currentProfile, gameState.relationships, gameState.stats.reputation, boostActive, calculateMatchRate, setGameState, saveGame, handleLike]);
+  }, [currentProfile, gameState.relationships, gameState.stats.reputation, boostActive, calculateMatchRate, setGameState, saveGame]);
 
   const handlePass = useCallback(() => {
     // Add haptic feedback

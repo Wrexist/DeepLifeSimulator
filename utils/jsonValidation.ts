@@ -3,7 +3,7 @@
  * Prevents crashes from malformed JSON and provides type guards
  */
 
-import type { GameState } from '@/types/game';
+import type { GameState } from '@/contexts/game/types';
 import { log } from './logger';
 
 /**

@@ -1,5 +1,5 @@
 import type { GameState } from '@/contexts/game/types';
-import type { LifeMoment, LifeMomentChoice } from './types';
+import type { LifeMoment } from './types';
 import { logger } from '@/utils/logger';
 
 const log = logger.scope('LifeMomentGenerator');

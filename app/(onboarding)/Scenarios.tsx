@@ -4,14 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { Check, Gem, Play, Sparkles, Star, Target } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-const BlurView = BlurViewFallback;
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
-import { useGame } from '@/contexts/GameContext';
 import {
   getDifficultyColor,
   getDifficultyLabel,
@@ -39,6 +36,8 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 
 type TabType = 'life_paths' | 'challenges';
 
@@ -141,7 +140,6 @@ export default function Scenarios() {
   const log = logger.scope('Scenarios');
   const router = useRouter();
   const navigation = useNavigation();
-  const { gameState } = useGame();
   const { state, setState } = useOnboarding();
   const [activeTab, setActiveTab] = useState<TabType>(getInitialScenarioTab(state.challengeScenarioId));
   const [selectedId, setSelectedId] = useState<string | null>(state.scenario?.id ?? null);

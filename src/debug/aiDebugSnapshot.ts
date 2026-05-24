@@ -48,7 +48,7 @@ export interface DebugSnapshot {
   errors: {
     lastError: unknown | null;
     errorStack?: string;
-    errorHistory: Array<{ error: unknown; timestamp: number; isFatal?: boolean }>;
+    errorHistory: { error: unknown; timestamp: number; isFatal?: boolean }[];
   };
   integrity: {
     quickChecks: QuickIntegrityChecks;
@@ -74,7 +74,7 @@ export interface CriticalStateSlice {
   lifeStage?: string;
   
   // Issues
-  diseases?: Array<{ id: string; name: string; severity: string }>;
+  diseases?: { id: string; name: string; severity: string }[];
   jailWeeks?: number;
   wantedLevel?: number;
   

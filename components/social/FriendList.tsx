@@ -1,9 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { User, UserPlus, Gift, TrendingUp } from 'lucide-react-native';
-import { Friend, FriendComparison } from '@/lib/social/friends';
-import { useGame } from '@/contexts/GameContext';
+import { Friend } from '@/lib/social/friends';
 
 interface FriendListProps {
   friends: Friend[];
@@ -18,7 +16,6 @@ export default function FriendList({
   onSendGift,
   onCompare,
 }: FriendListProps) {
-  const { gameState } = useGame();
 
   const acceptedFriends = useMemo(
     () => friends.filter(f => f.status === 'accepted'),

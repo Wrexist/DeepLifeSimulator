@@ -1,12 +1,12 @@
-﻿import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Image } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
-import { X, Users, BookOpen, Crown, TrendingUp, Activity, Shield, Brain } from 'lucide-react-native';
+import { X, Users, BookOpen, Crown, TrendingUp, Activity, Brain } from 'lucide-react-native';
 import FamilyTreeModal from './FamilyTreeModal';
 import MemoryBookModal from './MemoryBookModal';
 import { getTraitById } from '@/lib/legacy/geneticTraits';
+const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
 

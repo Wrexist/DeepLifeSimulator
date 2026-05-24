@@ -10,7 +10,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { responsivePadding, responsiveSpacing } from '@/utils/scaling';
+import { responsivePadding } from '@/utils/scaling';
 import { logger } from '@/utils/logger';
 
 const { width: screenWidth } = Dimensions.get('window');

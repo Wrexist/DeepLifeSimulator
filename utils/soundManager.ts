@@ -23,8 +23,10 @@ function loadHapticsModule(): boolean {
   }
 }
 
-// Optional import for expo-av - fallback to haptics if not available
-let Audio: typeof import('expo-av').Audio | null = null;
+// Optional import for expo-av - fallback to haptics if not available.
+// Typed as `any` because expo-av is not in package.json; the static
+// `typeof import('expo-av').Audio` annotation can't resolve.
+let Audio: any | null = null;
 try {
   Audio = require('expo-av').Audio;
 } catch (error) {

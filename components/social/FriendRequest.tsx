@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { User, Check, X } from 'lucide-react-native';
 import { FriendRequest as FriendRequestType } from '@/lib/social/friends';
 

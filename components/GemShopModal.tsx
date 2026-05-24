@@ -1,14 +1,14 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image, Animated } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star, Zap, Shield, Crown, CheckCircle, Sparkles, Diamond, Coins, Award, Heart, RefreshCw } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
+const LinearGradient = LinearGradientFallback;
 
 interface GemShopModalProps {
   visible: boolean;
@@ -17,7 +17,7 @@ interface GemShopModalProps {
 
 
 function GemShopModal({ visible, onClose }: GemShopModalProps) {
-  const { gameState, buyGoldUpgrade, setGameState, saveGame } = useGame();
+  const { gameState, buyGoldUpgrade, saveGame } = useGame();
   const { settings } = gameState;
   const [tab, setTab] = useState<'upgrades' | 'store' | 'perks' | 'gems'>('upgrades');
   const [iapLoading, setIapLoading] = useState(false);
@@ -52,7 +52,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'energy_boost',
       name: 'Energy Boost',
-      description: 'Maximum energy increased to 100',
+      description: 'Energy regenerates 50% faster',
       price: 7500, // Balanced: 50% of original (15000)
       icon: Zap,
       image: require('@/assets/images/iap/upgrades/energy_boost.png'),
@@ -64,7 +64,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'happiness_boost',
       name: 'Happiness Boost',
-      description: 'Maximum happiness increased to 100',
+      description: 'Happiness decays 50% slower',
       price: 6000, // Balanced: 50% of original (12000)
       icon: Star,
       image: require('@/assets/images/iap/upgrades/happiness_boost.png'),
@@ -76,7 +76,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'fitness_boost',
       name: 'Fitness Boost',
-      description: 'Maximum fitness increased to 100',
+      description: 'Fitness decays 50% slower',
       price: 9000, // Balanced: 50% of original (18000)
       icon: Shield,
       image: require('@/assets/images/iap/upgrades/fitness_boost.png'),
@@ -100,7 +100,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'time_machine',
       name: 'Time Machine',
-      description: 'Travel back in time',
+      description: 'Time-rewind costs halved',
       price: 25000, // Balanced: 50% of original (50000)
       icon: ArrowRightCircle,
       image: require('@/assets/images/iap/upgrades/time_machine.png'),
@@ -112,7 +112,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
     {
       id: 'immortality',
       name: 'Immortality',
-      description: 'Never die of old age',
+      description: 'Never die of old age (skips age-80+ death rolls)',
       price: 50000, // Balanced: 50% of original (100000)
       icon: Crown,
       image: require('@/assets/images/iap/upgrades/immortality.png'),

@@ -1,5 +1,6 @@
 import { GameState } from '@/contexts/GameContext';
-import { advanceWeeks, advanceYears } from './helpers/timeHelpers';
+import type { Relation } from '@/lib/social/relations';
+import { advanceYears } from './helpers/timeHelpers';
 import { setupLargeFamily } from './helpers/scenarioBuilders';
 import { expectNumericalStability } from './helpers/assertions';
 
@@ -47,7 +48,7 @@ describe('Relationships & Family Stress Tests', () => {
     });
 
     it('should simulate relationship decay over 10 relationships', () => {
-      const relationships = [];
+      const relationships: Relation[] = [];
 
       for (let i = 0; i < 10; i++) {
         relationships.push({
@@ -61,7 +62,7 @@ describe('Relationships & Family Stress Tests', () => {
         });
       }
 
-      let state = {
+      let state: GameState = {
         ...baseState,
         social: { relations: relationships },
       };

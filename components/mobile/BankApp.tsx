@@ -12,19 +12,15 @@ import {
   View,
 } from 'react-native';
 import {
-  responsivePadding,
   responsiveFontSize,
   responsiveSpacing,
   responsiveBorderRadius,
-  responsiveIconSize,
   scale,
-  verticalScale,
 } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
-import { GameState } from '@/contexts/game/types';
-import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle, Building } from 'lucide-react-native';
+import { GameState, Loan } from '@/contexts/game/types';
+import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -34,6 +30,7 @@ import {
 } from '@/lib/economy/constants';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getMarketAPRForGameWeek } from '@/utils/bankMarketAPR';
+const LinearGradient = LinearGradientFallback;
 
 // Prefer expo-router for navigation; gracefully fall back if unavailable.
 let useRouterHook:
@@ -68,23 +65,6 @@ type Numberish = number | string;
 type TabKey = 'savings' | 'loans' | 'services';
 type RepaySource = 'cash' | 'bank'; // manual repayment source
 
-type Loan = {
-  id: string;
-  name: string;
-  principal: number;
-  remaining: number;
-  rateAPR: number;     // e.g. 0.08 for 8% APR (fixed per-loan)
-  weeklyRate: number;  // rateAPR / 52
-  termWeeks: number;
-  startWeek: number;
-  installment: number; // amortized weekly payment
-  weeklyPayment?: number; // For game loop auto-payment compatibility
-  missedPayments: number;
-  autoPay?: boolean;   // logically always true; kept for compatibility
-  type?: 'personal' | 'business' | 'mortgage' | 'auto';
-  weeksRemaining?: number;
-  interestRate?: number;
-};
 
 /* =========================
    UTILS
@@ -167,7 +147,7 @@ export default function BankApp({ onBack }: BankAppProps) {
   const [infoOpen, setInfoOpen] = useState(false);
   const [loanAmount, setLoanAmount] = useState<string>('10000');
   const [selectedTerm, setSelectedTerm] = useState<typeof TERM_OPTIONS[number]>(TERM_OPTIONS[0]);
-  const [repaySource, setRepaySource] = useState<RepaySource>('cash');
+  const [repaySource, _setRepaySource] = useState<RepaySource>('cash');
   const [iapState, setIapState] = useState(iapService.getState());
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedService, setSelectedService] = useState<string | null>(null);
@@ -180,7 +160,7 @@ export default function BankApp({ onBack }: BankAppProps) {
   const cash = gameState?.stats?.money ?? 0;
   const initialSavings = gameState?.bankSavings ?? 0;
   const loans: Loan[] = gameState?.loans ?? [];
-  const investments: Array<{ symbol: string; shares: number; averagePrice: number; currentPrice: number; value?: number; price?: number }> = gameState?.stocks?.holdings ?? [];
+  const investments: { symbol: string; shares: number; averagePrice: number; currentPrice: number; value?: number; price?: number }[] = gameState?.stocks?.holdings ?? [];
 
   // Update savings when initialSavings changes
   useEffect(() => {
@@ -347,14 +327,11 @@ export default function BankApp({ onBack }: BankAppProps) {
       principal: amt,
       remaining: amt,
       rateAPR: apr,
-      weeklyRate,
       termWeeks: termW,
       startWeek: gameState.weeksLived ?? 0,
-      installment,
       weeklyPayment: installment,
-      missedPayments: 0,
       autoPay: true,
-      type: 'personal' as const,
+      type: 'personal',
       weeksRemaining: termW,
       interestRate: apr,
     };
@@ -756,7 +733,7 @@ export default function BankApp({ onBack }: BankAppProps) {
                     </View>
                     <View style={styles.loanMetaRow}>
                       <Text style={styles.metaText}>APR: {(loan.rateAPR * 100).toFixed(2)}%</Text>
-                      <Text style={styles.metaText}>Weekly: {formatMoney(loan.installment)} $</Text>
+                      <Text style={styles.metaText}>Weekly: {formatMoney(loan.weeklyPayment)} $</Text>
                       <Text style={styles.metaText}>Term: {loan.termWeeks} weeks</Text>
                     </View>
                     <View style={styles.loanActions}>

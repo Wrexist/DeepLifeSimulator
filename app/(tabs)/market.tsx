@@ -1,14 +1,12 @@
-﻿import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Star, Unlock, Sparkles, Check } from 'lucide-react-native';
+import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription, type ItemBadgeInfo } from '@/utils/marketBadges';
-import { OptimizedFlatList } from '@/components/OptimizedFlatList';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -16,6 +14,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
 import ErrorBoundary from '@/components/ErrorBoundary';
+const LinearGradient = LinearGradientFallback;
 
 // Item category mapping - outside component for stability
 const ITEM_CATEGORIES: Record<string, 'electronics' | 'crime' | 'lifestyle'> = {
@@ -65,7 +64,7 @@ function MarketScreenContent() {
       router.replace('/(tabs)/work');
     }
   }, [gameState.jailWeeks, router]);
-  const { highlightedItem, highlightMessage, clearHighlight } = useTutorialHighlight();
+  const { highlightedItem, clearHighlight } = useTutorialHighlight();
   const { settings } = gameState;
   const { showSuccess, showError, showInfo } = useToast();
   const flatListRef = useRef<any>(null);
@@ -134,8 +133,8 @@ function MarketScreenContent() {
 
   // Scroll indicator state
   const scrollY = useRef(new Animated.Value(0)).current;
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [contentHeight, _setContentHeight] = useState(0);
+  const [scrollViewHeight, _setScrollViewHeight] = useState(0);
 
   // Memoized data with stable sorting and filtering
   const sortedItems = useMemo(() => {

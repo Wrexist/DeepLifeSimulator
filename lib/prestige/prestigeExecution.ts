@@ -7,6 +7,7 @@ import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 
 
 /**
@@ -282,7 +283,6 @@ export function continueAsChild(
   }
 
   // Simulate child to age 18 if they're younger
-  const { simulateChildToAge } = require('@/lib/legacy/childSimulation');
   if ((selectedChild.age || 0) < ADULTHOOD_AGE) {
     selectedChild = simulateChildToAge(selectedChild, gameState, ADULTHOOD_AGE);
   }
@@ -313,7 +313,6 @@ function createChildGameState(
   }
 
   // Simulate child to age 18 if they're younger
-  const { simulateChildToAge } = require('@/lib/legacy/childSimulation');
   if ((selectedChild.age || 0) < ADULTHOOD_AGE) {
     selectedChild = simulateChildToAge(selectedChild, oldState, ADULTHOOD_AGE);
   }

@@ -18,8 +18,8 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
   const { theme, isDark } = useTheme();
 
   const breakdown = useMemo(() => {
-    const drains: Array<{ label: string; value: number; icon: any; color: string; description?: string }> = [];
-    const incomes: Array<{ label: string; value: number; icon: any; color: string; description?: string }> = [];
+    const drains: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
+    const incomes: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
 
     // Calculate natural decay
     const netWorth = (stats?.money || 0) + (gameState.bankSavings || 0);
@@ -45,7 +45,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
       const career = careers?.find(c => c.id === currentJob && c.accepted);
       if (career) {
         drains.push({
-          label: `Career: ${career.name}`,
+          label: `Career: ${career.levels?.[career.level]?.name || career.id}`,
           value: -3,
           icon: Briefcase,
           color: '#EF4444',
@@ -80,7 +80,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
     const pendingApplication = careers?.find(c => c && c.applied && !c.accepted);
     if (pendingApplication && !currentJob) {
       drains.push({
-        label: `Pending Application: ${pendingApplication.name}`,
+        label: `Pending Application: ${pendingApplication.levels?.[0]?.name || pendingApplication.id}`,
         value: 0,
         icon: Briefcase,
         color: '#9CA3AF',

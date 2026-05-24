@@ -367,6 +367,7 @@ export async function lazyLoadTurboModule<T = any>(
             module = await import('expo-clipboard');
             break;
           case '@react-native-community/netinfo':
+            // @ts-expect-error — optional native dependency, lazy-loaded at runtime
             module = await import('@react-native-community/netinfo');
             break;
           default:

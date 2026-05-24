@@ -9,21 +9,18 @@
  * - Divorce
  */
 
-import { GameState, Relationship, WeddingPlan, EngagementRing } from '../types';
+import { GameState, Relationship, WeddingPlan } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import {
-  ENGAGEMENT_RINGS,
   getEngagementRing,
   calculateProposalSuccessRate,
 } from '@/lib/dating/engagementRings';
 import {
-  WEDDING_VENUES,
   getWeddingVenue,
-  calculateWeddingCost,
   createWeddingPlan,
   calculateWeddingHappinessBonus,
   calculateWeddingReputationBonus,

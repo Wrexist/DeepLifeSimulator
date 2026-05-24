@@ -1,14 +1,13 @@
-﻿import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { ArrowLeft, Lock, ShoppingCart, MessageSquare, Terminal, Bitcoin, Shield, Zap, DollarSign } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useNavigation } from '@react-navigation/native';
 import { logger } from '@/utils/logger';
 import { useMemoryCleanup } from '@/utils/performanceOptimization';
+const LinearGradient = LinearGradientFallback;
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface OnionAppProps {
   onBack: () => void;
@@ -21,7 +20,7 @@ export default function OnionApp({ onBack }: OnionAppProps) {
   const [activeTab, setActiveTab] = useState<'shop' | 'forum' | 'terminal'>('shop');
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
   const [isHacking, setIsHacking] = useState(false);
-  const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
+  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Extract frequently used values from gameState
   const darkWebItems = gameState.darkWebItems || [];

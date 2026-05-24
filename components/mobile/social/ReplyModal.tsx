@@ -3,7 +3,7 @@
  * 
  * Modal for replying to posts on social media
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { X, Send } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';

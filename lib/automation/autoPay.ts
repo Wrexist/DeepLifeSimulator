@@ -95,7 +95,7 @@ function executePayLoanMinimum(
   loans: GameState['loans'],
   availableCash: number
 ): { success: boolean; amount: number; message: string } | null {
-  if (loans.length === 0) {
+  if (!loans || loans.length === 0) {
     return { success: true, amount: 0, message: 'No loans to pay' };
   }
 
@@ -121,7 +121,7 @@ function executePayLoanFull(
   loans: GameState['loans'],
   availableCash: number
 ): { success: boolean; amount: number; message: string } | null {
-  if (loans.length === 0) {
+  if (!loans || loans.length === 0) {
     return { success: true, amount: 0, message: 'No loans to pay' };
   }
 
@@ -150,11 +150,10 @@ function executePayBills(
   // Calculate real weekly expenses from game state
   let totalBills = 0;
 
-  // Rent/housing costs
-  const housing = state.housing;
-  if (housing?.monthlyPayment) {
-    totalBills += Math.ceil(housing.monthlyPayment / 4); // Weekly rent
-  }
+  // NOTE: a prior "rent/housing costs" block read state.housing, which is
+  // not a GameState field — it always evaluated to 0 and contributed
+  // nothing. Removed rather than silently changing autoPay's expense
+  // total; wiring real rent in is a balance decision (see tasks/todo.md).
 
   // Vehicle maintenance and fuel
   const vehicles = state.vehicles || [];
@@ -200,7 +199,7 @@ function executePaySpecificLoan(
     return { success: false, amount: 0, message: 'No loan ID specified' };
   }
   
-  const loan = loans.find(l => l.id === loanId);
+  const loan = (loans || []).find(l => l.id === loanId);
   if (!loan) {
     return { success: false, amount: 0, message: `Loan ${loanId} not found` };
   }

@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
-import { Heart, Sparkles, Crown, PartyPopper, Rings } from 'lucide-react-native';
+import { Heart, Sparkles, Crown, PartyPopper, Gem as Rings } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
+const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
 
@@ -100,6 +100,7 @@ export default function WeddingPopup() {
         confettiLoop.stop();
       };
     }
+    return;
   }, [showWeddingPopup]);
 
   const closePopup = () => {

@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -8,10 +8,9 @@ import {
   Animated,
   ScrollView,
   Image,
-  Dimensions,
   Alert,
 } from 'react-native';
-import { Crown, X, Sparkles, RotateCcw, Users, TrendingUp, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
+import { Crown, X, Sparkles, RotateCcw, Users, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
 import LifeStoryModal from './LifeStoryModal';
 import { useGame } from '@/contexts/game';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
@@ -20,7 +19,6 @@ import { netWorth } from '@/lib/progress/achievements';
 import { getCharacterImage } from '@/utils/characterImages';
 import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface PrestigeModalProps {
   visible: boolean;
@@ -128,6 +126,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
       glowAnim.setValue(0);
       shimmerAnim.setValue(0);
     }
+    return;
   }, [visible, fadeAnim, scaleAnim, glowAnim, shimmerAnim]);
 
   const handleConfirm = () => {
@@ -212,7 +211,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}
             >
-            {!showConfirmation ? (
+            {pointsBreakdown == null ? null : !showConfirmation ? (
               <>
                 {/* Prestige Points Card - Beautiful and Prominent */}
                 <View style={styles.pointsCard}>

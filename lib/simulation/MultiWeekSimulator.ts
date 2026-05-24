@@ -5,8 +5,7 @@
 
 import { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
-import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
-import { validateGameStateAfterAction, validateStatsBounds, validateMoney } from '@/lib/validation/stateValidator';
+import { validateStatsBounds, validateMoney } from '@/lib/validation/stateValidator';
 import { validateStateInvariants } from '@/utils/stateInvariants';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import React from 'react';

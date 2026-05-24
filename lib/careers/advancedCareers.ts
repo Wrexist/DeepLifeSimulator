@@ -237,12 +237,12 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
 export function isCareerUnlocked(
   career: AdvancedCareer,
   gameState: {
-    education: Array<{ id: string; completed: boolean }>;
-    achievements: Array<{ id: string; completed: boolean }>;
+    education: { id: string; completed: boolean }[];
+    achievements: { id: string; completed: boolean }[];
     stats: { reputation: number; money: number };
     weeksLived: number;
-    companies: Array<{ weeklyIncome: number }>;
-    realEstate: Array<{ owned: boolean; value: number }>;
+    companies: { weeklyIncome: number }[];
+    realEstate: { owned: boolean; value: number }[];
   }
 ): boolean {
   const req = career.unlockRequirements;

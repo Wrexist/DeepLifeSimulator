@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -7,10 +7,8 @@ import {
   TouchableOpacity,
   Animated,
   ScrollView,
-  Dimensions,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { Crown, X, Sparkles, TrendingUp, Unlock, Settings, Star, Check } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import {
@@ -21,8 +19,8 @@ import {
   PrestigeBonusCategory,
 } from '@/lib/prestige/prestigeBonuses';
 import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface PrestigeShopModalProps {
   visible: boolean;
@@ -32,7 +30,7 @@ interface PrestigeShopModalProps {
 export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModalProps) {
   const { gameState, purchasePrestigeBonus } = useGame();
   const [selectedCategory, setSelectedCategory] = useState<PrestigeBonusCategory>('starting');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, _setSearchQuery] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 

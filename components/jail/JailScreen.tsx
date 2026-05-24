@@ -1,7 +1,6 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { 
@@ -10,7 +9,6 @@ import {
   Heart, 
   TrendingUp, 
   Shield, 
-  AlertTriangle, 
   BookOpen, 
   Wrench, 
   Lock, 
@@ -25,15 +23,16 @@ import {
   Flower2,
   Smile
 } from 'lucide-react-native';
+const LinearGradient = LinearGradientFallback;
 
 interface JailScreenProps {
   onClose?: () => void;
 }
 
 export default function JailScreen({ onClose }: JailScreenProps) {
-  const { gameState, performJailActivity, payBail, buyFood, updateStats } = useGame();
+  const { gameState, performJailActivity, payBail, updateStats } = useGame();
   const { jailActivities, jailWeeks, stats, foods, economy } = gameState;
-  const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
+  const [_selectedActivity, _setSelectedActivity] = useState<string | null>(null);
   const [activityCooldowns, setActivityCooldowns] = useState<Record<string, number>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
 

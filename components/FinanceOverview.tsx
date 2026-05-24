@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Finance Overview Component
  * 
  * Comprehensive financial dashboard with visualizations, trends, and projections
@@ -8,11 +8,9 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
 import {
   TrendingUp,
   TrendingDown,
@@ -33,8 +31,8 @@ import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { getWeeklyInflationRate } from '@/lib/economy/inflation';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+const LinearGradient = LinearGradientFallback;
 
-const { width: screenWidth } = Dimensions.get('window');
 
 interface LoanSummary {
   principal?: number;
@@ -59,13 +57,17 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
   const weeklyLoanPayments = loans.reduce((sum, l) => sum + (l.weeklyPayment || 0), 0);
   const inflation = getWeeklyInflationRate(gameState) * 100;
 
+  // Player weekly salary, derived from the current career level's annual salary
+  const career = gameState.careers?.find(c => c.id === gameState.currentJob);
+  const weeklySalary = (career?.levels?.[career.level]?.salary || 0) / WEEKS_PER_YEAR;
+
   // Calculate net worth
   const netWorth = useMemo(() => {
     let total = gameState.stats.money;
     // Add bank savings
     total += gameState.bankSavings || 0;
     // Add real estate values
-    (gameState.realEstates || []).forEach(re => {
+    (gameState.realEstate || []).forEach(re => {
       if (re.owned) {
         total += re.price || 0;
       }
@@ -83,21 +85,21 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
     // Subtract loans
     total -= totalLoanDebt;
     return total;
-  }, [gameState.stats.money, gameState.bankSavings, gameState.realEstates, gameState.vehicles, gameState.companies, totalLoanDebt]);
+  }, [gameState.stats.money, gameState.bankSavings, gameState.realEstate, gameState.vehicles, gameState.companies, totalLoanDebt]);
 
   // Calculate weekly cash flow
   const weeklyCashFlow = useMemo(() => {
-    const income = passive.total + (gameState.salary || 0);
+    const income = passive.total + (weeklySalary || 0);
     const outflow = expenses.total + weeklyLoanPayments;
     return income - outflow;
-  }, [passive.total, gameState.salary, expenses.total, weeklyLoanPayments]);
+  }, [passive.total, weeklySalary, expenses.total, weeklyLoanPayments]);
 
   // Calculate savings rate
   const savingsRate = useMemo(() => {
-    const income = passive.total + (gameState.salary || 0);
+    const income = passive.total + (weeklySalary || 0);
     if (income <= 0) return 0;
     return Math.max(0, (weeklyCashFlow / income) * 100);
-  }, [passive.total, gameState.salary, weeklyCashFlow]);
+  }, [passive.total, weeklySalary, weeklyCashFlow]);
 
   // Financial health score (0-100)
   const financialHealth = useMemo(() => {
@@ -116,10 +118,10 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
     if (netWorth < 0) score -= 20;
     if (weeklyCashFlow < 0) score -= 15;
     if (totalLoanDebt > netWorth) score -= 10;
-    if (expenses.total > passive.total + (gameState.salary || 0)) score -= 10;
+    if (expenses.total > passive.total + (weeklySalary || 0)) score -= 10;
     
     return Math.max(0, Math.min(100, score));
-  }, [netWorth, weeklyCashFlow, savingsRate, totalLoanDebt, expenses.total, passive.total, gameState.salary, gameState.bankSavings]);
+  }, [netWorth, weeklyCashFlow, savingsRate, totalLoanDebt, expenses.total, passive.total, weeklySalary, gameState.bankSavings]);
 
   // Format money with suffixes [[memory:8959604]]
   const formatMoney = (amount: number): string => {
@@ -304,7 +306,7 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
         <View style={[styles.statCard, settings.darkMode && styles.statCardDark]}>
           <Building2 size={20} color="#8B5CF6" />
           <Text style={[styles.statCardValue, settings.darkMode && styles.textDark]}>
-            {(gameState.realEstates || []).filter(r => r.owned).length}
+            {(gameState.realEstate || []).filter(r => r.owned).length}
           </Text>
           <Text style={[styles.statCardLabel, settings.darkMode && styles.textMuted]}>Properties</Text>
         </View>
@@ -317,15 +319,15 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
         </Text>
         
         {renderMiniBar(
-          passive.total + (gameState.salary || 0),
-          Math.max(passive.total + (gameState.salary || 0), expenses.total),
+          passive.total + (weeklySalary || 0),
+          Math.max(passive.total + (weeklySalary || 0), expenses.total),
           '#10B981',
           'Income'
         )}
         
         {renderMiniBar(
           expenses.total + weeklyLoanPayments,
-          Math.max(passive.total + (gameState.salary || 0), expenses.total + weeklyLoanPayments),
+          Math.max(passive.total + (weeklySalary || 0), expenses.total + weeklyLoanPayments),
           '#EF4444',
           'Expenses'
         )}

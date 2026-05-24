@@ -1,12 +1,11 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
-import { X, User, ChevronRight, ChevronDown } from 'lucide-react-native';
-import { useTranslation } from '@/hooks/useTranslation';
+import { X } from 'lucide-react-native';
 import { getCharacterImage } from '@/utils/characterImages';
+const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
 
@@ -17,7 +16,6 @@ interface Props {
 
 export default function FamilyTreeModal({ visible, onClose }: Props) {
   const { gameState } = useGame();
-  const { t } = useTranslation();
   const { settings } = gameState;
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 

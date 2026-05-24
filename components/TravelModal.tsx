@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Travel Modal Component
  * 
  * Quick access travel widget that provides fast travel options
@@ -7,11 +7,14 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
-import { Plane, X, MapPin, Heart, Zap, Battery, ChevronRight, Globe, Briefcase, Clock, Star } from 'lucide-react-native';
+import { Plane, X, MapPin, Heart, Zap, Battery, ChevronRight, Globe, Clock, Star } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
+import { travelTo } from '@/contexts/game/actions/TravelActions';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { updateStats } from '@/contexts/game/actions/StatsActions';
+import { scale, fontScale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface TravelModalProps {
   visible: boolean;
@@ -20,9 +23,9 @@ interface TravelModalProps {
 }
 
 export default function TravelModal({ visible, onClose, onOpenFullApp }: TravelModalProps) {
-  const { gameState, travelTo, saveGame } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { settings } = gameState;
-  const [selectedDestination, setSelectedDestination] = useState<TravelDestination | null>(null);
+  const [_selectedDestination, _setSelectedDestination] = useState<TravelDestination | null>(null);
 
   // Check if currently traveling
   const isOnTrip = gameState.travel?.currentTrip !== undefined;
@@ -66,7 +69,12 @@ export default function TravelModal({ visible, onClose, onOpenFullApp }: TravelM
         {
           text: 'Let\'s Go! âœˆï¸',
           onPress: () => {
-            const result = travelTo(destination.id);
+            const result = travelTo(
+              gameState,
+              setGameState,
+              destination.id,
+              { updateMoney, updateStats }
+            );
             if (result.success) {
               saveGame();
               Alert.alert('Bon Voyage! ðŸŒ', result.message);

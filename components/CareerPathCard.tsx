@@ -20,7 +20,6 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { GameState, Career, Education, Item } from '@/contexts/game/types';
 import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 
 
 // Helper to format career ID into display name

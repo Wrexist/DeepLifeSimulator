@@ -2,7 +2,6 @@ import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
-import type { LifeMoment } from '@/lib/lifeMoments/types';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
 
 const LinearGradient = LinearGradientFallback;
@@ -55,6 +54,7 @@ export default function LifeMomentModal() {
       setGameState(prev => ({
         ...prev,
         lifeMoments: {
+          lastMomentWeek: prev.lifeMoments?.lastMomentWeek ?? prev.weeksLived,
           ...(prev.lifeMoments || {}),
           pendingMoment: undefined,
           momentsThisWeek: (prev.lifeMoments?.momentsThisWeek || 0) + 1,

@@ -85,7 +85,7 @@ export function generateChildMemories(
   child: ChildInfo,
   parentState: GameState,
   generation: number
-): Array<{ id: string; title: string; description: string; category: string; generation: number; ancestorName: string; date: number; unlocked: boolean; tags: string[] }> {
+): { id: string; title: string; description: string; category: string; generation: number; ancestorName: string; date: number; unlocked: boolean; tags: string[] }[] {
   const memories = [];
   const parentName = parentState.userProfile.name || `${parentState.userProfile.firstName} ${parentState.userProfile.lastName}`;
   const childName = child.name;

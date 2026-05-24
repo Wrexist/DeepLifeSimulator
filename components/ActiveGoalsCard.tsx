@@ -6,12 +6,12 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Target, ChevronRight, Trophy, Star, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { getActiveGoals, getChallengeGoals, ENHANCED_GOAL_DEFINITIONS } from '@/utils/enhancedGoalSystem';
 import { GOAL_CATEGORIES, type Goal, type GoalCategory } from '@/utils/goalSystem';
-import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, responsiveFontSize } from '@/utils/scaling';
+import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 
 const LinearGradient = LinearGradientFallback;

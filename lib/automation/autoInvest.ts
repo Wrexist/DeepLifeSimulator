@@ -72,7 +72,7 @@ function executeInvestAction(
   action: AutomationAction,
   state: GameState,
   availableCash: number,
-  currentHoldings: GameState['stocks']['holdings']
+  currentHoldings: NonNullable<GameState['stocks']>['holdings']
 ): { success: boolean; message: string } | null {
   switch (action.type as AutoInvestActionType) {
     case 'dca':
@@ -143,7 +143,7 @@ function executeTargetAllocation(
   action: AutomationAction,
   state: GameState,
   availableCash: number,
-  currentHoldings: GameState['stocks']['holdings']
+  currentHoldings: NonNullable<GameState['stocks']>['holdings']
 ): { success: boolean; message: string } | null {
   const targetPercentage = Math.min(action.value, 100);
   
@@ -205,7 +205,7 @@ function executeRebalance(
   action: AutomationAction,
   state: GameState,
   availableCash: number,
-  currentHoldings: GameState['stocks']['holdings']
+  currentHoldings: NonNullable<GameState['stocks']>['holdings']
 ): { success: boolean; message: string } | null {
   // Rebalancing logic would need target allocations per stock
   // This is a simplified version

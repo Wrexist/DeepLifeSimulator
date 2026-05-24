@@ -3,11 +3,8 @@ import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'r
 import { 
   responsivePadding, 
   responsiveSpacing, 
-  responsiveIconSize,
   isSmallDevice, 
-  isLargeDevice, 
   isIPad,
-  screenDimensions 
 } from '@/utils/scaling';
 
 interface ResponsiveLayoutProps {

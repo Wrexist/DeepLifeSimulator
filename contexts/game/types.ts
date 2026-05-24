@@ -12,6 +12,9 @@ import { WeeklyEvent } from '@/lib/events/engine';
 import { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 import { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
 import { KarmaState } from '@/lib/karma/karmaSystem';
+import type { AutomationState } from '@/lib/automation/automationTypes';
+
+import { CareerRequirements } from '@/lib/types/requirements';
 
 export interface GameStats {
   health: number;
@@ -126,8 +129,6 @@ export interface JailActivity {
   risk?: string;
 }
 
-import { CareerRequirements } from '@/lib/types/requirements';
-
 export interface Career {
   id: string;
   levels: { name: string; salary: number; experienceRequired?: number; description?: string; energyCost?: number }[];
@@ -162,6 +163,9 @@ export interface Hobby {
   divisions?: Division[];
   league?: League;
   upgrades: HobbyUpgrade[];
+  // ANTI-EXPLOIT: weekly training cap tracking
+  lastTrainWeek?: number;
+  trainsThisWeek?: number;
 }
 
 export interface HobbyUpgrade {
@@ -493,12 +497,12 @@ export interface MiningStatistics {
   totalEarnings: number;
   totalPowerCost: number;
   bestPerformingCrypto?: string;
-  miningHistory: Array<{
+  miningHistory: {
     week: number;
     earnings: number;
     cryptoMined: Record<string, number>;
     powerCost: number;
-  }>;
+  }[];
   minerPerformance: Record<string, {
     totalEarnings: number;
     totalPowerCost: number;
@@ -777,13 +781,26 @@ export interface FamilyBusiness {
 export interface Video {
   id: string;
   title: string;
-  description: string;
-  game: string;
   views: number;
   earnings: number;
-  followers: number;
-  subscribers: number;
-  uploadDate: string;
+  // Optional: different creation paths populate different subsets of these.
+  description?: string;
+  game?: string;
+  gameId?: string;
+  followers?: number;
+  subscribers?: number;
+  subscribersGained?: number;
+  quality?: number;
+  duration?: string | number;
+  likes?: number;
+  comments?: number;
+  uploadDate?: string | number;
+  uploadedAt?: number;
+  timestamp?: number;
+  rpm?: number;
+  ctr?: number;
+  avgViewDuration?: number;
+  source?: string;
 }
 
 export interface VideoRecordingState {
@@ -816,8 +833,10 @@ export interface StreamSession {
   viewers: number;
   earnings: number;
   followers: number;
+  subscribers?: number;
   chatMessages: number;
   donations: number;
+  timestamp?: number; // ms since epoch; used to sort recent streams for income decay
 }
 
 export interface StreamHistoryItem extends StreamSession {
@@ -901,11 +920,11 @@ export type AccidentSeverity = 'minor' | 'moderate' | 'severe' | 'total';
 
 export interface VehicleInsurance {
   id?: string;
-  type?: 'basic' | 'comprehensive' | 'premium';
+  type: 'basic' | 'comprehensive' | 'premium';
   active: boolean;
   coveragePercent: number;
   expiresWeek: number;
-  monthlyCost?: number;
+  monthlyCost: number;
   premiumCost?: number; // Deprecated, use monthlyCost instead
 }
 
@@ -1001,6 +1020,7 @@ export interface GameState {
     reputationBonus: number;
   };
   familyBusinesses?: FamilyBusiness[];
+  hasFamilyBusinessLegacy?: boolean; // Prestige legacy_business bonus flag
   mindset?: {
     activeTraitId?: string;
     [key: string]: any;
@@ -1057,6 +1077,8 @@ export interface GameState {
   };
   dailySummary?: {
     moneyChange: number;
+    totalMoneyEarned?: number;
+    totalMoneySpent?: number;
     statsChange: Partial<GameStats>;
     events: string[];
     earningsBreakdown?: {
@@ -1118,13 +1140,19 @@ export interface GameState {
   lastLogin: number;
   updatedAt?: number;
   streetJobsCompleted: number;
+  // Lifetime counters consumed by achievementsData (gs.datingMatches.length /
+  // gs.totalPrisonWeeks). Both were referenced by achievements without ever
+  // being declared on GameState — the matching achievements were stuck at 0.
+  datingMatches?: string[];
+  totalPrisonWeeks?: number;
   happinessZeroWeeks: number;
   healthZeroWeeks: number;
   healthWeeks: number;
+  perfectWeeks?: number; // consecutive weeks with all stats > 90 (Perfectionist achievement)
   showZeroStatPopup: boolean;
   zeroStatType?: 'happiness' | 'health';
   showDeathPopup: boolean;
-  deathReason?: 'happiness' | 'health';
+  deathReason?: 'happiness' | 'health' | 'age';
   showWeddingPopup: boolean;
   weddingPartnerName?: string;
   debtWeeks?: number; // STABILITY FIX: Track weeks in debt for bankruptcy system
@@ -1138,13 +1166,13 @@ export interface GameState {
   showCureSuccessModal: boolean;
   curedDiseases: string[];
   diseaseHistory?: {
-    diseases: Array<{
+    diseases: {
       id: string;
       name: string;
       contractedWeek: number;
       curedWeek?: number;
       severity: string;
-    }>;
+    }[];
     totalDiseases: number;
     totalCured: number;
     deathsFromDisease: number;
@@ -1172,41 +1200,7 @@ export interface GameState {
     lastSeason: string;
     completedEvents: string[];
   };
-  automation?: {
-    rules: Array<{
-      id: string;
-      type: 'invest' | 'save' | 'pay' | 'renew';
-      name: string;
-      enabled: boolean;
-      conditions: Array<{
-        type: string;
-        value: number;
-      }>;
-      actions: Array<{
-        type: string;
-        value: number;
-        target?: string;
-      }>;
-      priority: number;
-      lastExecuted?: number;
-      executionCount?: number;
-    }>;
-    executionHistory: Array<{
-      ruleId: string;
-      ruleName: string;
-      type: string;
-      executedAt: number;
-      success: boolean;
-      message: string;
-      actionsTaken: Array<{
-        type: string;
-        value: number;
-        result: string;
-      }>;
-    }>;
-    maxSlots: number;
-    enabled: boolean;
-  };
+  automation?: AutomationState;
   socialMedia?: {
     followers: number;
     influenceLevel: 'novice' | 'rising' | 'popular' | 'influencer' | 'celebrity';
@@ -1304,6 +1298,10 @@ export interface GameState {
   // B-4: IAP processed transaction IDs stored in save envelope for cross-device resilience
   // Belt-and-suspenders: also stored in separate AsyncStorage key for cross-slot persistence
   processedIAPTransactions?: string[];
+  // IDs of EnhancedAchievement entries the player has already claimed —
+  // used by the achievement screen to gate the Claim button and avoid
+  // double-paying rewards.
+  claimedEnhancedAchievements?: string[];
   // Education System — campus event pending for UI display
   pendingCampusEventEducationId?: string;
 
@@ -1355,32 +1353,32 @@ export interface GameState {
   };
   /** Ribbon collection — persists across prestiges */
   ribbonCollection?: {
-    earned: Array<{
+    earned: {
       ribbonId: string;
       generation: number;
       earnedTimestamp: number;
       lifeAge: number;
       lifeName: string;
-    }>;
+    }[];
     discoveredIds: string[];
   };
   /** Weekly themed challenge state */
   weeklyChallenge?: {
     challengeId: string;
     startedAt: number;
-    progress: Array<{ objectiveId: string; current: number; target: number; met: boolean }>;
+    progress: { objectiveId: string; current: number; target: number; met: boolean }[];
     completed: boolean;
     rewardClaimed: boolean;
   };
   /** Time machine checkpoints — max 5 snapshots */
-  checkpoints?: Array<{
+  checkpoints?: {
     id: string;
     label: string;
     weeksLived: number;
     age: number;
     timestamp: number;
     snapshot: string;
-  }>;
+  }[];
   /** Number of time machine rewinds used this life (escalates cost) */
   timeMachineUsesThisLife?: number;
 }

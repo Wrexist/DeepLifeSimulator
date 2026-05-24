@@ -1,9 +1,9 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, Animated, Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-const LinearGradient = LinearGradientFallback;
-import { Target, CheckCircle, Star, DollarSign, Gem, TrendingUp, Award } from 'lucide-react-native';
+import { Target, CheckCircle, Star } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+const LinearGradient = LinearGradientFallback;
 
 interface GoalReward {
   type: 'money' | 'gems' | 'happiness' | 'energy' | 'health';
@@ -81,6 +81,7 @@ export default function GoalCompletionPopup({
       slideAnim.setValue(50);
       fadeAnim.setValue(0);
     }
+    return;
   }, [visible]);
 
   const handleClose = () => {
