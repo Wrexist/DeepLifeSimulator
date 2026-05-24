@@ -1,6 +1,5 @@
 import { GameState } from '@/contexts/GameContext';
 import { advanceWeeks, advanceYears } from './helpers/timeHelpers';
-import { setupWealthyPlayer } from './helpers/scenarioBuilders';
 import { expectNumericalStability } from './helpers/assertions';
 
 describe('Career & Education Stress Tests', () => {

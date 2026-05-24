@@ -1,6 +1,6 @@
 ﻿import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ColorValue, StyleProp, ViewStyle } from 'react-native';
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { useGame } from '@/contexts/GameContext';

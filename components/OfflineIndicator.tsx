@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { WifiOff, Wifi } from 'lucide-react-native';
 import { useNetworkStatus } from '@/utils/offlineManager';
 import { useGame } from '@/contexts/GameContext';
-import { responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
+import { responsiveFontSize } from '@/utils/scaling';
 
 export default function OfflineIndicator() {
   const { isOnline, pendingActions } = useNetworkStatus();

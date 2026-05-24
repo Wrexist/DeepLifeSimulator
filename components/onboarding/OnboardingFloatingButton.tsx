@@ -2,7 +2,6 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { responsivePadding } from '@/utils/scaling';
 
 const LinearGradient = LinearGradientFallback;
 

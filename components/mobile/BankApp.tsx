@@ -12,17 +12,14 @@ import {
   View,
 } from 'react-native';
 import {
-  responsivePadding,
   responsiveFontSize,
   responsiveSpacing,
   responsiveBorderRadius,
-  responsiveIconSize,
   scale,
-  verticalScale,
 } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
 import { GameState, Loan } from '@/contexts/game/types';
-import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle, Building } from 'lucide-react-native';
+import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { iapService } from '@/services/IAPService';

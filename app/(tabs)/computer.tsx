@@ -12,7 +12,6 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 const LinearGradient = LinearGradientFallback;
 import { 
   Monitor, 
-  ArrowLeft,
   Bitcoin,
   Home,
   Globe,
@@ -62,18 +61,12 @@ import {
   responsiveSpacing, 
   responsiveBorderRadius, 
   responsiveIconSize,
-  isSmallDevice,
-  isLargeDevice,
-  screenDimensions,
-  isTablet,
   fontScale,
   scale,
 } from '@/utils/scaling';
 import { 
   getGlassHeader, 
   getGlassIconContainer, 
-  getGlassCategoryTabsContainer,
-  getGlassTab,
   getGlassAppCard,
 } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';

@@ -20,7 +20,6 @@ import {
   User,
   Crown,
   Star,
-  Heart,
   Calendar,
   DollarSign,
   Trophy,

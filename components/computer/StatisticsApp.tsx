@@ -43,14 +43,9 @@ import { scale, fontScale } from '@/utils/scaling';
 import {
   calculateNetWorth,
   formatStatMoney,
-  formatStatNumber,
   getCareerSummary,
   getAchievementProgress,
 } from '@/lib/statistics/statisticsTracker';
-import { getEnhancedLifetimeStatistics } from '@/lib/statistics/enhancedStatistics';
-import { getSystemHealth } from '@/lib/depth/systemInterconnections';
-import { getDiscoveryProgress } from '@/lib/depth/discoverySystem';
-import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import { calculateLifeExpectancy } from '@/lib/statistics/lifeExpectancy';
 import { calculateRetirementPlanning } from '@/lib/statistics/retirementCalculator';
 import { calculateFIRETracker } from '@/lib/statistics/fireTracker';

@@ -4,10 +4,10 @@ import { useGame } from '@/contexts/GameContext';
 import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star, Zap, Shield, Crown, CheckCircle, Sparkles, Diamond, Coins, Award, Heart, RefreshCw } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 
 interface GemShopModalProps {

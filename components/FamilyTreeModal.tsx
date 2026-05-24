@@ -4,7 +4,7 @@ import { useGame } from '@/contexts/GameContext';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { X, User, ChevronRight, ChevronDown } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getCharacterImage } from '@/utils/characterImages';
 

@@ -2,11 +2,11 @@ import React, { useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Coins, Briefcase, Package, Gem } from 'lucide-react-native';
+import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { Asset, Liability, computeNetWorth } from '@/utils/netWorth';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { scale, fontScale, responsivePadding, responsiveBorderRadius } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { MINER_PRICES } from '@/lib/economy/constants';
 

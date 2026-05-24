@@ -17,7 +17,6 @@ import {
   BellOff,
   X,
   Settings,
-  Filter,
   Check,
   AlertTriangle,
   Info,
@@ -25,15 +24,11 @@ import {
   Calendar,
   PartyPopper,
   MessageSquare,
-  Eye,
-  EyeOff,
   Trash2,
-  MoreHorizontal,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { SmartNotification, NotificationContext, useSmartNotifications } from '@/utils/smartNotifications';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
 
 interface SmartNotificationCenterProps {
   visible: boolean;

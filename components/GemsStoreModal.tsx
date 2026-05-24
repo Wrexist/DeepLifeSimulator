@@ -8,7 +8,6 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Platform,
   Image,
   ImageSourcePropType,
 } from 'react-native';
@@ -18,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RefreshCw } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { iapService } from '@/services/IAPService';
-import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { responsiveFontSize, responsivePadding } from '@/utils/scaling';
 
 interface GemsStoreModalProps {

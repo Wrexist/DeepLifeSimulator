@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, Image } from 'react-native';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useGame } from '@/contexts/GameContext';
-import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Gamepad2, Unlock, Gem, RefreshCw } from 'lucide-react-native';
+import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Unlock, Gem, RefreshCw } from 'lucide-react-native';
 import usePressableScale from '@/hooks/usePressableScale';
 import Skeleton from '@/components/anim/Skeleton';
 import { iapService, IAPService } from '@/services/IAPService';

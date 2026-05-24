@@ -18,7 +18,7 @@ import {
   TrendingUp,
   Award,
 } from 'lucide-react-native';
-import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 
 interface Milestone {
   position: number; // 0-100

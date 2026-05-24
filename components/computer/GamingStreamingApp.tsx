@@ -9,7 +9,7 @@
  * Scaling is based on iPhone 14/15 (390px width) as reference
  * All scaling is contained within this file only
  */
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -36,20 +36,16 @@ import {
   Users,
   TrendingUp,
   DollarSign,
-  Gamepad2,
   Video as VideoIcon,
-  Mic,
   Camera,
   Star,
-  Settings,
   Zap,
-  Award,
   Crown,
   Clock,
   Activity
 , Snowflake, Square } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { GameState, Video, StreamSession, StreamHistoryItem, GamingStreamingState, PCUpgradeLevels, PCComponents } from '@/contexts/game/types';
+import { GameState, Video, StreamHistoryItem, GamingStreamingState, PCUpgradeLevels, PCComponents } from '@/contexts/game/types';
 import { initialGameState } from '@/contexts/game/initialState';
 import StreamingPanel from './gaming/StreamingPanel';
 import VideoPanel from './gaming/VideoPanel';

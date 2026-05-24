@@ -25,16 +25,11 @@ import {
   Wrench,
   Shield,
   CreditCard,
-  ShoppingCart,
   DollarSign,
   Star,
   Gauge,
-  MapPin,
   CheckCircle,
-  XCircle,
-  Award,
   AlertTriangle,
-  Settings,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import EmptyState from '@/components/ui/EmptyState';

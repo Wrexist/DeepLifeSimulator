@@ -2,8 +2,8 @@
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
-import { AlertTriangle, X, RefreshCw } from 'lucide-react-native';
+import { MotiView } from '@/components/anim/MotiStub';
+import { X, RefreshCw } from 'lucide-react-native';
 
 interface ErrorMessageProps {
   visible: boolean;

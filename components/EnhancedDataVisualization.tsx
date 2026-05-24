@@ -15,28 +15,19 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  PieChart,
-  LineChart,
   Activity,
   Target,
   Award,
-  Calendar,
   DollarSign,
   Users,
   Heart,
   Zap,
-  Home,
-  Briefcase,
   Star,
-  ChevronRight,
-  ChevronLeft,
   Filter,
   Download,
-  Share,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
 
 interface EnhancedDataVisualizationProps {
   darkMode?: boolean;

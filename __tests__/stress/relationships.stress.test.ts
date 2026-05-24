@@ -1,6 +1,6 @@
 import { GameState } from '@/contexts/GameContext';
 import type { Relation } from '@/lib/social/relations';
-import { advanceWeeks, advanceYears } from './helpers/timeHelpers';
+import { advanceYears } from './helpers/timeHelpers';
 import { setupLargeFamily } from './helpers/scenarioBuilders';
 import { expectNumericalStability } from './helpers/assertions';
 

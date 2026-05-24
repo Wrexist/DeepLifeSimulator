@@ -19,7 +19,6 @@ import {
   MapPin,
   Link as LinkIcon,
   BadgeCheck,
-  Settings,
 } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import { PLACEHOLDER_IMAGES } from '@/utils/imageUtils';

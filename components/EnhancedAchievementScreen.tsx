@@ -11,20 +11,15 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import {
   Trophy,
   Star,
   Filter,
   Search,
   X,
-  TrendingUp,
   Award,
   Crown,
   Zap,
-  Target,
-  Clock,
-  Gem,
   Users,
   Heart,
   Home,
@@ -32,18 +27,14 @@ import {
   Briefcase,
   Baby,
   Bitcoin,
-  Building,
   Sparkles,
   Eye,
   EyeOff,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { EnhancedAchievement, ACHIEVEMENT_CATEGORIES, ENHANCED_ACHIEVEMENTS, AchievementProgress } from '@/utils/enhancedAchievements';
 import EnhancedAchievementCard from './EnhancedAchievementCard';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
 
 interface EnhancedAchievementScreenProps {
   visible: boolean;

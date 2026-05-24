@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import PremiumLoadingScreen from '@/components/PremiumLoadingScreen';
 import { usePreload } from '@/hooks/usePreload';
-import { shouldAllowNavigation, getHealthStatusSummary } from '@/lib/utils/startupHealthValidator';
+import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
 
 export default function Index() {
   const router = useRouter();

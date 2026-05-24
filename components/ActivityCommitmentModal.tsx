@@ -6,8 +6,8 @@ import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 const BlurView = BlurViewFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
-import { X, Target, Briefcase, Heart, Dumbbell, Music, Clock, TrendingUp, Zap, AlertCircle } from 'lucide-react-native';
-import { scale, fontScale, responsivePadding, responsiveSpacing } from '@/utils/scaling';
+import { X, Target, Briefcase, Heart, Dumbbell, Music, Clock, TrendingUp, AlertCircle } from 'lucide-react-native';
+import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
 
 interface ActivityCommitmentModalProps {

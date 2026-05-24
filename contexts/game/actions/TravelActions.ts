@@ -2,7 +2,7 @@ import { GameState, TravelState } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
-import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
+import { DESTINATIONS } from '@/lib/travel/destinations';
 import { formatMoney } from '@/utils/moneyFormatting';
 import type { Dispatch, SetStateAction } from 'react';
 

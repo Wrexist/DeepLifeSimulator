@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, X, Zap, DollarSign, Heart, Briefcase, ShoppingCart, Home, TrendingUp } from 'lucide-react-native';
+import { Plus, X, Zap, DollarSign, Briefcase, ShoppingCart, Home, TrendingUp } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useRouter } from 'expo-router';
 import { responsiveSpacing, responsiveBorderRadius, responsiveFontSize } from '@/utils/scaling';

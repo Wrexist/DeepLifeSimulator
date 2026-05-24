@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { X, ArrowRight, Lightbulb } from 'lucide-react-native';
-import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { logger } from '@/utils/logger';
 import type { TutorialStep } from '@/types/tutorial';

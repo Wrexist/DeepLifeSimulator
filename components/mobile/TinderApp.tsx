@@ -1,16 +1,16 @@
 ﻿import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, Dimensions, ScrollView , Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Animated, ScrollView, Platform, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { MotiView } from '@/components/anim/MotiStub'; // Stub replacement for moti
-import { ArrowLeft, Heart, X, Settings, DollarSign, Star, MapPin, MessageCircle, Sparkles, Users, ChevronDown, Calendar, Circle } from 'lucide-react-native';
+import { ArrowLeft, Heart, X, Settings, DollarSign, MapPin, MessageCircle, Sparkles, ChevronDown, Calendar, Circle } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { scale, fontScale } from '@/utils/scaling';
-import { goOnDate, giveGift, proposeMarriage, getRelationshipStatus } from '@/contexts/game/actions/DatingActions';
+import { scale } from '@/utils/scaling';
+import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { ENGAGEMENT_RINGS, getTierColor } from '@/lib/dating/engagementRings';

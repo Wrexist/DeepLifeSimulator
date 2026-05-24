@@ -10,7 +10,6 @@ import {
   Heart, 
   TrendingUp, 
   Shield, 
-  AlertTriangle, 
   BookOpen, 
   Wrench, 
   Lock, 

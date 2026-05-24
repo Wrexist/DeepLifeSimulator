@@ -11,7 +11,7 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { Crown, X, Sparkles, RotateCcw, Users, TrendingUp, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
+import { Crown, X, Sparkles, RotateCcw, Users, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
 import LifeStoryModal from './LifeStoryModal';
 import { useGame } from '@/contexts/game';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';

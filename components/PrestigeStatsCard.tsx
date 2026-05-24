@@ -2,7 +2,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { Crown, TrendingUp, Award, Users, DollarSign } from 'lucide-react-native';
+import { Crown, Award, DollarSign } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';

@@ -7,7 +7,6 @@ import { Play, Plus, Save, Settings } from 'lucide-react-native';
 import SettingsModal from '@/components/SettingsModal';
 import GlassActionButton from '@/components/onboarding/GlassActionButton';
 import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
-import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import { useGame } from '@/contexts/GameContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';

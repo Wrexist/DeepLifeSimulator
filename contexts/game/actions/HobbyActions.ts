@@ -2,12 +2,12 @@
  * Hobby Actions
  */
 import React from 'react';
-import { GameState, Contract, League } from '../types';
+import { GameState } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { clampHobbySkill, clampHobbySkillLevel } from '@/utils/stateValidation';
-import { getDeterministicRoll, commitDeterministicRolls } from '@/lib/randomness/deterministicRng';
+import { getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 
 const log = logger.scope('HobbyActions');
 

@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { User, UserPlus, Gift, TrendingUp } from 'lucide-react-native';
-import { Friend, FriendComparison } from '@/lib/social/friends';
+import { Friend } from '@/lib/social/friends';
 import { useGame } from '@/contexts/GameContext';
 
 interface FriendListProps {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useUIUX } from '@/contexts/UIUXContext';
 import SimpleTutorialModal from './SimpleTutorialModal';

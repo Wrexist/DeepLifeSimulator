@@ -21,7 +21,6 @@ import {
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import {
-  X,
   Camera,
   ArrowLeft,
 } from 'lucide-react-native';
@@ -30,7 +29,6 @@ import {
   pickProfilePhoto, 
   pickHeaderPhoto, 
   showImageSourcePicker,
-  takePhoto,
   PLACEHOLDER_IMAGES 
 } from '@/utils/imageUtils';
 

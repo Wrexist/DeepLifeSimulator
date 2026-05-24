@@ -26,7 +26,6 @@ import {
   Shield,
   ChevronRight,
 } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   saveBackupManager, 
   BackupMetadata, 

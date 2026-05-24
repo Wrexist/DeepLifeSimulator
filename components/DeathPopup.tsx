@@ -11,7 +11,7 @@ import { getCharacterImage } from '@/utils/characterImages';
 import { HeirGenerator } from '@/lib/legacy/heirGeneration';
 import { computeInheritance } from '@/lib/legacy/inheritance';
 import { simulateChildrenToAdulthood } from '@/lib/legacy/childSimulation';
-import { MINDSET_TRAITS, MindsetId } from '@/lib/mindset/config';
+import { MindsetId } from '@/lib/mindset/config';
 import { logger } from '@/utils/logger';
 import { scale, fontScale } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';

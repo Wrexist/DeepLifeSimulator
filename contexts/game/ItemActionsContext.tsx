@@ -6,7 +6,7 @@ import { logger } from '@/utils/logger';
 import { useGameState } from './GameStateContext';
 import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
-import { Contract, HackResult } from './types';
+import { HackResult } from './types';
 import { clampStatByKey } from '@/utils/statUtils';
 import { trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
 import { haptic } from '@/utils/haptics';

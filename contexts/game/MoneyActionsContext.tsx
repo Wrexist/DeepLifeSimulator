@@ -1,51 +1,23 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import { Alert, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { safeAsyncStorage } from '@/utils/storageWrapper';
-import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { applyWeeklyInflation, getInflatedPrice } from '@/lib/economy/inflation';
 import { simulateWeek, getStockInfo } from '@/lib/economy/stockMarket';
 import { MAX_ACTIVE_RELATIONSHIPS, MAX_RELATIONSHIP_INCOME, MAX_RELATIONSHIPS_FOR_INCOME } from '@/lib/economy/balanceConstants';
 import { validateStats, clampStatByKey } from '@/utils/statUtils';
 import { logger } from '@/utils/logger';
-import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
-import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { getBonusPurchaseCost, canPurchaseBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
-import { validateStatChanges, sanitizeStatChanges, sanitizeFinalStats, validateStateInvariants, validateMoneyInvariants } from '@/utils/stateInvariants';
+import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
 import { shouldAutoCollectRent, shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { useGameState } from './GameStateContext';
 import { useGameData } from './GameDataContext';
-import { IAP_PRODUCTS } from '@/utils/iapConfig';
-import { CacheManager } from '@/utils/cacheManager';
 import { useGameUI } from './GameUIContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import {
   GameState,
-  GameStats,
-  Contract,
-  Sponsor,
-  HackResult,
-  CrimeSkillId,
-  Relationship,
-  UserProfile,
-  GameSettings,
-  Disease,
-  ChildInfo,
-  GameProgress,
-  GamingStreamingState,
-  GamingEquipment,
-  PCComponents,
-  PCUpgradeLevels,
-  PoliticsState,
-  HealthActivity,
 } from './types';
-import { updateChildWeekly } from '@/lib/legacy/children';
 import { haptic } from '@/utils/haptics';
-import { applyMindsetEffects } from '@/lib/mindset/config';
-import { computeInheritance } from '@/lib/legacy/inheritance';
-import { FamilyBusinessSystem } from '@/lib/legacy/familyBusiness';
 import { trackMoneyEarned, trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
 
 interface MoneyActionsContextType {

@@ -11,12 +11,11 @@ import {
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame } from 'lucide-react-native';
-import { MINDSET_TRAITS, MindsetId } from '@/lib/mindset/config';
+import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import YouthPillModal from './YouthPillModal';
 import LegacyTimeline from './LegacyTimeline';
 import NetWorthBreakdownModal from './NetWorthBreakdownModal';
 import {
-  responsivePadding,
   responsiveFontSize,
   responsiveSpacing,
   responsiveBorderRadius,

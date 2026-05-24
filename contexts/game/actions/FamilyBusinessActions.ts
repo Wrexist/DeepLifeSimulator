@@ -1,5 +1,5 @@
 import React from 'react';
-import { GameState, FamilyBusiness, Company } from '../types';
+import { GameState, FamilyBusiness } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { formatMoney } from '@/utils/moneyFormatting';

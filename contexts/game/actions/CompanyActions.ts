@@ -2,7 +2,7 @@
  * Company Actions
  */
 import React from 'react';
-import { GameState, Company, CompanyUpgrade } from '../types';
+import { GameState, Company } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';

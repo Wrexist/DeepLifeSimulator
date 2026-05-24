@@ -14,7 +14,7 @@ const LinearGradient = LinearGradientFallback;
 
 
 
-import { ArrowLeft, Bitcoin, Zap, DollarSign, TrendingUp, TrendingDown, Cpu, Activity, HardDrive, Coins, Building2, CheckCircle, Sparkles, AlertTriangle, X, BarChart3, Users, Lock, Sun, Wind, Settings, TrendingDown as TrendingDownIcon, Award, Target, ChevronRight, ChevronLeft, ShoppingCart, Plus, Minus } from 'lucide-react-native';
+import { ArrowLeft, Bitcoin, Zap, DollarSign, TrendingUp, TrendingDown, Cpu, Activity, HardDrive, Coins, Building2, CheckCircle, Sparkles, AlertTriangle, X, BarChart3, Users, Lock, Sun, Settings, Award, ChevronRight, ChevronLeft, Plus, Minus } from 'lucide-react-native';
 
 
 
@@ -24,7 +24,7 @@ import * as MiningActions from '@/contexts/game/actions/MiningActions';
 
 
 
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 
 
 
@@ -44,7 +44,7 @@ import { getShadow } from '@/utils/shadow';
 
 
 
-import { scale, fontScale, responsivePadding, getResponsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { scale, fontScale, getResponsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 
 
 

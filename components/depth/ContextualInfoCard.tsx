@@ -23,12 +23,9 @@ import {
   Link,
   Lock,
   Unlock,
-  Target,
-  Clock,
   Award,
   AlertCircle,
 } from 'lucide-react-native';
-import { GameState } from '@/contexts/game/types';
 import { SystemHealth } from '@/lib/depth/systemInterconnections';
 import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 

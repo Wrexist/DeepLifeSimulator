@@ -8,15 +8,13 @@ import {
     Modal,
     Alert,
     Animated,
-    Image,
-    TextInput,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 const BlurView = BlurViewFallback;
 import ConfirmDialog from '@/components/ConfirmDialog';
-import { useGame, Contract, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
+import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getMindsetFeedback } from '@/utils/mindsetFeedback';

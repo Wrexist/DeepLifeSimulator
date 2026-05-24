@@ -1,15 +1,13 @@
 ﻿import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { X, Calendar, Users, DollarSign, Check, MapPin, Heart, Sparkles } from 'lucide-react-native';
+import { X, Calendar, Users, DollarSign, Check, MapPin, Heart } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { planWedding } from '@/contexts/game/actions/DatingActions';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
-import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { WEDDING_VENUES, WEDDING_ADDONS, calculateWeddingCost, getVenueTypeColor } from '@/lib/dating/weddingVenues';
 import { WeddingPlan } from '@/contexts/game/types';
-import { scale, fontScale, responsivePadding, responsiveBorderRadius } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 
 interface WeddingPlanningModalProps {

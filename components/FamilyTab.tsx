@@ -23,8 +23,6 @@ import {
   Home,
   GraduationCap,
   DollarSign,
-  Gift,
-  Calendar,
   Star,
   Crown,
   Sparkles,
@@ -34,7 +32,7 @@ import {
   TrendingUp,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { scale, fontScale, responsivePadding } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
 const LinearGradient = LinearGradientFallback;
 

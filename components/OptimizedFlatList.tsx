@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { FlatList, FlatListProps, StyleSheet, View } from 'react-native';
+import { FlatList, FlatListProps, StyleSheet } from 'react-native';
 
 interface OptimizedFlatListProps<T> extends FlatListProps<T> {
   itemHeight?: number; // Fixed height for getItemLayout optimization

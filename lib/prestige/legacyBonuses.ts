@@ -1,5 +1,4 @@
 import type { GameState, FamilyBusiness } from '@/contexts/game/types';
-import { logger } from '@/utils/logger';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 /**

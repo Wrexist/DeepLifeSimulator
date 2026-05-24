@@ -17,9 +17,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Modal,
-  Animated,
   TextInput,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -28,28 +26,18 @@ import {
   ArrowLeft,
   Mail,
   Send,
-  User,
   Lock,
-  Unlock,
   Gift,
   MapPin,
   DollarSign,
   Briefcase,
   Heart,
   Sparkles,
-  AlertCircle,
   CheckCircle,
   Star,
   MessageCircle,
   Search,
-  Clock,
   Eye,
-  EyeOff,
-  Trash2,
-  Pin,
-  MoreHorizontal,
-  UserPlus,
-  ChevronRight,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';

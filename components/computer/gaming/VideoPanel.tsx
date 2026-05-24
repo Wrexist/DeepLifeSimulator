@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, TextInput, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, TextInput } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { Zap } from 'lucide-react-native';

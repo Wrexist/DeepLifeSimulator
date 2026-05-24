@@ -19,8 +19,6 @@ import {
   Lock,
   Unlock,
   Award,
-  TrendingUp,
-  Target,
   X,
   Star,
 } from 'lucide-react-native';

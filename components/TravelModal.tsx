@@ -8,13 +8,13 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { Plane, X, MapPin, Heart, Zap, Battery, ChevronRight, Globe, Briefcase, Clock, Star } from 'lucide-react-native';
+import { Plane, X, MapPin, Heart, Zap, Battery, ChevronRight, Globe, Clock, Star } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
 import { travelTo } from '@/contexts/game/actions/TravelActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
+import { scale, fontScale } from '@/utils/scaling';
 
 interface TravelModalProps {
   visible: boolean;

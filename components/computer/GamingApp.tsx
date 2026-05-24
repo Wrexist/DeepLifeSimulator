@@ -29,7 +29,6 @@ import {
   Gamepad2,
   Star,
   Crown,
-  Clock,
   Video,
   Upload,
   Settings,
@@ -40,7 +39,7 @@ import {
   Cpu,
   Sparkles,
 } from 'lucide-react-native';
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 import { useGame, Video as VideoType } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
 import { useMemoryCleanup } from '@/utils/performanceOptimization';

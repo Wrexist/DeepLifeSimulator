@@ -22,7 +22,7 @@ import {
   CheckCircle,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/game';
-import { scale, fontScale, verticalScale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
+import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 
 const { width: screenWidth } = Dimensions.get('window');
 

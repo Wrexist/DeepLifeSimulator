@@ -24,11 +24,10 @@ import {
   Image as ImageIcon,
   Camera,
   MapPin,
-  BadgeCheck,
   Globe,
 } from 'lucide-react-native';
 import { scale, fontScale } from '@/utils/scaling';
-import { pickPostPhoto, showImageSourcePicker, takePhoto, PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
+import { pickPostPhoto, showImageSourcePicker, PLACEHOLDER_IMAGES } from '@/utils/imageUtils';
 
 interface PostComposerProps {
   visible: boolean;

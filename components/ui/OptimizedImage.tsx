@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, ImageProps, StyleSheet, View, ActivityIndicator } from 'react-native';
+import { Image, ImageProps, StyleSheet, View } from 'react-native';
 // Try to import FastImage, fallback to null if not available
 let FastImage: any = null;
 try {

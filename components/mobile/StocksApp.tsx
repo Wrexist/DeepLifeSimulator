@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Modal, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, BarChart3, Plus, Minus, RefreshCw } from 'lucide-react-native';
+import { ArrowLeft, TrendingUp, BarChart3, Plus, Minus } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';

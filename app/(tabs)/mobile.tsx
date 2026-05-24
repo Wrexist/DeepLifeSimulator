@@ -1,11 +1,10 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Dimensions,
   Platform,
 } from 'react-native';
@@ -13,7 +12,6 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 const LinearGradient = LinearGradientFallback;
 import { 
   Smartphone, 
-  ArrowLeft,
   Heart,
   Users,
   MessageCircle,
@@ -44,9 +42,6 @@ import {
   responsiveSpacing,
   responsiveBorderRadius,
   responsiveIconSize,
-  isSmallDevice,
-  isLargeDevice,
-  screenDimensions,
   isTablet,
   scale,
 } from '@/utils/scaling';
@@ -57,9 +52,8 @@ import {
 } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLazyComponent, usePerformanceMonitor } from '@/utils/performanceOptimization';
+import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
 

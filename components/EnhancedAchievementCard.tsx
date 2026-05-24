@@ -16,7 +16,6 @@ import {
   Star,
   Lock,
   Eye,
-  EyeOff,
   Clock,
   Target,
   Zap,
@@ -29,10 +28,8 @@ import {
   Home,
   Coins,
   Briefcase,
-  GraduationCap,
   Baby,
   Bitcoin,
-  Building,
   Sparkles,
   Info,
   CheckCircle,
@@ -41,13 +38,11 @@ import {
 import { EnhancedAchievement, AchievementProgress } from '@/utils/enhancedAchievements';
 import {
   getRarityColor,
-  getRarityGlow,
   getDifficultyText,
   getDifficultyColor,
   calculateAchievementProgress,
 } from '@/utils/enhancedAchievements';
 import { useFeedback } from '@/utils/feedbackSystem';
-import { DesignSystem } from '@/utils/designSystem';
 
 interface EnhancedAchievementCardProps {
   achievement: EnhancedAchievement;

@@ -1,5 +1,5 @@
 import { GameState } from '@/contexts/GameContext';
-import { advanceWeeks, advanceYears } from './helpers/timeHelpers';
+import { advanceYears } from './helpers/timeHelpers';
 import { setupWealthyPlayer } from './helpers/scenarioBuilders';
 import { expectNumericalStability, expectValidPriceIndex, expectNoNaN, expectNoInfinity } from './helpers/assertions';
 

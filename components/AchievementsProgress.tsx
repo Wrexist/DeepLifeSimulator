@@ -12,7 +12,6 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Animated,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
@@ -33,7 +32,6 @@ import {
   DollarSign,
   Plane,
   Users,
-  Zap,
   Crown,
   Medal,
   Activity,
@@ -41,7 +39,6 @@ import {
 } from 'lucide-react-native';
 import { useAchievements } from '@/hooks/useAchievements';
 import {
-  responsivePadding,
   responsiveFontSize,
   responsiveSpacing,
   responsiveBorderRadius,

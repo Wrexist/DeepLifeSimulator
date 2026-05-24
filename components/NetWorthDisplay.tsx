@@ -1,8 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { G, Path } from 'react-native-svg';
 import { useGame } from '@/contexts/GameContext';
 import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
 

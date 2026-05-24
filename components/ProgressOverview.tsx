@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 import {
   Trophy,
   DollarSign,

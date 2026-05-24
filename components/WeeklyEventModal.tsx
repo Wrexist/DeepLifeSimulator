@@ -1,6 +1,6 @@
 ﻿import React, { useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
-import { AlertTriangle, CheckCircle, XCircle, Sparkles, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown } from 'lucide-react-native';
+import { AlertTriangle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown } from 'lucide-react-native';
 import type { EnhancedEventChoice } from '@/lib/events/engine';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';

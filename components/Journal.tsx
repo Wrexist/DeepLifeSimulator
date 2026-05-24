@@ -21,7 +21,6 @@ import {
   BookOpen,
   Search,
   Filter,
-  Calendar,
   Briefcase,
   Heart,
   Trophy,
@@ -32,8 +31,6 @@ import {
   X,
   ChevronRight,
   Clock,
-  Star,
-  TrendingUp,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react-native';

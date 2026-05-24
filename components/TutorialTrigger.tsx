@@ -1,10 +1,9 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { HelpCircle, Play, BookOpen, Sparkles } from 'lucide-react-native';
 import { useTutorial } from '@/contexts/UIUXContext';
 import { useGame } from '@/contexts/GameContext';
-import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 
 interface TutorialTriggerProps {
   context?: 'game' | 'onboarding' | 'advanced';

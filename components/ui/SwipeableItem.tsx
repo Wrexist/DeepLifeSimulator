@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, StyleSheet, Animated, PanResponderGestureState } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 // Import Swipeable from react-native-gesture-handler
 import { Swipeable } from 'react-native-gesture-handler';
 

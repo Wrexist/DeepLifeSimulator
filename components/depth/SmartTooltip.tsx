@@ -21,10 +21,9 @@ import {
   ChevronUp,
   Calculator,
   Lightbulb,
-  TrendingUp,
 } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
-import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 
 export type DisclosureLevel = 'simple' | 'standard' | 'advanced';
 

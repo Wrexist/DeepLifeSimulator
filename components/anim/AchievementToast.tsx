@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { Text, StyleSheet, View, Dimensions, Platform } from 'react-native';
-import { MotiView, MotiText } from '@/components/anim/MotiStub';
+import { MotiView } from '@/components/anim/MotiStub';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
