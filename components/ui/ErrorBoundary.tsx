@@ -1,6 +1,8 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+// CRITICAL: use fallback to avoid iOS 26 TurboModule crash.
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { AlertTriangle, RefreshCw } from 'lucide-react-native';
 
 interface Props {

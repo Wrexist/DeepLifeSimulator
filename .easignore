@@ -49,6 +49,9 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Unused/backup assets (verified no code references)
+assets/images/backupMain_Menu.png
+
 # Scripts (not needed for build)
 # Keep fix-podspec.js and preflight-check.js as they're needed for builds
 scripts/build-and-submit-testflight.*

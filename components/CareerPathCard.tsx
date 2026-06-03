@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import {
     Briefcase,
     ChevronRight,
@@ -363,10 +363,15 @@ const styles = StyleSheet.create({
         backgroundColor: '#1F2937',
         borderRadius: responsiveBorderRadius.xl,
         padding: responsiveSpacing.lg,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
+        ...Platform.select({
+          web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+          },
+        }),
         elevation: 2,
     },
     compactContainer: {

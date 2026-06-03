@@ -1,16 +1,15 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
   Modal,
   Alert,
-  ScrollView,
-} from 'react-native';
+  ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame, Loan } from '@/contexts/GameContext';
+import { safeSettings, safeStats } from '@/utils/safeGameState';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { getShadow } from '@/utils/shadow';
@@ -40,7 +39,8 @@ const EARLY_PAYOFF_DISCOUNT = 0.05; // 5% discount for early payoff
 
 function LoanManager() {
   const { gameState, setGameState, saveGame } = useGame();
-  const { buttonPress, haptic, success } = useFeedback(gameState.settings.hapticFeedback);
+  // R2-A: settings can be undefined during migration — guard.
+  const { buttonPress, haptic, success } = useFeedback(safeSettings(gameState).hapticFeedback);
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showLoanDetails, setShowLoanDetails] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
@@ -52,7 +52,8 @@ function LoanManager() {
 
   // Get loans from game state
   const loans = useMemo(() => gameState.loans || [], [gameState.loans]);
-  const cash = gameState.stats.money;
+  // R2-A: stats can be undefined during a mid-migration render.
+  const cash = safeStats(gameState).money;
   const savings = gameState.bankSavings || 0;
   const weeklyIncome = useMemo(() => {
     // Calculate weekly income from various sources
@@ -374,12 +375,17 @@ function LoanManager() {
             Loan Amount
           </Text>
           <TextInput
-            style={[styles.input, gameState.settings.darkMode && styles.inputDark]}
+            style={[styles.input, gameState.settings?.darkMode && styles.inputDark]}
             value={loanAmount}
             onChangeText={setLoanAmount}
             placeholder={`Max: ${formatMoney(loanEligibility.maxLoanAmount)}`}
             placeholderTextColor="#9CA3AF"
             keyboardType="numeric"
+            // R3-F: numeric inputs should never autocorrect.
+            autoCorrect={false}
+            autoCapitalize="none"
+            spellCheck={false}
+            returnKeyType="done"
           />
 
           {/* Term Selection */}
@@ -500,7 +506,7 @@ function LoanManager() {
                         {loan.name}
                       </Text>
                       <Text style={[styles.loanMeta, gameState.settings.darkMode && styles.loanMetaDark]}>
-                        {loan.rateAPR.toFixed(1)}% APR â€¢ {loan.termWeeks}w term
+                        {loan.rateAPR.toFixed(1)}% APR • {loan.termWeeks}w term
                       </Text>
                     </View>
                   </View>
@@ -644,12 +650,16 @@ function LoanManager() {
                 </View>
 
                 <TextInput
-                  style={[styles.input, gameState.settings.darkMode && styles.inputDark]}
+                  style={[styles.input, gameState.settings?.darkMode && styles.inputDark]}
                   value={repayAmount}
                   onChangeText={setRepayAmount}
                   placeholder="Enter amount to pay"
                   placeholderTextColor="#9CA3AF"
                   keyboardType="numeric"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  returnKeyType="done"
                 />
 
                 <View style={styles.quickPayButtons}>
@@ -797,15 +807,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   summaryLabelDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   summaryValue: {
     fontSize: 16,
@@ -866,15 +886,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   loanMetaDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   loanAmount: {
     fontSize: 18,

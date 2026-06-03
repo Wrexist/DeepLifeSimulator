@@ -8,6 +8,7 @@ import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
+import { rejectIfBlocked } from './_guards';
 
 const log = logger.scope('JobActions');
 
@@ -23,6 +24,10 @@ export const performStreetJob = (
     gainCrimeSkillXp: (skillId: CrimeSkillId, amount: number) => void;
   }
 ) => {
+  // P1-3: dead players can't work street jobs.
+  const blocked = rejectIfBlocked(gameState);
+  if (blocked) return blocked;
+
   const job = (gameState.streetJobs || []).find(j => j.id === jobId);
   if (!job) {
     log.error(`Street job not found: ${jobId}`);
@@ -126,7 +131,11 @@ export const performStreetJob = (
   // PRIORITY 2 FIX: Use constant from randomnessConstants
   const { PITY_THRESHOLD_STREET_JOB } = require('@/lib/randomness/randomnessConstants');
   const pityThreshold = PITY_THRESHOLD_STREET_JOB; // Guaranteed success after 5 failures
-  // Only count failures (success resets counter in state update below)
+  // P1-10 note: the failure count is read from the outer (snapshot) state and
+  // can be momentarily stale during rapid same-batch taps — but the failure
+  // counter itself is incremented inside `setGameState(prev => …)` below, so
+  // the persisted state remains correct. A same-batch double-tap can miss
+  // pity by one attempt, which is acceptable.
   const failureCount = gameState.streetJobFailureCount?.[jobId] || 0;
   const guaranteedSuccess = failureCount >= pityThreshold;
   const successRollKey = `street_job_success:${gameState.weeksLived || 0}:${jobId}:attempt:${attemptNumber}`;
@@ -253,6 +262,18 @@ export const performStreetJob = (
     
     // Not caught - update everything in a single state update to prevent race conditions
     setGameState(prev => {
+      // ANTI-EXPLOIT: Re-check the per-job and global weekly caps INSIDE the
+      // prev callback so two rapid same-batch street-job clicks don't both
+      // pass the outer cap gate above and bypass the cap.
+      const prevWeeklyJobs = prev.weeklyStreetJobs || {};
+      const prevCountForJob = prevWeeklyJobs[jobId] || 0;
+      if (prevCountForJob >= maxPerWeek) return prev;
+      const prevTotal = Object.values(prevWeeklyJobs).reduce(
+        (sum: number, count) => sum + (typeof count === 'number' ? count : 0),
+        0,
+      );
+      if (prevTotal >= MAX_TOTAL_STREET_JOBS_PER_WEEK) return prev;
+
       // Use prev.stats.money (fresh from updater) to avoid stale-closure race
       const newMoney = Math.max(0, prev.stats.money + moneyGained);
 
@@ -477,6 +498,10 @@ export const applyForJob = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   careerId: string
 ): { success: boolean; message: string } | void => {
+  // P1-3: dead players can't apply for jobs.
+  const blocked = rejectIfBlocked(gameState);
+  if (blocked) return blocked;
+
   const career = gameState.careers.find(c => c.id === careerId);
   if (!career) {
     log.error(`Career not found: ${careerId}`);
@@ -576,9 +601,14 @@ export const applyForJob = (
   const accepted = guaranteedAcceptance || ((applicationRoll || 0) * 100 < acceptanceChance);
 
   setGameState(prev => {
+    // R4-K: re-check pending application + current job inside the updater so
+    // a same-batch double-tap for two different careers can't both mark
+    // themselves accepted and corrupt careerHistory.
+    if (prev.careers.some(c => c.applied && !c.accepted)) return prev;
+    if (prev.currentJob) return prev;
     const updatedCareers = prev.careers.map(c => {
       if (c.id !== careerId) return c;
-      
+
       return {
         ...c,
         applied: true,

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Animated, Dimensions } from 'react-native';
+import { Platform, View, Text, StyleSheet, Modal, Animated, Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Target, CheckCircle, Star } from 'lucide-react-native';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -238,10 +238,15 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.xl,
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
     elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
   },
   header: {
     alignItems: 'center',

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   TouchableOpacity,
@@ -8,8 +7,7 @@ import {
   ScrollView,
   Alert,
   Dimensions,
-  ActivityIndicator,
-} from 'react-native';
+  ActivityIndicator } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { 
   X, 
@@ -507,7 +505,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   title: {
     fontSize: fontScale(22),
@@ -573,10 +571,15 @@ const styles = StyleSheet.create({
     marginBottom: scale(20),
     borderRadius: scale(16),
     overflow: 'hidden',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(59, 130, 246, 0.3)' } as any,
+      default: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 8,
   },
   createButtonGradient: {
@@ -705,7 +708,7 @@ const styles = StyleSheet.create({
     paddingVertical: scale(14),
     borderRadius: scale(14),
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   restoreBtnText: {
     flex: 1,
@@ -720,7 +723,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderRadius: scale(14),
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   footer: {
     paddingHorizontal: scale(20),

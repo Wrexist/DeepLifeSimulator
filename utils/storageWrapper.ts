@@ -24,8 +24,15 @@ function getRealAsyncStorage() {
   }
 }
 
-// Lazy-loaded AsyncStorage proxy - same interface as real AsyncStorage
-const AsyncStorage = {
+// Lazy-loaded AsyncStorage proxy - same interface as real AsyncStorage.
+//
+// Exported as `lazyAsyncStorage` so callers can swap a direct
+// `import AsyncStorage from '@react-native-async-storage/async-storage'`
+// for `import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper'`
+// without any other code changes — this preserves the raw string-based API.
+// (`safeAsyncStorage` below has a richer JSON-aware API and is preferred for
+// new code, but swapping interfaces in bulk is risky.)
+export const lazyAsyncStorage = {
   getItem: async (key: string) => {
     const storage = getRealAsyncStorage();
     return storage ? storage.getItem(key) : null;
@@ -59,6 +66,8 @@ const AsyncStorage = {
     if (storage) await storage.clear();
   },
 };
+// Internal alias used by safeAsyncStorage below — keeps the existing reference name.
+const AsyncStorage = lazyAsyncStorage;
 
 /**
  * Retry configuration for storage operations

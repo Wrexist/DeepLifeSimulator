@@ -9,11 +9,11 @@ import {
   Platform,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { 
-  Smartphone, 
-  Heart,
+import {
+  Smartphone,
+  Flame,
   Users,
-  MessageCircle,
+  Activity,
   TrendingUp,
   CreditCard,
   GraduationCap,
@@ -25,14 +25,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'expo-router';
 
-// Import mobile app components directly (no lazy loading)
-import DatingApp from '@/components/mobile/TinderApp';
+// REVERTED R6 lazy-loading: see comment in computer.tsx — same regression.
+import DatingApp from '@/components/mobile/Spark/SparkApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
-import SocialApp from '@/components/mobile/SocialApp';
+import PulseApp from '@/components/mobile/Pulse/PulseApp';
 import StocksApp from '@/components/mobile/StocksApp';
 import BankApp from '@/components/mobile/BankApp';
 import EducationApp from '@/components/mobile/EducationApp';
-import CompanyApp from '@/components/mobile/CompanyApp';
+import CompanyApp from '@/components/mobile/Hustle/HustleApp';
 import PetApp from '@/components/mobile/PetApp';
 
 import {
@@ -74,9 +74,7 @@ function MobileScreenContent() {
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
-  const [_contentHeight, _setContentHeight] = useState(1);
-  const [_visibleHeight, _setVisibleHeight] = useState(1);
-  const [_scrollY, _setScrollY] = useState(0);
+  // P3-3: dead scroll state — same pattern as work.tsx / market.tsx (P1-8).
 
   // Prevent staying on mobile screen when in prison - redirect to work tab
   useEffect(() => {
@@ -103,11 +101,11 @@ function MobileScreenContent() {
   const appsList = useMemo(() => [
     {
       id: 'tinder',
-      name: t('mobile.dating'),
-      description: t('mobile.findLoveRelationships'),
-      icon: Heart,
-      gradient: ['#FF4757', '#FF3742'], // Red gradient to match heart icon
-      iconGradient: ['#FF4757', '#FF3742'],
+      name: 'Spark',
+      description: 'Find your match',
+      icon: Flame,
+      gradient: ['#F43F5E', '#FB923C'], // Rose → orange — Spark brand gradient
+      iconGradient: ['#F43F5E', '#FB923C'],
       available: true,
     },
     {
@@ -121,11 +119,11 @@ function MobileScreenContent() {
     },
     {
       id: 'social',
-      name: t('mobile.social'),
-      description: t('mobile.shareLifeOnline'),
-      icon: MessageCircle,
-      gradient: ['#5F27CD', '#341F97'], // Purple gradient to match social icon
-      iconGradient: ['#5F27CD', '#341F97'],
+      name: 'Pulse',
+      description: 'Feel the room',
+      icon: Activity,
+      gradient: ['#EC4899', '#6366F1'], // Magenta → indigo — Pulse brand gradient
+      iconGradient: ['#EC4899', '#6366F1'],
       available: true,
     },
     {
@@ -157,11 +155,11 @@ function MobileScreenContent() {
     },
     {
       id: 'company',
-      name: t('mobile.company') || 'Company',
-      description: t('mobile.buildBusiness') || 'Build and manage your business',
+      name: 'Hustle',
+      description: 'Build something',
       icon: Building,
-      gradient: ['#5F27CD', '#341F97'], // Purple gradient for company
-      iconGradient: ['#5F27CD', '#341F97'],
+      gradient: ['#6366F1', '#06B6D4'], // Indigo → cyan — Hustle brand gradient
+      iconGradient: ['#6366F1', '#06B6D4'],
       available: true,
     },
     {
@@ -200,7 +198,7 @@ function MobileScreenContent() {
     const apps = {
       tinder: DatingApp,
       contacts: ContactsApp,
-      social: SocialApp,
+      social: PulseApp,
       stocks: StocksApp,
       bank: BankApp,
       education: EducationApp,
@@ -262,6 +260,9 @@ function MobileScreenContent() {
                 setActiveApp(app.id);
               }}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${app.name}`}
+              accessibilityHint={app.description ?? `Launch the ${app.name} app`}
             >
               <View style={[
                 styles.appCardGlassInner,

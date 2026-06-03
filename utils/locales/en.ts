@@ -179,6 +179,7 @@ export default {
         autoSaveDescription: 'Automatically save game progress',
         dangerZone: 'Danger Zone',
         reportBug: 'Report a Bug',
+        restartGame: 'Restart Game',
         switchSaveSlot: 'Switch Save Slot',
         showTutorial: 'Show Tutorial',
         leaderboard: 'Leaderboard',

@@ -1,4 +1,5 @@
 import type { GameState } from '@/contexts/GameContext';
+import type { PulseBrandOffer, PulseBrandCategory } from '@/contexts/game/types';
 import { getSocialMediaData, type SocialMediaData } from './socialMedia';
 
 export interface BrandPartnershipOffer {
@@ -102,12 +103,170 @@ export function calculateInfluencerIncome(
 ): number {
   // Base income: $0.50 per 1,000 followers per week
   let baseIncome = Math.floor((followers / 1000) * 0.5);
-  
+
   // Engagement multiplier (higher engagement = more income)
   const engagementMultiplier = 1 + (engagementRate / 100);
   baseIncome = Math.floor(baseIncome * engagementMultiplier);
-  
+
   // Minimum income for influencer career
   return Math.max(1000, baseIncome);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Pulse brand-deal generation (v13+)
+// ─────────────────────────────────────────────────────────────────────
+
+// Curated brand catalog. Each entry seeds a deterministic offer based on
+// player handle + week, so re-rolling the same tick yields the same offers.
+const PULSE_BRAND_CATALOG: Array<{
+  name: string;
+  category: PulseBrandCategory;
+  color1: string;
+  color2: string;
+}> = [
+  { name: 'NebulaCola',     category: 'food',      color1: '#F472B6', color2: '#7C3AED' },
+  { name: 'MoonAudio',      category: 'tech',      color1: '#38BDF8', color2: '#1E40AF' },
+  { name: 'AuraFit',        category: 'fitness',   color1: '#34D399', color2: '#065F46' },
+  { name: 'LumeRide',       category: 'auto',      color1: '#FBBF24', color2: '#92400E' },
+  { name: 'ZephyrWear',     category: 'fashion',   color1: '#FB7185', color2: '#9F1239' },
+  { name: 'PalaceCoffee',   category: 'food',      color1: '#A78BFA', color2: '#5B21B6' },
+  { name: 'OrbitBank',      category: 'finance',   color1: '#60A5FA', color2: '#1E3A8A' },
+  { name: 'TerraStays',     category: 'lifestyle', color1: '#F59E0B', color2: '#7C2D12' },
+  { name: 'PulseProtein',   category: 'fitness',   color1: '#EF4444', color2: '#7F1D1D' },
+  { name: 'NovaStudio',     category: 'tech',      color1: '#8B5CF6', color2: '#4C1D95' },
+];
+
+function pickBrand(seed: number) {
+  return PULSE_BRAND_CATALOG[Math.abs(seed) % PULSE_BRAND_CATALOG.length];
+}
+
+function seedFrom(handle: string, week: number, slot: number): number {
+  const s = `${handle}|${week}|${slot}`;
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return h;
+}
+
+/**
+ * Extended brand-offer generator for the Pulse inbox.
+ *
+ * Replaces the legacy `generateBrandOffers` for v13+ saves. Returns up to four
+ * tiered offers (sponsored, deal, premium, ambassador) gated on follower count
+ * and engagement. Each offer carries deliverable count, duration, category,
+ * and brand-specific colors so the UI can render a real-looking inbox.
+ *
+ * Deterministic seed per (handle, weeksLived, tierSlot) — re-running the same
+ * tick yields the same offers, which keeps things stable across StrictMode
+ * double-renders.
+ */
+export function generateBrandOffersExtended(
+  state: GameState,
+  weeksLived: number,
+): PulseBrandOffer[] {
+  // Read from state directly — the Pulse tick keeps `engagementRate` current,
+  // and `getSocialMediaData` would silently re-derive it from posting cadence
+  // which would diverge from what the tick just wrote.
+  const followers = getSocialMediaData(state).followers; // keeps politics-perk bonus
+  const engagement = state.socialMedia?.engagementRate ?? 0;
+  const reputation = state.stats?.reputation ?? 0;
+  const handle = state.userProfile?.handle || 'player';
+  const offers: PulseBrandOffer[] = [];
+
+  // Tier 1 — Sponsored post (10K+ followers, modest engagement)
+  if (followers >= 10_000 && engagement >= 10) {
+    const brand = pickBrand(seedFrom(handle, weeksLived, 1));
+    const payment = Math.floor(followers * 0.10);
+    offers.push({
+      id: `pulse_offer_sp_${weeksLived}_${brand.name}`,
+      brandName: brand.name,
+      type: 'sponsored_post',
+      payment,
+      weeklyPayment: payment,
+      postsRequired: 1,
+      duration: 1,
+      category: brand.category,
+      requirements: { minFollowers: 10_000, minEngagementRate: 10 },
+      description: `One sponsored post about ${brand.name}.`,
+      expiresInWeeks: 1,
+      offeredWeek: weeksLived,
+      logoColor1: brand.color1,
+      logoColor2: brand.color2,
+    });
+  }
+
+  // Tier 2 — Brand deal (50K+ followers, healthy engagement)
+  if (followers >= 50_000 && engagement >= 15) {
+    const brand = pickBrand(seedFrom(handle, weeksLived, 2));
+    const payment = Math.floor(followers * 2.0);
+    const duration = 4;
+    offers.push({
+      id: `pulse_offer_bd_${weeksLived}_${brand.name}`,
+      brandName: brand.name,
+      type: 'brand_deal',
+      payment,
+      weeklyPayment: Math.floor(payment / duration),
+      postsRequired: 3,
+      duration,
+      category: brand.category,
+      requirements: { minFollowers: 50_000, minEngagementRate: 15 },
+      description: `Three-post campaign over ${duration} weeks.`,
+      expiresInWeeks: 2,
+      offeredWeek: weeksLived,
+      logoColor1: brand.color1,
+      logoColor2: brand.color2,
+    });
+  }
+
+  // Tier 3 — Premium long campaign (100K+ followers, strong engagement)
+  if (followers >= 100_000 && engagement >= 20) {
+    const brand = pickBrand(seedFrom(handle, weeksLived, 3));
+    const payment = Math.floor(followers * 5.0);
+    const duration = 8;
+    offers.push({
+      id: `pulse_offer_lc_${weeksLived}_${brand.name}`,
+      brandName: brand.name,
+      type: 'long_campaign',
+      payment,
+      weeklyPayment: Math.floor(payment / duration),
+      postsRequired: 6,
+      duration,
+      category: brand.category,
+      requirements: { minFollowers: 100_000, minEngagementRate: 20 },
+      description: `Long-form campaign: 6 posts over ${duration} weeks.`,
+      expiresInWeeks: 3,
+      offeredWeek: weeksLived,
+      prestigeImpact: 2,
+      logoColor1: brand.color1,
+      logoColor2: brand.color2,
+    });
+  }
+
+  // Tier 4 — Ambassador exclusive (1M+ followers, reputable)
+  if (followers >= 1_000_000 && engagement >= 18 && reputation >= 30) {
+    const brand = pickBrand(seedFrom(handle, weeksLived, 4));
+    const payment = Math.floor(followers * 10.0);
+    const duration = 12;
+    offers.push({
+      id: `pulse_offer_amb_${weeksLived}_${brand.name}`,
+      brandName: brand.name,
+      type: 'ambassador',
+      payment,
+      weeklyPayment: Math.floor(payment / duration),
+      postsRequired: 12,
+      duration,
+      category: brand.category,
+      requirements: { minFollowers: 1_000_000, minEngagementRate: 18, minReputation: 30 },
+      description: `Exclusive ${duration}-week ambassadorship — one brand only.`,
+      expiresInWeeks: 4,
+      offeredWeek: weeksLived,
+      prestigeImpact: 8,
+      logoColor1: brand.color1,
+      logoColor2: brand.color2,
+    });
+  }
+
+  return offers;
 }
 

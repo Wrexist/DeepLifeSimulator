@@ -7,7 +7,9 @@ import {
   TextStyle,
   TouchableOpacityProps,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+// CRITICAL: use fallback to avoid iOS 26 TurboModule crash.
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { haptic } from '@/utils/haptics';
 
 interface AnimatedButtonProps extends TouchableOpacityProps {

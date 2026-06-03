@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Modal, View, ScrollView } from 'react-native';
+import { Platform, TouchableOpacity, Text, StyleSheet, Modal, View, ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { HelpCircle, X } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
@@ -139,10 +139,15 @@ const styles = StyleSheet.create({
     width: '100%',
     maxHeight: '80%',
     boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   modalContainerDark: {

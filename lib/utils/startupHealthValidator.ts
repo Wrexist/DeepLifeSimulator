@@ -7,7 +7,7 @@
 
 import { getLastBootStage } from './bootBreadcrumbs';
 import { logger } from '@/utils/logger';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 
 export interface StartupHealthStatus {
   isHealthy: boolean;

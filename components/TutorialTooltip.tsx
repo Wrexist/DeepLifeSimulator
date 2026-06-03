@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, Modal, Animated, ViewStyle } from 'react-native';
+// CRITICAL: use fallback to avoid iOS 26 TurboModule crash.
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, ArrowRight } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
 
@@ -98,7 +100,7 @@ export default function TutorialTooltip({
             {/* Header */}
             <View style={styles.header}>
               <Text style={[styles.title, darkMode && styles.titleDark]}>
-                💡 {title}
+                {title}
               </Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <X size={20} color={darkMode ? '#9CA3AF' : '#6B7280'} />
@@ -164,10 +166,15 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
     boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   containerDark: {

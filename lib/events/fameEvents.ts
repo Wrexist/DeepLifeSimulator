@@ -483,3 +483,90 @@ export const fameEventTemplates: EventTemplate[] = [
   exclusiveParty,
   hateComment,
 ];
+
+// ─── Pulse surfacing (v13+) ──────────────────────────────────────────────
+//
+// When a fame event fires, optionally surface it inside the in-game social
+// platform: push a notification, add a trending hashtag, and (for scandal-
+// surfacing events) seed an `activeScandal`. The Pulse tick consumes these
+// next week through its own decay/rotation passes — this helper just stages
+// the initial entries.
+//
+// Returns a shallow new socialMedia object so the caller can spread it into
+// state (`{ ...prev, socialMedia: applyFameEventToPulse(prev, ev, weeksLived) }`).
+
+import type {
+  PulseActiveScandal,
+  PulseNotification,
+  PulseScandalType,
+  PulseTrendingHashtag,
+} from '@/contexts/game/types';
+
+const NOTIFICATION_CAP = 100;
+const TRENDING_CAP = 10;
+
+const SCANDAL_TYPE_MAP: Record<string, PulseScandalType> = {
+  tabloid_scandal: 'leaked_dm',
+  fake_news_story: 'deepfake',
+  brand_crisis: 'brand_betrayal',
+  impostor_account: 'deepfake',
+  privacy_invasion: 'leaked_dm',
+};
+
+export function applyFameEventToPulse(
+  state: GameState,
+  template: EventTemplate,
+  weeksLived: number,
+): GameState['socialMedia'] {
+  if (!template.surface || !state.socialMedia) return state.socialMedia;
+
+  const sm = { ...state.socialMedia };
+
+  // ── pulse_notification: always push when surface is set ────────────────
+  const notif: PulseNotification = {
+    id: `fameevt_${template.id}_${weeksLived}`,
+    type: template.surface === 'pulse_scandal' ? 'scandal_update' : 'system',
+    timestamp: Date.now(),
+    gameWeek: weeksLived,
+    read: false,
+    text: `Fame event: ${template.id.replace(/_/g, ' ')}`,
+  };
+  sm.notifications = [notif, ...(sm.notifications || [])].slice(0, NOTIFICATION_CAP);
+
+  // ── pulse_hashtag: inject a trending entry if pulseHashtag provided ────
+  if (template.surface === 'pulse_hashtag' && template.pulseHashtag) {
+    const tag = template.pulseHashtag.startsWith('#')
+      ? template.pulseHashtag
+      : `#${template.pulseHashtag}`;
+    const next: PulseTrendingHashtag = {
+      tag,
+      postCount: 500,
+      source: 'event',
+      triggeredByEventId: template.id,
+      velocity: 1.0,
+      decayWeek: weeksLived + 3,
+    };
+    const existing = sm.trendingHashtags || [];
+    if (!existing.find(t => t.tag === tag)) {
+      sm.trendingHashtags = [...existing, next].slice(0, TRENDING_CAP);
+    }
+  }
+
+  // ── pulse_scandal: seed activeScandal if none active ───────────────────
+  if (template.surface === 'pulse_scandal' && !sm.activeScandal) {
+    const scandalType: PulseScandalType = SCANDAL_TYPE_MAP[template.id] ?? 'bad_take';
+    const scandal: PulseActiveScandal = {
+      id: `scandal_${template.id}_${weeksLived}`,
+      type: scandalType,
+      severity: 50,
+      weeksRemaining: 4,
+      startedWeek: weeksLived,
+      reputationLossThisWeek: 0,
+      followerLossThisWeek: 0,
+      headline: template.id.replace(/_/g, ' '),
+    };
+    sm.activeScandal = scandal;
+  }
+
+  return sm;
+}

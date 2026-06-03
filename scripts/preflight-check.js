@@ -12,6 +12,16 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+const envPath = path.join(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  try {
+    require('dotenv').config({ path: envPath });
+  } catch (_err) {
+    // dotenv unavailable — env vars must already be set in the shell
+  }
+}
+
 const { evaluateSaveSigningEnv } = require('./preflightSaveSigning');
 
 const RED = '\x1b[31m';
@@ -399,6 +409,109 @@ try {
   }
 } catch (error) {
   log('[FAIL] Save signing configuration check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
+  hasErrors = true;
+}
+
+// 9. IAP receipt verification configuration (R7 SB-3)
+// In production, IAPService.verifyReceiptWithServer returns true when
+// EXPO_PUBLIC_IAP_VERIFY_URL is unset — every purchase passes without any
+// server check. That's a revenue-leak and a likely App Store rejection.
+// Block production builds without a verify URL. Dev/sandbox builds can run
+// without it.
+logSection('9. IAP Receipt Verification (production)');
+try {
+  const iapEnabled = process.env.EXPO_PUBLIC_ENABLE_IAP !== 'false';
+  const isProductionBuild = process.argv.includes('--platform')
+    && (platform === 'ios' || platform === 'android')
+    && !process.argv.includes('--dev');
+  const verifyUrl = (process.env.EXPO_PUBLIC_IAP_VERIFY_URL || '').trim();
+
+  if (!iapEnabled) {
+    log('[SKIP] IAP disabled (EXPO_PUBLIC_ENABLE_IAP=false)', YELLOW);
+  } else if (!isProductionBuild) {
+    log('[SKIP] Non-production build — verify URL not required', YELLOW);
+  } else if (!verifyUrl) {
+    log('[FAIL] EXPO_PUBLIC_IAP_VERIFY_URL not set for production build', RED);
+    log('   IAPService.verifyReceiptWithServer falls through to `return true`', RED);
+    log('   when no URL is configured — every purchase passes without server', RED);
+    log('   verification. This is a revenue-leak and likely App Store rejection.', RED);
+    log('   Configure via EAS secret:', RED);
+    log('     eas secret:create --scope project --name EXPO_PUBLIC_IAP_VERIFY_URL --value <url>', RED);
+    hasErrors = true;
+  } else if (!/^https:\/\//.test(verifyUrl)) {
+    log(`[FAIL] EXPO_PUBLIC_IAP_VERIFY_URL must be https:// (got: ${verifyUrl})`, RED);
+    hasErrors = true;
+  } else {
+    log('[PASS] IAP verify URL configured for production', GREEN);
+  }
+} catch (error) {
+  log('[FAIL] IAP verify URL check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
+  hasErrors = true;
+}
+
+// 10. AdMob unit IDs present for production (R7 SB-3)
+// Section 5 above checks the AdMob *app ID* in app.config.js. This section
+// checks the individual *ad unit* IDs (banner / interstitial / rewarded)
+// per platform. Without these, AdMobService falls back to Google's test
+// ad unit IDs even in release builds (ships with zero-revenue test ads).
+logSection('10. AdMob Ad Unit IDs (production)');
+try {
+  const iapEnabled = process.env.EXPO_PUBLIC_ENABLE_ADMOB !== 'false';
+  const isProductionBuild = process.argv.includes('--platform')
+    && (platform === 'ios' || platform === 'android')
+    && !process.argv.includes('--dev');
+
+  if (!iapEnabled) {
+    log('[SKIP] AdMob disabled (EXPO_PUBLIC_ENABLE_ADMOB=false)', YELLOW);
+  } else if (!isProductionBuild) {
+    log('[SKIP] Non-production build — test ad units OK', YELLOW);
+  } else {
+    const requiredVars = [];
+    if (platform === 'ios' || platform === 'all') {
+      requiredVars.push(
+        'EXPO_PUBLIC_ADMOB_BANNER_IOS',
+        'EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS',
+        'EXPO_PUBLIC_ADMOB_REWARDED_IOS',
+      );
+    }
+    if (platform === 'android' || platform === 'all') {
+      requiredVars.push(
+        'EXPO_PUBLIC_ADMOB_BANNER_ANDROID',
+        'EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID',
+        'EXPO_PUBLIC_ADMOB_REWARDED_ANDROID',
+      );
+    }
+
+    const adUnitPattern = /^ca-app-pub-\d+\/\d+$/;
+    const missing = [];
+    const malformed = [];
+    for (const name of requiredVars) {
+      const v = (process.env[name] || '').trim();
+      if (!v) {
+        missing.push(name);
+      } else if (!adUnitPattern.test(v)) {
+        malformed.push(`${name}=${v}`);
+      }
+    }
+
+    if (missing.length > 0) {
+      log('[FAIL] Missing AdMob ad unit IDs for production:', RED);
+      missing.forEach((n) => log(`   - ${n}`, RED));
+      log('   Without these, AdMobService ships with Google test ad units', RED);
+      log('   (zero revenue). Configure via EAS secrets.', RED);
+      hasErrors = true;
+    }
+    if (malformed.length > 0) {
+      log('[FAIL] Malformed AdMob ad unit IDs (expect ca-app-pub-…/…):', RED);
+      malformed.forEach((n) => log(`   - ${n}`, RED));
+      hasErrors = true;
+    }
+    if (missing.length === 0 && malformed.length === 0) {
+      log('[PASS] AdMob ad unit IDs configured for production', GREEN);
+    }
+  }
+} catch (error) {
+  log('[FAIL] AdMob unit ID check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
   hasErrors = true;
 }
 

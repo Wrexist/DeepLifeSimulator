@@ -1,7 +1,8 @@
 import React, { useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
+import { safeSettings } from '@/utils/safeGameState';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
 
 const LinearGradient = LinearGradientFallback;
@@ -11,7 +12,9 @@ export default function LifeMomentModal() {
   const { updateStats, updateMoney, saveGame } = useGameActions();
   
   const moment = gameState.lifeMoments?.pendingMoment;
-  const settings = gameState.settings;
+  // R2-A: this fires whenever a life moment triggers and would otherwise crash
+  // on a save that's mid-migration.
+  const settings = safeSettings(gameState);
 
   const handleChoice = useCallback(
     (choiceId: string) => {
@@ -139,10 +142,15 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 12,
   },
   title: {

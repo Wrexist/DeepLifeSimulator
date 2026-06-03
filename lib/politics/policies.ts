@@ -1291,7 +1291,7 @@ export function getPolicyById(id: string): Policy | undefined {
   return POLICIES.find(p => p.id === id);
 }
 
-export function calculatePolicyEffects(policies: string[]): {
+export function calculatePolicyEffects(policies: string[] | undefined | null): {
   money: number;
   happiness: number;
   health: number;
@@ -1311,6 +1311,10 @@ export function calculatePolicyEffects(policies: string[]): {
       priceIndex: 0,
     },
   };
+
+  // BUGFIX: callers sometimes pass `state.politics?.enactedPolicies` which
+  // can be undefined on fresh state / pre-politics-career saves.
+  if (!Array.isArray(policies)) return effects;
 
   policies.forEach(policyId => {
     const policy = getPolicyById(policyId);

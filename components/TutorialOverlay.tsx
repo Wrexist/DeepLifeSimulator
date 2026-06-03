@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+// CRITICAL: use fallback to avoid iOS 26 TurboModule crash.
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, ArrowRight, Lightbulb } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from '@/utils/safeGameState';
 import { getTutorialSteps } from '@/utils/tutorialData';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 
 const TUTORIAL_COMPLETED_KEY = 'tutorial_completed';
 
@@ -16,7 +19,7 @@ interface TutorialOverlayProps {
 
 export default function TutorialOverlay({ visible, onClose }: TutorialOverlayProps) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const steps = getTutorialSteps('game');
   const currentStep = steps[currentStepIndex];

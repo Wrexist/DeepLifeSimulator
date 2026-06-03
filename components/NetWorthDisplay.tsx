@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated , Platform } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { computeNetWorth, Asset, Liability } from '@/utils/netWorth';
 
 const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
@@ -65,7 +66,7 @@ const PieChart = ({ data }: { data: PieSlice[] }) => {
 
 export default function NetWorthDisplay() {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const previous = useRef(0);
 
@@ -216,10 +217,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+    }),
     elevation: 2,
   },
   containerDark: {

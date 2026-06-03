@@ -1,15 +1,24 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform, Modal, View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { useRouter } from 'expo-router';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
+import { deleteSaveSlot } from '@/utils/saveValidation';
+// safeSettings/safeStats/safeDate are imported here for the death-modal defenses below.
+import { safeSettings, safeStats, safeDate } from '@/utils/safeGameState';
 
 export default function TombstonePopup() {
   const { gameState, setGameState, reviveCharacter, currentSlot } = useGame();
   const router = useRouter();
-  const { settings, deathReason, stats, date } = gameState;
+  // R2-A: never destructure these raw — a missing settings/stats/date during
+  // the death transition would soft-lock the player on this modal (it blocks
+  // dismissal via onRequestClose).
+  const settings = safeSettings(gameState);
+  const stats = safeStats(gameState);
+  const date = safeDate(gameState);
+  const { deathReason } = gameState;
   const completed = gameState.achievements?.filter(a => a.completed) || [];
   const unlockedPerks = perks.filter(p =>
     completed.some(a => a.id === p.unlock?.achievementId)
@@ -24,8 +33,9 @@ export default function TombstonePopup() {
         deathReason: undefined,
       }));
       
-      // Clear the current save slot
-      await AsyncStorage.removeItem(`save_slot_${currentSlot}`);
+      // Clear the current save slot (legacy key + both buffers + pointer)
+      // so doubleBufferLoad cannot resurrect the dead character on next launch.
+      await deleteSaveSlot(currentSlot);
       await AsyncStorage.removeItem('lastSlot');
 
       // Reset game state to a fresh life while preserving meta-progress
@@ -120,10 +130,15 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     width: '100%',
     boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   popupDark: {

@@ -9,12 +9,13 @@ import { Target, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 const LinearGradient = LinearGradientFallback;
 
 export default function LifeGoalsPanel() {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
 
   return (
     <>
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   headerText: {
     flex: 1,
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
     minHeight: scale(160),
   },
   gradientCompleted: {
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     ...Platform.select({
       ios: {
         shadowColor: '#10B981',
@@ -260,11 +261,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   perkIconContainerCompleted: {
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   perkIcon: {
     width: scale(40),
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   completedBadgeText: {
     fontSize: fontScale(14),

@@ -345,9 +345,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    ...Platform.select({
+      web: { textShadow: '0px 2px 4px rgba(0, 0, 0, 0.5)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
+      },
+    }),
   },
   subtitle: {
     fontSize: 16,
@@ -377,10 +382,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
     borderRadius: 4,
     boxShadow: '0px 2px 4px rgba(59, 130, 246, 0.5)',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(59, 130, 246, 0.5)' } as any,
+      default: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 4,
+      },
+    }),
   },
   progressText: {
     fontSize: 16,
@@ -403,7 +413,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   cacheUpdateText: {
     fontSize: 14,

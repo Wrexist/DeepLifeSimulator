@@ -69,27 +69,15 @@ function SicknessModal() {
   }, [isInActiveGame, showSicknessModal, hasDiseases, isVisible]);
   
   useEffect(() => {
-    // Check if state actually changed
-    const stateChanged = 
-      prevStateRef.current.showSicknessModal !== showSicknessModal ||
-      prevStateRef.current.hasDiseases !== hasDiseases ||
-      prevStateRef.current.isClosing !== isClosing;
-    
-    if (!stateChanged && isVisible === (isInActiveGame && showSicknessModal && hasDiseases && !isClosing)) {
-      return; // No change needed
-    }
-    
-    // Update ref
-    prevStateRef.current = { showSicknessModal, hasDiseases, isClosing };
-    
-    // Prevent processing if already in progress
-    if (isProcessingRef.current) return;
-    
+    // Compute the desired visibility from external state only — NEVER include
+    // `isVisible` in deps and set it from inside (that's an infinite-loop trap
+    // that fires "Maximum update depth exceeded" warnings).
     const shouldShow = isInActiveGame && showSicknessModal && hasDiseases && !isClosing;
-    
+
+    if (isProcessingRef.current) return;
+
     if (shouldShow) {
       isProcessingRef.current = true;
-      setIsClosing(false); // Reset isClosing when modal opens
       setIsVisible(true);
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -109,7 +97,7 @@ function SicknessModal() {
         isProcessingRef.current = false;
       });
     }
-  }, [isInActiveGame, showSicknessModal, hasDiseases, isClosing, fadeAnim, isVisible]);
+  }, [isInActiveGame, showSicknessModal, hasDiseases, isClosing, fadeAnim]);
 
   // Cleanup effect to reset state when component unmounts
   useEffect(() => {
@@ -941,7 +929,7 @@ const styles = StyleSheet.create({
   },
   urgentDiseaseCard: {
     borderWidth: 2,
-    borderColor: 'rgba(220, 38, 38, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
   },
   diseaseHeader: {
     marginBottom: scale(12),

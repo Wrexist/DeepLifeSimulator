@@ -56,17 +56,26 @@ export function createPatent(
   };
 }
 
-export function calculatePatentIncome(patents: Patent[]): number {
+export function calculatePatentIncome(patents: Patent[] | undefined | null): number {
+  // BUGFIX: callers sometimes pass `company.patents` which is undefined on
+  // fresh companies before any R&D — `.reduce` of undefined crashes.
+  if (!Array.isArray(patents)) return 0;
   return patents.reduce((sum, patent) => {
+    if (!patent || typeof patent.duration !== 'number') return sum;
     if (patent.duration > 0) {
-      return sum + patent.weeklyIncome;
+      const inc = typeof patent.weeklyIncome === 'number' && Number.isFinite(patent.weeklyIncome)
+        ? patent.weeklyIncome
+        : 0;
+      return sum + inc;
     }
     return sum;
   }, 0);
 }
 
-export function updatePatents(patents: Patent[]): Patent[] {
+export function updatePatents(patents: Patent[] | undefined | null): Patent[] {
+  if (!Array.isArray(patents)) return [];
   return patents
+    .filter(p => p && typeof p.duration === 'number')
     .map(patent => ({
       ...patent,
       duration: Math.max(0, patent.duration - 1),

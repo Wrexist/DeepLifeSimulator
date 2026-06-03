@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Dimensions } from 'react-native';
+// CRITICAL: use fallback to avoid iOS 26 TurboModule crash.
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { X, ArrowRight, Target } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
 
@@ -46,6 +48,10 @@ export default function InteractiveTutorial({
   const arrowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // BUGFIX: the two Animated.loop calls had no cleanup, so they continued
+    // running after the tutorial closed (memory leak, plus burned CPU).
+    let pulseLoop: Animated.CompositeAnimation | null = null;
+    let arrowLoop: Animated.CompositeAnimation | null = null;
     if (visible) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -62,7 +68,7 @@ export default function InteractiveTutorial({
       ]).start();
 
       // Pulsing animation for highlight
-      Animated.loop(
+      pulseLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.1,
@@ -75,10 +81,11 @@ export default function InteractiveTutorial({
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulseLoop.start();
 
       // Arrow bounce animation
-      Animated.loop(
+      arrowLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(arrowAnim, {
             toValue: 10,
@@ -91,9 +98,14 @@ export default function InteractiveTutorial({
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      arrowLoop.start();
     }
-  }, [visible]);
+    return () => {
+      pulseLoop?.stop();
+      arrowLoop?.stop();
+    };
+  }, [visible, fadeAnim, scaleAnim, pulseAnim, arrowAnim]);
 
   const getTooltipPosition = () => {
     if (step.highlightArea) {
@@ -313,7 +325,7 @@ export default function InteractiveTutorial({
 
             {/* Title */}
             <Text style={[styles.title, darkMode && styles.titleDark]}>
-              💡 {step.title}
+              {step.title}
             </Text>
 
             {/* Message */}
@@ -372,17 +384,27 @@ const styles = StyleSheet.create({
     borderColor: '#3B82F6',
     borderRadius: responsiveBorderRadius.md,
     boxShadow: '0px 0px 10px rgba(59, 130, 246, 0.8)',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
+    ...Platform.select({
+      web: { boxShadow: '0px 0px 10px rgba(59, 130, 246, 0.8)' } as any,
+      default: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
+      },
+    }),
   },
   arrowContainer: {
     boxShadow: '0px 0px 10px rgba(59, 130, 246, 1)',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
+    ...Platform.select({
+      web: { boxShadow: '0px 0px 10px rgba(59, 130, 246, 1)' } as any,
+      default: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+      },
+    }),
   },
   tooltip: {
     position: 'absolute',
@@ -390,10 +412,15 @@ const styles = StyleSheet.create({
     right: responsiveSpacing.lg,
     borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   tooltipGradient: {

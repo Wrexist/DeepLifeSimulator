@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { Achievement, achievements } from '@/src/features/onboarding/achievementsData';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { logger } from '@/utils/logger';
 
 interface EnrichedAchievement extends Achievement {

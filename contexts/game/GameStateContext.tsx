@@ -38,11 +38,14 @@ export function GameStateProvider({
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [currentSlot, setCurrentSlot] = useState<number>(initialSlot);
 
-  // Wrapper for setGameState — respects user's dark mode preference (no longer forced)
+  // Wrapper for setGameState — respects user's dark mode preference (no longer forced).
+  // CRITICAL: short-circuit on identity. Actions use `return prev` to mean "no change"
+  // (e.g. rejecting an overdraw); bumping updatedAt on no-ops cascades whole-app re-renders.
   const wrappedSetGameState = React.useCallback<React.Dispatch<React.SetStateAction<GameState>>>(
     (update) => {
       setGameState(prev => {
         const newState = typeof update === 'function' ? update(prev) : update;
+        if (newState === prev) return prev;
         const now = Date.now();
         const nextUpdatedAt = Math.max(now, (prev.updatedAt || 0) + 1);
         return {

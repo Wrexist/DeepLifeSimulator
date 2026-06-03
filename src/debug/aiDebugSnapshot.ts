@@ -11,7 +11,7 @@
  */
 
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { aiDebugContext, getLastCaughtError, getErrorHistory } from './aiDebugConfig';
 import { remoteLogger, LogEntry } from '@/services/RemoteLoggingService';
 import { STATE_VERSION } from '@/contexts/game/initialState';

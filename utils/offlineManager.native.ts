@@ -1,5 +1,5 @@
 import React from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from './storageWrapper';
 // CRITICAL: Lazy-load NetInfo to prevent TurboModule crash at module load
 // import NetInfo, { NetInfoState } from '@react-native-community/netinfo'; // REMOVED - lazy load
 import { logger } from '@/utils/logger';

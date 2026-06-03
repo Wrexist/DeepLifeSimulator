@@ -4,7 +4,7 @@ import { View, ViewProps, StyleSheet } from 'react-native';
 export interface BlurViewFallbackProps extends ViewProps {
   intensity?: number;
   tint?: 'light' | 'dark' | 'default';
-  blurType?: 'light' | 'dark' | 'xlight' | 'dark' | 'prominent' | 'regular' | 'extraLight' | 'systemMaterial' | 'systemMaterialLight' | 'systemMaterialDark' | 'systemChromeMaterial' | 'systemChromeMaterialLight' | 'systemChromeMaterialDark' | 'systemUltraThinMaterial' | 'systemUltraThinMaterialLight' | 'systemUltraThinMaterialDark' | 'systemThinMaterial' | 'systemThinMaterialLight' | 'systemThinMaterialDark' | 'systemThickMaterial' | 'systemThickMaterialLight' | 'systemThickMaterialDark';
+  blurType?: 'light' | 'dark' | 'xlight' | 'prominent' | 'regular' | 'extraLight' | 'systemMaterial' | 'systemMaterialLight' | 'systemMaterialDark' | 'systemChromeMaterial' | 'systemChromeMaterialLight' | 'systemChromeMaterialDark' | 'systemUltraThinMaterial' | 'systemUltraThinMaterialLight' | 'systemUltraThinMaterialDark' | 'systemThinMaterial' | 'systemThinMaterialLight' | 'systemThinMaterialDark' | 'systemThickMaterial' | 'systemThickMaterialLight' | 'systemThickMaterialDark';
   blurAmount?: number;
   reducedTransparencyFallbackColor?: string;
 }

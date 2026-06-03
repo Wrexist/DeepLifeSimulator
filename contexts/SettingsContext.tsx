@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
+import { safeAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { logger } from '@/utils/logger';
 
 interface Settings {
@@ -33,31 +33,40 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
     const loadSettings = async () => {
         try {
-            const storedSettings = await AsyncStorage.getItem('settings');
-            if (storedSettings) {
-                setSettings({ ...defaultSettings, ...JSON.parse(storedSettings) });
+            // safeAsyncStorage.getItem auto-parses JSON; returns null fallback if absent.
+            const storedSettings = await AsyncStorage.getItem('settings', null);
+            if (storedSettings && typeof storedSettings === 'object') {
+                setSettings({ ...defaultSettings, ...storedSettings });
             }
         } catch (error) {
             logger.error('Failed to load settings:', error);
         }
     };
 
-    const updateSettings = async (newSettings: Partial<Settings>) => {
-        const updated = { ...settings, ...newSettings };
-        setSettings(updated);
-        try {
-            await AsyncStorage.setItem('settings', JSON.stringify(updated));
-        } catch (error) {
-            logger.error('Failed to save settings:', error);
-        }
-    };
+    const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
+        setSettings((prev) => {
+            const updated = { ...prev, ...newSettings };
+            // safeAsyncStorage.setItem auto-stringifies — don't double-encode.
+            void AsyncStorage.setItem('settings', updated).then((ok) => {
+                if (!ok) logger.error('Failed to save settings');
+            });
+            return updated;
+        });
+    }, []);
 
-    const toggleDarkMode = async () => {
+    const toggleDarkMode = useCallback(async () => {
         await updateSettings({ darkMode: !settings.darkMode });
-    };
+    }, [settings.darkMode, updateSettings]);
+
+    // Memoize the context value — SettingsProvider is the outermost provider, so
+    // a fresh value object every render cascades to the entire tree.
+    const contextValue = useMemo(
+        () => ({ settings, updateSettings, toggleDarkMode }),
+        [settings, updateSettings, toggleDarkMode]
+    );
 
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings, toggleDarkMode }}>
+        <SettingsContext.Provider value={contextValue}>
             {children}
         </SettingsContext.Provider>
     );

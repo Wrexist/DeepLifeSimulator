@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers } from 'lucide-react-native';
+import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Trophy } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription, type ItemBadgeInfo } from '@/utils/marketBadges';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
@@ -13,6 +13,7 @@ import { useToast } from '@/contexts/ToastContext';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
+import { responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 import ErrorBoundary from '@/components/ErrorBoundary';
 const LinearGradient = LinearGradientFallback;
 
@@ -131,10 +132,11 @@ function MarketScreenContent() {
     }
   }, [gameState.items, highlightedItem, clearHighlight]);
 
-  // Scroll indicator state
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [contentHeight, _setContentHeight] = useState(0);
-  const [scrollViewHeight, _setScrollViewHeight] = useState(0);
+  // P1-8: scroll-indicator state was dead — the setters had been renamed with
+  // an underscore by an unused-variable lint sweep, so `contentHeight` and
+  // `scrollViewHeight` stayed at 0 forever, producing NaN/Infinity in the
+  // derived layout. The feature was never wired to a real scroll handler;
+  // removed entirely until someone re-implements it intentionally.
 
   // Memoized data with stable sorting and filtering
   const sortedItems = useMemo(() => {
@@ -218,15 +220,9 @@ function MarketScreenContent() {
           {/* Badges Row */}
           {badges.length > 0 && !item.owned && (
             <View style={styles.badgesRow}>
-              {badges.map((badge, idx) => (
-                <View
-                  key={badge.type}
-                  style={[
-                    styles.itemBadge,
-                    { backgroundColor: badge.bgColor, borderColor: badge.color + '40' }
-                  ]}
-                >
-                  <Text style={styles.badgeIcon}>{badge.icon}</Text>
+              {badges.map((badge) => (
+                <View key={badge.type} style={styles.itemBadge}>
+                  <View style={[styles.badgeDot, { backgroundColor: badge.color }]} />
                   <Text style={[styles.badgeLabel, { color: badge.color }]}>
                     {badge.label}
                   </Text>
@@ -240,7 +236,7 @@ function MarketScreenContent() {
           {/* Show unlock description for feature items */}
           {unlockDesc && !item.owned && (
             <Text style={[styles.unlockDescription, settings.darkMode && styles.unlockDescriptionDark]}>
-              🔓 {unlockDesc}
+              {unlockDesc}
             </Text>
           )}
 
@@ -370,11 +366,8 @@ function MarketScreenContent() {
   }, [hasMembership, gameState.stats.money, gameState.stats.energy, updateStats]);
 
 
-  // Calculate scroll indicator position
-  const scrollIndicatorHeight = Math.max(20, (scrollViewHeight / contentHeight) * scrollViewHeight);
-  const scrollIndicatorTop = contentHeight > scrollViewHeight
-    ? ((scrollY as any)._value / (contentHeight - scrollViewHeight)) * (scrollViewHeight - scrollIndicatorHeight)
-    : 0;
+  // (P1-8: scroll indicator layout block removed — see comment near the dead
+  // scroll-indicator state above.)
 
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
@@ -535,7 +528,7 @@ function MarketScreenContent() {
                   {!hasMembership && (
                     <View style={styles.membershipWarningContainer}>
                       <Text style={[styles.membershipWarningText, settings.darkMode && styles.membershipWarningTextDark]}>
-                        ⚠️ Gym Membership Required
+                        Gym Membership Required
                       </Text>
                       <Text style={[styles.membershipWarningSubtext, settings.darkMode && styles.membershipWarningSubtextDark]}>
                         Buy a Gym Membership from the Items tab to access the gym
@@ -671,8 +664,9 @@ function MarketScreenContent() {
                   style={styles.gymCardGradient}
                 >
                   <View style={styles.gymCardHeader}>
+                    <Dumbbell size={16} color="#34D399" style={{ marginRight: 8 }} />
                     <Text style={[styles.gymCardTitle, settings.darkMode && styles.gymCardTitleDark]}>
-                      💪 Why Work Out?
+                      Why Work Out?
                     </Text>
                   </View>
                   <Text style={[styles.gymCardDescription, settings.darkMode && styles.gymCardDescriptionDark]}>
@@ -701,8 +695,9 @@ function MarketScreenContent() {
                   style={styles.gymCardGradient}
                 >
                   <View style={styles.gymCardHeader}>
+                    <Trophy size={16} color="#FBBF24" style={{ marginRight: 8 }} />
                     <Text style={[styles.gymCardTitle, settings.darkMode && styles.gymCardTitleDark]}>
-                      🏆 Fitness Goals
+                      Fitness Goals
                     </Text>
                   </View>
                   <Text style={[styles.gymCardDescription, settings.darkMode && styles.gymCardDescriptionDark]}>
@@ -774,9 +769,9 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#F3F4F6',
-    margin: 20,
+    margin: responsiveSpacing.md,
     marginBottom: 0,
-    borderRadius: 8,
+    borderRadius: responsiveBorderRadius.sm,
     padding: 4,
     zIndex: 10,
   },
@@ -794,8 +789,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.sm,
+    minHeight: 44,
   },
   activeTab: {
     backgroundColor: '#3B82F6',
@@ -805,15 +801,25 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#6B7280',
     marginLeft: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   tabTextDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   activeTabText: {
     color: '#FFFFFF',
@@ -822,12 +828,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: responsiveSpacing.md,
   },
   scrollContentDark: {},
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingTop: responsiveSpacing.md,
   },
   contentDark: {},
   sectionDescription: {
@@ -835,9 +841,14 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 20,
     lineHeight: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   sectionDescriptionDark: {
     color: '#FFFFFF',
@@ -896,54 +907,49 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   itemCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.md,
+    marginBottom: responsiveSpacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   itemCardDark: {
-    backgroundColor: '#374151',
+    // Same surface in dark mode — the glass look is the default.
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
   },
   itemInfo: {
     flex: 1,
   },
   itemName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: '#F8FAFC',
+    letterSpacing: -0.2,
     marginBottom: 4,
   },
   itemNameDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   itemDescription: {
     fontSize: 12,
-    color: '#6B7280',
+    color: 'rgba(226, 232, 240, 0.65)',
     marginBottom: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    lineHeight: 17,
   },
   itemDescriptionDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    color: 'rgba(226, 232, 240, 0.65)',
   },
   itemPrice: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#10B981',
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#34D399',
+    letterSpacing: -0.2,
+    marginBottom: 6,
+    fontVariant: ['tabular-nums'],
   },
   bonusInfo: {
     marginTop: 4,
@@ -1017,7 +1023,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(59, 130, 246, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     marginRight: 16,
   },
   gymTitleContainer: {
@@ -1046,7 +1052,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   membershipWarning: {
     backgroundColor: '#FEF3C7',
@@ -1113,18 +1119,28 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   gymStatLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
     maxWidth: '100%',
   },
   gymStatLabelDark: {
@@ -1165,10 +1181,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   gymButtonGradient: {
@@ -1180,9 +1201,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   gymButtonTextDisabled: {
     color: 'rgba(255, 255, 255, 0.5)',
@@ -1221,54 +1247,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#6B7280',
   },
   highlightedCard: {
-    boxShadow: '0px 0px 15px rgba(245, 158, 11, 1)',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 15,
-    elevation: 12,
-    transform: [{ scale: 1.02 }],
+    // Subtle accent border instead of the previous yellow glow + scale.
+    borderColor: 'rgba(245, 158, 11, 0.55)',
   },
   recommendedCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    // No left bar, no green glow — just a quiet white-alpha border bump.
+    borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   badgesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 6,
   },
   itemBadge: {
+    // Flat tag — no pill, no border. A tiny color dot + uppercase label.
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
+    gap: 5,
+    backgroundColor: 'transparent',
   },
-  badgeIcon: {
-    fontSize: 10,
-    marginRight: 4,
+  badgeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
   },
   badgeLabel: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   unlockDescription: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: 'rgba(226, 232, 240, 0.65)',
     fontWeight: '500',
     marginBottom: 4,
-    fontStyle: 'italic',
   },
   unlockDescriptionDark: {
-    color: '#60A5FA',
+    color: 'rgba(226, 232, 240, 0.65)',
   },
 });
 

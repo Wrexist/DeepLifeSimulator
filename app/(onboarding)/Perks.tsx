@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,13 @@ import {
   Image,
   Dimensions,
   Animated,
-  Easing,
   Platform,
   Alert,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useRouter, useNavigation } from 'expo-router';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
@@ -32,6 +32,7 @@ import {
 } from 'lucide-react-native';
 
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
+import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
 
 // Extracted modules
@@ -74,7 +75,6 @@ type TabType = 'perks' | 'mindset';
 const RECOMMENDED_MINDSETS = ['optimist', 'frugal', 'riskAverse'];
 
 const { width: screenWidth } = Dimensions.get('window');
-const NATIVE_OK = Platform.OS !== 'web';
 const log = logger.scope('Perks');
 
 // Lazy-loaded lucide icons for stat display (avoids importing all at top level)
@@ -101,7 +101,7 @@ const getStatIcon = (stat: string) => {
 };
 
 export default function Perks() {
-  const { state, setState } = useOnboarding();
+  const { state, setState, clearDraft } = useOnboarding();
   const { gameState, loadGame } = useGame();
   const router = useRouter();
   const navigation = useNavigation();
@@ -125,6 +125,12 @@ export default function Perks() {
     }
   }, [navigation, router]);
 
+  // R3-C: Android hardware back → same handler as the on-screen back button.
+  useHardwareBack(() => {
+    handleBack();
+    return true;
+  });
+
   // Load permanent perks on mount
   useEffect(() => {
     const loadPermanentPerks = async () => {
@@ -145,62 +151,11 @@ export default function Perks() {
     [gameState.achievements, permanentPerks]
   );
 
-  // Animations (transform/opacity only)
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-
-  // Rotating background
-  useEffect(() => {
-    let isMounted = true;
-    let rotateLoop: Animated.CompositeAnimation | null = null;
-    try {
-      rotateLoop = Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 30000,
-          easing: Easing.linear,
-          useNativeDriver: NATIVE_OK,
-        })
-      );
-      if (isMounted && rotateLoop) rotateLoop.start();
-    } catch (error) {
-      log.error('Error starting rotate animation:', error);
-    }
-    return () => {
-      isMounted = false;
-      rotateLoop?.stop();
-    };
-  }, [rotateAnim]);
-
-  // Fade in + slide up
-  useEffect(() => {
-    let isMounted = true;
-    let parallel: Animated.CompositeAnimation | null = null;
-    try {
-      parallel = Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: NATIVE_OK,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 1000,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: NATIVE_OK,
-        }),
-      ]);
-      if (isMounted && parallel) parallel.start();
-    } catch (error) {
-      log.error('Error starting fade/slide animation:', error);
-    }
-    return () => {
-      isMounted = false;
-      parallel?.stop();
-    };
-  }, [fadeAnim, slideAnim]);
+  const { opacity, translateY, rotate } = useOnboardingScreenAnimation({
+    duration: 1000,
+    offsetY: 50,
+    rotateBackground: true,
+  });
 
   const toggle = (id: string) => {
     haptic.selection();
@@ -209,93 +164,112 @@ export default function Perks() {
     );
   };
 
+  // H-7 (R8): synchronous re-entry guard for the start flow. Without it, two
+  // rapid taps both run the full buildNewGameState → forceSave → loadGame
+  // pipeline against the same slot with two different random states, racing the
+  // double-buffer writer and risking corruption of the brand-new save. Mirrors
+  // the continueInFlightRef pattern already used in SaveSlots.
+  const startInFlightRef = useRef(false);
+  const [isStarting, setIsStarting] = useState(false);
+
   const start = async () => {
-    haptic.heavy();
-    log.info('Start button pressed', {
-      selectedPerks: selected.length,
-      selectedMindset,
-      scenarioId: state.scenario?.id,
-    });
-
-    // Validate inputs using extracted module
-    const inputCheck = validateOnboardingInputs({
-      scenario: state.scenario,
-      firstName: state.firstName,
-      lastName: state.lastName,
-      sex: state.sex,
-      sexuality: state.sexuality,
-    });
-    if (!inputCheck.valid) {
-      haptic.error();
-      log.error(inputCheck.errorTitle!, { state });
-      logOnboardingValidationError('Perks', inputCheck.errorTitle || 'input_invalid', {
-        message: inputCheck.errorMessage,
+    if (startInFlightRef.current) return;
+    startInFlightRef.current = true;
+    setIsStarting(true);
+    let navigating = false;
+    try {
+      haptic.heavy();
+      log.info('Start button pressed', {
+        selectedPerks: selected.length,
+        selectedMindset,
+        scenarioId: state.scenario?.id,
       });
-      Alert.alert(inputCheck.errorTitle!, inputCheck.errorMessage!, [{ text: 'OK' }]);
-      return;
+
+      // Validate inputs using extracted module
+      const inputCheck = validateOnboardingInputs({
+        scenario: state.scenario,
+        firstName: state.firstName,
+        lastName: state.lastName,
+        sex: state.sex,
+        sexuality: state.sexuality,
+      });
+      if (!inputCheck.valid) {
+        haptic.error();
+        log.error(inputCheck.errorTitle!, { state });
+        logOnboardingValidationError('Perks', inputCheck.errorTitle || 'input_invalid', {
+          message: inputCheck.errorMessage,
+        });
+        Alert.alert(inputCheck.errorTitle!, inputCheck.errorMessage!, [{ text: 'OK' }]);
+        return;
+      }
+
+      // Build game state using extracted module
+      const newState = buildNewGameState({
+        initialGameState,
+        stateVersion: STATE_VERSION,
+        firstName: state.firstName,
+        lastName: state.lastName,
+        sex: state.sex,
+        sexuality: state.sexuality,
+        scenario: {
+          id: state.scenario!.id,
+          start: state.scenario!.start,
+        },
+        challengeScenarioId: state.challengeScenarioId,
+        selectedPerks: selected,
+        permanentPerks,
+        selectedMindset,
+      });
+
+      const slotToUse = state.slot || 1;
+      const createBackupForOnboarding = async (
+        slot: number,
+        stateToSave: any,
+        tag: string
+      ): Promise<void> => {
+        await createBackupFromState(slot, stateToSave, tag);
+      };
+      const forceSaveForOnboarding = async (
+        slot: number,
+        stateToSave: any
+      ): Promise<void> => {
+        await forceSave(slot, stateToSave);
+      };
+
+      // Initialize, save, load, and validate using extracted module
+      const result = await initializeAndSaveGame(newState, slotToUse, {
+        validateOnboardingState,
+        applySafeDefaults,
+        createBackupFromState: createBackupForOnboarding,
+        forceSave: forceSaveForOnboarding,
+        loadGame,
+        validateGameEntry,
+        isSaveSigningConfigError,
+      });
+
+      if (!result.success) {
+        haptic.error();
+        Alert.alert(result.errorTitle!, result.errorMessage!, [{ text: 'OK' }]);
+        return;
+      }
+
+      haptic.success();
+      setState((prev) => ({ ...prev, perks: selected }));
+      // R3-B: drop the persisted onboarding draft once the player has actually
+      // started the life — the next "New Life" entry should start clean.
+      void clearDraft();
+      navigating = true;
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 100);
+    } finally {
+      // Always release the synchronous guard. On the failure/return paths also
+      // re-enable the button so the player can retry; on success keep it disabled
+      // because we're navigating away (avoids a setState-after-unmount warning).
+      startInFlightRef.current = false;
+      if (!navigating) setIsStarting(false);
     }
-
-    // Build game state using extracted module
-    const newState = buildNewGameState({
-      initialGameState,
-      stateVersion: STATE_VERSION,
-      firstName: state.firstName,
-      lastName: state.lastName,
-      sex: state.sex,
-      sexuality: state.sexuality,
-      scenario: {
-        id: state.scenario!.id,
-        start: state.scenario!.start,
-      },
-      challengeScenarioId: state.challengeScenarioId,
-      selectedPerks: selected,
-      permanentPerks,
-      selectedMindset,
-    });
-
-    const slotToUse = state.slot || 1;
-    const createBackupForOnboarding = async (
-      slot: number,
-      stateToSave: any,
-      tag: string
-    ): Promise<void> => {
-      await createBackupFromState(slot, stateToSave, tag);
-    };
-    const forceSaveForOnboarding = async (
-      slot: number,
-      stateToSave: any
-    ): Promise<void> => {
-      await forceSave(slot, stateToSave);
-    };
-
-    // Initialize, save, load, and validate using extracted module
-    const result = await initializeAndSaveGame(newState, slotToUse, {
-      validateOnboardingState,
-      applySafeDefaults,
-      createBackupFromState: createBackupForOnboarding,
-      forceSave: forceSaveForOnboarding,
-      loadGame,
-      validateGameEntry,
-      isSaveSigningConfigError,
-    });
-
-    if (!result.success) {
-      haptic.error();
-      Alert.alert(result.errorTitle!, result.errorMessage!, [{ text: 'OK' }]);
-      return;
-    }
-
-    haptic.success();
-    setState((prev) => ({ ...prev, perks: selected }));
-    setTimeout(() => {
-      router.replace('/(tabs)');
-    }, 100);
   };
-
-  const rotateInterpolate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   return (
     <View style={styles.container}>
@@ -303,13 +277,13 @@ export default function Perks() {
       <Animated.View
         style={[
           styles.backgroundGradient1,
-          { transform: [{ rotate: rotateInterpolate }] },
+          { transform: [{ rotate }] },
         ]}
       />
       <Animated.View
         style={[
           styles.backgroundGradient2,
-          { transform: [{ rotate: rotateInterpolate }] },
+          { transform: [{ rotate }] },
         ]}
       />
 
@@ -318,8 +292,8 @@ export default function Perks() {
         style={[
           styles.content,
           {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
+            opacity,
+            transform: [{ translateY }],
             paddingTop: 50 + insets.top,
           },
         ]}
@@ -496,7 +470,7 @@ export default function Perks() {
                           {perkIsPermanent && (
                             <View style={styles.permanentBadge}>
                               <Text style={styles.permanentBadgeText}>
-                                ⭐ PERMANENT
+                                PERMANENT
                               </Text>
                             </View>
                           )}
@@ -565,7 +539,7 @@ export default function Perks() {
                               </Text>
                               {perk.unlock && perkIsLocked && (
                                 <Text style={styles.requirementText}>
-                                  🔑 Requires achievement:{' '}
+                                  Requires achievement:{' '}
                                   {perk.unlock.achievementId}
                                 </Text>
                               )}
@@ -761,6 +735,7 @@ export default function Perks() {
         >
           <TouchableOpacity
             onPress={start}
+            disabled={isStarting}
             style={styles.floatingButton}
             activeOpacity={0.8}
           >
@@ -790,7 +765,7 @@ export default function Perks() {
                 {
                   left: `${Math.random() * 100}%`,
                   top: `${Math.random() * 100}%`,
-                  transform: [{ rotate: rotateInterpolate }],
+                  transform: [{ rotate }],
                 },
               ]}
             />
@@ -865,10 +840,15 @@ const styles = StyleSheet.create({
   backButton: {
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 8,
   },
   infoButton: {
@@ -906,10 +886,15 @@ const styles = StyleSheet.create({
   perkContainer: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 12,
   },
   perkBlur: { borderRadius: 16, overflow: 'hidden' },
@@ -933,10 +918,15 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.4)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 6,
   },
   statusIconContainer: {
@@ -1038,10 +1028,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tabActive: {
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)' } as any,
+      default: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   tabGradient: {
@@ -1078,7 +1073,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   mindsetCardSelected: {
-    borderColor: 'rgba(139, 92, 246, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
     borderWidth: 2,
   },
   mindsetIconContainer: {
@@ -1124,10 +1119,15 @@ const styles = StyleSheet.create({
   floatingButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 20px rgba(16, 185, 129, 0.6)' } as any,
+      default: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 16,
   },
   floatingGlassButton: {
@@ -1139,10 +1139,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     minHeight: 64,
     justifyContent: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(16, 185, 129, 0.5)' } as any,
+      default: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 8,
   },
 
@@ -1175,9 +1180,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     flex: 1,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    ...Platform.select({
+      web: { textShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
+      },
+    }),
   },
   buttonContent: {
     flexDirection: 'row',
@@ -1196,10 +1206,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(255, 255, 255, 0.1)' } as any,
+      default: {
+        shadowColor: '#FFFFFF',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 3,
     position: 'relative',
     overflow: 'hidden',

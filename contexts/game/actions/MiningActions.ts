@@ -214,14 +214,27 @@ export function buyMinerUpgrade(
   setGameState(prev => {
     if (!prev.warehouse) return prev;
 
+    // R4-E: recompute level + cost from `prev` so a same-batch double-tap
+    // can't bypass the maxLevel cap or double-debit money.
     const upgrades = prev.warehouse.upgrades || [];
     const upgradeIndex = upgrades.findIndex(u => u.id === upgradeId && u.minerId === minerId);
+    const freshLevel = upgradeIndex >= 0 ? upgrades[upgradeIndex].level : 0;
+    if (freshLevel >= definition.maxLevel) return prev;
+    const freshCost = freshLevel === 0
+      ? definition.baseCost
+      : Math.round(definition.baseCost * Math.pow(costMultiplier, freshLevel));
+    const freshPriceIndex = typeof prev.economy?.priceIndex === 'number' &&
+      isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0
+      ? prev.economy.priceIndex
+      : 1;
+    const freshInflatedCost = getInflatedPrice(freshCost, freshPriceIndex);
+    if ((prev.stats?.money ?? 0) < freshInflatedCost) return prev;
 
     const newUpgrade: MinerUpgrade = {
       id: upgradeId,
       minerId,
       type: definition.type,
-      level: currentLevel + 1,
+      level: freshLevel + 1,
       maxLevel: definition.maxLevel,
     };
 
@@ -233,7 +246,7 @@ export function buyMinerUpgrade(
       ...prev,
       stats: {
         ...prev.stats,
-        money: prev.stats.money - cost,
+        money: Math.max(0, prev.stats.money - freshInflatedCost),
       },
       warehouse: {
         ...prev.warehouse,
@@ -266,11 +279,25 @@ export function joinMiningPool(
     return { success: false, message: 'Pool crypto must match selected mining crypto' };
   }
 
+  // R5-E: 1-week cooldown between pool changes — previously the player could
+  // hop between pools every action to chase the best `bonusMultiplier - fee`
+  // for the current crypto. The cooldown turns this into a deliberate choice.
+  const POOL_CHANGE_COOLDOWN_WEEKS = 1;
+  const currentWeek = gameState.weeksLived ?? 0;
+  const warehouseWithCooldown = gameState.warehouse as typeof gameState.warehouse & {
+    lastPoolChangeWeek?: number;
+  };
+  const lastChange = warehouseWithCooldown.lastPoolChangeWeek;
+  // Don't gate the very first join — players need an initial choice.
+  if (gameState.warehouse.activePool && typeof lastChange === 'number' && currentWeek - lastChange < POOL_CHANGE_COOLDOWN_WEEKS) {
+    return { success: false, message: `Pool changes are limited to once per week. Try again next week.` };
+  }
+
   setGameState(prev => {
     if (!prev.warehouse) return prev;
 
     const pools = prev.warehouse.pools || [];
-    const updatedPools = pools.map(p => 
+    const updatedPools = pools.map(p =>
       p.id === poolId ? { ...p, joined: true } : { ...p, joined: false }
     );
 
@@ -285,6 +312,7 @@ export function joinMiningPool(
         ...prev.warehouse,
         activePool: poolId,
         pools: updatedPools,
+        lastPoolChangeWeek: currentWeek,
       },
     };
   });
@@ -341,11 +369,22 @@ export function stakeCrypto(
     return { success: false, message: 'Crypto not found' };
   }
 
+  // R2-G: validate amount is a positive finite number. Without this, a
+  // negative amount would create a position that pays NEGATIVE rewards
+  // (effectively minting crypto via the maturity refund), and Infinity
+  // would poison the holdings with NaN on the next claim.
+  if (!isFinite(amount) || amount <= 0) {
+    return { success: false, message: 'Invalid stake amount' };
+  }
+
   if (crypto.owned < amount) {
     return { success: false, message: 'Insufficient crypto balance' };
   }
 
-  if (lockWeeks < 1 || lockWeeks > 4) {
+  // R2-G: also require an integer lockWeeks — fractional values land as
+  // `undefined` in the rewardRates lookup and fall through to the 2% default
+  // (paying out for a lock duration the caller didn't request).
+  if (!Number.isInteger(lockWeeks) || lockWeeks < 1 || lockWeeks > 4) {
     return { success: false, message: 'Lock period must be 1-4 weeks' };
   }
 
@@ -404,73 +443,71 @@ export function claimStakingRewards(
     return { success: false, message: 'No active staking positions' };
   }
 
-  let totalRewards = 0;
-  const activePositions: StakingPosition[] = [];
-  const absoluteWeek = gameState.weeksLived || 0;
-
-  // Distribute rewards to cryptos (both completed and active positions)
-  const rewardsByCrypto: Record<string, number> = {};
-
-  stakingPositions.forEach(position => {
-    const startAbsoluteWeek = position.startAbsoluteWeek
-      ?? Math.max(0, absoluteWeek - ((gameState.week - position.startWeek + 4) % 4));
-    const lastClaimAbsoluteWeek = position.lastClaimAbsoluteWeek ?? startAbsoluteWeek;
-    const weeksPassedTotal = Math.max(0, absoluteWeek - startAbsoluteWeek);
-    const previousClaimedWeeks = Math.min(position.lockWeeks, Math.max(0, lastClaimAbsoluteWeek - startAbsoluteWeek));
-    const totalEarnedWeeks = Math.min(position.lockWeeks, weeksPassedTotal);
-    const claimableWeeks = Math.max(0, totalEarnedWeeks - previousClaimedWeeks);
-
-    if (claimableWeeks <= 0) {
-      activePositions.push({
-        ...position,
-        startAbsoluteWeek,
-        lastClaimAbsoluteWeek,
-      });
-      return;
-    }
-
-    const rewardForClaim = position.amount * position.rewardRate * claimableWeeks;
-    const completedThisClaim = weeksPassedTotal >= position.lockWeeks && previousClaimedWeeks < position.lockWeeks;
-
-    let payout = rewardForClaim;
-    if (completedThisClaim) {
-      payout += position.amount; // Return principal exactly once at maturity.
-    } else {
-      activePositions.push({
-        ...position,
-        startAbsoluteWeek,
-        lastClaimAbsoluteWeek: startAbsoluteWeek + totalEarnedWeeks,
-      });
-    }
-
-    totalRewards += payout;
-    rewardsByCrypto[position.cryptoId] = (rewardsByCrypto[position.cryptoId] || 0) + payout;
-  });
-
-  if (totalRewards === 0) {
-    return { success: false, message: 'No rewards available yet' };
-  }
-
+  // R4-I: do the reward calculation INSIDE the setGameState updater (against
+  // `prev.warehouse.stakingPositions`) so a same-batch double-tap can't both
+  // read the same outer snapshot and both apply rewards.
+  let totalRewardsOut = 0;
   setGameState(prev => {
     if (!prev.warehouse) return prev;
+    const positions = prev.warehouse.stakingPositions || [];
+    if (positions.length === 0) return prev;
+    const absoluteWeek = prev.weeksLived || 0;
+    let totalRewards = 0;
+    const activePositions: StakingPosition[] = [];
+    const rewardsByCrypto: Record<string, number> = {};
 
-    // Add rewards to crypto balances
+    positions.forEach(position => {
+      const legacyStartWeek = typeof position.startWeek === 'number' ? position.startWeek : 0;
+      const startAbsoluteWeek = position.startAbsoluteWeek
+        ?? Math.min(legacyStartWeek, absoluteWeek);
+      const lastClaimAbsoluteWeek = position.lastClaimAbsoluteWeek ?? startAbsoluteWeek;
+      const weeksPassedTotal = Math.max(0, absoluteWeek - startAbsoluteWeek);
+      const previousClaimedWeeks = Math.min(position.lockWeeks, Math.max(0, lastClaimAbsoluteWeek - startAbsoluteWeek));
+      const totalEarnedWeeks = Math.min(position.lockWeeks, weeksPassedTotal);
+      const claimableWeeks = Math.max(0, totalEarnedWeeks - previousClaimedWeeks);
+
+      if (claimableWeeks <= 0) {
+        activePositions.push({ ...position, startAbsoluteWeek, lastClaimAbsoluteWeek });
+        return;
+      }
+
+      const rewardForClaim = position.amount * position.rewardRate * claimableWeeks;
+      const completedThisClaim = weeksPassedTotal >= position.lockWeeks && previousClaimedWeeks < position.lockWeeks;
+
+      let payout = rewardForClaim;
+      if (completedThisClaim) {
+        payout += position.amount;
+      } else {
+        activePositions.push({
+          ...position,
+          startAbsoluteWeek,
+          lastClaimAbsoluteWeek: startAbsoluteWeek + totalEarnedWeeks,
+        });
+      }
+
+      totalRewards += payout;
+      rewardsByCrypto[position.cryptoId] = (rewardsByCrypto[position.cryptoId] || 0) + payout;
+    });
+
+    if (totalRewards === 0) return prev; // nothing to claim — no-op
+
     const updatedCryptos = prev.cryptos.map(crypto => {
       const rewards = rewardsByCrypto[crypto.id] || 0;
       return rewards > 0 ? { ...crypto, owned: crypto.owned + rewards } : crypto;
     });
 
+    totalRewardsOut = totalRewards;
     return {
       ...prev,
       cryptos: updatedCryptos,
-      warehouse: {
-        ...prev.warehouse,
-        stakingPositions: activePositions,
-      },
+      warehouse: { ...prev.warehouse, stakingPositions: activePositions },
     };
   });
 
-  return { success: true, message: `Claimed ${totalRewards.toFixed(6)} in staking rewards`, rewards: totalRewards };
+  if (totalRewardsOut === 0) {
+    return { success: false, message: 'No rewards available yet' };
+  }
+  return { success: true, message: `Claimed ${totalRewardsOut.toFixed(6)} in staking rewards`, rewards: totalRewardsOut };
 }
 
 /**
@@ -633,9 +670,14 @@ export function updateMiningDifficulty(
   if (!gameState.warehouse) return;
 
   const absoluteWeek = gameState.weeksLived || 0;
-  const legacyLastUpdateWeek = gameState.warehouse.lastDifficultyUpdate || gameState.week;
-  const migratedLastUpdate = Math.max(0, absoluteWeek - ((gameState.week - legacyLastUpdateWeek + 4) % 4));
-  const lastUpdate = gameState.warehouse.lastDifficultyUpdateAbsoluteWeek ?? migratedLastUpdate;
+  // P0-12: `gameState.week` cycles 1-4 (UI display only). For legacy saves where
+  // `lastDifficultyUpdate` was stored as the cyclic value, we can't recover the
+  // original absolute week — bail to `absoluteWeek` so the next difficulty tick
+  // fires correctly from now on.
+  const legacyLastUpdateWeek = typeof gameState.warehouse.lastDifficultyUpdate === 'number'
+    ? Math.min(gameState.warehouse.lastDifficultyUpdate, absoluteWeek)
+    : absoluteWeek;
+  const lastUpdate = gameState.warehouse.lastDifficultyUpdateAbsoluteWeek ?? legacyLastUpdateWeek;
   const weeksSinceUpdate = absoluteWeek - lastUpdate;
 
   // Update difficulty every 10 weeks

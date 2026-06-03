@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   pointsLabel: {
     fontSize: fontScale(12),
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
     minHeight: scale(140),
   },
   bonusGradientOwned: {
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     shadowColor: '#10B981',
     shadowOffset: { width: 0, height: scale(2) },
     shadowOpacity: 0.3,
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   bonusFooter: {
     flexDirection: 'row',

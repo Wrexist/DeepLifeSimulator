@@ -1,14 +1,61 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { ArrowLeft, Users, Heart, Phone, Gift, DollarSign, Home, Gem, X, Baby, Star, ChevronDown, Coffee, Calendar, MessageCircle, Target } from 'lucide-react-native';
-import { goOnDate, giveGift, calculateDivorceCosts } from '@/contexts/game/actions/DatingActions';
+/**
+ * ContactsApp — full rewrite (Remake 10).
+ *
+ * Previously: only `gameState.relationships` (family/partners/friends).
+ * Now: the network spine. Personal + lobbyists + alliances + vendors + biz +
+ * employees, all surfaced through the `aggregateContacts` lib. Adds a Favors
+ * IOU ledger across systems.
+ *
+ * Tabs:
+ *   Personal — family/partners/friends with the existing action surface
+ *   Network  — political/business/underground/employee contacts (read-only summary)
+ *   Favors   — open IOUs the player can redeem
+ *   Attention— stale + weak contacts the player has been neglecting
+ */
+
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Image,
+} from 'react-native';
+import {
+  ArrowLeft,
+  Heart,
+  Phone,
+  Gift,
+  DollarSign,
+  Coffee,
+  Users,
+  Vote,
+  ShieldAlert,
+  Briefcase,
+  Building2,
+  Star,
+  ChevronDown,
+  AlertTriangle,
+  Handshake,
+  X as XIcon,
+} from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
+import { netMoneyPosition, openFavors, FavorLedger } from '@/lib/contacts/favors';
+import { goOnDate, giveGift } from '@/contexts/game/actions/DatingActions';
+import { redeemFavor } from '@/contexts/game/actions/ContactsActions';
 import { getRelationshipImage } from '@/utils/characterImages';
-import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
-import DivorceConfirmModal from '@/components/mobile/DivorceConfirmModal';
-import EmptyState from '@/components/ui/EmptyState';
-const LinearGradient = LinearGradientFallback;
+import { getThemeColors, accent } from '@/lib/config/theme';
+import {
+  responsiveFontSize as fs,
+  responsiveSpacing as sp,
+  responsiveBorderRadius as br,
+  scale,
+} from '@/utils/scaling';
+
+type TabType = 'personal' | 'network' | 'favors' | 'attention';
 
 interface ContactsAppProps {
   onBack: () => void;
@@ -17,1164 +64,626 @@ interface ContactsAppProps {
 export default function ContactsApp({ onBack }: ContactsAppProps) {
   const {
     gameState,
-    updateRelationship,
     setGameState,
     updateMoney,
     updateStats,
+    updateRelationship,
+    recordRelationshipAction,
     breakUpWithPartner,
     proposeToPartner,
     moveInTogether,
     fileDivorce,
-    recordRelationshipAction,
     saveGame,
   } = useGame();
-  
-  const { settings } = gameState;
-  
-  // DEBUG: Log relationships when component renders
-  React.useEffect(() => {
-    const relationships = gameState.relationships || [];
-    const children = relationships.filter(r => r.type === 'child');
-    const logger = require('@/utils/logger').logger;
-    logger.info('[CONTACTS_APP] Relationships loaded', {
-      totalRelationships: relationships.length,
-      childrenCount: children.length,
-      childIds: children.map(c => c.id),
-      childNames: children.map(c => c.name),
-      allRelationshipTypes: relationships.map(r => r.type),
-    });
-  }, [gameState.relationships]);
-  const [actionFeedback, setActionFeedback] = useState<{ [key: string]: string }>({});
-  const [moneyFeedback, setMoneyFeedback] = useState<{ [key: string]: string }>({});
-  const [expandedPartner, setExpandedPartner] = useState<string | null>(null);
-  const [showWeddingModal, setShowWeddingModal] = useState<string | null>(null);
-  const [showDivorceConfirm, setShowDivorceConfirm] = useState<string | null>(null);
-  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const darkMode = !!gameState.settings?.darkMode;
+  const theme = getThemeColors(darkMode);
 
-  // Wrapper functions to match DatingActions expected signatures
-  const updateMoneyWrapper = useCallback((_setGameState: any, amount: number, reason: string) => {
-    updateMoney(amount, reason);
-  }, [updateMoney]);
+  const [activeTab, setActiveTab] = useState<TabType>('personal');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ id?: string; message: string } | null>(null);
 
-  const updateStatsWrapper = useCallback((setGameState: any, stats: any) => {
-    updateStats(stats);
-  }, [updateStats]);
+  // aggregateContacts walks 5+ arrays. Only re-run when the underlying source
+  // arrays actually change — not on every gameState mutation (e.g., stat ticks).
+  const allContacts = useMemo(
+    () => aggregateContacts(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      gameState.relationships,
+      (gameState as any).politics?.lobbyists,
+      (gameState as any).politics?.alliances,
+      gameState.darkWeb?.vendors,
+      (gameState as any).travel?.businessOpportunities,
+      gameState.companies,
+    ]
+  );
+  const personalContacts = useMemo(
+    () => allContacts.filter((c) => c.kind === 'family' || c.kind === 'partner' || c.kind === 'friend'),
+    [allContacts]
+  );
+  const networkContacts = useMemo(
+    () => allContacts.filter((c) => c.kind !== 'family' && c.kind !== 'partner' && c.kind !== 'friend'),
+    [allContacts]
+  );
+  const needAttention = useMemo(() => contactsNeedingAttention(allContacts), [allContacts]);
 
-  // Cleanup timers when component unmounts
-  useEffect(() => {
-    return () => {
-      timersRef.current.forEach(timer => {
-        if (timer) clearTimeout(timer);
-      });
-      timersRef.current.clear();
-    };
+  const ledger: FavorLedger = (gameState as any).favorLedger ?? { favors: [] };
+  const open = useMemo(() => openFavors(ledger), [ledger]);
+  const moneyPos = useMemo(() => netMoneyPosition(ledger), [ledger]);
+
+  const flash = useCallback((message: string, id?: string) => {
+    setFeedback({ id, message });
+    setTimeout(() => setFeedback(null), 2800);
   }, []);
 
-  const getRelationshipColor = (score: number) => {
-    if (score >= 80) return '#10B981';
-    if (score >= 60) return '#F59E0B';
-    if (score >= 40) return '#EF4444';
-    return '#6B7280';
-  };
+  const updateMoneyDep = useCallback(
+    (_set: any, amount: number, reason: string) => updateMoney(amount, reason),
+    [updateMoney]
+  );
+  const updateStatsDep = useCallback((_set: any, stats: any) => updateStats(stats), [updateStats]);
 
-  const performAction = (relationshipId: string, action: string, cost?: number, relationBonus?: number) => {
-    const relationship = gameState.relationships.find(r => r.id === relationshipId);
-    if (!relationship) return;
-
-    if (relationship.actions?.[action] === gameState.weeksLived) {
-      setActionFeedback({ [relationshipId]: 'Action already used this week' });
-      const timer = setTimeout(() => {
-        setActionFeedback(prev => {
-          const newFeedback = { ...prev };
-          delete newFeedback[relationshipId];
-          return newFeedback;
-        });
-        timersRef.current.delete(timer);
-      }, 3000);
-      timersRef.current.add(timer);
-      return;
-    }
-
-    if (cost && gameState.stats.money < cost) return;
-
-    if (cost) {
-      updateMoney(-cost, `${action} with ${relationship.name}`, false);
-    }
-
-    if (relationBonus) {
-      updateRelationship(relationshipId, relationBonus);
-    }
-
-    recordRelationshipAction(relationshipId, action);
-  };
-
-  const handleSpecialAction = (relationshipId: string, action: string) => {
-    let result;
-    switch (action) {
-      case 'breakup':
-        result = breakUpWithPartner(relationshipId);
-        break;
-      case 'divorce':
-        // Show confirmation modal instead of directly divorcing
-        setShowDivorceConfirm(relationshipId);
-        return;
-      case 'propose':
-        result = proposeToPartner(relationshipId);
-        break;
-      case 'movein':
-        result = moveInTogether(relationshipId);
-        break;
-      case 'child':
-        // haveChild has no canonical implementation on the actions
-        // surface — calling it would TypeError. Children currently arrive
-        // through the relationship pregnancy tick in the weekly loop, so
-        // there's nothing for this manual button to do. Surface an
-        // honest placeholder instead of crashing.
-        result = {
-          success: false,
-          message: 'Children currently arrive over time after marriage — a manual try-for-baby flow is on the roadmap.',
-        };
-        break;
-      case 'play':
-        // Play with child - costs money but increases relationship
-        if (gameState.stats.money >= 20) {
-          updateMoney(-20, `Playing with child: ${gameState.relationships?.find(r => r.id === relationshipId)?.name}`);
-          updateRelationship(relationshipId, 10);
-          result = { success: true, message: 'You played with your child! They loved it! 🎈' };
-        } else {
-          result = { success: false, message: 'You need $20 to play with your child.' };
-        }
-        break;
-      default:
-        return;
-    }
-
-    if (result) {
-      setActionFeedback({ [relationshipId]: result.message });
-      const timer = setTimeout(() => {
-        setActionFeedback(prev => {
-          const newFeedback = { ...prev };
-          delete newFeedback[relationshipId];
-          return newFeedback;
-        });
-        timersRef.current.delete(timer);
-      }, 3000);
-      timersRef.current.add(timer);
-    }
-  };
-
-  const handleAskMoney = (relationshipId: string) => {
-    const relationship = gameState.relationships.find(r => r.id === relationshipId);
-    if (!relationship) return;
-
-    if (relationship.relationshipScore < 35) {
-      setMoneyFeedback({ [relationshipId]: 'Relationship too low. Need at least 35 points to ask for money.' });
-      const timer = setTimeout(() => {
-        setMoneyFeedback(prev => {
-          const newFeedback = { ...prev };
-          delete newFeedback[relationshipId];
-          return newFeedback;
-        });
-        timersRef.current.delete(timer);
-      }, 3000);
-      timersRef.current.add(timer);
-      return;
-    }
-
-    // Calculate money amount based on relationship closeness
-    const baseAmount = Math.floor(50 + (relationship.relationshipScore - 35) * 3);
-    const amount = Math.max(20, Math.min(baseAmount, 500));
-    // 60% success chance, higher with better relationship
-    const successChance = 0.4 + (relationship.relationshipScore / 200);
-
-    if (Math.random() < successChance) {
-      updateMoney(amount, `Gift from ${relationship.name}`);
-      updateRelationship(relationshipId, -5); // Costs some relationship points
-      setMoneyFeedback({ [relationshipId]: `${relationship.name} gave you $${amount}!` });
-    } else {
-      updateRelationship(relationshipId, -8); // Rejected = bigger hit
-      setMoneyFeedback({ [relationshipId]: `${relationship.name} said no.` });
-    }
-
-    const timer = setTimeout(() => {
-      setMoneyFeedback(prev => {
-        const newFeedback = { ...prev };
-        delete newFeedback[relationshipId];
-        return newFeedback;
+  const handleDate = useCallback(
+    (contactId: string, dateType: 'coffee' | 'dinner' | 'luxury') => {
+      const r = goOnDate(gameState, setGameState, contactId, dateType, {
+        updateMoney: updateMoneyDep,
+        updateStats: updateStatsDep,
       });
-      timersRef.current.delete(timer);
-    }, 3000);
-    timersRef.current.add(timer);
+      if (r.success) saveGame();
+      flash(r.message, contactId);
+    },
+    [gameState, setGameState, updateMoneyDep, updateStatsDep, saveGame, flash]
+  );
+
+  const handleGift = useCallback(
+    (contactId: string, giftType: 'flowers' | 'jewelry' | 'luxury') => {
+      const r = giveGift(gameState, setGameState, contactId, giftType, {
+        updateMoney: updateMoneyDep,
+        updateStats: updateStatsDep,
+      });
+      if (r.success) saveGame();
+      flash(r.message, contactId);
+    },
+    [gameState, setGameState, updateMoneyDep, updateStatsDep, saveGame, flash]
+  );
+
+  const handleSimple = useCallback(
+    (contactId: string, action: string, cost: number, bonus: number) => {
+      const rel = gameState.relationships?.find((r) => r.id === contactId);
+      if (!rel) return;
+      if (rel.actions?.[action] === gameState.weeksLived) {
+        flash('Already used this week.', contactId);
+        return;
+      }
+      if (cost > 0 && gameState.stats.money < cost) {
+        flash(`Need $${cost.toLocaleString()}.`, contactId);
+        return;
+      }
+      if (cost > 0) updateMoney(-cost, `${action} with ${rel.name}`, false);
+      updateRelationship(contactId, bonus);
+      recordRelationshipAction(contactId, action);
+      flash(`+${bonus} with ${rel.name}.`, contactId);
+    },
+    [gameState, updateMoney, updateRelationship, recordRelationshipAction, flash]
+  );
+
+  const handleRedeemFavor = useCallback(
+    (favorId: string) => {
+      const r = redeemFavor(gameState, setGameState, favorId, { updateMoney: updateMoneyDep });
+      if (r.success) {
+        saveGame();
+        flash(r.message);
+      } else {
+        Alert.alert('Cannot redeem', r.message);
+      }
+    },
+    [gameState, setGameState, updateMoneyDep, saveGame, flash]
+  );
+
+  const handleSpecial = useCallback(
+    (contactId: string, action: 'propose' | 'movein' | 'breakup' | 'divorce') => {
+      const fn =
+        action === 'propose' ? proposeToPartner :
+        action === 'movein' ? moveInTogether :
+        action === 'breakup' ? breakUpWithPartner :
+        () => fileDivorce(contactId);
+      const r: any = fn(contactId);
+      if (r) {
+        if (r.success) saveGame();
+        flash(r.message, contactId);
+      }
+    },
+    [proposeToPartner, moveInTogether, breakUpWithPartner, fileDivorce, saveGame, flash]
+  );
+
+  const renderPersonalCard = (c: ContactView) => {
+    const r = c.raw as any;
+    const expanded = expandedId === c.id;
+    const isPartner = c.kind === 'partner';
+    return (
+      <View
+        key={c.id}
+        style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      >
+        <TouchableOpacity
+          style={styles.cardHeader}
+          onPress={() => setExpandedId(expanded ? null : c.id)}
+          activeOpacity={0.85}
+        >
+          <Image
+            source={getRelationshipImage(r.age || 25, r.gender || 'male', r.type)}
+            style={styles.avatar}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
+            <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
+              {r.type} {r.personality ? `· ${r.personality}` : ''}
+            </Text>
+            <View style={[styles.bar, { backgroundColor: theme.surfaceElevated }]}>
+              <View
+                style={[
+                  styles.barFill,
+                  {
+                    width: `${Math.max(0, Math.min(100, c.strength))}%`,
+                    backgroundColor: strengthColor(c.strength),
+                  },
+                ]}
+              />
+            </View>
+          </View>
+          <ChevronDown
+            size={scale(18)}
+            color={theme.textSecondary}
+            style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}
+          />
+        </TouchableOpacity>
+
+        {feedback?.id === c.id ? (
+          <Text style={[styles.feedback, { color: accent.info }]}>{feedback.message}</Text>
+        ) : null}
+
+        {expanded && (
+          <View style={styles.actionsBox}>
+            <View style={styles.actionsRow}>
+              <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} />
+              <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} />
+              <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleSimple(c.id, 'askmoney', 0, -5)} />
+            </View>
+            {isPartner && (
+              <>
+                <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Dating</Text>
+                <View style={styles.actionsRow}>
+                  <ActionBtn label="Coffee $20" Icon={Coffee} color={accent.info} onPress={() => handleDate(c.id, 'coffee')} />
+                  <ActionBtn label="Dinner $80" Icon={Heart} color={accent.danger} onPress={() => handleDate(c.id, 'dinner')} />
+                  <ActionBtn label="Luxury $300" Icon={Star} color={accent.gold} onPress={() => handleDate(c.id, 'luxury')} />
+                </View>
+                <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Gifts</Text>
+                <View style={styles.actionsRow}>
+                  <ActionBtn label="Flowers" Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} />
+                  <ActionBtn label="Jewelry" Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} />
+                </View>
+                {!r.livingTogether && (
+                  <ActionBtn label="Move in together" Icon={Handshake} color={accent.success} onPress={() => handleSpecial(c.id, 'movein')} wide />
+                )}
+                {!r.engagementWeek && r.livingTogether && (
+                  <ActionBtn label="Propose" Icon={Heart} color={accent.gold} onPress={() => handleSpecial(c.id, 'propose')} wide />
+                )}
+                <ActionBtn label="Break up" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'breakup')} wide subtle />
+              </>
+            )}
+            {r.type === 'spouse' && (
+              <ActionBtn label="File for divorce" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'divorce')} wide subtle />
+            )}
+          </View>
+        )}
+      </View>
+    );
   };
+
+  const renderNetworkCard = (c: ContactView) => {
+    const { Icon, color } = kindMeta(c.kind);
+    return (
+      <View
+        key={c.id}
+        style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      >
+        <View style={styles.cardHeader}>
+          <View style={[styles.networkIcon, { backgroundColor: color }]}>
+            <Icon size={scale(18)} color="white" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
+            {c.subtitle ? <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{c.subtitle}</Text> : null}
+            <View style={[styles.bar, { backgroundColor: theme.surfaceElevated }]}>
+              <View
+                style={[
+                  styles.barFill,
+                  { width: `${Math.max(0, Math.min(100, c.strength))}%`, backgroundColor: color },
+                ]}
+              />
+            </View>
+            <View style={styles.tagRow}>
+              {c.tags.slice(0, 3).map((t) => (
+                <View key={t} style={[styles.tag, { borderColor: color }]}>
+                  <Text style={[styles.tagText, { color }]}>{t}</Text>
+                </View>
+              ))}
+              {c.costPerWeek ? (
+                <Text style={[styles.cardSub, { color: accent.warning }]}>
+                  ${c.costPerWeek.toLocaleString()}/wk
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderPersonal = () => (
+    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+      {personalContacts.length === 0 ? (
+        <EmptyHero
+          Icon={Users}
+          title="No relationships yet"
+          subtitle="Date, befriend, or build family ties to populate this list."
+          theme={theme}
+        />
+      ) : (
+        personalContacts.map(renderPersonalCard)
+      )}
+    </ScrollView>
+  );
+
+  const renderNetwork = () => (
+    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.statsTitle, { color: theme.text }]}>Your network</Text>
+        <View style={styles.statsRow}>
+          <Stat label="Lobbyists" value={countByKind(networkContacts, 'lobbyist')} color={accent.purple} theme={theme} />
+          <Stat label="Allies" value={countByKind(networkContacts, 'alliance')} color={accent.info} theme={theme} />
+          <Stat label="Vendors" value={countByKind(networkContacts, 'vendor')} color={accent.warning} theme={theme} />
+          <Stat label="Business" value={countByKind(networkContacts, 'business')} color={accent.success} theme={theme} />
+        </View>
+      </View>
+      {networkContacts.length === 0 ? (
+        <EmptyHero
+          Icon={Briefcase}
+          title="No network contacts yet"
+          subtitle="Hire lobbyists, invest in travel businesses, or buy from dark-web vendors to build your network."
+          theme={theme}
+        />
+      ) : (
+        networkContacts.map(renderNetworkCard)
+      )}
+    </ScrollView>
+  );
+
+  const renderFavors = () => (
+    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.statsTitle, { color: theme.text }]}>IOU position</Text>
+        <View style={styles.statsRow}>
+          <Stat label="Owed to you" value={`$${moneyPos.owedToPlayer.toLocaleString()}`} color={accent.success} theme={theme} />
+          <Stat label="You owe" value={`$${moneyPos.owedByPlayer.toLocaleString()}`} color={accent.danger} theme={theme} />
+          <Stat
+            label="Net"
+            value={`${moneyPos.net >= 0 ? '+' : '−'}$${Math.abs(moneyPos.net).toLocaleString()}`}
+            color={moneyPos.net >= 0 ? accent.success : accent.danger}
+            theme={theme}
+          />
+        </View>
+      </View>
+      {open.length === 0 ? (
+        <EmptyHero
+          Icon={Handshake}
+          title="No open favors"
+          subtitle="Favors get added when you lend, owe, or do business with contacts. Redeem them here when you call them in."
+          theme={theme}
+        />
+      ) : (
+        open.map((f) => (
+          <View key={f.id} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.networkIcon, { backgroundColor: favorColor(f.kind) }]}>
+                <Handshake size={scale(18)} color="white" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardName, { color: theme.text }]}>
+                  {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'}: {f.kind}
+                </Text>
+                <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
+                  Contact: {f.contactId} · since week {f.createdWeek}
+                  {f.expiresWeek ? ` · expires week ${f.expiresWeek}` : ''}
+                </Text>
+                {f.note ? (
+                  <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{f.note}</Text>
+                ) : null}
+                <View style={styles.tagRow}>
+                  <View style={[styles.tag, { borderColor: favorColor(f.kind) }]}>
+                    <Text style={[styles.tagText, { color: favorColor(f.kind) }]}>
+                      {f.kind === 'money' ? `$${f.value.toLocaleString()}` : `${f.value} pts`}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              {f.direction === 'owed-to-player' ? (
+                <TouchableOpacity
+                  style={[styles.redeemBtn, { backgroundColor: accent.success }]}
+                  onPress={() => handleRedeemFavor(f.id)}
+                >
+                  <Text style={styles.redeemText}>Redeem</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
+
+  const renderAttention = () => (
+    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+      {needAttention.length === 0 ? (
+        <EmptyHero
+          Icon={Heart}
+          title="Everyone's content"
+          subtitle="No stale or struggling contacts. Keep it up."
+          theme={theme}
+        />
+      ) : (
+        needAttention.map((c) => (
+          <View key={c.id} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.networkIcon, { backgroundColor: accent.warning }]}>
+                <AlertTriangle size={scale(18)} color="white" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
+                <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
+                  {c.subtitle} · last contact {c.weeksSinceContact ?? '?'} weeks ago · strength {Math.round(c.strength)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <ArrowLeft size={24} color="#FFFFFF" />
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
+          <ArrowLeft size={scale(18)} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Relationships</Text>
-        <View style={styles.headerSpacer} />
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Contacts</Text>
+        <View style={styles.headerBtn} />
       </View>
 
-      {/* Content */}
-      <ScrollView 
-        style={styles.content} 
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={true}
-      >
-        <View style={styles.relationshipsContainer}>
-          {(gameState.relationships || []).map((relationship, index) => (
-            <View key={relationship.id} style={styles.relationshipCard}>
-              <View style={styles.relationshipHeader}>
-                <View style={styles.relationshipImageContainer}>
-                  <Image 
-                    source={getRelationshipImage(relationship.age || 25, relationship.gender || 'male', relationship.type)} 
-                    style={styles.relationshipImage} 
-                  />
-                </View>
-                <View style={styles.relationshipInfo}>
-                  <Text style={styles.relationshipName}>{relationship.name}</Text>
-                  <Text style={styles.relationshipType}>
-                    {relationship.type} • {relationship.personality}
-                  </Text>
-                  {relationship.income && relationship.type === 'partner' && (
-                    <Text style={styles.relationshipIncome}>
-                      Income: ${relationship.income}/day
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.relationshipScore}>
-                  <Text style={[
-                    styles.scoreText,
-                    { color: getRelationshipColor(relationship.relationshipScore) }
-                  ]}>
-                    {relationship.relationshipScore}
-                  </Text>
-                  <Text style={styles.scoreLabel}>Relation</Text>
-                </View>
-              </View>
+      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {(['personal', 'network', 'favors', 'attention'] as TabType[]).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={[
+              styles.tabBtn,
+              activeTab === tab && { borderBottomColor: accent.info, borderBottomWidth: 2 },
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                { color: activeTab === tab ? accent.info : theme.textSecondary },
+              ]}
+            >
+              {tab[0].toUpperCase() + tab.slice(1)}
+              {tab === 'attention' && needAttention.length > 0 ? ` · ${needAttention.length}` : ''}
+              {tab === 'favors' && open.length > 0 ? ` · ${open.length}` : ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-              <View style={styles.scoreBar}>
-                <View
-                  style={[
-                    styles.scoreFill,
-                    {
-                      width: `${relationship.relationshipScore}%`,
-                      backgroundColor: getRelationshipColor(relationship.relationshipScore)
-                    }
-                  ]}
-                />
-              </View>
+      {activeTab === 'personal' && renderPersonal()}
+      {activeTab === 'network' && renderNetwork()}
+      {activeTab === 'favors' && renderFavors()}
+      {activeTab === 'attention' && renderAttention()}
 
-              {/* NPC Depth — Mood, Opinion, Goals, Life Events */}
-              {relationship.npcOpinion && (
-                <View style={styles.npcDepthSection}>
-                  {/* Mood & Life Event Row */}
-                  <View style={styles.npcMoodRow}>
-                    {relationship.npcMood && (
-                      <View style={[styles.moodBadge, styles[`mood_${relationship.npcMood}` as keyof typeof styles] as any || {}]}>
-                        <Text style={styles.moodEmoji}>
-                          {relationship.npcMood === 'happy' ? '😊' : relationship.npcMood === 'stressed' ? '😰' : relationship.npcMood === 'sad' ? '😢' : relationship.npcMood === 'angry' ? '😠' : '😐'}
-                        </Text>
-                        <Text style={styles.moodLabel}>{(relationship.npcMood || 'neutral').charAt(0).toUpperCase() + (relationship.npcMood || 'neutral').slice(1)}</Text>
-                      </View>
-                    )}
-                    {relationship.lastLifeEvent && (
-                      <Text style={styles.lifeEventText} numberOfLines={1}>
-                        {relationship.lastLifeEvent.event}
-                      </Text>
-                    )}
-                  </View>
-
-                  {/* Opinion Bars (Trust / Attraction / Respect) */}
-                  <View style={styles.opinionBars}>
-                    <View style={styles.opinionBar}>
-                      <Text style={styles.opinionLabel}>Trust</Text>
-                      <View style={styles.opinionTrack}>
-                        <View style={[styles.opinionFill, { width: `${relationship.npcOpinion.trust}%`, backgroundColor: '#3B82F6' }]} />
-                      </View>
-                      <Text style={styles.opinionValue}>{Math.round(relationship.npcOpinion.trust)}</Text>
-                    </View>
-                    {relationship.type !== 'child' && relationship.type !== 'parent' && (
-                      <View style={styles.opinionBar}>
-                        <Text style={styles.opinionLabel}>Attract</Text>
-                        <View style={styles.opinionTrack}>
-                          <View style={[styles.opinionFill, { width: `${relationship.npcOpinion.attraction}%`, backgroundColor: '#EC4899' }]} />
-                        </View>
-                        <Text style={styles.opinionValue}>{Math.round(relationship.npcOpinion.attraction)}</Text>
-                      </View>
-                    )}
-                    <View style={styles.opinionBar}>
-                      <Text style={styles.opinionLabel}>Respect</Text>
-                      <View style={styles.opinionTrack}>
-                        <View style={[styles.opinionFill, { width: `${relationship.npcOpinion.respect}%`, backgroundColor: '#F59E0B' }]} />
-                      </View>
-                      <Text style={styles.opinionValue}>{Math.round(relationship.npcOpinion.respect)}</Text>
-                    </View>
-                  </View>
-
-                  {/* NPC Goals */}
-                  {relationship.npcGoals && relationship.npcGoals.length > 0 && (
-                    <View style={styles.npcGoals}>
-                      <View style={styles.npcGoalsHeader}>
-                        <Target size={12} color="#9FA4B3" />
-                        <Text style={styles.npcGoalsTitle}>Goals</Text>
-                      </View>
-                      <View style={styles.npcGoalChips}>
-                        {relationship.npcGoals.map(goal => (
-                          <View key={goal.id} style={[styles.npcGoalChip, goal.fulfilled && styles.npcGoalFulfilled]}>
-                            <Text style={[styles.npcGoalText, goal.fulfilled && styles.npcGoalTextFulfilled]}>
-                              {goal.fulfilled ? '✓ ' : ''}{goal.label}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Recent Memory */}
-                  {relationship.npcMemories && relationship.npcMemories.length > 0 && (
-                    <View style={styles.npcMemoryRow}>
-                      <MessageCircle size={12} color="#6B7280" />
-                      <Text style={styles.npcMemoryText} numberOfLines={1}>
-                        {relationship.npcMemories[relationship.npcMemories.length - 1].description}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => performAction(relationship.id, 'call', 0, 5)}
-                >
-                  <Phone size={16} color="#3B82F6" />
-                  <Text style={styles.actionText}>Call</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => performAction(relationship.id, 'hangout', 20, 10)}
-                  disabled={gameState.stats.money < 20}
-                >
-                  <Users size={16} color="#10B981" />
-                  <Text style={[styles.actionText, gameState.stats.money < 20 && styles.disabledText]}>
-                    Hang Out ($20)
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => performAction(relationship.id, 'gift', 50, 15)}
-                  disabled={gameState.stats.money < 50}
-                >
-                  <Gift size={16} color="#EF4444" />
-                  <Text style={[styles.actionText, gameState.stats.money < 50 && styles.disabledText]}>
-                    Gift ($50)
-                  </Text>
-                </TouchableOpacity>
-
-                {relationship.type !== 'child' ? (
-                  <View style={styles.moneyButtonContainer}>
-                    <TouchableOpacity
-                      style={[styles.actionButton, relationship.relationshipScore < 35 && styles.disabledButton]}
-                      onPress={() => handleAskMoney(relationship.id)}
-                      disabled={relationship.relationshipScore < 35}
-                    >
-                      <DollarSign size={16} color={relationship.relationshipScore < 35 ? "#6B7280" : "#F59E0B"} />
-                      <Text style={[styles.actionText, relationship.relationshipScore < 35 && styles.disabledText]}>
-                        Ask Money {relationship.relationshipScore < 35 && `(${relationship.relationshipScore}/35)`}
-                      </Text>
-                    </TouchableOpacity>
-                    {moneyFeedback[relationship.id] && (
-                      <View style={styles.feedbackPopup}>
-                        <Text style={styles.feedbackPopupText}>{moneyFeedback[relationship.id]}</Text>
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => performAction(relationship.id, 'allowance', 20, 12)}
-                    disabled={gameState.stats.money < 20}
-                  >
-                    <DollarSign size={16} color={gameState.stats.money < 20 ? '#6B7280' : '#F59E0B'} />
-                    <Text style={[styles.actionText, gameState.stats.money < 20 && styles.disabledText]}>Allowance ($20)</Text>
-                  </TouchableOpacity>
-                )}
-
-                {relationship.type === 'partner' && (
-                  <>
-                    {/* Expand/Collapse Partner Actions Button */}
-                    <TouchableOpacity
-                      style={styles.expandButton}
-                      onPress={() => setExpandedPartner(expandedPartner === relationship.id ? null : relationship.id)}
-                    >
-                      <View style={{ transform: [{ rotate: expandedPartner === relationship.id ? '180deg' : '0deg' }] }}>
-                      <ChevronDown size={16} color="#EC4899" />
-                    </View>
-                      <Text style={styles.expandText}>
-                        {expandedPartner === relationship.id ? 'Hide Actions' : 'Partner Actions'}
-                      </Text>
-                    </TouchableOpacity>
-                    
-                    {/* Collapsible Partner Actions */}
-                    {expandedPartner === relationship.id && (
-                      <View style={styles.expandedActions}>
-                        {/* Dating Section */}
-                        <Text style={styles.actionSectionTitle}>❤️ Dating</Text>
-                        <View style={styles.actionRow}>
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.datingButton]}
-                            onPress={() => {
-                              const result = goOnDate(gameState, setGameState, relationship.id, 'coffee', { updateMoney: updateMoneyWrapper, updateStats: updateStatsWrapper });
-                              if (result.success) {
-                                saveGame();
-                                Alert.alert('Coffee Date!', result.message);
-                              } else {
-                                Alert.alert('Cannot Go Out', result.message);
-                              }
-                            }}
-                            disabled={gameState.stats.money < 30}
-                          >
-                            <Coffee size={16} color="#EC4899" />
-                            <Text style={[styles.actionText, gameState.stats.money < 30 && styles.disabledText]}>Coffee ($30)</Text>
-                          </TouchableOpacity>
-                          
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.datingButton]}
-                            onPress={() => {
-                              const result = goOnDate(gameState, setGameState, relationship.id, 'dinner', { updateMoney: updateMoneyWrapper, updateStats: updateStatsWrapper });
-                              if (result.success) {
-                                saveGame();
-                                Alert.alert('Dinner Date!', result.message);
-                              } else {
-                                Alert.alert('Cannot Go Out', result.message);
-                              }
-                            }}
-                            disabled={gameState.stats.money < 150}
-                          >
-                            <Heart size={16} color="#EC4899" />
-                            <Text style={[styles.actionText, gameState.stats.money < 150 && styles.disabledText]}>Dinner ($150)</Text>
-                          </TouchableOpacity>
-                          
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.datingButton]}
-                            onPress={() => {
-                              const result = goOnDate(gameState, setGameState, relationship.id, 'luxury', { updateMoney: updateMoneyWrapper, updateStats: updateStatsWrapper });
-                              if (result.success) {
-                                saveGame();
-                                Alert.alert('Luxury Date!', result.message);
-                              } else {
-                                Alert.alert('Cannot Go Out', result.message);
-                              }
-                            }}
-                            disabled={gameState.stats.money < 500}
-                          >
-                            <Star size={16} color="#EC4899" />
-                            <Text style={[styles.actionText, gameState.stats.money < 500 && styles.disabledText]}>Luxury ($500)</Text>
-                          </TouchableOpacity>
-                        </View>
-                        
-                        {/* Gifts Section */}
-                        <Text style={styles.actionSectionTitle}>🎁 Gifts</Text>
-                        <View style={styles.actionRow}>
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.giftButton]}
-                            onPress={() => {
-                              const result = giveGift(gameState, setGameState, relationship.id, 'flowers', { updateMoney: updateMoneyWrapper, updateStats: updateStatsWrapper });
-                              if (result.success) {
-                                saveGame();
-                                Alert.alert('Gift Given!', result.message);
-                              } else {
-                                Alert.alert('Cannot Give Gift', result.message);
-                              }
-                            }}
-                            disabled={gameState.stats.money < 50}
-                          >
-                            <Gift size={16} color="#8B5CF6" />
-                            <Text style={[styles.actionText, gameState.stats.money < 50 && styles.disabledText]}>Flowers ($50)</Text>
-                          </TouchableOpacity>
-                          
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.giftButton]}
-                            onPress={() => {
-                              const result = giveGift(gameState, setGameState, relationship.id, 'jewelry', { updateMoney: updateMoneyWrapper, updateStats: updateStatsWrapper });
-                              if (result.success) {
-                                saveGame();
-                                Alert.alert('Gift Given!', result.message);
-                              } else {
-                                Alert.alert('Cannot Give Gift', result.message);
-                              }
-                            }}
-                            disabled={gameState.stats.money < 500}
-                          >
-                            <Gem size={16} color="#8B5CF6" />
-                            <Text style={[styles.actionText, gameState.stats.money < 500 && styles.disabledText]}>Jewelry ($500)</Text>
-                          </TouchableOpacity>
-                          
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.giftButton]}
-                            onPress={() => {
-                              const result = giveGift(gameState, setGameState, relationship.id, 'luxury', { updateMoney: updateMoneyWrapper, updateStats: updateStatsWrapper });
-                              if (result.success) {
-                                saveGame();
-                                Alert.alert('Gift Given!', result.message);
-                              } else {
-                                Alert.alert('Cannot Give Gift', result.message);
-                              }
-                            }}
-                            disabled={gameState.stats.money < 2000}
-                          >
-                            <Star size={16} color="#8B5CF6" />
-                            <Text style={[styles.actionText, gameState.stats.money < 2000 && styles.disabledText]}>Luxury ($2K)</Text>
-                          </TouchableOpacity>
-                        </View>
-                        
-                        {/* Relationship Section */}
-                        <Text style={styles.actionSectionTitle}>💕 Relationship</Text>
-                        <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleSpecialAction(relationship.id, 'movein')}
-                    >
-                            <Home size={16} color="#10B981" />
-                      <Text style={styles.actionText}>Move In</Text>
-                    </TouchableOpacity>
-                          
-                    {/* Only show propose button if not engaged */}
-                    {!relationship.engagementWeek && (
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleSpecialAction(relationship.id, 'propose')}
-                        disabled={gameState.stats.money < 5000}
-                      >
-                        <Gem size={16} color="#F59E0B" />
-                        <Text style={[styles.actionText, gameState.stats.money < 5000 && styles.disabledText]}>Propose ($5K)</Text>
-                      </TouchableOpacity>
-                    )}
-                          
-                    {/* Show Plan Wedding button if engaged but wedding not planned */}
-                    {relationship.engagementWeek && !relationship.weddingPlanned && (
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => setShowWeddingModal(relationship.id)}
-                      >
-                        <Calendar size={16} color="#22C55E" />
-                        <Text style={styles.actionText}>Plan Wedding</Text>
-                      </TouchableOpacity>
-                    )}
-                          
-                    {/* Show wedding countdown if wedding is planned */}
-                    {relationship.weddingPlanned && (
-                      <View style={[styles.actionButton, { opacity: 0.8, backgroundColor: '#3B82F6' }]}>
-                        <Calendar size={16} color="#FFFFFF" />
-                        <Text style={[styles.actionText, { color: '#FFFFFF' }]}>
-                          Wedding in {Math.max(0, (relationship.weddingPlanned.scheduledWeek || 0) - (gameState.weeksLived || 0))} weeks
-                        </Text>
-                      </View>
-                    )}
-                          
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                            onPress={() => handleSpecialAction(relationship.id, 'child')}
-                          >
-                            <Baby size={16} color="#3B82F6" />
-                            <Text style={styles.actionText}>Have Child</Text>
-                          </TouchableOpacity>
-                          
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.dangerButton]}
-                            onPress={() => {
-                              Alert.alert(
-                                'Break Up',
-                                `Are you sure you want to break up with ${relationship.name}?`,
-                                [
-                                  { text: 'Cancel', style: 'cancel' },
-                                  { text: 'Break Up', style: 'destructive', onPress: () => handleSpecialAction(relationship.id, 'breakup') }
-                                ]
-                              );
-                            }}
-                    >
-                      <X size={16} color="#EF4444" />
-                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Break Up</Text>
-                    </TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
-                  </>
-                )}
-              </View>
-
-              {actionFeedback[relationship.id] && (
-                <Text style={styles.actionFeedback}>{actionFeedback[relationship.id]}</Text>
-              )}
-
-              {relationship.type === 'spouse' && (
-                <View style={styles.partnerActions}>
-                  <Text style={styles.partnerLabel}>Spouse Actions</Text>
-                  <View style={styles.actions}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => performAction(relationship.id, 'romance', 50, 25)}
-                      disabled={gameState.stats.money < 50}
-                    >
-                      <Heart size={16} color="#EF4444" />
-                      <Text style={[styles.actionText, gameState.stats.money < 50 && styles.disabledText]}>
-                        Romantic Evening ($50)
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleSpecialAction(relationship.id, 'child')}
-                      disabled={gameState.stats.money < 10000}
-                    >
-                      <Baby size={16} color="#10B981" />
-                      <Text
-                        style={[styles.actionText, gameState.stats.money < 10000 && styles.disabledText]}
-                      >
-                        Have a Child ($10,000)
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleSpecialAction(relationship.id, 'divorce')}
-                    >
-                      <X size={16} color="#EF4444" />
-                      <Text style={[styles.actionText, { color: '#EF4444' }]}>Divorce</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-                              {relationship.type === 'friend' && (
-                  <View style={styles.partnerActions}>
-                    <Text style={styles.partnerLabel}>Friend Actions</Text>
-                    <View style={styles.actions}>
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => performAction(relationship.id, 'hangout', 15, 15)}
-                        disabled={gameState.stats.money < 15}
-                      >
-                        <Users size={16} color="#3B82F6" />
-                        <Text style={[styles.actionText, gameState.stats.money < 15 && styles.disabledText]}>
-                          Hang Out ($15)
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => performAction(relationship.id, 'movie', 25, 20)}
-                        disabled={gameState.stats.money < 25}
-                      >
-                        <Star size={16} color="#F59E0B" />
-                        <Text style={[styles.actionText, gameState.stats.money < 25 && styles.disabledText]}>
-                          Watch Movie ($25)
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => performAction(relationship.id, 'dinner', 40, 25)}
-                        disabled={gameState.stats.money < 40}
-                      >
-                        <Users size={16} color="#10B981" />
-                        <Text style={[styles.actionText, gameState.stats.money < 40 && styles.disabledText]}>
-                          Dinner Together ($40)
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => performAction(relationship.id, 'party', 60, 30)}
-                        disabled={gameState.stats.money < 60}
-                      >
-                        <Star size={16} color="#8B5CF6" />
-                        <Text style={[styles.actionText, gameState.stats.money < 60 && styles.disabledText]}>
-                          Throw Party ($60)
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-
-                {relationship.type === 'child' && (
-                <View style={styles.partnerActions}>
-                  <Text style={styles.partnerLabel}>Child - Age {Math.floor(relationship.age || 0)}</Text>
-                  <TouchableOpacity
-                    style={[styles.specialActionButton, { backgroundColor: '#8B5CF6' }]}
-                    onPress={() => performAction(relationship.id, 'play', 20, 10)}
-                    disabled={gameState.stats.money < 20}
-                  >
-                    <Text style={styles.specialActionText}>Play Together ($20)</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          ))}
-
-          {gameState.relationships.length === 0 && (
-            <EmptyState
-              icon="👥"
-              title="No Contacts Yet"
-              description="Meet people, make friends, and build relationships through social activities."
-              darkMode={settings?.darkMode}
-            />
-          )}
+      {feedback && !feedback.id ? (
+        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info }]}>
+          <Text style={{ color: theme.text }}>{feedback.message}</Text>
         </View>
-      </ScrollView>
-      
-      {/* Wedding Planning Modal */}
-      {showWeddingModal && (() => {
-        const relationship = gameState.relationships?.find(r => r.id === showWeddingModal);
-        if (!relationship) return null;
-        return (
-          <WeddingPlanningModal
-            visible={!!showWeddingModal}
-            onClose={() => setShowWeddingModal(null)}
-            partnerId={showWeddingModal}
-            partnerName={relationship.name}
-          />
-        );
-      })()}
-      
-      {/* Divorce Confirmation Modal */}
-      {showDivorceConfirm && (() => {
-        const relationship = gameState.relationships?.find(r => r.id === showDivorceConfirm);
-        if (!relationship) return null;
-        
-        const costs = calculateDivorceCosts(gameState, showDivorceConfirm);
-        if (!costs) return null;
-        
-        return (
-          <DivorceConfirmModal
-            visible={!!showDivorceConfirm}
-            onClose={() => setShowDivorceConfirm(null)}
-            onConfirm={(lawyerId) => {
-              const result = fileDivorce(showDivorceConfirm, lawyerId);
-              setShowDivorceConfirm(null);
-              if (result?.success) {
-                Alert.alert('Divorce Finalized', result.message);
-                saveGame();
-              } else if (result?.message) {
-                Alert.alert('Cannot Divorce', result.message);
-              }
-            }}
-            spouseName={relationship.name}
-            estimatedSettlement={costs.settlement}
-            lawyerFees={costs.lawyerFees}
-            currentMoney={gameState.stats.money}
-            currentGems={gameState.stats.gems || 0}
-            netWorth={costs.netWorth}
-            isDarkMode={settings?.darkMode ?? false}
-          />
-        );
-      })()}
+      ) : null}
     </View>
   );
 }
 
+function ActionBtn({
+  label,
+  Icon,
+  color,
+  onPress,
+  wide,
+  subtle,
+}: {
+  label: string;
+  Icon: React.ComponentType<{ size: number; color: string }>;
+  color: string;
+  onPress: () => void;
+  wide?: boolean;
+  subtle?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.actionBtn,
+        wide && { flexBasis: '100%' },
+        subtle ? { backgroundColor: 'transparent', borderColor: color, borderWidth: 1 } : { backgroundColor: color },
+      ]}
+      activeOpacity={0.85}
+    >
+      <Icon size={scale(14)} color={subtle ? color : 'white'} />
+      <Text style={[styles.actionBtnText, { color: subtle ? color : 'white' }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  color,
+  theme,
+}: {
+  label: string;
+  value: number | string;
+  color: string;
+  theme: ReturnType<typeof getThemeColors>;
+}) {
+  return (
+    <View style={styles.stat}>
+      <Text
+        style={[styles.statValue, { color }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.6}
+      >
+        {value}
+      </Text>
+      <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{label}</Text>
+    </View>
+  );
+}
+
+function EmptyHero({
+  Icon,
+  title,
+  subtitle,
+  theme,
+}: {
+  Icon: React.ComponentType<{ size: number; color: string }>;
+  title: string;
+  subtitle: string;
+  theme: ReturnType<typeof getThemeColors>;
+}) {
+  return (
+    <View style={styles.empty}>
+      <Icon size={scale(48)} color={theme.textSecondary} />
+      <Text style={[styles.emptyTitle, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.emptySub, { color: theme.textSecondary }]}>{subtitle}</Text>
+    </View>
+  );
+}
+
+function countByKind(contacts: ContactView[], kind: ContactView['kind']): number {
+  return contacts.filter((c) => c.kind === kind).length;
+}
+
+function kindMeta(kind: ContactView['kind']): {
+  Icon: React.ComponentType<{ size: number; color: string }>;
+  color: string;
+} {
+  switch (kind) {
+    case 'lobbyist':
+    case 'alliance':
+      return { Icon: Vote, color: accent.purple };
+    case 'vendor':
+      return { Icon: ShieldAlert, color: accent.warning };
+    case 'business':
+      return { Icon: Briefcase, color: accent.success };
+    case 'employee':
+      return { Icon: Building2, color: accent.info };
+    case 'family':
+    case 'partner':
+    case 'friend':
+    default:
+      return { Icon: Users, color: accent.info };
+  }
+}
+
+function favorColor(kind: string): string {
+  switch (kind) {
+    case 'money': return accent.success;
+    case 'influence': return accent.purple;
+    case 'discount': return accent.info;
+    case 'safety': return accent.warning;
+    case 'intro': return accent.gold;
+    default: return accent.muted;
+  }
+}
+
+function strengthColor(s: number): string {
+  if (s >= 80) return accent.success;
+  if (s >= 60) return accent.warning;
+  if (s >= 40) return accent.amber;
+  return accent.danger;
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B0C10',
-  },
+  root: { flex: 1 },
+  flex1: { flex: 1 },
+  scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: '#11131A',
-    borderBottomColor: '#1F2230',
+    paddingHorizontal: sp.md,
+    paddingVertical: sp.sm,
     borderBottomWidth: 1,
   },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#1A1D29',
+  headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: fs.xl, fontWeight: '800' },
+  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
+  tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center' },
+  tabText: { fontSize: fs.sm, fontWeight: '700' },
+  card: { padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
+  cardName: { fontSize: fs.md, fontWeight: '800' },
+  cardSub: { fontSize: fs.xs, marginTop: 2 },
+  avatar: { width: scale(48), height: scale(48), borderRadius: scale(24) },
+  networkIcon: { width: scale(40), height: scale(40), borderRadius: scale(20), alignItems: 'center', justifyContent: 'center' },
+  bar: { height: scale(6), borderRadius: br.full, marginTop: sp.xs, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: br.full },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: sp.xs, marginTop: sp.xs },
+  tag: { paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, borderWidth: 1 },
+  tagText: { fontSize: fs.xs, fontWeight: '700' },
+  actionsBox: { gap: sp.sm, marginTop: sp.md },
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  actionBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: sp.xs,
+    paddingHorizontal: sp.sm,
+    paddingVertical: sp.xs,
+    borderRadius: br.md,
+    flex: 1,
+    minWidth: scale(90),
     justifyContent: 'center',
   },
-  headerSpacer: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 40,
-  },
-  relationshipsContainer: {
-    gap: 16,
-    paddingBottom: 20,
-    paddingTop: 16,
-  },
-  relationshipCard: {
-    backgroundColor: '#0F1220',
-    borderRadius: 14,
-    padding: 16,
-    borderColor: '#23283B',
-    borderWidth: 1,
-  },
-  relationshipHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 15,
-  },
-  relationshipImageContainer: {
-    marginRight: 12,
-  },
-  relationshipImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: '#23283B',
-  },
-  relationshipInfo: {
-    flex: 1,
-  },
-  relationshipName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  relationshipType: {
-    fontSize: 14,
-    color: '#9FA4B3',
-    textTransform: 'capitalize',
-    marginBottom: 4,
-  },
-  relationshipIncome: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '500',
-  },
-  relationshipScore: {
-    alignItems: 'center',
-  },
-  scoreText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  scoreLabel: {
-    fontSize: 12,
-    color: '#9FA4B3',
-  },
-  scoreBar: {
-    height: 4,
-    backgroundColor: '#1A1D29',
-    borderRadius: 2,
-    marginBottom: 15,
-    overflow: 'hidden',
-  },
-  scoreFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 10,
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1D29',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#23283B',
-  },
-  actionText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    marginLeft: 6,
-    fontWeight: '500',
-  },
-  disabledText: {
-    color: '#6B7280',
-  },
-  disabledButton: {
-    backgroundColor: '#1A1D29',
-    borderColor: '#6B7280',
-  },
-  partnerActions: {
-    borderTopWidth: 1,
-    borderTopColor: '#23283B',
-    paddingTop: 15,
-    alignItems: 'center',
-  },
-  partnerLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  specialActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    alignSelf: 'center',
-    marginBottom: 8,
-    minWidth: 200,
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  actionFeedback: {
-    fontSize: 12,
-    color: '#10B981',
-    marginBottom: 10,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  specialActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
-    textAlign: 'center',
-  },
-  moneyButtonContainer: {
-    position: 'relative',
-  },
-  feedbackPopup: {
+  actionBtnText: { fontSize: fs.xs, fontWeight: '700' },
+  sectionLabel: { fontSize: fs.xs, fontWeight: '700', textTransform: 'uppercase' },
+  feedback: { fontSize: fs.xs, fontStyle: 'italic', marginTop: sp.xs },
+  statsCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
+  statsTitle: { fontSize: fs.sm, fontWeight: '800', marginBottom: sp.sm },
+  // Wrap to handle 4-up Network row (cramped at ~85pt each) and 3-up Favors row
+  // with long $-formatted values. flexBasis: 22% keeps the 4-up Network row on a
+  // single line on larger phones but lets it drop to 2x2 on narrow screens; the
+  // 3-up Favors row stays in one line until values get long.
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
+  stat: { alignItems: 'center', flexBasis: '22%', flexGrow: 1, minWidth: scale(72) },
+  statValue: { fontSize: fs.lg, fontWeight: '800' },
+  statLabel: { fontSize: fs.xs, marginTop: 2 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
+  emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
+  emptySub: { fontSize: fs.sm, textAlign: 'center' },
+  redeemBtn: { paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.md },
+  redeemText: { color: 'white', fontSize: fs.sm, fontWeight: '700' },
+  toast: {
     position: 'absolute',
-    right: 0,
-    bottom: '100%',
-    marginBottom: 8,
-    backgroundColor: '#3B82F6',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    zIndex: 1,
-  },
-  feedbackPopupText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  emptyMessage: {
-    fontSize: 14,
-    color: '#9FA4B3',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  // Collapsible partner actions styles
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: 'rgba(236, 72, 153, 0.15)',
-    borderRadius: 10,
+    bottom: sp.lg,
+    left: sp.md,
+    right: sp.md,
+    padding: sp.md,
+    borderRadius: br.lg,
     borderWidth: 1,
-    borderColor: 'rgba(236, 72, 153, 0.3)',
-    marginTop: 8,
-  },
-  expandText: {
-    color: '#EC4899',
-    fontSize: 13,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  expandedActions: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#23283B',
-  },
-  actionSectionTitle: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  datingButton: {
-    backgroundColor: 'rgba(236, 72, 153, 0.1)',
-    borderColor: 'rgba(236, 72, 153, 0.2)',
-  },
-  giftButton: {
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-  },
-  dangerButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  // ─── NPC Depth Section ────────────────────────────
-  npcDepthSection: {
-    marginBottom: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#1F2230',
-  },
-  npcMoodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  moodBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#1A1D29',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  mood_happy: {
-    backgroundColor: '#10B98120',
-  },
-  mood_stressed: {
-    backgroundColor: '#F59E0B20',
-  },
-  mood_sad: {
-    backgroundColor: '#3B82F620',
-  },
-  mood_angry: {
-    backgroundColor: '#EF444420',
-  },
-  mood_neutral: {
-    backgroundColor: '#1A1D29',
-  },
-  moodEmoji: {
-    fontSize: 14,
-  },
-  moodLabel: {
-    color: '#9FA4B3',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  lifeEventText: {
-    color: '#6B7280',
-    fontSize: 11,
-    fontStyle: 'italic',
-    flex: 1,
-  },
-  opinionBars: {
-    gap: 4,
-    marginBottom: 8,
-  },
-  opinionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  opinionLabel: {
-    color: '#6B7280',
-    fontSize: 10,
-    fontWeight: '700',
-    width: 42,
-  },
-  opinionTrack: {
-    flex: 1,
-    height: 4,
-    backgroundColor: '#1A1D29',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  opinionFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  opinionValue: {
-    color: '#9FA4B3',
-    fontSize: 10,
-    fontWeight: '600',
-    width: 22,
-    textAlign: 'right',
-  },
-  npcGoals: {
-    marginBottom: 6,
-  },
-  npcGoalsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  npcGoalsTitle: {
-    color: '#6B7280',
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  npcGoalChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  npcGoalChip: {
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#2D3748',
-  },
-  npcGoalFulfilled: {
-    borderColor: '#10B981',
-    backgroundColor: '#10B98115',
-  },
-  npcGoalText: {
-    color: '#9FA4B3',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  npcGoalTextFulfilled: {
-    color: '#10B981',
-  },
-  npcMemoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  npcMemoryText: {
-    color: '#6B7280',
-    fontSize: 10,
-    fontStyle: 'italic',
-    flex: 1,
   },
 });

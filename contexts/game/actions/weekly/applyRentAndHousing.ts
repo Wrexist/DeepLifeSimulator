@@ -1,0 +1,112 @@
+/**
+ * Weekly rent + housing module integration — R7 Phase 2 step 2.4c.
+ *
+ * Scope: three concerns previously inline in `GameActionsContext.tsx:851-902`.
+ *   1. Rented-but-not-owned properties incur weekly rent (price × rate).
+ *   2. `housingModule.processWeeklyHousing` runs condition decay, value
+ *      appreciation, base rent + happiness bonus, and pushes "🏠 Property
+ *      Alert" notifications when a property needs attention.
+ *   3. `runRealEstateWeeklyTick` (Remake 4) layers neighborhood cycle +
+ *      tenant lifecycle + Airbnb realized-rent variance on top.
+ *
+ * Side effects (mutations of `ctx`):
+ *   - `ctx.notifications.push(...)` for housing alerts and real-estate
+ *     tick notifications.
+ *
+ * Reads from `ctx`: none (all reads are via explicit parameters for
+ * better test isolation).
+ *
+ * Returns the four aggregated values the caller's downstream blocks
+ * still consume:
+ *   - `weeklyRent`            — used in cashAfterIncomeAndRent + day-summary log
+ *   - `updatedRealEstate`     — written into the new GameState
+ *   - `housingHappinessBonus` — added to newStats.happiness later (capped)
+ *   - `housingRentalIncome`   — added to cashAfterIncomeAndRent
+ *   - `housingUpkeep`         — subtracted from cashAfterIncomeAndRent
+ *
+ * The two module calls are wrapped in try/catch matching the legacy code
+ * — "module may not exist in tests" was the inline comment. Both throws
+ * silently roll back to whatever was computed so far.
+ *
+ * `rollFor` is injected by the caller so production preserves the legacy
+ * `() => Math.random()` non-determinism while tests can pass a seeded
+ * roll source for stable snapshots.
+ */
+
+import type { RealEstate } from '@/contexts/game/types';
+import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
+import * as housingModule from '@/lib/realEstate/housing';
+import { runRealEstateWeeklyTick } from '@/lib/realEstate/weeklyTick';
+import type { WeekContext } from './weekContext';
+
+export interface RentAndHousingResult {
+  weeklyRent: number;
+  updatedRealEstate: RealEstate[];
+  housingHappinessBonus: number;
+  housingRentalIncome: number;
+  housingUpkeep: number;
+}
+
+export function applyRentAndHousing(
+  prevRealEstate: RealEstate[] | undefined | null,
+  nextWeeksLived: number,
+  rollFor: (key: string) => number,
+  ctx: WeekContext,
+): RentAndHousingResult {
+  // 1. Weekly rent for rented-but-not-owned properties.
+  let weeklyRent = 0;
+  (prevRealEstate || []).forEach((property) => {
+    if ('status' in property && property.status === 'rented' && !property.owned) {
+      const rent = Math.round(property.price * PLAYER_RENT_RATE_WEEKLY);
+      weeklyRent += rent;
+    }
+  });
+
+  // 2. Housing & Decoration System — condition decay, appreciation, etc.
+  let updatedRealEstate: RealEstate[] = (prevRealEstate || []) as RealEstate[];
+  let housingHappinessBonus = 0;
+  let housingRentalIncome = 0;
+  let housingUpkeep = 0;
+  try {
+    const housingResult = housingModule.processWeeklyHousing(updatedRealEstate, nextWeeksLived);
+    updatedRealEstate = housingResult.properties;
+    housingHappinessBonus = housingResult.totalHappinessBonus;
+    housingRentalIncome = housingResult.totalRentalIncome;
+    housingUpkeep = housingResult.totalUpkeep;
+    // Show property condition alerts.
+    if (housingResult.notifications.length > 0) {
+      housingResult.notifications.forEach((msg: string) => {
+        ctx.notifications.push({ id: 'housing-alert', message: msg, title: '🏠 Property Alert' });
+      });
+    }
+  } catch {
+    // Housing module may not exist in tests — preserved silent fallback.
+  }
+
+  // 3. Real-estate Remake 4 tick: neighborhood cycle + tenant lifecycle + Airbnb variance.
+  // Layers on top of the legacy housing pass — replaces `housingRentalIncome`
+  // with the realized figure from the new model.
+  try {
+    const reTick = runRealEstateWeeklyTick({
+      legacyProcessedProperties: updatedRealEstate,
+      legacyRentalIncome: housingRentalIncome,
+      currentWeek: nextWeeksLived,
+      rollFor,
+    });
+    updatedRealEstate = reTick.properties;
+    housingRentalIncome = reTick.rentalIncome;
+    for (const note of reTick.notifications) {
+      ctx.notifications.push({ id: note.id, title: note.title, message: note.message });
+    }
+  } catch {
+    // Real-estate weeklyTick module may not exist in tests — preserved silent fallback.
+  }
+
+  return {
+    weeklyRent,
+    updatedRealEstate,
+    housingHappinessBonus,
+    housingRentalIncome,
+    housingUpkeep,
+  };
+}

@@ -11,8 +11,12 @@ import {
   Image,
   ImageSourcePropType,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+// CRITICAL: use the project fallbacks — direct expo-linear-gradient / expo-blur
+// imports trigger TurboModule init aborts on iOS 26 beta.
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+const LinearGradient = LinearGradientFallback;
+const BlurView = BlurViewFallback;
 import { Ionicons } from '@expo/vector-icons';
 import { RefreshCw } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';

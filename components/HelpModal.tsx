@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, Linking } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { X, Mail } from 'lucide-react-native';
 import { SUPPORT_EMAIL } from '@/lib/config/appConfig';
 
@@ -673,7 +674,7 @@ const helpContent = [
 
 export default function HelpModal({ visible, onClose }: HelpModalProps) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 

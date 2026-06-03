@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { HealthActivity } from '@/contexts/game/types';
-import { Activity, Utensils, CircleCheck as CheckCircle, AlertTriangle, Heart } from 'lucide-react-native';
+import { Activity, Utensils, AlertTriangle, Heart } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
+import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
 import { initialGameState } from '@/contexts/game/initialState';
+import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 
 function HealthScreen() {
   return (
@@ -24,19 +25,16 @@ function HealthScreenContent() {
   const { settings } = gameState;
   const [healthFeedback, setHealthFeedback] = useState<{ [key: string]: string }>({});
 
-  // Merge health activities with initialState to ensure latest values are always displayed
-  // This fixes the issue where saved games have old energy cost values
+  // Merge health activities with initialState so saved games pick up the latest values.
   const { mergedHealthActivities, needsStateSync } = useMemo(() => {
     const initialStateActivities = initialGameState.healthActivities || [];
     const savedActivities = gameState.healthActivities || [];
 
-    // Create a map of latest values from initialState
     const latestValues = new Map<string, HealthActivity>();
     initialStateActivities.forEach(activity => {
       latestValues.set(activity.id, activity);
     });
 
-    // Merge: use saved activity if it exists, but update with latest values from initialState
     const merged = savedActivities.map(savedActivity => {
       const latestActivity = latestValues.get(savedActivity.id);
       if (latestActivity) {
@@ -51,7 +49,6 @@ function HealthScreenContent() {
       return savedActivity;
     });
 
-    // Check if state needs updating (without performing the side effect here)
     const needsUpdate = merged.some((activity, index) => {
       const saved = savedActivities[index];
       return !saved ||
@@ -64,7 +61,6 @@ function HealthScreenContent() {
     return { mergedHealthActivities: merged, needsStateSync: needsUpdate };
   }, [gameState.healthActivities]);
 
-  // Sync merged values back to game state in a separate useEffect (not in useMemo)
   useEffect(() => {
     if (needsStateSync && mergedHealthActivities.length > 0) {
       setGameState(prevState => ({
@@ -74,7 +70,7 @@ function HealthScreenContent() {
     }
   }, [needsStateSync, mergedHealthActivities, setGameState]);
 
-  // Prevent staying on health screen when in prison - redirect to work tab
+  // Block staying on the health tab while in prison.
   useEffect(() => {
     if (gameState.jailWeeks > 0) {
       router.replace('/(tabs)/work');
@@ -84,14 +80,21 @@ function HealthScreenContent() {
   const canAfford = (price: number) => gameState.stats.money >= price;
   const canPerformActivity = (activity: HealthActivity) => {
     const energyCost = activity.energyCost || 0;
-    // Only check energy requirement if the activity costs energy (positive value)
     const hasEnoughEnergy = energyCost <= 0 || gameState.stats.energy >= energyCost;
     const hasEnoughMoney = gameState.stats.money >= activity.price;
     return hasEnoughMoney && hasEnoughEnergy;
   };
-  const activeDietPlan = gameState.dietPlans.find(plan => plan.active);
-  const currentDiseases = gameState.diseases || [];
-  const hasDiseases = currentDiseases.length > 0;
+
+  const buildActivityDeltas = (activity: HealthActivity): HealthDelta[] => {
+    const out: HealthDelta[] = [];
+    if (activity.healthGain) out.push({ stat: 'health', delta: activity.healthGain });
+    if (activity.happinessGain) out.push({ stat: 'happiness', delta: activity.happinessGain });
+    if (typeof activity.energyCost === 'number' && activity.energyCost !== 0) {
+      // energyCost positive means it costs energy; negative means it restores energy.
+      out.push({ stat: 'energy', delta: -activity.energyCost });
+    }
+    return out;
+  };
 
   const handleHealthActivityPress = (activity: HealthActivity) => {
     const result = performHealthActivity(activity.id);
@@ -99,174 +102,148 @@ function HealthScreenContent() {
       setHealthFeedback({ [activity.id]: result.message });
       setTimeout(() => {
         setHealthFeedback(prev => {
-          const newFeedback = { ...prev };
-          delete newFeedback[activity.id];
-          return newFeedback;
+          const next = { ...prev };
+          delete next[activity.id];
+          return next;
         });
-      }, 3000);
+      }, 2800);
     }
   };
 
+  const activeDietPlan = gameState.dietPlans.find(plan => plan.active);
+  const currentDiseases = gameState.diseases || [];
+  const hasDiseases = currentDiseases.length > 0;
+
+  const sectionTitleStyle = [styles.sectionTitle, settings.darkMode && styles.sectionTitleDark];
+  const sectionDescStyle = [styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark];
 
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
-      <ScrollView style={[styles.content, settings.darkMode && styles.contentDark]} showsVerticalScrollIndicator={true}>
-        <View style={styles.scrollContainer}>
-          <View style={styles.scrollIndicator}>
-            <View style={styles.scrollBar}>
-              <View style={styles.scrollThumb} />
-            </View>
-          </View>
-        </View>
-        {/* Disease Status Section */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Disease status — quiet warning card, no left bar */}
         {hasDiseases && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <AlertTriangle size={24} color="#EF4444" />
-              <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Current Health Conditions</Text>
+          <View style={styles.diseaseCard}>
+            <View style={styles.diseaseHeader}>
+              <View style={styles.diseaseIconWrap}>
+                <AlertTriangle size={scale(15)} color="#F87171" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.diseaseTitle}>
+                  {currentDiseases.length} active condition{currentDiseases.length !== 1 ? 's' : ''}
+                </Text>
+                <Text style={styles.diseaseHint}>Visit a doctor or hospital to treat.</Text>
+              </View>
             </View>
-            <View style={[styles.diseaseStatusCard, settings.darkMode && styles.diseaseStatusCardDark]}>
-              <Text style={[styles.diseaseStatusText, settings.darkMode && styles.diseaseStatusTextDark]}>
-                You have {currentDiseases.length} active condition{currentDiseases.length !== 1 ? 's' : ''}:
-              </Text>
-              {currentDiseases.map((disease, index) => (
-                <View key={index} style={styles.diseaseStatusItem}>
-                  <Heart size={16} color={disease.severity === 'critical' ? '#DC2626' : disease.severity === 'serious' ? '#EF4444' : '#F59E0B'} />
-                  <Text style={[styles.diseaseStatusName, settings.darkMode && styles.diseaseStatusNameDark]}>
-                    {disease.name} ({disease.severity})
-                  </Text>
-                </View>
-              ))}
-              <Text style={[styles.diseaseStatusHint, settings.darkMode && styles.diseaseStatusHintDark]}>
-                Visit a doctor or hospital to treat these conditions
-              </Text>
+            <View style={styles.diseaseList}>
+              {currentDiseases.map((disease, index) => {
+                const dotColor =
+                  disease.severity === 'critical' ? '#DC2626'
+                    : disease.severity === 'serious' ? '#EF4444'
+                      : '#F59E0B';
+                return (
+                  <View key={index} style={styles.diseaseRow}>
+                    <View style={[styles.diseaseDot, { backgroundColor: dotColor }]} />
+                    <Heart size={scale(12)} color={dotColor} />
+                    <Text style={styles.diseaseName}>{disease.name}</Text>
+                    <Text style={styles.diseaseSeverity}>{disease.severity}</Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
 
+        {/* Activities */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Activity size={24} color="#EF4444" />
-            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>{t('health.healthActivities')}</Text>
+            <View style={[styles.sectionIcon, { borderColor: 'rgba(248, 113, 113, 0.4)' }]}>
+              <Activity size={scale(15)} color="#F87171" />
+            </View>
+            <Text style={sectionTitleStyle}>{t('health.healthActivities')}</Text>
           </View>
-          <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-            {t('health.investMentalPhysical')}
-          </Text>
+          <Text style={sectionDescStyle}>{t('health.investMentalPhysical')}</Text>
 
-          {mergedHealthActivities.filter(activity => activity.id !== 'vacation').map(activity => (
-            <View key={activity.id} style={[styles.activityCard, settings.darkMode && styles.activityCardDark]}>
-              <View style={styles.activityInfo}>
-                <Text style={[styles.activityName, settings.darkMode && styles.activityNameDark]}>{activity.name}</Text>
-                <Text style={[styles.activityDescription, settings.darkMode && styles.activityDescriptionDark]}>{activity.description}</Text>
-                <Text style={styles.activityPrice}>${activity.price}</Text>
+          {mergedHealthActivities
+            .filter(activity => activity.id !== 'vacation')
+            .map(activity => {
+              const deltas = buildActivityDeltas(activity);
+              const locked = !canPerformActivity(activity);
+              const lockReason = !canAfford(activity.price)
+                ? `Need $${activity.price}`
+                : (activity.energyCost || 0) > 0 && gameState.stats.energy < (activity.energyCost || 0)
+                  ? `Need ${activity.energyCost} energy`
+                  : undefined;
+              const isCureActivity = activity.id === 'doctor' || activity.id === 'hospital';
+              const description = isCureActivity
+                ? activity.id === 'doctor'
+                  ? `${activity.description}  •  ${t('health.chanceToCure')}`
+                  : `${activity.description}  •  ${t('health.curesAllHealthIssues')}`
+                : activity.description;
 
-                <View style={styles.benefitsInfo}>
-                  <Text style={[styles.benefitsTitle, settings.darkMode && styles.benefitsTitleDark]}>{t('health.benefits')}</Text>
-                  <Text style={styles.benefitText}>+{activity.happinessGain} {t('game.happiness')}</Text>
-                  {activity.healthGain && (
-                    <Text style={styles.benefitText}>+{activity.healthGain} {t('game.health')}</Text>
-                  )}
-                  {typeof activity.energyCost === 'number' && activity.energyCost !== 0 && (
-                    <Text style={activity.energyCost > 0 ? styles.costText : styles.benefitText}>
-                      {activity.energyCost > 0
-                        ? `-${activity.energyCost} Energy`
-                        : `+${Math.abs(activity.energyCost)} Energy`}
-                    </Text>
-                  )}
-                  {activity.id === 'doctor' && (
-                    <Text style={styles.benefitText}>{t('health.chanceToCure')}</Text>
-                  )}
-                  {activity.id === 'hospital' && (
-                    <Text style={styles.benefitText}>{t('health.curesAllHealthIssues')}</Text>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.activityButtonContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.activityButton,
-                    !canPerformActivity(activity) && styles.disabledButton
-                  ]}
+              return (
+                <HealthCard
+                  key={activity.id}
+                  accent="vitality"
+                  title={activity.name}
+                  description={description}
+                  priceLabel={activity.price > 0 ? `$${activity.price}` : 'Free'}
+                  deltas={deltas}
+                  buttonText={locked ? 'Locked' : t('health.do')}
                   onPress={() => handleHealthActivityPress(activity)}
-                  disabled={!canPerformActivity(activity)}
-                >
-                  <Text
-                    style={[
-                      styles.activityButtonText,
-                      !canPerformActivity(activity) && styles.disabledButtonText
-                    ]}
-                  >
-                    {t('health.do')}
-                  </Text>
-                </TouchableOpacity>
-                {healthFeedback[activity.id] && (
-                  <View style={styles.feedbackPopup}>
-                    <Text style={styles.feedbackPopupText}>{healthFeedback[activity.id]}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          ))}
+                  locked={locked}
+                  lockReason={lockReason}
+                  feedback={healthFeedback[activity.id]}
+                />
+              );
+            })}
         </View>
 
+        {/* Diet plans */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Utensils size={24} color="#10B981" />
-            <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>{t('health.dietPlans')}</Text>
+            <View style={[styles.sectionIcon, { borderColor: 'rgba(52, 211, 153, 0.4)' }]}>
+              <Utensils size={scale(15)} color="#34D399" />
+            </View>
+            <Text style={sectionTitleStyle}>{t('health.dietPlans')}</Text>
           </View>
-          <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
-            {t('health.chooseAutomaticDaily')}
-          </Text>
+          <Text style={sectionDescStyle}>{t('health.chooseAutomaticDaily')}</Text>
 
-          {activeDietPlan && (
-            <View style={[styles.activePlanCard, settings.darkMode && styles.activePlanCardDark]}>
-              <Text style={[styles.activePlanTitle, settings.darkMode && styles.activePlanTitleDark]}>{t('health.activePlan')} {activeDietPlan.name}</Text>
-              <Text style={[styles.activePlanCost, settings.darkMode && styles.activePlanCostDark]}>{t('health.weeklyCost')} ${activeDietPlan.dailyCost * 7}</Text>
-            </View>
-          )}
-
-          {gameState.dietPlans.map(plan => (
-            <View key={plan.id} style={[styles.dietCard, settings.darkMode && styles.dietCardDark]}>
-              <View style={styles.dietInfo}>
-                <Text style={[styles.dietName, settings.darkMode && styles.dietNameDark]}>{plan.name}</Text>
-                <Text style={[styles.dietDescription, settings.darkMode && styles.dietDescriptionDark]}>{plan.description}</Text>
-                <Text style={styles.dietCost}>{t('health.weeklyCost')} ${plan.dailyCost * 7}</Text>
-
-                <View style={styles.benefitsInfo}>
-                  <Text style={[styles.benefitsTitle, settings.darkMode && styles.benefitsTitleDark]}>{t('health.weeklyBenefits')}</Text>
-                  <Text style={styles.benefitText}>+{plan.healthGain} {t('game.health')}</Text>
-                  <Text style={styles.benefitText}>+{plan.energyGain} {t('game.energy')}</Text>
-                  {plan.happinessGain && (
-                    <Text style={styles.benefitText}>+{plan.happinessGain} {t('game.happiness')}</Text>
-                  )}
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.dietButton,
-                  plan.active && styles.activeDietButton,
-                  !canAfford(plan.dailyCost * 7) && !plan.active && styles.disabledButton
-                ]}
+          {gameState.dietPlans.map(plan => {
+            const weeklyCost = plan.dailyCost * 7;
+            const deltas: HealthDelta[] = [
+              { stat: 'health', delta: plan.healthGain },
+              { stat: 'energy', delta: plan.energyGain },
+              ...(plan.happinessGain ? [{ stat: 'happiness' as const, delta: plan.happinessGain }] : []),
+            ];
+            const locked = !plan.active && !canAfford(weeklyCost);
+            const lockReason = locked ? `Need $${weeklyCost} / wk` : undefined;
+            return (
+              <HealthCard
+                key={plan.id}
+                accent="diet"
+                title={plan.name}
+                description={plan.description}
+                priceLabel={`$${weeklyCost} / wk`}
+                deltas={deltas}
+                buttonText={plan.active ? t('health.active') : t('health.select')}
                 onPress={() => toggleDietPlan(plan.id)}
-                disabled={!canAfford(plan.dailyCost * 7) && !plan.active}
-              >
-                {plan.active ? (
-                  <CheckCircle size={16} color="#FFFFFF" />
-                ) : null}
-                <Text style={[
-                  styles.dietButtonText,
-                  plan.active && styles.activeDietButtonText,
-                  !canAfford(plan.dailyCost * 7) && !plan.active && styles.disabledButtonText
-                ]}>
-                  {plan.active ? t('health.active') : t('health.select')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
+                active={plan.active}
+                locked={locked}
+                lockReason={lockReason}
+              />
+            );
+          })}
 
+          {activeDietPlan ? (
+            <Text style={styles.activeDietFooter}>
+              {t('health.activePlan')} {activeDietPlan.name} · {t('health.weeklyCost')} ${activeDietPlan.dailyCost * 7}
+            </Text>
+          ) : null}
+        </View>
       </ScrollView>
     </View>
   );
@@ -275,377 +252,126 @@ function HealthScreenContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFBFC',
+    backgroundColor: '#020617',
   },
   containerDark: {
-    backgroundColor: '#111827',
+    backgroundColor: '#020617',
   },
   content: {
     flex: 1,
-    padding: responsiveSpacing.xl,
   },
-  contentDark: {
-    backgroundColor: '#111827',
+  contentInner: {
+    padding: responsiveSpacing.md,
+    paddingBottom: verticalScale(40),
+    gap: verticalScale(20),
   },
   section: {
-    marginBottom: 30,
+    gap: verticalScale(10),
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: scale(10),
+    marginBottom: verticalScale(4),
   },
-  sectionTitle: {
-    fontSize: responsiveFontSize['2xl'],
-    fontWeight: '800',
-    color: '#0F172A',
-    marginLeft: responsiveSpacing.md,
-    letterSpacing: -0.5,
-    // Light mode: subtle text shadow for emphasis
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  sectionTitleDark: {
-    color: '#F9FAFB',
-    textShadowColor: 'transparent',
-    fontWeight: '700',
-  },
-  sectionDescription: {
-    fontSize: responsiveFontSize.sm,
-    color: '#64748B',
-    marginBottom: responsiveSpacing.xl,
-    lineHeight: responsiveFontSize.lg,
-    fontWeight: '500',
-  },
-  sectionDescriptionDark: {
-    color: '#D1D5DB',
-    fontWeight: '400',
-  },
-  activityCard: {
-    backgroundColor: '#FFFFFF',
-    padding: responsiveSpacing.lg,
-    borderRadius: responsiveBorderRadius.xl,
-    marginBottom: responsiveSpacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  sectionIcon: {
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(9),
+    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     alignItems: 'center',
-    // Beautiful light mode shadows
-    shadowColor: 'rgba(0,0,0,0.06)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 3,
-    // Subtle border for definition
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.04)',
-  },
-  activityCardDark: {
-    backgroundColor: '#374151',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 1,
-    borderWidth: 0,
-  },
-  activityInfo: {
-    flex: 1,
-  },
-  activityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  activityNameDark: {
-    color: '#F9FAFB',
-  },
-  activityDescription: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 6,
-  },
-  activityDescriptionDark: {
-    color: '#D1D5DB',
-  },
-  activityPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#EF4444',
-    marginBottom: 8,
-  },
-  benefitsInfo: {
-    marginTop: 4,
-  },
-  benefitsTitle: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  benefitsTitleDark: {
-    color: '#D1D5DB',
-  },
-  benefitText: {
-    fontSize: 10,
-    color: '#10B981',
-    fontWeight: '500',
-  },
-  costText: {
-    fontSize: 10,
-    color: '#EF4444',
-    fontWeight: '500',
-  },
-  activityButton: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-  },
-  disabledButton: {
-    backgroundColor: '#E5E7EB',
-  },
-  activityButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  disabledButtonText: {
-    color: '#9CA3AF',
-  },
-  activityButtonContainer: {
-    alignItems: 'flex-end',
-    minWidth: 80,
-    position: 'relative',
-  },
-  feedbackPopup: {
-    position: 'absolute',
-    right: 0,
-    bottom: '100%',
-    marginBottom: 8,
-    backgroundColor: '#3B82F6',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    zIndex: 1,
-  },
-  feedbackPopupText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-  },
-  activePlanCard: {
-    backgroundColor: '#F0FDF4',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-  },
-  activePlanCardDark: {
-    backgroundColor: '#064E3B',
-  },
-  activePlanTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#10B981',
-    marginBottom: 4,
-  },
-  activePlanTitleDark: {
-    color: '#34D399',
-  },
-  activePlanCost: {
-    fontSize: 14,
-    color: '#059669',
-  },
-  activePlanCostDark: {
-    color: '#6EE7B7',
-  },
-  dietCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  dietCardDark: {
-    backgroundColor: '#374151',
-  },
-  dietInfo: {
-    flex: 1,
-  },
-  dietName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  dietNameDark: {
-    color: '#F9FAFB',
-  },
-  dietDescription: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 6,
-  },
-  dietDescriptionDark: {
-    color: '#D1D5DB',
-  },
-  dietCost: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#F59E0B',
-    marginBottom: 8,
-  },
-  dietButton: {
-    backgroundColor: '#10B981',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activeDietButton: {
-    backgroundColor: '#059669',
-  },
-  dietButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  activeDietButtonText: {
-    color: '#FFFFFF',
-    marginLeft: 6,
-  },
-  diseaseSection: {
-    backgroundColor: '#FEF2F2',
-    padding: 20,
-    borderRadius: 12,
-    marginTop: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
-  },
-  diseaseTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#DC2626',
-    marginBottom: 15,
-  },
-  treatmentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  hospitalButton: {
-    backgroundColor: '#10B981',
-  },
-  cancerButton: {
-    backgroundColor: '#EF4444',
-  },
-  treatmentButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  scrollContainer: {
-    position: 'absolute',
-    right: 10,
-    top: 20,
-    bottom: 20,
-    width: 4,
-    zIndex: 1,
-  },
-  scrollIndicator: {
-    flex: 1,
     justifyContent: 'center',
   },
-  scrollBar: {
-    width: 6,
-    height: 60,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
+  sectionTitle: {
+    fontSize: fontScale(18),
+    fontWeight: '700',
+    color: '#F8FAFC',
+    letterSpacing: -0.3,
   },
-  scrollThumb: {
-    width: 6,
-    height: 30,
-    backgroundColor: '#9CA3AF',
-    borderRadius: 2,
+  sectionTitleDark: {
+    color: '#F8FAFC',
   },
-  testButton: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
+  sectionDescription: {
+    fontSize: fontScale(12),
+    color: 'rgba(226, 232, 240, 0.6)',
+    lineHeight: fontScale(17),
+    marginBottom: verticalScale(4),
   },
-  testButtonDark: {
-    backgroundColor: '#DC2626',
+  sectionDescriptionDark: {
+    color: 'rgba(226, 232, 240, 0.6)',
   },
-  testButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  testButtonTextDark: {
-    color: '#FFFFFF',
-  },
-  diseaseStatusCard: {
-    backgroundColor: '#FEF2F2',
-    padding: responsiveSpacing.md,
+  // Disease status card — quiet, no left bar.
+  diseaseCard: {
+    backgroundColor: 'rgba(248, 113, 113, 0.08)',
     borderRadius: responsiveBorderRadius.md,
-    marginBottom: responsiveSpacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(248, 113, 113, 0.25)',
+    padding: responsiveSpacing.md,
+    gap: verticalScale(10),
   },
-  diseaseStatusCardDark: {
-    backgroundColor: '#7F1D1D',
-    borderLeftColor: '#DC2626',
-  },
-  diseaseStatusText: {
-    fontSize: responsiveFontSize.sm,
-    color: '#DC2626',
-    fontWeight: '600',
-    marginBottom: responsiveSpacing.sm,
-  },
-  diseaseStatusTextDark: {
-    color: '#FCA5A5',
-  },
-  diseaseStatusItem: {
+  diseaseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.xs,
+    gap: scale(10),
   },
-  diseaseStatusName: {
-    fontSize: responsiveFontSize.sm,
-    color: '#991B1B',
-    marginLeft: responsiveSpacing.xs,
-    fontWeight: '500',
+  diseaseIconWrap: {
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(9),
+    backgroundColor: 'rgba(248, 113, 113, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(248, 113, 113, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  diseaseStatusNameDark: {
+  diseaseTitle: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+    color: '#FCA5A5',
+    letterSpacing: -0.2,
+  },
+  diseaseHint: {
+    fontSize: fontScale(11),
+    color: 'rgba(252, 165, 165, 0.7)',
+    marginTop: 1,
+  },
+  diseaseList: {
+    gap: verticalScale(6),
+    paddingTop: verticalScale(4),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(248, 113, 113, 0.2)',
+  },
+  diseaseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+  },
+  diseaseDot: {
+    width: scale(5),
+    height: scale(5),
+    borderRadius: scale(3),
+  },
+  diseaseName: {
+    flex: 1,
+    fontSize: fontScale(13),
+    fontWeight: '600',
     color: '#FCA5A5',
   },
-  diseaseStatusHint: {
-    fontSize: responsiveFontSize.xs,
-    color: '#991B1B',
-    marginTop: responsiveSpacing.xs,
-    fontStyle: 'italic',
+  diseaseSeverity: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    color: 'rgba(252, 165, 165, 0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
-  diseaseStatusHintDark: {
-    color: '#FCA5A5',
+  activeDietFooter: {
+    fontSize: fontScale(11),
+    color: 'rgba(52, 211, 153, 0.75)',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: verticalScale(4),
+    fontVariant: ['tabular-nums'],
   },
 });
 

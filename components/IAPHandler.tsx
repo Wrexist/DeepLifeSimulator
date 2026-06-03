@@ -1,11 +1,18 @@
 import React, { useEffect } from 'react';
 import type { GameState } from '@/contexts/game/types';
-import { useGame } from '@/contexts/GameContext';
+// BUGFIX: importing from `@/contexts/GameContext` re-routes through the
+// `contexts/game/index.ts` barrel which in turn imports `GameProvider` which
+// imports this file — a require cycle that left `useGame` undefined during
+// onboarding boot and crashed `<Stack>` with "Element type is invalid".
+// Pulling the hooks directly from the leaf context modules breaks the cycle.
+import { useGameState } from '@/contexts/game/GameStateContext';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { iapService } from '@/services/IAPService';
 import { logger } from '@/utils/logger';
 
 export function IAPHandler() {
-    const { setGameState, saveGame } = useGame();
+    const { setGameState } = useGameState();
+    const { saveGame } = useGameActions();
 
     useEffect(() => {
         logger.info('IAPHandler: Registering state updater');
@@ -21,10 +28,15 @@ export function IAPHandler() {
                         return prevState;
                     }
 
-                    // Deep clone state to ensure immutability
+                    // Deep clone state to ensure immutability.
+                    // R2-E: use structuredClone (Hermes/RN 0.81+) — JSON round-trip
+                    // is 60-150ms on a 200KB+ GameState AND drops `undefined`,
+                    // `Date`, `Map`, `Set`, and function properties silently.
                     let newState;
                     try {
-                        newState = JSON.parse(JSON.stringify(prevState));
+                        newState = typeof structuredClone === 'function'
+                            ? structuredClone(prevState)
+                            : JSON.parse(JSON.stringify(prevState));
                     } catch (e) {
                         logger.error('IAPHandler: Failed to clone state', e);
                         resolve(false);

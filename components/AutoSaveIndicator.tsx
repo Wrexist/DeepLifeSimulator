@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckCircle, Clock, AlertCircle, Save } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from '@/utils/safeGameState';
 import { saveQueue } from '@/utils/saveQueue';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { responsiveFontSize } from '@/utils/scaling';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '@/utils/logger';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 interface SaveStatus {
   status: 'saved' | 'saving' | 'pending' | 'error';
@@ -28,35 +30,41 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
   });
   const [showDetails, setShowDetails] = useState(false);
 
+  // R6: guard against setState-after-unmount when the async AsyncStorage read
+  // resolves after the component is gone (common on rapid tab switches).
+  const isMountedRef = useRef(true);
   useEffect(() => {
+    isMountedRef.current = true;
     const updateSaveStatus = async () => {
       try {
-        // Get last save time from AsyncStorage
         const lastSaveStr = await AsyncStorage.getItem('lastSaveTime');
+        if (!isMountedRef.current) return;
         const lastSaveTime = lastSaveStr ? parseInt(lastSaveStr, 10) : null;
-
-        // Get queue status
         const queueStatus = saveQueue.getStatus();
-        
         setSaveStatus({
           status: queueStatus.isProcessing ? 'saving' : queueStatus.queueLength > 0 ? 'pending' : 'saved',
           lastSaveTime,
           queueLength: queueStatus.queueLength,
         });
       } catch (error) {
+        if (!isMountedRef.current) return;
         logger.error('Failed to update save status:', error);
         setSaveStatus(prev => ({ ...prev, status: 'error' }));
       }
     };
 
-    // Update immediately
     updateSaveStatus();
-
-    // Update every 2 seconds
     const interval = setInterval(updateSaveStatus, 2000);
 
-    return () => clearInterval(interval);
-  }, [gameState]);
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(interval);
+    };
+    // P1-4: empty deps — `updateSaveStatus` reads from `saveQueue.getStatus()`
+    // and AsyncStorage, neither of which depends on `gameState`. Re-installing
+    // the interval on every state change tore down + recreated the timer plus
+    // hammered AsyncStorage on the hot path.
+  }, []);
 
   const formatLastSaveTime = (timestamp: number | null): string => {
     if (!timestamp) return 'Never';
@@ -121,13 +129,16 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
     }
   };
 
-  if (!gameState.settings.autoSave) {
+  // R2-A: AutoSaveIndicator mounts globally — a missing settings would crash
+  // the entire layout. Use safe accessor with autoSave/darkMode defaults.
+  const safeAutoSaveSettings = safeSettings(gameState);
+  if (!safeAutoSaveSettings.autoSave) {
     return null;
   }
 
-  const containerStyle = position === 'relative' 
-    ? [styles.containerRelative, gameState.settings.darkMode && styles.containerDark]
-    : [styles.container, gameState.settings.darkMode && styles.containerDark, { top: insets.top + 70 }];
+  const containerStyle = position === 'relative'
+    ? [styles.containerRelative, safeAutoSaveSettings.darkMode && styles.containerDark]
+    : [styles.container, safeAutoSaveSettings.darkMode && styles.containerDark, { top: insets.top + 70 }];
 
   return (
     <TouchableOpacity
@@ -184,12 +195,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 3,
-    zIndex: 999,
+    zIndex: Z_INDEX.TOAST,
   },
   containerRelative: {
     position: 'absolute',
@@ -202,10 +218,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 4,
     zIndex: 10,
   },

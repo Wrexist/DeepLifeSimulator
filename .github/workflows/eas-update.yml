@@ -33,11 +33,14 @@ jobs:
       - name: Run Expo Doctor
         run: npx --yes expo-doctor
 
+      - name: Type check
+        run: npm run type-check
+
       - name: Lint
         run: npm run lint
 
       - name: Test
-        run: npm test -- --passWithNoTests
+        run: npm test -- --ci
 
       # PR → preview channel (skipped until EXPO_TOKEN is configured)
       - name: EAS Update (preview for PRs)

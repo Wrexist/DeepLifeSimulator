@@ -47,10 +47,11 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 // Keep always-rendered components as eager imports to reduce bundler memory pressure
 import AchievementToast from '@/components/anim/AchievementToast';
 import UIUXOverlay from '@/components/UIUXOverlay';
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
-// Re-enabled: expo-tracking-transparency added back to package.json
+// expo-tracking-transparency is in package.json AND wired via the config plugin
+// in app.config.js (see P0-13). The runtime helper below is loaded lazily.
 import { requestTrackingPermission } from '@/utils/trackingTransparency';
 import { logger } from '@/utils/logger';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
@@ -585,21 +586,17 @@ function getEarlyInitError(): EarlyInitError | null {
 }
 const earlyInitError: EarlyInitError | null = getEarlyInitError();
 
-// Suppress non-critical warnings that show as orange banner bar at top of screen
-// These are framework/library warnings that don't affect gameplay
+// P1-9: only suppress *known-benign* library warnings. Substring matches like
+// `[RootLayout]` and `[StatusBarWrapper]` hid real signals (state leaks, render
+// loops) for months. `Sending onAnimatedValueUpdate` is a real animation-loop
+// signal — leave it visible so future loop regressions are caught early.
 LogBox.ignoreLogs([
   'Network monitoring disabled',
   'Require cycle:',
   'Non-serializable values were found in the navigation state',
   'ViewPropTypes will be removed',
   'AsyncStorage has been extracted',
-  'Sending `onAnimatedValueUpdate`',
-  'Failed to initialize circuit breaker',
-  'new NativeEventEmitter',
   'Overwriting fontFamily',
-  // Suppress all [RootLayout] and [StatusBarWrapper] warnings
-  '[RootLayout]',
-  '[StatusBarWrapper]',
 ]);
 
 // OPTIMIZATION: Only lazy load conditional modal components that are rarely shown
@@ -683,11 +680,13 @@ if (__DEV__) {
 
 export default function RootLayout() {
   // Defer markBootStage to avoid blocking render
-  if (typeof requestAnimationFrame !== 'undefined') {
-    requestAnimationFrame(() => markBootStage('layout_start'));
-  } else {
-    setTimeout(() => markBootStage('layout_start'), 0);
-  }
+  // P2-3: moved markBootStage + debug-logging side effects out of the render
+  // body into useEffect — they used to fire on every render of RootLayout
+  // (and twice under StrictMode).
+  useEffect(() => {
+    markBootStage('layout_start');
+  }, []);
+
   useFrameworkReady();
   const segments = useSegments();
   const [fatalError, setFatalError] = useState<EarlyInitError | null>(
@@ -701,14 +700,6 @@ export default function RootLayout() {
   const [circuitBreakerStatus, setCircuitBreakerStatus] = useState<any>(null);
   const [isRecovering, setIsRecovering] = useState(false);
 
-  // Defer debug logging to avoid blocking critical path
-  if (__DEV__) {
-    setTimeout(() => {
-      logger.debug('Current segments:', { segments });
-      logger.debug('Reanimated loaded:', { reanimatedLoaded });
-    }, 0);
-  }
-
   // Only show TopStatsBar when we're in the main game tabs, not in onboarding or other screens
   const isOnboarding = segments[0] === '(onboarding)' || segments[0] === 'preview';
   const isMainGame = segments[0] === '(tabs)';
@@ -719,12 +710,13 @@ export default function RootLayout() {
   const isInOnboardingPath = currentPath.includes('(onboarding)') || currentPath.includes('MainMenu') || currentPath.includes('Scenarios') || currentPath.includes('Customize') || currentPath.includes('Perks') || currentPath.includes('SaveSlots');
   const finalShowStatsBar = showStatsBar && !isInOnboardingPath;
 
-  // Defer debug logging to avoid blocking critical path
-  if (__DEV__) {
-    setTimeout(() => {
-      logger.debug('Stats bar decision:', { showStatsBar, isOnboarding, isMainGame, currentPath, isInOnboardingPath, finalShowStatsBar });
-    }, 0);
-  }
+  // P2-3: dev-only debug logging now runs from an effect on dep change rather
+  // than firing setTimeout on every render.
+  useEffect(() => {
+    if (!__DEV__) return;
+    logger.debug('Current segments:', { segments });
+    logger.debug('Stats bar decision:', { showStatsBar, isOnboarding, isMainGame, currentPath, isInOnboardingPath, finalShowStatsBar });
+  }, [segments, showStatsBar, isOnboarding, isMainGame, currentPath, isInOnboardingPath, finalShowStatsBar]);
 
   // Track first frame rendered state
   const [isFirstFrameRendered, setIsFirstFrameRendered] = useState(false);
@@ -796,27 +788,41 @@ export default function RootLayout() {
         // PHASE 2.2: Use safeAsyncStorage with retry logic
         const lastError = await safeAsyncStorage.getItem('last_fatal_error', null);
         if (lastError && !fatalError) {
+          let displayed = false;
+          let parseFailed = false;
           try {
-            // CRITICAL: Validate JSON before parsing to prevent crash
-            // safeAsyncStorage already parses JSON, so lastError is already parsed
+            // safeAsyncStorage already parses JSON; tolerate older string-shaped entries.
             const parsed = typeof lastError === 'string' ? JSON.parse(lastError) : lastError;
-            // Validate parsed data structure
             if (parsed && typeof parsed === 'object') {
               // Only show if it's recent (within last 30 seconds)
               if (parsed.time && Date.now() - parsed.time < 30000) {
                 logger.warn('Previous fatal error detected:', parsed);
                 setFatalError({
                   message: parsed.message || 'Unknown error',
-                  stack: parsed.stack
+                  stack: parsed.stack,
                 });
+                displayed = true;
               }
             }
           } catch {
-            logger.warn('Failed to parse last_fatal_error - corrupted data, ignoring');
-            // Continue without showing error - data was corrupted
+            parseFailed = true;
+            logger.warn('Failed to parse last_fatal_error — keeping for next attempt');
           }
-          // Clear the stored error after successful launch (regardless of parse result)
-          await safeAsyncStorage.removeItem('last_fatal_error');
+          // P2-5: only remove the persisted error when we *displayed* it.
+          // Removing on parse failure threw away the breadcrumb we needed to
+          // diagnose endless-crash-on-startup loops.
+          if (displayed) {
+            await safeAsyncStorage.removeItem('last_fatal_error');
+          } else if (!parseFailed) {
+            // Old (>30s) entry — archive then remove so we don't show it again
+            // but the breadcrumb is still recoverable from device storage if needed.
+            try {
+              await safeAsyncStorage.setItem('last_fatal_error_archive', lastError);
+            } catch {
+              // archive is best-effort
+            }
+            await safeAsyncStorage.removeItem('last_fatal_error');
+          }
         }
       } catch {
         // Ignore errors reading previous crash
@@ -1127,7 +1133,22 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // Use useGameState directly instead of useGame to avoid GameActionsProvider dependency
   // This component only needs gameState, not actions
   // Add defensive check - if hook fails, ErrorBoundary will catch it
-  const { gameState } = useGameState();
+  const { gameState, setGameState } = useGameState();
+
+  // P1-14: keep a ref of the latest gameState so the AI debug getter doesn't
+  // need to re-register on every state change (the previous useEffect with
+  // [gameState] deps fired tens of times per second during week progression).
+  const gameStateRef = useRef(gameState);
+  useEffect(() => { gameStateRef.current = gameState; });
+
+  // P0-14: per-popup auto-dismiss handler. When a lazy modal fails to mount
+  // (chunk-load failure, render error), clear its show flag so the game can
+  // continue instead of freezing on an invisible popup.
+  const dismissPopupOnError = (flag: 'showDeathPopup' | 'showZeroStatPopup' | 'showWeddingPopup' | 'showSicknessModal') =>
+    (error: Error) => {
+      logger.error(`[StatusBarWrapper] ${flag} popup failed to render — auto-dismissing:`, { error: error?.message });
+      setGameState(prev => ({ ...prev, [flag]: false }));
+    };
 
   // CRITICAL FIX: Always use StatusBarFallback - do NOT dynamically load StatusBar
   // Dynamic loading causes React Hook violations because StatusBar uses hooks internally
@@ -1135,18 +1156,18 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // we always use the fallback which is a safe no-op component.
   const StatusBar = StatusBarFallback;
 
-  // Register game state getter with AI Debug Context
+  // Register game state getter with AI Debug Context.
+  // P1-14: register once on mount, read latest state via ref. The previous
+  // [gameState]-dep effect re-registered the getter on every state change.
   useEffect(() => {
     try {
-      // Create a closure that captures the current gameState
-      // This allows the debug system to access state outside of React
-      setStateGetter(() => gameState);
+      setStateGetter(() => gameStateRef.current);
     } catch (error) {
       if (__DEV__) {
         console.warn('[StatusBarWrapper] Failed to set state getter:', error);
       }
     }
-  }, [gameState]);
+  }, []);
   return (
     <SafeAreaView style={[styles.safeArea, gameState?.settings?.darkMode !== false && styles.safeAreaDark]} edges={['left', 'right', 'bottom']}>
       {/* Only show status bar space and TopStatsBar when in main game */}
@@ -1178,29 +1199,41 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
       {/* Lazy load conditional modals to reduce bundler memory pressure */}
       {/* Modal priority: DeathPopup > ZeroStatPopup/WeddingPopup > SicknessModal/CureSuccessModal */}
       {showStatsBar && gameState?.showDeathPopup && (
-        <Suspense fallback={null}>
-          <DeathPopup />
-        </Suspense>
+        <ErrorBoundary fallback={null} onError={dismissPopupOnError('showDeathPopup')}>
+          <Suspense fallback={null}>
+            <DeathPopup />
+          </Suspense>
+        </ErrorBoundary>
       )}
       {showStatsBar && !gameState?.showDeathPopup && gameState?.showZeroStatPopup && !gameState?.dailySummary && (
-        <Suspense fallback={null}>
-          <ZeroStatPopup key={`zero-stat-${gameState?.showZeroStatPopup}-${gameState?.zeroStatType}`} />
-        </Suspense>
+        <ErrorBoundary fallback={null} onError={dismissPopupOnError('showZeroStatPopup')}>
+          <Suspense fallback={null}>
+            <ZeroStatPopup key={`zero-stat-${gameState?.showZeroStatPopup}-${gameState?.zeroStatType}`} />
+          </Suspense>
+        </ErrorBoundary>
       )}
       {showStatsBar && !gameState?.showDeathPopup && gameState?.showWeddingPopup && (
-        <Suspense fallback={null}>
-          <WeddingPopup />
-        </Suspense>
+        <ErrorBoundary fallback={null} onError={dismissPopupOnError('showWeddingPopup')}>
+          <Suspense fallback={null}>
+            <WeddingPopup />
+          </Suspense>
+        </ErrorBoundary>
       )}
       {showStatsBar && !gameState?.showDeathPopup && (
-        <Suspense fallback={null}>
-          <SicknessModal />
-        </Suspense>
+        <ErrorBoundary fallback={null} onError={dismissPopupOnError('showSicknessModal')}>
+          <Suspense fallback={null}>
+            <SicknessModal />
+          </Suspense>
+        </ErrorBoundary>
       )}
       {showStatsBar && !gameState?.showDeathPopup && (
-        <Suspense fallback={null}>
-          <CureSuccessModal />
-        </Suspense>
+        // CureSuccessModal has no show-flag (it self-gates on `cureSuccessMessage`).
+        // If it fails to render, just swallow — there's nothing to dismiss.
+        <ErrorBoundary fallback={null} onError={(error) => logger.error('[StatusBarWrapper] CureSuccessModal failed:', { error: error?.message })}>
+          <Suspense fallback={null}>
+            <CureSuccessModal />
+          </Suspense>
+        </ErrorBoundary>
       )}
       <UIUXOverlay />
       {/* StatusBar is always StatusBarFallback (safe no-op component) */}
@@ -1254,7 +1287,7 @@ const styles = StyleSheet.create({
   fatalErrorBox: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 12,
     padding: 16,
     gap: 8,

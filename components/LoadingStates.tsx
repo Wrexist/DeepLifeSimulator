@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Modal } from 'react-native';
+import { Platform, View, Text, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 const LinearGradient = LinearGradientFallback;
 
 interface LoadingOverlayProps {
@@ -18,7 +19,7 @@ export function LoadingOverlay({
   showProgress = false 
 }: LoadingOverlayProps) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
 
   if (!visible) return null;
 
@@ -164,10 +165,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 200,
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 8,
   },
   content: {

@@ -78,15 +78,24 @@ export function computeInheritance(state: GameState): InheritanceSummary {
   const learningMultiplier = 
     1 + Math.min(completedCount, 20) / 200; // up to +10%
     
+  // BUGFIX: state.stats.reputation may be undefined on legacy/corrupt saves —
+  // undefined / 10 = NaN, Math.floor(NaN) = NaN, Math.min(NaN, 20) = NaN, which
+  // propagates into legacyBonuses.reputationBonus and corrupts the next life.
+  const safeReputation = typeof state.stats?.reputation === 'number' && Number.isFinite(state.stats.reputation)
+    ? state.stats.reputation
+    : 0;
   const reputationBonus = Math.min(
-    Math.floor(state.stats.reputation / 10),
+    Math.floor(safeReputation / 10),
     20,
   );
 
   // Generate Memories from this life
   const generatedMemories: Memory[] = [];
-  const generation = state.generationNumber;
-  const ancestorName = state.userProfile.name || `${state.userProfile.firstName} ${state.userProfile.lastName}`;
+  const generation = state.generationNumber ?? 1;
+  // BUGFIX: state.userProfile may be undefined on legacy/corrupt saves — direct
+  // access crashed the inheritance flow.
+  const userProfile = state.userProfile ?? ({} as any);
+  const ancestorName = userProfile.name || `${userProfile.firstName ?? 'Unknown'} ${userProfile.lastName ?? 'Heir'}`;
 
   // 1. Wealth Memory
   if (totalNetWorth > 1_000_000) {
@@ -164,6 +173,12 @@ export function computeInheritance(state: GameState): InheritanceSummary {
     .filter(a => a.completed)
     .map(a => a.name);
   
+  // v13 Pulse: forward peak followers into dynasty carry so the next life
+  // starts with a small head-start (floor(carry × 0.001)).
+  const peakFollowersThisLife = state.socialMedia?.lifetimeStats?.peakFollowers
+    ?? state.socialMedia?.followers
+    ?? 0;
+
   // Update dynasty stats with this life's accomplishments
   const updatedDynastyStats = updateDynastyOnDeath(
     currentDynastyStats,
@@ -171,7 +186,8 @@ export function computeInheritance(state: GameState): InheritanceSummary {
     playerAge,
     totalNetWorth,
     childrenCount,
-    unlockedAchievements
+    unlockedAchievements,
+    peakFollowersThisLife,
   );
   
   // Try to generate a new heirloom if wealthy

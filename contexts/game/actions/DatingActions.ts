@@ -13,6 +13,7 @@ import { GameState, Relationship, WeddingPlan } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
+import { rejectIfBlocked } from './_guards';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import {
@@ -103,6 +104,10 @@ export const goOnDate = (
   dateType: 'casual' | 'coffee' | 'dinner' | 'romantic' | 'adventure' | 'luxury',
   deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
+  // P1-3: dead players can't date.
+  const blocked = rejectIfBlocked(gameState);
+  if (blocked) return blocked;
+
   const partner = gameState.relationships?.find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
   if (!partner) {
     return { success: false, message: 'Partner not found.' };
@@ -141,8 +146,20 @@ export const goOnDate = (
     return { success: false, message: "You're too tired for a date." };
   }
 
-  // Atomic update: deduct cost + update stats + update relationship in single setGameState
-  setGameState(prev => ({
+  // Atomic update: deduct cost + update stats + update relationship in single setGameState.
+  // P2-14: re-check the per-partner cap inside the updater so two same-batch
+  // taps can't both pass the outer gate above and bypass the 2/wk limit
+  // (same pattern as giveGift below).
+  setGameState(prev => {
+    const prevPartner = (prev.relationships || []).find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
+    if (prevPartner) {
+      const prevWeeksLived = prev.weeksLived || 0;
+      const prevDatesThisWeek = prevPartner.lastDateWeek === prevWeeksLived ? (prevPartner.datesThisWeek || 0) : 0;
+      if (prevDatesThisWeek >= MAX_DATES_PER_WEEK) {
+        return prev;
+      }
+    }
+    return ({
     ...prev,
     stats: {
       ...prev.stats,
@@ -176,7 +193,8 @@ export const goOnDate = (
             details: { dateType },
           },
         ],
-  }));
+  });
+  });
 
   log.info(`Date with ${partner.name} - type: ${dateType}`);
   return { success: true, message: `Had a wonderful ${dateType} date with ${partner.name}!` };
@@ -220,26 +238,38 @@ export const giveGift = (
     return { success: false, message: `You need $${config.cost} for this gift.` };
   }
 
-  // Atomic update: deduct cost + update relationship in single setGameState
-  setGameState(prev => ({
-    ...prev,
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, (prev.stats.money || 0) - config.cost),
-    },
-    relationships: (prev.relationships || []).map(r =>
-      r.id === partnerId
-        ? {
-            ...r,
-            relationshipScore: clampRelationshipScore(r.relationshipScore + config.relationshipBoost),
-            giftsReceived: (r.giftsReceived || 0) + 1,
-            // ANTI-EXPLOIT: Track weekly gift count
-            giftsThisWeek: (r.lastGiftWeek === (prev.weeksLived || 0) ? (r.giftsThisWeek || 0) : 0) + 1,
-            lastGiftWeek: prev.weeksLived || 0,
-          }
-        : r
-    ),
-  }));
+  // Atomic update: deduct cost + update relationship in single setGameState.
+  // ANTI-EXPLOIT: Re-check the weekly gift cap INSIDE the prev callback so
+  // two rapid same-batch gift clicks don't both pass the outer gate above and
+  // bypass the 2/wk cap.
+  setGameState(prev => {
+    const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
+    if (!prevPartner) return prev;
+    const prevWeek = prev.weeksLived || 0;
+    const prevGiftsThisWeek = prevPartner.lastGiftWeek === prevWeek ? (prevPartner.giftsThisWeek || 0) : 0;
+    if (prevGiftsThisWeek >= MAX_GIFTS_PER_WEEK) return prev;
+    const prevMoney = prev.stats.money || 0;
+    if (prevMoney < config.cost) return prev;
+
+    return {
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, prevMoney - config.cost),
+      },
+      relationships: (prev.relationships || []).map(r =>
+        r.id === partnerId
+          ? {
+              ...r,
+              relationshipScore: clampRelationshipScore(r.relationshipScore + config.relationshipBoost),
+              giftsReceived: (r.giftsReceived || 0) + 1,
+              giftsThisWeek: prevGiftsThisWeek + 1,
+              lastGiftWeek: prevWeek,
+            }
+          : r
+      ),
+    };
+  });
 
   log.info(`Gift to ${partner.name} - type: ${giftType}`);
   return { success: true, message: `${partner.name} loved ${config.message}!` };
@@ -298,8 +328,18 @@ export const proposeMarriage = (
   const accepted = guaranteedSuccess ? true : ((proposalRoll || 0) * 100 < successRate);
 
   if (accepted) {
-    // Atomic update: deduct ring cost + update stats + update relationship + milestone
+    // Atomic update: deduct ring cost + update stats + update relationship + milestone.
+    // R4-D: re-check affordability AND that the partner is still a `partner`
+    // (not already-engaged / already-spouse) inside the updater so a same-batch
+    // double-tap can't double-charge for one proposal.
     setGameState(prev => {
+      const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
+      if (!prevPartner || prevPartner.type !== 'partner' || prevPartner.engagementWeek != null) {
+        return prev;
+      }
+      if ((prev.stats?.money ?? 0) < ring.price) {
+        return prev;
+      }
       const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
       return {
         ...prev,
@@ -318,6 +358,8 @@ export const proposeMarriage = (
               }
             : r
         ),
+        // R2-B: cap to 200 milestones — pruned at save time, but the
+        // in-memory cap stops the per-action O(N) spread from dominating.
         lifeMilestones: [
           ...(prev.lifeMilestones || []),
           {
@@ -328,7 +370,7 @@ export const proposeMarriage = (
             partnerId,
             details: { ringId, ringName: ring.name },
           },
-        ],
+        ].slice(-200),
         rngCommitLog: nextRngCommitLog,
       };
     });
@@ -336,8 +378,17 @@ export const proposeMarriage = (
     log.info(`Proposal accepted by ${partner.name}`);
     return { success: true, message: `${partner.name} said YES! You're engaged!`, accepted: true };
   } else {
-    // Atomic update: deduct ring cost + update stats + reduce relationship
+    // Atomic update: deduct ring cost + update stats + reduce relationship.
+    // R4-D: same recheck as the accepted branch — a same-batch double-tap can't
+    // double-charge the ring.
     setGameState(prev => {
+      const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
+      if (!prevPartner || prevPartner.type !== 'partner' || prevPartner.engagementWeek != null) {
+        return prev;
+      }
+      if ((prev.stats?.money ?? 0) < ring.price) {
+        return prev;
+      }
       const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
       return {
         ...prev,
@@ -464,8 +515,13 @@ export const executeWedding = (
   const happinessBonus = calculateWeddingHappinessBonus(plan);
   const reputationBonus = calculateWeddingReputationBonus(plan);
 
-  // Atomic update: pay remaining balance + update stats + convert partner to spouse
+  // Atomic update: pay remaining balance + update stats + convert partner to spouse.
+  // R4-D: re-check affordability inside the updater and bail if the partner is
+  // already a spouse — a same-batch double-tap can't double-charge the wedding.
   setGameState(prev => {
+    const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
+    if (!prevPartner || prevPartner.type === 'spouse') return prev;
+    if ((prev.stats?.money ?? 0) < remainingBalance) return prev;
     // RELATIONSHIP STATE FIX: Remove existing spouse if different person (prevent duplicates)
     let relationships = prev.relationships || [];
     const existingSpouse = prev.family?.spouse;
@@ -506,6 +562,7 @@ export const executeWedding = (
         ...prev.family,
         spouse: spouse,
       },
+      // R2-B: cap to 200 milestones (see engagement above).
       lifeMilestones: [
         ...(prev.lifeMilestones || []),
         {
@@ -520,7 +577,7 @@ export const executeWedding = (
             totalCost: plan.budget,
           },
         },
-      ],
+      ].slice(-200),
     };
   });
 
@@ -987,8 +1044,12 @@ export const checkAnniversary = (
   if (typeof marriageWeek !== 'number' || !isFinite(marriageWeek)) {
     return { isAnniversary: false };
   }
+  // P0-12: legacy saves stored marriageWeek as the cyclic 1-4 value. We can't
+  // reconstruct the original absolute week reliably, so skip the anniversary
+  // check for those saves — better than firing a wrong-week anniversary every
+  // week or so once `weeksMarried % WEEKS_PER_YEAR === 0` accidentally hits.
   if (marriageWeek <= 4 && absoluteWeek > 4) {
-    marriageWeek = Math.max(0, absoluteWeek - ((gameState.week - marriageWeek + 4) % 4));
+    return { isAnniversary: false };
   }
 
   const weeksMarried = Math.max(0, absoluteWeek - marriageWeek);
@@ -1000,6 +1061,7 @@ export const checkAnniversary = (
     
     setGameState(prev => ({
       ...prev,
+      // R2-B: cap to 200 milestones.
       lifeMilestones: [
         ...(prev.lifeMilestones || []),
         {
@@ -1010,7 +1072,7 @@ export const checkAnniversary = (
           partnerId: spouse.id,
           details: { yearsMarried },
         },
-      ],
+      ].slice(-200),
     }));
 
     return { isAnniversary: true, yearsMarried };

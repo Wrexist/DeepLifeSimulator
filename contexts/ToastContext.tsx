@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback, ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 import ToastNotification from '@/components/ui/ToastNotification';
 
@@ -104,16 +104,15 @@ export function ToastProvider({ children }: ToastProviderProps) {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
   }, []);
 
+  // Memoize the context value so consumers of useToast() don't re-render on
+  // every ToastProvider render (this provider sits high in the tree).
+  const contextValue = useMemo(
+    () => ({ showToast, showSuccess, showError, showWarning, showInfo }),
+    [showToast, showSuccess, showError, showWarning, showInfo]
+  );
+
   return (
-    <ToastContext.Provider
-      value={{
-        showToast,
-        showSuccess,
-        showError,
-        showWarning,
-        showInfo,
-      }}
-    >
+    <ToastContext.Provider value={contextValue}>
       {children}
       <View style={styles.toastContainer} pointerEvents="box-none">
         {toasts.map((toast) => (

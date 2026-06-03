@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -20,6 +20,7 @@ import {
 } from '@/src/features/onboarding/saveSlotHelpers';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { clearProtectedState, deleteAllBackupsForSlot, listBackups } from '@/utils/saveBackup';
 import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
@@ -49,9 +50,26 @@ export default function SaveSlots() {
     logOnboardingStepView('SaveSlots');
   }, []);
 
+  // R3-C: Android hardware back → return to the main menu instead of leaving
+  // the user on a half-loaded scene with no exit affordance.
+  useHardwareBack(() => {
+    if (navigation.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(onboarding)/MainMenu');
+    }
+    return true;
+  });
+
   const [showBackupManager, setShowBackupManager] = useState<number | null>(null);
   const [backupCounts, setBackupCounts] = useState<Record<number, number>>({});
   const [isBusy, setIsBusy] = useState(false);
+  // R7 SB-6: synchronous re-entry guard. `isBusy` is a state flag — two rapid
+  // taps within the same render cycle BOTH see `isBusy === false` because the
+  // state update hasn't flushed yet, so both enter the load path and race for
+  // `loadGame` + `router.push`. The ref short-circuits the second tap
+  // synchronously; the state flag continues to drive the loading UI.
+  const continueInFlightRef = useRef(false);
 
   const selectedCard = useMemo(
     () => slots.find((slot) => slot.id === selectedSlot) ?? null,
@@ -141,14 +159,23 @@ export default function SaveSlots() {
   };
 
   const continueToGame = async () => {
+    // R7 SB-6: ref guard runs BEFORE state read. Rapid double-tap can't
+    // race past the state flush because the ref is mutated synchronously.
+    if (continueInFlightRef.current) return;
     if (!selectedSlot || isBusy) return;
 
     const slot = slots.find((s) => s.id === selectedSlot);
     if (!slot || !slot.hasData) {
-      await startNewGame();
+      continueInFlightRef.current = true;
+      try {
+        await startNewGame();
+      } finally {
+        continueInFlightRef.current = false;
+      }
       return;
     }
 
+    continueInFlightRef.current = true;
     setIsBusy(true);
     try {
       const slotValidation = await validateSaveSlot(selectedSlot);
@@ -186,6 +213,7 @@ export default function SaveSlots() {
       Alert.alert('Load Error', 'An error occurred while loading your save. Please try again.');
     } finally {
       setIsBusy(false);
+      continueInFlightRef.current = false;
     }
   };
 
@@ -322,7 +350,7 @@ export default function SaveSlots() {
                           <View style={styles.statBlock}>
                             <Text style={styles.statLabel}>Age</Text>
                             <Text style={styles.statValue}>
-                              {Math.ceil(slot.date?.age || 0)}
+                              {Math.floor(slot.date?.age || 0)}
                             </Text>
                           </View>
                           <View style={styles.statBlock}>
@@ -413,10 +441,15 @@ const styles = StyleSheet.create({
   cardContainer: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 12,
   },
   cardBlur: {
@@ -430,7 +463,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   cardSelected: {
-    borderColor: 'rgba(16, 185, 129, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
     borderWidth: 2,
   },
   slotHeader: {
@@ -513,7 +546,7 @@ const styles = StyleSheet.create({
     color: '#60A5FA',
   },
   deleteAction: {
-    borderColor: 'rgba(248, 113, 113, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   deleteText: {
     color: '#F87171',

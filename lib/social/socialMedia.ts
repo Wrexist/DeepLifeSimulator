@@ -347,18 +347,31 @@ export function checkViralChanceFull(
 /**
  * Calculate follower decay if inactive
  * -1% per week if no posts for 2+ weeks
+ * Verified Pro reduces the decay by 5% (loyalty effect from blue check).
  */
 export function calculateFollowerDecay(
   currentFollowers: number,
-  weeksSinceLastPost: number
+  weeksSinceLastPost: number,
+  verifiedProActive: boolean = false
 ): number {
   if (weeksSinceLastPost < 2) return 0;
-  
-  const decayPercent = 0.01; // 1% per week
-  const weeksToDecay = weeksSinceLastPost - 1; // Start decaying after 1 week
+
+  const decayPercent = verifiedProActive ? 0.0095 : 0.01;
+  const weeksToDecay = weeksSinceLastPost - 1;
   const decay = Math.floor(currentFollowers * decayPercent * weeksToDecay);
-  
-  return Math.min(decay, Math.floor(currentFollowers * 0.1)); // Max 10% decay
+
+  return Math.min(decay, Math.floor(currentFollowers * 0.1));
+}
+
+/**
+ * Pulse Verified Pro engagement multiplier.
+ * Returns 1.25 when the subscription is active (matches `perksUnlocked.postBoostMultiplier`),
+ * 1.0 otherwise. Reading from the state directly so callers don't have to thread it.
+ */
+export function getEngagementMultiplierFromVerifiedPro(state: GameState): number {
+  const vp = state.socialMedia?.verifiedPro;
+  if (!vp || !vp.active) return 1.0;
+  return vp.perksUnlocked?.postBoostMultiplier ?? 1.0;
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "name": "life-simulator",
   "main": "./app/entry.ts",
-  "version": "2.3.5",
+  "version": "2.5.0",
   "private": true,
   "scripts": {
     "start": "expo start",
@@ -18,7 +18,7 @@
     "test:comprehensive": "ts-node scripts/run-tests.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
-    "type-check": "tsc --noEmit --pretty",
+    "type-check": "tsc --noEmit --pretty -p tsconfig.typecheck.json",
     "preflight:ios": "node scripts/preflight-check.js --platform ios",
     "preflight": "node scripts/preflight-check.js --platform ios",
     "preflight:baseline": "node scripts/preflight-check.js --baseline",
@@ -31,11 +31,10 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
-    "@lucide/lab": "^0.1.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
-    "expo": "~54.0.33",
+    "expo": "~54.0.34",
     "expo-blur": "~15.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
@@ -59,13 +58,14 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-web": "^0.21.0",
-    "uuid": "^11.1.0"
+    "react-native-web": "^0.21.2",
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
+    "@babel/core": "^7.29.0",
     "@playwright/test": "^1.55.0",
     "@types/jest": "^29.5.11",
+    "@types/node": "^25.9.1",
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
     "@types/uuid": "^10.0.0",
@@ -73,10 +73,16 @@
     "eslint-config-expo": "~10.0.0",
     "expo-build-properties": "~1.0.10",
     "jest": "~29.7.0",
+    "react-test-renderer": "^19.1.0",
     "ts-jest": "^29.1.1",
     "typescript": "~5.9.2"
   },
   "overrides": {
+    "xcode": {
+      "uuid": "^11.1.1"
+    },
+    "postcss": ">=8.5.10",
+    "brace-expansion": "^2.0.2",
     "braces": ">=3.0.3",
     "form-data": ">=2.5.4",
     "js-yaml": ">=4.1.1",

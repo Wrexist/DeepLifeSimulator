@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Animated,
-} from 'react-native';
+  Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
@@ -684,10 +682,15 @@ const styles = StyleSheet.create({
     padding: 20,
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
     elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
   },
   chartHeader: {
     flexDirection: 'row',

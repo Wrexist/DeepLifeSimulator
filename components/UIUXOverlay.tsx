@@ -4,6 +4,7 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import { useGameState } from '@/contexts/GameContext';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 export default function UIUXOverlay() {
   const {
@@ -69,6 +70,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 1000,
+    zIndex: Z_INDEX.LOADING,
   },
 });

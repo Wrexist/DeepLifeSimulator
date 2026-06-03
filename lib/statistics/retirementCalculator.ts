@@ -41,9 +41,11 @@ export function calculateRetirementPlanning(
   const annualSalary = career?.levels?.[career.level]?.salary || 0;
   const weeklyIncome = annualSalary / WEEKS_PER_YEAR;
   const estimatedAnnualExpenses = weeklyIncome * 0.7 * WEEKS_PER_YEAR; // Assume 70% of income is expenses
-  
-  // Calculate required net worth using 4% rule
-  const requiredNetWorth = (estimatedAnnualExpenses / withdrawalRate) * 100;
+
+  // BUGFIX: caller-supplied withdrawalRate of 0 produces Infinity → propagates
+  // through savingsGap and monthlySavingsNeeded.
+  const safeWithdrawalRate = withdrawalRate > 0 ? withdrawalRate : 4;
+  const requiredNetWorth = (estimatedAnnualExpenses / safeWithdrawalRate) * 100;
   
   // Calculate savings gap
   const savingsGap = Math.max(0, requiredNetWorth - currentNetWorth);

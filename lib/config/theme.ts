@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 /**
  * Design Token System — DeepLifeSim
  *
@@ -102,6 +103,29 @@ export function getThemeColors(darkMode: boolean) {
   return darkMode ? colors.dark : colors.light;
 }
 
+/**
+ * Semantic accent colors — short, stable names for cross-component reuse.
+ * Use these instead of hardcoded hex in new code.
+ *
+ *   accent.success   →  positive state (gains, completion)
+ *   accent.warning   →  caution (high heat, missed payments, dirty BTC)
+ *   accent.danger    →  failure (late payments, scams, debt)
+ *   accent.info      →  neutral primary action (CTAs, focus)
+ *   accent.purple    →  premium / identity / dark-web tier
+ *   accent.gold      →  reputation stars / premium tier
+ *   accent.amber     →  middle band (warm heat, mid-tier mixer)
+ */
+export const accent = {
+  success: palette.success,       // #10B981
+  warning: palette.warning,       // #F59E0B
+  danger: palette.danger,         // #EF4444
+  info: palette.info,             // #3B82F6
+  purple: '#A855F7',
+  gold: '#FACC15',
+  amber: '#F97316',
+  muted: palette.dark500,         // for inactive states
+} as const;
+
 // ---------------------------------------------------------------------------
 // Spacing (4px base grid)
 // ---------------------------------------------------------------------------
@@ -169,31 +193,51 @@ export const radii = {
 
 export const shadows = {
   sm: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+    }),
     elevation: 2,
   },
   md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 4,
   },
   lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 8,
   },
   xl: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 16,
   },
 } as const;

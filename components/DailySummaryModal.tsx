@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from '@/utils/safeGameState';
 import { X, Calendar, DollarSign, Activity, Heart, Zap, Smile, Shield, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
@@ -17,7 +18,9 @@ const STAT_ICONS: Record<string, { icon: typeof Heart; color: string }> = {
 
 function DailySummaryModal() {
   const { gameState, setGameState } = useGame();
-  const { settings } = gameState;
+  // R2-A: this modal fires on every week tick — a single bad render with
+  // settings missing would crash the entire game layout.
+  const settings = safeSettings(gameState);
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -316,10 +319,15 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     width: '95%',
     maxHeight: '88%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 24px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 24,
+      },
+    }),
     elevation: 12,
     overflow: 'hidden',
   },
@@ -412,7 +420,7 @@ const styles = StyleSheet.create({
   },
   highlightCardDark: {
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   highlightText: {
     flex: 1,

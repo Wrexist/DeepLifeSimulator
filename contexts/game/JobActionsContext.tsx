@@ -234,9 +234,11 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
       return { success: false, message: 'Activity not found' };
     }
 
-    // Check if already done this week
+    // Check if already done this week. Use `weeksLived` (absolute timeline)
+    // — `state.date.week` cycles 1–4 (week-of-month) and would let players
+    // re-do an activity in the other 3 weeks of every month.
     const weeklyActivities = state.weeklyJailActivities || {};
-    const currentWeek = state.date.week;
+    const currentWeek = state.weeksLived;
     if (weeklyActivities[activityId] === currentWeek) {
       return { success: false, message: 'You\'ve already completed this activity this week' };
     }

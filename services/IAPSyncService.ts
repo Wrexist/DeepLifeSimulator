@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { iapService } from './IAPService';
 
 export interface IAPAction {
@@ -16,10 +16,22 @@ class IAPSyncService {
   private listeners: ((action: IAPAction) => void)[] = [];
   private maxRetries = 3;
   private retryDelays = [1000, 2000, 4000]; // Exponential backoff
+  // R3-F: capture the unsubscribe callback from `iapService.addListener` so a
+  // future `dispose()` or Fast Refresh can clean up. Previously the return
+  // value was discarded, leaking the listener forever.
+  private unsubscribeIAP?: () => void;
 
   private constructor() {
     this.loadPendingActions();
     this.setupIAPListeners();
+  }
+
+  /** Tear down listeners. Useful for tests + hot-reload. */
+  dispose(): void {
+    if (this.unsubscribeIAP) {
+      this.unsubscribeIAP();
+      this.unsubscribeIAP = undefined;
+    }
   }
 
   static getInstance(): IAPSyncService {
@@ -33,13 +45,16 @@ class IAPSyncService {
    * Setup listeners for IAP service events
    */
   private setupIAPListeners(): void {
-    // Listen to IAP service state changes
-    iapService.addListener((state) => {
+    // Listen to IAP service state changes. R3-F: capture the unsubscribe.
+    const result = iapService.addListener((state) => {
       if (state.purchases && state.purchases.length > 0) {
         // New purchases detected, trigger sync
         this.triggerSync();
       }
     });
+    if (typeof result === 'function') {
+      this.unsubscribeIAP = result;
+    }
   }
 
   /**

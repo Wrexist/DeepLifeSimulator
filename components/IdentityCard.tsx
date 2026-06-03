@@ -1,15 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   Image,
   TouchableOpacity,
   Modal,
-  ScrollView,
-} from 'react-native';
+  ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import YouthPillModal from './YouthPillModal';
 import LegacyTimeline from './LegacyTimeline';
@@ -195,8 +193,19 @@ function IdentityCard() {
     return computeNetWorth(assets, liabilities).netWorth;
   }, [stats.money, bankSavings, items, companies, realEstate, gameState.vehicles]);
 
-  const passiveInfo = useMemo(() => calcWeeklyPassiveIncome(gameState), [gameState]);
-  const expenseInfo = useMemo(() => calcWeeklyExpenses(gameState), [gameState]);
+  // calcWeeklyPassiveIncome walks owned properties + companies. Only re-run
+  // when those arrays actually change, not on every unrelated gameState
+  // mutation (otherwise the home tab recomputes on every stat decay tick).
+  const passiveInfo = useMemo(
+    () => calcWeeklyPassiveIncome(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gameState.realEstate, gameState.companies, gameState.stats?.money]
+  );
+  const expenseInfo = useMemo(
+    () => calcWeeklyExpenses(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gameState.realEstate, gameState.vehicles, (gameState as any).loans]
+  );
   const passive = passiveInfo.total;
   const jobIncome = currentCareer ? currentCareer.levels[currentCareer.level].salary : 0;
 
@@ -359,35 +368,32 @@ function IdentityCard() {
         
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
-            <View style={styles.statWithButton}>
-              <View>
-                <Text style={[styles.statLabel, styles.statLabelDark]}>
-                  {t('game.age')}
-                </Text>
-                <Text style={[styles.statValue, styles.statValueDark]}>
-                  {Math.floor(date.age)}
-                </Text>
-              </View>
-              {youthPills > 0 && (
-                <TouchableOpacity 
-                  style={styles.youthPillButton}
-                  onPress={() => setShowYouthPillModal(true)}
-                >
-                  <Image 
-                    source={require('@/assets/images/iap/items/youth_pill_single.png')} 
-                    style={styles.youthPillIcon}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.youthPillButtonText}>{youthPills}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <Text style={[styles.statLabel, styles.statLabelDark]}>
+              {t('game.age')}
+            </Text>
+            <Text style={[styles.statValue, styles.statValueDark]} numberOfLines={1}>
+              {Math.floor(date.age)}
+            </Text>
+            {youthPills > 0 && (
+              <TouchableOpacity
+                style={styles.youthPillButton}
+                onPress={() => setShowYouthPillModal(true)}
+                accessibilityLabel="Use Youth Pill"
+              >
+                <Image
+                  source={require('@/assets/images/iap/items/youth_pill_single.png')}
+                  style={styles.youthPillIcon}
+                  resizeMode="contain"
+                />
+                <Text style={styles.youthPillButtonText}>{youthPills}</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <View style={styles.statItem}>
             <Text style={[styles.statLabel, styles.statLabelDark]}>
               {t('game.sex')}
             </Text>
-            <Text style={[styles.statValue, styles.statValueDark]}>
+            <Text style={[styles.statValue, styles.statValueDark]} numberOfLines={1}>
               {capitalize(sex)}
             </Text>
           </View>
@@ -395,7 +401,7 @@ function IdentityCard() {
             <Text style={[styles.statLabel, styles.statLabelDark]}>
               {t('game.relationshipStatus')}
             </Text>
-            <Text style={[styles.statValue, styles.statValueDark]}>
+            <Text style={[styles.statValue, styles.statValueDark]} numberOfLines={1}>
               {relationshipStatus}
             </Text>
           </View>
@@ -403,7 +409,7 @@ function IdentityCard() {
             <Text style={[styles.statLabel, styles.statLabelDark]}>
               {t('game.job')}
             </Text>
-            <Text style={[styles.statValue, styles.statValueDark]}>
+            <Text style={[styles.statValue, styles.statValueDark]} numberOfLines={1}>
               {job}
             </Text>
           </View>
@@ -539,22 +545,25 @@ function IdentityCard() {
           </Text>
           {passiveInfo.breakdown.stocks > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <TrendingUp size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                📈 Stocks: {formatMoney(passiveInfo.breakdown.stocks)}
+                Stocks: {formatMoney(passiveInfo.breakdown.stocks)}
               </Text>
             </View>
           )}
           {passiveInfo.breakdown.realEstate > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Home size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🏠 Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
+                Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
               </Text>
             </View>
           )}
           {passiveInfo.breakdown.companies > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Building2 size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🏢 Companies: {formatMoney(passiveInfo.breakdown.companies)}
+                Companies: {formatMoney(passiveInfo.breakdown.companies)}
               </Text>
             </View>
           )}
@@ -567,36 +576,41 @@ function IdentityCard() {
           )}
           {passiveInfo.breakdown.socialMedia > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Smartphone size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                📱 Social Media: {formatMoney(passiveInfo.breakdown.socialMedia)}
+                Social Media: {formatMoney(passiveInfo.breakdown.socialMedia)}
               </Text>
             </View>
           )}
           {passiveInfo.breakdown.patents > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <FlaskConical size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🔬 Patents: {formatMoney(passiveInfo.breakdown.patents)}
+                Patents: {formatMoney(passiveInfo.breakdown.patents)}
               </Text>
             </View>
           )}
           {passiveInfo.breakdown.businessOpportunities > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Sparkles size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                ✨ Business Opportunities: {formatMoney(passiveInfo.breakdown.businessOpportunities)}
+                Business Opportunities: {formatMoney(passiveInfo.breakdown.businessOpportunities)}
               </Text>
             </View>
           )}
           {passiveInfo.breakdown.political > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Landmark size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🏛️ Political: {formatMoney(passiveInfo.breakdown.political)}
+                Political: {formatMoney(passiveInfo.breakdown.political)}
               </Text>
             </View>
           )}
           {passiveInfo.breakdown.gamingStreaming > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Gamepad2 size={14} color={isDarkMode ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                🎮 Gaming/Streaming: {formatMoney(passiveInfo.breakdown.gamingStreaming)}
+                Gaming/Streaming: {formatMoney(passiveInfo.breakdown.gamingStreaming)}
               </Text>
             </View>
           )}
@@ -619,8 +633,9 @@ function IdentityCard() {
           {expenseInfo.breakdown.upkeep > 0 && (
             <>
               <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+                <Home size={scale(18)} color="#EF4444" />
                 <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
-                  🏠 Property Upkeep: {formatMoney(expenseInfo.breakdown.upkeep)}
+                  Property Upkeep: {formatMoney(expenseInfo.breakdown.upkeep)}
                 </Text>
               </View>
               {(() => {
@@ -687,8 +702,9 @@ function IdentityCard() {
           {expenseInfo.breakdown.loans > 0 && (
             <>
               <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+                <CreditCard size={scale(18)} color="#EF4444" />
                 <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
-                  💳 Loan Payments: {formatMoney(expenseInfo.breakdown.loans)}
+                  Loan Payments: {formatMoney(expenseInfo.breakdown.loans)}
                 </Text>
               </View>
               {(() => {
@@ -761,8 +777,9 @@ function IdentityCard() {
           {expenseInfo.breakdown.miningPower > 0 && (
             <>
               <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+                <Zap size={scale(18)} color="#EF4444" />
                 <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
-                  ⚡ Mining Power Costs: {formatMoney(expenseInfo.breakdown.miningPower)}
+                  Mining Power Costs: {formatMoney(expenseInfo.breakdown.miningPower)}
                 </Text>
               </View>
               {(() => {
@@ -902,8 +919,9 @@ function IdentityCard() {
           {expenseInfo.breakdown.vehicles > 0 && (
             <>
               <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+                <Car size={scale(18)} color="#EF4444" />
                 <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
-                  🚗 Vehicle Costs: {formatMoney(expenseInfo.breakdown.vehicles)}
+                  Vehicle Costs: {formatMoney(expenseInfo.breakdown.vehicles)}
                 </Text>
               </View>
               {(() => {
@@ -966,8 +984,9 @@ function IdentityCard() {
           {/* Diet Plan Costs */}
           {expenseInfo.breakdown.dietPlans > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Utensils size={scale(18)} color="#EF4444" />
               <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
-                🍽️ Diet Plan: {formatMoney(expenseInfo.breakdown.dietPlans)}
+                Diet Plan: {formatMoney(expenseInfo.breakdown.dietPlans)}
               </Text>
               {(() => {
                 const activeDietPlan = (gameState.dietPlans || []).find(plan => plan && plan.active);
@@ -987,8 +1006,9 @@ function IdentityCard() {
           {expenseInfo.breakdown.rent > 0 && (
             <>
               <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+                <Home size={scale(18)} color="#EF4444" />
                 <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
-                  🏘️ Rent: {formatMoney(expenseInfo.breakdown.rent)}
+                  Rent: {formatMoney(expenseInfo.breakdown.rent)}
                 </Text>
               </View>
               {(() => {
@@ -1254,10 +1274,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     backgroundColor: '#1F2937',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 8,
     borderWidth: 0,
   },
@@ -1270,12 +1295,17 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 3,
-    borderColor: 'rgba(59, 130, 246, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     // Light mode: subtle shadow for the avatar
-    shadowColor: 'rgba(59, 130, 246, 0.2)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 6px rgba(59, 130, 246, 0.2)' } as any,
+      default: {
+        shadowColor: 'rgba(59, 130, 246, 0.2)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 6,
+      },
+    }),
   },
   avatarDark: {
     borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -1301,9 +1331,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: responsiveSpacing.xs,
     // Light mode: subtle text shadow for name
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '0px 1px 2px rgba(0,0,0,0.1)' } as any,
+      default: {
+        textShadowColor: 'rgba(0,0,0,0.1)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
     letterSpacing: -0.5,
   },
   nameDark: {
@@ -1334,35 +1369,45 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
     marginBottom: responsiveSpacing.lg,
     width: '100%',
+    gap: responsiveSpacing.sm,
   },
   statItem: {
-    width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    // Equal halves with one consistent gap — guarantees pixel-perfect symmetry.
+    flexBasis: 0,
+    flexGrow: 1,
+    minWidth: '47%',
+    height: responsiveSpacing['4xl'], // fixed height across all four cards
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: responsiveBorderRadius.md,
-    padding: responsiveSpacing.md,
-    marginBottom: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.sm,
     alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
   },
   statLabel: {
     fontSize: responsiveFontSize.xs,
-    color: '#6B7280',
-    marginBottom: responsiveSpacing.xs,
+    color: 'rgba(226, 232, 240, 0.55)',
+    marginBottom: 4,
     textAlign: 'center',
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   statLabelDark: {
-    color: '#9CA3AF',
+    color: 'rgba(226, 232, 240, 0.55)',
   },
   statValue: {
     fontSize: responsiveFontSize.lg,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: '#F8FAFC',
     textAlign: 'center',
+    letterSpacing: -0.2,
   },
   statValueDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   netWorthContainer: {
     flexDirection: 'row',
@@ -1387,10 +1432,15 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.lg,
     width: '100%',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   listItem: {
@@ -1639,22 +1689,30 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   youthPillButton: {
+    // Pinned to the Age card's corner so the centered label+value stay
+    // symmetrical with the other three cards.
+    position: 'absolute',
+    top: 4,
+    right: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    paddingHorizontal: responsiveSpacing.xs,
-    paddingVertical: 4,
+    backgroundColor: 'rgba(139, 92, 246, 0.16)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     borderRadius: responsiveBorderRadius.sm,
-    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(165, 180, 252, 0.4)',
+    gap: 3,
   },
   youthPillIcon: {
-    width: 20,
-    height: 20,
+    width: 14,
+    height: 14,
   },
   youthPillButtonText: {
-    fontSize: responsiveFontSize.sm,
+    fontSize: responsiveFontSize.xs,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: '#C4B5FD',
+    fontVariant: ['tabular-nums'],
   },
   nameContainer: {
     alignItems: 'center',
@@ -1675,10 +1733,15 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,
     gap: 4,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(245, 158, 11, 0.4)' } as any,
+      default: {
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 5,
   },
   prestigeBadgeText: {
@@ -1700,7 +1763,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(251, 146, 60, 0.15)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(251, 146, 60, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   streakBadgeText: {
     fontSize: fontScale(12),

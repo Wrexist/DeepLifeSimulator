@@ -44,14 +44,23 @@ export function updateDynastyOnDeath(
   playerAge: number,
   playerNetWorth: number,
   childrenCount: number,
-  achievements: string[]
+  achievements: string[],
+  // v13: cross-generation Pulse follower carry (optional for back-compat
+  // with any test or pre-v13 callsite that doesn't supply it).
+  peakFollowersThisLife: number = 0,
 ): DynastyStats {
   const updated = { ...currentStats };
-  
+
   // Update totals
   updated.totalGenerations += 1;
   updated.totalWealth += playerNetWorth;
   updated.totalChildrenAllGenerations += childrenCount;
+
+  // v13 Pulse: accumulate peak followers into the dynasty's lifetime carry.
+  if (peakFollowersThisLife > 0) {
+    updated.pulseLifetimeFollowersCarry =
+      (updated.pulseLifetimeFollowersCarry ?? 0) + peakFollowersThisLife;
+  }
   
   // Check if longest living
   if (playerAge > updated.longestLivingMember.age) {

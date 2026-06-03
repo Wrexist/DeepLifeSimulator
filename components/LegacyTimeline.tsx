@@ -5,15 +5,13 @@
  * and achievement badges
  */
 import React, { useState, useMemo } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   Modal,
-  Dimensions,
-} from 'react-native';
+  Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
   X,
@@ -34,6 +32,7 @@ import {
   Zap,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import {
   scale,
   fontScale,
@@ -68,7 +67,7 @@ interface PreviousLife {
 
 export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: LegacyTimelineProps) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const previousLives = (gameState.previousLives || []) as PreviousLife[];
   const currentGeneration = gameState.generationNumber || 1;
 
@@ -363,7 +362,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                                   <View style={styles.eventsList}>
                                     {life.memorableEvents.slice(0, 3).map((event, idx) => (
                                       <Text key={idx} style={[styles.eventText, settings.darkMode && styles.eventTextDark]}>
-                                        â€¢ {event}
+                                        • {event}
                                       </Text>
                                     ))}
                                   </View>
@@ -447,10 +446,15 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     borderRadius: scale(24),
     padding: scale(20),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   header: {
@@ -572,10 +576,15 @@ const styles = StyleSheet.create({
   generationCard: {
     borderRadius: scale(16),
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   cardGradient: {
@@ -766,7 +775,7 @@ const styles = StyleSheet.create({
     paddingVertical: scale(10),
     borderRadius: scale(10),
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   familyTreeButtonText: {
     fontSize: fontScale(13),

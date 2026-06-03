@@ -375,14 +375,19 @@ export function calcWeeklyPassiveIncome(state: GameState): { total: number; brea
   if (!isFinite(businessOpportunitiesIncome) || businessOpportunitiesIncome < 0) businessOpportunitiesIncome = 0;
 
   // Social media influencer income (if player has 10,000+ followers)
+  // v13+ saves let the Pulse weekly tick own this entirely — running both paths
+  // would double-pay influencer revenue + double-process brand-deal expiry.
   let socialMediaIncome = 0;
+  const isV13Plus = (state.version ?? 0) >= 13;
   const socialData = getSocialMediaData(state);
-  if (socialData.followers >= 10_000) {
+  if (!isV13Plus && socialData.followers >= 10_000) {
     socialMediaIncome = calculateInfluencerIncome(socialData.followers, socialData.engagementRate);
   }
-  
-  // Active brand deals income (weekly payments from ongoing deals)
-  const activeBrandDeals = Array.isArray(state.socialMedia?.activeBrandDeals) ? state.socialMedia.activeBrandDeals : [];
+
+  // Active brand deals income (weekly payments from ongoing deals) — legacy path only.
+  const activeBrandDeals = !isV13Plus && Array.isArray(state.socialMedia?.activeBrandDeals)
+    ? state.socialMedia.activeBrandDeals
+    : [];
   // ANTI-EXPLOIT: Use weeksLived (absolute counter) NOT state.week (1-4 cycle) for expiry comparison
   // state.week cycles 1-4 (week-of-month UI only), so any expiresAt > 4 would NEVER expire
   const currentWeekAbsolute = typeof state.weeksLived === 'number' && !isNaN(state.weeksLived) && isFinite(state.weeksLived) ? state.weeksLived : 0;

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { Play, Plus, Save, Settings } from 'lucide-react-native';
 import SettingsModal from '@/components/SettingsModal';
 import GlassActionButton from '@/components/onboarding/GlassActionButton';

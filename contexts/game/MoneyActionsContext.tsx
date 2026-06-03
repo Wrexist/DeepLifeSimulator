@@ -66,8 +66,26 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
   // Money & Economy Actions
   const updateMoney = useCallback((amount: number, reason: string, updateDailySummary = true) => {
+    // ANTI-TRAP: reject non-finite amount before touching state. Catches the
+    // "DatingActions Signature Trap" — a caller passing the lib-style
+    // (setGameState, amount, reason) into this hook treats setGameState as
+    // `amount`, which is a function → arithmetic produces NaN and poisons
+    // money. Failing fast here surfaces the bug at the call site instead.
+    if (typeof amount !== 'number' || !Number.isFinite(amount)) {
+      logger.error(`[updateMoney hook] Invalid amount=${typeof amount === 'function' ? '[function]' : String(amount)} reason="${reason}". Likely Signature Trap (called with lib-style first arg).`);
+      return;
+    }
     const now = Date.now();
     setGameState(prevState => {
+      // P1-1: reject overdraws here just like the module-form updateMoney does
+      // (MoneyActions.ts). Without this, UI callers can "buy" things at $0
+      // because Math.max clamps the negative result to 0 without rejecting.
+      if (amount < 0 && prevState.stats.money + amount < -0.01) {
+        logger.warn(
+          `[updateMoney hook] Rejected purchase: insufficient funds. Has: ${prevState.stats.money}, Needs: ${Math.abs(amount)}. Reason: ${reason}`
+        );
+        return prevState;
+      }
       const newMoney = Math.max(0, prevState.stats.money + amount);
       const newState = {
         ...prevState,
@@ -203,18 +221,31 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       return;
     }
 
-    // Apply the upgrade
-    setGameState(prevState => ({
-      ...prevState,
-      stats: {
-        ...prevState.stats,
-        gems: prevState.stats.gems - upgrade.cost,
-      },
-      goldUpgrades: {
-        ...prevState.goldUpgrades,
-        [upgradeId]: true,
-      },
-    }));
+    // Apply the upgrade.
+    // ANTI-EXPLOIT: Re-check inside setGameState(prev =>) so two rapid clicks
+    // in the SAME React batch don't both pass the pre-update gate above and
+    // double-deduct gems / set the flag twice. The outer check stays for fast
+    // failure + user-visible error; the inner check is the authoritative one.
+    setGameState(prevState => {
+      if (prevState.goldUpgrades?.[upgradeId as keyof typeof prevState.goldUpgrades]) {
+        return prevState; // already owned by an earlier same-batch claim
+      }
+      const prevGems = prevState.stats?.gems || 0;
+      if (prevGems < upgrade.cost) {
+        return prevState; // not enough gems (e.g. a prior same-batch upgrade drained them)
+      }
+      return {
+        ...prevState,
+        stats: {
+          ...prevState.stats,
+          gems: prevGems - upgrade.cost,
+        },
+        goldUpgrades: {
+          ...prevState.goldUpgrades,
+          [upgradeId]: true,
+        },
+      };
+    });
 
     logger.info('Gold upgrade purchased:', { upgradeId, name: upgrade.name, cost: upgrade.cost });
   }, [setGameState, showError]);

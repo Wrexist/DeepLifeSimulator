@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { MotiView } from '@/components/anim/MotiStub';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -126,10 +126,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.05)',

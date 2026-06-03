@@ -9,14 +9,14 @@ import {
   Platform,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { 
-  Monitor, 
+import {
+  Monitor,
   Bitcoin,
   Home,
   Globe,
-  Heart,
+  Flame,
   Users,
-  MessageCircle,
+  Activity,
   TrendingUp,
   Building,
   PawPrint,
@@ -35,17 +35,23 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
 import { useRouter, useSegments } from 'expo-router';
 
-// Import app components directly (no lazy loading)
+// REVERTED R6 lazy-loading: in the production iOS bundle one of the lazy
+// chunks resolved to `undefined` at router init, crashing the app with
+// "Element type is invalid". React.lazy + Metro/Hermes dynamic-import is
+// fragile under expo-router because the router scans every (tabs)/* file at
+// boot and surfaces any default-export mismatch as a hard navigator crash.
+// Restoring eager imports is the safe default; revisit lazy-loading via a
+// per-screen smoke-tested approach (see round6 follow-up notes).
 import BitcoinMiningApp from '@/components/computer/BitcoinMiningApp';
 import RealEstateApp from '@/components/computer/RealEstateApp';
 import OnionApp from '@/components/computer/OnionApp';
 import GamingApp from '@/components/computer/GamingApp';
 import GamingStreamingApp from '@/components/computer/GamingStreamingApp';
-import DatingApp from '@/components/mobile/TinderApp';
+import DatingApp from '@/components/mobile/Spark/SparkApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
-import SocialApp from '@/components/mobile/SocialApp';
+import PulseApp from '@/components/mobile/Pulse/PulseApp';
 import StocksApp from '@/components/mobile/StocksApp';
-import CompanyApp from '@/components/mobile/CompanyApp';
+import CompanyApp from '@/components/mobile/Hustle/HustleApp';
 import PetApp from '@/components/mobile/PetApp';
 import EducationApp from '@/components/mobile/EducationApp';
 import AdvancedBankApp from '@/components/computer/AdvancedBankApp';
@@ -54,14 +60,15 @@ import PoliticalApp from '@/components/computer/PoliticalApp';
 import StatisticsApp from '@/components/computer/StatisticsApp';
 import VehicleApp from '@/components/computer/VehicleApp';
 
-import { 
-  responsivePadding, 
-  responsiveFontSize, 
-  responsiveSpacing, 
-  responsiveBorderRadius, 
+import {
+  responsivePadding,
+  responsiveFontSize,
+  responsiveSpacing,
+  responsiveBorderRadius,
   responsiveIconSize,
   fontScale,
   scale,
+  isTablet,
 } from '@/utils/scaling';
 import { 
   getGlassHeader, 
@@ -153,11 +160,11 @@ function ComputerScreenContent() {
     },
     {
       id: 'tinder',
-      name: t('computer.hinder'),
-      description: t('computer.findLoveRelationships'),
-      icon: Heart,
-      gradient: ['#FF4757', '#FF3742'], // Red gradient to match heart icon
-      iconGradient: ['#FF4757', '#FF3742'],
+      name: 'Spark',
+      description: 'Find your match',
+      icon: Flame,
+      gradient: ['#F43F5E', '#FB923C'], // Rose → orange — Spark brand gradient
+      iconGradient: ['#F43F5E', '#FB923C'],
       available: true,
     },
     {
@@ -171,11 +178,11 @@ function ComputerScreenContent() {
     },
     {
       id: 'social',
-      name: t('computer.social'),
-      description: t('computer.shareLifeOnline'),
-      icon: MessageCircle,
-      gradient: ['#5F27CD', '#341F97'], // Purple gradient to match social icon
-      iconGradient: ['#5F27CD', '#341F97'],
+      name: 'Pulse',
+      description: 'Feel the room',
+      icon: Activity,
+      gradient: ['#EC4899', '#6366F1'], // Magenta → indigo — Pulse brand gradient
+      iconGradient: ['#EC4899', '#6366F1'],
       available: true,
     },
     {
@@ -198,11 +205,11 @@ function ComputerScreenContent() {
     },
     {
       id: 'company',
-      name: t('computer.company'),
-      description: t('computer.buildBusiness'),
+      name: 'Hustle',
+      description: 'Build something',
       icon: Building,
-      gradient: ['#5F27CD', '#341F97'], // Purple gradient to match company icon
-      iconGradient: ['#5F27CD', '#341F97'],
+      gradient: ['#6366F1', '#06B6D4'], // Indigo → cyan — Hustle brand gradient
+      iconGradient: ['#6366F1', '#06B6D4'],
       available: true,
     },
     {
@@ -322,7 +329,7 @@ function ComputerScreenContent() {
       onion: OnionApp,
       tinder: DatingApp,
       contacts: ContactsApp,
-      social: SocialApp,
+      social: PulseApp,
       stocks: StocksApp,
       bank: AdvancedBankApp,
       education: EducationApp,
@@ -337,11 +344,14 @@ function ComputerScreenContent() {
     };
 
     const AppComponent = apps[activeApp as keyof typeof apps];
-    
+
     return <AppComponent onBack={() => setActiveApp(null)} />;
   }
 
-  const columns = 3;
+  // Mirror mobile.tsx's responsive column count so both app-grid tabs scale
+  // identically on phones vs tablets. Computer keeps its denser default
+  // (3 cols on phone, 4 on tablet) — mobile is 2 / 3.
+  const columns = isTablet() ? 4 : 3;
   const cardGap = responsiveSpacing.sm;
   const horizontalPad = responsivePadding.horizontal;
   const cardWidth = (screenWidth - horizontalPad * 2 - cardGap * (columns - 1)) / columns;
@@ -351,24 +361,6 @@ function ComputerScreenContent() {
       colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <View style={[styles.headerGlass, settings.darkMode && styles.headerGlassDark]}>
-          <View style={styles.headerContent}>
-            <View style={[styles.headerIconGlass, settings.darkMode && styles.headerIconGlassDark]}>
-              <Monitor size={32} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
-            </View>
-            <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
-                {t('computer.desktopApps')}
-              </Text>
-              <Text style={[styles.headerSubtitle, settings.darkMode && styles.headerSubtitleDark]}>
-                {t('computer.accessComputerApplications')}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
       {/* Category Tabs - Glassmorphism */}
       <View style={styles.categoryTabsWrapper}>
         <View style={[styles.categoryTabsGlassContainer, settings.darkMode && styles.categoryTabsGlassContainerDark]}>
@@ -376,6 +368,9 @@ function ComputerScreenContent() {
             style={styles.categoryTabButton}
             onPress={() => setAppCategory('desktop')}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel="Desktop apps"
+            accessibilityState={{ selected: appCategory === 'desktop' }}
           >
             {appCategory === 'desktop' ? (
               <LinearGradient
@@ -406,6 +401,9 @@ function ComputerScreenContent() {
             style={styles.categoryTabButton}
             onPress={() => setAppCategory('mobile')}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel="Mobile apps"
+            accessibilityState={{ selected: appCategory === 'mobile' }}
           >
             {appCategory === 'mobile' ? (
               <LinearGradient
@@ -447,12 +445,15 @@ function ComputerScreenContent() {
               <TouchableOpacity
                 key={app.id}
                 style={[
-                  styles.appCardGlass, 
+                  styles.appCardGlass,
                   { width: cardWidth },
                   isHighlighted && styles.highlightedCardGlass
                 ]}
                 onPress={() => setActiveApp(app.id)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${app.name}`}
+                accessibilityHint={app.description ?? `Launch the ${app.name} app`}
               >
                 <View style={[
                   styles.appCardGlassInner,

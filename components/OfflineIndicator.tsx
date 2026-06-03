@@ -4,6 +4,7 @@ import { WifiOff, Wifi } from 'lucide-react-native';
 import { useNetworkStatus } from '@/utils/offlineManager';
 import { useGame } from '@/contexts/GameContext';
 import { responsiveFontSize } from '@/utils/scaling';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 export default function OfflineIndicator() {
   const { isOnline, pendingActions } = useNetworkStatus();
@@ -60,7 +61,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    zIndex: 1000,
+    zIndex: Z_INDEX.TOAST,
   },
   containerDark: {
     backgroundColor: 'rgba(30, 41, 59, 0.9)',

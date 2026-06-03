@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { Platform, Modal, View, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { MotiView } from '@/components/anim/MotiStub';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -162,10 +162,15 @@ const styles = StyleSheet.create({
     maxWidth: screenWidth * 0.9,
     maxHeight: screenHeight * 0.8,
     boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 20,
   },
   contentDark: {

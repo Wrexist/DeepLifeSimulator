@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     marginBottom: 16,
   },
   closingText: {

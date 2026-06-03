@@ -79,6 +79,9 @@ export interface Pet {
   lastVetVisit?: number; // Timestamp of last vet visit
   energy?: number; // Pet energy level
   competitionWins?: number; // Number of competition wins
+  // R5-C: weeklyLived of the most recent `petSleep` call. Sleep is gated to
+  // once-per-week per pet to prevent infinite free recovery exploits.
+  lastSleepWeek?: number;
 }
 
 export type CrimeSkillId = 'stealth' | 'hacking' | 'lockpicking';
@@ -166,6 +169,10 @@ export interface Hobby {
   // ANTI-EXPLOIT: weekly training cap tracking
   lastTrainWeek?: number;
   trainsThisWeek?: number;
+  // R2-G: weekly tournament-entry cap. Without this the deterministic roll
+  // keyed only on (week, hobbyId) meant a single win could be re-collected
+  // indefinitely the same week. Set to `weeksLived` after an entry.
+  lastTournamentWeek?: number;
 }
 
 export interface HobbyUpgrade {
@@ -274,6 +281,109 @@ export interface Hack {
   reward: number;
   purchased: boolean;
   energyCost: number;
+}
+
+// ---------------------------------------------------------------------------
+// Dark Web system (introduced in STATE_VERSION 18, OnionApp remake).
+// Replaces the wantedLevel-tick + one-click-hack model with a marketplace,
+// vendor reputation, multi-stage jobs, a heat meter, and a laundering chain.
+// Legacy `wantedLevel`, `darkWebItems[]`, `hacks[]` remain for back-compat.
+// ---------------------------------------------------------------------------
+
+export type DarkWebHeatBand = 'cold' | 'warm' | 'hot' | 'burning';
+
+export type DarkWebSkillId = 'hacking' | 'social' | 'opsec' | 'laundering';
+
+export interface DarkWebSkill {
+  level: number;
+  xp: number;
+  nextLevelXp: number;
+}
+
+export type DarkWebMarketCategory =
+  | 'stolenAccounts'
+  | 'cardedItems'
+  | 'fakeIds'
+  | 'hackingTools'
+  | 'services'
+  | 'data'
+  | 'gear';
+
+export type DarkWebListingTier = 'common' | 'pro' | 'elite';
+
+export interface DarkWebVendor {
+  id: string;
+  handle: string;
+  /** Reputation 0..100. Drives scam probability and listing price markup. */
+  reputation: number;
+  reviewCount: number;
+  flaggedScam?: boolean;
+}
+
+export interface DarkWebMarketListing {
+  id: string;
+  vendorId: string;
+  category: DarkWebMarketCategory;
+  title: string;
+  description: string;
+  costBtc: number;
+  tier: DarkWebListingTier;
+  heatCost: number;
+  minBuyerRep: number;
+  postedWeek: number;
+  lifetimeWeeks: number;
+  xpReward?: { skill: string; amount: number };
+}
+
+export type DarkWebJobStageKind = 'recon' | 'social' | 'exploit' | 'exfiltrate' | 'fence';
+
+export interface DarkWebActiveJob {
+  id: string;
+  templateId: string;
+  startedWeek: number;
+  currentStage: number;
+  completedStages: { stage: number; week: number; outcome: 'success' | 'fail' }[];
+  expiresWeek: number;
+  status: 'in-progress' | 'completed' | 'failed' | 'expired';
+}
+
+export type DarkWebMixerTier = 'cheap' | 'standard' | 'premium';
+
+export interface DarkWebLaunderingTx {
+  id: string;
+  tier: DarkWebMixerTier;
+  dirtyAmountBtc: number;
+  netAmountBtc: number;
+  startedWeek: number;
+  readyWeek: number;
+  status: 'pending' | 'completed' | 'failed';
+}
+
+export interface DarkWebState {
+  /** Persistent investigation heat 0..100. Replaces wantedLevel as the source of truth. */
+  heat: number;
+  /** Last week heat decay ran. */
+  lastHeatDecayWeek: number;
+  /** Untainted-yet BTC earned from dark-web jobs. Must be laundered before exchanges accept it. */
+  dirtyBtc: number;
+  /** BTC that has cleared the mixer. Can be sold via the legacy cryptos.btc flow. */
+  cleanBtc: number;
+  /** Buyer reputation 0..100 — unlocks higher-tier listings. */
+  playerReputation: number;
+  /** Vendor directory. */
+  vendors: DarkWebVendor[];
+  /** Currently posted listings (rotates weekly). */
+  listings: DarkWebMarketListing[];
+  /** Jobs the player is running. */
+  activeJobs: DarkWebActiveJob[];
+  /** Completed/expired jobs (capped). */
+  jobHistory: DarkWebActiveJob[];
+  /** Pending and completed laundering transactions. */
+  laundering: DarkWebLaunderingTx[];
+  /** Player skills. */
+  skills: Record<DarkWebSkillId, DarkWebSkill>;
+  /** Forum / news events (recent only). */
+  recentEvents: { id: string; week: number; text: string }[];
 }
 
 export interface Food {
@@ -609,6 +719,85 @@ export interface Crypto {
   owned: number;
 }
 
+// ---------------------------------------------------------------------------
+// Crypto market (introduced in STATE_VERSION 16, BitcoinMiningApp remake).
+// Drives volatility regimes, order books, DCA scheduling, and tax tracking.
+// Legacy `cryptos[].price` remains authoritative for instantaneous reads;
+// `cryptoMarket.coinMarkets[id]` adds the regime/history/spread data.
+// ---------------------------------------------------------------------------
+
+export type CryptoRegime = 'stable' | 'volatile' | 'bull' | 'bear';
+
+export interface CoinMarket {
+  cryptoId: string;
+  regime: CryptoRegime;
+  /** Weeks remaining in current regime before re-roll. */
+  regimeWeeksRemaining: number;
+  /** Last 100 weeks of price points, oldest first. */
+  priceHistory: { weeksLived: number; price: number }[];
+  /** Current bid/ask spread as a fraction of price (driven by regime). */
+  bidAskSpread: number;
+}
+
+export type CryptoOrderType = 'market' | 'limit' | 'stop';
+export type CryptoOrderSide = 'buy' | 'sell';
+export type CryptoOrderStatus = 'open' | 'filled' | 'cancelled' | 'expired';
+
+export interface CryptoOrder {
+  id: string;
+  cryptoId: string;
+  side: CryptoOrderSide;
+  type: CryptoOrderType;
+  /** For buys: USD to spend. For sells: coin amount to sell. */
+  amount: number;
+  limitPrice?: number;
+  stopPrice?: number;
+  placedWeek: number;
+  status: CryptoOrderStatus;
+  filledPrice?: number;
+  filledWeek?: number;
+  reason?: 'manual' | 'dca' | 'stop-loss';
+}
+
+export interface CryptoDCARule {
+  id: string;
+  cryptoId: string;
+  /** USD per execution. */
+  amount: number;
+  /** BankAccount id from gameState.banking; debits weekly/monthly. */
+  fromAccountId: string;
+  cadence: 'weekly' | 'monthly';
+  nextExecutionWeek: number;
+  enabled: boolean;
+  totalInvested: number;
+  totalCoinsBought: number;
+}
+
+export interface CryptoCostBasis {
+  totalCost: number;
+  totalShares: number;
+}
+
+export interface CryptoMarketState {
+  coinMarkets: Record<string, CoinMarket>;
+  openOrders: CryptoOrder[];
+  /** Order history (capped to recent 50 for the UI). */
+  orderHistory: CryptoOrder[];
+  dcaRules: CryptoDCARule[];
+  /** Average cost basis tracked per coin for capital-gains computation. */
+  costBasis: Record<string, CryptoCostBasis>;
+  /** Realized gains accumulated this game-year (debited at year boundary). */
+  realizedGainsThisYear: number;
+  /** Total realized gains lifetime — for stats/breakdown. */
+  totalRealizedGains: number;
+  /** Last halving event week (BTC-style supply halving). */
+  lastHalvingWeek?: number;
+  /** Count of halvings that have fired. Mining reward = base × 0.5^halvingCount. */
+  halvingCount?: number;
+  /** Last observed economy state — drives regime forcing. */
+  lastEconomyState?: 'normal' | 'recession' | 'boom' | 'crash';
+}
+
 export interface UserProfile {
   name: string;
   handle: string;
@@ -632,6 +821,572 @@ export interface UserProfile {
   joinedDate?: string;
   verified?: boolean;
   bookmarkedPosts?: string[]; // Post IDs
+}
+
+// ==================== Pulse Social Platform (v13) ====================
+// Types backing the Pulse in-game social app. All time-stamped fields use
+// `weeksLived` (absolute, monotonic) — never `state.week` (cyclic 1-4).
+
+export type PulseContentType = 'text' | 'photo' | 'video' | 'story' | 'live';
+export type PulsePostCategory =
+  | 'lifestyle' | 'career' | 'fitness' | 'travel' | 'food'
+  | 'tech' | 'music' | 'gaming' | 'sponsored';
+export type PulseInfluenceLevel = 'novice' | 'rising' | 'popular' | 'influencer' | 'celebrity';
+export type PulseScandalType =
+  | 'leaked_dm' | 'bad_take' | 'cancel'
+  | 'deepfake' | 'public_meltdown' | 'brand_betrayal';
+export type PulseNotificationType =
+  | 'like' | 'comment' | 'follow' | 'mention' | 'repost'
+  | 'brand_offer' | 'scandal_update' | 'milestone'
+  | 'live_invite' | 'verified_pro_renewal' | 'system';
+export type PulseHashtagSource =
+  | 'organic' | 'event' | 'scandal' | 'brand' | 'season' | 'player';
+export type PulseBrandCategory =
+  | 'lifestyle' | 'tech' | 'fashion' | 'fitness' | 'food' | 'auto' | 'finance';
+export type PulseScandalResolution = 'apology' | 'silence' | 'gems' | 'lawsuit';
+
+export interface PulseComment {
+  id: string;
+  postId: string;
+  authorId: string;            // 'player' | npcId | randomProfileId
+  authorHandle: string;
+  authorPhoto?: string;
+  content: string;
+  likes: number;
+  timestamp: number;
+  gameWeek: number;            // weeksLived
+  isPlayerComment: boolean;
+  parentCommentId?: string;
+  sentiment?: 'positive' | 'neutral' | 'negative' | 'hostile';
+  isFromHater?: boolean;
+}
+
+export interface PulseTrendingHashtag {
+  tag: string;                 // includes '#'
+  postCount: number;
+  source: PulseHashtagSource;
+  triggeredByEventId?: string;
+  velocity: number;            // 0-100 growth this week
+  decayWeek: number;           // weeksLived when this drops off
+  whyReason?: string;          // shown in "Why is this trending?" tooltip
+}
+
+export interface PulseBrandOffer {
+  id: string;
+  brandName: string;
+  type: 'sponsored_post' | 'brand_deal' | 'long_campaign' | 'ambassador';
+  payment: number;
+  weeklyPayment?: number;
+  postsRequired: number;
+  duration: number;            // weeks
+  category: PulseBrandCategory;
+  requirements: { minFollowers: number; minEngagementRate: number; minReputation?: number };
+  description: string;
+  expiresInWeeks: number;
+  offeredWeek: number;         // weeksLived
+  prestigeImpact?: number;
+  logoColor1?: string;
+  logoColor2?: string;
+}
+
+export interface PulseActiveBrandDeal {
+  // Legacy fields preserved verbatim
+  id: string;
+  brandName: string;
+  payment: number;
+  expiresAt: number;           // weeksLived
+  expiresIn: number;
+  // v13 additive
+  postsRequired?: number;
+  postsDelivered?: number;
+  weeklyPayment?: number;
+  category?: PulseBrandCategory;
+  exclusivityFlag?: string;
+  riskOfBreach?: number;       // 0-100
+  logoColor1?: string;
+  logoColor2?: string;
+}
+
+export interface PulseRecentPost {
+  id: string;
+  content: string;
+  likes: number;
+  comments: number;
+  timestamp: number;
+  gameWeek?: number;           // weeksLived
+  gameMonth?: string;
+  gameYear?: number;
+  contentType: PulseContentType;
+  category?: PulsePostCategory;
+  photo?: string;
+  isViral?: boolean;
+  hashtags?: string[];
+  repostOf?: string;
+  isReposted?: boolean;
+  isLiked?: boolean;
+  isBookmarked?: boolean;
+  views?: number;
+  reposts?: number;
+  bookmarks?: number;
+  sponsoredByDealId?: string;
+  sponsoredBrandName?: string;
+}
+
+export interface PulseNotification {
+  id: string;
+  type: PulseNotificationType;
+  timestamp: number;
+  gameWeek: number;            // weeksLived
+  read: boolean;
+  fromId?: string;
+  fromHandle?: string;
+  fromPhoto?: string;
+  refPostId?: string;
+  refCommentId?: string;
+  refDealId?: string;
+  text: string;
+}
+
+export interface PulseActiveScandal {
+  id: string;
+  type: PulseScandalType;
+  severity: number;            // 0-100
+  weeksRemaining: number;
+  startedWeek: number;         // weeksLived
+  reputationLossThisWeek: number;
+  followerLossThisWeek: number;
+  headline: string;
+  resolutionMethod?: PulseScandalResolution | null;
+}
+
+export interface PulseScandalRecord {
+  id: string;
+  type: string;
+  severity: number;
+  survivedAtWeek: number;      // weeksLived
+  finalReputationLoss: number;
+  resolutionMethod: string;
+}
+
+export interface PulseFollowGraph {
+  followingNpcIds: string[];
+  followedByNpcIds: string[];
+  lastUpdatedWeek: number;     // weeksLived
+}
+
+export interface PulseDeclinedOffer {
+  id: string;
+  declinedWeek: number;        // weeksLived
+}
+
+export interface PulseDealHistoryEntry {
+  id: string;
+  brandName: string;
+  totalPaid: number;
+  completedWeek: number;       // weeksLived
+  result: 'success' | 'failed' | 'breached';
+}
+
+export interface PulseBrandInbox {
+  pending: PulseBrandOffer[];
+  declined: PulseDeclinedOffer[];   // cap 20
+  history: PulseDealHistoryEntry[];
+}
+
+export interface PulseVerifiedPro {
+  active: boolean;
+  subscribedTimestamp?: number;     // real ms
+  expiresTimestamp?: number;        // real ms; null for lifetime
+  sku?: string;
+  perksUnlocked: {
+    blueCheckmark: boolean;
+    postBoostMultiplier: number;    // 1.0 inactive, 1.25 active
+    analyticsUnlocked: boolean;
+    noAdsInFeed: boolean;
+    longerPosts: boolean;           // 500 char vs 280
+  };
+}
+
+export interface PulseLiveChatter {
+  npcId: string;
+  lastMessageTimestamp: number;
+}
+
+export interface PulseLiveSession {
+  active: boolean;
+  topic: string;
+  startedTimestamp: number;          // real ms
+  startedWeek: number;               // weeksLived
+  currentViewers: number;
+  peakViewers: number;
+  minutesElapsed: number;
+  donationsEarned: number;
+  npcChatters: PulseLiveChatter[];
+}
+
+export interface PulsePendingBoost {
+  type: 'post' | 'follower_ad' | 'recovery';
+  postId?: string;
+  appliedWeek: number;               // weeksLived
+}
+
+export interface PulseLifetimeStats {
+  peakFollowers: number;
+  peakInfluenceLevel: PulseInfluenceLevel;
+  totalScandalsSurvived: number;
+  totalBrandDealsCompleted: number;
+  totalGemsBoostsUsed: number;
+  totalVerifiedProWeeks: number;
+}
+
+// ==================== Spark Dating App (v15) ====================
+// Types backing the Spark in-game dating app. All time-stamped fields use
+// `weeksLived` (absolute, monotonic) — never `state.week` (cyclic 1-4).
+
+export type SparkSwipeDirection = 'left' | 'right' | 'super';
+export type SparkPremiumTier = 'free' | 'plus' | 'ultra';
+export type SparkCatfishOutcome = 'exposed' | 'ignored' | 'fell_for_it';
+export type SparkJealousyOutcome = 'caught_cheating' | 'denied' | 'admitted' | 'confronted' | 'dismissed';
+export type SparkDateMood = 'amazing' | 'great' | 'good' | 'awkward' | 'disaster';
+
+export interface SparkSwipe {
+  profileId: string;
+  direction: SparkSwipeDirection;
+  matched: boolean;
+  swipedWeek: number;        // weeksLived
+  timestamp: number;         // wall clock ms
+}
+
+export interface SparkMatch {
+  id: string;                // matches relationship.id once promoted
+  profileId: string;         // original dating profile id
+  matchedWeek: number;       // weeksLived
+  superLiked: boolean;
+  lastMessageTimestamp?: number;
+  unreadByPlayer?: number;
+  unreadByNpc?: number;
+  /** True when the match has been "promoted" into state.relationships (chat → dating). */
+  promoted: boolean;
+}
+
+export interface SparkMessage {
+  id: string;
+  matchId: string;
+  from: 'player' | 'npc';
+  text: string;
+  timestamp: number;
+  gameWeek: number;          // weeksLived
+}
+
+export interface SparkPlayerProfile {
+  displayName?: string;
+  bio: string;
+  photos: string[];          // URIs (first = primary)
+  interests: string[];
+  age?: number;              // derived from gameState.date.age by default
+  job?: string;              // derived from current career
+  location?: string;
+  showAge: boolean;
+  showJob: boolean;
+  showWealth: boolean;
+  /** Cached "attractiveness score" used to bias incoming likes — recomputed weekly. */
+  attractivenessScore?: number;
+}
+
+export interface SparkPremium {
+  active: boolean;
+  tier: SparkPremiumTier;
+  subscribedTimestamp?: number;
+  expiresTimestamp?: number;
+  sku?: string;
+  perks: {
+    unlimitedSwipes: boolean;
+    seeWhoLikedYou: boolean;
+    rewindLastSwipe: boolean;
+    boostMultiplier: number;      // 1.0 free, 1.5 plus, 2.5 ultra
+    superLikesPerDay: number;     // 1 free, 5 plus, 10 ultra
+    verifiedBadge: boolean;       // verified on dating profile
+    travelMode: boolean;          // see profiles from other locations
+  };
+}
+
+export interface SparkLikedYouEntry {
+  profileId: string;
+  likedAtWeek: number;          // weeksLived
+  superLiked: boolean;
+}
+
+export interface SparkJealousyEvent {
+  id: string;
+  partnerId: string;             // relationship.id of the partner who got jealous
+  triggerType: 'multiple_dating' | 'spotted_swiping' | 'rumored_affair' | 'flirty_dm';
+  severity: number;              // 0-100
+  startedWeek: number;           // weeksLived
+  resolved: boolean;
+  outcome?: SparkJealousyOutcome;
+}
+
+export interface SparkCatfishRecord {
+  profileId: string;
+  exposedAtWeek?: number;
+  outcome: SparkCatfishOutcome;
+  moneyLost?: number;
+}
+
+export interface SparkLifetimeStats {
+  totalSwipes: number;
+  totalMatches: number;
+  totalSuperLikes: number;
+  totalDatesGoneOn: number;
+  totalGiftsGiven: number;
+  totalProposals: number;
+  totalMarriages: number;
+  totalDivorces: number;
+  totalCatfishExposed: number;
+  totalJealousyEvents: number;
+  peakPremiumTier: SparkPremiumTier;
+  totalPremiumWeeks: number;
+}
+
+export interface SparkAppState {
+  /** Player's own dating profile (separate from Pulse's userProfile). */
+  profile: SparkPlayerProfile;
+  /** Swipe history (ring buffer, cap 200). */
+  swipes: SparkSwipe[];
+  /** All matches (promoted + unpromoted). Lifecycle: match → chat → promote to relationship. */
+  matches: SparkMatch[];
+  /** Chat messages keyed by matchId. */
+  messages: Record<string, SparkMessage[]>;
+  /** Daily swipe quota. Resets weekly via Spark tick. */
+  swipeQuota: number;
+  swipesUsedThisWeek: number;
+  lastQuotaResetWeek: number;     // weeksLived
+  /** Daily super-like quota. */
+  superLikesUsedThisWeek: number;
+  /** Premium subscription state. */
+  premium: SparkPremium;
+  /** Profiles that liked the player (Premium feature reveal). */
+  likedYou: SparkLikedYouEntry[];
+  /** Catfish records — exposed and fallen-for. */
+  catfishRecords: SparkCatfishRecord[];
+  /** Active jealousy event (one at a time). */
+  activeJealousy: SparkJealousyEvent | null;
+  jealousyHistory: SparkJealousyEvent[];
+  /** Boost active flag (gem-purchased, lasts 1 in-game week). */
+  boost: { active: boolean; expiresWeek: number } | null;
+  /** Profile IDs the player has dismissed as definitely catfish. */
+  dismissedCatfishIds: string[];
+  /** Profile IDs the player has reported. */
+  reportedIds: string[];
+  /** Lifetime totals (carry across prestige). */
+  lifetimeStats: SparkLifetimeStats;
+  /** Last time the player opened Spark (for "new matches since" prompts). */
+  lastOpenedTimestamp?: number;
+}
+
+// ==================== Hustle Business App (v17) ====================
+// Premium layer ON TOP of the existing `companies[]` array. The Company
+// interface and CompanyActions remain canonical for upgrades, employees,
+// passive income; Hustle adds campaigns, scandals, board governance, IPO,
+// M&A, hiring pipeline, supplier deals. Keyed by `companyId`.
+
+export type HustleIndustry = 'factory' | 'ai' | 'restaurant' | 'realestate' | 'bank';
+export type HustleCampaignKind = 'tv' | 'social' | 'billboard' | 'influencer' | 'guerrilla';
+export type HustleScandalKind =
+  | 'product_defect'
+  | 'labor_abuse'
+  | 'environmental'
+  | 'data_breach'
+  | 'fraud_allegation'
+  | 'pr_disaster';
+export type HustleScandalResolution = 'apology' | 'recall' | 'lawsuit' | 'cover_up' | 'restructure';
+export type HustleCandidateRole = 'engineer' | 'sales' | 'manager' | 'designer' | 'analyst' | 'operations';
+export type HustleStockListing = 'private' | 'public';
+export type HustleAcquisitionStatus = 'pending' | 'accepted' | 'rejected' | 'completed';
+
+export interface HustleCandidate {
+  id: string;
+  name: string;
+  role: HustleCandidateRole;
+  skill: number;             // 0-100 baseline competence
+  experience: number;        // 0-100 years-of-experience proxy
+  salaryAsk: number;         // weekly salary expectation
+  signOnBonus?: number;      // one-time
+  postedWeek: number;        // weeksLived when the candidate appeared
+  expiresWeek: number;       // weeksLived when they take another offer
+  /** Sentiment toward player's offer (0-100). Falls when player lowballs. */
+  interestLevel: number;
+}
+
+export interface HustleHire {
+  candidateId: string;
+  hiredWeek: number;
+  role: HustleCandidateRole;
+  salary: number;
+  morale: number;            // 0-100; affects productivity + retention
+  performance: number;       // 0-100; rolled weekly
+}
+
+export interface HustleHiringPipeline {
+  /** Candidates currently in the player's job listings. */
+  candidates: HustleCandidate[];
+  /** Hired employees in addition to the flat `Company.employees` count.
+   *  Each `HustleHire` represents a named/skilled hire on top of generic staff. */
+  namedHires: HustleHire[];
+  /** Weeks since last hire (drives morale of existing staff if hiring stalls). */
+  weeksSinceLastHire: number;
+  /** Total severance paid this life (for achievements). */
+  totalSeverance: number;
+}
+
+export interface HustleCampaign {
+  id: string;
+  kind: HustleCampaignKind;
+  spendPerWeek: number;
+  startedWeek: number;
+  durationWeeks: number;
+  /** Cached projected ROI used by the UI. Recomputed weekly. */
+  projectedROI: number;
+  /** True if the player has actually paid the spend each week. */
+  active: boolean;
+}
+
+export interface HustleBrandHealth {
+  score: number;             // 0-100 — composite brand sentiment
+  trend: 'rising' | 'flat' | 'declining';
+  lastUpdatedWeek: number;
+}
+
+export interface HustleActiveScandal {
+  id: string;
+  kind: HustleScandalKind;
+  severity: number;          // 0-100
+  startedWeek: number;
+  weeksRemaining: number;
+  headline: string;
+  resolutionMethod?: HustleScandalResolution | null;
+  /** Weekly drag on company revenue while the scandal is active. */
+  revenueDragPercent: number;
+}
+
+export interface HustleScandalRecord {
+  id: string;
+  kind: HustleScandalKind;
+  severity: number;
+  survivedAtWeek: number;
+  finalReputationLoss: number;
+  totalRevenueLoss: number;
+  resolutionMethod: string;
+}
+
+export interface HustleBoardMember {
+  id: string;
+  name: string;
+  role: 'chair' | 'cfo' | 'cto' | 'cmo' | 'lead_investor' | 'independent';
+  votingShare: number;       // 0-100 percent
+  alignment: 'aggressive_growth' | 'cost_cutting' | 'employee_focused' | 'shareholder_focused';
+  satisfaction: number;      // 0-100
+}
+
+export interface HustleIPO {
+  status: HustleStockListing;
+  /** Set when status === 'public'. */
+  listedWeek?: number;
+  /** Player's remaining ownership share after IPO + dilution. */
+  ownershipPercent: number;
+  /** Per-share price the market is currently quoting. */
+  sharePrice: number;
+  /** Total shares outstanding (in thousands for readability). */
+  sharesOutstandingK: number;
+  /** Last quarterly earnings report week. */
+  lastEarningsWeek?: number;
+  /** Trend of last 4 quarterly reports — emoji-friendly. */
+  recentEarnings: { week: number; revenue: number; beat: boolean }[];
+}
+
+export interface HustleAcquisitionOffer {
+  id: string;
+  targetName: string;        // procedurally generated rival company
+  targetIndustry: HustleIndustry;
+  askingPrice: number;
+  estimatedAnnualRevenue: number;
+  synergyBonusPercent: number;
+  offeredWeek: number;
+  expiresWeek: number;
+  status: HustleAcquisitionStatus;
+}
+
+export interface HustleSupplier {
+  id: string;
+  name: string;
+  industry: HustleIndustry;
+  costPerWeek: number;
+  reliability: number;       // 0-100
+  contractEndWeek?: number;  // weeksLived; undefined = month-to-month
+}
+
+/**
+ * Per-company Hustle state. Keyed by the underlying Company.id, so the
+ * existing `companies[]` array stays canonical for revenue/employees/upgrades.
+ */
+export interface HustleCompanyOverlay {
+  companyId: string;
+  hiringPipeline: HustleHiringPipeline;
+  activeCampaigns: HustleCampaign[];
+  brand: HustleBrandHealth;
+  activeScandal: HustleActiveScandal | null;
+  scandalHistory: HustleScandalRecord[];
+  boardSeats: HustleBoardMember[];
+  ipo: HustleIPO;
+  pendingAcquisitions: HustleAcquisitionOffer[];
+  suppliers: HustleSupplier[];
+  /** Estimated weekly market-share percent vs procedural rivals (0-100). */
+  marketSharePercent: number;
+  /** Notifications surfaced by this company (alerts inbox). */
+  notifications: HustleNotification[];
+}
+
+export interface HustleNotification {
+  id: string;
+  type:
+    | 'campaign_complete'
+    | 'scandal_alert'
+    | 'candidate_applied'
+    | 'board_vote'
+    | 'acquisition_offer'
+    | 'ipo_milestone'
+    | 'earnings_report'
+    | 'supplier_issue'
+    | 'system';
+  text: string;
+  timestamp: number;
+  gameWeek: number;          // weeksLived
+  read: boolean;
+  refCompanyId?: string;
+  refId?: string;
+}
+
+export interface HustleLifetimeStats {
+  totalCompaniesFounded: number;
+  totalCompaniesSold: number;
+  totalIPOsLaunched: number;
+  totalAcquisitionsCompleted: number;
+  totalScandalsSurvived: number;
+  totalCampaignsRun: number;
+  totalNamedHires: number;
+  totalFires: number;
+  peakBrandScore: number;
+  peakMarketShare: number;
+  peakSharePrice: number;
+}
+
+export interface HustleAppState {
+  /** Per-company overlay data, keyed by Company.id. */
+  companies: Record<string, HustleCompanyOverlay>;
+  /** Lifetime aggregates that carry across prestige. */
+  lifetimeStats: HustleLifetimeStats;
+  /** Last opened — for "new alerts since" UI. */
+  lastOpenedTimestamp?: number;
 }
 
 export interface GameSettings {
@@ -697,6 +1452,37 @@ export interface RealEstate {
   condition?: number; // 0-100, decays without maintenance
   rooms?: string[]; // Room addition IDs installed
   totalHappinessBonus?: number; // Computed from base + interior + upgrades
+
+  // -------------------------------------------------------------------------
+  // Remake 4 (RealEstateApp): mortgage, tenancy, neighborhood cycle. All
+  // optional so existing saves load cleanly — no migration needed.
+  // -------------------------------------------------------------------------
+  /** Loan.id of the mortgage attached to this property. */
+  mortgageId?: string;
+  /** What the player paid at purchase. Used for cost-basis / capital-gains. */
+  purchasePrice?: number;
+  /** weeksLived when the property was bought. */
+  purchasedWeek?: number;
+  /** Tag identifying the neighborhood (assigned at purchase, evolves through cycles). */
+  neighborhood?: string;
+  /** Current market cycle for this neighborhood. */
+  marketCycle?: 'stable' | 'gentrifying' | 'hot' | 'cooling';
+  /** Weeks remaining in the current cycle before re-roll. */
+  cycleWeeksRemaining?: number;
+  /** Rental mode when status='rented'. Drives yield + variance + churn. */
+  rentMode?: 'longTerm' | 'airbnb' | 'commercial';
+  /** Current tenant occupying the property (longTerm/commercial). */
+  tenant?: {
+    id: string;
+    name: string;
+    satisfaction: number;
+    movedInWeek: number;
+    weeklyRent: number;
+  };
+  /** Weeks the property has been vacant. Resets to 0 when a tenant moves in. */
+  weeksVacant?: number;
+  /** Whether this property is acting as a laundering front. */
+  launderingFront?: boolean;
 }
 
 export interface Achievement {
@@ -752,6 +1538,147 @@ export interface Loan {
   type: 'personal' | 'business' | 'mortgage' | 'auto';
   weeksRemaining: number;
   interestRate: number;
+  /** Total successful on-time payments — feeds credit score. */
+  onTimePayments?: number;
+  /** Missed payments — feeds credit score and triggers late fees. */
+  latePayments?: number;
+  /** weeksLived of last successful payment. */
+  lastPaidWeek?: number;
+  /** Original APR offered (may differ from rateAPR if refinanced). */
+  originalAPR?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Banking system (introduced in STATE_VERSION 14, AdvancedBankApp remake)
+// ---------------------------------------------------------------------------
+
+export type BankAccountType = 'checking' | 'savings' | 'highYieldSavings' | 'cd' | 'moneyMarket';
+
+export interface BankAccount {
+  id: string;
+  type: BankAccountType;
+  name: string;
+  balance: number;
+  /** Annual APR (decimal). Base value before economy/politics modifiers. */
+  baseAPR: number;
+  /** weeksLived when account was opened — feeds credit-score account-age. */
+  openedWeek: number;
+  /** For CDs and high-yield accounts: balance is locked until this week. */
+  lockUntilWeek?: number;
+  /** Minimum required balance (e.g. money market). */
+  minBalance?: number;
+}
+
+export type CreditCardTier = 'starter' | 'standard' | 'gold' | 'platinum';
+export type CreditCardRewardType = 'cashback' | 'miles' | 'points';
+
+export interface CreditCard {
+  id: string;
+  name: string;
+  tier: CreditCardTier;
+  creditLimit: number;
+  /** Current outstanding revolving balance (debt). */
+  balance: number;
+  baseAPR: number;
+  /** Decimal — 0.01 = 1% rewards on spend. */
+  rewardsRate: number;
+  rewardsType: CreditCardRewardType;
+  /** Accumulated, unredeemed rewards. */
+  pendingRewards: number;
+  openedWeek: number;
+  /** Minimum credit score required to qualify. */
+  minCreditScore: number;
+  /** Annual fee (deducted on anniversary). */
+  annualFee?: number;
+}
+
+export type BudgetCategory =
+  | 'housing'
+  | 'food'
+  | 'transport'
+  | 'health'
+  | 'education'
+  | 'entertainment'
+  | 'lifestyle'
+  | 'vice'
+  | 'savings'
+  | 'debt'
+  | 'taxes'
+  | 'other';
+
+export type BillPaySource = 'rent' | 'mortgage' | 'loan' | 'subscription' | 'utility' | 'card' | 'manual';
+
+export interface BillPayRule {
+  id: string;
+  label: string;
+  category: BudgetCategory;
+  amount: number;
+  /** Account to debit. Must reference banking.accounts[].id. */
+  fromAccountId: string;
+  cadence: 'weekly' | 'monthly';
+  /** weeksLived when next debit is due. */
+  nextDueWeek: number;
+  source: BillPaySource;
+  /** ID of the source object (loan.id, realEstate.id, subscription.id). */
+  sourceRefId?: string;
+  enabled: boolean;
+  lastPaidWeek?: number;
+  /** Late payments accumulate — flushed when caught up. Drives credit-score hit. */
+  missedCount: number;
+}
+
+export interface BudgetWeekBucket {
+  /** weeksLived of the start of this bucket. */
+  weeksLived: number;
+  byCategory: Partial<Record<BudgetCategory, number>>;
+}
+
+export interface CreditScoreState {
+  score: number;
+  band: 'poor' | 'fair' | 'good' | 'veryGood' | 'excellent';
+  componentBreakdown: {
+    paymentHistory: number;
+    utilization: number;
+    accountAge: number;
+    creditMix: number;
+    inquiries: number;
+  };
+  lastUpdatedWeek: number;
+  /** Trend history — capped to last 100 entries. */
+  history: { weeksLived: number; score: number }[];
+  /** Recent credit inquiries — capped to last 2 years for scoring. */
+  inquiries: { weeksLived: number; type: 'loan' | 'card' | 'mortgage' }[];
+}
+
+export type SavingsGoalCategory = 'emergency' | 'house' | 'vacation' | 'retirement' | 'other';
+
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  /** Optional: when set, deposits to this goal pull from this account. */
+  linkedAccountId?: string;
+  category: SavingsGoalCategory;
+  createdWeek: number;
+  targetWeek?: number;
+}
+
+export interface BankingState {
+  accounts: BankAccount[];
+  creditCards: CreditCard[];
+  billPayRules: BillPayRule[];
+  /** Ring buffer of last N weeks of spend by category. New entries appended in advanceToNextWeek. */
+  budgetSpend: BudgetWeekBucket[];
+  creditScore: CreditScoreState;
+  savingsGoals: SavingsGoal[];
+  totalLateFeesPaid: number;
+  totalInterestEarned: number;
+  totalInterestPaid: number;
+  /** Capital-gains/tax accrual — debited yearly. */
+  taxDueThisYear: number;
+  /** Last observed economy state — used to surface "rates changed" notifications. */
+  lastEconomyState?: 'normal' | 'recession' | 'boom' | 'crash';
 }
 
 export interface EconomyState {
@@ -1000,6 +1927,10 @@ export interface GameState {
   hasSeenRealEstateTutorial: boolean;
   settings: GameSettings;
   cryptos: Crypto[];
+  /** Extended crypto market state (STATE_VERSION 16) — regimes, order book, DCA, tax. */
+  cryptoMarket?: CryptoMarketState;
+  /** Dark-web system slice (STATE_VERSION 18) — heat, marketplace, jobs, laundering. */
+  darkWeb?: DarkWebState;
   diseases: Disease[];
   realEstate: RealEstate[];
   social: SocialState;
@@ -1053,8 +1984,15 @@ export interface GameState {
   journal: JournalEntry[];
   scenarioId?: string;
   challengeScenarioId?: string; // CRITICAL FIX: Track challenge scenario ID for completion tracking and gem rewards
+  /**
+   * @deprecated Since STATE_VERSION 14 — use `banking.accounts` (savings account).
+   * Kept on the type for legacy save compatibility and so the old UI keeps reading it
+   * until the AdvancedBankApp rewrite ships. Migration mirrors this into banking.accounts.
+   */
   bankSavings?: number;
   loans?: Loan[];
+  /** Banking system slice — added in STATE_VERSION 14 (AdvancedBankApp remake). */
+  banking?: BankingState;
   stocksOwned?: { [key: string]: number };
   stocks?: {
     holdings: {
@@ -1066,6 +2004,49 @@ export interface GameState {
     watchlist: string[];
     realizedGains?: number; // Total realized gains from sold shares
     savedMarketPrices?: Record<string, { price: number; dividendYield: number }>; // Persisted market prices to prevent save/reload exploit
+
+    // -----------------------------------------------------------------------
+    // StocksApp Remake 6: sectors, order book, dividends. All optional so
+    // existing saves load cleanly — no migration needed.
+    // -----------------------------------------------------------------------
+    /** Per-sector momentum snapshots (rotating strong / neutral / weak). */
+    sectorSnapshots?: {
+      sector: 'tech' | 'finance' | 'healthcare' | 'consumer' | 'industrial' | 'energy';
+      state: 'strong' | 'neutral' | 'weak';
+      weeksRemaining: number;
+    }[];
+    /** Open limit / stop orders waiting for the next weekly tick. */
+    openOrders?: {
+      id: string;
+      symbol: string;
+      side: 'buy' | 'sell';
+      type: 'market' | 'limit' | 'stop';
+      amount: number;
+      limitPrice?: number;
+      stopPrice?: number;
+      placedWeek: number;
+      status: 'open' | 'filled' | 'cancelled' | 'expired';
+      filledPrice?: number;
+      filledWeek?: number;
+    }[];
+    /** Recent fills + cancellations (capped at 50). */
+    orderHistory?: {
+      id: string;
+      symbol: string;
+      side: 'buy' | 'sell';
+      type: 'market' | 'limit' | 'stop';
+      amount: number;
+      limitPrice?: number;
+      stopPrice?: number;
+      placedWeek: number;
+      status: 'open' | 'filled' | 'cancelled' | 'expired';
+      filledPrice?: number;
+      filledWeek?: number;
+    }[];
+    /** Lifetime dividends received. */
+    totalDividends?: number;
+    /** Dividends paid this game-year (resets at year boundary). */
+    dividendsThisYear?: number;
   };
   perks?: {
     workBoost?: boolean;
@@ -1202,50 +2183,61 @@ export interface GameState {
   };
   automation?: AutomationState;
   socialMedia?: {
+    // ── Legacy v10-v12 fields (preserved verbatim for save compat) ──
     followers: number;
-    influenceLevel: 'novice' | 'rising' | 'popular' | 'influencer' | 'celebrity';
+    influenceLevel: PulseInfluenceLevel;
     totalPosts: number;
     viralPosts: number;
     brandPartnerships: number;
     engagementRate: number;
-    lastPostWeek?: number;
+    lastPostWeek?: number;       // weeksLived
     lastPostTime?: number;
     lastPostDay?: number;
-    lastPostTimes?: Record<'text' | 'photo' | 'video' | 'story' | 'live', number>; // Track cooldown per content type
-    lastPostWeeks?: Record<'text' | 'photo' | 'video' | 'story' | 'live', number>;
+    lastPostTimes?: Record<PulseContentType, number>;
+    lastPostWeeks?: Record<PulseContentType, number>;
     totalLiveStreams?: number;
     totalLiveViewers?: number;
     totalLiveDuration?: number;
     peakLiveViewers?: number;
     totalEarnings?: number;
-    activeBrandDeals?: {
-      id: string;
-      brandName: string;
-      payment: number;
-      expiresAt: number;
-      expiresIn: number;
-    }[];
-    recentPosts?: {
-      id: string;
-      content: string;
-      likes: number;
-      comments: number;
-      timestamp: number;
-      gameWeek?: number;
-      gameMonth?: string;
-      gameYear?: number;
-      contentType: 'text' | 'photo' | 'video' | 'story' | 'live';
-      category?: 'lifestyle' | 'career' | 'fitness' | 'travel' | 'food';
-      photo?: string;
-      isViral?: boolean;
-    }[];
+    activeBrandDeals?: PulseActiveBrandDeal[];
+    recentPosts?: PulseRecentPost[];
+
+    // ── v13 Pulse additions (all optional; migration fills defaults) ──
+    commentThreads?: Record<string, PulseComment[]>;       // keyed by postId; bounded to last 50 posts
+    trendingHashtags?: PulseTrendingHashtag[];
+    followGraph?: PulseFollowGraph;
+    activeScandal?: PulseActiveScandal | null;
+    scandalHistory?: PulseScandalRecord[];
+    brandInbox?: PulseBrandInbox;
+    verifiedPro?: PulseVerifiedPro;
+    notifications?: PulseNotification[];                   // ring buffer, cap 100
+    liveSession?: PulseLiveSession | null;
+    pendingBoosts?: PulsePendingBoost[];
+    lifetimeStats?: PulseLifetimeStats;
+    lastViralBoostBySkill?: Record<string, number>;        // weeksLived, capped 1 boost/skill/week
+    lastAdBoostWeek?: number;                              // weeksLived; enforces 1/week cap for rewarded-ad boost
   };
+  /**
+   * Spark dating app state (v15+). Owns swipes, matches, chat threads, premium,
+   * catfishing, jealousy. Promoted matches still flow into `relationships[]`
+   * and `family.spouse`; Spark is the surface, not a replacement for them.
+   */
+  sparkApp?: SparkAppState;
+  /**
+   * Hustle business app overlay (v17+). Layers premium business systems
+   * (campaigns, scandals, board governance, IPO, M&A, hiring pipeline) on
+   * top of the existing `companies[]` array. Per-company keyed by Company.id.
+   */
+  hustleApp?: HustleAppState;
   _checksum?: string;
   _saveVersion?: number;
   _appVersion?: string; // TESTFLIGHT FIX: App version when save was created (for compatibility tracking)
   _buildNumber?: string | number; // TESTFLIGHT FIX: Build number when save was created (for compatibility tracking)
   travel?: TravelState;
   politics?: PoliticsState;
+  /** Cross-system IOU/favor ledger surfaced by ContactsApp (Remake 10). */
+  favorLedger?: { favors: import('@/lib/contacts/favors').Favor[] };
   // Statistics & Analytics
   lifetimeStatistics?: LifetimeStatistics;
   // Dynasty System
@@ -1370,14 +2362,19 @@ export interface GameState {
     completed: boolean;
     rewardClaimed: boolean;
   };
-  /** Time machine checkpoints — max 5 snapshots */
+  /** Time machine checkpoints — max 5 snapshots. R3-A: snapshot is now
+   * `Partial<GameState> | string` (the lib stores objects on new saves and
+   * keeps string parsing for legacy migration). The previous inline type
+   * declared `snapshot: string`, which was wrong but masked by the lazy
+   * `require()` call sites — hoisting those requires to ES imports surfaced
+   * the mismatch. Align with `Checkpoint` from `lib/timeMachine/checkpointSystem`. */
   checkpoints?: {
     id: string;
     label: string;
     weeksLived: number;
     age: number;
     timestamp: number;
-    snapshot: string;
+    snapshot: Partial<GameState> | string;
   }[];
   /** Number of time machine rewinds used this life (escalates cost) */
   timeMachineUsesThisLife?: number;
@@ -1454,6 +2451,36 @@ export interface ActivePolicy {
   expiresWeek?: number;
 }
 
+/**
+ * Active political scandal — surfaces from high dark-web heat, dirty PAC money,
+ * controversial policies, or negative karma. Drains approval over its lifetime;
+ * suppression spending shortens it. (PoliticalApp Remake 5)
+ */
+export interface PoliticalScandalEntry {
+  id: string;
+  category: 'corruption' | 'extramarital' | 'tax-evasion' | 'criminal-ties' | 'policy-flip' | 'donor-fraud';
+  severity: 'minor' | 'moderate' | 'major' | 'career-ending';
+  headline: string;
+  startedWeek: number;
+  weeksRemaining: number;
+  approvalLost: number;
+  suppressedUSD: number;
+  active: boolean;
+  resolution?: 'survived' | 'forced-resignation' | 'image-restored';
+}
+
+/**
+ * PAC — Political Action Committee fundraising pool. Clean and dirty buckets.
+ * Spending from PAC is more efficient than direct campaigning. Dirty intake
+ * permanently increases scandal risk via lifetimeDirtyUSD. (PoliticalApp Remake 5)
+ */
+export interface PACPoolState {
+  cleanUSD: number;
+  dirtyUSD: number;
+  lifetimeDirtyUSD: number;
+  lastRaiseWeek?: number;
+}
+
 export interface PoliticsState {
   careerLevel: number;
   party?: 'democratic' | 'republican' | 'independent';
@@ -1476,6 +2503,16 @@ export interface PoliticsState {
     healthcare?: { healthBonus: number; medicalCostReduction: number; };
     transportation?: { travelCostReduction: number; commuteTimeReduction?: number; };
   };
+  // ---------------------------------------------------------------------
+  // PoliticalApp Remake 5: scandals + PAC. All optional so existing saves
+  // load cleanly — no migration needed.
+  // ---------------------------------------------------------------------
+  /** Active and recent scandals. Capped to the most recent ~30. */
+  scandals?: PoliticalScandalEntry[];
+  /** PAC fundraising pool. */
+  pac?: PACPoolState;
+  /** Last week we checked for scandal exposure (so we don't double-roll). */
+  lastScandalCheckWeek?: number;
 }
 
 export interface Goal {
@@ -1608,6 +2645,12 @@ export interface DynastyStats {
   totalChildrenAllGenerations: number;
   dynastyFoundedYear: number;
   familyMotto?: string;
+  /**
+   * Pulse v13+ — cumulative peak followers across all prestige resets.
+   * On prestige, current life's `socialMedia.lifetimeStats.peakFollowers`
+   * is added here. New lives start with `floor(carry × 0.001)` follower head start.
+   */
+  pulseLifetimeFollowersCarry?: number;
 }
 
 // ============================================

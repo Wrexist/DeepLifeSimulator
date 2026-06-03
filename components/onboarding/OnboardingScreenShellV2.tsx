@@ -1,21 +1,17 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   Animated,
   Dimensions,
-  Easing,
-  Platform,
   StyleProp,
   StyleSheet,
   View,
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { responsivePadding } from '@/utils/scaling';
-import { logger } from '@/utils/logger';
 
 const { width: screenWidth } = Dimensions.get('window');
-const NATIVE_OK = Platform.OS !== 'web';
-const log = logger.scope('OnboardingShellV2');
 
 interface OnboardingScreenShellV2Props {
   children: React.ReactNode;
@@ -31,66 +27,10 @@ export default function OnboardingScreenShellV2({
   showParticles = false,
 }: OnboardingScreenShellV2Props) {
   const insets = useSafeAreaInsets();
-
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-
-  // Rotating background circles
-  useEffect(() => {
-    let isMounted = true;
-    let rotateLoop: Animated.CompositeAnimation | null = null;
-    try {
-      rotateLoop = Animated.loop(
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: 30000,
-          easing: Easing.linear,
-          useNativeDriver: NATIVE_OK,
-        })
-      );
-      if (isMounted && rotateLoop) rotateLoop.start();
-    } catch (error) {
-      log.error('Error starting rotate animation:', error);
-    }
-    return () => {
-      isMounted = false;
-      rotateLoop?.stop();
-    };
-  }, [rotateAnim]);
-
-  // Fade in + slide up
-  useEffect(() => {
-    let isMounted = true;
-    let parallel: Animated.CompositeAnimation | null = null;
-    try {
-      parallel = Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: NATIVE_OK,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 1000,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: NATIVE_OK,
-        }),
-      ]);
-      if (isMounted && parallel) parallel.start();
-    } catch (error) {
-      log.error('Error starting fade/slide animation:', error);
-    }
-    return () => {
-      isMounted = false;
-      parallel?.stop();
-    };
-  }, [fadeAnim, slideAnim]);
-
-  const rotateInterpolate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+  const { opacity, translateY, rotate } = useOnboardingScreenAnimation({
+    duration: 1000,
+    offsetY: 50,
+    rotateBackground: true,
   });
 
   return (
@@ -99,13 +39,13 @@ export default function OnboardingScreenShellV2({
       <Animated.View
         style={[
           styles.backgroundGradient1,
-          { transform: [{ rotate: rotateInterpolate }] },
+          { transform: [{ rotate }] },
         ]}
       />
       <Animated.View
         style={[
           styles.backgroundGradient2,
-          { transform: [{ rotate: rotateInterpolate }] },
+          { transform: [{ rotate }] },
         ]}
       />
 
@@ -114,8 +54,8 @@ export default function OnboardingScreenShellV2({
         style={[
           styles.content,
           {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
+            opacity,
+            transform: [{ translateY }],
             paddingTop: 50 + insets.top,
           },
           contentContainerStyle,
@@ -142,7 +82,7 @@ export default function OnboardingScreenShellV2({
                 {
                   left: `${(index * 12.5) % 100}%`,
                   top: `${(index * 15) % 100}%`,
-                  transform: [{ rotate: rotateInterpolate }],
+                  transform: [{ rotate }],
                 },
               ]}
             />

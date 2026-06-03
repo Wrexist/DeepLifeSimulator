@@ -38,9 +38,12 @@ function clearOldCacheEntries() {
  * Uses caching for performance
  */
 export function calculateDiseaseRisk(state: GameState): number {
-  const health = state.stats.health || 100;
-  const fitness = state.stats.fitness || 0;
-  const age = state.date?.age || ADULTHOOD_AGE;
+  // BUGFIX: use ?? for health so a 0-health player is correctly treated as
+  // high-risk. With `|| 100`, 0 was silently mapped to 100 (full health),
+  // making severely sick players incorrectly disease-resistant.
+  const health = state.stats.health ?? 100;
+  const fitness = state.stats.fitness ?? 0;
+  const age = state.date?.age ?? ADULTHOOD_AGE;
   const weeksLived = state.weeksLived || 0;
 
   // Check cache first
@@ -131,9 +134,11 @@ function calculateDiseaseSpecificRisk(
   state: GameState,
   baseRiskMultiplier: number
 ): number {
-  const health = state.stats.health || 100;
-  const fitness = state.stats.fitness || 0;
-  const age = state.date?.age || ADULTHOOD_AGE;
+  // BUGFIX: `||` treats health=0 as falsy and inflates it to 100, masking a
+  // dying player as healthy in disease-risk calc.
+  const health = state.stats?.health ?? 100;
+  const fitness = state.stats?.fitness ?? 0;
+  const age = state.date?.age ?? ADULTHOOD_AGE;
 
   // Start with base chance
   let chance = template.baseChance;
@@ -215,7 +220,10 @@ export function generateRandomDisease(state: GameState): Disease | null {
   const age = state.date?.age || ADULTHOOD_AGE;
 
   // If risk is very low and health is good, reduce chance further (but less so for older players)
-  if (baseRiskMultiplier < 1.2 && (state.stats.health || 100) > 80 && age < 30) {
+  // BUGFIX: use ?? so a 0-health player is correctly excluded from the
+  // "healthy young → low disease chance" path. Previously, 0 was silently
+  // treated as 100, making sick players inadvertently disease-resistant.
+  if (baseRiskMultiplier < 1.2 && (state.stats.health ?? 100) > 80 && age < 30) {
     // Very low chance when healthy and young
     const healthyRoll = seededRandom(weekSeed + 10000);
     if (healthyRoll > 0.02) { // 2% chance even when healthy and young

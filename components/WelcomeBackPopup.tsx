@@ -1,13 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import {
-  Modal,
+import { Platform, Modal,
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Dimensions,
-} from 'react-native';
+  Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
   Home,
@@ -22,6 +20,7 @@ import {
   BookOpen,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 const LinearGradient = LinearGradientFallback;
@@ -35,7 +34,7 @@ interface WelcomeBackPopupProps {
 
 export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupProps) {
   const { gameState } = useGameState();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const isDarkMode = settings.darkMode;
 
   // Calculate time away
@@ -273,7 +272,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                     Life Progress
                   </Text>
                   <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
-                    Week {gameState.weeksLived || 0} | Age {gameState.date?.age?.toFixed(1) || 0}
+                    Week {gameState.weeksLived || 0} | Age {Math.floor(gameState.date?.age ?? 0)}
                   </Text>
                 </View>
               </View>
@@ -410,10 +409,15 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     backgroundColor: '#3B82F6',
     boxShadow: '0px 0px 40px rgba(59, 130, 246, 0.6)',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
+    ...Platform.select({
+      web: { boxShadow: '0px 0px 40px rgba(59, 130, 246, 0.6)' } as any,
+      default: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 40,
+      },
+    }),
     elevation: 10,
   },
   content: {
@@ -423,10 +427,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     boxShadow: '0px 8px 20px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 20px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 12,
   },
   header: {
@@ -446,10 +455,15 @@ const styles = StyleSheet.create({
     borderRadius: scale(44),
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(59, 130, 246, 0.4)' } as any,
+      default: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 8,
   },
   sparkleAccent: {
@@ -503,11 +517,11 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(59, 130, 246, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   statCardDark: {
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderColor: 'rgba(59, 130, 246, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   statIconContainer: {
     width: scale(44),
@@ -570,10 +584,15 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: responsiveBorderRadius.lg,
     overflow: 'hidden',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 6px 12px rgba(59, 130, 246, 0.4)' } as any,
+      default: {
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 10,
   },
   continueButtonGradient: {

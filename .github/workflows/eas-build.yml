@@ -33,11 +33,22 @@ jobs:
       - name: Run Expo Doctor
         run: npx --yes expo-doctor
 
+      - name: Type check
+        run: npm run type-check
+
       - name: Lint
         run: npm run lint
 
+      # R7 Phase 0: Run startup smoke tests FIRST as a fast-fail gate.
+      # These check every (tabs)/* and (onboarding)/* screen has a valid
+      # default export and that React.lazy() isn't reintroduced (R6 lesson —
+      # crashed prod iOS Hermes bundle). Catching this here saves the full
+      # ~10-minute test run when a screen import is broken.
+      - name: Startup smoke tests (screen imports, default-export, no lazy)
+        run: npm test -- __tests__/startup --ci
+
       - name: Test
-        run: npm test -- --passWithNoTests
+        run: npm test -- --ci
 
       - name: EAS Build ${{ matrix.platform }}
         run: eas build --platform ${{ matrix.platform }} --profile production --non-interactive

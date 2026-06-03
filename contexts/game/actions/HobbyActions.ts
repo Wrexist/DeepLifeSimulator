@@ -45,13 +45,22 @@ export const trainHobby = (
   });
 
   setGameState(prev => {
+    // ANTI-EXPLOIT: Re-check the 5/wk training cap inside the prev callback so
+    // two rapid same-batch trains don't both pass the outer gate above and
+    // bypass the cap.
+    const prevHobby = (prev.hobbies || []).find(h => h.id === hobbyId);
+    if (!prevHobby) return prev;
+    const prevWeek = prev.weeksLived || 0;
+    const prevTrainsThisWeek = prevHobby.lastTrainWeek === prevWeek ? (prevHobby.trainsThisWeek || 0) : 0;
+    if (prevTrainsThisWeek >= MAX_HOBBY_TRAINS_PER_WEEK) return prev;
+
     // BUG FIX: Apply prestige skill gain multiplier
     const unlockedBonuses = prev.prestige?.unlockedBonuses || [];
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getSkillGainMultiplier } = require('@/lib/prestige/applyBonuses');
     const skillGainMultiplier = getSkillGainMultiplier(unlockedBonuses);
     const safeSkillGainMultiplier = typeof skillGainMultiplier === 'number' && isFinite(skillGainMultiplier) && skillGainMultiplier > 0 ? skillGainMultiplier : 1.0;
-    
+
     // Apply Skill Mastery gold upgrade ("All skills level up 50% faster").
     // Was set on purchase but never read by any skill-gain path.
     const skillMasteryBonus = prev.goldUpgrades?.skill_mastery ? 1.5 : 1;
@@ -62,14 +71,13 @@ export const trainHobby = (
         const skillGain = Math.round(baseSkillGain * safeSkillGainMultiplier * skillMasteryBonus); // prestige + Skill Mastery
         const newSkill = (h.skill || 0) + skillGain;
         const levelUp = newSkill >= (h.skillLevel + 1) * 100;
-        
+
         return {
           ...h,
           skill: clampHobbySkill(levelUp ? newSkill - (h.skillLevel + 1) * 100 : newSkill),
           skillLevel: clampHobbySkillLevel(levelUp ? h.skillLevel + 1 : h.skillLevel),
-          // ANTI-EXPLOIT: Track weekly training count
-          trainsThisWeek: (h.lastTrainWeek === (prev.weeksLived || 0) ? (h.trainsThisWeek || 0) : 0) + 1,
-          lastTrainWeek: prev.weeksLived || 0,
+          trainsThisWeek: prevTrainsThisWeek + 1,
+          lastTrainWeek: prevWeek,
         };
       }
       return h;
@@ -97,13 +105,36 @@ export const enterHobbyTournament = (
     };
   }
 
-  deps.updateStats(setGameState, { energy: -20 });
+  // R2-G: cap tournament entries to 1 per hobby per week. Previously the
+  // deterministic roll was keyed only on (week, hobbyId) so if the player
+  // won once, they could keep entering the same tournament that same week,
+  // burn another 20 energy (restore via gym/coffee), and re-collect the
+  // reward — unlimited money for the cost of energy.
+  const currentWeeksLived = gameState.weeksLived || 0;
+  const lastTournamentWeek = hobby.lastTournamentWeek ?? -1;
+  if (lastTournamentWeek === currentWeeksLived) {
+    return {
+      success: false,
+      message: `You've already entered the ${hobby.name} tournament this week. Come back next week.`,
+    };
+  }
 
   // Deterministic tournament logic — prevents save-reload exploits
   const winChance = 30 + (hobby.skillLevel * 5);
-  const rollKey = `tournament:${gameState.weeksLived || 0}:${hobbyId}`;
+  const rollKey = `tournament:${currentWeeksLived}:${hobbyId}`;
   const roll = getDeterministicRoll(gameState, rollKey);
   const won = (roll || 0) * 100 < winChance;
+
+  // Mark the entry BEFORE applying rewards/energy so a successful entry
+  // commits even if the reward path returns early.
+  setGameState(prev => ({
+    ...prev,
+    hobbies: (prev.hobbies || []).map(h =>
+      h.id === hobbyId ? { ...h, lastTournamentWeek: currentWeeksLived } : h
+    ),
+  }));
+
+  deps.updateStats(setGameState, { energy: -20 });
 
   if (won) {
     const reward = hobby.tournamentReward * (1 + (hobby.skillLevel * 0.2));

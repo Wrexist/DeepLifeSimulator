@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Scenario } from './scenarioData';
+import { safeAsyncStorage } from '@/utils/storageWrapper';
+import { logger } from '@/utils/logger';
 
 interface OnboardingState {
   slot: number;
@@ -15,6 +17,8 @@ interface OnboardingState {
 interface OnboardingContextType {
   state: OnboardingState;
   setState: React.Dispatch<React.SetStateAction<OnboardingState>>;
+  /** Clear the persisted draft (call after a successful onboarding completion). */
+  clearDraft: () => Promise<void>;
 }
 
 const defaultState: OnboardingState = {
@@ -26,11 +30,87 @@ const defaultState: OnboardingState = {
   perks: [],
 };
 
+const ONBOARDING_DRAFT_KEY = 'onboarding_draft_v1';
+// R3-B: drop the draft after 30 days idle so we don't surprise returning
+// players with stale half-filled onboarding data.
+const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+interface PersistedDraft {
+  state: OnboardingState;
+  savedAt: number;
+}
+
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 export const OnboardingProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState<OnboardingState>(defaultState);
-  return <OnboardingContext.Provider value={{ state, setState }}>{children}</OnboardingContext.Provider>;
+  const hasHydratedRef = useRef(false);
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // R3-B: hydrate any persisted draft on mount. Without this, a player who
+  // typed their character name, got a phone call, and let iOS reap the app
+  // would come back to a blank Customize screen.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await safeAsyncStorage.getItem(ONBOARDING_DRAFT_KEY, null);
+        if (cancelled) return;
+        if (raw && typeof raw === 'object') {
+          const persisted = raw as PersistedDraft;
+          if (
+            persisted.savedAt &&
+            Date.now() - persisted.savedAt < DRAFT_TTL_MS &&
+            persisted.state &&
+            typeof persisted.state === 'object'
+          ) {
+            setState({ ...defaultState, ...persisted.state });
+          } else if (persisted.savedAt) {
+            // Stale draft — clean up.
+            void safeAsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
+          }
+        }
+      } catch (error) {
+        logger.warn('[Onboarding] Failed to hydrate draft', { error });
+      } finally {
+        hasHydratedRef.current = true;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // R3-B: persist on change with a 500ms debounce so rapid typing in the
+  // name fields doesn't flood AsyncStorage.
+  useEffect(() => {
+    if (!hasHydratedRef.current) return; // don't persist the default before hydration finishes
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      const payload: PersistedDraft = { state, savedAt: Date.now() };
+      void safeAsyncStorage.setItem(ONBOARDING_DRAFT_KEY, payload).then((ok) => {
+        if (!ok) logger.warn('[Onboarding] Failed to persist draft');
+      });
+    }, 500);
+    return () => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+    };
+  }, [state]);
+
+  const clearDraft = React.useCallback(async () => {
+    try {
+      await safeAsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
+    } catch (error) {
+      logger.warn('[Onboarding] Failed to clear draft', { error });
+    }
+  }, []);
+
+  const value = useMemo(() => ({ state, setState, clearDraft }), [state, clearDraft]);
+
+  return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;
 };
 
 export const useOnboarding = () => {

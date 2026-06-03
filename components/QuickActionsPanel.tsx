@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+// CRITICAL: use fallback to avoid iOS 26 TurboModule crash.
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { Plus, X, Zap, DollarSign, Briefcase, ShoppingCart, Home, TrendingUp } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useRouter } from 'expo-router';
 import { responsiveSpacing, responsiveBorderRadius, responsiveFontSize } from '@/utils/scaling';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 interface QuickAction {
   id: string;
@@ -141,7 +144,7 @@ export default function QuickActionsPanel({ position = 'bottom-right' }: QuickAc
   const getPositionStyle = () => {
     const baseStyle = {
       position: 'absolute' as const,
-      zIndex: 1000,
+      zIndex: Z_INDEX.DROPDOWN,
     };
 
     switch (position) {
@@ -238,10 +241,15 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 8,
   },
   fabGradient: {
@@ -261,10 +269,15 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 5,
   },
   actionButtonGradient: {

@@ -1,10 +1,13 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import { useGame } from '@/contexts/GameContext';
+// Use leaf GameStateContext directly to avoid the GameContext barrel import cycle
+// (the barrel imports GameProvider which imports IAPHandler, which historically
+// re-imported the barrel and produced an "Element type is invalid" crash here).
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { getThemeColors } from '@/lib/config/theme';
 
 export default function OnboardingLayout() {
-  const { gameState } = useGame();
+  const { gameState } = useGameState();
   const isDarkMode = gameState?.settings?.darkMode ?? true;
   const colors = getThemeColors(isDarkMode);
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Platform, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, BarChart3, Bell, BookOpen, Brain } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
@@ -276,10 +276,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 30,
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 3,
   },
   progressTitle: {
@@ -297,15 +302,25 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 16,
     color: '#6B7280',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   progressTextDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   progressPercent: {
     fontSize: 20,
@@ -355,10 +370,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+    }),
     elevation: 2,
   },
   achievementIcon: {
@@ -372,9 +392,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B7280',
     marginBottom: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   completedAchievement: {
     color: '#1F2937',
@@ -400,13 +425,20 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     width: '48%',
+    minHeight: 110,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
     boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+    }),
     elevation: 2,
   },
   statValue: {
@@ -420,15 +452,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   statLabelDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   minigamesSection: {
     marginBottom: 30,
@@ -447,10 +489,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
   },
   featureButtons: {
     flexDirection: 'row',

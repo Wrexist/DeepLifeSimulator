@@ -174,6 +174,22 @@ class ErrorBoundary extends Component<Props, State> {
         const { readSaveSlot } = require('@/utils/saveValidation');
         const savedData = await readSaveSlot(slotNumber);
         if (savedData) {
+          // R2-H: prune old error_backup_* keys BEFORE writing the new one.
+          // Previously cleanup only fired on QuotaExceededError — so under
+          // normal conditions every crash wrote another 1-4MB blob that
+          // never got cleaned up, filling storage fast for crash-prone users.
+          try {
+            const existingKeys = await AsyncStorage.getAllKeys();
+            const oldBackups = existingKeys
+              .filter((k: string) => k.startsWith('error_backup_'))
+              .sort()
+              .slice(0, -4); // keep the 4 most recent (+ the one we're about to write = 5)
+            if (oldBackups.length > 0) {
+              await AsyncStorage.multiRemove(oldBackups);
+            }
+          } catch {
+            // best-effort; don't block the backup on cleanup failure
+          }
           // Create emergency backup
           const backupKey = `error_backup_${Date.now()}`;
           try {
@@ -557,7 +573,7 @@ Timestamp: ${crashReport.system.timestamp}
 
 --- GAME STATE (Essential) ---
 ${gameStateInfo && !gameStateInfo.error ? `Slot: ${gameStateInfo.slot || 'N/A'}
-Version: ${gameStateInfo.version || 'N/A'} ${gameStateInfo.version && gameStateInfo.version < 5 ? '⚠️ OLD VERSION' : ''}
+Version: ${gameStateInfo.version || 'N/A'} ${gameStateInfo.version && gameStateInfo.version < 5 ? 'OLD VERSION' : ''}
 Week: ${gameStateInfo.week || 'N/A'}
 Age: ${gameStateInfo.age || 'N/A'}
 Scenario: ${gameStateInfo.scenarioId || 'N/A'}
@@ -786,7 +802,7 @@ Discord: ${DISCORD_URL}`;
               </View>
 
               <Text style={styles.helpText}>
-                💡 Export your crash log and share it in our Discord server to help us debug this issue!
+                Export your crash log and share it in our Discord server to help us debug this issue!
               </Text>
 
               <Text style={styles.retryInfo}>

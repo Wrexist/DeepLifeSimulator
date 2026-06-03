@@ -182,7 +182,7 @@ function ActiveGoalsCard({ onGoalPress, compact = false }: ActiveGoalsCardProps)
             {/* Header */}
             <View style={styles.headerRow}>
                 <View style={styles.headerLeft}>
-                    <Target size={20} color="#3B82F6" />
+                    <Target size={18} color="rgba(226, 232, 240, 0.85)" />
                     <Text style={styles.headerTitle}>Active Goals</Text>
                 </View>
                 <View style={styles.headerRight}>
@@ -242,27 +242,20 @@ function ActiveGoalsCard({ onGoalPress, compact = false }: ActiveGoalsCardProps)
 
 const styles = StyleSheet.create({
     container: {
-        margin: responsiveSpacing.lg,
-        marginBottom: responsiveSpacing.md,
-        padding: responsiveSpacing.lg,
-        backgroundColor: '#1F2937',
-        borderRadius: responsiveBorderRadius.xl,
-        borderLeftWidth: 4,
-        borderLeftColor: '#3B82F6',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 2,
+        marginVertical: responsiveSpacing.sm,
+        padding: responsiveSpacing.md,
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
+        borderRadius: responsiveBorderRadius.md,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     compactContainer: {
-        margin: responsiveSpacing.lg,
-        marginBottom: responsiveSpacing.md,
+        marginVertical: responsiveSpacing.sm,
         padding: responsiveSpacing.md,
-        backgroundColor: '#1F2937',
-        borderRadius: responsiveBorderRadius.lg,
-        borderLeftWidth: 3,
-        borderLeftColor: '#3B82F6',
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
+        borderRadius: responsiveBorderRadius.md,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     compactContent: {
         flexDirection: 'row',
@@ -318,13 +311,15 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: fontScale(16),
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: '#F8FAFC',
+        letterSpacing: -0.2,
         marginLeft: responsiveSpacing.sm,
     },
     progressCounter: {
-        fontSize: fontScale(12),
-        color: '#9CA3AF',
-        fontWeight: '500',
+        fontSize: fontScale(11),
+        color: 'rgba(226, 232, 240, 0.6)',
+        fontWeight: '600',
+        fontVariant: ['tabular-nums'],
     },
     completedMessage: {
         fontSize: fontScale(14),
@@ -335,15 +330,16 @@ const styles = StyleSheet.create({
         gap: responsiveSpacing.sm,
     },
     goalItem: {
-        backgroundColor: '#374151',
-        borderRadius: responsiveBorderRadius.lg,
+        backgroundColor: 'rgba(2, 6, 23, 0.45)',
+        borderRadius: responsiveBorderRadius.md,
         padding: responsiveSpacing.md,
         marginBottom: responsiveSpacing.xs,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255, 255, 255, 0.06)',
     },
     challengeGoalItem: {
-        borderWidth: 1,
-        borderColor: '#F59E0B40',
-        backgroundColor: '#374151',
+        borderColor: 'rgba(245, 158, 11, 0.32)',
+        backgroundColor: 'rgba(2, 6, 23, 0.45)',
     },
     goalHeader: {
         flexDirection: 'row',
@@ -353,28 +349,28 @@ const styles = StyleSheet.create({
     categoryBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 12,
+        paddingHorizontal: 0,
+        paddingVertical: 0,
+        backgroundColor: 'transparent',
     },
     categoryIcon: {
-        fontSize: 12,
-        marginRight: 4,
+        fontSize: 11,
+        marginRight: 6,
+        opacity: 0.85,
     },
     categoryLabel: {
         fontSize: fontScale(10),
-        fontWeight: '600',
+        fontWeight: '700',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 0.7,
     },
     challengeBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F59E0B20',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 8,
-        marginLeft: 6,
+        backgroundColor: 'transparent',
+        paddingHorizontal: 0,
+        paddingVertical: 0,
+        marginLeft: 10,
     },
     challengeLabel: {
         fontSize: fontScale(9),
@@ -384,16 +380,18 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     goalTitle: {
-        fontSize: fontScale(14),
-        fontWeight: '600',
-        color: '#F9FAFB',
+        fontSize: fontScale(15),
+        fontWeight: '700',
+        color: '#F8FAFC',
+        letterSpacing: -0.2,
+        marginTop: 6,
         marginBottom: 2,
     },
     goalDescription: {
         fontSize: fontScale(12),
-        color: '#9CA3AF',
+        color: 'rgba(226, 232, 240, 0.65)',
         marginBottom: responsiveSpacing.sm,
-        lineHeight: 16,
+        lineHeight: 17,
     },
     progressBarContainer: {
         flexDirection: 'row',
@@ -402,8 +400,8 @@ const styles = StyleSheet.create({
     },
     progressBarBg: {
         flex: 1,
-        height: 6,
-        backgroundColor: '#4B5563',
+        height: 5,
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
         borderRadius: 3,
         overflow: 'hidden',
     },
@@ -413,11 +411,12 @@ const styles = StyleSheet.create({
     },
     progressText: {
         fontSize: fontScale(11),
-        fontWeight: '600',
-        color: '#D1D5DB',
-        marginLeft: 8,
+        fontWeight: '700',
+        color: 'rgba(226, 232, 240, 0.65)',
+        marginLeft: 10,
         minWidth: 36,
         textAlign: 'right',
+        fontVariant: ['tabular-nums'],
     },
     rewardRow: {
         flexDirection: 'row',
@@ -427,14 +426,15 @@ const styles = StyleSheet.create({
     rewardBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 8,
+        gap: 5,
+        paddingHorizontal: 0,
+        paddingVertical: 0,
+        backgroundColor: 'transparent',
     },
     rewardText: {
         fontSize: fontScale(11),
-        fontWeight: '600',
-        marginLeft: 4,
+        fontWeight: '700',
+        fontVariant: ['tabular-nums'],
     },
     challengeToggle: {
         flexDirection: 'row',
@@ -442,8 +442,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: responsiveSpacing.sm,
         marginTop: responsiveSpacing.sm,
-        borderTopWidth: 1,
-        borderTopColor: '#374151',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: 'rgba(255, 255, 255, 0.08)',
     },
     challengeToggleText: {
         fontSize: fontScale(12),

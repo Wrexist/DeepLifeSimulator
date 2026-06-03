@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { MotiView } from '@/components/anim/MotiStub';
 import { scale, fontScale } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 interface WeeklyResultSheetProps {
   visible: boolean;
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'transparent',
     padding: 16,
-    zIndex: 1000,
+    zIndex: Z_INDEX.MODAL,
   },
   card: {
     width: '100%',
@@ -178,10 +179,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: scale(16),
     padding: scale(20),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 8,
   },
   cardDark: {

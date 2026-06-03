@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Share } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, Share } from 'react-native';
 import { OptimizedFlatList } from '../OptimizedFlatList';
 import { remoteLogger, LogEntry } from '@/services/RemoteLoggingService';
 import { X, Share2, Trash2, Search } from 'lucide-react-native';
@@ -224,10 +224,15 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+    }),
     elevation: 2,
   },
   logHeader: {

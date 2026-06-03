@@ -1,23 +1,24 @@
 import React, { useEffect } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Modal,
-  ScrollView,
-} from 'react-native';
+  ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, CheckCircle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
 import { useGame } from '@/contexts/game';
+import { safeSettings } from '@/utils/safeGameState';
 import { useFeedback } from '@/utils/feedbackSystem';
 const LinearGradient = LinearGradientFallback;
 
 export default function CureSuccessModal() {
   const { gameState, dismissCureSuccessModal } = useGame();
-  const { showCureSuccessModal, curedDiseases, settings, week } = gameState;
+  const { showCureSuccessModal, curedDiseases, week } = gameState;
+  // R2-A: rare-path modal — bail safely if settings is undefined.
+  const settings = safeSettings(gameState);
   const darkMode = settings.darkMode;
-  const { buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
+  const { buttonPress, haptic } = useFeedback(settings.hapticFeedback);
 
   // Only show modal when in an active game (week > 0 indicates active game)
   const isInActiveGame = week > 0;
@@ -185,10 +186,15 @@ const styles = StyleSheet.create({
     maxHeight: '95%',
     borderRadius: 16,
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 8,
   },
   modalContainerDark: {

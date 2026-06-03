@@ -136,9 +136,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="progression"
         options={{
+          // Hidden from the bottom nav — the route still exists for direct
+          // navigation, but it's no longer surfaced as a tab.
+          href: null,
           title: t('tabs.progression') || 'Progress',
           tabBarIcon: ({ size, color }) => <Trophy size={size} color={color} />,
-          href: isInPrison ? null : undefined,
         }}
       />
       <Tabs.Screen
@@ -160,16 +162,19 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-    {gameState.pendingEvents && gameState.pendingEvents.length > 0 && (
-      <Suspense fallback={null}>
-        <WeeklyEventModal />
-      </Suspense>
-    )}
-    {gameState.lifeMoments?.pendingMoment && (
+    {/* R2-H: render exclusively — both modals are <Modal transparent fade>,
+        and on a tick that produces both a life moment AND a weekly event,
+        their backdrops stack and taps on the lower one are blocked. Let the
+        life moment win first; the weekly event will show after dismissal. */}
+    {gameState.lifeMoments?.pendingMoment ? (
       <Suspense fallback={null}>
         <LifeMomentModal />
       </Suspense>
-    )}
+    ) : gameState.pendingEvents && gameState.pendingEvents.length > 0 ? (
+      <Suspense fallback={null}>
+        <WeeklyEventModal />
+      </Suspense>
+    ) : null}
     {/* ENGAGEMENT: Floating stat change indicators on week advance */}
     <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />
     </View>

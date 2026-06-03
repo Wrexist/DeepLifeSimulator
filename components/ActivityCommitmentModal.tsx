@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { X, Target, Briefcase, Heart, Dumbbell, Music, Clock, TrendingUp, AlertCircle } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
@@ -45,7 +46,7 @@ const AREA_CONFIG: Record<CommitmentArea, { label: string; icon: typeof Briefcas
 export default function ActivityCommitmentModal({ visible, onClose }: ActivityCommitmentModalProps) {
   const { gameState, setGameState } = useGame();
   const insets = useSafeAreaInsets();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const commitments = gameState.activityCommitments;
   
   const [selectedPrimary, setSelectedPrimary] = useState<CommitmentArea | undefined>(commitments?.primary);
@@ -262,11 +263,11 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
                   How It Works
                 </Text>
                 <Text style={[styles.infoText, settings.darkMode && styles.textDarkSecondary]}>
-                  â€¢ Choose up to 2 focus areas (Primary & Secondary){'\n'}
-                  â€¢ Committed areas get bonuses: +30-50% progress, -20-30% energy cost{'\n'}
-                  â€¢ Neglected areas get penalties: -15% progress, +15% energy cost{'\n'}
-                  â€¢ Commitment levels increase with activity, decay when neglected{'\n'}
-                  â€¢ You can change commitments once every 4 weeks
+                  • Choose up to 2 focus areas (Primary & Secondary){'\n'}
+                  • Committed areas get bonuses: +30-50% progress, -20-30% energy cost{'\n'}
+                  • Neglected areas get penalties: -15% progress, +15% energy cost{'\n'}
+                  • Commitment levels increase with activity, decay when neglected{'\n'}
+                  • You can change commitments once every 4 weeks
                 </Text>
               </View>
 
@@ -328,10 +329,15 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 8,
   },
   header: {

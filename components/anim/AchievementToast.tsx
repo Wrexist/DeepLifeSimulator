@@ -59,6 +59,11 @@ export default function AchievementToast() {
       setAchievement(data);
       setIsVisible(true);
     };
+    // P2-1: clear the module-level trigger on unmount so a fired toast from
+    // an old mount doesn't end up calling setState on this component after
+    // navigation has unmounted it ("Can't perform a React state update on
+    // an unmounted component" warning).
+    return () => { trigger = null; };
   }, []);
 
   useEffect(() => {
@@ -187,10 +192,15 @@ const styles = StyleSheet.create({
     overflow: 'visible',
     zIndex: Z_INDEX.TOAST,
     boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 16,
   },
   background: {

@@ -5,14 +5,12 @@
  * and secret achievement hints
  */
 import React, { useMemo, useState } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   Image,
   TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+  ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useGame } from '@/contexts/GameContext';
@@ -540,17 +538,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#1F2937',
     borderRadius: responsiveBorderRadius.lg,
     padding: responsiveSpacing.lg,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(99, 102, 241, 0.15)' } as any,
+      default: {
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 8,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   containerDark: {
     backgroundColor: '#1F2937',
-    borderColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   headerBlur: {
     borderRadius: responsiveBorderRadius.md,
@@ -579,10 +582,15 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FBBF24',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(251, 191, 36, 0.3)' } as any,
+      default: {
+        shadowColor: '#FBBF24',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 6,
   },
   sparkleIcon: {
@@ -721,22 +729,27 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md,
     backgroundColor: '#374151',
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.2)',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(99, 102, 241, 0.1)' } as any,
+      default: {
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
     position: 'relative',
     overflow: 'hidden',
   },
   cardDark: {
     backgroundColor: '#374151',
-    borderColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   cardCompleted: {
     backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     opacity: 0.9,
   },
   rarityBadge: {
@@ -818,10 +831,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(99, 102, 241, 0.3)' } as any,
+      default: {
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 3,
   },
   rewardText: {
@@ -905,7 +923,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md,
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   claimedText: {
     fontWeight: '600',

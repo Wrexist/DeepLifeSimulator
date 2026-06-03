@@ -1,0 +1,229 @@
+/**
+ * MatchBanner — celebratory full-screen overlay when a match lands.
+ *
+ * Two side-by-side avatars with a pulsing gradient flame between them,
+ * "It's a match!" headline, and CTA to message the new match. Auto-dismisses
+ * after 1.6s or on tap.
+ */
+import React, { useEffect, useRef } from 'react';
+import { Animated, AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Flame, MessageCircle, X } from 'lucide-react-native';
+import ImageWithFallback from '@/components/ui/ImageWithFallback';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { useTheme } from '@/hooks/useTheme';
+import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { Z_INDEX } from '@/utils/zIndexConstants';
+import { SPARK_GRADIENT, SPARK_MOTION } from '../styles/sparkTheme';
+
+const LinearGradient = LinearGradientFallback;
+
+interface MatchBannerProps {
+  visible: boolean;
+  partnerName: string;
+  partnerPhoto?: string;
+  playerPhoto?: string;
+  onMessage: () => void;
+  onDismiss: () => void;
+}
+
+export default function MatchBanner({
+  visible, partnerName, partnerPhoto, playerPhoto, onMessage, onDismiss,
+}: MatchBannerProps) {
+  const { theme } = useTheme();
+  const opacity = useRef(new Animated.Value(0)).current;
+  const flameScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      opacity.setValue(0);
+      return;
+    }
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (cancelled) return;
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: reduced ? 0 : SPARK_MOTION.matchCelebration,
+        useNativeDriver: true,
+      }).start();
+      if (!reduced) {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(flameScale, { toValue: 1.12, duration: SPARK_MOTION.flameLoop / 2, useNativeDriver: true }),
+            Animated.timing(flameScale, { toValue: 1, duration: SPARK_MOTION.flameLoop / 2, useNativeDriver: true }),
+          ]),
+        ).start();
+      }
+    });
+    return () => {
+      cancelled = true;
+      flameScale.stopAnimation();
+    };
+  }, [visible, opacity, flameScale]);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View style={[styles.root, { opacity }]} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+      <LinearGradient
+        colors={[SPARK_GRADIENT[0] + 'EE', SPARK_GRADIENT[1] + 'EE']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <Pressable
+        onPress={onDismiss}
+        accessibilityRole="button"
+        accessibilityLabel="Close match banner"
+        hitSlop={8}
+        style={styles.close}
+      >
+        <X size={fontScale(22)} color="#FFFFFF" />
+      </Pressable>
+
+      <View style={styles.avatarsRow}>
+        <View style={styles.avatarWrap}>
+          {/* R5-A: degrade to initial letter on load failure. */}
+          <ImageWithFallback uri={playerPhoto} fallback="Y" style={styles.avatar} />
+        </View>
+
+        <Animated.View style={[styles.flameWrap, { transform: [{ scale: flameScale }] }]}>
+          <Flame size={scale(56)} color="#FFFFFF" fill="#FFFFFF" />
+        </Animated.View>
+
+        <View style={styles.avatarWrap}>
+          <ImageWithFallback uri={partnerPhoto} fallback={partnerName} style={styles.avatar} />
+        </View>
+      </View>
+
+      <Text style={styles.title}>It's a match!</Text>
+      <Text style={styles.subtitle}>You and {partnerName} liked each other</Text>
+
+      <View style={styles.ctaRow}>
+        <Pressable
+          onPress={onDismiss}
+          accessibilityRole="button"
+          accessibilityLabel="Keep swiping"
+          style={({ pressed }) => [styles.btnSecondary, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.btnSecondaryText}>Keep swiping</Text>
+        </Pressable>
+        <Pressable
+          onPress={onMessage}
+          accessibilityRole="button"
+          accessibilityLabel={`Message ${partnerName}`}
+          style={({ pressed }) => [styles.btnPrimary, pressed && { opacity: 0.85 }]}
+        >
+          <MessageCircle size={fontScale(16)} color={SPARK_GRADIENT[0]} strokeWidth={2.4} />
+          <Text style={[styles.btnPrimaryText, { color: SPARK_GRADIENT[0] }]}>Send a message</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
+const AVATAR_SIZE = scale(110);
+
+const styles = StyleSheet.create({
+  root: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: responsiveSpacing.xl,
+    zIndex: Z_INDEX.MODAL,
+  },
+  close: {
+    position: 'absolute',
+    top: scale(48),
+    right: scale(24),
+    width: touchTargets.minimum,
+    height: touchTargets.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(-16),
+    marginBottom: responsiveSpacing.lg,
+  },
+  avatarWrap: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: AVATAR_SIZE / 2,
+  },
+  avatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    color: '#FFFFFF',
+    fontSize: fontScale(40),
+    fontWeight: '700',
+  },
+  flameWrap: {
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: scale(-12),
+    zIndex: 2,
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: fontScale(36),
+    fontWeight: '800',
+  },
+  subtitle: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: fontScale(15),
+    marginTop: 6,
+    marginBottom: responsiveSpacing.xl,
+    textAlign: 'center',
+  },
+  ctaRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: responsiveSpacing.sm,
+  },
+  btnSecondary: {
+    flex: 1,
+    paddingVertical: responsiveSpacing.md,
+    borderRadius: scale(14),
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.6)',
+    alignItems: 'center',
+  },
+  btnSecondaryText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(14),
+    fontWeight: '600',
+  },
+  btnPrimary: {
+    flex: 1.4,
+    paddingVertical: responsiveSpacing.md,
+    borderRadius: scale(14),
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  btnPrimaryText: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+  },
+});

@@ -1,5 +1,25 @@
 # Task Tracker
 
+## iOS Onboarding SceneView Crash - May 27, 2026
+
+- [x] Review lessons and trace the crash stack to the onboarding route layer.
+- [x] Replace the onboarding group's nested native stack with a plain route slot.
+- [x] Run focused verification and record any existing blockers.
+
+## Onboarding Animation Cleanup - May 27, 2026
+
+- [x] Extend shared onboarding animation hook to support rotating backgrounds.
+- [x] Refactor `OnboardingScreenShellV2` to consume the shared hook.
+- [x] Refactor `Perks` to remove local duplicated fade/slide/rotate setup.
+- [x] Run focused onboarding tests and `npm run preflight:quick`.
+
+## Onboarding Permanent Perk Stat Clamp - May 27, 2026
+
+- [x] Trace game creation failure to permanent `lucky_charm` pushing happiness above 100.
+- [x] Clamp bounded onboarding stats during new game state construction.
+- [x] Add regression coverage for the `aspiring_entrepreneur` + permanent `lucky_charm` path.
+- [x] Run focused onboarding tests and `npm run preflight:quick`.
+
 <!-- Used by Claude Code sessions. Add checkable items for multi-step tasks. -->
 
 ## Full-App Audit & Remediation — May 22, 2026

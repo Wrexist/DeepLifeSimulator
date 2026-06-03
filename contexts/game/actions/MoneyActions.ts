@@ -50,7 +50,8 @@ export const updateMoney = (
         ...prev.dailySummary,
         moneyChange: (prev.dailySummary?.moneyChange || 0) + moneyChange,
         statsChange: { ...(prev.dailySummary?.statsChange || {}) },
-        events: [...(prev.dailySummary?.events || [])],
+        // R2-B: cap to 50 — this used to grow unbounded between weekly resets.
+        events: (prev.dailySummary?.events || []).slice(-50),
       };
     }
 
@@ -64,6 +65,57 @@ export const updateMoney = (
     };
   });
 };
+
+/**
+ * Pure spend helper for atomic "charge + grant" updaters (M-batch-A, R8).
+ *
+ * Mirrors `updateMoney`'s overdraft-reject + NaN guard + daily-summary tracking,
+ * but as a PURE function you fold INTO an existing `setGameState` updater.
+ * Returns the new `stats`/`dailySummary` slice, or `null` when the spend is
+ * unaffordable/invalid (the caller should then `return prev`).
+ *
+ * Use this so a purchased good is granted in the SAME updater that debits the
+ * money — closing the grant-then-charge race where two rapid taps both granted
+ * the good while only one `updateMoney` charge went through.
+ *
+ *   setGameState((prev) => {
+ *     const spend = applyMoneyDelta(prev, -cost, reason);
+ *     if (!spend) return prev;          // unaffordable → reject atomically
+ *     return { ...prev, ...spend, thing: [...] };
+ *   });
+ */
+export function applyMoneyDelta(
+  prev: GameState,
+  amount: number,
+  reason: string
+): Pick<GameState, 'stats' | 'dailySummary'> | null {
+  if (isNaN(amount) || !isFinite(amount)) {
+    log.error(`applyMoneyDelta: invalid amount ${amount}. Reason: ${reason}`);
+    return null;
+  }
+  const currentMoney =
+    typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) && isFinite(prev.stats.money)
+      ? prev.stats.money
+      : 0;
+  // Overdraft reject — mirrors updateMoney's B-1 atomic affordability check.
+  if (amount < 0 && currentMoney + amount < -0.01) {
+    log.warn(
+      `applyMoneyDelta rejected: insufficient funds. Has ${currentMoney}, needs ${Math.abs(amount)}. Reason: ${reason}`
+    );
+    return null;
+  }
+  const newMoney = Math.max(0, currentMoney + amount);
+  const moneyChange = newMoney - currentMoney;
+  return {
+    stats: { ...prev.stats, money: newMoney },
+    dailySummary: {
+      ...prev.dailySummary,
+      moneyChange: (prev.dailySummary?.moneyChange || 0) + moneyChange,
+      statsChange: { ...(prev.dailySummary?.statsChange || {}) },
+      events: (prev.dailySummary?.events || []).slice(-50),
+    },
+  };
+}
 
 export const batchUpdateMoney = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
@@ -84,6 +136,16 @@ export const batchUpdateMoney = (
     const currentMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) && isFinite(prev.stats.money)
       ? prev.stats.money
       : 0;
+    // R2-G: mirror the `updateMoney` overdraft rejection (P1-1). The previous
+    // `Math.max(0, ...)` silently clamped any negative result to 0, so callers
+    // could "spend" more money than they had — the goods were granted and the
+    // money just zeroed out. Any caller that intends a multi-leg transaction
+    // where one leg can fail must use a transactional pattern, not this batch
+    // helper.
+    if (totalChange < 0 && currentMoney + totalChange < -0.01) {
+      log.warn(`Rejected batch update: insufficient funds. Has: ${currentMoney}, total negative change: ${totalChange}`);
+      return prev;
+    }
     const newMoney = Math.max(0, currentMoney + totalChange);
     const actualChange = newMoney - currentMoney;
 

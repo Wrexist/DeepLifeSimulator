@@ -15,7 +15,7 @@
  *   await maybeRequestReview(gameState, isPositiveEvent);
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from './storageWrapper';
 import { GameState } from '@/contexts/game/types';
 import { logger } from './logger';
 

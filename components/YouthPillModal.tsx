@@ -1,8 +1,9 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 const LinearGradient = LinearGradientFallback;
 
@@ -13,7 +14,7 @@ interface YouthPillModalProps {
 
 export default function YouthPillModal({ visible, onClose }: YouthPillModalProps) {
   const { gameState, setGameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const youthPills = gameState.youthPills || 0;
   const currentAge = gameState.date?.age || 18;
 
@@ -165,10 +166,15 @@ const styles = StyleSheet.create({
     width: '90%',
     maxWidth: scale(400),
     boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   modalDark: {

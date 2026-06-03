@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
+import { Platform, View, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
 import { 
   responsivePadding, 
   responsiveSpacing, 
@@ -84,10 +84,15 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 3,
   },
   button: {

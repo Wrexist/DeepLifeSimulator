@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, ScrollView, Image, Alert, Share } from 'react-native';
+import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, ScrollView, Image, Alert, Share } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
 import { Skull, Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2 } from 'lucide-react-native';
 import PrestigeModal from './PrestigeModal';
 import { getCharacterImage } from '@/utils/characterImages';
@@ -16,6 +17,7 @@ import { scale, fontScale } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import LifeStoryModal from './LifeStoryModal';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 const LinearGradient = LinearGradientFallback;
 
 const { width, height } = Dimensions.get('window');
@@ -23,7 +25,11 @@ const { width, height } = Dimensions.get('window');
 function DeathPopup() {
   const { gameState, setGameState, startNewLifeFromLegacy, reviveCharacter, currentSlot, saveGame } = useGame();
   const router = useRouter();
-  const { settings, deathReason, date } = gameState;
+  // R2-A: death is the worst place to crash — onRequestClose is gated, so a
+  // settings/stats/date NPE soft-locks the player. Pull through safe accessors.
+  const settings = safeSettings(gameState);
+  const date = safeDate(gameState);
+  const { deathReason } = gameState;
   const showDeathPopup = gameState.showDeathPopup;
   
   const [showLifeStory, setShowLifeStory] = useState(false);
@@ -36,9 +42,19 @@ function DeathPopup() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
+  // P1-6: depend on specific fields rather than the whole gameState object —
+  // computeInheritance walks money + bank + properties + stocks, so the
+  // recompute is expensive and we don't want it firing on every unrelated save.
   const inheritanceSummary = useMemo(() => {
     return computeInheritance(gameState);
-  }, [gameState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    gameState.stats?.money,
+    gameState.bankSavings,
+    gameState.realEstate,
+    gameState.stocks?.holdings,
+    gameState.loans,
+  ]);
 
   const heirs = useMemo(() => {
     if (!gameState.family?.children || gameState.family.children.length === 0) return [];
@@ -171,7 +187,7 @@ function DeathPopup() {
 
   const handleRevive = () => {
     const reviveCost = REVIVE_GEM_COST;
-    if (gameState.stats.gems >= reviveCost) {
+    if (safeStats(gameState).gems >= reviveCost) {
       reviveCharacter();
     }
   };
@@ -314,7 +330,7 @@ function DeathPopup() {
   const lifetimeStats = gameState.prestige?.lifetimeStats;
   const totalRelationships = (gameState.relationships || []).length;
   const totalWeeksWorked = lifetimeStats?.totalWeeksLived || weeksLived;
-  const totalMoneyEarned = lifetimeStats?.totalMoneyEarned || gameState.stats.money || 0;
+  const totalMoneyEarned = lifetimeStats?.totalMoneyEarned || safeStats(gameState).money || 0;
   const maxNetWorth = lifetimeStats?.maxNetWorth || totalNetWorth;
   
   // Calculate career level if available
@@ -372,7 +388,7 @@ function DeathPopup() {
                       {deathSubtitle}
                     </Text>
                     <Text style={[styles.nameText, settings.darkMode && styles.nameTextDark]}>
-                      {gameState.userProfile.name || 'Unknown Soul'}
+                      {safeUserProfile(gameState).name || 'Unknown Soul'}
                     </Text>
                     <Text style={[styles.details, settings.darkMode && styles.detailsDark]}>
                       Age {age} • {yearsLived > 0 ? `${yearsLived} years lived` : `${weeksLived} weeks lived`} • {deathMessage}
@@ -383,7 +399,6 @@ function DeathPopup() {
                 {/* Life Ribbon */}
                 {lifeRibbon && (
                   <View style={[styles.ribbonBanner, { borderColor: lifeRibbon.color }]}>
-                    <Text style={styles.ribbonEmoji}>{lifeRibbon.emoji}</Text>
                     <View style={styles.ribbonTextContainer}>
                       <Text style={[styles.ribbonName, { color: lifeRibbon.color }]}>
                         {lifeRibbon.hidden && !gameState.ribbonCollection?.discoveredIds?.includes(lifeRibbon.id)
@@ -855,13 +870,13 @@ function DeathPopup() {
               {/* Actions */}
               <View style={styles.actions}>
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.reviveButton, gameState.stats.gems < REVIVE_GEM_COST && styles.disabledButton]}
+                  style={[styles.actionButton, styles.reviveButton, safeStats(gameState).gems < REVIVE_GEM_COST && styles.disabledButton]}
                   onPress={handleRevive}
-                  disabled={gameState.stats.gems < REVIVE_GEM_COST}
+                  disabled={safeStats(gameState).gems < REVIVE_GEM_COST}
                   activeOpacity={0.8}
                 >
                   <LinearGradient
-                    colors={gameState.stats.gems >= REVIVE_GEM_COST ? ['#10B981', '#059669'] : ['#9CA3AF', '#6B7280']}
+                    colors={safeStats(gameState).gems >= REVIVE_GEM_COST ? ['#10B981', '#059669'] : ['#9CA3AF', '#6B7280']}
                     style={styles.buttonGradient}
                   >
                     <Heart size={18} color="#FFF" />
@@ -963,7 +978,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10000,
+    zIndex: Z_INDEX.MODAL,
   },
   overlay: {
     position: 'absolute',
@@ -980,10 +995,15 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: scale(24),
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 24,
+      },
+    }),
     elevation: 12,
     maxHeight: height * 0.85,
     flexDirection: 'column',
@@ -1134,11 +1154,11 @@ const styles = StyleSheet.create({
     paddingVertical: scale(6),
     borderRadius: scale(8),
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   achievementBadgeDark: {
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   achievementText: {
     fontSize: fontScale(11),
@@ -1371,10 +1391,15 @@ const styles = StyleSheet.create({
     padding: scale(16),
     borderWidth: 2,
     borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   childCardDark: {
@@ -1420,11 +1445,11 @@ const styles = StyleSheet.create({
     borderRadius: scale(12),
     padding: scale(12),
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   childNetWorthCardDark: {
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   childNetWorthRow: {
     flexDirection: 'row',
@@ -1541,10 +1566,15 @@ const styles = StyleSheet.create({
     marginBottom: scale(16),
     borderWidth: 2,
     borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   heirCardDark: {
@@ -1614,11 +1644,11 @@ const styles = StyleSheet.create({
     padding: scale(12),
     marginBottom: scale(16),
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   inheritanceCardDark: {
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   inheritanceRow: {
     flexDirection: 'row',
@@ -1769,11 +1799,11 @@ const styles = StyleSheet.create({
     padding: scale(16),
     alignItems: 'center' as const,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   prestigePreviewCardDark: {
     backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderColor: 'rgba(245, 158, 11, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   prestigePointsValue: {
     fontSize: fontScale(28),
@@ -1842,7 +1872,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(245, 158, 11, 0.08)',
     borderRadius: scale(10),
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   rewindTitle: {
     fontSize: fontScale(13),

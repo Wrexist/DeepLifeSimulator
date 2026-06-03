@@ -1,8 +1,8 @@
 // Single source of truth: version from package.json
 const { version } = require('./package.json');
 // Build number can be overridden via EAS: BUILD_NUMBER env variable
-const buildNumber = process.env.BUILD_NUMBER || "98";
-const admobAppId = process.env.ADMOB_APP_ID || process.env.EXPO_PUBLIC_ADMOB_APP_ID || "ca-app-pub-2286247955186424~3290819490";
+const buildNumber = process.env.BUILD_NUMBER || "99";
+const admobAppId = process.env.ADMOB_APP_ID || process.env.EXPO_PUBLIC_ADMOB_APP_ID || "ca-app-pub-2286247955186424~7015403477";
 const admobIosAppId = process.env.ADMOB_IOS_APP_ID || process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || admobAppId;
 const admobAndroidAppId = process.env.ADMOB_ANDROID_APP_ID || process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || admobAppId;
 
@@ -33,7 +33,10 @@ module.exports = {
       bundleIdentifier: "com.deeplife.simulator",
       buildNumber: buildNumber,
       infoPlist: {
-        NSUserTrackingUsageDescription: "This app would like to track your activity to provide personalized ads and improve your experience.",
+        // NSUserTrackingUsageDescription is now provided by the
+        // expo-tracking-transparency config plugin (see `plugins` below).
+        // Listing it here would shadow the plugin's wiring of the ATT
+        // framework — keep only non-ATT keys here.
         ITSAppUsesNonExemptEncryption: false
       }
     },
@@ -83,6 +86,25 @@ module.exports = {
           androidAppId: admobAndroidAppId,
           delayAppMeasurementInit: true,
           userTrackingUsageDescription: "This identifier will be used to deliver personalized ads to you."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/images/icon.png",
+          backgroundColor: "#1a1a2e",
+          imageWidth: 200,
+          resizeMode: "contain"
+        }
+      ],
+      // P0-13: expo-tracking-transparency is installed and used at runtime
+      // (utils/trackingTransparency.ts); its config plugin wires the
+      // AppTrackingTransparency.framework linkage and NSUserTrackingUsageDescription.
+      // Hard Rule #4: never list a package in package.json without its plugin.
+      [
+        "expo-tracking-transparency",
+        {
+          userTrackingPermission: "This identifier will be used to deliver personalized ads to you."
         }
       ]
     ],

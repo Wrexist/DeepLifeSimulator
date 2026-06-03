@@ -5,8 +5,7 @@
  * Different from SkillTalentTree which is for crime skills
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   Modal,
@@ -14,8 +13,7 @@ import {
   ScrollView,
   Animated,
   Dimensions,
-  Alert,
-} from 'react-native';
+  Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
@@ -39,6 +37,7 @@ import {
   Award,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
 const LinearGradient = LinearGradientFallback;
 
@@ -399,7 +398,7 @@ interface SkillTreeModalProps {
 
 export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const [selectedCategory, setSelectedCategory] = useState<string>('career');
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
   
@@ -945,10 +944,15 @@ const styles = StyleSheet.create({
     borderRadius: scale(28),
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+    }),
     elevation: 6,
   },
   nodeLocked: {

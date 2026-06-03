@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 
@@ -46,11 +46,16 @@ const styles = StyleSheet.create({
   floatingButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
     elevation: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 20px rgba(16, 185, 129, 0.6)' } as any,
+      default: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 20,
+      },
+    }),
   },
   disabled: {
     opacity: 0.5,
@@ -63,11 +68,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     minHeight: 64,
     justifyContent: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
     elevation: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(16, 185, 129, 0.5)' } as any,
+      default: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+      },
+    }),
   },
   content: {
     flexDirection: 'row',
@@ -83,9 +93,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     flex: 1,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    ...Platform.select({
+      web: { textShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
+      },
+    }),
   },
   iconContainer: {
     width: 32,
@@ -96,10 +111,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(255, 255, 255, 0.1)' } as any,
+      default: {
+        shadowColor: '#FFFFFF',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
   },
 });

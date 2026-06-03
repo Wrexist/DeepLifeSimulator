@@ -62,7 +62,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     
     // Check if already done this week
     const weeklyActivities = gameState.weeklyJailActivities || {};
-    const currentWeek = gameState.date.week;
+    const currentWeek = gameState.weeksLived;
     const lastDoneWeek = weeklyActivities[activityId];
     if (lastDoneWeek === currentWeek) {
       Alert.alert(
@@ -125,7 +125,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               }));
               const result = performJailActivity(activityId);
               if (result) {
-                const title = result.success ? 'âœ… Activity Completed' : 'âŒ Activity Failed';
+                const title = result.success ? ' Activity Completed' : ' Activity Failed';
                 Alert.alert(title, result.message);
               }
             }
@@ -143,7 +143,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
 
     const result = performJailActivity(activityId);
     if (result) {
-      const title = result.success ? 'âœ… Activity Completed' : 'âŒ Activity Failed';
+      const title = result.success ? ' Activity Completed' : ' Activity Failed';
       Alert.alert(title, result.message);
     }
   };
@@ -188,7 +188,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     
     // Check if already done this week
     const weeklyActivities = gameState.weeklyJailActivities || {};
-    const currentWeek = gameState.date.week;
+    const currentWeek = gameState.weeksLived;
     const lastDoneWeek = weeklyActivities[activity.id];
     if (lastDoneWeek === currentWeek) return false;
     
@@ -215,7 +215,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
 
   const isActivityDoneThisWeek = (activityId: string) => {
     const weeklyActivities = gameState.weeklyJailActivities || {};
-    const currentWeek = gameState.date.week;
+    const currentWeek = gameState.weeksLived;
     const lastDoneWeek = weeklyActivities[activityId];
     return lastDoneWeek === currentWeek;
   };

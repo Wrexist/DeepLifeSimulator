@@ -12,7 +12,8 @@ import type { GameState } from '@/contexts/game/types';
 export interface RibbonDefinition {
   id: string;
   name: string;
-  emoji: string;
+  /** Legacy decorative emoji. No longer rendered by the UI — kept for save compat. */
+  emoji?: string;
   color: string;
   description: string;
   hidden: boolean;

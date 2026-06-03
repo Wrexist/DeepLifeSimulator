@@ -1,0 +1,247 @@
+/**
+ * Spark Actions — smoke tests for the dating app's action layer.
+ */
+import {
+  updateMyProfile,
+  swipeOnProfile,
+  rewindLastSwipe,
+  unmatch,
+  sendSparkMessage,
+  promoteMatchToRelationship,
+  subscribeSparkPremium,
+  cancelSparkPremium,
+  boostProfile,
+  reportProfile,
+  exposeCatfish,
+  resolveJealousy,
+} from '@/contexts/game/actions/SparkActions';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+import type { GameState } from '@/contexts/game/types';
+import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
+
+function freshState(overrides: Partial<GameState> = {}): GameState {
+  const s = createTestGameState(overrides);
+  if (s.sparkApp) s.sparkApp = JSON.parse(JSON.stringify(s.sparkApp));
+  if (s.stats) s.stats = { ...s.stats };
+  if (s.relationships) s.relationships = s.relationships.map((r) => ({ ...r }));
+  return s;
+}
+
+function makeHarness(initial: GameState) {
+  let current = initial;
+  const setGameState = (updater: any) => {
+    current = typeof updater === 'function' ? updater(current) : updater;
+  };
+  return { setGameState, getState: () => current };
+}
+
+const SAMPLE_ID = DATING_PROFILES[0].id;
+
+describe('updateMyProfile', () => {
+  it('merges patches into sparkApp.profile', () => {
+    const state = freshState({ weeksLived: 1 });
+    const { setGameState, getState } = makeHarness(state);
+    updateMyProfile(setGameState, { bio: 'hello world', interests: ['art', 'cycling'] });
+    expect(getState().sparkApp!.profile.bio).toBe('hello world');
+    expect(getState().sparkApp!.profile.interests).toEqual(['art', 'cycling']);
+  });
+});
+
+describe('swipeOnProfile', () => {
+  it('decrements quota on every swipe', () => {
+    const state = freshState({ weeksLived: 1 });
+    const { setGameState, getState } = makeHarness(state);
+    swipeOnProfile(setGameState, state, SAMPLE_ID, 'left');
+    expect(getState().sparkApp!.swipesUsedThisWeek).toBe(1);
+    swipeOnProfile(setGameState, getState(), SAMPLE_ID, 'left');
+    expect(getState().sparkApp!.swipesUsedThisWeek).toBe(2);
+  });
+
+  it('fails when out of swipes (free tier, 30/week)', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.sparkApp!.swipesUsedThisWeek = 30;
+    const { setGameState } = makeHarness(state);
+    const r = swipeOnProfile(setGameState, state, SAMPLE_ID, 'left');
+    expect(r.success).toBe(false);
+  });
+
+  it('appends a match on right-swipe when probability lands', () => {
+    const state = freshState({ weeksLived: 1 });
+    // Crank reputation way up so most swipes match
+    state.stats.reputation = 100;
+    state.userProfile.handle = 'lucky-seed';
+    const { setGameState, getState } = makeHarness(state);
+    // Try several swipes until one matches (deterministic per profile/week, but
+    // different profiles have different odds)
+    let anyMatched = false;
+    for (let i = 0; i < 5; i++) {
+      const result = swipeOnProfile(setGameState, getState(), DATING_PROFILES[i].id, 'right');
+      if (result.matched) {
+        anyMatched = true;
+        break;
+      }
+    }
+    expect(anyMatched).toBe(true);
+    expect(getState().sparkApp!.matches.length).toBeGreaterThan(0);
+    expect(getState().sparkApp!.lifetimeStats.totalMatches).toBeGreaterThan(0);
+  });
+
+  it('super-likes are gated by quota', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.sparkApp!.superLikesUsedThisWeek = 1; // free tier cap
+    const { setGameState } = makeHarness(state);
+    const r = swipeOnProfile(setGameState, state, SAMPLE_ID, 'super');
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('rewindLastSwipe', () => {
+  it('costs 20 gems on free tier', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.gems = 50;
+    const { setGameState, getState } = makeHarness(state);
+    swipeOnProfile(setGameState, getState(), SAMPLE_ID, 'left');
+    const r = rewindLastSwipe(setGameState, getState());
+    expect(r.success).toBe(true);
+    expect(getState().stats.gems).toBe(30);
+    expect(getState().sparkApp!.swipes.length).toBe(0);
+  });
+
+  it('fails when no swipes to undo', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.gems = 100;
+    const { setGameState } = makeHarness(state);
+    const r = rewindLastSwipe(setGameState, state);
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('unmatch / sendSparkMessage', () => {
+  it('unmatch removes the match and its message thread', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
+    state.sparkApp!.messages = { m1: [{ id: 'x', matchId: 'm1', from: 'player', text: 'hi', timestamp: 0, gameWeek: 1 }] };
+    const { setGameState, getState } = makeHarness(state);
+    unmatch(setGameState, 'm1');
+    expect(getState().sparkApp!.matches).toHaveLength(0);
+    expect(getState().sparkApp!.messages['m1']).toBeUndefined();
+  });
+
+  it('sendSparkMessage appends to the thread and spends energy', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.energy = 100;
+    state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
+    const { setGameState, getState } = makeHarness(state);
+    const r = sendSparkMessage(setGameState, state, 'm1', 'hey there');
+    expect(r.success).toBe(true);
+    expect(getState().sparkApp!.messages['m1']).toHaveLength(1);
+    expect(getState().sparkApp!.messages['m1'][0].text).toBe('hey there');
+    expect(getState().stats.energy).toBe(98);
+  });
+
+  it('sendSparkMessage rejects empty content', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.energy = 100;
+    state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
+    const { setGameState } = makeHarness(state);
+    expect(sendSparkMessage(setGameState, state, 'm1', '   ').success).toBe(false);
+  });
+});
+
+describe('promoteMatchToRelationship', () => {
+  it('adds a partner relationship and flips match.promoted', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
+    const { setGameState, getState } = makeHarness(state);
+    const r = promoteMatchToRelationship(setGameState, state, 'm1');
+    expect(r.success).toBe(true);
+    expect(getState().relationships!.some((rel) => rel.id === 'm1' && rel.type === 'partner')).toBe(true);
+    expect(getState().sparkApp!.matches[0].promoted).toBe(true);
+  });
+
+  it('fails if already promoted', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: true }];
+    const { setGameState } = makeHarness(state);
+    const r = promoteMatchToRelationship(setGameState, state, 'm1');
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('premium subscription', () => {
+  it('subscribeSparkPremium activates tier and perks', () => {
+    const state = freshState({ weeksLived: 1 });
+    const { setGameState, getState } = makeHarness(state);
+    subscribeSparkPremium(setGameState, 'ultra', 'deeplife_spark_ultra_monthly', Date.now() + 30 * 86400_000);
+    const sp = getState().sparkApp!;
+    expect(sp.premium.active).toBe(true);
+    expect(sp.premium.tier).toBe('ultra');
+    expect(sp.premium.perks.unlimitedSwipes).toBe(true);
+    expect(sp.premium.perks.seeWhoLikedYou).toBe(true);
+    expect(sp.premium.perks.boostMultiplier).toBe(2.5);
+    expect(sp.lifetimeStats.peakPremiumTier).toBe('ultra');
+  });
+
+  it('cancel reverts perks to free', () => {
+    const state = freshState({ weeksLived: 1 });
+    const { setGameState, getState } = makeHarness(state);
+    subscribeSparkPremium(setGameState, 'plus', 'sku', Date.now() + 30 * 86400_000);
+    cancelSparkPremium(setGameState);
+    expect(getState().sparkApp!.premium.active).toBe(false);
+    expect(getState().sparkApp!.premium.tier).toBe('free');
+    expect(getState().sparkApp!.premium.perks.unlimitedSwipes).toBe(false);
+  });
+});
+
+describe('boost / catfish / jealousy', () => {
+  it('boostProfile spends 50 gems and activates boost', () => {
+    const state = freshState({ weeksLived: 5 });
+    state.stats.gems = 200;
+    const { setGameState, getState } = makeHarness(state);
+    const r = boostProfile(setGameState, state);
+    expect(r.success).toBe(true);
+    expect(getState().sparkApp!.boost!.active).toBe(true);
+    expect(getState().sparkApp!.boost!.expiresWeek).toBe(6);
+    expect(getState().stats.gems).toBe(150);
+  });
+
+  it('reportProfile adds id and unmatches', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
+    const { setGameState, getState } = makeHarness(state);
+    reportProfile(setGameState, SAMPLE_ID);
+    expect(getState().sparkApp!.reportedIds).toContain(SAMPLE_ID);
+    expect(getState().sparkApp!.matches).toHaveLength(0);
+  });
+
+  it('exposeCatfish grants reputation', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.reputation = 20;
+    const { setGameState, getState } = makeHarness(state);
+    const r = exposeCatfish(setGameState, state, SAMPLE_ID);
+    expect(r.success).toBe(true);
+    expect(getState().stats.reputation).toBe(25);
+    expect(getState().sparkApp!.lifetimeStats.totalCatfishExposed).toBe(1);
+  });
+
+  it('resolveJealousy applies effects and clears the event', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.reputation = 50;
+    state.relationships = [{ id: 'p1', name: 'Alex', type: 'partner', relationshipScore: 60 } as any];
+    state.sparkApp!.activeJealousy = {
+      id: 'j1',
+      partnerId: 'p1',
+      triggerType: 'spotted_swiping',
+      severity: 60,
+      startedWeek: 1,
+      resolved: false,
+    };
+    const { setGameState, getState } = makeHarness(state);
+    const r = resolveJealousy(setGameState, state, 'admitted');
+    expect(r.success).toBe(true);
+    expect(getState().sparkApp!.activeJealousy).toBeNull();
+    expect(getState().sparkApp!.jealousyHistory).toHaveLength(1);
+    expect(getState().relationships![0].relationshipScore).toBe(40); // -20
+    expect(getState().stats.reputation).toBe(47);                    // -3
+  });
+});

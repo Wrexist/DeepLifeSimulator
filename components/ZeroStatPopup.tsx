@@ -27,9 +27,19 @@ export default function ZeroStatPopup() {
     return true;
   };
 
-  // Auto-dismiss if popup state is invalid (corrupted save)
+  // Auto-dismiss if popup state is invalid (corrupted save).
+  // P1-17: guard with a per-show-cycle key so we don't re-fire dismissStatWarning
+  // on every related state change after the first dismiss.
+  const autoDismissedForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (showZeroStatPopup && !isValidPopupState()) {
+    if (!showZeroStatPopup) {
+      autoDismissedForRef.current = null;
+      return;
+    }
+    const cycleKey = `${zeroStatType ?? 'none'}`;
+    if (autoDismissedForRef.current === cycleKey) return;
+    if (!isValidPopupState()) {
+      autoDismissedForRef.current = cycleKey;
       log.warn('Auto-dismissing invalid zero stat popup state');
       dismissStatWarning();
     }
@@ -63,14 +73,14 @@ export default function ZeroStatPopup() {
     // Prevent multiple calls
     if (dismissedRef.current) return;
     dismissedRef.current = true;
-    
+
     // Immediately hide locally to prevent overlay from blocking
     setLocalDismissed(true);
-    
-    // Update global state - use setTimeout to ensure it happens after render
-    setTimeout(() => {
-      dismissStatWarning();
-    }, 0);
+
+    // P1-16: call directly — the previous `setTimeout(…, 0)` deferred the
+    // global dismiss until after the modal had unmounted on click, producing
+    // "setState on an unmounted component" warnings (the second orange banner).
+    dismissStatWarning();
   };
 
   return (

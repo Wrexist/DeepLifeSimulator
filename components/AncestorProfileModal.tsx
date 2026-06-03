@@ -1,9 +1,10 @@
 import React from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { Platform, Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, User, Star, Brain } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from '@/utils/safeGameState';
 const LinearGradient = LinearGradientFallback;
 
 const { height } = Dimensions.get('window');
@@ -16,7 +17,7 @@ interface Props {
 
 export default function AncestorProfileModal({ member, visible, onClose }: Props) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState);
 
   if (!member) return null;
 
@@ -167,10 +168,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.05)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 2,
   },
   cardDark: {

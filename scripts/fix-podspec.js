@@ -159,6 +159,18 @@ if (!follyPatched) {
   // This is not an error - the file might not exist until after pod install
 }
 
+// Expo Go / Metro sometimes request assets/icon.png; app.config uses assets/images/icon.png
+const iconSource = path.join(__dirname, '..', 'assets', 'images', 'icon.png');
+const iconTarget = path.join(__dirname, '..', 'assets', 'icon.png');
+if (fs.existsSync(iconSource) && !fs.existsSync(iconTarget)) {
+  try {
+    fs.copyFileSync(iconSource, iconTarget);
+    patchesApplied.push('assets/icon.png');
+  } catch (error) {
+    errors.push(`assets/icon.png: ${error.message}`);
+  }
+}
+
 // Summary
 console.log(`\n[${getTimestamp()}] Patching summary:`);
 if (patchesApplied.length > 0) {

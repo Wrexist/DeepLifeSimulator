@@ -1,14 +1,12 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import {
-  Modal,
+import { Platform, Modal,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Animated,
   ScrollView,
-  Dimensions,
-} from 'react-native';
+  Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, Crown, Award, TrendingUp, Unlock, Settings, Star, Check, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -391,10 +389,15 @@ const styles = StyleSheet.create({
   content: {
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   header: {

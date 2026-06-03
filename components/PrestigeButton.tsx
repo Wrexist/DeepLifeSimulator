@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Crown, Sparkles } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -179,10 +179,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     minHeight: 44,
     gap: 8,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(245, 158, 11, 0.3)' } as any,
+      default: {
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 6,
   },
   glowContainer: {

@@ -15,18 +15,32 @@ export const MAX_CHECKPOINTS = 5;
 export const BASE_REWIND_COST = 500;
 export const COST_MULTIPLIER = 2;
 
+/**
+ * A checkpoint snapshot.
+ *
+ * - New checkpoints store the state slice as a plain object — when the parent
+ *   GameState is JSON.stringify'd for save, the snapshot serializes natively
+ *   without double-encoding the inner JSON (which adds ~30-50% size in escape
+ *   sequences). MAX_CHECKPOINTS=5 in a ~100KB state previously meant ~150KB
+ *   of redundant escapes inside every save.
+ * - Legacy saves may contain `snapshot: string` (JSON-encoded). `rewindToCheckpoint`
+ *   handles both transparently.
+ */
+export type CheckpointSnapshot = Partial<GameState> | string;
+
 export interface Checkpoint {
   id: string;
   label: string;
   weeksLived: number;
   age: number;
   timestamp: number;
-  snapshot: string; // JSON.stringify of GameState (minus checkpoints)
+  snapshot: CheckpointSnapshot;
 }
 
 /**
  * Create a checkpoint from the current game state.
- * Strips the checkpoints field from the snapshot to prevent recursion.
+ * Strips the checkpoints field from the snapshot to prevent recursion,
+ * and other transient fields (popup flags, weekResult) that aren't needed for restore.
  */
 export function createCheckpoint(
   state: GameState,
@@ -36,13 +50,20 @@ export function createCheckpoint(
   // Destructure known transient fields from GameState — remaining fields form the snapshot
   const { checkpoints, weekResult, showDeathPopup, showZeroStatPopup, pendingCliffhanger, ...snapshotData } = state;
 
+  // Deep-clone so the checkpoint is a point-in-time snapshot. A shallow copy
+  // shares sub-object references with the live state, which means later
+  // mutations would leak into the "frozen" checkpoint and break rewind.
+  // We use JSON round-trip rather than structuredClone so the output is
+  // guaranteed to match what save serialization will see.
+  const frozen = JSON.parse(JSON.stringify(snapshotData)) as Partial<GameState>;
+
   return {
     id: `cp_${state.weeksLived ?? 0}_${Date.now()}`,
     label,
     weeksLived: state.weeksLived ?? 0,
     age: Math.floor(state.date?.age ?? 18),
     timestamp: Date.now(),
-    snapshot: JSON.stringify(snapshotData),
+    snapshot: frozen,
   };
 }
 
@@ -99,7 +120,33 @@ export function rewindToCheckpoint(
   }
 
   try {
-    const restored = JSON.parse(checkpoint.snapshot) as GameState;
+    // Backwards-compat: legacy saves stored snapshot as a JSON string;
+    // new saves store it as an object (already deep-cloned at creation time).
+    // Either way, we clone on rewind so the restored state is independent of
+    // the checkpoint and safe for callers to mutate.
+    const rawSnapshot: any = typeof checkpoint.snapshot === 'string'
+      ? JSON.parse(checkpoint.snapshot)
+      : JSON.parse(JSON.stringify(checkpoint.snapshot));
+
+    // R2-C: migrate the checkpoint snapshot through any state-version bumps that
+    // have happened since it was captured. Previously, a checkpoint taken at
+    // STATE_VERSION 14 (no banking.creditScore, no socialMedia.verifiedPro,
+    // etc.) was restored verbatim into the v18 schema — every screen that
+    // dereferenced the new fields then crashed and the player black-screened.
+    // Run the same migration + repair pipeline used on load.
+    let migrated: any = rawSnapshot;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { runMigrations } = require('@/utils/saveMigrations');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { repairGameState } = require('@/utils/saveValidation');
+      const migrationResult = runMigrations(migrated);
+      migrated = migrationResult?.state ?? migrated;
+      repairGameState(migrated);
+    } catch (migrationError) {
+      logger.warn('[TIME_MACHINE] Checkpoint migration failed; restoring raw snapshot', { error: migrationError });
+    }
+    const restored: GameState = migrated as GameState;
 
     // Preserve cross-life data from current state
     restored.ribbonCollection = currentState.ribbonCollection;

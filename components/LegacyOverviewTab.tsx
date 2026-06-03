@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, Users, BookOpen, Crown, TrendingUp, Activity, Brain } from 'lucide-react-native';
 import FamilyTreeModal from './FamilyTreeModal';
@@ -17,7 +18,7 @@ interface Props {
 
 export default function LegacyOverviewTab({ visible, onClose }: Props) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const [showTree, setShowTree] = useState(false);
   const [showMemories, setShowMemories] = useState(false);
 

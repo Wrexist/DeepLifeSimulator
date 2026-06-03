@@ -27,7 +27,11 @@ interface LoggerConfig {
 
 class Logger {
   private config: LoggerConfig = {
-    level: __DEV__ ? LogLevel.DEBUG : LogLevel.INFO,
+    // R2-D: production level was INFO, which caused 16+ `logger.info(...)` calls
+    // inside `nextWeek` to construct strings + push to the remote-logger ring
+    // buffer on every week-advance. Setting prod to WARN drops those calls to
+    // a single early-exit branch in `shouldLog`. Dev still gets DEBUG.
+    level: __DEV__ ? LogLevel.DEBUG : LogLevel.WARN,
     enableConsole: true, // Always enable console for now to ensure logs are visible
     enableSentry: false,
     enableRemoteLogging: true, // Enable internal remote logger by default for in-app viewing
@@ -76,7 +80,14 @@ class Logger {
    */
   error(message: string, error?: Error | unknown, context?: LogContext): void {
     if (this.shouldLog(LogLevel.ERROR)) {
-      this.log(LogLevel.ERROR, message, { ...context, error });
+      // BUGFIX: spreading undefined still leaves `error: undefined` as a key
+      // in the context object, causing every error log to show the noisy
+      // `{"error": undefined}` metadata.
+      const merged: LogContext = { ...(context ?? {}) };
+      if (error !== undefined) {
+        merged.error = error;
+      }
+      this.log(LogLevel.ERROR, message, merged);
     }
   }
 

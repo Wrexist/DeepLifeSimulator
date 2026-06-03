@@ -1,6 +1,9 @@
-import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { View, StyleSheet, ScrollView, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { Animated, Easing, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Briefcase, ChevronRight } from 'lucide-react-native';
+// expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
+const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
@@ -14,7 +17,7 @@ import PrestigeModal from '@/components/PrestigeModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
 import PrestigeInfoModal from '@/components/PrestigeInfoModal';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
@@ -34,6 +37,50 @@ function HomeScreen() {
     <ErrorBoundary>
       <HomeScreenContent />
     </ErrorBoundary>
+  );
+}
+
+/**
+ * Hero strip — small, refined status line at the very top of the home tab.
+ *   MARCH  •  WEEK 3  •  AGE 23
+ * The dot before WEEK breathes (opacity 0.45 ↔ 1) to signal "live" without
+ * adding visual noise to the rest of the screen.
+ */
+function HeroStrip({ month, week, age }: { month: string; week: number; age: number }) {
+  const pulse = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 1400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <View style={styles.heroRow}>
+      <Text style={styles.heroSegment}>{month.toUpperCase()}</Text>
+      <View style={styles.heroSeparator} />
+      <View style={styles.heroLiveCluster}>
+        <Animated.View style={[styles.heroLiveDot, { opacity: pulse }]} />
+        <Text style={styles.heroSegment}>WEEK {week}</Text>
+      </View>
+      <View style={styles.heroSeparator} />
+      <Text style={styles.heroSegment}>AGE {age}</Text>
+    </View>
   );
 }
 
@@ -65,9 +112,8 @@ function HomeScreenContent() {
   }, [gameState.jailWeeks, router]);
 
   // Check for goal completion — only re-evaluate on week advance or job change
-  // Using weeksLived (not stats) prevents cascading re-renders when reward changes stats
   useEffect(() => {
-    if (showGoalCompletion) return; // Already showing a completion popup
+    if (showGoalCompletion) return;
 
     const { completedGoal: newCompletedGoal, nextGoal: newNextGoal } = checkGoalCompletion(gameState);
 
@@ -76,10 +122,8 @@ function HomeScreenContent() {
       setNextGoal(newNextGoal);
       setShowGoalCompletion(true);
 
-      // Apply reward inside updater to avoid stale closure on gameState.stats
       const reward = newCompletedGoal.reward;
       setGameState(prev => {
-        // Guard: skip if already completed (prevents double-processing)
         if ((prev.completedGoals || []).includes(newCompletedGoal.id)) return prev;
 
         const freshStats = { ...prev.stats };
@@ -109,32 +153,25 @@ function HomeScreenContent() {
     }
   }, [gameState.weeksLived, gameState.week, gameState.currentJob, gameState.bankSavings, gameState.completedGoals]);
 
-  // Show tutorial for new users (replaces the old WelcomePopup)
+  // Show tutorial for new users
   useEffect(() => {
     if (!hasCompletedTutorial && (gameState.weeksLived || 0) <= 1 && gameState.showWelcomePopup) {
-      // Dismiss welcome popup immediately to prevent overlap
       dismissWelcomePopup();
-
-      // Small delay to ensure the screen is fully loaded before starting tutorial
       const timer = setTimeout(() => {
         startTutorial(getEnhancedTutorialSteps('game'));
       }, 500);
-
       return () => clearTimeout(timer);
     }
     return undefined;
   }, [hasCompletedTutorial, gameState.week, gameState.showWelcomePopup, startTutorial, dismissWelcomePopup]);
 
   // ENGAGEMENT: Daily login reward with streak system
-  // Forgiving streak: 48-hour grace period so missing one day doesn't break the streak
   useEffect(() => {
     if ((gameState.weeksLived || 0) < 1 || !hasCompletedTutorial) return undefined;
-    if (gameState.showDailyRewardPopup) return undefined; // Already showing
+    if (gameState.showDailyRewardPopup) return undefined;
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     const lastRewardDate = gameState.lastLoginRewardDate;
-
-    // Already claimed today
     if (lastRewardDate === today) return undefined;
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -146,9 +183,8 @@ function HomeScreenContent() {
     if (lastLogin) {
       const hoursSinceLast = (Date.now() - new Date(lastLogin).getTime()) / (1000 * 60 * 60);
       if (hoursSinceLast <= LOGIN_STREAK_GRACE_HOURS) {
-        newStreak = currentStreak + 1; // Continue streak
+        newStreak = currentStreak + 1;
       }
-      // else: streak resets to 1 (missed > 48 hours)
     }
 
     const rewardIndex = (newStreak - 1) % DAILY_LOGIN_REWARDS.length;
@@ -164,15 +200,15 @@ function HomeScreenContent() {
         lastLoginRewardDate: today,
         stats: {
           ...prev.stats,
-          gems: (prev.stats?.gems || 0) + gemReward, // Escalating 7-day cycle
+          gems: (prev.stats?.gems || 0) + gemReward,
         },
       }));
-    }, 800); // Small delay for smooth UX
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [gameState.weeksLived, gameState.lastLoginRewardDate, hasCompletedTutorial, gameState.showDailyRewardPopup]);
 
-  // Show welcome back popup for returning players (NOT for new players)
+  // Show welcome back popup for returning players
   useEffect(() => {
     if ((gameState.weeksLived || 0) > 1 && gameState.lastLogin) {
       const lastLogin = gameState.lastLogin || Date.now();
@@ -181,8 +217,7 @@ function HomeScreenContent() {
       if (hoursAway > 6 && !gameState.showDailyRewardPopup && !showWelcomeBack && hasCompletedTutorial) {
         const timer = setTimeout(() => {
           setShowWelcomeBack(true);
-        }, 1500); // Delay more to show after daily reward
-
+        }, 1500);
         return () => clearTimeout(timer);
       }
     }
@@ -191,17 +226,36 @@ function HomeScreenContent() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Subtle ambient depth — barely-there gradient washes from indigo at the
+          top to nothing past the first card, then a deep shade at the bottom. */}
+      <LinearGradient
+        colors={['rgba(99, 102, 241, 0.07)', 'rgba(99, 102, 241, 0)']}
+        style={styles.topGlow}
+        pointerEvents="none"
+      />
+      <LinearGradient
+        colors={['rgba(2, 6, 23, 0)', 'rgba(2, 6, 23, 0.55)']}
+        style={styles.bottomShade}
+        pointerEvents="none"
+      />
+
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={{
           paddingBottom: scale(100) + insets.bottom,
-          paddingTop: scale(8),
+          paddingTop: scale(4),
           paddingHorizontal: responsivePadding.horizontal,
         }}
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled={true}
       >
+        <HeroStrip
+          month={gameState.date?.month || 'January'}
+          week={gameState.date?.week || 1}
+          age={Math.floor(gameState.date?.age ?? 18)}
+        />
+
         <FadeInUp delay={0}>
           <IdentityCard />
         </FadeInUp>
@@ -214,9 +268,7 @@ function HomeScreenContent() {
           />
         )}
 
-        {/* FTUE: prominent "Find Your First Job" CTA for brand-new players
-            who have not yet earned money any way. Goes away as soon as they
-            have a career or have completed even one street job. */}
+        {/* FTUE: prominent "Find Your First Job" CTA for brand-new players. */}
         {(() => {
           const weeksLived = gameState.weeksLived || 0;
           const hasJob = !!gameState.currentJob;
@@ -231,15 +283,15 @@ function HomeScreenContent() {
                 activeOpacity={0.85}
               >
                 <View style={styles.findJobIconBubble}>
-                  <Briefcase size={scale(22)} color="#10B981" />
+                  <Briefcase size={scale(20)} color="#34D399" />
                 </View>
                 <View style={styles.findJobTextWrap}>
                   <Text style={styles.findJobTitle}>Find your first job</Text>
                   <Text style={styles.findJobSubtitle}>
-                    Tap to open the Work tab — street jobs pay 2-4× more than entry careers.
+                    Street jobs pay 2–4× more than entry careers.
                   </Text>
                 </View>
-                <ChevronRight size={scale(18)} color="#10B981" />
+                <ChevronRight size={scale(16)} color="rgba(52, 211, 153, 0.85)" />
               </TouchableOpacity>
             </FadeInUp>
           );
@@ -259,21 +311,18 @@ function HomeScreenContent() {
           />
         )}
 
-        {/* Prestige Preview Card - Show if player hasn't prestiged yet.
-            Hide for brand-new players: prestige is an abstract end-game
-            concept and lands like noise in the first session. */}
+        {/* Prestige Preview Card - hidden in the first 5 weeks. */}
         {(!gameState.prestige || gameState.prestige.prestigeLevel === 0) &&
           (gameState.weeksLived || 0) > 5 && (
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
 
-        {/* Active Goals Section - Enhanced with parallel goals */}
+        {/* Active Goals Section */}
         <FadeInUp delay={60}>
           <ActiveGoalsCard compact={false} />
         </FadeInUp>
 
-        {/* Discovery Progress Indicator. Hidden in the first few weeks so
-            the home screen isn't a wall of cards for first-time players. */}
+        {/* Discovery Progress Indicator. Hidden in the first few weeks. */}
         {(gameState.weeksLived || 0) > 5 && (
           <DiscoveryIndicator
             gameState={gameState}
@@ -286,7 +335,7 @@ function HomeScreenContent() {
           <AchievementsProgress />
         </FadeInUp>
 
-        {/* First Week Guide - Tutorial for new players */}
+        {/* First Week Guide — leave space so the overlay doesn't clip cards. */}
         {(gameState.weeksLived || 0) <= 3 && !hasCompletedTutorial && (
           <View style={{ height: 200 }} />
         )}
@@ -296,7 +345,6 @@ function HomeScreenContent() {
       {gameState.weeksLived <= 3 && !hasCompletedTutorial && (
         <FirstWeekGuide currentWeek={gameState.weeksLived} />
       )}
-
 
       <Suspense fallback={null}>
         <GoalCompletionPopup
@@ -323,29 +371,15 @@ function HomeScreenContent() {
           visible={showWelcomeBack}
           onClose={() => {
             setShowWelcomeBack(false);
-            // Update lastLogin to prevent popup from showing again
-            setGameState(prev => ({
-              ...prev,
-              lastLogin: Date.now(),
-            }));
+            setGameState(prev => ({ ...prev, lastLogin: Date.now() }));
           }}
         />
       </Suspense>
 
-
       {/* Prestige Modals */}
-      <PrestigeModal
-        visible={showPrestigeModal}
-        onClose={() => setShowPrestigeModal(false)}
-      />
-      <PrestigeShopModal
-        visible={showPrestigeShop}
-        onClose={() => setShowPrestigeShop(false)}
-      />
-      <PrestigeInfoModal
-        visible={showPrestigeInfo}
-        onClose={() => setShowPrestigeInfo(false)}
-      />
+      <PrestigeModal visible={showPrestigeModal} onClose={() => setShowPrestigeModal(false)} />
+      <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
+      <PrestigeInfoModal visible={showPrestigeInfo} onClose={() => setShowPrestigeInfo(false)} />
     </View>
   );
 }
@@ -353,131 +387,79 @@ function HomeScreenContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
-  },
-  containerDark: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#020617',
   },
   scrollContainer: {
     flex: 1,
   },
-  infoSection: {
-    padding: responsivePadding.large,
+  topGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: scale(220),
   },
-  sectionTitle: {
-    fontSize: responsiveFontSize['2xl'],
+  bottomShade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: scale(200),
+  },
+
+  // Hero strip ---------------------------------------------------------------
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(8),
+    marginBottom: verticalScale(8),
+    gap: scale(10),
+  },
+  heroSegment: {
+    fontSize: fontScale(10),
     fontWeight: '700',
-    color: '#F9FAFB',
-    marginBottom: responsiveSpacing.lg,
-    textShadowColor: 'transparent',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 0,
-    letterSpacing: -0.5,
+    letterSpacing: 1.2,
+    color: 'rgba(226, 232, 240, 0.62)',
+    fontVariant: ['tabular-nums'],
   },
-  statusCard: {
-    backgroundColor: '#374151',
-    padding: responsiveSpacing.lg,
-    borderRadius: responsiveBorderRadius.lg,
-    marginBottom: responsiveSpacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 0,
-    borderColor: 'transparent',
+  heroSeparator: {
+    width: scale(3),
+    height: scale(3),
+    borderRadius: scale(1.5),
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
   },
-  statusText: {
-    fontSize: responsiveFontSize.lg,
-    color: '#D1D5DB',
-    fontWeight: '500',
-  },
-  nextGoalCard: {
-    margin: responsiveSpacing.lg,
-    marginBottom: responsiveSpacing.md,
-    padding: responsiveSpacing.lg,
-    backgroundColor: '#1F2937',
-    borderRadius: responsiveBorderRadius.xl,
-    borderLeftWidth: 4,
-    borderLeftColor: '#60A5FA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 0,
-  },
-  nextGoalHeader: {
+  heroLiveCluster: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.sm,
+    gap: scale(6),
   },
-  nextGoalIcon: {
-    marginRight: responsiveSpacing.sm,
-    // Light mode: subtle icon shadow
-    shadowColor: 'rgba(59, 130, 246, 0.2)',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 2,
+  heroLiveDot: {
+    width: scale(5),
+    height: scale(5),
+    borderRadius: scale(3),
+    backgroundColor: '#34D399',
   },
-  nextGoalTitle: {
-    fontSize: responsiveFontSize.lg,
-    fontWeight: '600',
-    color: '#F9FAFB',
-    letterSpacing: -0.3,
-  },
-  nextGoalDescription: {
-    fontSize: responsiveFontSize.sm,
-    color: '#9CA3AF',
-    lineHeight: 22,
-    marginBottom: responsiveSpacing.sm,
-    fontWeight: '400',
-  },
-  nextGoalProgress: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  nextGoalProgressText: {
-    fontSize: responsiveFontSize.sm,
-    color: '#D1D5DB',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  nextGoalProgressBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#4B5563',
-    borderRadius: responsiveBorderRadius.md,
-    marginLeft: responsiveSpacing.md,
-    overflow: 'hidden',
-    shadowColor: 'transparent',
-  },
-  nextGoalProgressFill: {
-    height: '100%',
-    backgroundColor: '#60A5FA',
-    borderRadius: responsiveBorderRadius.md,
-    shadowColor: 'transparent',
-  },
+
+  // Find-job CTA — premium glass, neutral border, accent only on the icon
   findJobCta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: responsiveSpacing.lg,
-    marginTop: responsiveSpacing.md,
-    marginBottom: responsiveSpacing.sm,
-    padding: responsiveSpacing.lg,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1.5,
-    borderColor: 'rgba(16, 185, 129, 0.5)',
-    gap: responsiveSpacing.md,
+    marginVertical: verticalScale(6),
+    padding: responsiveSpacing.md,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    borderRadius: responsiveBorderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: scale(12),
   },
   findJobIconBubble: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: scale(22),
-    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(12),
+    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(52, 211, 153, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -485,32 +467,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   findJobTitle: {
-    fontSize: responsiveFontSize.lg,
+    fontSize: fontScale(15),
     fontWeight: '700',
-    color: '#ECFDF5',
+    color: '#F8FAFC',
     letterSpacing: -0.2,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   findJobSubtitle: {
-    fontSize: responsiveFontSize.sm,
-    color: '#A7F3D0',
-    lineHeight: 18,
-  },
-  rewardPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: responsiveSpacing.sm,
-    padding: responsiveSpacing.sm,
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderRadius: responsiveBorderRadius.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: '#F59E0B',
-  },
-  rewardText: {
-    fontSize: responsiveFontSize.sm,
-    fontWeight: '600',
-    color: '#D1D5DB',
-    marginLeft: responsiveSpacing.xs,
+    fontSize: fontScale(12),
+    color: 'rgba(226, 232, 240, 0.65)',
+    lineHeight: fontScale(17),
   },
 });
 

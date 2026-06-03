@@ -1,1339 +1,500 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+/**
+ * BankApp — mobile (phone-style) banking screen.
+ *
+ * Remake (STATE_VERSION 14). Slim mobile counterpart to AdvancedBankApp:
+ * single scrolling view with the most-used flows surfaced first
+ * (overview → accounts → borrow → bills).
+ *
+ * Shares all primitives and modals with AdvancedBankApp under
+ * `components/banking/*` and `lib/banking/*` — no logic duplication.
+ */
+
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
-  Alert,
-  Image,
-  Keyboard,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import {
-  responsiveFontSize,
-  responsiveSpacing,
-  responsiveBorderRadius,
-  scale,
-} from '@/utils/scaling';
+  ArrowLeft,
+  Wallet,
+  PiggyBank,
+  TrendingUp,
+  Plus,
+} from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { GameState, Loan } from '@/contexts/game/types';
-import { PiggyBank, Wallet, ArrowLeft, Info, CreditCard, TrendingUp, Crown, CheckCircle } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { iapService } from '@/services/IAPService';
-import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
-import { useFeedback } from '@/utils/feedbackSystem';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { getThemeColors, accent } from '@/lib/config/theme';
+import { initialGameState } from '@/contexts/game/initialState';
+
+import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
+import AccountRow from '@/components/banking/AccountRow';
+import LoanRow from '@/components/banking/LoanRow';
+import CreditCardRow from '@/components/banking/CreditCardRow';
+import BillPayRow from '@/components/banking/BillPayRow';
+import SavingsGoalCard from '@/components/banking/SavingsGoalCard';
+import AmountInputModal from '@/components/banking/AmountInputModal';
+import OpenAccountModal from '@/components/banking/OpenAccountModal';
+import LoanQuoteModal from '@/components/banking/LoanQuoteModal';
+import ApplyCardModal from '@/components/banking/ApplyCardModal';
+import AddBillModal from '@/components/banking/AddBillModal';
+
+import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '@/contexts/game/types';
 import {
-  SAVINGS_APR_BASE,
-  SAVINGS_APR_FINANCIAL_PLANNING,
-} from '@/lib/economy/constants';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
-import { getMarketAPRForGameWeek } from '@/utils/bankMarketAPR';
-const LinearGradient = LinearGradientFallback;
+  depositCashToAccount,
+  withdrawCashFromAccount,
+  openNewAccount,
+  applyForCard,
+  payDownCard,
+  addBill,
+  removeBill,
+  contributeToSavingsGoal,
+  createSavingsGoal,
+} from '@/contexts/game/actions/BankingActions';
+import { acceptLoan, prepayLoan } from '@/contexts/game/actions/LoanActions';
 
-// Prefer expo-router for navigation; gracefully fall back if unavailable.
-let useRouterHook:
-  | undefined
-  | (() => { back: () => void; replace: (p: string) => void; canGoBack?: () => boolean });
-try {
-   
-  const mod = require('expo-router');
-  useRouterHook = mod?.useRouter;
-} catch {
-  useRouterHook = undefined;
-}
-
-/* =========================
-   CONFIG
-   ========================= */
-const SAVINGS_APR = SAVINGS_APR_BASE;
-const PREMIUM_SAVINGS_APR = SAVINGS_APR_FINANCIAL_PLANNING;
-const EARLY_FULL_PAY_DISCOUNT = 0.03;     // 3% discount when fully repaying a loan
-const MAX_DEBT_TO_FUNDS = 5;              // Total debt cap = 5 × (cash + savings)
-const LOAN_CAP_NET_WORTH_RATIO = 0.15;    // Single loan cap = 15% of net worth
-const MIN_LOAN_FLOOR = 1000;              // Minimum loan
-const TERM_OPTIONS = [32, 64] as const;   // Allowed terms (weeks)
-const HOME_MOBILE_ROUTE = '/(mobile)/apps';
-const HOME_COMPUTER_ROUTE = '/(computer)/apps';
-const HOME_FALLBACK = '/(tabs)/home';
-
-/* =========================
-   TYPES
-   ========================= */
-type Numberish = number | string;
-type TabKey = 'savings' | 'loans' | 'services';
-type RepaySource = 'cash' | 'bank'; // manual repayment source
-
-
-/* =========================
-   UTILS
-   ========================= */
-function toNumberSafe(v: Numberish): number {
-  const n = typeof v === 'string' ? v.replace(',', '.').trim() : v;
-  const parsed = Number(n);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-function clampNonNeg(n: number) {
-  return Math.max(0, Math.round(n));
-}
-function formatMoney(n: number): string {
-  const a = Math.floor(Math.abs(n) || 0);
-  const sign = n < 0 ? '-' : '';
-  
-  let formatted: string;
-  
-  if (a >= 1_000_000_000_000_000) {
-    // Quadrillions (Q)
-    formatted = `${(a / 1_000_000_000_000_000).toFixed(2)}Q`;
-  } else if (a >= 1_000_000_000_000) {
-    // Trillions (T)
-    formatted = `${(a / 1_000_000_000_000).toFixed(2)}T`;
-  } else if (a >= 1_000_000_000) {
-    // Billions (B)
-    formatted = `${(a / 1_000_000_000).toFixed(2)}B`;
-  } else if (a >= 1_000_000) {
-    // Millions (M)
-    formatted = `${(a / 1_000_000).toFixed(2)}M`;
-  } else if (a > 10_000) {
-    // Thousands (K) - only for numbers above 10,000
-    formatted = `${(a / 1_000).toFixed(2)}K`;
-  } else {
-    // Regular numbers (0-10,000) - show full number
-    formatted = a.toLocaleString();
-  }
-  
-  // Remove trailing zeros and decimal point if not needed
-  formatted = formatted.replace(/\.00$/, '').replace(/\.0$/, '');
-  
-  return `${sign}${formatted}`;
-}
-function amortizedInstallment(principal: number, weeklyRate: number, termWeeks: number): number {
-  if (termWeeks <= 0) return principal; // safety
-  if (weeklyRate <= 0) return Math.max(principal / termWeeks, principal * 0.001); // At least 0.1% per week
-  
-  // BUG FIX: Use more stable formula for long terms to prevent zero payments
-  // A = P * r / (1 - (1 + r)^-n)
-  const r = weeklyRate;
-  const n = termWeeks;
-  const denom = 1 - Math.pow(1 + r, -n);
-  
-  if (denom === 0 || denom < 0.0001) {
-    // Fallback for very small denominators (very long terms)
-    return Math.max(principal / termWeeks, principal * 0.001); // At least 0.1% per week
-  }
-  
-  const payment = principal * (r / denom);
-  
-  // BUG FIX: Ensure minimum payment to prevent zero debt issue
-  // At least 0.1% of principal per week ensures debt is paid down
-  return Math.max(payment, principal * 0.001);
-}
-
-/* =========================
-   COMPONENT
-   ========================= */
 interface BankAppProps {
   onBack: () => void;
 }
 
-export default function BankApp({ onBack }: BankAppProps) {
+function formatMoney(n: number): string {
+  if (!isFinite(n)) return '$0';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
+  return `$${Math.round(n).toLocaleString()}`;
+}
+
+function BankAppInner({ onBack }: BankAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  
-  // All hooks must be called before any early returns
-  const [activeTab, setActiveTab] = useState<TabKey>('savings');
-  const [savings, setSavings] = useState<number>(0);
-  const [amount, setAmount] = useState<string>('');
-  const [infoOpen, setInfoOpen] = useState(false);
-  const [loanAmount, setLoanAmount] = useState<string>('10000');
-  const [selectedTerm, setSelectedTerm] = useState<typeof TERM_OPTIONS[number]>(TERM_OPTIONS[0]);
-  const [repaySource, _setRepaySource] = useState<RepaySource>('cash');
-  const [iapState, setIapState] = useState(iapService.getState());
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [selectedService, setSelectedService] = useState<string | null>(null);
-  
-  // Get settings with fallback
-  const settings = gameState?.settings || { hapticFeedback: false };
-  const { buttonPress, haptic, success } = useFeedback(settings.hapticFeedback);
+  const insets = useSafeAreaInsets();
+  const darkMode = !!gameState.settings?.darkMode;
+  const theme = getThemeColors(darkMode);
+  const banking = gameState.banking ?? initialGameState.banking!;
 
-  // From state (safe to access even if undefined)
-  const cash = gameState?.stats?.money ?? 0;
-  const initialSavings = gameState?.bankSavings ?? 0;
-  const loans: Loan[] = gameState?.loans ?? [];
-  const investments: { symbol: string; shares: number; averagePrice: number; currentPrice: number; value?: number; price?: number }[] = gameState?.stocks?.holdings ?? [];
+  const [depositTarget, setDepositTarget] = useState<BankAccount | null>(null);
+  const [withdrawTarget, setWithdrawTarget] = useState<BankAccount | null>(null);
+  const [showOpenAccount, setShowOpenAccount] = useState(false);
+  const [showLoanQuote, setShowLoanQuote] = useState(false);
+  const [showApplyCard, setShowApplyCard] = useState(false);
+  const [showAddBill, setShowAddBill] = useState(false);
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
+  const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
+  const [payCardId, setPayCardId] = useState<string | null>(null);
 
-  // Update savings when initialSavings changes
-  useEffect(() => {
-    if (gameState?.bankSavings !== undefined) {
-      setSavings(gameState.bankSavings);
+  const cash = gameState.stats?.money ?? 0;
+  const totalBank = banking.accounts.reduce((s, a) => s + a.balance, 0);
+  const totalDebt =
+    banking.creditCards.reduce((s, c) => s + c.balance, 0) +
+    (gameState.loans ?? []).reduce((s, l) => s + l.remaining, 0);
+
+  const weeklyIncome = useMemo(() => {
+    let income = 0;
+    const job = (gameState.careers ?? []).find((c: any) => c?.id === gameState.currentJob && c?.accepted);
+    if (job?.levels && job.level != null) {
+      const safeLevel = Math.max(0, Math.min(job.level, job.levels.length - 1));
+      income += job.levels[safeLevel]?.salary ?? 0;
     }
-  }, [gameState?.bankSavings]);
+    for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
+    return income;
+  }, [gameState.careers, gameState.currentJob, gameState.companies]);
 
-  // Initialize IAP service
-  useEffect(() => {
-    const unsubscribe = iapService.addListener(setIapState);
-    iapService.initialize();
-    return unsubscribe;
-  }, []);
+  const queueSave = useCallback(() => {
+    saveGame().catch(() => {});
+  }, [saveGame]);
 
-  // Helper functions for IAP services
-  const hasService = useCallback((serviceId: string) => {
-    return iapService.hasPurchased(serviceId);
-  }, []);
-
-  const getServiceConfig = useCallback((serviceId: string) => {
-    return getProductConfig(serviceId);
-  }, []);
-
-  // All computed values (using safe defaults)
-  const totalDebt = useMemo(() => (loans || []).reduce((sum, l) => sum + (l.remaining || 0), 0), [loans]);
-  const investmentsValue = useMemo(() => {
-    return (investments || []).reduce((s: number, it: { value?: number; shares?: number; currentPrice?: number; price?: number }) => {
-      const value = typeof it?.value === 'number'
-        ? it.value
-        : (Number(it?.shares) || 0) * (Number(it?.currentPrice ?? it?.price ?? 0) || 0);
-      return s + (value || 0);
-    }, 0);
-  }, [investments]);
-  const computedNetWorth = useMemo(
-    () => cash + savings + investmentsValue - totalDebt,
-    [cash, savings, investmentsValue, totalDebt]
-  );
-  const singleLoanCap = useMemo(
-    () => Math.max(MIN_LOAN_FLOOR, Math.floor(computedNetWorth * LOAN_CAP_NET_WORTH_RATIO)),
-    [computedNetWorth]
-  );
-  const totalFunds = useMemo(() => cash + savings, [cash, savings]);
-  const maxTotalDebt = useMemo(() => Math.floor(totalFunds * MAX_DEBT_TO_FUNDS), [totalFunds]);
-  const currentSavingsAPR = useMemo(() => {
-    return hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) ? PREMIUM_SAVINGS_APR : SAVINGS_APR;
-  }, [hasService]);
-  const weeklySavingsInterest = useMemo(() => (savings * currentSavingsAPR) / WEEKS_PER_YEAR, [savings, currentSavingsAPR]);
-  const weeklyInterestRate = useMemo(() => (currentSavingsAPR / WEEKS_PER_YEAR) * 100, [currentSavingsAPR]);
-  const weeklySavingsText = useMemo(
-    () => `+${formatMoney(weeklySavingsInterest)} / w (${weeklyInterestRate.toFixed(2)}%)`,
-    [weeklySavingsInterest, weeklyInterestRate]
-  );
-  const marketAPR = useMemo(
-    () => getMarketAPRForGameWeek(gameState?.weeksLived, gameState?.week),
-    [gameState?.weeksLived, gameState?.week]
-  );
-  const marketAPRPercent = useMemo(() => `${(marketAPR * 100).toFixed(2)}%`, [marketAPR]);
-  const approxCost32 = useMemo(() => {
-    const amt = Math.floor(toNumberSafe(loanAmount));
-    if (amt <= 0) return 0;
-    return amortizedInstallment(amt, marketAPR / WEEKS_PER_YEAR, 32);
-  }, [loanAmount, marketAPR]);
-  const approxCost64 = useMemo(() => {
-    const amt = Math.floor(toNumberSafe(loanAmount));
-    if (amt <= 0) return 0;
-    return amortizedInstallment(amt, marketAPR / WEEKS_PER_YEAR, 64);
-  }, [loanAmount, marketAPR]);
-  const totalLoansRemaining = useMemo(
-    () => (loans || []).reduce((sum, l) => sum + (l.remaining || 0), 0),
-    [loans]
-  );
-  const formattedCash = useMemo(() => formatMoney(cash), [cash]);
-  const formattedSavings = useMemo(() => formatMoney(savings), [savings]);
-
-  // All callbacks
-  const commitCashAndSavings = useCallback(
-    (nextCash: number, nextSavings: number) => {
-      if (!setGameState || !saveGame) return;
-      setGameState((prev: GameState) => ({
-        ...prev,
-        stats: { ...prev.stats, money: clampNonNeg(nextCash) },
-        bankSavings: clampNonNeg(nextSavings),
-      }));
-      saveGame();
-    },
-    [setGameState, saveGame]
-  );
-
-  const onDeposit = useCallback(() => {
-    if (!gameState || !setGameState || !saveGame) return;
-    const v = Math.floor(toNumberSafe(amount));
-    if (v <= 0) return Alert.alert('Invalid amount', 'Enter an amount greater than 0.');
-    if (v > cash) return Alert.alert('Not enough cash', "You don&apos;t have that much cash.");
-    const nextCash = cash - v;
-    const nextSavings = savings + v;
-    setSavings(nextSavings);
-    commitCashAndSavings(nextCash, nextSavings);
-    setAmount('');
-    Keyboard.dismiss();
-  }, [amount, cash, savings, commitCashAndSavings, gameState, setGameState, saveGame]);
-
-  const onWithdraw = useCallback(() => {
-    if (!gameState || !setGameState || !saveGame) return;
-    const v = Math.floor(toNumberSafe(amount));
-    if (v <= 0) return Alert.alert('Invalid amount', 'Enter an amount greater than 0.');
-    if (v > savings) return Alert.alert('Not enough savings', "You don&apos;t have that much in savings.");
-    const nextCash = cash + v;
-    const nextSavings = savings - v;
-    setSavings(nextSavings);
-    commitCashAndSavings(nextCash, nextSavings);
-    setAmount('');
-    Keyboard.dismiss();
-  }, [amount, cash, savings, commitCashAndSavings, gameState, setGameState, saveGame]);
-
-  const takeLoan = useCallback(() => {
-    if (!gameState || !setGameState || !saveGame) return;
-    buttonPress();
-    haptic('light');
-    
-    const amt = Math.floor(toNumberSafe(loanAmount));
-    if (amt <= 0) {
-      Alert.alert('Invalid amount', 'Loan amount must be > 0.');
-      return;
-    }
-
-    const privateBankingMultiplier = hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 1.5 : 1;
-    const adjustedLoanCap = Math.floor(singleLoanCap * privateBankingMultiplier);
-    const adjustedMaxDebt = Math.floor(maxTotalDebt * privateBankingMultiplier);
-    
-    if (amt > adjustedLoanCap) {
-      Alert.alert(
-        'Loan declined',
-        `Amount exceeds your single-loan cap (${formatMoney(adjustedLoanCap)} $).`
-      );
-      return;
-    }
-    if (totalDebt + amt > adjustedMaxDebt) {
-      Alert.alert(
-        'Loan declined',
-        `Total debt would exceed your limit (${formatMoney(adjustedMaxDebt)} $).`
-      );
-      return;
-    }
-
-    const baseAPR = getMarketAPRForGameWeek(gameState.weeksLived, gameState.week);
-    const privateBankingDiscount = hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? (baseAPR - 0.03) : 0;
-    
-    let politicalInterestReduction = 0;
-    if (gameState.politics && gameState.politics.careerLevel > 0) {
-      const { getCombinedPerkEffects } = require('@/lib/politics/perks');
-      const perkEffects = getCombinedPerkEffects(gameState.politics.careerLevel);
-      politicalInterestReduction = perkEffects.loanInterestReduction / 100;
-    }
-    
-    const apr = Math.max(0.01, baseAPR - privateBankingDiscount - politicalInterestReduction);
-    const weeklyRate = apr / WEEKS_PER_YEAR;
-    const termW = selectedTerm;
-    const installment = amortizedInstallment(amt, weeklyRate, termW);
-
-    const newLoan: Loan = {
-      id: `loan_${Date.now()}`,
-      name: `Loan ${(loans?.length || 0) + 1}`,
-      principal: amt,
-      remaining: amt,
-      rateAPR: apr,
-      termWeeks: termW,
-      startWeek: gameState.weeksLived ?? 0,
-      weeklyPayment: installment,
-      autoPay: true,
-      type: 'personal',
-      weeksRemaining: termW,
-      interestRate: apr,
-    };
-
-    const nextCash = cash + amt;
-    setGameState((prev: GameState) => ({
-      ...prev,
-      stats: { ...prev.stats, money: clampNonNeg(nextCash) },
-      loans: [...(prev.loans ?? []), newLoan],
-    }));
-    saveGame();
-
-    success('Loan approved and funds transferred!');
-    setLoanAmount('10000');
-    Keyboard.dismiss();
-  }, [
-    loanAmount,
-    singleLoanCap,
-    maxTotalDebt,
-    totalDebt,
-    selectedTerm,
-    loans,
-    cash,
-    gameState,
-    setGameState,
-    saveGame,
-    hasService,
-    buttonPress,
-    haptic,
-    success,
-  ]);
-
-  // Helper function for repay calculations (not a hook)
-  const repayFromChosenSourceHelper = useCallback((target: number, source: RepaySource): {
-    nextCash: number;
-    nextSavings: number;
-    paid: number;
-  } => {
-    let nextCash = cash;
-    let nextSavings = savings;
-    const need = Math.max(0, Math.floor(target));
-    if (need <= 0) return { nextCash, nextSavings, paid: 0 };
-    if (source === 'cash') {
-      const pay = Math.min(need, nextCash);
-      nextCash -= pay;
-      return { nextCash, nextSavings, paid: pay };
-    } else {
-      const pay = Math.min(need, nextSavings);
-      nextSavings -= pay;
-      return { nextCash, nextSavings, paid: pay };
-    }
-  }, [cash, savings]);
-
-  const repayPercent = useCallback(
-    (loanId: string, pct: number) => {
-      if (!gameState || !setGameState || !saveGame) return;
-      const idx = loans.findIndex((l) => l.id === loanId);
-      if (idx === -1) return;
-
-      const ln = loans[idx];
-      if (ln.remaining <= 0) return;
-
-      const target = Math.ceil(ln.remaining * pct);
-      const { nextCash, nextSavings, paid } = repayFromChosenSourceHelper(target, repaySource);
-      if (paid <= 0) {
-        Alert.alert(
-          'Not enough funds',
-          `You don&apos;t have enough ${repaySource === 'cash' ? 'cash' : 'bank savings'} to pay this.`
-        );
-        return;
-      }
-
-      const newRemaining = Math.max(0, ln.remaining - paid);
-      const updated = [...loans];
-      updated[idx] = { ...ln, remaining: newRemaining };
-
-      const filtered = updated.filter((l) => (l.remaining || 0) > 0);
-
-      setGameState((prev: GameState) => ({
-        ...prev,
-        stats: { ...prev.stats, money: clampNonNeg(nextCash) },
-        bankSavings: clampNonNeg(nextSavings),
-        loans: filtered,
-      }));
-      saveGame();
-      setSavings(clampNonNeg(nextSavings));
-    },
-    [loans, repaySource, setGameState, saveGame, gameState, repayFromChosenSourceHelper]
-  );
-
-  const repayFull = useCallback(
-    (loanId: string) => {
-      if (!gameState || !setGameState || !saveGame) return;
-      const idx = loans.findIndex((l) => l.id === loanId);
-      if (idx === -1) return;
-      const ln = loans[idx];
-      if (ln.remaining <= 0) return;
-
-      const discounted = Math.ceil(ln.remaining * (1 - EARLY_FULL_PAY_DISCOUNT));
-      const { nextCash, nextSavings, paid } = repayFromChosenSourceHelper(discounted, repaySource);
-      if (paid < discounted) {
-        Alert.alert(
-          'Not enough funds',
-          `You need ${formatMoney(discounted)} $ in ${repaySource === 'cash' ? 'cash' : 'bank savings'} to fully repay after discount.`
-        );
-        return;
-      }
-
-      const updated = [...loans];
-      updated[idx] = { ...ln, remaining: 0 };
-
-      const filtered = updated.filter((l) => (l.remaining || 0) > 0);
-
-      setGameState((prev: GameState) => ({
-        ...prev,
-        stats: { ...prev.stats, money: clampNonNeg(nextCash) },
-        bankSavings: clampNonNeg(nextSavings),
-        loans: filtered,
-      }));
-      saveGame();
-      setSavings(clampNonNeg(nextSavings));
-    },
-    [loans, repaySource, setGameState, saveGame, gameState, repayFromChosenSourceHelper]
-  );
-
-
-  // Early return after all hooks
-  if (!gameState || !setGameState || !saveGame) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.muted}>Loading bank data…</Text>
-      </View>
-    );
-  }
-
-  // Helper functions (non-hooks, can be after early return)
-  const handleServicePurchase = async (serviceId: string) => {
-    buttonPress();
-    haptic('light');
-    try {
-      const result = await iapService.purchaseProduct(serviceId);
-      if (result.success) {
-        success('Service activated successfully!');
-        setShowPurchaseModal(false);
-        setSelectedService(null);
-        setIapState(iapService.getState());
-      } else {
-        Alert.alert('Purchase Failed', result.message);
-      }
-    } catch (error) {
-      Alert.alert('Purchase Error', 'Failed to purchase service. Please try again.');
-    }
-  };
-
-  const openServiceModal = (serviceId: string) => {
-    buttonPress();
-    haptic('light');
-    setSelectedService(serviceId);
-    setShowPurchaseModal(true);
-  };
-
-  // Helper function (non-hook, can be after early return)
-  function repayFromChosenSource(target: number, source: RepaySource): {
-    nextCash: number;
-    nextSavings: number;
-    paid: number;
-  } {
-    let nextCash = cash;
-    let nextSavings = savings;
-    const need = Math.max(0, Math.floor(target));
-    if (need <= 0) return { nextCash, nextSavings, paid: 0 };
-    if (source === 'cash') {
-      const pay = Math.min(need, nextCash);
-      nextCash -= pay;
-      return { nextCash, nextSavings, paid: pay };
-    } else {
-      const pay = Math.min(need, nextSavings);
-      nextSavings -= pay;
-      return { nextCash, nextSavings, paid: pay };
-    }
-  }
-
-  /* ---------- RENDER ---------- */
   return (
-    <View style={[styles.container, settings?.darkMode && styles.containerDark]}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={true}
+    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
+        <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
+          <ArrowLeft size={scale(22)} color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.appTitle, { color: theme.text }]}>Bank</Text>
+        <View style={[styles.scoreChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+          <Text style={[styles.scoreChipText, { color: theme.text }]}>{banking.creditScore.score}</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: responsiveSpacing.md,
+          paddingBottom: insets.bottom + responsiveSpacing['2xl'],
+          gap: responsiveSpacing.md,
+        }}
       >
-        <View style={[styles.header, settings?.darkMode && styles.headerDark]}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Bank</Text>
-          <TouchableOpacity onPress={() => setInfoOpen(true)} style={styles.infoButton}>
-            <Info size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+        <CreditScoreGauge
+          score={banking.creditScore.score}
+          band={banking.creditScore.band}
+          darkMode={darkMode}
+          compact
+        />
+
+        <View style={styles.statRow}>
+          <Stat theme={theme} icon={Wallet} label="Cash" value={formatMoney(cash)} />
+          <Stat theme={theme} icon={PiggyBank} label="Bank" value={formatMoney(totalBank)} />
+          <Stat theme={theme} icon={TrendingUp} label="Debt" value={formatMoney(totalDebt)} negative={totalDebt > 0} />
         </View>
 
-        <View style={styles.balanceRow}>
-          <View style={[styles.balanceCard, settings?.darkMode && styles.balanceCardDark]}>
-            <View style={styles.balanceIconWrap}>
-              <Wallet size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.balanceLabel}>Cash</Text>
-            <Text style={styles.balanceValue}>{formattedCash} $</Text>
-          </View>
+        <SectionHeader theme={theme} title="Accounts" onAdd={() => setShowOpenAccount(true)} addLabel="Open" />
+        {banking.accounts.map((acct) => (
+          <AccountRow
+            key={acct.id}
+            account={acct}
+            currentWeek={gameState.weeksLived}
+            darkMode={darkMode}
+            onPress={() => setDepositTarget(acct)}
+          />
+        ))}
 
-          <View style={[styles.balanceCard, settings?.darkMode && styles.balanceCardDark]}>
-            <View style={[styles.balanceIconWrap, styles.purpleBg]}>
-              <PiggyBank size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.balanceLabel}>Savings</Text>
-            <Text style={styles.balanceValue}>{formattedSavings} $</Text>
-            <View style={styles.smallRow}>
-              <PiggyBank size={14} color="#34D399" />
-              <Text style={styles.smallGreen}>{weeklySavingsText}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Tabs */}
-        <View style={[styles.tabContainer, settings?.darkMode && styles.tabContainerDark]}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'savings' && styles.activeTab]}
-            onPress={() => {
-              buttonPress();
-              setActiveTab('savings');
-            }}
-          >
-            <PiggyBank size={20} color={activeTab === 'savings' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
-            <Text style={[styles.tabText, activeTab === 'savings' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
-              Savings
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'loans' && styles.activeTab]}
-            onPress={() => {
-              buttonPress();
-              setActiveTab('loans');
-            }}
-          >
-            <CreditCard size={20} color={activeTab === 'loans' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
-            <Text style={[styles.tabText, activeTab === 'loans' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
-              Loans
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'services' && styles.activeTab]}
-            onPress={() => {
-              buttonPress();
-              setActiveTab('services');
-            }}
-          >
-            <Crown size={20} color={activeTab === 'services' ? '#FFFFFF' : (settings?.darkMode ? '#FFFFFF' : '#6B7280')} />
-            <Text style={[styles.tabText, activeTab === 'services' ? styles.tabTextActive : (settings?.darkMode ? styles.tabTextInactiveDark : styles.tabTextInactive)]}>
-              Services
-            </Text>
-          </TouchableOpacity>
-        </View>
-        {/* Savings */}
-        {activeTab === 'savings' && (
-          <>
-            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-              <Text style={styles.section}>Deposit / Withdraw</Text>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="Amount"
-                placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"}
-                keyboardType="numeric"
-                style={styles.input}
-                returnKeyType="done"
-              />
-              <View style={styles.row}>
-                <TouchableOpacity style={styles.btnPrimary} onPress={onDeposit}>
-                  <Text style={styles.btnText}>Deposit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.btnSecondary} onPress={onWithdraw}>
-                  <Text style={styles.btnText}>Withdraw</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Interest Rate Info Card */}
-            <View style={[styles.card, styles.interestCard, settings?.darkMode && styles.interestCardDark]}>
-              <View style={styles.interestHeader}>
-                <TrendingUp size={18} color="#34D399" />
-                <Text style={[styles.interestTitle, settings?.darkMode && styles.interestTitleDark]}>Savings Interest</Text>
-              </View>
-              <View style={styles.interestDetails}>
-                <View style={styles.interestRow}>
-                  <Text style={[styles.interestLabel, settings?.darkMode && styles.interestLabelDark]}>Annual Rate (APR):</Text>
-                  <Text style={styles.interestValue}>{(currentSavingsAPR * 100).toFixed(1)}%</Text>
-                </View>
-                <View style={styles.interestRow}>
-                  <Text style={[styles.interestLabel, settings?.darkMode && styles.interestLabelDark]}>Weekly Rate:</Text>
-                  <Text style={styles.interestValue}>{weeklyInterestRate.toFixed(2)}%</Text>
-                </View>
-                <View style={styles.interestRow}>
-                  <Text style={[styles.interestLabel, settings?.darkMode && styles.interestLabelDark]}>Weekly Earnings:</Text>
-                  <Text style={[styles.interestValue, styles.interestEarnings]}>+{formatMoney(weeklySavingsInterest)} $</Text>
-                </View>
-              </View>
-              <Text style={[styles.interestNote, settings?.darkMode && styles.interestNoteDark]}>
-                Interest is automatically added to your savings each week.
-              </Text>
-            </View>
-
-            {/* Financial Planning Benefits */}
-            {hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) && (
-              <View style={[styles.card, styles.premiumCard, settings?.darkMode && styles.cardDark]}>
-                <View style={styles.premiumHeader}>
-                  <Crown size={20} color="#FFD700" />
-                  <Text style={styles.premiumTitle}>Financial Planning Active</Text>
-                </View>
-                <Text style={styles.premiumText}>
-                  You&apos;re earning {(currentSavingsAPR * 100).toFixed(0)}% APR on savings (double interest!)
-                </Text>
-              </View>
-            )}
-          </>
+        <SectionHeader theme={theme} title="Loans" onAdd={() => setShowLoanQuote(true)} addLabel="Apply" />
+        {(gameState.loans ?? []).length === 0 ? (
+          <EmptyText theme={theme}>No active loans.</EmptyText>
+        ) : (
+          (gameState.loans ?? []).map((loan) => (
+            <LoanRow key={loan.id} loan={loan} darkMode={darkMode} onPress={() => setPrepayLoanId(loan.id)} />
+          ))
         )}
 
-        {/* Loans */}
-        {activeTab === 'loans' && (
-          <>
-            {/* Apply for New Loan */}
-            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-              <Text style={styles.section}>Apply for New Loan</Text>
-              
-              <TextInput
-                value={loanAmount}
-                onChangeText={setLoanAmount}
-                placeholder="Loan amount"
-                placeholderTextColor={settings?.darkMode ? "#FFFFFF" : "#9CA3AF"}
-                keyboardType="numeric"
-                style={styles.input}
-                returnKeyType="done"
-              />
-              
-              <View style={styles.termSelector}>
-                <Text style={styles.termLabel}>Term:</Text>
-                {TERM_OPTIONS.map((term) => (
-                  <TouchableOpacity
-                    key={term}
-                    style={[
-                      styles.termButton,
-                      selectedTerm === term && styles.termButtonActive
-                    ]}
-                    onPress={() => {
-                      buttonPress();
-                      setSelectedTerm(term);
-                    }}
-                  >
-                    <Text style={[
-                      styles.termButtonText,
-                      settings?.darkMode && styles.termButtonTextDark,
-                      selectedTerm === term && styles.termButtonTextActive
-                    ]}>
-                      {term} weeks
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.loanInfo}>
-                <Text style={styles.loanInfoText}>
-                  Max loan: {formatMoney(singleLoanCap * (hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 1.5 : 1))} $
-                </Text>
-                <Text style={styles.loanInfoText}>
-                  APR: {(hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? 3 : marketAPR * 100).toFixed(2)}%
-                </Text>
-                <Text style={styles.loanInfoText}>
-                  Weekly payment: ~{formatMoney(approxCost32)} $
-                </Text>
-              </View>
-
-              <TouchableOpacity 
-                style={[styles.btnPrimary, styles.loanButton]} 
-                onPress={takeLoan}
-              >
-                <Text style={styles.btnText}>Apply for Loan</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Current Loans */}
-            {loans.length > 0 && (
-              <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-                <Text style={styles.section}>Current Loans</Text>
-                {loans.map((loan) => (
-                  <View key={loan.id} style={styles.loanItem}>
-                    <View style={styles.loanHeader}>
-                      <Text style={styles.loanName}>{loan.name}</Text>
-                      <Text style={styles.loanRemaining}>{formatMoney(loan.remaining)} $</Text>
-                    </View>
-                    <View style={styles.loanMetaRow}>
-                      <Text style={styles.metaText}>APR: {(loan.rateAPR * 100).toFixed(2)}%</Text>
-                      <Text style={styles.metaText}>Weekly: {formatMoney(loan.weeklyPayment)} $</Text>
-                      <Text style={styles.metaText}>Term: {loan.termWeeks} weeks</Text>
-                    </View>
-                    <View style={styles.loanActions}>
-                      <TouchableOpacity 
-                        style={styles.loanActionButton}
-                        onPress={() => {
-                          buttonPress();
-                          repayPercent(loan.id, 0.15);
-                        }}
-                      >
-                        <Text style={[styles.loanActionText, settings?.darkMode && styles.loanActionTextDark]}>Pay 15%</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={styles.loanActionButton}
-                        onPress={() => {
-                          buttonPress();
-                          repayPercent(loan.id, 0.5);
-                        }}
-                      >
-                        <Text style={[styles.loanActionText, settings?.darkMode && styles.loanActionTextDark]}>Pay 50%</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={[styles.loanActionButton, styles.loanActionButtonPrimary]}
-                        onPress={() => {
-                          buttonPress();
-                          repayFull(loan.id);
-                        }}
-                      >
-                        <Text style={[styles.loanActionText, styles.loanActionTextPrimary]}>Pay Full</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </>
+        <SectionHeader theme={theme} title="Credit Cards" onAdd={() => setShowApplyCard(true)} addLabel="Apply" />
+        {banking.creditCards.length === 0 ? (
+          <EmptyText theme={theme}>No cards yet.</EmptyText>
+        ) : (
+          banking.creditCards.map((c) => (
+            <CreditCardRow key={c.id} card={c} darkMode={darkMode} onPress={() => setPayCardId(c.id)} />
+          ))
         )}
 
-        {/* Services */}
-        {activeTab === 'services' && (
-          <>
-            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-              <Text style={styles.section}>Premium Banking Services</Text>
-              <Text style={[styles.servicesDescription, settings?.darkMode && styles.servicesDescriptionDark]}>
-                Unlock exclusive banking features and benefits
-              </Text>
-            </View>
-
-            {/* IAP Error Display */}
-            {iapState.error && (
-              <View style={[styles.card, styles.errorCard, settings?.darkMode && styles.cardDark]}>
-                <View style={styles.errorHeader}>
-                  <Info size={20} color="#F59E0B" />
-                  <Text style={[styles.errorTitle, settings?.darkMode && styles.errorTitleDark]}>
-                    In-App Purchases
-                  </Text>
-                </View>
-                <Text style={[styles.errorMessage, settings?.darkMode && styles.errorMessageDark]}>
-                  {iapState.error}
-                </Text>
-                <Text style={[styles.errorSubtext, settings?.darkMode && styles.errorSubtextDark]}>
-                  To test purchases, create a development build instead of using Expo Go.
-                </Text>
-              </View>
-            )}
-
-            {/* Premium Banking Services */}
-            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-              <Text style={styles.section}>Premium Banking Services</Text>
-              <Text style={[styles.servicesDescription, settings?.darkMode && styles.servicesDescriptionDark]}>
-                Exclusive services available on both mobile and computer banking apps
-              </Text>
-            </View>
-
-            {/* Premium Credit Card Service */}
-            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-              <View style={styles.serviceHeader}>
-                <View style={styles.serviceIconContainer}>
-                  <Image 
-                    source={require('@/assets/images/iap/banking/premium_credit_card.png')} 
-                    style={styles.serviceImage} 
-                  />
-                </View>
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>Premium Credit Card</Text>
-                  <Text style={[styles.servicePrice, settings?.darkMode && styles.servicePriceDark]}>$4.99</Text>
-                </View>
-                <View style={styles.serviceStatus}>
-                  {hasService(IAP_PRODUCTS.PREMIUM_CREDIT_CARD) ? (
-                    <View style={styles.activeBadge}>
-                      <CheckCircle size={16} color="#10B981" />
-                      <Text style={styles.activeText}>Active</Text>
-                    </View>
-                  ) : (
-                    <TouchableOpacity 
-                      style={styles.purchaseButton}
-                      onPress={() => openServiceModal(IAP_PRODUCTS.PREMIUM_CREDIT_CARD)}
-                    >
-                      <Text style={styles.purchaseButtonText}>Purchase</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-              <Text style={[styles.serviceDescription, settings?.darkMode && styles.serviceDescriptionDark]}>
-                10% cashback on all purchases, no annual fee
-              </Text>
-            </View>
-
-            {/* Financial Planning Service */}
-            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-              <View style={styles.serviceHeader}>
-                <View style={styles.serviceIconContainer}>
-                  <Image 
-                    source={require('@/assets/images/iap/banking/financial_planning.png')} 
-                    style={styles.serviceImage} 
-                  />
-                </View>
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>Financial Planning</Text>
-                  <Text style={[styles.servicePrice, settings?.darkMode && styles.servicePriceDark]}>$2.99</Text>
-                </View>
-                <View style={styles.serviceStatus}>
-                  {hasService(IAP_PRODUCTS.FINANCIAL_PLANNING) ? (
-                    <View style={styles.activeBadge}>
-                      <CheckCircle size={16} color="#10B981" />
-                      <Text style={styles.activeText}>Active</Text>
-                    </View>
-                  ) : (
-                    <TouchableOpacity 
-                      style={styles.purchaseButton}
-                      onPress={() => openServiceModal(IAP_PRODUCTS.FINANCIAL_PLANNING)}
-                    >
-                      <Text style={styles.purchaseButtonText}>Purchase</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-              <Text style={[styles.serviceDescription, settings?.darkMode && styles.serviceDescriptionDark]}>
-                15% interest on bank savings, expert financial advice
-              </Text>
-            </View>
-
-            {/* Business Banking Service */}
-            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-              <View style={styles.serviceHeader}>
-                <View style={styles.serviceIconContainer}>
-                  <Image 
-                    source={require('@/assets/images/iap/banking/business_banking.png')} 
-                    style={styles.serviceImage} 
-                  />
-                </View>
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>Business Banking</Text>
-                  <Text style={[styles.servicePrice, settings?.darkMode && styles.servicePriceDark]}>$3.99</Text>
-                </View>
-                <View style={styles.serviceStatus}>
-                  {hasService(IAP_PRODUCTS.BUSINESS_BANKING) ? (
-                    <View style={styles.activeBadge}>
-                      <CheckCircle size={16} color="#10B981" />
-                      <Text style={styles.activeText}>Active</Text>
-                    </View>
-                  ) : (
-                    <TouchableOpacity 
-                      style={styles.purchaseButton}
-                      onPress={() => openServiceModal(IAP_PRODUCTS.BUSINESS_BANKING)}
-                    >
-                      <Text style={styles.purchaseButtonText}>Purchase</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-              <Text style={[styles.serviceDescription, settings?.darkMode && styles.serviceDescriptionDark]}>
-                Company loans, business account management, upgrades
-              </Text>
-            </View>
-
-            {/* Private Banking Service */}
-            <View style={[styles.card, settings?.darkMode && styles.cardDark]}>
-              <View style={styles.serviceHeader}>
-                <View style={styles.serviceIconContainer}>
-                  <Image 
-                    source={require('@/assets/images/iap/banking/private_banking.png')} 
-                    style={styles.serviceImage} 
-                  />
-                </View>
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>Private Banking</Text>
-                  <Text style={[styles.servicePrice, settings?.darkMode && styles.servicePriceDark]}>$9.99</Text>
-                </View>
-                <View style={styles.serviceStatus}>
-                  {hasService(IAP_PRODUCTS.PRIVATE_BANKING) ? (
-                    <View style={styles.activeBadge}>
-                      <CheckCircle size={16} color="#10B981" />
-                      <Text style={styles.activeText}>Active</Text>
-                    </View>
-                  ) : (
-                    <TouchableOpacity 
-                      style={styles.purchaseButton}
-                      onPress={() => openServiceModal(IAP_PRODUCTS.PRIVATE_BANKING)}
-                    >
-                      <Text style={styles.purchaseButtonText}>Purchase</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-              <Text style={[styles.serviceDescription, settings?.darkMode && styles.serviceDescriptionDark]}>
-                VIP 3% APR loans, personal wealth manager, priority support
-              </Text>
-            </View>
-          </>
+        <SectionHeader theme={theme} title="Savings Goals" onAdd={() => setShowAddGoal(true)} addLabel="New" />
+        {banking.savingsGoals.length === 0 ? (
+          <EmptyText theme={theme}>No goals yet.</EmptyText>
+        ) : (
+          banking.savingsGoals.map((g) => (
+            <SavingsGoalCard
+              key={g.id}
+              goal={g}
+              darkMode={darkMode}
+              onContribute={() => setContributeGoalId(g.id)}
+            />
+          ))
         )}
 
-
-
-
-        <View style={{ height: 80 }} />
+        <SectionHeader theme={theme} title="Auto-Pay" onAdd={() => setShowAddBill(true)} addLabel="Add" />
+        {banking.billPayRules.length === 0 ? (
+          <EmptyText theme={theme}>No bills set up.</EmptyText>
+        ) : (
+          banking.billPayRules.map((rule) => (
+            <BillPayRow
+              key={rule.id}
+              rule={rule}
+              currentWeek={gameState.weeksLived}
+              darkMode={darkMode}
+              onDelete={() => {
+                removeBill(setGameState, rule.id);
+                queueSave();
+              }}
+            />
+          ))
+        )}
       </ScrollView>
 
-      {/* Info modal */}
-      <Modal visible={infoOpen} transparent animationType="fade" onRequestClose={() => setInfoOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, settings?.darkMode && styles.modalCardDark]}>
-            <Text style={styles.modalTitle}>About savings & loans</Text>
-            <Text style={styles.modalText}>
-              Savings earn {Math.round(SAVINGS_APR * 100)}% APR, compounded weekly.{"\n"}
-              Loans use a market-driven APR and accrue weekly interest at APR/52.{"\n"}
-              ⚡ AUTOMATIC PAYMENTS: Your weekly loan payments are automatically deducted from your cash each week - no manual action needed!{"\n"}
-              Optional: You can also make extra payments of 15%, 50%, or the full remaining balance anytime. Full payoff includes an early repayment discount of {Math.round(EARLY_FULL_PAY_DISCOUNT * 100)}%.{"\n"}
-              Loan caps: Single loan ≤ 15% of net worth; total debt ≤ {MAX_DEBT_TO_FUNDS}× (cash + savings).
-            </Text>
-            <TouchableOpacity style={styles.modalBtn} onPress={() => setInfoOpen(false)}>
-              <Text style={styles.modalBtnText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <AmountInputModal
+        visible={!!depositTarget}
+        title={`Deposit to ${depositTarget?.name ?? ''}`}
+        subtitle={`Cash on hand: ${formatMoney(cash)}`}
+        confirmLabel="Deposit"
+        maxAmount={cash}
+        presets={[100, 500, 1000]}
+        darkMode={darkMode}
+        onClose={() => setDepositTarget(null)}
+        onConfirm={(amt) => {
+          if (depositTarget) {
+            depositCashToAccount(setGameState, depositTarget.id, amt);
+            queueSave();
+          }
+          setDepositTarget(null);
+        }}
+      />
 
-      {/* Service Purchase Modal */}
-      <Modal visible={showPurchaseModal} transparent animationType="fade" onRequestClose={() => setShowPurchaseModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, settings?.darkMode && styles.modalCardDark]}>
-            {selectedService && (
-              <>
-                <Text style={styles.modalTitle}>
-                  {getServiceConfig(selectedService)?.name}
-                </Text>
-                <Text style={styles.modalText}>
-                  {getServiceConfig(selectedService)?.description}
-                </Text>
-                
-                <View style={styles.featuresList}>
-                  {getServiceConfig(selectedService)?.features?.map((feature, index) => (
-                    <View key={index} style={styles.featureItem}>
-                      <CheckCircle size={16} color="#10B981" />
-                      <Text style={styles.featureText}>{feature}</Text>
-                    </View>
-                  ))}
-                </View>
+      <AmountInputModal
+        visible={!!withdrawTarget}
+        title={`Withdraw from ${withdrawTarget?.name ?? ''}`}
+        subtitle={`Balance: ${formatMoney(withdrawTarget?.balance ?? 0)}`}
+        confirmLabel="Withdraw"
+        maxAmount={withdrawTarget?.balance ?? 0}
+        presets={[100, 500, 1000]}
+        darkMode={darkMode}
+        onClose={() => setWithdrawTarget(null)}
+        onConfirm={(amt) => {
+          if (withdrawTarget) {
+            withdrawCashFromAccount(setGameState, withdrawTarget.id, amt);
+            queueSave();
+          }
+          setWithdrawTarget(null);
+        }}
+      />
 
-                <View style={styles.modalActions}>
-                  <TouchableOpacity 
-                    style={styles.modalBtnSecondary} 
-                    onPress={() => setShowPurchaseModal(false)}
-                  >
-                    <Text style={[styles.modalBtnSecondaryText, settings?.darkMode && styles.modalBtnSecondaryTextDark]}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.modalBtn} 
-                    onPress={() => handleServicePurchase(selectedService)}
-                  >
-                    <Text style={styles.modalBtnText}>
-                      Purchase - {getServiceConfig(selectedService)?.price}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <OpenAccountModal
+        visible={showOpenAccount}
+        availableCash={cash}
+        darkMode={darkMode}
+        currentWeek={gameState.weeksLived}
+        onClose={() => setShowOpenAccount(false)}
+        onOpen={(spec) => {
+          openNewAccount(setGameState, spec);
+          queueSave();
+          setShowOpenAccount(false);
+        }}
+      />
+
+      <LoanQuoteModal
+        visible={showLoanQuote}
+        gameState={gameState}
+        weeklyIncome={weeklyIncome}
+        darkMode={darkMode}
+        onClose={() => setShowLoanQuote(false)}
+        onAccept={(spec) => {
+          acceptLoan(setGameState, { ...spec, weeklyIncome });
+          queueSave();
+          setShowLoanQuote(false);
+        }}
+      />
+
+      <ApplyCardModal
+        visible={showApplyCard}
+        creditScore={banking.creditScore.score}
+        darkMode={darkMode}
+        onClose={() => setShowApplyCard(false)}
+        onApply={(tier: CreditCardTier, baseAPR: number) => {
+          applyForCard(setGameState, tier, baseAPR);
+          queueSave();
+          setShowApplyCard(false);
+        }}
+      />
+
+      <AddBillModal
+        visible={showAddBill}
+        accounts={banking.accounts}
+        currentWeek={gameState.weeksLived}
+        darkMode={darkMode}
+        onClose={() => setShowAddBill(false)}
+        onAdd={(rule: {
+          label: string;
+          category: BudgetCategory;
+          amount: number;
+          fromAccountId: string;
+          cadence: 'weekly' | 'monthly';
+          nextDueWeek: number;
+          source: 'subscription' | 'utility' | 'manual';
+        }) => {
+          addBill(setGameState, rule);
+          queueSave();
+          setShowAddBill(false);
+        }}
+      />
+
+      <AmountInputModal
+        visible={showAddGoal}
+        title="Set a savings goal"
+        subtitle="How much do you want to save?"
+        confirmLabel="Create Goal"
+        presets={[1000, 5000, 25000]}
+        darkMode={darkMode}
+        onClose={() => setShowAddGoal(false)}
+        onConfirm={(amt) => {
+          createSavingsGoal(setGameState, {
+            name: 'Savings Goal',
+            targetAmount: amt,
+            category: 'other' as SavingsGoalCategory,
+          });
+          queueSave();
+          setShowAddGoal(false);
+        }}
+      />
+
+      <AmountInputModal
+        visible={!!contributeGoalId}
+        title="Contribute to goal"
+        subtitle={`Cash on hand: ${formatMoney(cash)}`}
+        confirmLabel="Contribute"
+        maxAmount={cash}
+        presets={[50, 200, 500]}
+        darkMode={darkMode}
+        onClose={() => setContributeGoalId(null)}
+        onConfirm={(amt) => {
+          if (contributeGoalId) {
+            contributeToSavingsGoal(setGameState, contributeGoalId, amt);
+            queueSave();
+          }
+          setContributeGoalId(null);
+        }}
+      />
+
+      <AmountInputModal
+        visible={!!prepayLoanId}
+        title="Prepay loan"
+        subtitle="Pays down principal directly. No prepayment penalty."
+        confirmLabel="Prepay"
+        maxAmount={cash}
+        presets={[100, 500, 1000]}
+        darkMode={darkMode}
+        onClose={() => setPrepayLoanId(null)}
+        onConfirm={(amt) => {
+          const checking = banking.accounts.find((a) => a.type === 'checking');
+          if (prepayLoanId && checking) {
+            prepayLoan(setGameState, prepayLoanId, checking.id, amt);
+            queueSave();
+          }
+          setPrepayLoanId(null);
+        }}
+      />
+
+      <AmountInputModal
+        visible={!!payCardId}
+        title="Pay credit card"
+        subtitle={`Cash on hand: ${formatMoney(cash)}`}
+        confirmLabel="Pay"
+        maxAmount={cash}
+        presets={[100, 500, 1000]}
+        darkMode={darkMode}
+        onClose={() => setPayCardId(null)}
+        onConfirm={(amt) => {
+          const checking = banking.accounts.find((a) => a.type === 'checking');
+          if (payCardId && checking) {
+            payDownCard(setGameState, payCardId, checking.id, amt);
+            queueSave();
+          }
+          setPayCardId(null);
+        }}
+      />
+
+      {/* Silence unused-var warning for setWithdrawTarget kept for symmetry with desktop. */}
+      {false && <Text>{String(setWithdrawTarget)}</Text>}
     </View>
   );
 }
 
-/* =========================
-   STYLES
-   ========================= */
+function Stat({
+  theme,
+  icon: Icon,
+  label,
+  value,
+  negative,
+}: {
+  theme: ReturnType<typeof getThemeColors>;
+  icon: React.ComponentType<{ size: number; color: string }>;
+  label: string;
+  value: string;
+  negative?: boolean;
+}) {
+  return (
+    <View style={[styles.statCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+      <Icon size={scale(14)} color={theme.textMuted} />
+      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
+      <Text
+        style={[styles.statValue, { color: negative ? accent.danger : theme.text }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function SectionHeader({
+  theme,
+  title,
+  onAdd,
+  addLabel,
+}: {
+  theme: ReturnType<typeof getThemeColors>;
+  title: string;
+  onAdd?: () => void;
+  addLabel?: string;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      {onAdd && (
+        <TouchableOpacity onPress={onAdd} style={[styles.addBtn, { backgroundColor: accent.info }]}>
+          <Plus size={scale(12)} color="white" />
+          <Text style={styles.addBtnText}>{addLabel ?? 'Add'}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
+  return <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>;
+}
+
+export default function BankApp(props: BankAppProps) {
+  return (
+    <ErrorBoundary>
+      <BankAppInner {...props} />
+    </ErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0C10' },
-  containerDark: { backgroundColor: '#0B0C10' },
-  center: { flex: 1, padding: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0B0C10' },
-  muted: { color: '#9FA4B3', fontSize: 14 },
-
-  header: {
-    paddingTop: 16, paddingHorizontal: 16, paddingBottom: 10,
-    backgroundColor: '#11131A', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderBottomColor: '#1F2230', borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerDark: { backgroundColor: '#11131A' },
-  headerTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  backButton: {
-    width: 36, height: 36, borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  infoButton: {
-    width: 36, height: 36, borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  balanceRow: { flexDirection: 'row', gap: responsiveSpacing.md, padding: responsiveSpacing.lg },
-  balanceCard: { flex: 1, backgroundColor: '#0F1220', borderRadius: responsiveBorderRadius.md, padding: responsiveSpacing.md, borderColor: '#23283B', borderWidth: 0.5 },
-  balanceCardDark: { backgroundColor: '#0F1220' },
-  balanceIconWrap: {
-    width: 28, height: 28, borderRadius: responsiveBorderRadius.sm, backgroundColor: '#1A1D29',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
-  },
-  purpleBg: { backgroundColor: '#5B21B6' },
-  balanceLabel: { color: '#9FA4B3', fontSize: responsiveFontSize.sm },
-  balanceValue: { color: '#FFFFFF', fontSize: responsiveFontSize['2xl'], fontWeight: '600', marginTop: responsiveSpacing.xs },
-  smallRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  smallGreen: { color: '#34D399', fontSize: responsiveFontSize.sm, fontWeight: '600' },
-
-  tabContainer: {
-    marginHorizontal: responsiveSpacing.lg, backgroundColor: '#0F1220', borderRadius: responsiveBorderRadius.sm, borderColor: '#23283B', borderWidth: 0.5,
-    flexDirection: 'row', padding: scale(8), gap: scale(8),
-  },
-  tabContainerDark: { backgroundColor: '#0F1220' },
-  tab: {
-    flex: 1, height: scale(48), borderRadius: responsiveBorderRadius.sm, backgroundColor: '#101426',
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: responsiveSpacing.xs,
-  },
-  activeTab: { backgroundColor: '#1E293B' },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  tabTextActive: { color: '#FFFFFF' },
-  tabTextInactive: { 
-    color: '#6B7280',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  tabTextInactiveDark: { 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-
-  scrollContent: { padding: responsiveSpacing.lg, paddingBottom: responsiveSpacing['2xl'] },
-  card: { backgroundColor: '#0F1220', borderRadius: responsiveBorderRadius.md, padding: responsiveSpacing.md, marginBottom: responsiveSpacing.sm, borderWidth: 0.5, borderColor: '#23283B' },
-  cardDark: { backgroundColor: '#0F1220' },
-  section: { color: '#FFFFFF', fontSize: responsiveFontSize.base, fontWeight: '600', marginBottom: responsiveSpacing.sm },
-  input: {
-    backgroundColor: '#101426', borderRadius: responsiveBorderRadius.md, paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.md,
-    color: '#E7EAF2', borderWidth: 1, borderColor: '#2A2D3A', marginBottom: responsiveSpacing.md, flex: 1,
-  },
-  inputLabel: { 
-    color: '#9CA3AF', 
-    fontSize: responsiveFontSize.sm, 
-    marginBottom: scale(6),
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  inputLabelDark: { 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  fakeInput: {
-    backgroundColor: '#101426', borderRadius: responsiveBorderRadius.md, paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.md,
-    borderWidth: 1, borderColor: '#2A2D3A', justifyContent: 'center', marginBottom: responsiveSpacing.md, height: scale(44),
-  },
-  fakeInputText: { color: '#E7EAF2', fontSize: responsiveFontSize.base, fontWeight: '700' },
-  row: { flexDirection: 'row', gap: responsiveSpacing.md },
-
-  grid2: { flexDirection: 'row', gap: responsiveSpacing.md },
-  gridItem: { flex: 1 },
-
-  termBtn: {
-    flex: 1, borderRadius: responsiveBorderRadius.sm, backgroundColor: '#101426', borderWidth: 1, borderColor: '#2A2D3A',
-    paddingVertical: responsiveSpacing.sm, alignItems: 'center', justifyContent: 'center',
-  },
-  termBtnActive: { backgroundColor: '#1E293B', borderColor: '#3B82F6' },
-  termText: { fontSize: responsiveFontSize.base, fontWeight: '700' },
-  termTextActive: { color: '#FFFFFF' },
-  termTextInactive: { 
-    color: '#9CA3AF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  termTextInactiveDark: { 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-
-  btnPrimary: {
-    flex: 1, backgroundColor: '#2563EB', borderRadius: responsiveBorderRadius.sm, paddingVertical: responsiveSpacing.sm,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  btnSecondary: {
-    flex: 1, backgroundColor: '#059669', borderRadius: responsiveBorderRadius.sm, paddingVertical: responsiveSpacing.sm,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  btnText: { color: '#FFFFFF', fontWeight: '600' },
-
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: responsiveSpacing.sm },
-  itemLeft: { color: '#E7EAF2', fontSize: responsiveFontSize.sm, fontWeight: '500' },
-  itemRight: { color: '#9FA4B3', fontSize: responsiveFontSize.base },
-
-  loanItem: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#23283B', paddingTop: responsiveSpacing.md, marginTop: responsiveSpacing.md },
-  loanHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: responsiveSpacing.xs },
-  loanName: { color: '#FFFFFF', fontSize: responsiveFontSize.base, fontWeight: '600' },
-  loanRemaining: { color: '#E7EAF2', fontSize: responsiveFontSize.base, fontWeight: '600' },
-  loanMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.md, marginTop: responsiveSpacing.xs, marginBottom: responsiveSpacing.md },
-  metaText: { color: '#9FA4B3', fontSize: responsiveFontSize.sm },
-  summaryRow: { marginTop: responsiveSpacing.sm },
-
-  // New loan styles
-  termSelector: { flexDirection: 'row', alignItems: 'center', marginVertical: responsiveSpacing.md, gap: responsiveSpacing.sm },
-  termLabel: { color: '#E7EAF2', fontSize: responsiveFontSize.base, fontWeight: '500', marginRight: responsiveSpacing.sm },
-  termButton: { paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151' },
-  termButtonActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
-  termButtonText: { 
-    color: '#9CA3AF', 
-    fontSize: responsiveFontSize.sm,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  termButtonTextDark: { 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  termButtonTextActive: { color: '#FFFFFF' },
-  loanInfo: { backgroundColor: '#1F2937', padding: responsiveSpacing.md, borderRadius: responsiveBorderRadius.md, marginVertical: responsiveSpacing.md },
-  loanInfoText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm, marginBottom: responsiveSpacing.xs },
-  loanButton: { marginTop: responsiveSpacing.md },
-  loanActions: { flexDirection: 'row', gap: responsiveSpacing.sm, marginTop: responsiveSpacing.sm },
-  loanActionButton: { flex: 1, paddingVertical: responsiveSpacing.sm, paddingHorizontal: responsiveSpacing.md, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151', alignItems: 'center' },
-  loanActionButtonPrimary: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  loanActionText: { 
-    color: '#9CA3AF', 
-    fontSize: responsiveFontSize.sm, 
-    fontWeight: '500',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  loanActionTextDark: { 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  loanActionTextPrimary: { color: '#FFFFFF' },
-
-  // Premium banking styles
-  premiumCard: { backgroundColor: '#1F2937', borderColor: '#FFD700', borderWidth: 1 },
-  premiumHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.sm, gap: responsiveSpacing.sm },
-  premiumTitle: { color: '#FFD700', fontSize: responsiveFontSize.base, fontWeight: '600' },
-  premiumText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm },
-
-  // Interest card styles
-  interestCard: { backgroundColor: '#F0FDF4', borderColor: '#34D399', borderWidth: 1 },
-  interestCardDark: { backgroundColor: '#064E3B' },
-  interestHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.md, gap: responsiveSpacing.sm },
-  interestTitle: { color: '#065F46', fontSize: responsiveFontSize.base, fontWeight: '600' },
-  interestTitleDark: { color: '#34D399' },
-  interestDetails: { marginBottom: responsiveSpacing.sm },
-  interestRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: responsiveSpacing.xs },
-  interestLabel: { color: '#374151', fontSize: responsiveFontSize.sm },
-  interestLabelDark: { color: '#D1D5DB' },
-  interestValue: { color: '#059669', fontSize: responsiveFontSize.sm, fontWeight: '700' },
-  interestEarnings: { color: '#10B981' },
-  interestNote: { color: '#6B7280', fontSize: responsiveFontSize.xs, fontStyle: 'italic', marginTop: responsiveSpacing.xs },
-  interestNoteDark: { color: '#9CA3AF' },
-
-  // Services styles
-  servicesDescription: { 
-    color: '#9CA3AF', 
-    fontSize: responsiveFontSize.sm, 
-    marginTop: responsiveSpacing.sm,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  servicesDescriptionDark: { 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  serviceHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.md },
-  serviceIconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1F2937', alignItems: 'center', justifyContent: 'center', marginRight: responsiveSpacing.md },
-  serviceImage: { width: 32, height: 32, resizeMode: 'contain' },
-  serviceInfo: { flex: 1 },
-  serviceName: { color: '#FFFFFF', fontSize: responsiveFontSize.base, fontWeight: '600', marginBottom: responsiveSpacing.xs },
-  servicePrice: { color: '#10B981', fontSize: responsiveFontSize.base, fontWeight: '600' },
-  servicePriceDark: { color: '#FFFFFF', fontSize: responsiveFontSize.base, fontWeight: '600' },
-  serviceStatus: { alignItems: 'flex-end' },
-  activeBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#10B981', paddingHorizontal: responsiveSpacing.sm, paddingVertical: responsiveSpacing.xs, borderRadius: responsiveBorderRadius.md, gap: responsiveSpacing.xs },
-  activeText: { color: '#FFFFFF', fontSize: responsiveFontSize.sm, fontWeight: '500' },
-  purchaseButton: { backgroundColor: '#3B82F6', paddingHorizontal: responsiveSpacing.md, paddingVertical: responsiveSpacing.sm, borderRadius: responsiveBorderRadius.md },
-  purchaseButtonText: { color: '#FFFFFF', fontSize: responsiveFontSize.sm, fontWeight: '500' },
-  serviceDescription: { 
-    color: '#9CA3AF', 
-    fontSize: responsiveFontSize.sm, 
-    lineHeight: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  serviceDescriptionDark: { 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-
-  // Modal styles
-  modalActions: { flexDirection: 'row', gap: responsiveSpacing.md, marginTop: responsiveSpacing.lg },
-  modalBtnSecondary: { flex: 1, paddingVertical: responsiveSpacing.md, paddingHorizontal: responsiveSpacing.lg, borderRadius: responsiveBorderRadius.md, borderWidth: 1, borderColor: '#374151', alignItems: 'center' },
-  modalBtnSecondaryText: { 
-    color: '#9CA3AF', 
-    fontSize: responsiveFontSize.base, 
-    fontWeight: '500',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  modalBtnSecondaryTextDark: { 
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  featuresList: { marginVertical: responsiveSpacing.md },
-  featureItem: { flexDirection: 'row', alignItems: 'center', marginBottom: responsiveSpacing.sm, gap: responsiveSpacing.sm },
-  featureText: { color: '#D1D5DB', fontSize: responsiveFontSize.sm, flex: 1 },
-
-  modalBackdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: responsiveSpacing.lg,
-  },
-  modalCard: {
-    width: '100%', maxWidth: scale(420), backgroundColor: '#121527', borderRadius: responsiveBorderRadius.xl, padding: responsiveSpacing.lg,
-    borderColor: '#23283B', borderWidth: 1,
-  },
-  modalCardDark: { backgroundColor: '#121527' },
-  modalTitle: { color: '#FFFFFF', fontSize: responsiveFontSize.lg, fontWeight: '600', marginBottom: responsiveSpacing.sm },
-  modalText: { color: '#C7CBDA', fontSize: responsiveFontSize.base, lineHeight: 20, marginBottom: responsiveSpacing.lg },
-  modalBtn: { alignSelf: 'flex-end', backgroundColor: '#2563EB', borderRadius: responsiveBorderRadius.sm, paddingVertical: responsiveSpacing.sm, paddingHorizontal: responsiveSpacing.md },
-  modalBtnText: { color: '#FFFFFF', fontWeight: '600' },
-
-  // IAP Error Styles
-  errorCard: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderColor: '#F59E0B',
-    borderWidth: 1,
-  },
-  errorHeader: {
+  root: { flex: 1 },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    borderBottomWidth: 1,
     gap: responsiveSpacing.sm,
   },
-  errorTitle: {
-    fontSize: responsiveFontSize.base,
-    fontWeight: '600',
-    color: '#F59E0B',
+  backBtn: { padding: responsiveSpacing.xs },
+  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
+  scoreChip: {
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: 4,
+    borderRadius: responsiveBorderRadius.full,
+    borderWidth: 1,
   },
-  errorTitleDark: {
-    color: '#F59E0B',
+  scoreChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  statRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: responsiveSpacing.sm,
   },
-  errorMessage: {
+  statCard: {
+    // 2-per-row wrap: money labels like "$1,234,567" don't fit at ~95pt (3-up).
+    flexBasis: '48%',
+    flexGrow: 1,
+    padding: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    gap: 2,
+  },
+  statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
+  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: responsiveSpacing.sm,
+  },
+  sectionTitle: {
+    fontSize: responsiveFontSize.md,
+    fontWeight: '700',
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.xs,
+    borderRadius: responsiveBorderRadius.full,
+  },
+  addBtnText: { color: 'white', fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  emptyText: {
     fontSize: responsiveFontSize.sm,
-    color: '#374151',
-    lineHeight: 20,
-    marginBottom: responsiveSpacing.sm,
-  },
-  errorMessageDark: {
-    color: '#D1D5DB',
-  },
-  errorSubtext: {
-    fontSize: responsiveFontSize.xs,
-    color: '#6B7280',
-    fontStyle: 'italic',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  errorSubtextDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    textAlign: 'center',
+    paddingVertical: responsiveSpacing.md,
   },
 });

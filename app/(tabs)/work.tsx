@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import {
-    View,
+import { Platform, View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
     Modal,
     Alert,
-    Animated,
-} from 'react-native';
+    Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
+import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -100,8 +100,8 @@ function WorkScreenContent() {
     // Hobbies removed - unused state variables removed
     const [selectedSkillTree, setSelectedSkillTree] = useState<CrimeSkillId | null>(null);
     const [feedbackOpacity] = useState(new Animated.Value(0));
-    const [_showJailReleaseMessage, _setShowJailReleaseMessage] = useState(false);
-    const [_previousJailWeeks, _setPreviousJailWeeks] = useState(0);
+    // P3-2: dead state — `_showJailReleaseMessage` and `_previousJailWeeks`
+    // were never referenced after being renamed by an unused-var lint sweep.
     const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
 
@@ -286,15 +286,15 @@ function WorkScreenContent() {
         const hasItems =
             !job.requirements ||
             job.requirements.every((req: string) =>
-                gameState.items.find(item => item.id === req)?.owned
+                (gameState.items || []).find(item => item.id === req)?.owned
             );
 
         const hasDarkItems =
             !job.darkWebRequirements ||
             job.darkWebRequirements.every((req: string) => {
                 // Check both darkWebItems and regular items (for compatibility)
-                const darkWebItem = gameState.darkWebItems.find(item => item.id === req)?.owned;
-                const regularItem = gameState.items.find(item => item.id === req)?.owned;
+                const darkWebItem = (gameState.darkWebItems || []).find(item => item.id === req)?.owned;
+                const regularItem = (gameState.items || []).find(item => item.id === req)?.owned;
                 return darkWebItem || regularItem;
             });
 
@@ -342,11 +342,11 @@ function WorkScreenContent() {
     const getMissingRequirements = (job: StreetJob) => {
         const missing: string[] = [];
         job.requirements?.forEach((req: string) => {
-            const item = gameState.items.find(i => i.id === req);
+            const item = (gameState.items || []).find(i => i.id === req);
             if (!item?.owned) missing.push(item?.name || req);
         });
         job.darkWebRequirements?.forEach((req: string) => {
-            const item = gameState.darkWebItems.find(i => i.id === req);
+            const item = (gameState.darkWebItems || []).find(i => i.id === req);
             if (!item?.owned) missing.push(item?.name || req);
         });
         if (job.criminalLevelReq && gameState.criminalLevel < job.criminalLevelReq) {
@@ -356,369 +356,159 @@ function WorkScreenContent() {
     };
 
     const renderJobCard = (job: StreetJob) => {
+        const lowReward = Math.floor(job.basePayment * 0.7);
+        const highReward = Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3));
+        const reward = `$${lowReward}–${highReward}`;
+        const lacksEnergy = (gameState?.stats?.energy ?? 0) < job.energyCost;
+        const inJail = gameState.jailWeeks > 0;
+        const { happinessPenalty, healthPenalty } = getJobPenalties(job);
+
+        const metadata: JobCardMetadata[] = [
+            { icon: <Zap size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `${job.energyCost} energy` },
+            { icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `Rank ${job.rank}` },
+        ];
+        if (job.skill) {
+            metadata.push({
+                icon: <Sparkles size={scale(13)} color="rgba(226, 232, 240, 0.78)" />,
+                value: job.skill.charAt(0).toUpperCase() + job.skill.slice(1),
+            });
+        }
+        if (happinessPenalty < 0) {
+            metadata.push({
+                icon: <Smile size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
+                value: `${happinessPenalty}`,
+                tone: 'bad',
+            });
+        }
+        if (healthPenalty < 0) {
+            metadata.push({
+                icon: <Heart size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
+                value: `${healthPenalty}`,
+                tone: 'bad',
+            });
+        }
+
+        const interconnectionFooter = (() => {
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
+                const { getSystemInterconnections } = require('@/lib/depth/systemInterconnections');
+                const interconnections = getSystemInterconnections(gameState);
+                const relevant = interconnections.filter(
+                    (ic: any) => ic.sourceSystem === 'streetJobs' || ic.targetSystem === 'streetJobs'
+                );
+                if (relevant.length > 0) {
+                    return (
+                        <SystemInterconnectionIndicator
+                            interconnections={relevant}
+                            compact={true}
+                            darkMode={settings.darkMode}
+                        />
+                    );
+                }
+            } catch {
+                // depth system optional
+            }
+            return null;
+        })();
+
         if (job.illegal) {
+            const meetsCriminalLevel = !job.criminalLevelReq || gameState.criminalLevel >= job.criminalLevelReq;
+            const missingItems = (job.requirements || []).filter((id: string) => !(gameState.items || []).find(i => i.id === id)?.owned);
+            const missingDark = (job.darkWebRequirements || []).filter((id: string) => !(gameState.darkWebItems || []).find(i => i.id === id)?.owned);
+            const weeklyJobs = gameState.weeklyStreetJobs || {};
+            const timesDoneThisWeek = weeklyJobs[job.id] || 0;
+            const maxPerWeek = 3;
+            const atLimit = timesDoneThisWeek >= maxPerWeek;
+            const locked = lacksEnergy || inJail || atLimit || !meetsCriminalLevel || missingItems.length > 0 || missingDark.length > 0;
+
+            let lockReason: string | undefined;
+            if (atLimit) {
+                lockReason = `Used ${timesDoneThisWeek}/${maxPerWeek} this week — wait for next week.`;
+            } else if (!meetsCriminalLevel) {
+                lockReason = `Requires Criminal Lv ${job.criminalLevelReq}`;
+            } else if (missingItems.length > 0) {
+                const names = missingItems.map((id: string) => (gameState.items || []).find(i => i.id === id)?.name || id);
+                lockReason = `Need ${names.join(', ')}`;
+            } else if (missingDark.length > 0) {
+                const names = missingDark.map((id: string) => (gameState.darkWebItems || []).find(i => i.id === id)?.name || id);
+                lockReason = `Need ${names.join(', ')}`;
+            } else if (inJail) {
+                lockReason = 'Unavailable while in jail.';
+            } else if (lacksEnergy) {
+                lockReason = `Needs ${job.energyCost} energy.`;
+            }
+
+            const buttonText = atLimit
+                ? 'Limit reached'
+                : locked
+                    ? 'Locked'
+                    : 'Execute';
+
+            // insert risk metadata for crimes
+            const crimeMetadata: JobCardMetadata[] = [
+                metadata[0], // energy
+                metadata[1], // rank
+                { icon: <AlertTriangle size={scale(13)} color="rgba(251, 191, 36, 0.92)" />, value: `${getJailRisk(job)}% risk`, tone: 'warn' },
+                ...(job.skill ? [metadata.find(m => m.value.toLowerCase().includes((job.skill || '').toLowerCase()))!].filter(Boolean) : []),
+                ...metadata.filter(m => m.tone === 'bad'),
+            ];
+
             return (
-                <View key={job.id} style={styles.crimeJobContainer}>
-                    <BlurView
-                        intensity={20}
-                        tint="dark"
-                        style={styles.crimeJobGlass}
-                    />
-                    <LinearGradient
-                        colors={['rgba(220, 38, 38, 0.15)', 'rgba(185, 28, 28, 0.10)']}
-                        style={styles.crimeJobHeader}
-                    >
-                        <View style={styles.crimeJobHeaderContent}>
-                            <View style={styles.crimeJobTitleRow}>
-                                <View style={styles.crimeJobTitleContainer}>
-                                    <Text style={styles.crimeJobName}>{job.name}</Text>
-                                    <View style={styles.crimeJobBadge}>
-                                        <Text style={styles.crimeJobBadgeText}>CRIMINAL</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.crimeJobRankContainer}>
-                                    <Star size={14} color="#FF6B6B" />
-                                    <Text style={styles.crimeJobRank}>Rank {job.rank}</Text>
-                                </View>
-                            </View>
-
-                            <Text style={styles.crimeJobDescription}>
-                                {job.description}
-                            </Text>
-                            {(() => {
-                                const itemReqs = job.requirements || [];
-                                const darkReqs = job.darkWebRequirements || [];
-                                const hasAnyReq = (itemReqs.length + darkReqs.length + (job.criminalLevelReq ? 1 : 0)) > 0;
-                                if (!hasAnyReq) return null;
-                                return (
-                                    <View style={styles.crimeReqChipsContainer}>
-                                        {!!job.criminalLevelReq && (
-                                            <View
-                                                style={[
-                                                    styles.reqChip,
-                                                    (gameState.criminalLevel >= (job.criminalLevelReq || 0))
-                                                        ? styles.reqChipOwned
-                                                        : styles.reqChipMissing,
-                                                ]}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.reqChipText,
-                                                        (gameState.criminalLevel >= (job.criminalLevelReq || 0))
-                                                            ? styles.reqChipTextOwned
-                                                            : styles.reqChipTextMissing,
-                                                    ]}
-                                                >
-                                                    Criminal Lv {job.criminalLevelReq}+
-                                                </Text>
-                                            </View>
-                                        )}
-
-                                        {itemReqs.map((reqId: string) => {
-                                            const item = gameState.items.find(i => i.id === reqId);
-                                            const owned = !!item?.owned;
-                                            return (
-                                                <View key={`req-item-${reqId}`} style={[styles.reqChip, owned ? styles.reqChipOwned : styles.reqChipMissing]}>
-                                                    <Text style={[styles.reqChipText, owned ? styles.reqChipTextOwned : styles.reqChipTextMissing]}>
-                                                        {item?.name || reqId}
-                                                    </Text>
-                                                </View>
-                                            );
-                                        })}
-
-                                        {darkReqs.map((reqId: string) => {
-                                            const item = gameState.darkWebItems.find(i => i.id === reqId);
-                                            const owned = !!item?.owned;
-                                            return (
-                                                <View key={`req-dark-${reqId}`} style={[styles.reqChip, owned ? styles.reqChipOwned : styles.reqChipMissing]}>
-                                                    <Text style={[styles.reqChipText, owned ? styles.reqChipTextOwned : styles.reqChipTextMissing]}>
-                                                        {item?.name || reqId}
-                                                    </Text>
-                                                </View>
-                                            );
-                                        })}
-                                    </View>
-                                );
-                            })()}
-                        </View>
-                    </LinearGradient>
-
-                    <View style={styles.crimeJobStatsGrid}>
-                        <View style={styles.crimeStatCard}>
-                            <View style={styles.crimeStatIcon}>
-                                <Zap size={16} color="#FF6B6B" />
-                            </View>
-                            <Text style={styles.crimeStatLabel}>Energy</Text>
-                            <Text style={styles.crimeStatValue}>-{job.energyCost}</Text>
-                        </View>
-
-                        <View style={styles.crimeStatCard}>
-                            <View style={styles.crimeStatIcon}>
-                                <TrendingUp size={16} color="#4ADE80" />
-                            </View>
-                            <Text style={styles.crimeStatLabel}>Reward</Text>
-                            <Text style={[styles.crimeStatValue, !canPerformJob(job) && styles.crimeStatValueDisabled]}>
-                                ${Math.floor(job.basePayment * 0.7)}-${Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3))}
-                            </Text>
-                        </View>
-
-                        {job.skill && (
-                            <View style={styles.crimeStatCard}>
-                                <View style={styles.crimeStatIcon}>
-                                    <Star size={16} color="#FFD93D" />
-                                </View>
-                                <Text style={styles.crimeStatLabel}>Skill</Text>
-                                <Text style={styles.crimeStatValue}>{job.skill.charAt(0).toUpperCase() + job.skill.slice(1)}</Text>
-                            </View>
-                        )}
-
-                        <View style={styles.crimeStatCard}>
-                            <View style={styles.crimeStatIcon}>
-                                <AlertTriangle size={16} color="#FF4444" />
-                            </View>
-                            <Text style={styles.crimeStatLabel}>Risk</Text>
-                            <Text style={styles.crimeStatValue}>{getJailRisk(job)}%</Text>
-                        </View>
-
-                        {/* Penalties - Direct display */}
-                        {(() => {
-                            const { happinessPenalty } = getJobPenalties(job);
-                            if (happinessPenalty < 0) {
-                                return (
-                                    <View style={styles.crimeStatCard}>
-                                        <View style={styles.crimeStatIcon}>
-                                            <Smile size={16} color="#F59E0B" />
-                                        </View>
-                                        <Text style={styles.crimeStatLabel}>Happiness</Text>
-                                        <Text style={[styles.crimeStatValue, { color: '#EF4444' }]}>{happinessPenalty}</Text>
-                                    </View>
-                                );
-                            }
-                            return null;
-                        })()}
-                        {(() => {
-                            const { healthPenalty } = getJobPenalties(job);
-                            if (healthPenalty < 0) {
-                                return (
-                                    <View style={styles.crimeStatCard}>
-                                        <View style={styles.crimeStatIcon}>
-                                            <Heart size={16} color="#EF4444" />
-                                        </View>
-                                        <Text style={styles.crimeStatLabel}>Health</Text>
-                                        <Text style={[styles.crimeStatValue, { color: '#EF4444' }]}>{healthPenalty}</Text>
-                                    </View>
-                                );
-                            }
-                            return null;
-                        })()}
-                    </View>
-
-                    <View style={styles.crimeJobActionContainer}>
-                        {(() => {
-                            const weeklyJobs = gameState.weeklyStreetJobs || {};
-                            const timesDoneThisWeek = weeklyJobs[job.id] || 0;
-                            const maxPerWeek = 3;
-                            const isAtLimit = timesDoneThisWeek >= maxPerWeek;
-                            const isDisabled = (gameState?.stats?.energy ?? 0) < job.energyCost || gameState.jailWeeks > 0 || isAtLimit;
-
-                            return (
-                                <>
-                                    {isAtLimit && (
-                                        <Text style={styles.crimeJobDescription}>
-                                            Done {timesDoneThisWeek}/{maxPerWeek} times this week
-                                        </Text>
-                                    )}
-                                    <TouchableOpacity
-                                        onPress={() => handleStreetJob(job.id)}
-                                        disabled={isDisabled}
-                                        style={styles.crimeJobButtonWrapper}
-                                    >
-                                        <LinearGradient
-                                            colors={!isDisabled ? ['#DC2626', '#B91C1C', '#991B1B'] : ['#374151', '#374151']}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                            style={styles.crimeJobButton}
-                                        >
-                                            <Text style={[styles.crimeJobButtonText, isDisabled && styles.crimeJobButtonTextDisabled]}>
-                                                {isAtLimit ? `LIMIT REACHED (${timesDoneThisWeek}/${maxPerWeek})` : !isDisabled ? 'EXECUTE' : 'LOCKED'}
-                                            </Text>
-                                        </LinearGradient>
-                                    </TouchableOpacity>
-                                </>
-                            );
-                        })()}
-
-                        {workFeedback[job.id] && (
-                            <Animated.View style={[styles.feedbackPopup, { opacity: feedbackOpacity }]}>
-                                <Text style={styles.feedbackPopupText}>{workFeedback[job.id]}</Text>
-                            </Animated.View>
-                        )}
-                    </View>
-                </View>
+                <JobCard
+                    key={job.id}
+                    accent="crime"
+                    title={job.name}
+                    description={job.description}
+                    reward={reward}
+                    metadata={crimeMetadata}
+                    buttonText={buttonText}
+                    onPress={() => handleStreetJob(job.id)}
+                    locked={locked}
+                    lockReason={lockReason}
+                    feedback={workFeedback[job.id]}
+                    feedbackOpacity={feedbackOpacity}
+                />
             );
         }
 
-        // Regular street job card - styled like crime jobs but in blue
+        const missing = getMissingRequirements(job);
+        const locked = lacksEnergy || inJail || missing.length > 0;
+        const lockReason = missing.length > 0
+            ? `Need ${missing.join(', ')}`
+            : inJail
+                ? 'Unavailable while in jail.'
+                : lacksEnergy
+                    ? `Needs ${job.energyCost} energy.`
+                    : undefined;
+
+        const streetMetadata: JobCardMetadata[] = [...metadata];
+        if (job.risks && job.risks.length > 0) {
+            streetMetadata.splice(2, 0, {
+                icon: <AlertTriangle size={scale(13)} color="rgba(251, 191, 36, 0.92)" />,
+                value: `${job.risks.length} risk${job.risks.length > 1 ? 's' : ''}`,
+                tone: 'warn',
+            });
+        }
+
         return (
-            <View key={job.id} style={styles.streetJobContainer}>
-                <BlurView
-                    intensity={20}
-                    tint="dark"
-                    style={styles.streetJobGlass}
-                />
-                <LinearGradient
-                    colors={['rgba(59, 130, 246, 0.15)', 'rgba(37, 99, 235, 0.10)']}
-                    style={styles.streetJobHeader}
-                >
-                    <View style={styles.streetJobHeaderContent}>
-                        <View style={styles.streetJobTitleRow}>
-                            <View style={styles.streetJobTitleContainer}>
-                                <Text style={styles.streetJobName}>{job.name}</Text>
-                                <View style={styles.streetJobBadge}>
-                                    <Text style={styles.streetJobBadgeText}>STREET WORK</Text>
-                                </View>
-                            </View>
-                            <View style={styles.streetJobRankContainer}>
-                                <Star size={14} color="#60A5FA" />
-                                <Text style={styles.streetJobRank}>Rank {job.rank}</Text>
-                            </View>
-                        </View>
-
-                        <Text style={styles.streetJobDescription}>
-                            {job.description}
-                            {(() => {
-                                const missing = getMissingRequirements(job);
-                                return missing.length ? `\n\nRequires: ${missing.join(', ')}` : '';
-                            })()}
-                        </Text>
-                    </View>
-                </LinearGradient>
-
-                <View style={styles.streetJobStatsGrid}>
-                    <View style={styles.streetStatCard}>
-                        <View style={styles.streetStatIcon}>
-                            <Zap size={16} color="#60A5FA" />
-                        </View>
-                        <Text style={styles.streetStatLabel}>Energy</Text>
-                        <Text style={styles.streetStatValue}>-{job.energyCost}</Text>
-                    </View>
-
-                    <View style={styles.streetStatCard}>
-                        <View style={styles.streetStatIcon}>
-                            <TrendingUp size={16} color="#4ADE80" />
-                        </View>
-                        <Text style={styles.streetStatLabel}>Reward</Text>
-                        <Text style={styles.streetStatValue}>
-                            ${Math.floor(job.basePayment * 0.7)}-${Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3))}
-                        </Text>
-                    </View>
-
-                    {job.skill && (
-                        <View style={styles.streetStatCard}>
-                            <View style={styles.streetStatIcon}>
-                                <Star size={16} color="#FFD93D" />
-                            </View>
-                            <Text style={styles.streetStatLabel}>Skill</Text>
-                            <Text style={styles.streetStatValue}>{job.skill.charAt(0).toUpperCase() + job.skill.slice(1)}</Text>
-                        </View>
-                    )}
-
-                    {job.risks && job.risks.length > 0 && (
-                        <View style={styles.streetStatCard}>
-                            <View style={styles.streetStatIcon}>
-                                <AlertTriangle size={16} color="#F59E0B" />
-                            </View>
-                            <Text style={styles.streetStatLabel}>Risks</Text>
-                            <Text style={styles.streetStatValue}>{job.risks.length}</Text>
-                        </View>
-                    )}
-
-                    {/* Penalties - Direct display */}
-                    {(() => {
-                        const { happinessPenalty } = getJobPenalties(job);
-                        if (happinessPenalty < 0) {
-                            return (
-                                <View style={styles.streetStatCard}>
-                                    <View style={styles.streetStatIcon}>
-                                        <Smile size={16} color="#F59E0B" />
-                                    </View>
-                                    <Text style={styles.streetStatLabel}>Happiness</Text>
-                                    <Text style={[styles.streetStatValue, { color: '#EF4444' }]}>{happinessPenalty}</Text>
-                                </View>
-                            );
-                        }
-                        return null;
-                    })()}
-                    {(() => {
-                        const { healthPenalty } = getJobPenalties(job);
-                        if (healthPenalty < 0) {
-                            return (
-                                <View style={styles.streetStatCard}>
-                                    <View style={styles.streetStatIcon}>
-                                        <Heart size={16} color="#EF4444" />
-                                    </View>
-                                    <Text style={styles.streetStatLabel}>Health</Text>
-                                    <Text style={[styles.streetStatValue, { color: '#EF4444' }]}>{healthPenalty}</Text>
-                                </View>
-                            );
-                        }
-                        return null;
-                    })()}
-                </View>
-
-                <View style={styles.streetJobActionContainer}>
-                    <TouchableOpacity
-                        onPress={() => handleStreetJob(job.id)}
-                        disabled={(gameState?.stats?.energy ?? 0) < job.energyCost || gameState.jailWeeks > 0}
-                        style={styles.streetJobButtonWrapper}
-                    >
-                        <LinearGradient
-                            colors={(gameState?.stats?.energy ?? 0) >= job.energyCost && gameState.jailWeeks === 0
-                                ? ['#2563EB', '#1D4ED8', '#1E40AF']
-                                : ['#374151', '#374151']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.streetJobButton}
-                        >
-                            <Text style={[styles.streetJobButtonText, ((gameState?.stats?.energy ?? 0) < job.energyCost || gameState.jailWeeks > 0) && styles.streetJobButtonTextDisabled]}>
-                                {(gameState?.stats?.energy ?? 0) < job.energyCost || gameState.jailWeeks > 0 ? 'LOCKED' : 'WORK'}
-                            </Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-
-                    {workFeedback[job.id] && (
-                        <Animated.View style={[styles.feedbackPopup, { opacity: feedbackOpacity }]}>
-                            <Text style={styles.feedbackPopupText}>{workFeedback[job.id]}</Text>
-                        </Animated.View>
-                    )}
-
-                    {/* System Interconnection Indicator */}
-                    {(() => {
-                        try {
-                            // eslint-disable-next-line @typescript-eslint/no-require-imports
-                            const { getSystemInterconnections } = require('@/lib/depth/systemInterconnections');
-                            const interconnections = getSystemInterconnections(gameState);
-                            const relevantInterconnections = interconnections.filter(
-                                (ic: any) => ic.sourceSystem === 'streetJobs' || ic.targetSystem === 'streetJobs'
-                            );
-                            if (relevantInterconnections.length > 0) {
-                                return (
-                                    <SystemInterconnectionIndicator
-                                        interconnections={relevantInterconnections}
-                                        compact={true}
-                                        darkMode={settings.darkMode}
-                                    />
-                                );
-                            }
-                        } catch {
-                            // Depth system may not be available
-                        }
-                        return null;
-                    })()}
-                </View>
-            </View>
+            <JobCard
+                key={job.id}
+                accent="street"
+                title={job.name}
+                description={job.description}
+                reward={reward}
+                metadata={streetMetadata}
+                buttonText={locked ? 'Locked' : 'Work'}
+                onPress={() => handleStreetJob(job.id)}
+                locked={locked}
+                lockReason={lockReason}
+                feedback={workFeedback[job.id]}
+                feedbackOpacity={feedbackOpacity}
+                footer={interconnectionFooter}
+            />
         );
-    }; // <-- fix: closes renderJobCard correctly
+    };
+
 
     const canApplyForCareer = (career: Career) => {
         const meetsFitness =
@@ -727,7 +517,7 @@ function WorkScreenContent() {
         const hasItems =
             !('items' in career.requirements && career.requirements.items) ||
             career.requirements.items.every((itemId: string) =>
-                gameState.items.find(item => item.id === itemId)?.owned
+                (gameState.items || []).find(item => item.id === itemId)?.owned
             );
         // Check for early career access bonus
         const { hasEarlyCareerAccess } = require('@/lib/prestige/applyUnlocks');
@@ -737,7 +527,7 @@ function WorkScreenContent() {
             hasEarlyAccess ||
             !('education' in career.requirements && career.requirements.education) ||
             (career.requirements.education && career.requirements.education.every((educationId: string) =>
-                gameState.educations.find(e => e.id === educationId)?.completed
+                (gameState.educations || []).find(e => e.id === educationId)?.completed
             ));
         const pendingApplication = gameState.careers.some(
             (c: Career) => c.applied && !c.accepted
@@ -749,6 +539,165 @@ function WorkScreenContent() {
             !career.applied &&
             !gameState.currentJob &&
             !pendingApplication
+        );
+    };
+
+    const renderCareerCard = (career: Career): React.ReactElement => {
+        const requiresFitness = !!('fitness' in career.requirements && career.requirements.fitness);
+        const meetsFitness = !requiresFitness || (gameState?.stats?.fitness ?? 0) >= (career.requirements as any).fitness;
+        const requiresEdu = !!('education' in career.requirements && career.requirements.education && career.requirements.education.length > 0);
+        const hasEdu =
+            !requiresEdu ||
+            ('education' in career.requirements && (career.requirements.education ?? []).every((eid: string) =>
+                !!(gameState.educations || []).find(e => e.id === eid)?.completed
+            ));
+        const requiresItems = !!('items' in career.requirements && career.requirements.items && career.requirements.items.length > 0);
+        const missingItemNames: string[] = requiresItems
+            ? ((career.requirements as any).items as string[])
+                .filter((id) => !(gameState.items || []).find(i => i.id === id)?.owned)
+                .map((id) => (gameState.items || []).find(i => i.id === id)?.name || id)
+            : [];
+
+        const level = career.levels[career.level];
+        const isEmployedHere = gameState.currentJob === career.id;
+        const canPromote = isEmployedHere && career.progress >= 100 && career.level < career.levels.length - 1;
+        const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
+        const { happinessPenalty, healthPenalty } = getCareerPenalties();
+
+        const reward = requiresEdu && !hasEdu ? '— Locked' : `$${level.salary}/wk`;
+
+        const metadata: JobCardMetadata[] = [];
+        if (requiresFitness) {
+            metadata.push({
+                icon: <Trophy size={scale(13)} color={meetsFitness ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
+                value: `Fitness ${(career.requirements as any).fitness}+`,
+                tone: meetsFitness ? 'default' : 'bad',
+            });
+        }
+        if (requiresEdu) {
+            metadata.push({
+                icon: <Briefcase size={scale(13)} color={hasEdu ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
+                value: hasEdu ? 'Education met' : 'Education needed',
+                tone: hasEdu ? 'default' : 'bad',
+            });
+        }
+        metadata.push({
+            icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />,
+            value: `Lv ${career.level + 1}/${career.levels.length}`,
+        });
+        if (happinessPenalty < 0) {
+            metadata.push({
+                icon: <Smile size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
+                value: `${happinessPenalty}`,
+                tone: 'bad',
+            });
+        }
+        if (healthPenalty < 0) {
+            metadata.push({
+                icon: <Heart size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
+                value: `${healthPenalty}`,
+                tone: 'bad',
+            });
+        }
+
+        // Button + lock state per employment phase
+        let buttonText: string;
+        let onPress: (() => void) | undefined;
+        let locked = false;
+        let lockReason: string | undefined;
+        let buttonAccent: 'career' | 'crime' | undefined;
+
+        if (canPromote) {
+            buttonText = 'Promote now';
+            onPress = () => {
+                const result = promoteCareer(career.id);
+                if (result) {
+                    if (result.success) showSuccess(result.message);
+                    else showWarning(result.message);
+                }
+            };
+        } else if (isEmployedHere) {
+            buttonText = atMaxLevel ? 'Quit (max level)' : 'Quit';
+            onPress = () => setShowQuitJobConfirm(true);
+            buttonAccent = 'crime';
+        } else if (career.accepted) {
+            buttonText = 'Hired';
+            locked = true;
+        } else if (career.applied) {
+            buttonText = 'Applied';
+            locked = true;
+        } else if (requiresEdu && !hasEdu) {
+            buttonText = 'Requires education';
+            locked = true;
+            lockReason = 'Complete the required education to apply.';
+        } else if (requiresFitness && !meetsFitness) {
+            buttonText = 'Requires fitness';
+            locked = true;
+            lockReason = `Reach Fitness ${(career.requirements as any).fitness} to apply.`;
+        } else if (missingItemNames.length > 0) {
+            buttonText = 'Locked';
+            locked = true;
+            lockReason = `Need ${missingItemNames.join(', ')}.`;
+        } else if (!canApplyForCareer(career)) {
+            buttonText = 'Unavailable';
+            locked = true;
+            lockReason = gameState.currentJob ? 'Quit your current job to apply.' : 'Another application is pending.';
+        } else {
+            buttonText = t('work.apply');
+            onPress = () => applyForJob(career.id);
+        }
+
+        // Footer: progress bar when employed and not yet promoting; max-level note; quit link when promoting
+        let footer: React.ReactNode = null;
+        if (isEmployedHere) {
+            if (atMaxLevel) {
+                footer = (
+                    <Text style={[styles.maxPromotionText, settings.darkMode && styles.maxPromotionTextDark, { textAlign: 'center' }]}>
+                        Max promotion reached
+                    </Text>
+                );
+            } else if (canPromote) {
+                footer = (
+                    <TouchableOpacity onPress={() => setShowQuitJobConfirm(true)} style={{ alignSelf: 'center', paddingVertical: 4 }}>
+                        <Text style={{ color: 'rgba(248, 113, 113, 0.85)', fontSize: fontScale(12), fontWeight: '600' }}>
+                            Quit instead
+                        </Text>
+                    </TouchableOpacity>
+                );
+            } else {
+                footer = (
+                    <View>
+                        <View style={styles.progressInfo}>
+                            <Text style={[styles.progressLabel, settings.darkMode && styles.progressLabelDark]}>
+                                Progress to promotion
+                            </Text>
+                            <Text style={[styles.progressPercent, settings.darkMode && styles.progressPercentDark]}>
+                                {career.progress}%
+                            </Text>
+                        </View>
+                        <View style={styles.progressBar}>
+                            <View style={[styles.progressFill, { width: `${career.progress}%` }]} />
+                        </View>
+                    </View>
+                );
+            }
+        }
+
+        return (
+            <JobCard
+                key={career.id}
+                accent="career"
+                buttonAccent={buttonAccent}
+                title={level.name}
+                description={career.description}
+                reward={reward}
+                metadata={metadata}
+                buttonText={buttonText}
+                onPress={onPress}
+                locked={locked}
+                lockReason={lockReason}
+                footer={footer}
+            />
         );
     };
 
@@ -855,285 +804,7 @@ function WorkScreenContent() {
                                         />
                                     </View>
                                     <Text style={[styles.subheader, styles.subheaderDark]}>Standard Careers</Text>
-                                    {basicCareers.map(career => {
-                                        const requiresEdu = !!('education' in career.requirements && career.requirements.education && career.requirements.education.length > 0);
-                                        const hasEdu =
-                                            !requiresEdu ||
-                                            ('education' in career.requirements && career.requirements.education?.every((educationId: string) =>
-                                                !!gameState.educations.find(e => e.id === educationId)?.completed
-                                            )) || false;
-
-                                        return (
-                                            <View key={career.id} style={styles.careerJobContainer}>
-                                                <BlurView
-                                                    intensity={20}
-                                                    tint="dark"
-                                                    style={styles.careerGlass}
-                                                />
-                                                <LinearGradient
-                                                    colors={['rgba(16,185,129,0.18)', 'rgba(5,150,105,0.10)']}
-                                                    style={styles.careerJobHeader}
-                                                >
-                                                    <View style={styles.careerJobHeaderContent}>
-                                                        <View style={styles.careerJobTitleRow}>
-                                                            <View style={styles.careerJobTitleContainer}>
-                                                                <Text style={styles.careerJobName}>{career.levels[career.level].name}</Text>
-                                                                <View style={styles.careerJobBadge}>
-                                                                    <Text style={styles.careerJobBadgeText}>CAREER</Text>
-                                                                </View>
-                                                            </View>
-                                                            <View style={styles.careerJobSalaryContainer}>
-                                                                {requiresEdu && !hasEdu ? (
-                                                                    <View style={styles.lockedSalaryBadge}>
-                                                                        <Lock size={10} color="#F59E0B" />
-                                                                        <Text style={styles.lockedSalaryText}>Locked</Text>
-                                                                    </View>
-                                                                ) : (
-                                                                    <>
-                                                                        <Text style={styles.careerJobSalaryLabel}>Salary</Text>
-                                                                        <Text style={styles.careerJobSalary}>${career.levels[career.level].salary}/wk</Text>
-                                                                    </>
-                                                                )}
-                                                            </View>
-                                                        </View>
-
-                                                        <Text style={styles.careerJobDescription}>
-                                                            {career.description}
-                                                        </Text>
-                                                    </View>
-                                                </LinearGradient>
-
-                                                <View style={styles.careerJobStatsGrid}>
-                                                    {career.requirements.fitness && (
-                                                        <View style={styles.careerStatCard}>
-                                                            <View style={styles.careerStatIcon}>
-                                                                <Trophy size={16} color={(gameState?.stats?.fitness ?? 0) >= career.requirements.fitness ? '#10B981' : '#EF4444'} />
-                                                            </View>
-                                                            <Text style={styles.careerStatLabel}>Fitness</Text>
-                                                            <Text style={[styles.careerStatValue, { color: (gameState?.stats?.fitness ?? 0) >= career.requirements.fitness ? '#10B981' : '#EF4444' }]}>
-                                                                {career.requirements.fitness}+
-                                                            </Text>
-                                                        </View>
-                                                    )}
-
-                                                    {requiresEdu && (
-                                                        <View style={styles.careerStatCard}>
-                                                            <View style={styles.careerStatIcon}>
-                                                                <Briefcase size={16} color={hasEdu ? '#10B981' : '#EF4444'} />
-                                                            </View>
-                                                            <Text style={styles.careerStatLabel}>Education</Text>
-                                                            <Text style={[styles.careerStatValue, { color: hasEdu ? '#10B981' : '#EF4444' }]}>
-                                                                {hasEdu ? 'Met' : 'Need'}
-                                                            </Text>
-                                                        </View>
-                                                    )}
-
-                                                    <View style={styles.careerStatCard}>
-                                                        <View style={styles.careerStatIcon}>
-                                                            <Star size={16} color="#FFD93D" />
-                                                        </View>
-                                                        <Text style={styles.careerStatLabel}>Level</Text>
-                                                        <Text style={styles.careerStatValue}>{career.level + 1}</Text>
-                                                    </View>
-
-                                                    {/* Penalties - Direct display */}
-                                                    {(() => {
-                                                        const { happinessPenalty } = getCareerPenalties();
-                                                        if (happinessPenalty < 0) {
-                                                            return (
-                                                                <View style={styles.careerStatCard}>
-                                                                    <View style={styles.careerStatIcon}>
-                                                                        <Smile size={16} color="#F59E0B" />
-                                                                    </View>
-                                                                    <Text style={styles.careerStatLabel}>Happiness</Text>
-                                                                    <Text style={[styles.careerStatValue, { color: '#EF4444' }]}>{happinessPenalty}</Text>
-                                                                </View>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                    {(() => {
-                                                        const { healthPenalty } = getCareerPenalties();
-                                                        if (healthPenalty < 0) {
-                                                            return (
-                                                                <View style={styles.careerStatCard}>
-                                                                    <View style={styles.careerStatIcon}>
-                                                                        <Heart size={16} color="#EF4444" />
-                                                                    </View>
-                                                                    <Text style={styles.careerStatLabel}>Health</Text>
-                                                                    <Text style={[styles.careerStatValue, { color: '#EF4444' }]}>{healthPenalty}</Text>
-                                                                </View>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                </View>
-
-                                                {('fitness' in career.requirements && career.requirements.fitness) ||
-                                                    ('items' in career.requirements && career.requirements.items) ||
-                                                    ('education' in career.requirements && career.requirements.education) ? (
-                                                    <View style={styles.requirements}>
-                                                        <Text style={[styles.requirementsTitle, styles.requirementsTitleDark]}>
-                                                            Requirements:
-                                                        </Text>
-                                                        {'fitness' in career.requirements && career.requirements.fitness && (
-                                                            <Text
-                                                                style={[
-                                                                    styles.requirement,
-                                                                    (gameState?.stats?.fitness ?? 0) < career.requirements.fitness &&
-                                                                    styles.requirementDark,
-                                                                    (gameState?.stats?.fitness ?? 0) >= career.requirements.fitness && styles.metRequirement,
-                                                                ]}
-                                                            >
-                                                                {(gameState?.stats?.fitness ?? 0) >= career.requirements.fitness ? '✓' : '✗'}
-                                                                Fitness {career.requirements.fitness}+
-                                                            </Text>
-                                                        )}
-                                                        {'items' in career.requirements && career.requirements.items?.map((itemId: string) => {
-                                                            const item = gameState.items.find(i => i.id === itemId);
-                                                            const owned = item?.owned || false;
-                                                            return (
-                                                                <Text
-                                                                    key={itemId}
-                                                                    style={[
-                                                                        styles.requirement,
-                                                                        !owned && styles.requirementDark,
-                                                                        owned && styles.metRequirement,
-                                                                    ]}
-                                                                >
-                                                                    {owned ? '✓' : '✗'} {item?.name || itemId}
-                                                                </Text>
-                                                            );
-                                                        })}
-                                                        {'education' in career.requirements && career.requirements.education?.map((educationId: string) => {
-                                                            const education = gameState.educations.find(e => e.id === educationId);
-                                                            const completed = education?.completed || false;
-                                                            return (
-                                                                <Text
-                                                                    key={educationId}
-                                                                    style={[
-                                                                        styles.requirement,
-                                                                        !completed && styles.requirementDark,
-                                                                        completed && styles.metRequirement,
-                                                                    ]}
-                                                                >
-                                                                    {completed ? '✓' : '✗'} {education?.name || educationId}
-                                                                </Text>
-                                                            );
-                                                        })}
-                                                        {requiresEdu && !hasEdu && (
-                                                            <Text style={[styles.lockedHint, styles.lockedHintDark]}>
-                                                                Complete the required education to reveal salary and apply.
-                                                            </Text>
-                                                        )}
-                                                    </View>
-                                                ) : null}
-
-                                                {/* Actions - Glass buttons */}
-                                                {(() => {
-                                                    const disabledApply = career.applied || !canApplyForCareer(career) || (requiresEdu && !hasEdu);
-                                                    return (
-                                                        <View style={styles.careerJobActionContainer}>
-                                                            {gameState.currentJob === career.id ? (
-                                                                <TouchableOpacity onPress={() => setShowQuitJobConfirm(true)}>
-                                                                    <View style={styles.careerButtonWrapper}>
-                                                                        <BlurView intensity={20} tint="dark" style={styles.careerButtonBlur} />
-                                                                        <LinearGradient
-                                                                            colors={['rgba(239, 68, 68, 0.6)', 'rgba(185, 28, 28, 0.35)']}
-                                                                            start={{ x: 0, y: 0 }}
-                                                                            end={{ x: 1, y: 1 }}
-                                                                            style={[styles.careerJobButton, styles.careerJobButtonQuit] as any}
-                                                                        >
-                                                                            <Text style={styles.careerJobButtonText}>{t('work.quit')}</Text>
-                                                                        </LinearGradient>
-                                                                    </View>
-                                                                </TouchableOpacity>
-                                                            ) : (
-                                                                <TouchableOpacity
-                                                                    onPress={() => applyForJob(career.id)}
-                                                                    disabled={disabledApply}
-                                                                >
-                                                                    <View style={styles.careerButtonWrapper}>
-                                                                        <BlurView intensity={20} tint="dark" style={styles.careerButtonBlur} />
-                                                                        <LinearGradient
-                                                                            colors={
-                                                                                !disabledApply
-                                                                                    ? ['rgba(16, 185, 129, 0.35)', 'rgba(5, 150, 105, 0.20)']
-                                                                                    : ['rgba(55, 65, 81, 0.25)', 'rgba(55, 65, 81, 0.15)']
-                                                                            }
-                                                                            start={{ x: 0, y: 0 }}
-                                                                            end={{ x: 1, y: 1 }}
-                                                                            style={styles.careerJobButton}
-                                                                        >
-                                                                            <Text style={[styles.careerJobButtonText, disabledApply && styles.careerJobButtonTextDisabled]}>
-                                                                                {career.accepted
-                                                                                    ? 'Hired!'
-                                                                                    : career.applied
-                                                                                        ? 'Applied'
-                                                                                        : requiresEdu && !hasEdu
-                                                                                            ? 'Requires Education'
-                                                                                            : t('work.apply')}
-                                                                            </Text>
-                                                                        </LinearGradient>
-                                                                    </View>
-                                                                </TouchableOpacity>
-                                                            )}
-                                                        </View>
-                                                    );
-                                                })()}
-
-                                                {career.accepted && (
-                                                    career.level === career.levels.length - 1 && career.progress === 100 ? (
-                                                        <View style={styles.progressSection}>
-                                                            <Text style={[styles.maxPromotionText, settings.darkMode && styles.maxPromotionTextDark]}>
-                                                                Max promotion reached
-                                                            </Text>
-                                                        </View>
-                                                    ) : career.progress >= 100 ? (
-                                                        <View style={styles.progressSection}>
-                                                            <TouchableOpacity
-                                                                onPress={() => {
-                                                                    const result = promoteCareer(career.id);
-                                                                    if (result) {
-                                                                        if (result.success) {
-                                                                            showSuccess(result.message);
-                                                                        } else {
-                                                                            showWarning(result.message);
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                style={styles.promoteButton}
-                                                            >
-                                                                <LinearGradient
-                                                                    colors={['rgba(16, 185, 129, 0.6)', 'rgba(5, 150, 105, 0.4)']}
-                                                                    start={{ x: 0, y: 0 }}
-                                                                    end={{ x: 1, y: 1 }}
-                                                                    style={styles.promoteButtonGradient}
-                                                                >
-                                                                    <TrendingUp size={16} color="#FFFFFF" />
-                                                                    <Text style={styles.promoteButtonText}>Promote Now</Text>
-                                                                </LinearGradient>
-                                                            </TouchableOpacity>
-                                                        </View>
-                                                    ) : (
-                                                        <View style={styles.progressSection}>
-                                                            <View style={styles.progressInfo}>
-                                                                <Text style={[styles.progressLabel, settings.darkMode && styles.progressLabelDark]}>
-                                                                    Progress to Promotion
-                                                                </Text>
-                                                                <Text style={[styles.progressPercent, settings.darkMode && styles.progressPercentDark]}>
-                                                                    {career.progress}%
-                                                                </Text>
-                                                            </View>
-                                                            <View style={styles.progressBar}>
-                                                                <View style={[styles.progressFill, { width: `${career.progress}%` }]} />
-                                                            </View>
-                                                        </View>
-                                                    )
-                                                )}
-                                            </View>
-                                        );
-                                    })}
+                                    {basicCareers.map(career => renderCareerCard(career))}
                                     <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Advanced Careers</Text>
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -1241,117 +912,37 @@ function WorkScreenContent() {
                                         />
                                     </View>
 
-                                    <View style={styles.skillsContainer}>
+                                    <View>
                                         {Object.entries(gameState.crimeSkills).map(([id, skill]) => {
+                                            const skillId = id as CrimeSkillId;
                                             const threshold = skill.level * 100;
-                                            const percent = Math.min(100, (skill.xp / threshold) * 100);
                                             const label = id.charAt(0).toUpperCase() + id.slice(1);
                                             const availablePoints = Math.max(0, skill.level - 1);
                                             const spentPoints = skill.upgrades?.length || 0;
                                             const remainingPoints = availablePoints - spentPoints;
 
-                                            // Skill-specific colors and icons
-                                            const skillConfig = {
-                                                stealth: {
-                                                    icon: Eye,
-                                                    colors: ['#0F172A', '#1E293B', '#334155'],
-                                                    lightColors: ['#F1F5F9', '#E2E8F0'],
-                                                },
-                                                hacking: {
-                                                    icon: Brain,
-                                                    colors: ['#0C4A6E', '#075985', '#0369A1'],
-                                                    lightColors: ['#E0F2FE', '#BAE6FD'],
-                                                },
-                                                lockpicking: {
-                                                    icon: Target,
-                                                    colors: ['#7C2D12', '#EA580C', '#F97316'],
-                                                    lightColors: ['#FFF7ED', '#FFEDD5'],
-                                                },
+                                            const skillMeta: Record<CrimeSkillId, { icon: typeof Eye; treeName: string; accent: [string, string]; totalNodes: number }> = {
+                                                stealth: { icon: Eye, treeName: 'Shadow Arts', accent: ['#475569', '#94A3B8'], totalNodes: 5 },
+                                                hacking: { icon: Brain, treeName: 'Digital Dominion', accent: ['#0369A1', '#38BDF8'], totalNodes: 5 },
+                                                lockpicking: { icon: Target, treeName: 'Lock Mastery', accent: ['#EA580C', '#FB923C'], totalNodes: 5 },
                                             };
-
-                                            const config = skillConfig[id as CrimeSkillId];
-                                            const Icon = config.icon;
+                                            const meta = skillMeta[skillId];
 
                                             return (
-                                                <TouchableOpacity
+                                                <CrimeSkillCard
                                                     key={id}
-                                                    onPress={() => setSelectedSkillTree(id as CrimeSkillId)}
-                                                    style={styles.skillCard}
-                                                    activeOpacity={0.8}
-                                                >
-                                                    <LinearGradient
-                                                        colors={settings.darkMode ? config.colors : config.lightColors}
-                                                        style={styles.skillCardGradient}
-                                                        start={{ x: 0, y: 0 }}
-                                                        end={{ x: 1, y: 1 }}
-                                                    >
-                                                        {/* Icon Container */}
-                                                        <View style={[
-                                                            styles.skillIconContainer,
-                                                            settings.darkMode && styles.skillIconContainerDark,
-                                                        ]}>
-                                                            <Icon size={32} color={settings.darkMode ? '#FFFFFF' : config.colors[1]} />
-                                                            {skill.level >= 5 && (
-                                                                <View style={styles.skillCrownBadge}>
-                                                                    <Crown size={14} color="#FBBF24" />
-                                                                </View>
-                                                            )}
-                                                        </View>
-
-                                                        {/* Skill Info */}
-                                                        <View style={styles.skillInfo}>
-                                                            <Text style={[styles.skillName, settings.darkMode && styles.skillNameDark]}>
-                                                                {label}
-                                                            </Text>
-
-                                                            <View style={styles.skillLevelRow}>
-                                                                <View style={styles.skillLevelBadge}>
-                                                                    <Star size={12} color="#F59E0B" />
-                                                                    <Text style={[styles.skillLevelText, settings.darkMode && styles.skillLevelTextDark]}>
-                                                                        Level {skill.level}
-                                                                    </Text>
-                                                                </View>
-
-                                                                {remainingPoints > 0 && (
-                                                                    <View style={styles.talentPointsBadge}>
-                                                                        <Sparkles size={12} color="#3B82F6" />
-                                                                        <Text style={[styles.talentPointsText, settings.darkMode && styles.talentPointsTextDark]}>
-                                                                            {remainingPoints} pts
-                                                                        </Text>
-                                                                    </View>
-                                                                )}
-                                                            </View>
-
-                                                            {/* Progress Bar */}
-                                                            <View style={styles.skillProgressWrapper}>
-                                                                <View style={[
-                                                                    styles.skillProgressBarBg,
-                                                                    settings.darkMode && styles.skillProgressBarBgDark,
-                                                                ]}>
-                                                                    <LinearGradient
-                                                                        colors={config.colors}
-                                                                        style={[styles.skillProgressBarFill, { width: `${percent}%` }] as any}
-                                                                        start={{ x: 0, y: 0 }}
-                                                                        end={{ x: 1, y: 0 }}
-                                                                    />
-                                                                </View>
-                                                                <Text style={[styles.skillProgressText, settings.darkMode && styles.skillProgressTextDark]}>
-                                                                    {skill.xp} / {threshold} XP
-                                                                </Text>
-                                                            </View>
-
-                                                            {/* Unlocked Talents Count */}
-                                                            {spentPoints > 0 && (
-                                                                <View style={styles.unlockedTalentsBadge}>
-                                                                    <Check size={12} color="#10B981" />
-                                                                    <Text style={[styles.unlockedTalentsText, settings.darkMode && styles.unlockedTalentsTextDark]}>
-                                                                        {spentPoints} talent{spentPoints > 1 ? 's' : ''} unlocked
-                                                                    </Text>
-                                                                </View>
-                                                            )}
-                                                        </View>
-                                                    </LinearGradient>
-                                                </TouchableOpacity>
+                                                    icon={meta.icon}
+                                                    name={label}
+                                                    treeName={meta.treeName}
+                                                    level={skill.level}
+                                                    xp={skill.xp}
+                                                    xpThreshold={threshold}
+                                                    pointsAvailable={remainingPoints}
+                                                    unlockedCount={spentPoints}
+                                                    totalCount={meta.totalNodes}
+                                                    accent={meta.accent}
+                                                    onPress={() => setSelectedSkillTree(skillId)}
+                                                />
                                             );
                                         })}
                                     </View>
@@ -1624,10 +1215,15 @@ const styles = StyleSheet.create({
     },
     activeTab: {
         backgroundColor: '#3B82F6',
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        ...Platform.select({
+          web: { boxShadow: '0px 2px 4px rgba(59, 130, 246, 0.2)' } as any,
+          default: {
+            shadowColor: '#3B82F6',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+          },
+        }),
         elevation: 3,
     },
     tabText: {
@@ -1722,28 +1318,43 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(0,0,0,0.06)',
         // Beautiful light mode shadows
-        shadowColor: 'rgba(0,0,0,0.06)',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 1,
-        shadowRadius: 8,
+        ...Platform.select({
+          web: { boxShadow: '0px 3px 8px rgba(0, 0, 0, 0.06)' } as any,
+          default: {
+            shadowColor: 'rgba(0,0,0,0.06)',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 1,
+            shadowRadius: 8,
+          },
+        }),
         elevation: 3,
     },
     careerCardDark: {
         backgroundColor: '#1F2937',
         borderColor: '#374151',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3,
+        ...Platform.select({
+          web: { boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3,
+          },
+        }),
         elevation: 1,
     },
     careerCardActive: {
         borderColor: '#22C55E',
         borderWidth: 2,
-        shadowColor: 'rgba(34, 197, 94, 0.2)',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 1,
-        shadowRadius: 12,
+        ...Platform.select({
+          web: { boxShadow: '0px 4px 12px rgba(34, 197, 94, 0.2)' } as any,
+          default: {
+            shadowColor: 'rgba(34, 197, 94, 0.2)',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 1,
+            shadowRadius: 12,
+          },
+        }),
         elevation: 4,
     },
     careerCardHeader: {
@@ -1759,9 +1370,14 @@ const styles = StyleSheet.create({
         marginBottom: responsiveSpacing.xs,
         letterSpacing: -0.5,
         // Light mode: subtle text shadow for emphasis
-        textShadowColor: 'rgba(0,0,0,0.1)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        ...Platform.select({
+          web: { textShadow: '0px 1px 2px rgba(0,0,0,0.1)' } as any,
+          default: {
+            textShadowColor: 'rgba(0,0,0,0.1)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 2,
+          },
+        }),
     },
     careerNameDark: {
         color: '#F9FAFB',
@@ -1791,10 +1407,15 @@ const styles = StyleSheet.create({
         borderRadius: getResponsiveValue(8, 12, 16, 20),
         marginBottom: getResponsiveValue(12, 16, 20, 24),
         boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
+        ...Platform.select({
+          web: { boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 3,
+          },
+        }),
         elevation: 2,
     },
     // Street job styles (blue theme) - Compressed
@@ -1804,11 +1425,16 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         backgroundColor: 'transparent',
         borderWidth: 1,
-        borderColor: 'rgba(59, 130, 246, 0.3)',
-        shadowColor: '#2563EB',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.3,
-        shadowRadius: 3,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        ...Platform.select({
+          web: { boxShadow: '0px 1px 3px rgba(37, 99, 235, 0.3)' } as any,
+          default: {
+            shadowColor: '#2563EB',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.3,
+            shadowRadius: 3,
+          },
+        }),
         elevation: 3,
     },
     streetJobGlass: {
@@ -1890,11 +1516,11 @@ const styles = StyleSheet.create({
         padding: 4,
         alignItems: 'center',
         borderWidth: 0.5,
-        borderColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     streetStatCardDark: {
         backgroundColor: 'rgba(59, 130, 246, 0.15)',
-        borderColor: 'rgba(59, 130, 246, 0.3)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     streetStatIcon: {
         width: 16,
@@ -1928,10 +1554,15 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         alignItems: 'center',
         boxShadow: '0px 2px 4px rgba(37, 99, 235, 0.4)',
-        shadowColor: '#2563EB',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.4,
-        shadowRadius: 4,
+        ...Platform.select({
+          web: { boxShadow: '0px 2px 4px rgba(37, 99, 235, 0.4)' } as any,
+          default: {
+            shadowColor: '#2563EB',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.4,
+            shadowRadius: 4,
+          },
+        }),
         elevation: 4,
     },
     streetJobButtonText: {
@@ -1950,11 +1581,16 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         backgroundColor: 'transparent',
         borderWidth: 0.5,
-        borderColor: 'rgba(16, 185, 129, 0.2)',
-        shadowColor: 'rgba(16, 185, 129, 0.15)',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.5,
-        shadowRadius: 3,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        ...Platform.select({
+          web: { boxShadow: '0px 1px 3px rgba(16, 185, 129, 0.075)' } as any,
+          default: {
+            shadowColor: 'rgba(16, 185, 129, 0.15)',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.5,
+            shadowRadius: 3,
+          },
+        }),
         elevation: 2,
     },
     careerGlass: {
@@ -2056,7 +1692,7 @@ const styles = StyleSheet.create({
         padding: 4,
         alignItems: 'center',
         borderWidth: 0.5,
-        borderColor: 'rgba(16, 185, 129, 0.25)',
+        borderColor: 'rgba(255, 255, 255, 0.25)',
     },
     careerStatIcon: {
         width: 16,
@@ -2120,7 +1756,7 @@ const styles = StyleSheet.create({
     },
     careerJobButtonQuit: {
         borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.8)',
+        borderColor: 'rgba(255, 255, 255, 0.8)',
     },
     // Requirement chips (shared)
     crimeReqChipsContainer: {
@@ -2160,11 +1796,16 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         backgroundColor: 'transparent',
         borderWidth: 0.5,
-        borderColor: 'rgba(220, 38, 38, 0.2)',
-        shadowColor: 'rgba(220, 38, 38, 0.15)',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.5,
-        shadowRadius: 3,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        ...Platform.select({
+          web: { boxShadow: '0px 1px 3px rgba(220, 38, 38, 0.075)' } as any,
+          default: {
+            shadowColor: 'rgba(220, 38, 38, 0.15)',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.5,
+            shadowRadius: 3,
+          },
+        }),
         elevation: 2,
     },
     crimeJobGlass: {
@@ -2246,7 +1887,7 @@ const styles = StyleSheet.create({
         padding: 4,
         alignItems: 'center',
         borderWidth: 0.5,
-        borderColor: 'rgba(220, 38, 38, 0.2)',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     crimeStatIcon: {
         width: 16,
@@ -2285,10 +1926,15 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         alignItems: 'center',
         boxShadow: '0px 2px 4px rgba(220, 38, 38, 0.4)',
-        shadowColor: '#DC2626',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.4,
-        shadowRadius: 4,
+        ...Platform.select({
+          web: { boxShadow: '0px 2px 4px rgba(220, 38, 38, 0.4)' } as any,
+          default: {
+            shadowColor: '#DC2626',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.4,
+            shadowRadius: 4,
+          },
+        }),
         elevation: 4,
     },
     crimeJobButtonText: {
@@ -2465,7 +2111,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         borderRadius: getResponsiveValue(8, 10, 12, 14),
         borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.3)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
         alignSelf: 'flex-start',
     },
     negativeStatsButtonCircle: {
@@ -2564,7 +2210,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         borderRadius: getResponsiveValue(8, 10, 12, 14),
         borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.2)',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     negativeStatIconContainer: {
         width: getResponsiveValue(36, 40, 44, 48),
@@ -2599,7 +2245,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(245, 158, 11, 0.1)',
         borderRadius: getResponsiveValue(8, 10, 12, 14),
         borderWidth: 1,
-        borderColor: 'rgba(245, 158, 11, 0.3)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
         marginTop: getResponsiveValue(12, 14, 16, 18),
         gap: getResponsiveValue(8, 10, 12, 14),
     },
@@ -3075,10 +2721,15 @@ const styles = StyleSheet.create({
     },
     availableUpgrade: {
         boxShadow: '0px 2px 4px rgba(59, 130, 246, 0.3)',
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        ...Platform.select({
+          web: { boxShadow: '0px 2px 4px rgba(59, 130, 246, 0.3)' } as any,
+          default: {
+            shadowColor: '#3B82F6',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4,
+          },
+        }),
         elevation: 3,
     },
     lockedUpgrade: {
@@ -3106,10 +2757,15 @@ const styles = StyleSheet.create({
     skillCard: {
         borderRadius: responsiveBorderRadius.lg,
         overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
+        ...Platform.select({
+          web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+          },
+        }),
         elevation: 6,
     },
     skillCardGradient: {
@@ -3544,7 +3200,7 @@ const styles = StyleSheet.create({
         padding: 6,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: 'rgba(16, 185, 129, 0.3)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
         marginTop: 6,
     },
     feedbackText: {
@@ -3579,10 +3235,15 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
         elevation: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
+        ...Platform.select({
+          web: { boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+          },
+        }),
     },
     incomeModalGlass: {
         flex: 1,
@@ -3749,10 +3410,15 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
         elevation: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
+        ...Platform.select({
+          web: { boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+          },
+        }),
     },
     tabbedModalGlass: {
         flex: 1,
@@ -3915,7 +3581,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         borderWidth: 1,
-        borderColor: 'rgba(16, 185, 129, 0.3)',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
         alignItems: 'center',
     },
     tabbedModalLeagueText: {
@@ -4233,7 +3899,7 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: 'rgba(16, 185, 129, 0.6)',
+        borderColor: 'rgba(255, 255, 255, 0.6)',
     },
     leagueModalStandingBadgeText: {
         fontSize: 12,
@@ -4258,10 +3924,15 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
         elevation: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
+        ...Platform.select({
+          web: { boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+          },
+        }),
     },
     sponsorsModalGlass: {
         flex: 1,
@@ -4428,10 +4099,15 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
         elevation: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
+        ...Platform.select({
+          web: { boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+          },
+        }),
     },
     artworksModalGlass: {
         flex: 1,
@@ -4529,7 +4205,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderWidth: 1,
-        borderColor: 'rgba(139, 92, 246, 0.5)',
+        borderColor: 'rgba(255, 255, 255, 0.5)',
     },
     artworksModalArtworkRankText: {
         fontSize: 14,
@@ -4587,10 +4263,15 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)',
         elevation: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
+        ...Platform.select({
+          web: { boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.4)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+          },
+        }),
     },
     songsModalGlass: {
         flex: 1,
@@ -4688,7 +4369,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.5)',
+        borderColor: 'rgba(255, 255, 255, 0.5)',
     },
     songsModalSongRankText: {
         fontSize: 14,
@@ -4835,10 +4516,15 @@ const styles = StyleSheet.create({
         gap: 12,
         boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
         elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        ...Platform.select({
+          web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+          },
+        }),
     },
     playModalActionButtonSecondary: {
         backgroundColor: '#3B82F6',

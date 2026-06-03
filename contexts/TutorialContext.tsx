@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { Dimensions } from 'react-native';
 import InteractiveTutorial, { TutorialStep } from '@/components/InteractiveTutorial';
 import { scale, verticalScale } from '@/utils/scaling';

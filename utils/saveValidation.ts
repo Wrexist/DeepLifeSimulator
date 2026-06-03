@@ -331,8 +331,15 @@ function isGameStateLike(obj: unknown): obj is Partial<GameState> {
 }
 
 /**
- * Repair common corruption patterns in game state
- * Uses 'unknown' for better type safety in validation functions
+ * Repair common corruption patterns in game state.
+ *
+ * IMPORTANT (P0-10 fix): this function operates on a deep clone internally and
+ * then copies the clone's properties back onto the original `state` object. The
+ * top-level reference is preserved (so callers using `{...prev}` to get a new
+ * React state object still work), but every nested reference (`state.stats`,
+ * `state.banking`, …) is replaced with a fresh object. That way React's memo
+ * deps actually fire after a repair — previously the in-place mutation kept
+ * the same nested refs and selectors silently saw stale data, freezing the UI.
  */
 export function repairGameState(state: unknown): { repaired: boolean; repairs: string[] } {
   const repairs: string[] = [];
@@ -342,8 +349,18 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     return { repaired: false, repairs: [] };
   }
 
-  // Cast to Record for dynamic property access after the type guard above
-  const s = state as Record<string, any>;
+  // Deep-clone so all nested objects/arrays get fresh references. structuredClone
+  // is available in Hermes / RN 0.81+. Fallback to JSON round-trip just in case.
+  let s: Record<string, any>;
+  try {
+    s = (typeof structuredClone === 'function'
+      ? structuredClone(state)
+      : JSON.parse(JSON.stringify(state))) as Record<string, any>;
+  } catch {
+    // If cloning fails (e.g. circular refs), fall back to in-place mutation
+    // — degraded mode but better than crashing the repair flow.
+    s = state as Record<string, any>;
+  }
 
   // Ensure stats object exists
   if (!s.stats || typeof s.stats !== 'object') {
@@ -581,6 +598,186 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
+  // ── v13+ Pulse social platform defaults ───────────────────────
+  // Mirror of the v13 migration so a deeply corrupted save can be rebuilt.
+  if (!s.socialMedia || typeof s.socialMedia !== 'object') {
+    s.socialMedia = {
+      followers: 0,
+      influenceLevel: 'novice',
+      totalPosts: 0,
+      viralPosts: 0,
+      brandPartnerships: 0,
+      engagementRate: 0,
+    };
+    repairs.push('Created missing socialMedia object');
+    repaired = true;
+  }
+  const sm = s.socialMedia;
+  if (sm.commentThreads === undefined || typeof sm.commentThreads !== 'object') {
+    sm.commentThreads = {};
+    repairs.push('Created missing socialMedia.commentThreads');
+    repaired = true;
+  }
+  if (!Array.isArray(sm.trendingHashtags)) {
+    sm.trendingHashtags = [];
+    repairs.push('Created missing socialMedia.trendingHashtags');
+    repaired = true;
+  }
+  if (!sm.followGraph || typeof sm.followGraph !== 'object') {
+    sm.followGraph = {
+      followingNpcIds: [],
+      followedByNpcIds: [],
+      lastUpdatedWeek: s.weeksLived ?? 0,
+    };
+    repairs.push('Created missing socialMedia.followGraph');
+    repaired = true;
+  }
+  if (sm.activeScandal === undefined) {
+    sm.activeScandal = null;
+  }
+  if (!Array.isArray(sm.scandalHistory)) {
+    sm.scandalHistory = [];
+    repairs.push('Created missing socialMedia.scandalHistory');
+    repaired = true;
+  }
+  if (!sm.brandInbox || typeof sm.brandInbox !== 'object') {
+    sm.brandInbox = { pending: [], declined: [], history: [] };
+    repairs.push('Created missing socialMedia.brandInbox');
+    repaired = true;
+  }
+  if (!sm.verifiedPro || typeof sm.verifiedPro !== 'object') {
+    sm.verifiedPro = {
+      active: false,
+      perksUnlocked: {
+        blueCheckmark: false,
+        postBoostMultiplier: 1.0,
+        analyticsUnlocked: false,
+        noAdsInFeed: false,
+        longerPosts: false,
+      },
+    };
+    repairs.push('Created missing socialMedia.verifiedPro');
+    repaired = true;
+  }
+  if (!Array.isArray(sm.notifications)) {
+    sm.notifications = [];
+    repairs.push('Created missing socialMedia.notifications');
+    repaired = true;
+  }
+  if (sm.liveSession === undefined) {
+    sm.liveSession = null;
+  }
+  if (!Array.isArray(sm.pendingBoosts)) {
+    sm.pendingBoosts = [];
+    repairs.push('Created missing socialMedia.pendingBoosts');
+    repaired = true;
+  }
+  if (!sm.lifetimeStats || typeof sm.lifetimeStats !== 'object') {
+    sm.lifetimeStats = {
+      peakFollowers: sm.followers ?? 0,
+      peakInfluenceLevel: sm.influenceLevel ?? 'novice',
+      totalScandalsSurvived: 0,
+      totalBrandDealsCompleted: sm.brandPartnerships ?? 0,
+      totalGemsBoostsUsed: 0,
+      totalVerifiedProWeeks: 0,
+    };
+    repairs.push('Created missing socialMedia.lifetimeStats');
+    repaired = true;
+  }
+  if (sm.lastViralBoostBySkill === undefined || typeof sm.lastViralBoostBySkill !== 'object') {
+    sm.lastViralBoostBySkill = {};
+  }
+
+  // ── v15+ Spark dating app defaults ───────────────────────────
+  // Mirror of the v15 migration so a corrupted save can rebuild Spark state.
+  if (!s.sparkApp || typeof s.sparkApp !== 'object') {
+    s.sparkApp = {};
+    repairs.push('Created missing sparkApp object');
+    repaired = true;
+  }
+  const sp = s.sparkApp;
+  if (!sp.profile || typeof sp.profile !== 'object') {
+    sp.profile = { bio: '', photos: [], interests: [], showAge: true, showJob: true, showWealth: false };
+    repairs.push('Created missing sparkApp.profile');
+    repaired = true;
+  }
+  if (!Array.isArray(sp.swipes)) { sp.swipes = []; repairs.push('Created missing sparkApp.swipes'); repaired = true; }
+  if (!Array.isArray(sp.matches)) { sp.matches = []; repairs.push('Created missing sparkApp.matches'); repaired = true; }
+  if (!sp.messages || typeof sp.messages !== 'object') {
+    sp.messages = {};
+    repairs.push('Created missing sparkApp.messages');
+    repaired = true;
+  }
+  if (typeof sp.swipeQuota !== 'number') sp.swipeQuota = 30;
+  if (typeof sp.swipesUsedThisWeek !== 'number') sp.swipesUsedThisWeek = 0;
+  if (typeof sp.lastQuotaResetWeek !== 'number') sp.lastQuotaResetWeek = s.weeksLived ?? 0;
+  if (typeof sp.superLikesUsedThisWeek !== 'number') sp.superLikesUsedThisWeek = 0;
+  if (!sp.premium || typeof sp.premium !== 'object') {
+    sp.premium = {
+      active: false,
+      tier: 'free',
+      perks: {
+        unlimitedSwipes: false,
+        seeWhoLikedYou: false,
+        rewindLastSwipe: false,
+        boostMultiplier: 1.0,
+        superLikesPerDay: 1,
+        verifiedBadge: false,
+        travelMode: false,
+      },
+    };
+    repairs.push('Created missing sparkApp.premium');
+    repaired = true;
+  }
+  if (!Array.isArray(sp.likedYou)) sp.likedYou = [];
+  if (!Array.isArray(sp.catfishRecords)) sp.catfishRecords = [];
+  if (sp.activeJealousy === undefined) sp.activeJealousy = null;
+  if (!Array.isArray(sp.jealousyHistory)) sp.jealousyHistory = [];
+  if (sp.boost === undefined) sp.boost = null;
+  if (!Array.isArray(sp.dismissedCatfishIds)) sp.dismissedCatfishIds = [];
+  if (!Array.isArray(sp.reportedIds)) sp.reportedIds = [];
+  if (!sp.lifetimeStats || typeof sp.lifetimeStats !== 'object') {
+    sp.lifetimeStats = {
+      totalSwipes: 0, totalMatches: 0, totalSuperLikes: 0,
+      totalDatesGoneOn: 0, totalGiftsGiven: 0, totalProposals: 0,
+      totalMarriages: 0, totalDivorces: 0,
+      totalCatfishExposed: 0, totalJealousyEvents: 0,
+      peakPremiumTier: 'free', totalPremiumWeeks: 0,
+    };
+    repairs.push('Created missing sparkApp.lifetimeStats');
+    repaired = true;
+  }
+
+  // ── v17+ Hustle business app defaults ───────────────────────
+  if (!s.hustleApp || typeof s.hustleApp !== 'object') {
+    s.hustleApp = {};
+    repairs.push('Created missing hustleApp object');
+    repaired = true;
+  }
+  const hu = s.hustleApp;
+  if (!hu.companies || typeof hu.companies !== 'object') {
+    hu.companies = {};
+    repairs.push('Created missing hustleApp.companies');
+    repaired = true;
+  }
+  if (!hu.lifetimeStats || typeof hu.lifetimeStats !== 'object') {
+    hu.lifetimeStats = {
+      totalCompaniesFounded: Array.isArray(s.companies) ? s.companies.length : 0,
+      totalCompaniesSold: 0,
+      totalIPOsLaunched: 0,
+      totalAcquisitionsCompleted: 0,
+      totalScandalsSurvived: 0,
+      totalCampaignsRun: 0,
+      totalNamedHires: 0,
+      totalFires: 0,
+      peakBrandScore: 0,
+      peakMarketShare: 0,
+      peakSharePrice: 0,
+    };
+    repairs.push('Created missing hustleApp.lifetimeStats');
+    repaired = true;
+  }
+
   // ── Settings sub-field defaults (added across v11/v12) ────────
   if (s.settings && typeof s.settings === 'object') {
     if (typeof s.settings.showDecimalsInStats !== 'boolean') {
@@ -627,6 +824,22 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     s.travel.currentTrip.startWeek = 0;
     repairs.push('Migrated travel trip timing from cyclical to absolute week');
     repaired = true;
+  }
+
+  // P0-10: copy repaired clone back onto the original `state` object so the
+  // top-level reference is preserved (caller API) but every nested ref is fresh
+  // (so React memos keyed on e.g. `gameState.stats` actually fire).
+  if (s !== state && repaired) {
+    const original = state as Record<string, any>;
+    // Remove keys that the clone no longer has (defensive — repair never deletes,
+    // but covers future code that does).
+    for (const key of Object.keys(original)) {
+      if (!(key in s)) delete original[key];
+    }
+    // Assign every clone key (new references) onto the original.
+    for (const key of Object.keys(s)) {
+      original[key] = s[key];
+    }
   }
 
   return { repaired, repairs };

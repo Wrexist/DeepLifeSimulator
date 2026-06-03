@@ -33,21 +33,34 @@ export function calculateLeaderboardScore(
   gameState: GameState,
   category: LeaderboardCategory
 ): number {
+  // BUGFIX: Every branch must be nil-safe — partial states from cloud
+  // download, prestige resets, or onboarding flows can have any of these
+  // fields missing. NaN scores corrupt the leaderboard rankings.
+  const safe = (n: number | undefined | null): number =>
+    typeof n === 'number' && Number.isFinite(n) ? n : 0;
   switch (category) {
     case 'wealth':
-      return gameState.stats.money;
+      return safe(gameState.stats?.money);
     case 'netWorth':
-      return netWorth(gameState);
-    case 'career':
-      const topCareer = gameState.careers.reduce((max, c) => Math.max(max, c.level), 0);
+      return safe(netWorth(gameState));
+    case 'career': {
+      const topCareer = (gameState.careers ?? []).reduce(
+        (max, c) => Math.max(max, safe(c?.level)),
+        0,
+      );
       return topCareer;
-    case 'skills':
-      const topSkill = gameState.hobbies.reduce((max, h) => Math.max(max, h.skill), 0);
+    }
+    case 'skills': {
+      const topSkill = (gameState.hobbies ?? []).reduce(
+        (max, h) => Math.max(max, safe(h?.skill)),
+        0,
+      );
       return topSkill;
+    }
     case 'age':
-      return Math.floor(gameState.date.age);
+      return Math.floor(safe(gameState.date?.age));
     case 'achievements':
-      return gameState.achievements?.length || 0;
+      return gameState.achievements?.length ?? 0;
     default:
       return 0;
   }

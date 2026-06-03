@@ -6,13 +6,12 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-    View,
+import { Platform, View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    Animated,
-} from 'react-native';
+    Animated } from 'react-native';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 import {
     X,
     ChevronRight,
@@ -25,7 +24,7 @@ import {
     Trophy,
     Sparkles,
 } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 
@@ -157,9 +156,16 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
 
     // Check if guide has been seen
     useEffect(() => {
-        AsyncStorage.getItem(FIRST_WEEK_GUIDE_KEY).then(value => {
-            setHasSeenGuide(value === 'true');
-        });
+        AsyncStorage.getItem(FIRST_WEEK_GUIDE_KEY)
+            .then(value => {
+                setHasSeenGuide(value === 'true');
+            })
+            .catch(() => {
+                // BUGFIX: missing .catch() turned a transient AsyncStorage failure
+                // into an unhandled promise rejection. Default to "not seen" so the
+                // guide still appears for the player.
+                setHasSeenGuide(false);
+            });
     }, []);
 
     // Fade in animation
@@ -256,7 +262,7 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
                         {/* Priority Badge */}
                         {currentStep.priority === 'high' && (
                             <View style={styles.priorityBadge}>
-                                <Text style={styles.priorityText}>⚡ Important First Step</Text>
+                                <Text style={styles.priorityText}>Important First Step</Text>
                             </View>
                         )}
                     </View>
@@ -343,7 +349,7 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
                 return {
                     icon: Trophy,
                     color: '#F59E0B',
-                    message: '🎉 Promotion available! Visit the Work tab to level up.',
+                    message: 'Promotion available! Visit the Work tab to level up.',
                 };
             default:
                 return null;
@@ -355,7 +361,7 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
     const Icon = tipContent.icon;
 
     return (
-        <View style={[styles.tipContainer, { borderLeftColor: tipContent.color }]}>
+        <View style={styles.tipContainer}>
             <View style={[styles.tipIcon, { backgroundColor: tipContent.color + '20' }]}>
                 <Icon size={14} color={tipContent.color} />
             </View>
@@ -431,15 +437,20 @@ const styles = StyleSheet.create({
         bottom: scale(100),
         left: responsiveSpacing.lg,
         right: responsiveSpacing.lg,
-        zIndex: 1000,
+        zIndex: Z_INDEX.TOOLTIP,
     },
     card: {
         borderRadius: responsiveBorderRadius.xl,
         padding: responsiveSpacing.lg,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        ...Platform.select({
+          web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+          },
+        }),
         elevation: 8,
         borderWidth: 1,
         borderColor: '#374151',
@@ -561,9 +572,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#1F2937',
-        borderRadius: 8,
+        borderRadius: 12,
         padding: responsiveSpacing.sm,
-        borderLeftWidth: 3,
         marginHorizontal: responsiveSpacing.lg,
         marginBottom: responsiveSpacing.sm,
     },

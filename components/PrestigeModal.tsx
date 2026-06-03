@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  Modal,
+import { Platform, Modal,
   View,
   Text,
   StyleSheet,
@@ -8,8 +7,7 @@ import {
   Animated,
   ScrollView,
   Image,
-  Alert,
-} from 'react-native';
+  Alert } from 'react-native';
 import { Crown, X, Sparkles, RotateCcw, Users, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
 import LifeStoryModal from './LifeStoryModal';
 import { useGame } from '@/contexts/game';
@@ -681,10 +679,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
+    ...Platform.select({
+      web: { boxShadow: '0px 20px 30px rgba(0, 0, 0, 0.5)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.5,
+        shadowRadius: 30,
+      },
+    }),
     elevation: 20,
     height: '100%',
     flexDirection: 'column',
@@ -711,7 +714,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   headerText: {
     flex: 1,
@@ -749,7 +752,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'rgba(251, 191, 36, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   pointsCardInner: {
     padding: 24,
@@ -869,7 +872,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   pathCardSelected: {
-    borderColor: 'rgba(59, 130, 246, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   pathCardDisabled: {
     opacity: 0.5,
@@ -965,7 +968,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     alignSelf: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   childrenScroll: {
     marginTop: 16,
@@ -990,7 +993,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   childName: {
     fontSize: 12,
@@ -1026,7 +1029,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(59, 130, 246, 0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   bonusBadgeText: {
     fontSize: 11,
@@ -1100,7 +1103,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(139, 92, 246, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   lifeStoryButtonText: {
     fontSize: 14,
@@ -1114,7 +1117,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: 'rgba(251, 191, 36, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   pointsEarned: {
     fontSize: 20,
@@ -1156,10 +1159,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(245, 158, 11, 0.3)' } as any,
+      default: {
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   prestigeButtonText: {

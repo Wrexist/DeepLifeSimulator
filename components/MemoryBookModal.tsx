@@ -5,16 +5,15 @@
  * and memory sharing indicators
  */
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  Modal,
+import { safeSettings } from '@/utils/safeGameState';
+import { Platform, Modal,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Animated,
-} from 'react-native';
+  Animated } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
@@ -60,7 +59,8 @@ function getMemoryStyle(memory: Memory) {
 
 export default function MemoryBookModal({ visible, onClose }: Props) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  // R2-A: defensive — `settings.darkMode` is read in ~30 places below.
+  const settings = safeSettings(gameState);
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
 
@@ -456,10 +456,15 @@ const styles = StyleSheet.create({
     height: height * 0.85,
     borderRadius: scale(24),
     padding: scale(20),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   header: {

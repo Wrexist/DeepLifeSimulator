@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from '@/utils/safeGameState';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X } from 'lucide-react-native';
@@ -16,7 +17,7 @@ interface Props {
 
 export default function FamilyTreeModal({ visible, onClose }: Props) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   // Reconstruct tree from data

@@ -6,8 +6,9 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Text, StyleSheet, View } from 'react-native';
+import { Platform, Animated, Text, StyleSheet, View } from 'react-native';
 import { scale, fontScale } from '@/utils/scaling';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 export interface StatChange {
     id: string;
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         alignItems: 'center',
-        zIndex: 1000,
+        zIndex: Z_INDEX.TOAST,
         pointerEvents: 'none',
     },
     floatingContainer: {
@@ -228,10 +229,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: scale(12),
         paddingVertical: scale(4),
         borderRadius: scale(12),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        ...Platform.select({
+          web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4,
+          },
+        }),
         elevation: 5,
     },
     floatingText: {
@@ -239,9 +245,14 @@ const styles = StyleSheet.create({
         fontSize: fontScale(14),
         fontWeight: '700',
         textAlign: 'center',
-        textShadowColor: 'rgba(0,0,0,0.3)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        ...Platform.select({
+          web: { textShadow: '0px 1px 2px rgba(0,0,0,0.3)' } as any,
+          default: {
+            textShadowColor: 'rgba(0,0,0,0.3)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 2,
+          },
+        }),
     },
 });
 

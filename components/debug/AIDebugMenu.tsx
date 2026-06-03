@@ -10,8 +10,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   ScrollView,
   TouchableOpacity,
@@ -19,8 +18,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
-  TextInput,
-} from 'react-native';
+  TextInput } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
   X,
@@ -174,12 +172,12 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
           }
         });
       } else {
-        console.log('[DEBUG INTEGRITY] ✅ No issues found - all checks passed!');
+        console.log('[DEBUG INTEGRITY] No issues found - all checks passed!');
       }
 
       const message = report.passRate === 100
-        ? '✅ All checks passed!'
-        : `⚠️ Found ${report.issues.length} issues (${report.passRate}% pass rate)\nCheck console for details.`;
+        ? 'All checks passed!'
+        : `Found ${report.issues.length} issues (${report.passRate}% pass rate)\nCheck console for details.`;
 
       Alert.alert('Integrity Check', message);
       setStatus('Ready');
@@ -309,9 +307,9 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
       const result = await action.execute(gameState, wrappedSetGameState);
 
       if (result.success) {
-        console.log(`✅ [DEBUG ACTION] SUCCESS: ${action.name} - ${result.message}`);
+        console.log(`[DEBUG ACTION] SUCCESS: ${action.name} - ${result.message}`);
       } else {
-        console.log(`❌ [DEBUG ACTION] FAILED: ${action.name} - ${result.message}`);
+        console.log(`[DEBUG ACTION] FAILED: ${action.name} - ${result.message}`);
       }
 
       Alert.alert(
@@ -352,9 +350,9 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
       console.log('[DEBUG SIMULATION] Detailed Results:');
       results.results.forEach((result, index) => {
         if (result.result.success) {
-          console.log(`✅ ${index + 1}. ${result.action.name} (${result.action.category}) - SUCCESS: ${result.result.message}`);
+          console.log(`${index + 1}. ${result.action.name} (${result.action.category}) - SUCCESS: ${result.result.message}`);
         } else {
-          console.log(`❌ ${index + 1}. ${result.action.name} (${result.action.category}) - FAILED: ${result.result.message}`);
+          console.log(`${index + 1}. ${result.action.name} (${result.action.category}) - FAILED: ${result.result.message}`);
         }
       });
 
@@ -432,9 +430,9 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
           scenarioResults.push({ action, result, index: i + 1 });
 
           if (result.success) {
-            console.log(`✅ [DEBUG SCENARIO] SUCCESS: ${action.name} - ${result.message}`);
+            console.log(`[DEBUG SCENARIO] SUCCESS: ${action.name} - ${result.message}`);
           } else {
-            console.log(`❌ [DEBUG SCENARIO] FAILED: ${action.name} - ${result.message}`);
+            console.log(`[DEBUG SCENARIO] FAILED: ${action.name} - ${result.message}`);
           }
         } catch (actionError) {
           console.error(`💥 [DEBUG SCENARIO] ERROR in ${action.name}: ${String(actionError)}`);
@@ -756,7 +754,7 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                       <Clock size={responsiveIconSize.md} color={darkMode ? '#F59E0B' : '#D97706'} />
                       <Text style={styles.monitorLabel}>Age</Text>
                       <Text style={styles.monitorValue}>
-                        {gameState.date?.age?.toFixed(1) || 18} years
+                        {Math.floor(gameState.date?.age ?? 18)} years
                       </Text>
                     </View>
                   </View>
@@ -859,10 +857,15 @@ function createStyles(darkMode: boolean) {
       borderColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.05)',
       // Light mode: subtle inner shadow for depth
       ...(darkMode ? {} : {
-        shadowColor: 'rgba(0,0,0,0.08)',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 1,
-        shadowRadius: 8,
+        ...Platform.select({
+          web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.08)' } as any,
+          default: {
+            shadowColor: 'rgba(0,0,0,0.08)',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 1,
+            shadowRadius: 8,
+          },
+        }),
       }),
     },
     header: {
@@ -954,9 +957,14 @@ function createStyles(darkMode: boolean) {
       marginBottom: responsiveSpacing.lg,
       // Light mode: subtle text shadow for depth
       ...(darkMode ? {} : {
-        textShadowColor: 'rgba(0,0,0,0.1)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        ...Platform.select({
+          web: { textShadow: '0px 1px 2px rgba(0,0,0,0.1)' } as any,
+          default: {
+            textShadowColor: 'rgba(0,0,0,0.1)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 2,
+          },
+        }),
       }),
     },
     buttonGrid: {
@@ -982,10 +990,15 @@ function createStyles(darkMode: boolean) {
       fontSize: responsiveFontSize.base,
       color: darkMode ? '#F9FAFB' : '#0F172A',
       backgroundColor: darkMode ? '#111827' : '#FFFFFF',
-      shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.08)',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 1,
-      shadowRadius: 4,
+      ...Platform.select({
+        web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
+        default: {
+          shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.08)',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 1,
+          shadowRadius: 4,
+        },
+      }),
       elevation: darkMode ? 0 : 2,
     },
     filterButton: {
@@ -996,10 +1009,15 @@ function createStyles(darkMode: boolean) {
       backgroundColor: darkMode ? '#111827' : '#FFFFFF',
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.06)',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 1,
-      shadowRadius: 2,
+      ...Platform.select({
+        web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 1)' } as any,
+        default: {
+          shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.06)',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 1,
+          shadowRadius: 2,
+        },
+      }),
       elevation: darkMode ? 0 : 1,
     },
     activeFilter: {
@@ -1024,10 +1042,15 @@ function createStyles(darkMode: boolean) {
       borderWidth: 1,
       borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.12)',
       backgroundColor: darkMode ? '#111827' : '#F8FAFC',
-      shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.04)',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 1,
-      shadowRadius: 2,
+      ...Platform.select({
+        web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 1)' } as any,
+        default: {
+          shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.04)',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 1,
+          shadowRadius: 2,
+        },
+      }),
       elevation: darkMode ? 0 : 1,
     },
     activeCategory: {
@@ -1055,10 +1078,15 @@ function createStyles(darkMode: boolean) {
       borderRadius: responsiveBorderRadius.lg,
       backgroundColor: darkMode ? '#111827' : '#FFFFFF',
       padding: responsiveSpacing.sm,
-      shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.06)',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 1,
-      shadowRadius: 4,
+      ...Platform.select({
+        web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
+        default: {
+          shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.06)',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 1,
+          shadowRadius: 4,
+        },
+      }),
       elevation: darkMode ? 0 : 2,
     },
     actionItem: {
@@ -1098,10 +1126,15 @@ function createStyles(darkMode: boolean) {
       marginBottom: responsiveSpacing.lg,
       borderWidth: 1,
       borderColor: darkMode ? '#374151' : 'rgba(59, 130, 246, 0.2)',
-      shadowColor: darkMode ? 'transparent' : 'rgba(59, 130, 246, 0.1)',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 1,
-      shadowRadius: 4,
+      ...Platform.select({
+        web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
+        default: {
+          shadowColor: darkMode ? 'transparent' : 'rgba(59, 130, 246, 0.1)',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 1,
+          shadowRadius: 4,
+        },
+      }),
       elevation: darkMode ? 0 : 2,
     },
     simulationTitle: {
@@ -1126,10 +1159,15 @@ function createStyles(darkMode: boolean) {
       padding: responsiveSpacing.sm,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.1)',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 1,
-      shadowRadius: 2,
+      ...Platform.select({
+        web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 1)' } as any,
+        default: {
+          shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.1)',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 1,
+          shadowRadius: 2,
+        },
+      }),
       elevation: darkMode ? 0 : 1,
       borderWidth: darkMode ? 0 : 1,
       borderColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.05)',
@@ -1149,10 +1187,15 @@ function createStyles(darkMode: boolean) {
       marginBottom: responsiveSpacing.md,
       borderWidth: 1,
       borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.08)',
-      shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.06)',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 1,
-      shadowRadius: 4,
+      ...Platform.select({
+        web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
+        default: {
+          shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.06)',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 1,
+          shadowRadius: 4,
+        },
+      }),
       elevation: darkMode ? 0 : 2,
     },
     scenarioHeader: {
@@ -1196,10 +1239,15 @@ function createStyles(darkMode: boolean) {
       alignItems: 'center',
       borderWidth: 1,
       borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.08)',
-      shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.06)',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 1,
-      shadowRadius: 4,
+      ...Platform.select({
+        web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
+        default: {
+          shadowColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.06)',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 1,
+          shadowRadius: 4,
+        },
+      }),
       elevation: darkMode ? 0 : 2,
     },
     monitorLabel: {
@@ -1217,9 +1265,14 @@ function createStyles(darkMode: boolean) {
       marginTop: responsiveSpacing.xs,
       // Light mode: subtle text shadow for important values
       ...(darkMode ? {} : {
-        textShadowColor: 'rgba(0,0,0,0.1)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        ...Platform.select({
+          web: { textShadow: '0px 1px 2px rgba(0,0,0,0.1)' } as any,
+          default: {
+            textShadowColor: 'rgba(0,0,0,0.1)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 2,
+          },
+        }),
       }),
     },
   });

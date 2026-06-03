@@ -56,6 +56,44 @@ export function createTestGameState(overrides: Partial<GameState> = {}): GameSta
       ...initialGameState.family,
       ...(overrides.family || {}),
     },
+    banking: overrides.banking
+      ? {
+          ...(initialGameState.banking ?? {}),
+          ...overrides.banking,
+          creditScore: {
+            ...(initialGameState.banking?.creditScore ?? {}),
+            ...(overrides.banking?.creditScore ?? {}),
+            componentBreakdown: {
+              ...(initialGameState.banking?.creditScore?.componentBreakdown ?? {}),
+              ...(overrides.banking?.creditScore?.componentBreakdown ?? {}),
+            },
+          },
+        }
+      : initialGameState.banking,
+    cryptoMarket: overrides.cryptoMarket
+      ? {
+          ...(initialGameState.cryptoMarket ?? {}),
+          ...overrides.cryptoMarket,
+          coinMarkets: {
+            ...(initialGameState.cryptoMarket?.coinMarkets ?? {}),
+            ...(overrides.cryptoMarket?.coinMarkets ?? {}),
+          },
+          costBasis: {
+            ...(initialGameState.cryptoMarket?.costBasis ?? {}),
+            ...(overrides.cryptoMarket?.costBasis ?? {}),
+          },
+        }
+      : initialGameState.cryptoMarket,
+    darkWeb: overrides.darkWeb
+      ? {
+          ...(initialGameState.darkWeb ?? {}),
+          ...overrides.darkWeb,
+          skills: {
+            ...(initialGameState.darkWeb?.skills ?? {}),
+            ...(overrides.darkWeb?.skills ?? {}),
+          },
+        }
+      : initialGameState.darkWeb,
   };
 }
 

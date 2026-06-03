@@ -22,10 +22,20 @@ class SubscriptionService {
   private subscriptions: Map<string, Subscription> = new Map();
   private listeners: ((subscriptions: Subscription[]) => void)[] = [];
   private _initialized: Promise<void>;
+  // R3-F: capture the unsubscribe so we can release the iapService listener.
+  private unsubscribeIAP?: () => void;
 
   private constructor() {
     this._initialized = this.loadSubscriptions();
     this.initializeIAPListeners();
+  }
+
+  /** Tear down listeners. Useful for tests + hot-reload. */
+  dispose(): void {
+    if (this.unsubscribeIAP) {
+      this.unsubscribeIAP();
+      this.unsubscribeIAP = undefined;
+    }
   }
 
   static getInstance(): SubscriptionService {
@@ -47,9 +57,12 @@ class SubscriptionService {
    * Initialize IAP service listeners
    */
   private initializeIAPListeners(): void {
-    iapService.addListener((_state) => {
+    const result = iapService.addListener((_state) => {
       this.syncSubscriptions();
     });
+    if (typeof result === 'function') {
+      this.unsubscribeIAP = result;
+    }
   }
 
   /**

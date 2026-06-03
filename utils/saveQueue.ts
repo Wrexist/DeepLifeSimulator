@@ -146,7 +146,21 @@ class SaveQueue {
     // Prune save data to reduce size
     const prunedData = this.pruneSaveData(dataWithProtection);
     let serializedData: string;
-    
+
+    // R6 H-2: yield to the event loop before the expensive JSON.stringify so
+    // any pending render / input frame can land first. JSON.stringify on a
+    // late-game state (5000+ weeks, full event log + journal + memories) can
+    // block the JS thread for 500ms–2s; without the yield, the autosave that
+    // runs every 2 minutes janks the UI mid-interaction. The serialization
+    // itself is still synchronous — this only moves WHEN it blocks.
+    await new Promise<void>(resolve => {
+      if (typeof setImmediate === 'function') {
+        setImmediate(() => resolve());
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+
     // Protect JSON.stringify from circular references and other errors
     try {
       serializedData = JSON.stringify(prunedData);
@@ -266,13 +280,27 @@ class SaveQueue {
   }
 
   // Force save a specific slot immediately (waits for queue to finish first)
-  async forceSave(slot: number, data: any): Promise<void> {
+  async forceSave(slot: number, data: any, manageMutex: boolean = true): Promise<void> {
     // Wait for any in-progress queue processing to finish before force saving
     // This prevents concurrent writes to the same slot
     if (this.processingPromise) {
       this.log.debug('forceSave: waiting for queue processing to complete...');
       await this.processingPromise;
     }
+
+    // P1-11: also acquire the save/load mutex so a concurrent `loadGame` can't
+    // be midway through reading the slot while we overwrite it. Without this,
+    // an IAP-triggered forceSave during a slot-switch can write the prior
+    // character's data into the freshly-loaded slot.
+    // C-1 (R8): when `saveGame` already holds the mutex it calls us with
+    // manageMutex=false. The mutex is NOT reentrant, so re-acquiring it here
+    // would self-deadlock for 30s (until the watchdog) and then double-release,
+    // corrupting concurrent slot writes (this path fires on every IAP). Only
+    // manage the lock when forceSave is invoked standalone.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { saveLoadMutex } = require('@/utils/saveLoadMutex');
+    if (manageMutex) await saveLoadMutex.acquire('save');
+    try {
 
     // Validate slot
     if (typeof slot !== 'number' || isNaN(slot) || slot < 1 || slot > 3) {
@@ -398,13 +426,18 @@ class SaveQueue {
       }
       
       this.log.error(`Force save failed for slot ${slot}:`, error);
-      
+
       // Show error toast (always show errors)
       if (this.toastCallback) {
         this.toastCallback('Save Failed! Please try again.', 'error');
       }
-      
+
       throw error;
+    }
+    } finally {
+      // P1-11: always release the mutex, even on error (only if we acquired it).
+      // C-1 (R8): skip release when manageMutex=false — saveGame owns the lock.
+      if (manageMutex) saveLoadMutex.release();
     }
   }
 
@@ -480,15 +513,22 @@ class SaveQueue {
         } else {
           this.log.warn('No valid operations found in persisted queue');
         }
-        
-        // Clear persisted queue
-        await safeRemoveItem('save_queue_persisted');
-        
-        // Process queue if not already processing
+
+        // P2-12: only clear the persisted queue once processing has actually
+        // finished. The previous code removed it eagerly here, so if the app
+        // was killed between restore and processQueue completing, those
+        // operations were lost permanently.
         if (!this.processingPromise) {
           this.processingPromise = this.processQueue().finally(() => {
             this.processingPromise = null;
+            // Best-effort remove the persisted queue after a successful drain.
+            // If processQueue threw we keep the persisted entry so the next
+            // session can retry.
+            void safeRemoveItem('save_queue_persisted').catch(() => {});
           });
+        } else {
+          // Another process is already draining; let its finally block clear
+          // the persisted queue.
         }
       }
     } catch (error) {
@@ -649,6 +689,6 @@ export const queueSave = (slot: number, data: any): Promise<void> => {
   return saveQueue.addToQueue(slot, data);
 };
 
-export const forceSave = (slot: number, data: any): Promise<void> => {
-  return saveQueue.forceSave(slot, data);
+export const forceSave = (slot: number, data: any, manageMutex: boolean = true): Promise<void> => {
+  return saveQueue.forceSave(slot, data, manageMutex);
 };

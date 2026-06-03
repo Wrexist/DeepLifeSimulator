@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, TextInput, Switch } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, TextInput, Switch } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
 import type { Education } from '@/contexts/game/types';
@@ -7,7 +7,7 @@ import { X, DollarSign, Heart, Zap, Clock, Shield, Briefcase, Gift, Skull, Datab
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import LogViewer from '@/components/dev/LogViewer';
 import AIDebugMenu from '@/components/debug/AIDebugMenu';
 import TestRunner from '@/components/TestRunner';
@@ -99,7 +99,9 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
         fitness: Math.max(100, gameState.stats.fitness || 100),
       };
       
-      // Immediately apply max stats
+      // Immediately apply max stats. P2-17: don't call saveGame() synchronously —
+      // saveGame reads gameStateRef.current which hasn't been updated yet by
+      // this setGameState. Defer one tick so the save captures the new stats.
       setGameState(prev => ({
         ...prev,
         stats: {
@@ -107,7 +109,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
           ...godModeStatsRef.current,
         },
       }));
-      saveGame();
+      setTimeout(() => saveGame(), 0);
       Alert.alert('God Mode', 'Enabled! Stats will not decrease.');
     } else {
       // Clear god mode stats when disabling
@@ -115,6 +117,14 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
       Alert.alert('God Mode', 'Disabled. Stats will decrease normally.');
     }
   };
+
+  // P2-18: track whether this modal is mounted so a queued time-travel step
+  // doesn't keep firing `nextWeek()` after the user dismissed the modal.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Main Game Loop for Time Travel
   useEffect(() => {
@@ -146,10 +156,12 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     // Function to execute one step
     const step = () => {
         if (isProcessingRef.current) return; // Prevent overlaps
+        if (!mountedRef.current) return; // P2-18: modal closed during travel
         isProcessingRef.current = true;
 
         // Advance Week (god mode is handled by the separate useEffect)
         setTimeout(() => {
+            if (!mountedRef.current) return;
             nextWeek();
             isProcessingRef.current = false;
         }, 50);
@@ -171,7 +183,8 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
         ...updates,
       },
     }));
-    saveGame();
+    // P2-17: defer save so it sees the new state (saveGame reads gameStateRef.current).
+    setTimeout(() => saveGame(), 0);
     Alert.alert('Success', 'Stats updated');
   };
 
@@ -738,10 +751,15 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     maxWidth: 500,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+      },
+    }),
     elevation: 10,
   },
   header: {

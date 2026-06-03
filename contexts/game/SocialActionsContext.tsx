@@ -289,6 +289,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
           pregnancyChildName: childName,
         } : r
       ),
+      // R2-B: cap to 200 milestones.
       lifeMilestones: [
         ...(prev.lifeMilestones || []),
         {
@@ -299,7 +300,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
           partnerId,
           details: { childName, childGender },
         },
-      ],
+      ].slice(-200),
     }));
 
     haptic.medium();

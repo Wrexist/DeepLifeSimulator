@@ -3,8 +3,10 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // react-native-reanimated/plugin MUST be the last plugin
-      // 'react-native-reanimated/plugin', // REMOVED - package removed to fix TurboModule crash
+      // R6-D: react-native-reanimated was removed to fix the iOS 26 TurboModule
+      // crash; the plugin entry is no longer needed. If reanimated is ever
+      // re-added, restore `'react-native-reanimated/plugin'` here as the LAST
+      // plugin entry.
     ],
   };
 };

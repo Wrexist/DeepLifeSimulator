@@ -1,0 +1,427 @@
+/**
+ * LiveStreamScreen — 3-phase state machine: setup → live → summary.
+ *
+ * Setup: pick a topic + go-live CTA. Live: pulsing avatar, viewer/earning
+ * counters, end-stream button. Summary: recap of donations + new followers.
+ */
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, TextInput, View, AccessibilityInfo } from 'react-native';
+import { Eye, DollarSign, Square, X, Sparkles } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { useGame } from '@/contexts/GameContext';
+import { useTheme } from '@/hooks/useTheme';
+import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { PULSE_GRADIENT, PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
+import { pulseHaptics } from '../utils/pulseHaptics';
+import { startLiveStream, tickLiveStream, endLiveStream } from '@/contexts/game/actions/PulseActions';
+import { formatPulseNumber } from '../utils/formatPulseNumber';
+
+const LinearGradient = LinearGradientFallback;
+
+type Phase = 'setup' | 'live' | 'summary';
+
+interface LiveStreamScreenProps {
+  onClose: () => void;
+}
+
+interface SummaryData {
+  totalDonations: number;
+  newFollowers: number;
+  peakViewers: number;
+  minutesElapsed: number;
+}
+
+export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
+  const { gameState, setGameState } = useGame() as any;
+  const { theme } = useTheme();
+  const [phase, setPhase] = useState<Phase>(gameState.socialMedia?.liveSession?.active ? 'live' : 'setup');
+  const [topic, setTopic] = useState('Just chatting');
+  const [summary, setSummary] = useState<SummaryData | null>(null);
+  const tickInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Pulsing ring animation
+  const ringScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (phase !== 'live') return;
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      if (cancelled || reduced) return;
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(ringScale, { toValue: 1.05, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
+          Animated.timing(ringScale, { toValue: 1, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
+        ]),
+      ).start();
+    });
+    return () => {
+      cancelled = true;
+      ringScale.stopAnimation();
+    };
+  }, [phase, ringScale]);
+
+  // Drive the live session tick every 30 real seconds
+  useEffect(() => {
+    if (phase !== 'live') return;
+    tickInterval.current = setInterval(() => {
+      tickLiveStream(setGameState, 30);
+    }, 30_000);
+    return () => {
+      if (tickInterval.current) {
+        clearInterval(tickInterval.current);
+        tickInterval.current = null;
+      }
+    };
+  }, [phase, setGameState]);
+
+  const handleGoLive = useCallback(() => {
+    const result = startLiveStream(setGameState, gameState, topic);
+    if (result.success) {
+      pulseHaptics.goLive();
+      setPhase('live');
+    } else {
+      pulseHaptics.error();
+    }
+  }, [setGameState, gameState, topic]);
+
+  const handleEnd = useCallback(() => {
+    const result = endLiveStream(setGameState, gameState);
+    if (result.success) {
+      setSummary({
+        totalDonations: result.totalDonations,
+        newFollowers: result.newFollowers,
+        peakViewers: result.peakViewers,
+        minutesElapsed: result.minutesElapsed,
+      });
+      setPhase('summary');
+    }
+  }, [setGameState, gameState]);
+
+  const live = gameState.socialMedia?.liveSession;
+
+  return (
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close live screen"
+        hitSlop={8}
+        style={styles.close}
+      >
+        <X size={fontScale(22)} color={theme.text} />
+      </Pressable>
+
+      {phase === 'setup' && (
+        <View style={styles.center}>
+          <Text style={[styles.title, { color: theme.text }]}>Go Live on Pulse</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            Stream live to your followers. Donations + new followers based on peak viewers.
+          </Text>
+          <View style={[styles.inputWrap, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <TextInput
+              value={topic}
+              onChangeText={setTopic}
+              placeholder="What's the stream about?"
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.input, { color: theme.text }]}
+              maxLength={60}
+            />
+          </View>
+          <Pressable
+            onPress={handleGoLive}
+            accessibilityRole="button"
+            accessibilityLabel="Start live stream"
+            style={styles.cta}
+          >
+            <LinearGradient
+              colors={PULSE_GRADIENT as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.ctaFill}
+            >
+              <Text style={styles.ctaText}>Go Live ▶</Text>
+            </LinearGradient>
+          </Pressable>
+          <Text style={[styles.note, { color: theme.textMuted }]}>
+            Requires 100 followers and 30 energy.
+          </Text>
+        </View>
+      )}
+
+      {phase === 'live' && live && (
+        <View style={styles.center}>
+          <View style={styles.liveBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveBadgeText}>LIVE</Text>
+          </View>
+          <Animated.View
+            style={[
+              styles.ringOuter,
+              { transform: [{ scale: ringScale }] },
+            ]}
+          >
+            <LinearGradient
+              colors={PULSE_GRADIENT as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.ringInner}
+            >
+              <View style={[styles.avatarPlaceholder, { backgroundColor: theme.background }]}>
+                <Text style={[styles.avatarLetter, { color: theme.text }]}>
+                  {(gameState.userProfile?.handle ?? 'P').slice(0, 1).toUpperCase()}
+                </Text>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+          <Text style={[styles.topic, { color: theme.text }]} numberOfLines={1}>
+            {live.topic}
+          </Text>
+
+          <View style={styles.statsRow}>
+            <LiveStat icon={Eye} value={formatPulseNumber(live.currentViewers)} label="watching" theme={theme} color={PULSE_COLORS.info} />
+            <LiveStat icon={DollarSign} value={`$${live.donationsEarned.toFixed(2)}`} label="tips" theme={theme} color={PULSE_COLORS.success} />
+          </View>
+
+          <Text style={[styles.minutes, { color: theme.textSecondary }]}>
+            Peak {formatPulseNumber(live.peakViewers)} · {Math.floor(live.minutesElapsed)}m elapsed
+          </Text>
+
+          <Pressable
+            onPress={handleEnd}
+            accessibilityRole="button"
+            accessibilityLabel="End live stream"
+            style={[styles.endBtn, { borderColor: PULSE_COLORS.danger }]}
+          >
+            <Square size={fontScale(16)} color={PULSE_COLORS.danger} fill={PULSE_COLORS.danger} />
+            <Text style={[styles.endBtnText, { color: PULSE_COLORS.danger }]}>End Stream</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {phase === 'summary' && summary && (
+        <View style={styles.center}>
+          <Sparkles size={48} color={PULSE_COLORS.success ?? '#10B981'} />
+          <Text style={[styles.title, { color: theme.text, marginTop: 8 }]}>Great show!</Text>
+          <View style={[styles.recapCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <RecapRow label="Duration" value={`${Math.floor(summary.minutesElapsed)} min`} theme={theme} />
+            <RecapRow label="Peak viewers" value={formatPulseNumber(summary.peakViewers)} theme={theme} />
+            <RecapRow label="New followers" value={`+${summary.newFollowers.toLocaleString()}`} theme={theme} color={PULSE_COLORS.success} />
+            <RecapRow label="Tips earned" value={`$${summary.totalDonations.toFixed(2)}`} theme={theme} color={PULSE_COLORS.success} />
+          </View>
+          <Pressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Done"
+            style={styles.cta}
+          >
+            <LinearGradient
+              colors={PULSE_GRADIENT as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.ctaFill}
+            >
+              <Text style={styles.ctaText}>Done</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function LiveStat({ icon: Icon, value, label, theme, color }: any) {
+  return (
+    <View style={styles.liveStat}>
+      <View style={[styles.liveStatIcon, { backgroundColor: color + '22' }]}>
+        <Icon size={fontScale(20)} color={color} />
+      </View>
+      <Text style={[styles.liveStatValue, { color: theme.text }]}>{value}</Text>
+      <Text style={[styles.liveStatLabel, { color: theme.textSecondary }]}>{label}</Text>
+    </View>
+  );
+}
+
+function RecapRow({ label, value, theme, color }: { label: string; value: string; theme: any; color?: string }) {
+  return (
+    <View style={styles.recapRow}>
+      <Text style={[styles.recapLabel, { color: theme.textSecondary }]}>{label}</Text>
+      <Text style={[styles.recapValue, { color: color || theme.text }]}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, paddingTop: scale(56) },
+  close: {
+    position: 'absolute',
+    top: scale(20),
+    right: scale(20),
+    zIndex: 10,
+    width: touchTargets.minimum,
+    height: touchTargets.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: responsiveSpacing.xl,
+    gap: responsiveSpacing.md,
+  },
+  title: {
+    fontSize: fontScale(24),
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: fontScale(13),
+    textAlign: 'center',
+    marginBottom: responsiveSpacing.md,
+  },
+  inputWrap: {
+    width: '100%',
+    borderRadius: scale(12),
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: responsiveSpacing.md,
+  },
+  input: {
+    fontSize: fontScale(14),
+  },
+  cta: {
+    width: '100%',
+    marginTop: responsiveSpacing.md,
+    borderRadius: scale(14),
+    overflow: 'hidden',
+  },
+  ctaFill: {
+    paddingVertical: responsiveSpacing.md,
+    alignItems: 'center',
+  },
+  ctaText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(15),
+    fontWeight: '700',
+  },
+  note: {
+    fontSize: fontScale(11),
+    marginTop: responsiveSpacing.sm,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: PULSE_COLORS.danger,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: PULSE_COLORS.danger,
+  },
+  liveBadgeText: {
+    color: PULSE_COLORS.danger,
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  ringOuter: {
+    width: scale(160),
+    height: scale(160),
+    borderRadius: scale(80),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringInner: {
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  avatarPlaceholder: {
+    flex: 1,
+    width: '100%',
+    borderRadius: scale(75),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    fontSize: fontScale(48),
+    fontWeight: '700',
+  },
+  topic: {
+    fontSize: fontScale(16),
+    fontWeight: '600',
+    marginTop: responsiveSpacing.sm,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: responsiveSpacing.lg,
+    marginTop: responsiveSpacing.md,
+  },
+  liveStat: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  liveStatIcon: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveStatValue: {
+    fontSize: fontScale(20),
+    fontWeight: '700',
+  },
+  liveStatLabel: {
+    fontSize: fontScale(11),
+  },
+  minutes: {
+    fontSize: fontScale(11),
+    marginTop: 4,
+  },
+  endBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: responsiveSpacing.lg,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: scale(999),
+    borderWidth: 1.5,
+    marginTop: responsiveSpacing.lg,
+  },
+  endBtnText: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+  },
+  bigEmoji: {
+    fontSize: fontScale(48),
+  },
+  recapCard: {
+    width: '100%',
+    borderRadius: scale(16),
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: responsiveSpacing.lg,
+    marginTop: responsiveSpacing.md,
+  },
+  recapRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: responsiveSpacing.sm,
+  },
+  recapLabel: {
+    fontSize: fontScale(13),
+  },
+  recapValue: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+  },
+});

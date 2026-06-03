@@ -19,10 +19,12 @@ export interface LifeExpectancyResult {
  */
 export function calculateLifeExpectancy(state: GameState): LifeExpectancyResult {
   const baseAge = 80; // Base life expectancy
-  const health = state.stats.health || 100;
-  const happiness = state.stats.happiness || 100;
-  const fitness = state.stats.fitness || 0;
-  const age = state.date?.age || ADULTHOOD_AGE;
+  // BUGFIX: `||` treats health/happiness 0 as falsy and falls back to 100,
+  // making a dying player look perfectly healthy in the life-expectancy UI.
+  const health = state.stats?.health ?? 100;
+  const happiness = state.stats?.happiness ?? 100;
+  const fitness = state.stats?.fitness ?? 0;
+  const age = state.date?.age ?? ADULTHOOD_AGE;
   
   // Health modifier: ±0.5 years per health point above/below 50
   const healthModifier = (health - 50) * 0.5;

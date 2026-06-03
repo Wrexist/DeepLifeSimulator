@@ -497,7 +497,8 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           moneyChange: (dailySummary.moneyChange || 0) + moneyChange,
           totalMoneySpent: (dailySummary.totalMoneySpent || 0) + Math.max(0, -moneyChange),
           statsChange: mergedStatsChange,
-          events: [...(dailySummary.events || [])],
+          // R2-B: cap to 50 events between weekly resets.
+          events: (dailySummary.events || []).slice(-50),
         };
       }
 
@@ -535,7 +536,10 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         dailySummary,
         lifetimeStatistics: updatedLifetimeStats,
         diseases: updatedDiseases,
-        curedDiseases: updatedCuredDiseases,
+        // R2-B: dedupe + cap to 30. Without this the same disease cured
+        // multiple times duplicates entries forever, and the CureSuccessModal
+        // renders the full list.
+        curedDiseases: Array.from(new Set(updatedCuredDiseases)).slice(-30),
         showCureSuccessModal: showCureSuccessModal,
         diseaseHistory: updatedDiseaseHistory,
         diseaseImmunities: (activityId === 'flu_shot' || activityId === 'pneumonia_vaccine') ? prevState.diseaseImmunities : updatedImmunities,
@@ -614,7 +618,8 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
             moneyChange: (dailySummary.moneyChange || 0) + moneyChange,
             totalMoneySpent: (dailySummary.totalMoneySpent || 0) + Math.max(0, -moneyChange),
             statsChange: { ...(dailySummary.statsChange || {}) },
-            events: [...(dailySummary.events || [])],
+            // R2-B: cap events at 50 between weekly resets.
+            events: (dailySummary.events || []).slice(-50),
           };
         }
 

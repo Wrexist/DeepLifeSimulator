@@ -506,10 +506,22 @@ function createChildGameState(
   if (inheritanceSummary.updatedDynastyStats) {
     newState.dynastyStats = inheritanceSummary.updatedDynastyStats;
   }
-  
+
   // Add new heirlooms if generated
   if (inheritanceSummary.newHeirloom && newState.dynastyStats) {
     newState.dynastyStats.heirlooms = inheritanceSummary.updatedHeirlooms;
+  }
+
+  // v13 Pulse: hatch the new life with a follower head start derived from
+  // dynasty's accumulated peak followers. Formula: floor(carry × 0.001).
+  // 1M lifetime peak across generations → ~1,000 starter followers next life.
+  const carry = newState.dynastyStats?.pulseLifetimeFollowersCarry ?? 0;
+  const starterFollowers = Math.floor(carry * 0.001);
+  if (starterFollowers > 0 && newState.socialMedia) {
+    newState.socialMedia = {
+      ...newState.socialMedia,
+      followers: (newState.socialMedia.followers || 0) + starterFollowers,
+    };
   }
   
   // CRITICAL FIX: Set money to inheritance amount

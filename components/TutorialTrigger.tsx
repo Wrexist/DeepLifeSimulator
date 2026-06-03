@@ -1,8 +1,11 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, TouchableOpacity, Text, StyleSheet } from 'react-native';
+// CRITICAL: use fallback to avoid iOS 26 TurboModule crash.
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+const LinearGradient = LinearGradientFallback;
 import { HelpCircle, Play, BookOpen, Sparkles } from 'lucide-react-native';
 import { useTutorial } from '@/contexts/UIUXContext';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 interface TutorialTriggerProps {
   context?: 'game' | 'onboarding' | 'advanced';
@@ -128,10 +131,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   buttonGradient: {
@@ -171,7 +179,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   floatingButton: {
     position: 'absolute',
@@ -180,12 +188,17 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     overflow: 'hidden',
     boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 8,
-    zIndex: 1000,
+    zIndex: Z_INDEX.TOOLTIP,
   },
   floatingGradient: {
     flexDirection: 'row',

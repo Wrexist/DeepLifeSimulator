@@ -281,7 +281,7 @@ export default function ContextualInfoCard({
                         style={[styles.requirementItem, darkMode && styles.requirementItemDark]}
                       >
                         <Text style={[styles.requirementText, darkMode && styles.requirementTextDark]}>
-                          â€¢ {req}
+                          • {req}
                         </Text>
                       </View>
                     ))}
@@ -353,7 +353,7 @@ export default function ContextualInfoCard({
                         style={[styles.tipItem, darkMode && styles.tipItemDark]}
                       >
                         <Text style={[styles.tipText, darkMode && styles.tipTextDark]}>
-                          â€¢ {tip}
+                          • {tip}
                         </Text>
                       </View>
                     ))}

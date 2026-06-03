@@ -12,9 +12,12 @@ import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
  * Higher risk if health is low, age is high, or lifestyle is poor
  */
 function getMedicalRisk(state: GameState): number {
-  const health = state.stats.health || 100;
-  const age = state.date?.age || ADULTHOOD_AGE;
-  const fitness = state.stats.fitness || 0;
+  // BUGFIX: `||` treats health=0 as falsy and inflates it to 100, so a dying
+  // player gets ZERO medical risk in personal-crisis rolling — the opposite
+  // of the desired behaviour.
+  const health = state.stats?.health ?? 100;
+  const age = state.date?.age ?? ADULTHOOD_AGE;
+  const fitness = state.stats?.fitness ?? 0;
   
   // Base risk increases with low health
   let risk = (100 - health) / 100;
@@ -76,8 +79,9 @@ export const medicalEmergency: EventTemplate = {
     return risk * 0.15; // 15% of risk becomes event weight (reduced from 30%)
   },
   generate: (state: GameState) => {
-    const health = state.stats.health || 100;
-    const money = state.stats.money || 0;
+    // BUGFIX: `||` masks health=0 as 100, breaking the severity check below.
+    const health = state.stats?.health ?? 100;
+    const money = state.stats?.money ?? 0;
     const hasInsurance = false; // Health insurance not yet implemented
     
     // Determine severity based on health

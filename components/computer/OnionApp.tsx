@@ -1,1251 +1,597 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { ArrowLeft, Lock, ShoppingCart, MessageSquare, Terminal, Bitcoin, Shield, Zap, DollarSign } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
-import { useNavigation } from '@react-navigation/native';
-import { logger } from '@/utils/logger';
-import { useMemoryCleanup } from '@/utils/performanceOptimization';
-const LinearGradient = LinearGradientFallback;
+/**
+ * OnionApp — Dark Web screen.
+ *
+ * Remake (STATE_VERSION 18). Replaces the 1,331-LOC shop/forum/terminal app
+ * with a marketplace + multi-stage jobs + laundering chain + skills loop:
+ *
+ *   - Market: rotating listings from rep-scored vendors (scam risk surfaced).
+ *   - Jobs: multi-stage operations (Recon → Social → Exploit → Exfil → Fence).
+ *   - Wallet: dirty BTC, mixer queue, clean BTC, cash-out into the regular wallet.
+ *
+ * Heat decay, marketplace rotation, laundering settlement, and police events
+ * all happen in lib/darkweb/weeklyTick.ts (called from GameActionsContext.nextWeek).
+ */
 
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import {
+  ArrowLeft,
+  ShoppingBag,
+  Target,
+  Wallet,
+  Plus,
+  Star,
+  Activity,
+} from 'lucide-react-native';
+import { useGame } from '@/contexts/GameContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { getThemeColors, accent } from '@/lib/config/theme';
+import { initialGameState } from '@/contexts/game/initialState';
+import { DarkWebMixerTier, DarkWebSkillId } from '@/contexts/game/types';
+
+import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
+import HeatGauge from '@/components/darkweb/HeatGauge';
+import MarketListingRow from '@/components/darkweb/MarketListingRow';
+import JobRow from '@/components/darkweb/JobRow';
+import LaunderingTxRow from '@/components/darkweb/LaunderingTxRow';
+import StartJobModal from '@/components/darkweb/StartJobModal';
+import LaunderModal from '@/components/darkweb/LaunderModal';
+import AmountInputModal from '@/components/banking/AmountInputModal';
+
+import {
+  buyMarketListing,
+  beginDarkWebJob,
+  runJobStage,
+  submitMixerTransaction,
+  cashOutCleanBtc,
+  acquireNewIdentity,
+  NEW_IDENTITY_COST_BTC,
+  countLaunderingFronts,
+} from '@/contexts/game/actions/CrimeActions';
+import { JOB_TEMPLATES } from '@/lib/darkweb/jobs';
 
 interface OnionAppProps {
   onBack: () => void;
 }
 
-export default function OnionApp({ onBack }: OnionAppProps) {
-  const { gameState, setGameState, buyDarkWebItem, buyHack, performHack } = useGame();
-  const { addCleanup } = useMemoryCleanup();
-  const navigation = useNavigation<any>();
-  const [activeTab, setActiveTab] = useState<'shop' | 'forum' | 'terminal'>('shop');
-  const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
-  const [isHacking, setIsHacking] = useState(false);
-  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
+type Tab = 'market' | 'jobs' | 'wallet';
 
-  // Extract frequently used values from gameState
-  const darkWebItems = gameState.darkWebItems || [];
-  const cryptos = gameState.cryptos || [];
-  const hacks = gameState.hacks || [];
-  const streetJobs = gameState.streetJobs || [];
-  const energy = gameState.stats.energy;
-  const isDarkMode = gameState.settings.darkMode;
+const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
+  { id: 'market', label: 'Market', icon: ShoppingBag },
+  { id: 'jobs',   label: 'Jobs',   icon: Target },
+  { id: 'wallet', label: 'Wallet', icon: Wallet },
+];
 
-  // Memoize helper functions
-  const canUseTerminal = useMemo(() =>
-    darkWebItems.find(i => i.id === 'usb')?.owned &&
-    darkWebItems.find(i => i.id === 'vpn')?.owned,
-    [darkWebItems]
+const SKILL_LABEL: Record<DarkWebSkillId, string> = {
+  hacking: 'Hacking',
+  social: 'Social Eng',
+  opsec: 'OPSEC',
+  laundering: 'Laundering',
+};
+
+function OnionAppInner({ onBack }: OnionAppProps) {
+  const { gameState, setGameState, saveGame } = useGame();
+  const insets = useSafeAreaInsets();
+  const darkMode = !!gameState.settings?.darkMode;
+  const theme = getThemeColors(darkMode);
+  const dw = gameState.darkWeb ?? initialGameState.darkWeb!;
+
+  const [activeTab, setActiveTab] = useState<Tab>('market');
+  const [showStartJob, setShowStartJob] = useState(false);
+  const [showLaunder, setShowLaunder] = useState(false);
+  const [showCashOut, setShowCashOut] = useState(false);
+
+  const btcOwned = useMemo(
+    () => gameState.cryptos.find((c) => c.id === 'btc')?.owned ?? 0,
+    [gameState.cryptos]
   );
 
-  const canUseForum = useMemo(() =>
-    darkWebItems.find(i => i.id === 'vpn')?.owned &&
-    darkWebItems.find(i => i.id === 'usb')?.owned,
-    [darkWebItems]
-  );
+  const queueSave = useCallback(() => {
+    saveGame().catch(() => {});
+  }, [saveGame]);
 
-  const btcBalance = useMemo(() => 
-    cryptos.find(c => c.id === 'btc')?.owned || 0,
-    [cryptos]
-  );
+  // --- Render helpers -----------------------------------------------------
+  const renderMarket = () => (
+    <View style={{ gap: responsiveSpacing.md }}>
+      <EconomyEventBanner context="darkweb" />
+      <HeatGauge heat={dw.heat} darkMode={darkMode} />
 
-  // Helper function to calculate actual hack risk with item buffs - memoized
-  const calculateActualRisk = useCallback((hack: any) => {
-    const ownedItems = darkWebItems.filter(i => i.owned);
-    const totalRiskReduction = ownedItems.reduce(
-      (sum, i) => sum + (i.riskReduction || 0),
-      0
-    );
-    return Math.max(0, hack.risk - totalRiskReduction);
-  }, [darkWebItems]);
-
-  // Helper to create setTimeout with cleanup
-  const createTimeout = useCallback((callback: () => void, delay: number) => {
-    const timeoutId = setTimeout(() => {
-      callback();
-      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
-    }, delay);
-    timeoutRefs.current.push(timeoutId);
-    addCleanup(() => {
-      clearTimeout(timeoutId);
-      timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
-    });
-    return timeoutId;
-  }, [addCleanup]);
-
-  const hackSteps: Record<string, string[]> = {
-    phishing: [
-      'Crafting deceptive email',
-      'Spoofing sender address',
-      'Embedding malicious link',
-      'Dispatching phishing campaign',
-      'Awaiting victim response',
-      'Harvesting credentials',
-      'Accessing breached accounts',
-      'Covering tracks'
-    ],
-    ransomware: [
-      'Deploying ransomware payload',
-      'Establishing persistence',
-      'Encrypting target files',
-      'Locking user systems',
-      'Displaying ransom note',
-      'Monitoring blockchain payments',
-      'Decrypting after payment',
-      'Wiping traces'
-    ],
-    sql_injection: [
-      'Mapping vulnerable endpoints',
-      'Injecting SQL payload',
-      'Bypassing authentication',
-      'Dumping database schema',
-      'Extracting user records',
-      'Uploading backdoor',
-      'Cleaning database logs',
-      'Closing connection'
-    ],
-    ddos: [
-      'Activating botnet nodes',
-      'Resolving target address',
-      'Generating junk traffic',
-      'Overwhelming bandwidth',
-      'Monitoring downtime',
-      'Sending extortion demand',
-      'Reducing attack intensity',
-      'Shutting down bots'
-    ],
-    zero_day: [
-      'Identifying zero-day target',
-      'Preparing exploit code',
-      'Triggering vulnerability',
-      'Escalating kernel privileges',
-      'Exfiltrating classified data',
-      'Selling exploit on market',
-      'Removing exploit traces',
-      'Restoring system state'
-    ],
-    mitm: [
-      'Setting up rogue access point',
-      'Intercepting packet stream',
-      'Downgrading SSL sessions',
-      'Capturing sensitive data',
-      'Modifying packet contents',
-      'Injecting malicious scripts',
-      'Relaying forged responses',
-      'Clearing network logs'
-    ],
-    keylogger: [
-      'Planting keylogger agent',
-      'Establishing persistence',
-      'Recording keystrokes',
-      'Encrypting log files',
-      'Uploading logs to server',
-      'Parsing stolen credentials',
-      'Deleting local evidence',
-      'Maintaining backdoor'
-    ],
-    bruteforce: [
-      'Identifying login endpoint',
-      'Starting brute force cycle',
-      'Cycling password combinations',
-      'Rotating proxy IPs',
-      'Evading rate limits',
-      'Cracking target password',
-      'Accessing secured account',
-      'Cleaning attack traces'
-    ]
-  };
-
-  const runHack = useCallback((hackId: string) => {
-    const hack = hacks.find(h => h.id === hackId);
-    if (!hack) return;
-    const steps = hackSteps[hackId] || ['Initializing attack'];
-    if (energy < hack.energyCost) {
-      setTerminalOutput([`> Not enough energy. ${hack.energyCost} energy required.`]);
-      return;
-    }
-    
-    // Deduct energy, happiness, and health immediately when hack starts
-    setGameState(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        energy: prev.stats.energy - hack.energyCost,
-        happiness: Math.max(0, prev.stats.happiness - 2), // Small happiness drain
-        health: Math.max(0, prev.stats.health - 1) // Small health drain
-      }
-    }));
-    
-    setTerminalOutput([`> Initiating ${hack.name} sequence...`]);
-    setIsHacking(true);
-    steps.forEach((step, idx) => {
-      createTimeout(() => {
-        const percent = Math.round(((idx + 1) / steps.length) * 100);
-        const barLength = 20;
-        const filled = Math.round((percent / 100) * barLength);
-        const bar = `[${'#'.repeat(filled)}${'-'.repeat(barLength - filled)}] ${percent}%`;
-        setTerminalOutput(prev => [...prev, `${step} ${bar}`]);
-        if (idx === steps.length - 1) {
-          try {
-            const result = performHack(hackId);
-            createTimeout(() => {
-              let finalLine = '';
-              if (result && result.caught) {
-                if (result.jailed) {
-                  finalLine = `ARRESTED! Jailed for 4 weeks! Wanted level increased!`;
-                  // Navigate to work tab to show prison screen
-                  createTimeout(() => {
-                    if (navigation && typeof navigation.navigate === 'function') {
-                      navigation.navigate('work');
-                    } else {
-                      logger.warn('Navigation not available - user is now in jail');
-                    }
-                  }, 2000); // Give time for the message to be displayed
-                } else {
-                  finalLine = `Trace detected! -$500 | Wanted level increased! | Risk: ${Math.round((result.risk || 0) * 100)}%`;
-                }
-              } else if (result) {
-                const btcReward = result.btcReward || 0;
-                finalLine = `Hack successful! $${result.reward || 0} converted to untraceable wallet (+${btcReward.toFixed(6)} BTC) | Risk: ${Math.round((result.risk || 0) * 100)}%`;
-                Alert.alert(
-                  'Hack Successful!', 
-                  `You earned $${result.reward || 0} and ${btcReward.toFixed(6)} BTC!\n\nYour BTC has been added to your cryptocurrency wallet.`
-                );
-              } else {
-                finalLine = `Hack failed! Unknown error occurred.`;
-              }
-              setTerminalOutput(prev => [...prev, finalLine]);
-              setIsHacking(false);
-            }, 400);
-          } catch (error) {
-            logger.error('Hack error:', error);
-            setTerminalOutput(prev => [...prev, `> Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`]);
-            setIsHacking(false);
-          }
-        }
-      }, (idx + 1) * 400);
-    });
-  }, [hacks, energy, setGameState, performHack, createTimeout, navigation]);
-
-  const renderShopTab = useCallback(() => (
-    <ScrollView 
-      style={styles.content} 
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
-    >
-      <View style={styles.balanceContainer}>
-        <LinearGradient
-          colors={['#1F2937', '#111827']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.balanceCard}
-        >
-          <View style={styles.balanceHeader}>
-            <Bitcoin size={24} color="#F7931A" />
-            <Text style={styles.balanceTitle}>BTC Balance</Text>
-          </View>
-          <Text style={styles.balanceAmount}>{btcBalance.toFixed(6)} BTC</Text>
-        </LinearGradient>
+      <View style={[styles.statRow, { gap: responsiveSpacing.sm }]}>
+        <Stat theme={theme} label="BTC" value={`${btcOwned.toFixed(4)} ₿`} />
+        <Stat theme={theme} label="Buyer rep" value={`${dw.playerReputation}/100`} />
       </View>
 
-      <View style={styles.itemsContainer}>
-        {darkWebItems.map(item => {
-          const requiredBy = streetJobs
-            .filter(job => job.darkWebRequirements?.includes(item.id))
-            .map(job => job.name);
+      <SectionTitle theme={theme}>Listings</SectionTitle>
+      {dw.listings.length === 0 ? (
+        <EmptyText theme={theme}>
+          No listings yet. New listings rotate in each week from active vendors.
+        </EmptyText>
+      ) : (
+        dw.listings.map((listing) => {
+          const vendor = dw.vendors.find((v) => v.id === listing.vendorId);
+          if (!vendor) return null;
+          const affordable = btcOwned >= listing.costBtc;
+          const meetsRep = dw.playerReputation >= listing.minBuyerRep;
           return (
-            <View key={item.id} style={styles.itemCard}>
-              <LinearGradient
-                colors={item.owned ? ['#10B981', '#059669'] : ['#1F2937', '#111827']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.itemCardGradient}
-              >
-                <View style={styles.itemHeader}>
-                  <View style={styles.itemInfo}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    {item.description && (
-                      <Text style={styles.itemDescription}>{item.description}</Text>
-                    )}
-                  </View>
-                  <View style={styles.itemPrice}>
-                    <Bitcoin size={20} color="#F7931A" />
-                    <Text style={styles.itemPriceText}>{item.costBtc}</Text>
-                  </View>
-                </View>
+            <MarketListingRow
+              key={listing.id}
+              listing={listing}
+              vendor={vendor}
+              darkMode={darkMode}
+              affordable={affordable}
+              meetsRep={meetsRep}
+              onPress={() => {
+                Alert.alert(
+                  'Confirm purchase',
+                  `Buy "${listing.title}" from ${vendor.handle} for ${listing.costBtc.toFixed(4)} ₿?\n\nVendor rep ${vendor.reputation}/100.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Buy',
+                      onPress: () => {
+                        buyMarketListing(setGameState, listing.id);
+                        queueSave();
+                      },
+                    },
+                  ]
+                );
+              }}
+            />
+          );
+        })
+      )}
 
-                <View style={styles.itemStats}>
-                  {item.riskReduction && (
-                    <View style={styles.itemStat}>
-                      <Shield size={16} color="#10B981" />
-                      <Text style={styles.itemStatText}>
-                        Risk -{Math.round(item.riskReduction * 100)}%
-                      </Text>
-                    </View>
-                  )}
-                  {item.rewardBonus && (
-                    <View style={styles.itemStat}>
-                      <Zap size={16} color="#F59E0B" />
-                      <Text style={styles.itemStatText}>
-                        Reward +{Math.round(item.rewardBonus * 100)}%
-                      </Text>
-                    </View>
-                  )}
-                </View>
+      <SectionTitle theme={theme}>Recent Activity</SectionTitle>
+      {dw.recentEvents.length === 0 ? (
+        <EmptyText theme={theme}>Forum log empty.</EmptyText>
+      ) : (
+        dw.recentEvents.slice(0, 6).map((evt) => (
+          <View
+            key={evt.id}
+            style={[styles.eventRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+          >
+            <Activity size={scale(12)} color={theme.textMuted} />
+            <Text style={[styles.eventText, { color: theme.textSecondary }]} numberOfLines={2}>
+              <Text style={{ color: theme.textMuted }}>w{evt.week}: </Text>
+              {evt.text}
+            </Text>
+          </View>
+        ))
+      )}
+    </View>
+  );
 
-                {requiredBy.length > 0 && (
-                  <View style={styles.requirementsContainer}>
-                    <Text style={styles.requirementsTitle}>Required for:</Text>
-                    {requiredBy.map(job => (
-                      <Text key={job} style={[styles.requirementText, isDarkMode && styles.requirementTextDark]}>• {job}</Text>
-                    ))}
-                  </View>
-                )}
+  const renderJobs = () => (
+    <View style={{ gap: responsiveSpacing.md }}>
+      <View style={styles.headerRow}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Active Jobs</Text>
+        <TouchableOpacity
+          onPress={() => setShowStartJob(true)}
+          style={[styles.addBtn, { backgroundColor: accent.info }]}
+        >
+          <Plus size={scale(14)} color="white" />
+          <Text style={styles.addBtnText}>Start</Text>
+        </TouchableOpacity>
+      </View>
 
-                {!item.owned && (
-                  <TouchableOpacity
-                    style={styles.buyButton}
-                    onPress={() => {
-                      if (btcBalance < item.costBtc) {
-                        Alert.alert(
-                          'Insufficient BTC', 
-                          `You need ${item.costBtc} BTC to buy ${item.name}. You currently have ${btcBalance.toFixed(6)} BTC.`
-                        );
-                        return;
-                      }
-                      buyDarkWebItem(item.id);
-                    }}
-                  >
-                    <LinearGradient
-                      colors={btcBalance >= item.costBtc ? ['#3B82F6', '#1D4ED8'] : ['#6B7280', '#4B5563']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.buyButtonGradient}
-                    >
-                      <ShoppingCart size={16} color="#FFFFFF" />
-                      <Text style={styles.buyButtonText}>
-                        {btcBalance >= item.costBtc ? 'Purchase' : 'Insufficient BTC'}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
+      {dw.activeJobs.length === 0 ? (
+        <EmptyText theme={theme}>No active jobs.</EmptyText>
+      ) : (
+        dw.activeJobs.map((job) => {
+          const template = JOB_TEMPLATES.find((t) => t.id === job.templateId);
+          if (!template) return null;
+          return (
+            <JobRow
+              key={job.id}
+              job={job}
+              template={template}
+              currentWeek={gameState.weeksLived}
+              darkMode={darkMode}
+              onRun={() => {
+                runJobStage(setGameState, job.id);
+                queueSave();
+              }}
+            />
+          );
+        })
+      )}
 
-                {item.owned && (
-                  <View style={styles.ownedBadge}>
-                    <Text style={styles.ownedText}>OWNED</Text>
-                  </View>
-                )}
-              </LinearGradient>
+      <SectionTitle theme={theme}>Skills</SectionTitle>
+      <View style={styles.skillsGrid}>
+        {(Object.keys(dw.skills) as DarkWebSkillId[]).map((id) => {
+          const s = dw.skills[id];
+          const pct = Math.max(0, Math.min(1, s.xp / s.nextLevelXp));
+          return (
+            <View
+              key={id}
+              style={[styles.skillCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+            >
+              <View style={styles.skillHeader}>
+                <Star size={scale(12)} color="#facc15" />
+                <Text style={[styles.skillName, { color: theme.text }]}>{SKILL_LABEL[id]}</Text>
+                <Text style={[styles.skillLevel, { color: theme.textSecondary }]}>Lv {s.level}</Text>
+              </View>
+              <View style={[styles.skillTrack, { backgroundColor: theme.border }]}>
+                <View style={[styles.skillFill, { width: `${pct * 100}%`, backgroundColor: accent.info }]} />
+              </View>
+              <Text style={[styles.skillXp, { color: theme.textMuted }]}>
+                {Math.round(s.xp)}/{s.nextLevelXp} XP
+              </Text>
             </View>
           );
         })}
       </View>
-    </ScrollView>
-  ), [darkWebItems, streetJobs, btcBalance, buyDarkWebItem, isDarkMode]);
 
-  const renderForumTab = useCallback(() => (
-    <ScrollView 
-      style={styles.content} 
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
-    >
-      <View style={styles.forumContainer}>
-        <View style={styles.forumCard}>
-          <LinearGradient
-            colors={['#1F2937', '#111827']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.forumCardGradient}
-          >
-            <View style={styles.forumHeader}>
-              <MessageSquare size={24} color="#3B82F6" />
-              <Text style={styles.forumTitle}>Dark Web Forum</Text>
-            </View>
-            
-            {!canUseForum ? (
-              <>
-                <Text style={styles.forumDescription}>
-                  Access to the forum requires additional security measures. 
-                  Complete the required purchases in the Shop tab to unlock forum access.
-                </Text>
-                <View style={styles.forumRequirements}>
-                  <Text style={styles.requirementsTitle}>Requirements:</Text>
-                  <Text style={[styles.requirementText, isDarkMode && styles.requirementTextDark]}>• VPN Connection (0.007 BTC)</Text>
-                  <Text style={[styles.requirementText, isDarkMode && styles.requirementTextDark]}>• USB Drive (0.012 BTC)</Text>
-                </View>
-                <Text style={styles.forumNote}>
-                  💡 Purchase these items from the Shop tab to access the forum.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.forumDescription}>
-                  Welcome to the Dark Web Forum. Here you can access hacking courses and advanced tools.
-                </Text>
-                <View style={styles.forumContent}>
-                  <Text style={styles.forumSectionTitle}>Available Hacking Courses:</Text>
-                  {hacks.map(hack => {
-                    const btc = cryptos.find(c => c.id === 'btc');
-                    const canAfford = btc && btc.owned >= hack.costBtc;
-                    const actualRisk = calculateActualRisk(hack);
-                    
-                    return (
-                      <View key={hack.id} style={styles.hackCourse}>
-                        <View style={styles.hackCourseHeader}>
-                          <View style={styles.hackCourseInfo}>
-                            <Text style={styles.hackCourseName}>{hack.name}</Text>
-                            <Text style={styles.hackCourseDesc}>{hack.description}</Text>
-                          </View>
-                          <View>
-                            <Text style={styles.hackCoursePrice}>Cost: {hack.costBtc} BTC</Text>
-                            <Text style={styles.hackCourseReward}>Reward: ${hack.reward}</Text>
-                            <Text style={styles.hackCourseRisk}>Risk: {Math.round(actualRisk * 100)}%</Text>
-                          </View>
-                        </View>
-                        
-                        {!hack.purchased ? (
-                          <TouchableOpacity
-                            style={styles.hackBuyButton}
-                            onPress={() => {
-                              if (!canAfford) {
-                                Alert.alert(
-                                  'Insufficient BTC', 
-                                  `You need ${hack.costBtc} BTC to buy ${hack.name}. You currently have ${btc?.owned.toFixed(6) || '0'} BTC.`
-                                );
-                                return;
-                              }
-                              buyHack(hack.id);
-                              Alert.alert('Hack Purchased!', `You now have access to ${hack.name} in the Terminal tab.`);
-                            }}
-                          >
-                            <LinearGradient
-                              colors={canAfford ? ['#3B82F6', '#1D4ED8'] : ['#6B7280', '#4B5563']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 1 }}
-                              style={styles.hackBuyButtonGradient}
-                            >
-                              <Text style={styles.hackBuyButtonText}>
-                                {canAfford ? 'Purchase Hack' : 'Insufficient BTC'}
-                              </Text>
-                            </LinearGradient>
-                          </TouchableOpacity>
-                        ) : (
-                          <View style={styles.hackOwnedBadge}>
-                            <Text style={styles.hackOwnedText}>PURCHASED</Text>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              </>
-            )}
-          </LinearGradient>
-        </View>
-      </View>
-    </ScrollView>
-  ), [canUseForum, hacks, cryptos, calculateActualRisk, buyHack, isDarkMode]);
-
-  const renderTerminalTab = useCallback(() => (
-    <ScrollView 
-      style={styles.content} 
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
-    >
-      <View style={styles.terminalContainer}>
-        <LinearGradient
-          colors={['#0F172A', '#020617']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.terminalCard}
-        >
-          <View style={styles.terminalHeader}>
-            <Terminal size={24} color="#10B981" />
-            <Text style={styles.terminalTitle}>Hack Terminal</Text>
-          </View>
-
-          {!canUseTerminal ? (
-            <View style={styles.terminalLocked}>
-              <Lock size={48} color={isDarkMode ? "#FFFFFF" : "#6B7280"} />
-              <Text style={styles.terminalLockedTitle}>Terminal Locked</Text>
-              <Text style={[styles.terminalLockedMessage, isDarkMode && styles.terminalLockedMessageDark]}>
-                You need a VPN and USB drive to access the terminal safely.
+      <SectionTitle theme={theme}>Job History</SectionTitle>
+      {dw.jobHistory.length === 0 ? (
+        <EmptyText theme={theme}>No completed or failed jobs yet.</EmptyText>
+      ) : (
+        dw.jobHistory.slice(0, 5).map((j) => {
+          const tpl = JOB_TEMPLATES.find((t) => t.id === j.templateId);
+          return (
+            <View
+              key={j.id}
+              style={[styles.historyRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+            >
+              <Text style={[styles.historyName, { color: theme.text }]}>{tpl?.name ?? j.templateId}</Text>
+              <Text
+                style={[
+                  styles.historyStatus,
+                  {
+                    color:
+                      j.status === 'completed' ? accent.success : j.status === 'failed' ? accent.danger : theme.textMuted,
+                  },
+                ]}
+              >
+                {j.status}
               </Text>
             </View>
-          ) : (
-            <>
-              <View style={styles.terminalOutput}>
-                <ScrollView 
-                  showsVerticalScrollIndicator={false}
-                  ref={(scrollView) => {
-                    if (scrollView && terminalOutput.length > 0) {
-                      createTimeout(() => {
-                        scrollView.scrollToEnd({ animated: true });
-                      }, 100);
-                    }
-                  }}
-                >
-                  {terminalOutput.map((line, index) => (
-                    <Text key={index} style={styles.terminalLine}>{line}</Text>
-                  ))}
-                </ScrollView>
-              </View>
+          );
+        })
+      )}
+    </View>
+  );
 
-              <View style={styles.hacksContainer}>
-                <View style={styles.hacksTitleContainer}>
-                  <View style={styles.hacksTitleIcon}>
-                    <Terminal size={18} color="#8B5CF6" />
-                  </View>
-                  <Text style={styles.hacksTitle}>Available Hacks</Text>
-                </View>
-                {hacks.filter(hack => hack.purchased).length === 0 ? (
-                  <View style={styles.noHacksContainer}>
-                    <Text style={[styles.noHacksText, isDarkMode && styles.noHacksTextDark]}>No hacks purchased yet.</Text>
-                    <Text style={[styles.noHacksSubtext, isDarkMode && styles.noHacksSubtextDark]}>Visit the Forum tab to buy hacking courses.</Text>
-                  </View>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hacksScrollContent}>
-                    <View style={styles.hacksList}>
-                      {hacks
-                        .filter(hack => hack.purchased) // Only show purchased hacks
-                        .map(hack => {
-                        const canUse = !isHacking && energy >= hack.energyCost;
-                        const btc = cryptos.find(c => c.id === 'btc');
-                        const estimatedBtcReward = btc ? hack.reward / btc.price : 0;
-                        const actualRisk = calculateActualRisk(hack);
-                        
-                        // Determine color scheme based on risk level
-                        const riskLevel = actualRisk;
-                        let gradientColors: [string, string, string];
-                        let borderColor: string;
-                        let glowColor: string;
-                        
-                        if (riskLevel >= 0.5) {
-                          // High risk - red/orange theme
-                          gradientColors = canUse ? ['#DC2626', '#B91C1C', '#991B1B'] : ['#6B7280', '#4B5563', '#374151'];
-                          borderColor = canUse ? '#EF4444' : '#6B7280';
-                          glowColor = canUse ? 'rgba(239, 68, 68, 0.4)' : 'rgba(107, 114, 128, 0.2)';
-                        } else if (riskLevel >= 0.3) {
-                          // Medium risk - orange/yellow theme
-                          gradientColors = canUse ? ['#F59E0B', '#D97706', '#B45309'] : ['#6B7280', '#4B5563', '#374151'];
-                          borderColor = canUse ? '#FBBF24' : '#6B7280';
-                          glowColor = canUse ? 'rgba(251, 191, 36, 0.4)' : 'rgba(107, 114, 128, 0.2)';
-                        } else {
-                          // Low risk - purple/blue theme
-                          gradientColors = canUse ? ['#8B5CF6', '#7C3AED', '#6D28D9'] : ['#6B7280', '#4B5563', '#374151'];
-                          borderColor = canUse ? '#A78BFA' : '#6B7280';
-                          glowColor = canUse ? 'rgba(167, 139, 250, 0.4)' : 'rgba(107, 114, 128, 0.2)';
-                        }
-                        
-                        return (
-                          <TouchableOpacity
-                            key={hack.id}
-                            style={[
-                              styles.hackButton,
-                              canUse && styles.hackButtonActive,
-                              { borderColor, shadowColor: borderColor }
-                            ]}
-                            onPress={() => runHack(hack.id)}
-                            disabled={!canUse}
-                            activeOpacity={0.8}
-                          >
-                            <LinearGradient
-                              colors={gradientColors}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 1 }}
-                              style={styles.hackButtonGradient}
-                            >
-                              <View style={styles.hackButtonHeader}>
-                                <View style={styles.hackNameContainer}>
-                                  <View style={[styles.hackStatusIndicator, { backgroundColor: canUse ? '#10B981' : '#6B7280' }]} />
-                                  <Text style={styles.hackName}>{hack.name}</Text>
-                                </View>
-                              </View>
-                              
-                              <View style={styles.hackButtonStats}>
-                                <View style={styles.hackStat}>
-                                  <Zap size={14} color="#FBBF24" />
-                                  <Text style={styles.hackStatText}>{hack.energyCost} Energy</Text>
-                                </View>
-                                <View style={styles.hackStat}>
-                                  <DollarSign size={14} color="#10B981" />
-                                  <Text style={styles.hackStatText}>${hack.reward.toLocaleString()}</Text>
-                                </View>
-                                <View style={styles.hackStat}>
-                                  <Bitcoin size={14} color="#F7931A" />
-                                  <Text style={styles.hackStatText}>~{estimatedBtcReward.toFixed(6)} BTC</Text>
-                                </View>
-                              </View>
-                              
-                              <View style={[styles.hackButtonRisk, { backgroundColor: riskLevel >= 0.5 ? 'rgba(239, 68, 68, 0.2)' : riskLevel >= 0.3 ? 'rgba(251, 191, 36, 0.2)' : 'rgba(139, 92, 246, 0.2)' }]}>
-                                <Shield size={12} color={riskLevel >= 0.5 ? '#EF4444' : riskLevel >= 0.3 ? '#FBBF24' : '#A78BFA'} />
-                                <Text style={[styles.hackRiskText, { color: riskLevel >= 0.5 ? '#EF4444' : riskLevel >= 0.3 ? '#FBBF24' : '#A78BFA' }]}>
-                                  Risk: {Math.round(actualRisk * 100)}%
-                                </Text>
-                              </View>
-                            </LinearGradient>
-                          </TouchableOpacity>
-                         );
-                       })}
-                    </View>
-                  </ScrollView>
-                )}
-              </View>
-            </>
-          )}
-        </LinearGradient>
+  const renderWallet = () => (
+    <View style={{ gap: responsiveSpacing.md }}>
+      <View style={[styles.walletCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.walletLabel, { color: theme.textMuted }]}>Dirty BTC</Text>
+          <Text style={[styles.walletValue, { color: '#f59e0b' }]}>{dw.dirtyBtc.toFixed(4)} ₿</Text>
+        </View>
+        <TouchableOpacity
+          disabled={dw.dirtyBtc <= 0}
+          onPress={() => setShowLaunder(true)}
+          style={[
+            styles.walletBtn,
+            { backgroundColor: dw.dirtyBtc > 0 ? accent.info : theme.border },
+          ]}
+        >
+          <Text style={styles.walletBtnText}>Launder</Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
-  ), [canUseTerminal, terminalOutput, isHacking, hacks, cryptos, energy, calculateActualRisk, runHack, createTimeout]);
+
+      <View style={[styles.walletCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.walletLabel, { color: theme.textMuted }]}>Clean BTC</Text>
+          <Text style={[styles.walletValue, { color: accent.success }]}>{dw.cleanBtc.toFixed(4)} ₿</Text>
+        </View>
+        <TouchableOpacity
+          disabled={dw.cleanBtc <= 0}
+          onPress={() => setShowCashOut(true)}
+          style={[
+            styles.walletBtn,
+            { backgroundColor: dw.cleanBtc > 0 ? accent.success : theme.border },
+          ]}
+        >
+          <Text style={styles.walletBtnText}>Cash Out</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.identityCard, { backgroundColor: theme.surfaceElevated, borderColor: accent.purple }]}>
+        <Text style={[styles.identityTitle, { color: accent.purple }]}>🪪 New Identity</Text>
+        <Text style={[styles.identitySub, { color: theme.textMuted }]}>
+          Burn this persona. Cost: {NEW_IDENTITY_COST_BTC.toFixed(2)} ₿. Heat → 0, buyer rep → 0,
+          credit score → 580 (thin file), open loans + cards close, active jobs dropped.
+        </Text>
+        <TouchableOpacity
+          disabled={btcOwned < NEW_IDENTITY_COST_BTC}
+          onPress={() => {
+            Alert.alert(
+              'Burn this identity?',
+              `This is permanent. ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC will be spent. ` +
+                `Heat resets, buyer rep resets, all loans + credit cards close, ` +
+                `credit score drops to 580, and ${dw.activeJobs.length} active job${dw.activeJobs.length === 1 ? '' : 's'} will be dropped.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Burn it',
+                  style: 'destructive',
+                  onPress: () => {
+                    acquireNewIdentity(setGameState);
+                    queueSave();
+                  },
+                },
+              ]
+            );
+          }}
+          style={[
+            styles.identityBtn,
+            {
+              backgroundColor: btcOwned >= NEW_IDENTITY_COST_BTC ? accent.purple : theme.border,
+            },
+          ]}
+        >
+          <Text style={styles.identityBtnText}>
+            {btcOwned >= NEW_IDENTITY_COST_BTC ? 'Acquire New Identity' : `Need ${NEW_IDENTITY_COST_BTC.toFixed(2)} BTC`}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <SectionTitle theme={theme}>Mixer Queue</SectionTitle>
+      {dw.laundering.length === 0 ? (
+        <EmptyText theme={theme}>
+          No laundering activity. Submit dirty BTC to a mixer to convert it to clean BTC.
+        </EmptyText>
+      ) : (
+        dw.laundering
+          .slice()
+          .sort((a, b) => b.startedWeek - a.startedWeek)
+          .slice(0, 10)
+          .map((tx) => (
+            <LaunderingTxRow
+              key={tx.id}
+              tx={tx}
+              currentWeek={gameState.weeksLived}
+              darkMode={darkMode}
+            />
+          ))
+      )}
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <LinearGradient
-            colors={['#374151', '#1F2937']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.backButtonGradient}
-          >
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </LinearGradient>
+    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
+        <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
+          <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Dark Web</Text>
-        <View style={styles.placeholder} />
+        <Text style={[styles.appTitle, { color: theme.text }]}>Onion</Text>
+        <View style={[styles.heatChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+          <Text style={[styles.heatChipText, { color: theme.text }]}>Heat {Math.round(dw.heat)}</Text>
+        </View>
       </View>
 
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'shop' && styles.activeTab]}
-          onPress={() => setActiveTab('shop')}
-        >
-          <LinearGradient
-            colors={activeTab === 'shop' ? ['#3B82F6', '#1D4ED8'] : ['#374151', '#1F2937']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tabGradient}
-          >
-            <ShoppingCart size={16} color="#FFFFFF" />
-            <Text style={styles.tabText}>Shop</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'forum' && styles.activeTab]}
-          onPress={() => setActiveTab('forum')}
-        >
-          <LinearGradient
-            colors={activeTab === 'forum' ? ['#3B82F6', '#1D4ED8'] : ['#374151', '#1F2937']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tabGradient}
-          >
-            <MessageSquare size={16} color="#FFFFFF" />
-            <Text style={styles.tabText}>Forum</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'terminal' && styles.activeTab]}
-          onPress={() => setActiveTab('terminal')}
-        >
-          <LinearGradient
-            colors={activeTab === 'terminal' ? ['#3B82F6', '#1D4ED8'] : ['#374151', '#1F2937']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tabGradient}
-          >
-            <Terminal size={16} color="#FFFFFF" />
-            <Text style={styles.tabText}>Terminal</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+      <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
+        {TABS.map((t) => {
+          const active = activeTab === t.id;
+          const Icon = t.icon;
+          return (
+            <TouchableOpacity
+              key={t.id}
+              onPress={() => setActiveTab(t.id)}
+              style={[styles.tab, active && { borderBottomColor: accent.purple }]}
+            >
+              <Icon size={scale(16)} color={active ? accent.purple : theme.textMuted} />
+              <Text style={[styles.tabText, { color: active ? accent.purple : theme.textMuted }]}>{t.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {activeTab === 'shop' && renderShopTab()}
-      {activeTab === 'forum' && renderForumTab()}
-      {activeTab === 'terminal' && renderTerminalTab()}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: responsiveSpacing['2xl'] }}
+      >
+        {activeTab === 'market' && renderMarket()}
+        {activeTab === 'jobs' && renderJobs()}
+        {activeTab === 'wallet' && renderWallet()}
+      </ScrollView>
+
+      <StartJobModal
+        visible={showStartJob}
+        darkWeb={dw}
+        darkMode={darkMode}
+        onClose={() => setShowStartJob(false)}
+        onStart={(templateId) => {
+          beginDarkWebJob(setGameState, templateId);
+          queueSave();
+          setShowStartJob(false);
+        }}
+      />
+
+      <LaunderModal
+        visible={showLaunder}
+        dirtyBtc={dw.dirtyBtc}
+        launderingSkillLevel={dw.skills.laundering?.level ?? 1}
+        frontCount={countLaunderingFronts(gameState)}
+        darkMode={darkMode}
+        onClose={() => setShowLaunder(false)}
+        onSubmit={(tier: DarkWebMixerTier, amountBtc) => {
+          submitMixerTransaction(setGameState, tier, amountBtc);
+          queueSave();
+          setShowLaunder(false);
+        }}
+      />
+
+      <AmountInputModal
+        visible={showCashOut}
+        title="Cash out clean BTC"
+        subtitle={`Clean wallet: ${dw.cleanBtc.toFixed(4)} ₿. Moves into your regular BTC holdings.`}
+        confirmLabel="Cash Out"
+        maxAmount={dw.cleanBtc}
+        presets={[0.1, 0.5, 1]}
+        darkMode={darkMode}
+        onClose={() => setShowCashOut(false)}
+        onConfirm={(amt) => {
+          cashOutCleanBtc(setGameState, amt);
+          queueSave();
+          setShowCashOut(false);
+        }}
+      />
     </View>
   );
 }
 
+function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
+  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
+}
+
+function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
+  return <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>;
+}
+
+function Stat({ theme, label, value }: { theme: ReturnType<typeof getThemeColors>; label: string; value: string }) {
+  return (
+    <View style={[styles.statCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
+      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
+    </View>
+  );
+}
+
+export default function OnionApp(props: OnionAppProps) {
+  return (
+    <ErrorBoundary>
+      <OnionAppInner {...props} />
+    </ErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  header: {
+  root: { flex: 1 },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    borderBottomWidth: 1,
+    gap: responsiveSpacing.sm,
   },
-  backButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
+  backBtn: { padding: responsiveSpacing.xs },
+  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
+  heatChip: {
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: 4,
+    borderRadius: responsiveBorderRadius.full,
+    borderWidth: 1,
   },
-  backButtonGradient: {
-    width: 48,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  placeholder: {
-    width: 48,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
-    marginTop: 0,
-    marginBottom: 20,
-    gap: 12,
-    borderRadius: 16,
-    overflow: 'visible',
-  },
+  heatChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: {
     flex: 1,
-    minHeight: 60,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  activeTab: {
-    boxShadow: '0px 4px 8px rgba(59, 130, 246, 0.3)',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  tabGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    minHeight: 60,
-    gap: 8,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 80,
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  balanceContainer: {
-    marginBottom: 20,
-  },
-  balanceCard: {
-    padding: 20,
-    borderRadius: 16,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  balanceTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#D1D5DB',
-  },
-  balanceAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#F7931A',
-  },
-  itemsContainer: {
-    gap: 16,
-    paddingBottom: 40,
-  },
-  itemCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  itemCardGradient: {
-    padding: 20,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  itemDescription: {
-    fontSize: 14,
-    color: '#D1D5DB',
-    lineHeight: 20,
-  },
-  itemPrice: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 4,
-  },
-  itemPriceText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#F7931A',
-  },
-  itemStats: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-  },
-  itemStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  itemStatText: {
-    fontSize: 12,
-    color: '#D1D5DB',
-  },
-  requirementsContainer: {
-    marginBottom: 16,
-  },
-  requirementsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#F59E0B',
-    marginBottom: 4,
-  },
-  requirementText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginBottom: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  requirementTextDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  buyButton: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  buyButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 6,
-  },
-  buyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  ownedBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  ownedText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  forumContainer: {
-    paddingBottom: 40,
-  },
-  forumCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  forumCardGradient: {
-    padding: 24,
-  },
-  forumHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  forumTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  forumDescription: {
-    fontSize: 14,
-    color: '#D1D5DB',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  forumRequirements: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    padding: 16,
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#3B82F6',
-  },
-  forumNote: {
-    fontSize: 12,
-    color: '#F59E0B',
-    textAlign: 'center',
-    marginTop: 12,
-    fontStyle: 'italic',
-  },
-  forumContent: {
-    marginTop: 16,
-  },
-  forumSectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 12,
-  },
-  hackCourse: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  hackCourseName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  hackCourseDesc: {
-    fontSize: 12,
-    color: '#D1D5DB',
-    marginBottom: 4,
-  },
-  hackCoursePrice: {
-    fontSize: 12,
-    color: '#F7931A',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  hackCourseStats: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  hackCourseStatsDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  hackCourseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  hackCourseInfo: {
-    flex: 1,
-  },
-  hackBuyButton: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  hackBuyButtonGradient: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  hackBuyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  hackOwnedBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  hackOwnedText: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  hackCourseReward: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
-  },
-  hackCourseRisk: {
-    fontSize: 12,
-    color: '#EF4444',
-    fontWeight: '600',
-  },
-  terminalContainer: {
-    flex: 1,
-    paddingBottom: 40,
-  },
-  terminalCard: {
-    flex: 1,
-    padding: 20,
-    borderRadius: 16,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  terminalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 8,
-  },
-  terminalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  terminalLocked: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  terminalLockedTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  terminalLockedMessage: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    lineHeight: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  terminalLockedMessageDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  terminalOutput: {
-    flex: 1,
-    backgroundColor: '#000000',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-  },
-  terminalLine: {
-    fontSize: 12,
-    color: '#10B981',
-    fontFamily: 'monospace',
-    marginBottom: 2,
-  },
-  hacksContainer: {
-    marginTop: 20,
-  },
-  hacksTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 10,
-  },
-  hacksTitleIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.4)',
-  },
-  hacksTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  hacksScrollContent: {
-    paddingRight: 20,
-  },
-  hacksList: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  hackButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    minWidth: 180,
-    borderWidth: 2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  hackButtonActive: {
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  hackButtonGradient: {
-    padding: 18,
-    minWidth: 180,
-  },
-  hackButtonHeader: {
-    marginBottom: 12,
-  },
-  hackNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  hackStatusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-  },
-  hackName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    flex: 1,
-    letterSpacing: 0.3,
-  },
-  hackLockedBadge: {
-    backgroundColor: '#6B7280',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  hackLockedText: {
-    fontSize: 8,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  hackButtonStats: {
-    marginBottom: 12,
-    gap: 6,
-  },
-  hackStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  hackStatText: {
-    fontSize: 12,
-    color: '#E5E7EB',
-    fontWeight: '600',
-  },
-  hackButtonRisk: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  hackRiskText: {
-    fontSize: 13,
+    paddingVertical: responsiveSpacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  sectionTitle: {
+    fontSize: responsiveFontSize.md,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    marginTop: responsiveSpacing.xs,
   },
-  noHacksContainer: {
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  noHacksText: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    fontWeight: '600',
-    marginBottom: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  noHacksTextDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
-  },
-  noHacksSubtext: {
-    fontSize: 12,
-    color: '#6B7280',
+  emptyText: {
+    fontSize: responsiveFontSize.sm,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    paddingVertical: responsiveSpacing.md,
   },
-  noHacksSubtextDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+  statRow: { flexDirection: 'row' },
+  statCard: {
+    flex: 1,
+    padding: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    gap: 2,
   },
+  statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
+  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: responsiveSpacing.xs,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.xs,
+    borderRadius: responsiveBorderRadius.full,
+  },
+  addBtnText: { color: 'white', fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  eventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
+    padding: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+  },
+  eventText: { flex: 1, fontSize: responsiveFontSize.xs },
+  skillsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
+  skillCard: {
+    flex: 1,
+    minWidth: '46%',
+    padding: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    gap: 4,
+  },
+  skillHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  skillName: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  skillLevel: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  skillTrack: {
+    height: scale(4),
+    borderRadius: responsiveBorderRadius.full,
+    overflow: 'hidden',
+  },
+  skillFill: { height: '100%', borderRadius: responsiveBorderRadius.full },
+  skillXp: { fontSize: responsiveFontSize.xs },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+  },
+  historyName: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
+  historyStatus: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  walletCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    gap: responsiveSpacing.sm,
+  },
+  walletLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
+  walletValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800' },
+  walletBtn: {
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.full,
+  },
+  walletBtnText: { color: 'white', fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  identityCard: {
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    gap: responsiveSpacing.sm,
+  },
+  identityTitle: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  identitySub: { fontSize: responsiveFontSize.xs },
+  identityBtn: {
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.lg,
+    alignItems: 'center',
+  },
+  identityBtnText: { color: 'white', fontSize: responsiveFontSize.sm, fontWeight: '700' },
 });
-
-

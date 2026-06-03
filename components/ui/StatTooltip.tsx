@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Heart, Smile, Zap, DollarSign, Gem, Dumbbell, X, Info } from 'lucide-react-native';
 import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -284,10 +284,15 @@ const styles = StyleSheet.create({
         padding: responsiveSpacing.lg,
         borderWidth: 1,
         borderColor: '#374151',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        ...Platform.select({
+          web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)' } as any,
+          default: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+          },
+        }),
         elevation: 8,
     },
     header: {

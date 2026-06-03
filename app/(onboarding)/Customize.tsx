@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Image, ImageSourcePropType, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { Play, Shuffle } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -112,6 +113,13 @@ export default function Customize() {
     }
     router.replace('/(onboarding)/MainMenu');
   }, [navigation, router]);
+
+  // R3-C: wire the Android hardware back button to the same handler so a
+  // system gesture / nav-bar back doesn't drop the player into a blank screen.
+  useHardwareBack(() => {
+    handleBack();
+    return true;
+  });
 
   const handleShuffle = useCallback(() => {
     haptic.light();
@@ -346,10 +354,15 @@ const styles = StyleSheet.create({
   sectionContainer: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 12,
   },
   sectionBlur: {
@@ -439,7 +452,7 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(12),
   },
   sexCardSelected: {
-    borderColor: 'rgba(16, 185, 129, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     borderWidth: 2,
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
   },
@@ -468,7 +481,7 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(10),
   },
   sexualityChipSelected: {
-    borderColor: 'rgba(59, 130, 246, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     borderWidth: 2,
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },

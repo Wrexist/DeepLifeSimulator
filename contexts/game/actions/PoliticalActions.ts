@@ -160,6 +160,10 @@ export const runForOffice = (
   };
 
   const requirements = POLITICAL_CAREER_REQUIREMENTS[office];
+  if (!requirements) {
+    log.error(`Unknown office: ${office}`);
+    return { success: false, message: `Unknown office: ${office}` };
+  }
   let career = gameState.careers.find(c => c.id === 'political');
   
   // Create political career if it doesn't exist
@@ -334,7 +338,7 @@ export const runForOffice = (
         },
         careerLevel: newLevel,
         electionsWon: (prev.politics?.electionsWon || 0) + 1,
-        approvalRating: Math.min(100, (prev.politics?.approvalRating || 50) + 10),
+        approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + 10),
         lastElectionWeek: currentWeek,
         nextElectionWeek: nextElection,
       },
@@ -366,7 +370,7 @@ export const runForOffice = (
           alliances: [],
           campaignFunds: 0,
         },
-        approvalRating: Math.max(0, (prev.politics?.approvalRating || 50) - 5),
+        approvalRating: Math.max(0, (prev.politics?.approvalRating ?? 50) - 5),
       },
     }));
 
@@ -534,7 +538,7 @@ export const joinParty = (
         campaignFunds: 0,
       },
       party,
-      approvalRating: Math.min(100, (prev.politics?.approvalRating || 50) + 5),
+      approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + 5),
     },
   }));
 
@@ -588,7 +592,7 @@ export const formAlliance = (
           formedWeek: prev.weeksLived || 0,
         },
       ],
-      approvalRating: Math.min(100, (prev.politics?.approvalRating || 50) + 3),
+      approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + 3),
     },
   }));
 
@@ -634,7 +638,7 @@ export const campaign = (
         alliances: [],
         campaignFunds: 0,
       },
-      approvalRating: Math.min(100, (prev.politics?.approvalRating || 50) + approvalGain),
+      approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + approvalGain),
       campaignFunds: (prev.politics?.campaignFunds || 0) + amount,
     },
   }));
@@ -764,4 +768,124 @@ export const fireLobbyist = (
 
 // Export calculateActivePolicyEffects for use in GameActionsContext
 export { calculateActivePolicyEffects };
+
+// ---------------------------------------------------------------------------
+// PoliticalApp Remake 5: PAC fundraising + scandal management
+// ---------------------------------------------------------------------------
+import {
+  applySuppression,
+  ensurePoliticsHasNewFields,
+  pacRaiseClean,
+  pacRaiseDirty,
+  pacSpend,
+} from '@/lib/politics/operations';
+import { SEVERITY_PARAMS } from '@/lib/politics/scandals';
+
+/**
+ * Raise PAC funds from the player's cash. 100% conversion.
+ */
+export const raisePACClean = (
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  amountUSD: number
+) => {
+  setGameState((prev) => {
+    const cash = prev.stats?.money ?? 0;
+    if (amountUSD <= 0 || amountUSD > cash) {
+      log.warn(`PAC raise rejected: amount=${amountUSD}, cash=${cash}`);
+      return prev;
+    }
+    const politics = ensurePoliticsHasNewFields(prev.politics ?? ({} as any));
+    const next = pacRaiseClean(politics, amountUSD, prev.weeksLived);
+    return {
+      ...prev,
+      stats: { ...prev.stats, money: cash - amountUSD },
+      politics: next,
+    };
+  });
+};
+
+/**
+ * Raise PAC funds from clean dark-web BTC. Moves BTC out of the player's
+ * regular wallet at the current price; raises lifetimeDirtyUSD which feeds
+ * scandal probability forever.
+ */
+export const raisePACDirty = (
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  btcAmount: number
+) => {
+  setGameState((prev) => {
+    const btc = prev.cryptos.find((c) => c.id === 'btc');
+    const owned = btc?.owned ?? 0;
+    if (btcAmount <= 0 || btcAmount > owned) {
+      log.warn(`Dirty PAC raise rejected: amount=${btcAmount}, owned=${owned}`);
+      return prev;
+    }
+    const price = btc?.price ?? 0;
+    const politics = ensurePoliticsHasNewFields(prev.politics ?? ({} as any));
+    const r = pacRaiseDirty(politics, btcAmount, price, prev.weeksLived);
+    log.info(`Funneled ${btcAmount} BTC ($${Math.round(r.usdConverted).toLocaleString()}) through the PAC`);
+    return {
+      ...prev,
+      cryptos: prev.cryptos.map((c) =>
+        c.id === 'btc' ? { ...c, owned: Math.max(0, owned - btcAmount) } : c
+      ),
+      politics: r.politics,
+    };
+  });
+};
+
+/**
+ * Spend from the PAC on a campaign push. Pulls clean first, then dirty.
+ * More efficient than the legacy `campaign` action (1.5× approval per $).
+ */
+export const spendPACOnCampaign = (
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  amountUSD: number
+) => {
+  setGameState((prev) => {
+    if (amountUSD <= 0) return prev;
+    const politics = ensurePoliticsHasNewFields(prev.politics ?? ({} as any));
+    const r = pacSpend(politics, amountUSD);
+    if (r.spentUSD === 0) {
+      log.warn(`PAC spend rejected: empty PAC`);
+      return prev;
+    }
+    log.info(
+      `PAC spend $${Math.round(r.spentUSD).toLocaleString()} (dirty $${Math.round(r.spentFromDirty).toLocaleString()}) → +${r.approvalGain.toFixed(1)} approval`
+    );
+    return { ...prev, politics: r.politics };
+  });
+};
+
+/**
+ * Spend on suppression for a specific scandal — PR team, legal, opp research.
+ * Reduces weekly approval drain and accelerates the fade.
+ */
+export const suppressPoliticalScandal = (
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  scandalId: string,
+  amountUSD: number
+) => {
+  setGameState((prev) => {
+    const cash = prev.stats?.money ?? 0;
+    if (amountUSD <= 0 || amountUSD > cash) {
+      log.warn(`Suppress rejected: amount=${amountUSD}, cash=${cash}`);
+      return prev;
+    }
+    const politics = ensurePoliticsHasNewFields(prev.politics ?? ({} as any));
+    const next = applySuppression(politics, scandalId, amountUSD);
+    if (!next) {
+      log.warn(`Suppress rejected: scandal ${scandalId} not active`);
+      return prev;
+    }
+    return {
+      ...prev,
+      stats: { ...prev.stats, money: cash - amountUSD },
+      politics: next,
+    };
+  });
+};
+
+// Expose severity params for the UI's suppression-cost display.
+export { SEVERITY_PARAMS };
 

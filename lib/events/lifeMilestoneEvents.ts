@@ -314,7 +314,10 @@ const burnout: EventTemplate = {
   id: 'burnout',
   category: 'health',
   weight: 0.25,
-  condition: state => (state.stats?.energy || 100) < 30 && !!state.currentJob,
+  // BUGFIX: use ?? so a player with literal 0 energy is detected as exhausted.
+  // With ||, 0 was silently treated as 100, making the burnout event NEVER
+  // fire on truly burned-out players — the exact opposite of intent.
+  condition: state => (state.stats?.energy ?? 100) < 30 && !!state.currentJob,
   generate: () => ({
     id: 'burnout',
     description: "You've been pushing too hard. Exhaustion, cynicism, and a sense of dread about work are setting in.",
@@ -361,7 +364,7 @@ const insomnia: EventTemplate = {
   id: 'insomnia',
   category: 'health',
   weight: 0.25,
-  condition: state => (state.stats?.happiness || 100) < 40 || (state.stats?.energy || 100) < 25,
+  condition: state => (state.stats?.happiness ?? 100) < 40 || (state.stats?.energy ?? 100) < 25,
   generate: () => ({
     id: 'insomnia',
     description: "You've been lying awake for hours. Sleep just won't come.",
@@ -377,7 +380,7 @@ const panicAttack: EventTemplate = {
   id: 'panic_attack',
   category: 'health',
   weight: 0.1,
-  condition: state => (state.stats?.happiness || 100) < 25 && (state.stats?.energy || 100) < 30,
+  condition: state => (state.stats?.happiness ?? 100) < 25 && (state.stats?.energy ?? 100) < 30,
   generate: () => ({
     id: 'panic_attack',
     description: "Your heart races, you can't breathe. A panic attack hits without warning.",

@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from './storageWrapper';
 import appConfig from '../app.config.js';
 import { logger } from './logger';
 import { saveBackupManager } from './saveBackup';

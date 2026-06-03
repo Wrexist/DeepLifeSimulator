@@ -21,21 +21,31 @@ export default function AnimatedMoney({
   const animatedValue = useRef(new Animated.Value(0)).current;
   const [displayValue, setDisplayValue] = React.useState(0);
   const previousValue = useRef(0);
+  // R3-F: track the in-flight animation so the previous Animated.timing is
+  // stopped before a new one starts. Without this, two rapid money changes
+  // race — the listener callback fires with intermediate values from a stale
+  // animation, and the JS-side listener attach/detach churn dominates the
+  // money-tick hot path.
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     const startValue = previousValue.current;
     const endValue = value;
-    
+
+    // Stop any in-flight animation from a prior change.
+    animationRef.current?.stop();
+
     // Reset animation value to start
     animatedValue.setValue(startValue);
-    
+
     // Animate to new value
-    Animated.timing(animatedValue, {
+    animationRef.current = Animated.timing(animatedValue, {
       toValue: endValue,
       duration: duration,
       useNativeDriver: false, // Always use false for better performance
-    }).start();
-    
+    });
+    animationRef.current.start();
+
     // Use listener for smooth updates
     const listener = animatedValue.addListener(({ value: currentValue }) => {
       setDisplayValue(Math.round(currentValue));
@@ -44,6 +54,7 @@ export default function AnimatedMoney({
     previousValue.current = endValue;
 
     return () => {
+      animationRef.current?.stop();
       animatedValue.removeListener(listener);
     };
   }, [value, duration, animatedValue]);

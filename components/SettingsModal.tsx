@@ -4,16 +4,16 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Moon, Sun, Volume2, VolumeX, Bell, BellOff, Save, Globe, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, TrendingUp, Shield } from 'lucide-react-native';
+import { X, Moon, Sun, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, Shield, Code } from 'lucide-react-native';
 import BackupRecoveryModal from './BackupRecoveryModal';
-import LeaderboardModal from './LeaderboardModal';
 import LegacyOverviewTab from './LegacyOverviewTab';
-import DevToolsModal from './DevToolsModal';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
+import DevToolsModal from './DevToolsModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
@@ -23,6 +23,7 @@ import { setHapticsEnabled } from '@/utils/haptics';
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
 import { logger } from '@/utils/logger';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 import { getShadow } from '@/utils/shadow';
 import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
 import { DISCORD_JOIN_REWARD_GEMS } from '@/lib/config/gameConstants';
@@ -36,22 +37,21 @@ interface SettingsModalProps {
 function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { currentSlot } = useGameState();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  const languages = ['English', 'Svenska', 'Español', 'Français', 'Deutsch'];
-
   const [activeSettingsTab, setActiveSettingsTab] = useState<'settings' | 'lifeGoals'>('settings');
   const [showBugReport, setShowBugReport] = useState(false);
   const { startEnhancedTutorial, resetTutorial } = useTutorial();
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
-  const [showDevTools, setShowDevTools] = useState(false);
   const [showBackupManager, setShowBackupManager] = useState(false);
+  // TEMP: Game Dev Tools surface — leave enabled in production for now;
+  // remove once the dev tools are no longer needed.
+  const [showDevTools, setShowDevTools] = useState(false);
   const [showRewardPopup, setShowRewardPopup] = useState(false);
   const [rewardPopupMessage, setRewardPopupMessage] = useState('');
 
@@ -93,6 +93,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     return undefined;
   }, [discordRewardClaimed]);
 
+  // Only toggles whose state is actually consumed somewhere remain here.
+  // The previous list also included notificationsEnabled, showDecimalsInStats,
+  // autoProgression, showStatArrows, and a language picker — all of those
+  // saved to state but had no consumers, so the UI was misleading.
   const settingItems = [
     {
       id: 'darkMode',
@@ -119,17 +123,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       value: settings.hapticFeedback,
     },
     {
-      id: 'notificationsEnabled',
-      title: t('settings.notifications'),
-      description: t('settings.notificationsDescription'),
-      icon: settings.notificationsEnabled ? Bell : BellOff,
-      type: 'toggle' as const,
-      value: settings.notificationsEnabled,
-    },
-    {
       id: 'autoSave',
-      title: t('settings.autoSave'),
-      description: t('settings.autoSaveDescription'),
+      title: 'Save Indicator',
+      description: 'Show the small auto-save indicator while playing (saving itself is always on)',
       icon: Save,
       type: 'toggle' as const,
       value: settings.autoSave,
@@ -141,30 +137,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       icon: Calendar,
       type: 'toggle' as const,
       value: settings.weeklySummaryEnabled,
-    },
-    {
-      id: 'showDecimalsInStats',
-      title: 'Show Decimals in Stats',
-      description: 'Display decimal places in savings and gems',
-      icon: Target,
-      type: 'toggle' as const,
-      value: settings.showDecimalsInStats,
-    },
-    {
-      id: 'autoProgression',
-      title: 'Auto Information Progression',
-      description: 'Automatically reveal more detailed information as you play',
-      icon: Sparkles,
-      type: 'toggle' as const,
-      value: settings.autoProgression !== false, // Default to true
-    },
-    {
-      id: 'showStatArrows',
-      title: 'Show Stat Arrows',
-      description: 'Display arrows indicating stat change direction (green up, red down)',
-      icon: TrendingUp,
-      type: 'toggle' as const,
-      value: settings.showStatArrows !== false, // Default to true
     },
   ];
 
@@ -186,18 +158,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       setHapticsEnabled(value);
     }
   };
-
-  const handleLanguageChange = (language: string) => {
-    setGameState(prev => ({
-      ...prev,
-      settings: {
-        ...prev.settings,
-        language,
-      },
-    }));
-  };
-
-
 
   const handleRestorePurchases = async () => {
     if (isRestoringPurchases) {
@@ -418,6 +378,23 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
             {activeSettingsTab === 'settings' ? (
               <>
+                {/* TEMP: Game Dev Tools — pinned to the top of Settings while in active development. Remove this block when the dev tools surface is no longer needed. */}
+                <TouchableOpacity
+                  style={[styles.actionButtonContainer, { marginBottom: 16 }]}
+                  onPress={() => setShowDevTools(true)}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={['#6366F1', '#4F46E5', '#4338CA']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionButton}
+                  >
+                    <Code size={22} color="#FFFFFF" style={styles.actionButtonIcon} />
+                    <Text style={[styles.actionButtonText, { fontSize: 16, fontWeight: '700' }]}>Game Dev Tools</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
                 {settingItems.map(item => (
                   <View key={item.id} style={[styles.settingItem,  styles.settingItemDark]}>
                     <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
@@ -464,133 +441,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     </View>
                   </View>
                 ))}
-
-                {/* Progressive Disclosure Level */}
-                {!settings.autoProgression && (
-                  <View style={[styles.settingItem,  styles.settingItemDark]}>
-                    <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
-                      <LinearGradient
-                        colors={['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.settingItemGradient}
-                      >
-                        <View style={styles.settingInfo}>
-                          <View style={styles.settingHeader}>
-                            <LinearGradient
-                              colors={['#8B5CF6', '#7C3AED']}
-                              start={{ x: 0, y: 0 }}
-                              end={{ x: 1, y: 1 }}
-                              style={styles.settingIconContainer}
-                            >
-                              <Sparkles size={18} color="#FFFFFF" />
-                            </LinearGradient>
-                            <View style={styles.settingTextContainer}>
-                              <Text style={[styles.settingTitle,  styles.settingTitleDark]}>
-                                Information Detail Level
-                              </Text>
-                              <Text style={[styles.settingDescription,  styles.settingDescriptionDark]}>
-                                Choose how much detail to show in tooltips and information
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                        <View style={styles.disclosureLevelSelector}>
-                          {(['simple', 'standard', 'advanced'] as const).map((level) => {
-                            const isSelected = gameState.progressiveDisclosureLevel === level;
-                            return (
-                              <TouchableOpacity
-                                key={level}
-                                onPress={() => {
-                                  setGameState(prev => ({
-                                    ...prev,
-                                    progressiveDisclosureLevel: level,
-                                  }));
-                                  saveGame();
-                                }}
-                                style={[
-                                  styles.disclosureLevelButton,
-                                  isSelected && styles.disclosureLevelButtonActive,
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.disclosureLevelText,
-                                    isSelected && styles.disclosureLevelTextActive,
- !isSelected && styles.disclosureLevelTextDark,
-                                  ]}
-                                >
-                                  {level.charAt(0).toUpperCase() + level.slice(1)}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      </LinearGradient>
-                    </View>
-                  </View>
-                )}
-
-                {/* Enhanced Language Selection */}
-                <View style={[styles.settingItem,  styles.settingItemDark]}>
-                  <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
-                    <LinearGradient
-                      colors={['rgba(55, 65, 81, 0.8)', 'rgba(31, 41, 55, 0.8)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.settingItemGradient}
-                    >
-                      <View style={styles.settingInfo}>
-                        <View style={styles.settingHeader}>
-                          <LinearGradient
-                            colors={['#3B82F6', '#1D4ED8']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.settingIconContainer}
-                          >
-                            <Globe size={18} color="#FFFFFF" />
-                          </LinearGradient>
-                          <View style={styles.settingTextContainer}>
-                            <Text style={[styles.settingTitle,  styles.settingTitleDark]}>
-                              {t('settings.language')}
-                            </Text>
-                            <Text style={[styles.settingDescription,  styles.settingDescriptionDark]}>
-                              {t('settings.languageDescription')}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                      <View style={styles.languageButtons}>
-                        {languages.map(language => (
-                          <TouchableOpacity
-                            key={language}
-                            style={styles.languageButtonContainer}
-                            onPress={() => handleLanguageChange(language)}
-                          >
-                            {settings.language === language ? (
-                              <LinearGradient
-                                colors={['#6366F1', '#4F46E5']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.activeLanguageButton}
-                              >
-                                <Text style={styles.activeLanguageButtonText}>
-                                  {language}
-                                </Text>
-                              </LinearGradient>
-                            ) : (
-                              <View style={[styles.languageButton,  styles.languageButtonDark]}>
-                                <Text style={[styles.languageButtonText,  styles.languageButtonTextDark]}>
-                                  {language}
-                                </Text>
-                              </View>
-                            )}
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </LinearGradient>
-                  </View>
-                </View>
 
                 {/* Enhanced Action Buttons */}
                 <TouchableOpacity
@@ -671,22 +521,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Leaderboard - Hidden */}
-                {/* <TouchableOpacity
-                  style={styles.actionButtonContainer}
-                  onPress={() => setShowLeaderboard(true)}
-                >
-                  <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButton}
-                  >
-                    <Star size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
-                    <Text style={styles.actionButtonText}>{t('settings.leaderboard')}</Text>
-                  </LinearGradient>
-                </TouchableOpacity> */}
-
                 {/* Special Discord Button with Animation */}
                 <TouchableOpacity
                   style={styles.discordButtonContainer}
@@ -726,13 +560,13 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     style={styles.discordButton}
                   >
                     <View style={styles.discordButtonContent}>
-                      <MessageCircle size={22} color="#FFFFFF" style={styles.discordButtonIcon} />
+                      <MessageCircle size={20} color="#FFFFFF" style={styles.discordButtonIcon} />
                       <View style={styles.discordButtonTextContainer}>
                         <Text style={styles.discordButtonText}>
                           {discordRewardClaimed ? 'Join Our Discord' : 'Join Our Discord'}
                         </Text>
                         {!discordRewardClaimed && (
-                          <Text style={styles.discordButtonRewardText}>{`🎁 Reward: ${DISCORD_JOIN_REWARD_GEMS} Gems`}</Text>
+                          <Text style={styles.discordButtonRewardText}>{`Reward: ${DISCORD_JOIN_REWARD_GEMS} Gems`}</Text>
                         )}
                       </View>
                       {!discordRewardClaimed && (
@@ -762,24 +596,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
-
-                {/* Developer Tools - Hidden */}
-                {/* {__DEV__ && (
-                  <TouchableOpacity
-                    style={styles.actionButtonContainer}
-                    onPress={() => setShowDevTools(true)}
-                  >
-                    <LinearGradient
-                      colors={['#6366F1', '#4F46E5']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionButton}
-                    >
-                      <Code size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
-                      <Text style={styles.actionButtonText}>Developer Tools</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )} */}
 
                 {/* Privacy Policy & Terms */}
                 <TouchableOpacity
@@ -817,8 +633,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
       <BugReportSheet visible={showBugReport} onClose={() => setShowBugReport(false)} />
 
-      <LeaderboardModal visible={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       <LegacyOverviewTab visible={showLegacyOverview} onClose={() => setShowLegacyOverview(false)} />
+      {/* TEMP: Game Dev Tools modal mount. */}
       <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       <BackupRecoveryModal
         visible={showBackupManager}
@@ -927,10 +743,15 @@ const styles = StyleSheet.create({
     maxWidth: 450,
     width: '100%',
     maxHeight: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 10,
     borderWidth: 0,
     overflow: 'hidden',
@@ -950,7 +771,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(59, 130, 246, 0.05)',
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: responsivePadding.large,
     paddingVertical: responsivePadding.large,
     position: 'relative',
@@ -982,7 +803,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: responsiveSpacing.md,
@@ -995,7 +816,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -1123,15 +944,25 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
     lineHeight: 18,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   settingDescriptionDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   switchContainer: {
     marginLeft: responsiveSpacing.sm,
@@ -1178,15 +1009,25 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.xs,
     color: '#6B7280',
     fontWeight: '500',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   languageButtonTextDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   activeLanguageButtonText: {
     fontSize: responsiveFontSize.xs,
@@ -1382,7 +1223,7 @@ const styles = StyleSheet.create({
     minHeight: scale(160),
   },
   lifeGoalGradientCompleted: {
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     ...Platform.select({
       ios: {
         shadowColor: '#10B981',
@@ -1417,11 +1258,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   lifeGoalIconContainerCompleted: {
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   lifeGoalIcon: {
     width: scale(40),
@@ -1461,7 +1302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   completedBadgeText: {
     fontSize: fontScale(14),
@@ -1857,7 +1698,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     zIndex: 1,
     borderWidth: 2,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   discordButtonContent: {
     flexDirection: 'row',
@@ -1942,7 +1783,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    zIndex: 999,
+    zIndex: Z_INDEX.MODAL,
   },
   rewardOverlayTouch: {
     flex: 1,
@@ -1956,7 +1797,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.xl + 4,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: 'rgba(129, 140, 248, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     ...Platform.select({
       ios: {
         shadowColor: '#6366F1',
@@ -1990,7 +1831,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(165, 180, 252, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     ...Platform.select({
       ios: {
         shadowColor: '#818CF8',
@@ -2017,7 +1858,7 @@ const styles = StyleSheet.create({
     paddingVertical: scale(8),
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     marginBottom: scale(12),
   },
   rewardAmountText: {

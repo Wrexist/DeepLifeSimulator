@@ -55,6 +55,44 @@ const SYNC_INTERVAL = 60000; // 1 minute
 const BATCH_SIZE = 50;
 const MAX_STORAGE_SIZE = 50000; // Max size in characters (~50KB)
 
+// R7 Phase 5 (5.4): defense-in-depth sanitizer for log context fields.
+// Logs never leave the device today (remoteUrl is null) but they ARE
+// persisted to AsyncStorage and shown in the in-app log viewer. Any
+// caller that accidentally puts a credential / receipt / signature into
+// `context` gets it stripped here BEFORE persist + sync. The audit
+// confirmed no current callsites leak these keys; this is a guardrail
+// against future regressions.
+const SENSITIVE_CONTEXT_KEYS = new Set<string>([
+  'hmac', 'signature', 'saveKey', 'saveHmacKey', 'hmacKey',
+  'receipt', 'receiptData', 'purchaseToken', 'verificationData',
+  'apiKey', 'secret', 'token', 'accessToken', 'refreshToken',
+  'password', 'credential',
+  'email', 'phoneNumber', 'address',
+  'cloudUserId', 'deviceId', 'installationId', 'advertisingId',
+]);
+const REDACTED = '[REDACTED]';
+
+export function sanitizeLogContext(value: unknown, depth = 0): unknown {
+  return sanitizeContext(value, depth);
+}
+
+function sanitizeContext(value: unknown, depth = 0): unknown {
+  if (value == null || depth > 4) return value;
+  if (typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    return value.map((v) => sanitizeContext(v, depth + 1));
+  }
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (SENSITIVE_CONTEXT_KEYS.has(k)) {
+      out[k] = REDACTED;
+    } else {
+      out[k] = sanitizeContext(v, depth + 1);
+    }
+  }
+  return out;
+}
+
 class RemoteLoggingService {
   private queue: LogEntry[] = [];
   private isSyncing = false;
@@ -184,9 +222,20 @@ class RemoteLoggingService {
   log(entry: Omit<LogEntry, 'id' | 'timestamp'>) {
     // Lazy initialization - ensure service is initialized on first use
     this.ensureInitialized();
-    
+
+    // R7 Phase 5 (5.4): scrub sensitive fields from context + error before
+    // anything is persisted or queued. See SENSITIVE_CONTEXT_KEYS above.
+    const sanitizedContext = entry.context !== undefined
+      ? sanitizeContext(entry.context)
+      : entry.context;
+    const sanitizedError = entry.error !== undefined
+      ? sanitizeContext(entry.error)
+      : entry.error;
+
     const newLog: LogEntry = {
       ...entry,
+      context: sanitizedContext,
+      error: sanitizedError,
       id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
       timestamp: new Date().toISOString(),
     };
@@ -256,7 +305,13 @@ class RemoteLoggingService {
 
     this.isSyncing = true;
 
-    // Safety timeout: reset isSyncing if sync takes too long (prevents permanent stall)
+    // R7 Phase 5: AbortController-backed fetch timeout. The previous safety
+    // timeout only reset `isSyncing` — the underlying fetch could still
+    // resolve later and waste a request + memory. AbortController actually
+    // cancels the request. The 15s envelope is a soft cap, separate from
+    // the 10s abort, so a network stuck mid-handshake can't pin the flag.
+    const abortController = new AbortController();
+    const abortTimeout = setTimeout(() => abortController.abort(), 10000);
     const syncTimeout = setTimeout(() => {
       this.isSyncing = false;
     }, 15000);
@@ -270,6 +325,7 @@ class RemoteLoggingService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ logs: batch }),
+        signal: abortController.signal,
       });
 
       if (response.ok) {
@@ -280,8 +336,9 @@ class RemoteLoggingService {
         this.notifyListeners();
       }
     } catch (error) {
-      // Silent fail on sync error
+      // Silent fail on sync error (covers both network failure and abort)
     } finally {
+      clearTimeout(abortTimeout);
       clearTimeout(syncTimeout);
       this.isSyncing = false;
     }

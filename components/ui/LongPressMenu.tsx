@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Modal, Pressable } from 'react-native';
+import { Platform, View, StyleSheet, TouchableOpacity, Text, Modal, Pressable } from 'react-native';
 // LongPressMenu uses native TouchableOpacity for compatibility
 
 interface MenuOption {
@@ -126,10 +126,15 @@ const styles = StyleSheet.create({
     padding: 4,
     minWidth: 150,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.25)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 5,
   },
   menuItem: {

@@ -94,6 +94,10 @@ export function computeWeeksLived(startingAge: number): number {
   return Math.max(0, Math.floor((startingAge - ADULTHOOD_AGE) * WEEKS_PER_YEAR));
 }
 
+function clampBoundedStat(value: number): number {
+  return Math.max(0, Math.min(100, value));
+}
+
 /** Create a random child for the single-parent scenario. */
 export function buildChildForSingleParent(childAge: number): any {
   const childNames = ['Alex', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Avery', 'Quinn', 'Sage', 'River'];
@@ -173,25 +177,50 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     stats: {
       ...baseStats,
       money: scenario.start.cash + (perkStatBoosts.money || 0),
-      reputation: baseStats.reputation + (perkStatBoosts.reputation || 0),
-      energy: baseStats.energy + (perkStatBoosts.energy || 0),
-      health: baseStats.health + (perkStatBoosts.health || 0),
-      happiness: baseStats.happiness + (perkStatBoosts.happiness || 0),
-      fitness: baseStats.fitness + (perkStatBoosts.fitness || 0),
+      reputation: clampBoundedStat(baseStats.reputation + (perkStatBoosts.reputation || 0)),
+      energy: clampBoundedStat(baseStats.energy + (perkStatBoosts.energy || 0)),
+      health: clampBoundedStat(baseStats.health + (perkStatBoosts.health || 0)),
+      happiness: clampBoundedStat(baseStats.happiness + (perkStatBoosts.happiness || 0)),
+      fitness: clampBoundedStat(baseStats.fitness + (perkStatBoosts.fitness || 0)),
     },
     weeksLived,
     week: (weeksLived % WEEKS_PER_MONTH) + 1,
     date: { ...initialGameState.date, age: scenario.start.age, week: (weeksLived % WEEKS_PER_YEAR) + 1 },
-    educations: initialGameState.educations.map((e: any) => {
+    educations: (() => {
+      const existing: any[] = initialGameState.educations.map((e: any) => {
+        const eduFromScenario = scenario.start.education;
+        if (!eduFromScenario) return e;
+        const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
+        const mappedWanted = wanted.map((w) => EDUCATION_MAP[w] || w).filter((w) => w !== 'Dropout');
+        if (mappedWanted.length > 0 && mappedWanted.includes(e.id)) {
+          return { ...e, completed: true, weeksRemaining: undefined };
+        }
+        return e;
+      });
+      // BUGFIX: initialGameState.educations is empty by design — the player
+      // grows the list by enrolling in school during gameplay. Scenarios that
+      // advertise "Start with X education" (corporate_intern → College, etc.)
+      // were silently no-oping because the `.map` had nothing to mark complete.
+      // Append any scenario-requested education that isn't already in the list.
       const eduFromScenario = scenario.start.education;
-      if (!eduFromScenario) return e;
-      const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
-      const mappedWanted = wanted.map((w) => EDUCATION_MAP[w] || w).filter((w) => w !== 'Dropout');
-      if (mappedWanted.length > 0 && mappedWanted.includes(e.id)) {
-        return { ...e, completed: true, weeksRemaining: undefined };
+      if (eduFromScenario) {
+        const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
+        const mappedWanted = wanted.map((w) => EDUCATION_MAP[w] || w).filter((w) => w !== 'Dropout');
+        for (const eduId of mappedWanted) {
+          if (!existing.find((e) => e.id === eduId)) {
+            existing.push({
+              id: eduId,
+              name: eduId, // Display name — UI catalogs (e.g. EducationApp) override on render
+              description: '',
+              cost: 0,
+              duration: 0,
+              completed: true,
+            });
+          }
+        }
       }
-      return e;
-    }),
+      return existing;
+    })(),
     userProfile: {
       ...initialGameState.userProfile,
       firstName,

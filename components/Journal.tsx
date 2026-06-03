@@ -34,6 +34,7 @@ import {
   ChevronUp,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { JournalEntry } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -96,7 +97,7 @@ interface JournalProps {
 
 export default function Journal({ compact = false }: JournalProps) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const entries = gameState.journal || [];
 
   const [searchQuery, setSearchQuery] = useState('');

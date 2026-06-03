@@ -4,9 +4,14 @@
  */
 
 export function formatMoney(amount: number, showDollarSign: boolean = true): string {
+  // BUGFIX: NaN/Infinity/undefined from upstream calc bugs would otherwise
+  // render as "$NaN" or "$Infinity" in the UI — actively confusing for players.
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) {
+    return showDollarSign ? '$0' : '0';
+  }
   const absAmount = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
-  
+
   let formatted: string;
   
   if (absAmount >= 1_000_000_000_000_000) {
@@ -45,9 +50,13 @@ export function formatMoneyWithSign(amount: number): string {
 
 // For gems and other currencies that don't use dollar sign
 export function formatCurrency(amount: number, currency: string = ''): string {
+  // BUGFIX: same NaN/Infinity guard as formatMoney.
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) {
+    return currency ? `0 ${currency}` : '0';
+  }
   const absAmount = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
-  
+
   let formatted: string;
   
   if (absAmount >= 1_000_000_000_000_000) {

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { TutorialStep, EnhancedTutorialStep } from '@/types/tutorial';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { logger } from '@/utils/logger';

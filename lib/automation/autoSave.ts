@@ -1,6 +1,6 @@
 import type { GameState } from '@/contexts/game/types';
 import type { AutomationRule, AutomationExecution, AutomationAction } from './automationTypes';
-import { isAutomationTypeUnlocked } from './automationEngine';
+import { isAutomationTypeUnlocked } from './automationGuards';
 import { logger } from '@/utils/logger';
 
 /**

@@ -11,6 +11,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react-native';
 import { DesignSystem } from '@/utils/designSystem';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 const LinearGradient = LinearGradientFallback;
 
 interface ToastNotificationProps {
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: DesignSystem.spacing.md,
     right: DesignSystem.spacing.md,
-    zIndex: 1000,
+    zIndex: Z_INDEX.TOAST,
   },
   toast: {
     borderRadius: DesignSystem.borderRadius.lg,

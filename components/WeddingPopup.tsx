@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { Heart, Sparkles, Crown, PartyPopper, Gem as Rings } from 'lucide-react-native';
@@ -21,87 +21,44 @@ export default function WeddingPopup() {
   const sparkleAnim = useRef(new Animated.Value(0)).current;
   const confettiAnim = useRef(new Animated.Value(0)).current;
 
+  // P2-2: keep refs to the running loops so the cleanup function always runs
+  // (the previous version only registered cleanup inside the
+  // `if (showWeddingPopup)` block — if the popup mounted and unmounted while
+  // `showWeddingPopup` was false, the loops weren't cleaned up).
+  const loopsRef = useRef<Animated.CompositeAnimation[]>([]);
   useEffect(() => {
     if (showWeddingPopup) {
       // Start entrance animations
       Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 700,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
       ]).start();
 
-      // Heart pulse animation
-      const heartLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(heartPulseAnim, {
-            toValue: 1.3,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(heartPulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
+      const heartLoop = Animated.loop(Animated.sequence([
+        Animated.timing(heartPulseAnim, { toValue: 1.3, duration: 1000, useNativeDriver: true }),
+        Animated.timing(heartPulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ]));
+      const sparkleLoop = Animated.loop(Animated.sequence([
+        Animated.timing(sparkleAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+        Animated.timing(sparkleAnim, { toValue: 0.3, duration: 1500, useNativeDriver: true }),
+      ]));
+      const confettiLoop = Animated.loop(Animated.sequence([
+        Animated.timing(confettiAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(confettiAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+      ]));
       heartLoop.start();
-
-      // Sparkle animation
-      const sparkleLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(sparkleAnim, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(sparkleAnim, {
-            toValue: 0.3,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ])
-      );
       sparkleLoop.start();
-
-      // Confetti animation
-      const confettiLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(confettiAnim, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(confettiAnim, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
       confettiLoop.start();
-
-      return () => {
-        heartLoop.stop();
-        sparkleLoop.stop();
-        confettiLoop.stop();
-      };
+      loopsRef.current = [heartLoop, sparkleLoop, confettiLoop];
     }
-    return;
-  }, [showWeddingPopup]);
+    // Unconditional cleanup — fires on unmount or when showWeddingPopup
+    // toggles back to false.
+    return () => {
+      loopsRef.current.forEach(l => l.stop());
+      loopsRef.current = [];
+    };
+  }, [showWeddingPopup, fadeAnim, scaleAnim, slideAnim, heartPulseAnim, sparkleAnim, confettiAnim]);
 
   const closePopup = () => {
     // Animate out
@@ -198,7 +155,7 @@ export default function WeddingPopup() {
                   />
                 </View>
               </Animated.View>
-              <Text style={styles.title}>🎉 YOU'RE MARRIED! 🎉</Text>
+              <Text style={styles.title}>YOU'RE MARRIED!</Text>
             </View>
 
             {/* Main content */}
@@ -208,7 +165,7 @@ export default function WeddingPopup() {
               </Text>
 
               <View style={styles.celebrationBox}>
-                <Text style={styles.celebrationText}>💒 Wedding Celebration 💒</Text>
+                <Text style={styles.celebrationText}>Wedding Celebration</Text>
                 <Text style={styles.celebrationSubtext}>
                   Your special day has arrived! Time to celebrate your love story together.
                 </Text>
@@ -231,7 +188,7 @@ export default function WeddingPopup() {
               </View>
 
               <Text style={styles.congratulations}>
-                May your love story be filled with joy, adventure, and happily ever after! 💕
+                May your love story be filled with joy, adventure, and happily ever after.
               </Text>
             </View>
 
@@ -241,7 +198,7 @@ export default function WeddingPopup() {
                 colors={['#FFD700', '#FFA500', '#FF8C00']}
                 style={styles.buttonGradient}
               >
-                <Text style={styles.buttonText}>Continue Your Love Story 💑</Text>
+                <Text style={styles.buttonText}>Continue Your Love Story</Text>
               </LinearGradient>
             </TouchableOpacity>
           </LinearGradient>
@@ -296,9 +253,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
+    ...Platform.select({
+      web: { textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)' } as any,
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 2, height: 2 },
+        textShadowRadius: 4,
+      },
+    }),
     letterSpacing: 0.5,
   },
   content: {

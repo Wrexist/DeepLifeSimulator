@@ -438,8 +438,11 @@ export const careerEventTemplates: EventTemplate[] = [
  */
 export function calculatePerformance(stats: { energy: number; happiness: number; health: number }): number {
   const base = 50;
-  const energyBonus = ((stats.energy || 50) - 50) * 0.3;
-  const happinessBonus = ((stats.happiness || 50) - 50) * 0.2;
-  const healthBonus = ((stats.health || 50) - 50) * 0.1;
+  // BUGFIX: use ?? so a true 0 stat produces the intended negative bonus
+  // ("tired workers perform poorly"). With ||, 0 was silently treated as 50
+  // (neutral), contradicting the documented behavior.
+  const energyBonus = ((stats.energy ?? 50) - 50) * 0.3;
+  const happinessBonus = ((stats.happiness ?? 50) - 50) * 0.2;
+  const healthBonus = ((stats.health ?? 50) - 50) * 0.1;
   return Math.max(0, Math.min(100, Math.round(base + energyBonus + happinessBonus + healthBonus)));
 }

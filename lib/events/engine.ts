@@ -73,6 +73,13 @@ export interface EventTemplate {
   weight: number | ((state: GameState) => number);
   condition?: (state: GameState) => boolean;
   generate: (state: GameState) => WeeklyEvent;
+  // v13+ Pulse: when present, the event should also surface inside the in-game
+  // social platform (notification + trending hashtag injection). Decoupled
+  // from `category` so non-economy fame events can still surface to Pulse.
+  surface?: 'pulse_notification' | 'pulse_hashtag' | 'pulse_scandal';
+  // v13+ Pulse: optional helper for surface='pulse_hashtag' so the surfacing
+  // pipeline knows what tag to inject without parsing the description.
+  pulseHashtag?: string;
 }
 
 const jobBonus: EventTemplate = {

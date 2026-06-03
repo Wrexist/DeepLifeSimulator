@@ -7,6 +7,8 @@ import {
   buildNewGameState,
   type BuildGameStateParams,
 } from '@/src/features/onboarding/gameStateBuilder';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+import { validateOnboardingState } from '@/utils/onboardingValidation';
 
 // ---------------------------------------------------------------------------
 // Mock initialGameState template for tests
@@ -264,5 +266,19 @@ describe('buildNewGameState', () => {
       baseParams({ scenario: { id: 'test', start: { age: 18, cash: 0, noChildren: true } } })
     );
     expect(state.family.children).toEqual([]);
+  });
+
+  it('clamps bounded stat boosts so permanent perks cannot create invalid onboarding saves', () => {
+    const state = buildNewGameState(
+      baseParams({
+        initialGameState: createTestGameState(),
+        stateVersion: 18,
+        scenario: { id: 'aspiring_entrepreneur', start: { age: 22, cash: 2000, items: ['computer', 'smartphone'] } },
+        permanentPerks: ['lucky_charm'],
+      })
+    );
+
+    expect(state.stats.happiness).toBe(100);
+    expect(validateOnboardingState(state).valid).toBe(true);
   });
 });

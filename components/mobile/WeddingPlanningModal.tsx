@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput,
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, Calendar, Users, DollarSign, Check, MapPin, Heart } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { planWedding } from '@/contexts/game/actions/DatingActions';
 import { WEDDING_VENUES, WEDDING_ADDONS, calculateWeddingCost, getVenueTypeColor } from '@/lib/dating/weddingVenues';
 import { WeddingPlan } from '@/contexts/game/types';
@@ -19,7 +20,7 @@ interface WeddingPlanningModalProps {
 
 export default function WeddingPlanningModal({ visible, onClose, partnerId, partnerName }: WeddingPlanningModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const isDarkMode = settings?.darkMode ?? false;
 
   // Debug: Log venues on mount

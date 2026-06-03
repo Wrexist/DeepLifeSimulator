@@ -6,7 +6,7 @@ module.exports = {
       'ts-jest',
       {
         diagnostics: false,
-        tsconfig: '<rootDir>/tsconfig.json',
+        tsconfig: '<rootDir>/tsconfig.jest.json',
       },
     ],
   },
@@ -43,6 +43,7 @@ module.exports = {
     '[\\\\/]node_modules[\\\\/]',
     '[\\\\/]__tests__[\\\\/]helpers[\\\\/]',
     '[\\\\/]__tests__[\\\\/]stress[\\\\/]helpers[\\\\/]',
+    '[\\\\/]__tests__[\\\\/]refactor[\\\\/]helpers[\\\\/]',
     '[\\\\/]lib[\\\\/]skillTrees[\\\\/]__tests__[\\\\/]careerSkillTrees\\.test\\.ts$',
   ],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],

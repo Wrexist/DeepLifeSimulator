@@ -188,10 +188,13 @@ export function getKarmaModifiers(karma: KarmaState) {
       tier === 'corrupt' ? 0.75 :
       0.6,
 
-    /** Crime success modifier — corrupt characters are better criminals */
+    /** Crime success modifier — corrupt characters are better criminals.
+     *  BUGFIX: order was reversed — `violence < -30` matched first for any
+     *  value below -60, so the 0.25 tier was unreachable. Now checks the
+     *  more extreme bound first. */
     crimeSuccessBonus:
-      karma.dimensions.violence < -30 ? 0.15 :
       karma.dimensions.violence < -60 ? 0.25 :
+      karma.dimensions.violence < -30 ? 0.15 :
       0,
 
     /** Political approval modifier */

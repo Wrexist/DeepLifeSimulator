@@ -97,7 +97,7 @@ export default function DivorceConfirmModal({
             {/* Warning Message */}
             <View style={[styles.warningBox, isDarkMode && styles.warningBoxDark]}>
               <Text style={[styles.warningText, isDarkMode && styles.warningTextDark]}>
-                ⚠️ This action cannot be undone!
+                This action cannot be undone!
               </Text>
               <Text style={[styles.warningSubtext, isDarkMode && styles.warningSubtextDark]}>
                 You are about to divorce {spouseName}. This will permanently end your marriage.
@@ -369,7 +369,7 @@ export default function DivorceConfirmModal({
                   {selectedLawyerData.netSavings > 0 && (
                     <View style={styles.savingsHighlight}>
                       <Text style={styles.savingsText}>
-                        💰 Expected Savings: ${Math.round(selectedLawyerData.netSavings).toLocaleString()}
+                        Expected Savings: ${Math.round(selectedLawyerData.netSavings).toLocaleString()}
                       </Text>
                     </View>
                   )}
@@ -405,11 +405,11 @@ export default function DivorceConfirmModal({
                     Your Gems:
                   </Text>
                   <Text style={[styles.infoValue, styles.gemValue]}>
-                    {currentGems.toLocaleString()} 💎
+                    {currentGems.toLocaleString()}
                   </Text>
                 </View>
                 <Text style={[styles.infoSubtext, styles.gemSubtext, isDarkMode && styles.infoSubtextDark]}>
-                  ✓ Gems are NEVER affected by divorce
+                  Gems are never affected by divorce
                 </Text>
               </View>
             </View>
@@ -443,7 +443,7 @@ export default function DivorceConfirmModal({
             {!canAffordFinal && (
               <View style={[styles.errorBox, isDarkMode && styles.errorBoxDark]}>
                 <Text style={styles.errorText}>
-                  ⚠️ {selectedLawyerData 
+                  {selectedLawyerData 
                     ? `You need $${Math.round(selectedLawyerData.finalCost).toLocaleString()} total to proceed with this lawyer.`
                     : `You need at least $${lawyerFees.toLocaleString()} for lawyer fees to proceed with the divorce.`
                   }

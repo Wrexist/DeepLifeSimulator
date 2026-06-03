@@ -64,8 +64,11 @@ let lastCacheKey: NetWorthCacheKey | null = null;
 let lastNetWorthValue: number = 0;
 
 export const netWorth = (state: GameState): number => {
-  const money = state.stats.money;
-  const bank = state.bankSavings ?? 0;
+  // BUGFIX: state.stats may be undefined for partial states from cloud
+  // download, prestige resets, or onboarding flows. Direct access crashed
+  // the leaderboard score calculator with TypeError.
+  const money = state?.stats?.money ?? 0;
+  const bank = state?.bankSavings ?? 0;
   
   // Check if we can return cached value (fast path)
   if (lastCacheKey &&

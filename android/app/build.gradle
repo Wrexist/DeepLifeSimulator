@@ -92,8 +92,13 @@ android {
         applicationId 'com.deeplife.simulator'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 98
-        versionName "2.3.5"
+        // R6-AUDIT: literals kept in sync with package.json (version 2.4.0).
+        // app.config.js derives the Expo-managed version from package.json and the
+        // versionCode from BUILD_NUMBER env (default 99). If you regenerate the
+        // android/ folder via `expo prebuild`, remove these literals — the prebuild
+        // template will pick up the canonical values from app.config.js instead.
+        versionCode 100
+        versionName "2.4.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

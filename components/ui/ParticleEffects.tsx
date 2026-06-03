@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, Dimensions } from 'react-native';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 1000,
+    zIndex: Z_INDEX.LOADING,
   },
   particle: {
     position: 'absolute',

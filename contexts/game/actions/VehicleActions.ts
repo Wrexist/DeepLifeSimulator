@@ -397,16 +397,36 @@ export const cancelInsurance = (
     return { success: false, message: 'This vehicle has no insurance.' };
   }
 
-  // Remove insurance (no refund for early cancellation)
+  // R5-D: prorate the refund based on weeks remaining on the policy. The
+  // previous "no refund" behavior turned insurance into a single-claim rental
+  // exploit: buy 6 months for $X, force an accident (or just wait for one),
+  // get the repair discount, then cancel and walk away from the rest of the
+  // premium. A pro-rata refund — minus a $25 administrative fee — removes
+  // the cancel-after-claim arbitrage without punishing legitimate cancels.
+  const currentWeek = gameState.weeksLived ?? 0;
+  const expiresWeek = vehicle.insurance.expiresWeek ?? currentWeek;
+  const weeksRemaining = Math.max(0, expiresWeek - currentWeek);
+  const monthlyCost = typeof vehicle.insurance.monthlyCost === 'number' && isFinite(vehicle.insurance.monthlyCost)
+    ? vehicle.insurance.monthlyCost
+    : 0;
+  // 4 weeks ≈ 1 month, 25 admin fee minimum
+  const refundRaw = Math.floor(monthlyCost * (weeksRemaining / 4)) - 25;
+  const refund = Math.max(0, refundRaw);
   setGameState(prev => ({
     ...prev,
     vehicles: (prev.vehicles || []).map(v =>
       v.id === vehicleId ? { ...v, insurance: undefined } : v
     ),
+    stats: { ...prev.stats, money: Math.max(0, (prev.stats?.money ?? 0) + refund) },
   }));
 
-  log.info(`Player cancelled insurance for: ${vehicle.name}`);
-  return { success: true, message: `Insurance cancelled for ${vehicle.name}. No refund for early cancellation.` };
+  log.info(`Player cancelled insurance for: ${vehicle.name} (refund $${refund})`);
+  return {
+    success: true,
+    message: refund > 0
+      ? `Insurance cancelled for ${vehicle.name}. Refund: $${refund.toLocaleString()} (pro-rata, less $25 admin fee).`
+      : `Insurance cancelled for ${vehicle.name}. No refund — policy was already near expiry.`,
+  };
 };
 
 /**
@@ -605,5 +625,190 @@ export const getActiveVehicleSpeedBonus = (gameState: GameState): number => {
   const vehicle = (gameState.vehicles || []).find(v => v.id === gameState.activeVehicleId);
   if (!vehicle || vehicle.condition < 20 || vehicle.fuelLevel < 10) return 0; // Must be in usable condition
   return vehicle.speedBonus || 0;
+};
+
+// ---------------------------------------------------------------------------
+// VehicleApp Remake 8: Auto-loan financing via the banking system.
+// ---------------------------------------------------------------------------
+
+import {
+  AutoDownTier,
+  AutoTerm,
+  AUTO_TERM_WEEKS,
+  autoPreflight,
+  originateAuto,
+} from '@/lib/vehicles/auto';
+import { quoteLoan } from '@/lib/banking/operations';
+import { calculatePeriodicPayment } from '@/lib/banking/amortization';
+import { politicsAprReduction } from './LoanActions';
+import type { Loan } from '../types';
+
+const newLoanId = (): string =>
+  `loan-auto-${Math.floor(Math.random() * 1e9).toString(36)}`;
+
+/**
+ * Quote the cost of buying a vehicle with an auto loan. Read-only.
+ */
+export function quoteVehiclePurchase(
+  state: GameState,
+  templateId: string,
+  tier: AutoDownTier,
+  term: AutoTerm,
+  weeklyIncome: number
+): {
+  rejected: boolean;
+  reason?: string;
+  price?: number;
+  downPaymentUSD?: number;
+  loanPrincipal?: number;
+  offeredAPR?: number;
+  weeklyPayment?: number;
+  totalCost?: number;
+} {
+  const template = VEHICLE_TEMPLATES.find((v) => v.id === templateId);
+  if (!template) return { rejected: true, reason: 'Vehicle not found' };
+
+  const cash = state.stats?.money ?? 0;
+  // Vehicle templates don't carry a year — treat them all as current-model-year for LTV.
+  const currentYear = (state.date?.year as number | undefined) ?? 2025;
+  const vehicleYear = currentYear;
+  const orig = originateAuto({
+    price: template.price,
+    tier,
+    term,
+    availableCash: cash,
+    vehicleYear,
+    currentYear,
+  });
+  const preflightErr = autoPreflight({
+    price: template.price,
+    tier,
+    term,
+    availableCash: cash,
+    vehicleYear,
+    currentYear,
+  });
+  if (preflightErr) return { rejected: true, reason: preflightErr };
+
+  if (tier === 'cash') {
+    return {
+      rejected: false,
+      price: template.price,
+      downPaymentUSD: orig.downPaymentUSD,
+      loanPrincipal: 0,
+      offeredAPR: 0,
+      weeklyPayment: 0,
+      totalCost: orig.downPaymentUSD,
+    };
+  }
+
+  const banking = state.banking;
+  if (!banking) return { rejected: true, reason: 'Banking not initialized' };
+  const quote = quoteLoan(banking, state.loans ?? [], {
+    principal: orig.loanPrincipal,
+    termWeeks: orig.termWeeks,
+    type: 'auto',
+    weeklyIncome,
+    aprReduction: politicsAprReduction(state),
+  });
+  if (quote.rejected) return { rejected: true, reason: quote.reason };
+  const adjustedAPR = Math.max(0.025, quote.offeredAPR + orig.aprAdjustment);
+  const weekly = calculatePeriodicPayment(orig.loanPrincipal, adjustedAPR, orig.termWeeks);
+
+  return {
+    rejected: false,
+    price: template.price,
+    downPaymentUSD: orig.downPaymentUSD,
+    loanPrincipal: orig.loanPrincipal,
+    offeredAPR: adjustedAPR,
+    weeklyPayment: weekly,
+    totalCost: orig.downPaymentUSD + weekly * orig.termWeeks,
+  };
+}
+
+/**
+ * Buy a vehicle with the given down-payment tier + loan term. Creates a Loan
+ * (type='auto') in the banking system, debits the down payment, and adds the
+ * vehicle to gameState.vehicles.
+ */
+export const purchaseVehicleWithAutoLoan = (
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  spec: {
+    templateId: string;
+    tier: AutoDownTier;
+    term: AutoTerm;
+    weeklyIncome: number;
+  }
+): { success: boolean; message: string } => {
+  let result: { success: boolean; message: string } = { success: false, message: 'Purchase failed' };
+  setGameState((prev) => {
+    if (!prev.hasDriversLicense) {
+      result = { success: false, message: "You need a driver's license to purchase a vehicle!" };
+      return prev;
+    }
+    const template = VEHICLE_TEMPLATES.find((v) => v.id === spec.templateId);
+    if (!template) {
+      result = { success: false, message: 'Vehicle template not found' };
+      return prev;
+    }
+    if ((prev.vehicles ?? []).some((v) => v.id === spec.templateId)) {
+      result = { success: false, message: 'You already own this vehicle!' };
+      return prev;
+    }
+    const quote = quoteVehiclePurchase(prev, spec.templateId, spec.tier, spec.term, spec.weeklyIncome);
+    if (quote.rejected) {
+      result = { success: false, message: quote.reason ?? 'Rejected' };
+      return prev;
+    }
+
+    const cash = prev.stats?.money ?? 0;
+    const newMoney = Math.max(0, cash - (quote.downPaymentUSD ?? 0));
+
+    let updatedLoans = prev.loans ?? [];
+    if (spec.tier !== 'cash' && (quote.loanPrincipal ?? 0) > 0) {
+      const loan: Loan = {
+        id: newLoanId(),
+        name: `Auto Loan: ${template.name}`,
+        principal: quote.loanPrincipal!,
+        remaining: quote.loanPrincipal!,
+        rateAPR: quote.offeredAPR!,
+        originalAPR: quote.offeredAPR!,
+        interestRate: quote.offeredAPR!,
+        termWeeks: AUTO_TERM_WEEKS[spec.term],
+        weeksRemaining: AUTO_TERM_WEEKS[spec.term],
+        weeklyPayment: quote.weeklyPayment!,
+        startWeek: prev.weeksLived,
+        autoPay: true,
+        type: 'auto',
+        onTimePayments: 0,
+        latePayments: 0,
+      };
+      updatedLoans = [...updatedLoans, loan];
+      log.info(
+        `Auto loan: $${(quote.loanPrincipal ?? 0).toLocaleString()} @ ${((quote.offeredAPR ?? 0) * 100).toFixed(2)}% APR over ${AUTO_TERM_WEEKS[spec.term]}w`
+      );
+    }
+
+    const newVehicle = createVehicleFromTemplate(template, prev.weeksLived || 0);
+    const vehicles = [...(prev.vehicles ?? []), newVehicle];
+    const activeVehicleId = prev.activeVehicleId ?? newVehicle.id;
+
+    result = {
+      success: true,
+      message:
+        spec.tier === 'cash'
+          ? `Bought ${template.name} for $${template.price.toLocaleString()}`
+          : `Financed ${template.name} — $${(quote.downPaymentUSD ?? 0).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk`,
+    };
+
+    return {
+      ...prev,
+      stats: { ...prev.stats, money: newMoney },
+      vehicles,
+      activeVehicleId,
+      loans: updatedLoans,
+    };
+  });
+  return result;
 };
 

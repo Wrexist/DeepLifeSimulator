@@ -13,6 +13,8 @@ export interface Scenario {
     education?: string;
     items?: string[];
     traits?: string[];
+    hasChild?: boolean;
+    childAge?: number;
   };
   icon: ImageSourcePropType;
 }
@@ -125,7 +127,11 @@ export const scenarios: Scenario[] = [
     lifeGoal: 'Provide & Protect',
     description: 'Raising a child on your own. Every dollar counts, every choice matters.',
     bonus: 'Start at 28 with $1,200 and a child to raise. Balance work and family.',
-    start: { age: 28, cash: 1200, items: ['smartphone'], traits: ['caring'] },
+    // BUGFIX: the bonus copy promises "a child to raise" but `hasChild` was
+    // never set, so the builder skipped the single-parent code path and the
+    // player started childless. Adding hasChild:true with a 3-year-old child
+    // matches the advertised description.
+    start: { age: 28, cash: 1200, items: ['smartphone'], traits: ['caring'], hasChild: true, childAge: 3 },
     icon: require('@/assets/images/Scenarios/Single Parent_final.png'),
   },
   {

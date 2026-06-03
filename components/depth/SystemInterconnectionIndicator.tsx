@@ -13,11 +13,26 @@ import {
 } from 'react-native';
 import {
   ArrowRight,
+  Briefcase,
+  Building2,
   ChevronDown,
   ChevronUp,
-  TrendingUp,
+  DollarSign,
+  FlaskConical,
+  GraduationCap,
+  Heart,
+  Home,
+  Landmark,
+  Link as LinkIcon,
+  Palette,
+  Plane,
+  Smartphone,
+  Smile,
+  Star,
+  Stethoscope,
   TrendingDown,
-  Link,
+  TrendingUp,
+  Zap,
 } from 'lucide-react-native';
 import { SystemInterconnection } from '@/lib/depth/systemInterconnections';
 import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
@@ -29,23 +44,25 @@ interface SystemInterconnectionIndicatorProps {
   onPress?: () => void;
 }
 
-const SYSTEM_ICONS: Record<string, string> = {
-  career: '💼',
-  relationships: '❤️',
-  health: '🏥',
-  hobbies: '🎨',
-  money: '💰',
-  happiness: '😊',
-  energy: '⚡',
-  reputation: '⭐',
-  education: '📚',
-  travel: '✈️',
-  politics: '🏛️',
-  rd: '🔬',
-  company: '🏢',
-  realEstate: '🏠',
-  stocks: '📈',
-  socialMedia: '📱',
+type LucideIcon = React.ComponentType<{ size?: number; color?: string }>;
+
+const SYSTEM_ICONS: Record<string, LucideIcon> = {
+  career: Briefcase,
+  relationships: Heart,
+  health: Stethoscope,
+  hobbies: Palette,
+  money: DollarSign,
+  happiness: Smile,
+  energy: Zap,
+  reputation: Star,
+  education: GraduationCap,
+  travel: Plane,
+  politics: Landmark,
+  rd: FlaskConical,
+  company: Building2,
+  realEstate: Home,
+  stocks: TrendingUp,
+  socialMedia: Smartphone,
 };
 
 export default function SystemInterconnectionIndicator({
@@ -94,7 +111,7 @@ export default function SystemInterconnectionIndicator({
         style={styles.header}
       >
         <View style={styles.headerContent}>
-          <Link size={scale(16)} color={darkMode ? '#60A5FA' : '#3B82F6'} />
+          <LinkIcon size={scale(16)} color={darkMode ? '#60A5FA' : '#3B82F6'} />
           <Text style={[styles.headerText, darkMode && styles.headerTextDark]}>
             Affects {activeInterconnections.length} system{activeInterconnections.length !== 1 ? 's' : ''}
           </Text>
@@ -131,15 +148,16 @@ function InterconnectionItem({
   darkMode: boolean;
 }) {
   const isPositive = interconnection.effectType === 'positive';
-  const sourceIcon = SYSTEM_ICONS[interconnection.sourceSystem] || '🔗';
-  const targetIcon = SYSTEM_ICONS[interconnection.targetSystem] || '🔗';
+  const SourceIcon = SYSTEM_ICONS[interconnection.sourceSystem] || LinkIcon;
+  const TargetIcon = SYSTEM_ICONS[interconnection.targetSystem] || LinkIcon;
+  const iconColor = darkMode ? '#D1D5DB' : '#374151';
 
   return (
     <View style={[styles.item, darkMode && styles.itemDark]}>
       <View style={styles.itemContent}>
-        <Text style={styles.icon}>{sourceIcon}</Text>
+        <SourceIcon size={scale(14)} color={iconColor} />
         <ArrowRight size={scale(12)} color={darkMode ? '#9CA3AF' : '#6B7280'} />
-        <Text style={styles.icon}>{targetIcon}</Text>
+        <TargetIcon size={scale(14)} color={iconColor} />
         <View style={styles.effectIndicator}>
           {isPositive ? (
             <TrendingUp size={scale(12)} color="#10B981" />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Crown, Award, DollarSign } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -163,10 +163,15 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   header: {
@@ -250,13 +255,16 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    justifyContent: 'flex-start',
     flex: 1,
+    minHeight: 56,
   },
   statValue: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1F2937',
     marginTop: 4,
+    textAlign: 'center',
   },
   statValueDark: {
     color: '#FFFFFF',

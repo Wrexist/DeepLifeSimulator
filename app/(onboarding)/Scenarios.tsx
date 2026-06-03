@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { Check, Gem, Play, Sparkles, Star, Target } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
@@ -227,6 +228,12 @@ export default function Scenarios() {
     }
     router.replace('/(onboarding)/MainMenu');
   }, [navigation, router]);
+
+  // R3-C: Android hardware back → same handler as the on-screen back button.
+  useHardwareBack(() => {
+    handleBack();
+    return true;
+  });
 
   const selectLifePath = (scenarioId: string) => {
     const selected = LIFE_PATH_SCENARIOS.find((entry) => entry.id === scenarioId);
@@ -482,17 +489,27 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tabActive: {
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)' } as any,
+      default: {
+        shadowColor: '#10B981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   tabActiveRed: {
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 8px rgba(239, 68, 68, 0.3)' } as any,
+      default: {
+        shadowColor: '#EF4444',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
     elevation: 4,
   },
   tabGradient: {
@@ -549,10 +566,15 @@ const styles = StyleSheet.create({
   cardContainer: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 12,
   },
   cardBlur: {
@@ -566,7 +588,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   cardSelected: {
-    borderColor: 'rgba(16, 185, 129, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
     borderWidth: 2,
   },
   cardHeader: {
@@ -577,10 +599,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     height: scale(74),
     width: scale(74),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.4)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 6,
   },
   cardTextWrap: {

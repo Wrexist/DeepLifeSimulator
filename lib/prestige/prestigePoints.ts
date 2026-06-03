@@ -34,15 +34,21 @@ export function calculatePrestigePoints(
   prestigeData: PrestigeData,
   chosenPath: 'reset' | 'child' = 'reset'
 ): PrestigePointsBreakdown {
-  // Base points: 100 points per $1M net worth
-  const basePoints = Math.floor(netWorth / 1_000_000) * 100;
+  // Base points: 100 points per $1M net worth.
+  // R2-G: clamp at 0 so negative net worth (debt-only player) doesn't produce
+  // negative prestige points that poison the save.
+  const basePoints = Math.max(0, Math.floor(netWorth / 1_000_000) * 100);
 
   // Achievement bonus: +10 points per achievement unlocked
   const completedAchievements = (gameState.achievements || []).filter(a => a.completed);
   const achievementBonus = completedAchievements.length * 10;
 
-  // Generation bonus: +50 points per generation completed
-  const generationBonus = (gameState.generationNumber || 1 - 1) * 50;
+  // Generation bonus: +50 points per *completed* generation.
+  // R2-G: previously written as `(gameState.generationNumber || 1 - 1) * 50`,
+  // which JS parses as `gameState.generationNumber || (1 - 1) = gameState.generationNumber || 0`
+  // — so the intended "subtract 1 to count prior generations" never happened,
+  // and first-generation (gen 1) players were getting +50 free points.
+  const generationBonus = Math.max(0, (gameState.generationNumber || 1) - 1) * 50;
 
   // Age bonus: +1 point per year lived (max 100 points)
   const age = Math.floor(gameState.date?.age || ADULTHOOD_AGE);

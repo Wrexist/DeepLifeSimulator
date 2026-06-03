@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Platform, View, Text, StyleSheet } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { Heart, Smile, Zap, Dumbbell, DollarSign, Gem } from 'lucide-react-native';
 import StatBar from './anim/StatBar';
@@ -87,12 +87,19 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 12,
     width: '48%',
+    minHeight: 96,
     marginBottom: 10,
+    justifyContent: 'center',
     boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+    }),
     elevation: 2,
   },
   statHeader: {

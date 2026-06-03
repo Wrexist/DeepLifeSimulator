@@ -1,12 +1,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import {
-  View,
+import { Platform, View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
-} from 'react-native';
+  TextInput } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { MotiView } from '@/components/anim/MotiStub';
 import {
@@ -29,6 +27,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
 import { Achievement } from '@/contexts/game/types';
 const LinearGradient = LinearGradientFallback;
@@ -60,7 +59,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 
 export default function ProgressOverview({ compact = false }: ProgressOverviewProps) {
   const { gameState } = useGame();
-  const { settings } = gameState;
+  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const darkMode = settings?.darkMode ?? false;
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -637,10 +636,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: scale(12),
     padding: scale(8),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 8,
     zIndex: 100,
     minWidth: scale(180),
@@ -762,10 +766,15 @@ const styles = StyleSheet.create({
     borderRadius: scale(12),
     padding: scale(12),
     marginBottom: scale(10),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+    }),
     elevation: 2,
     borderWidth: 1,
     borderColor: '#E5E7EB',

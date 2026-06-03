@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { Zap, DollarSign, Heart, Shield, AlertTriangle, BookOpen, Wrench, Gavel, TrendingUp } from 'lucide-react-native';
@@ -20,7 +20,7 @@ export default function JailActivities() {
     const result = performJailActivity(id);
     if (result) {
       // Enhanced popup with more details
-      const title = result.success ? 'âœ… Success!' : 'âŒ Failed';
+      const title = result.success ? ' Success!' : ' Failed';
       const message = result.message;
       
       // Showing activity result alert
@@ -67,8 +67,10 @@ export default function JailActivities() {
     // Check if requires minimum weeks remaining in jail
     if (activity.requiresWeeks && jailWeeks < activity.requiresWeeks) return false;
     // Check if already done this week
+    // Use absolute weeksLived; date.week cycles 1-4 (would let activity be
+    // re-done in the other 3 weeks of every month).
     const weeklyActivities = gameState.weeklyJailActivities || {};
-    const currentWeek = gameState.date.week;
+    const currentWeek = gameState.weeksLived;
     const lastDoneWeek = weeklyActivities[activity.id];
     if (lastDoneWeek === currentWeek) return false;
     return true;
@@ -194,10 +196,15 @@ export default function JailActivities() {
 const styles = StyleSheet.create({
   wrapper: {
     boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+    }),
     elevation: 2,
     borderRadius: 12,
     marginHorizontal: 16,
@@ -236,10 +243,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    ...Platform.select({
+      web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)' } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+    }),
     elevation: 1,
   },
   activityHeader: {

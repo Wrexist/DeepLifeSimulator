@@ -318,7 +318,11 @@ export function updateWeeklyStatistics(
   weeklyIncome: number
 ): LifetimeStatistics {
   let stats = state.lifetimeStatistics || getDefaultStatistics();
-  const currentWeek = state.week || 1;
+  // BUGFIX: `state.week` is the 1-4 month-of-week cycle (UI only). For snapshot
+  // intervals and peak-tracking we need the absolute counter `weeksLived`, otherwise
+  // `currentWeek % 10 === 0` is never true (1-4 cycle) and net-worth history
+  // never accumulates a single entry.
+  const currentWeek = state.weeksLived ?? 0;
   const currentNetWorth = calculateNetWorth(state);
   
   // Update peak net worth

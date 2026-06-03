@@ -7,6 +7,7 @@ import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { rejectIfBlocked } from './_guards';
 
 const log = logger.scope('ItemActions');
 
@@ -16,6 +17,10 @@ export const buyItem = (
   itemId: string,
   deps: { updateMoney: typeof updateMoney }
 ) => {
+  // P1-3: dead players can't shop.
+  const blocked = rejectIfBlocked(gameState);
+  if (blocked) return blocked;
+
   const item = (gameState.items || []).find(i => i.id === itemId);
   if (!item) {
     log.error(`Item not found: ${itemId}`);
@@ -51,16 +56,26 @@ export const buyItem = (
 
   // CRITICAL FIX: Combine money update and item update into a single atomic state update
   // This prevents race conditions where the second setGameState might overwrite the money update
+  // ANTI-EXPLOIT: Re-check ownership + affordability inside the prev callback so
+  // two rapid same-batch clicks don't both pass the outer gates above and
+  // double-charge the player for one item.
   setGameState(prev => {
+    const prevItem = (prev.items || []).find(i => i.id === itemId);
+    if (prevItem?.owned && !prevItem?.consumable) {
+      return prev; // already owned by an earlier same-batch buy
+    }
     // Validate and calculate new money value
-    const prevMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) 
-      ? prev.stats.money 
+    const prevMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money)
+      ? prev.stats.money
       : 0;
+    if (prevMoney < price) {
+      return prev; // not enough money (e.g. an earlier same-batch buy drained it)
+    }
     const newMoney = Math.max(0, prevMoney - price);
     const moneyChange = newMoney - prevMoney;
 
     // Update items
-    const updatedItems = (prev.items || []).map(i => 
+    const updatedItems = (prev.items || []).map(i =>
       i.id === itemId ? { ...i, owned: true } : i
     );
 
@@ -103,10 +118,17 @@ export const performHack = (
   hackId: string,
   deps: { updateMoney: typeof updateMoney }
 ): HackResult => {
+  const noop: HackResult = { caught: false, reward: 0, btcReward: 0, risk: 0, success: false };
+
+  // P1-3 / H-10: dead or blocked players can't hack.
+  if (rejectIfBlocked(gameState)) {
+    return noop;
+  }
+
   const hack = (gameState.hacks || []).find(h => h.id === hackId);
-  
+
   if (!hack || !hack.purchased) {
-    return { caught: false, reward: 0, btcReward: 0, risk: 0, success: false };
+    return noop;
   }
 
   // Energy check
@@ -125,16 +147,25 @@ export const performHack = (
 
   const currentWantedLevel = gameState.wantedLevel;
   
-  // Atomic: merge energy, wanted level, and reward into single update
-  setGameState(prev => ({
-    ...prev,
-    stats: {
-      ...prev.stats,
-      energy: Math.max(0, prev.stats.energy - energyCost),
-      money: (success && reward > 0) ? prev.stats.money + reward : prev.stats.money,
-    },
-    wantedLevel: detected ? prev.wantedLevel + 1 : prev.wantedLevel,
-  }));
+  // ANTI-EXPLOIT (H-10): re-check energy INSIDE the updater. Without this, two
+  // rapid same-batch taps both pass the stale outer energy gate and apply the
+  // reward twice off one energy reading (energy only floors at 0). The
+  // success/detected rolls are intentionally computed OUTSIDE the updater so
+  // React 19 StrictMode's double-invoke can't re-roll a different outcome.
+  setGameState(prev => {
+    if (prev.stats.energy < energyCost) {
+      return prev; // an earlier same-batch hack already spent the energy
+    }
+    return {
+      ...prev,
+      stats: {
+        ...prev.stats,
+        energy: Math.max(0, prev.stats.energy - energyCost),
+        money: (success && reward > 0) ? prev.stats.money + reward : prev.stats.money,
+      },
+      wantedLevel: detected ? prev.wantedLevel + 1 : prev.wantedLevel,
+    };
+  });
 
   return {
     success,
@@ -152,6 +183,10 @@ export const sellItem = (
   itemId: string,
   deps: { updateMoney: typeof updateMoney }
 ) => {
+  // P1-3 / H-9: dead or blocked players can't sell.
+  const blocked = rejectIfBlocked(gameState);
+  if (blocked) return blocked;
+
   const item = (gameState.items || []).find(i => i.id === itemId);
   if (!item) {
     log.error(`Item not found: ${itemId}`);
@@ -176,8 +211,16 @@ export const sellItem = (
 
   // CRITICAL FIX: Combine money update and item update into a single atomic state update
   setGameState(prev => {
+    // ANTI-EXPLOIT (H-9): re-check ownership INSIDE the updater. Without this,
+    // two rapid same-batch Sell taps both read owned:true from the stale outer
+    // snapshot and both credit sellPrice while the item flips to unowned once —
+    // a repeatable money printer. Mirror the buyItem ownership re-check.
+    const prevItem = (prev.items || []).find(i => i.id === itemId);
+    if (!prevItem?.owned) {
+      return prev; // already sold by an earlier same-batch tap
+    }
     // Validate and calculate new money value
-    const prevMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) 
+    const prevMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money)
       ? prev.stats.money 
       : 0;
     const newMoney = prevMoney + sellPrice;
