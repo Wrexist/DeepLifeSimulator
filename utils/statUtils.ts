@@ -1,4 +1,4 @@
-import { GameStats } from '@/contexts/GameContext';
+import { GameStats } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 
 /**

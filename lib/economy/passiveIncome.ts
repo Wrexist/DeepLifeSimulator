@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 import { getStockInfo } from './stockMarket';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';

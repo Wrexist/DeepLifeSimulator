@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';

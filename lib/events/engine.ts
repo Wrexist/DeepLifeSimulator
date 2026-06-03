@@ -1,4 +1,4 @@
-import type { GameState, GameStats } from '@/contexts/GameContext';
+import type { GameState, GameStats } from '@/contexts/game/types';
 import { marketCrash, sideGig, earningsReport } from './economy';
 import { getSeasonalEvents } from './seasonalEvents';
 import { economyEventTemplates, shouldTriggerEconomicEvent, generateEconomicEvent, getCurrentEconomicState } from './economyEvents';

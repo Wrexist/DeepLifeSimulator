@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { Animated } from 'react-native';
-import { GameState } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 
 // Performance optimization utilities
 export class PerformanceOptimizer {

@@ -1,4 +1,4 @@
-import type { GameState } from '@/contexts/GameContext';
+import type { GameState } from '@/contexts/game/types';
 import { WeeklyEvent, EventTemplate } from './engine';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 

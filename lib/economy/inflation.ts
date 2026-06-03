@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 export function applyWeeklyInflation(state: GameState): GameState {

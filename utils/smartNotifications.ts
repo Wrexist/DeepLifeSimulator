@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 import { showAchievementToast } from './achievementToast';
 import { FeedbackSystem } from './feedbackSystem';
 

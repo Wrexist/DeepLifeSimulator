@@ -6,7 +6,7 @@
  * Clamped to 0-100. Below 30 triggers warnings; 3 warnings = terminated.
  */
 import type { EventTemplate } from './engine';
-import type { GameState } from '@/contexts/GameContext';
+import type { GameState } from '@/contexts/game/types';
 
 /** Helper: get current career performance (or estimate from stats) */
 function getPerformance(state: GameState): number {

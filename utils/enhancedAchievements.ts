@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 import { ImageSourcePropType } from 'react-native';
 
 // Enhanced Achievement System with better engagement

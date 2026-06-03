@@ -1,4 +1,4 @@
-import type { GameState } from '@/contexts/GameContext';
+import type { GameState } from '@/contexts/game/types';
 import type { PulseBrandOffer, PulseBrandCategory } from '@/contexts/game/types';
 import { getSocialMediaData, type SocialMediaData } from './socialMedia';
 

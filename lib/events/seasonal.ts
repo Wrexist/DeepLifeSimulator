@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
 
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';

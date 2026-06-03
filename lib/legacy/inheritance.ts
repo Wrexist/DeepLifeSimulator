@@ -1,4 +1,4 @@
-import { GameState } from '@/contexts/GameContext';
+import { GameState } from '@/contexts/game/types';
 import { RealEstate, Company, Heirloom, DynastyStats } from '@/contexts/game/types';
 import { Memory, MEMORY_TEMPLATES, generateMemoryId } from './memories';
 import {

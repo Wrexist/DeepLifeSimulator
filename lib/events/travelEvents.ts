@@ -3,7 +3,7 @@
  * These add narrative depth to travel beyond flat stat bonuses.
  */
 import type { EventTemplate } from './engine';
-import type { GameState } from '@/contexts/GameContext';
+import type { GameState } from '@/contexts/game/types';
 
 function isOnTrip(state: GameState): boolean {
   return Boolean(state.travel?.currentTrip);

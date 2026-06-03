@@ -1,4 +1,4 @@
-import type { GameState } from '@/contexts/GameContext';
+import type { GameState } from '@/contexts/game/types';
 
 export type InfluenceLevel = 'novice' | 'rising' | 'popular' | 'influencer' | 'celebrity';
 export type ContentType = 'text' | 'photo' | 'video' | 'story' | 'live';
