@@ -663,7 +663,12 @@ class SlotRenderBoundary extends Component<
 // which directly identifies the screen whose component resolved to undefined.
 function SlotBoundary({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  return <SlotRenderBoundary pathname={pathname}>{children}</SlotRenderBoundary>;
+  const segments = useSegments();
+  // Include segments (which KEEP the group, e.g. ["(tabs)"] vs
+  // ["(onboarding)","MainMenu"]) so we can pinpoint the exact route file —
+  // usePathname strips groups and can't disambiguate.
+  const label = `${pathname}  ·  segments=[${segments.join(', ')}]`;
+  return <SlotRenderBoundary pathname={label}>{children}</SlotRenderBoundary>;
 }
 
 // Expo Router Error Boundary Component
