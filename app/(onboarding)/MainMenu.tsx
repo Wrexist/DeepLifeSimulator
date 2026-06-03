@@ -1,10 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { Play, Plus, Save, Settings } from 'lucide-react-native';
-import SettingsModal from '@/components/SettingsModal';
+// SettingsModal eagerly pulls in DevToolsModal + several heavy modals. Nothing
+// imports MainMenu (so this isn't a require cycle) — but a failed module-eval of
+// that heavy graph in the production Hermes bytecode left MainMenu's own default
+// export `undefined` ("Element type is invalid" when the navigator renders it).
+// Lazy-load it so its graph is NOT part of MainMenu's module init; it only loads
+// when the user actually opens Settings.
+const SettingsModal = lazy(() => import('@/components/SettingsModal'));
 import GlassActionButton from '@/components/onboarding/GlassActionButton';
 import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
@@ -271,7 +277,11 @@ export default function MainMenu() {
         </View>
       </OnboardingScreenShell>
 
-      <SettingsModal visible={showSettings} onClose={() => setShowSettings(false)} />
+      {showSettings && (
+        <Suspense fallback={null}>
+          <SettingsModal visible={showSettings} onClose={() => setShowSettings(false)} />
+        </Suspense>
+      )}
     </>
   );
 }
