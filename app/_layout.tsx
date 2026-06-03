@@ -47,7 +47,7 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 // Keep always-rendered components as eager imports to reduce bundler memory pressure
 import AchievementToast from '@/components/anim/AchievementToast';
 import UIUXOverlay from '@/components/UIUXOverlay';
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { Component, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
 // expo-tracking-transparency is in package.json AND wired via the config plugin
@@ -606,6 +606,54 @@ const CureSuccessModal = lazy(() => import('@/components/CureSuccessModal'));
 const DeathPopup = lazy(() => import('@/components/DeathPopup'));
 const WeddingPopup = lazy(() => import('@/components/WeddingPopup'));
 const ZeroStatPopup = lazy(() => import('@/components/ZeroStatPopup'));
+
+// R8 diagnostic: a REAL error boundary around the route tree. The functional
+// ExpoRouterErrorBoundary below only surfaces the JS stack (no component names);
+// this class boundary captures errorInfo.componentStack so a production
+// "Element type is invalid: undefined" names the exact component that is missing.
+class SlotRenderBoundary extends Component<
+  { children: React.ReactNode },
+  { error: Error | null; componentStack: string | null }
+> {
+  state: { error: Error | null; componentStack: string | null } = {
+    error: null,
+    componentStack: null,
+  };
+  static getDerivedStateFromError(error: Error) {
+    return { error, componentStack: null };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    this.setState({ error, componentStack: info?.componentStack ?? null });
+    try {
+      logger.error('[SlotRenderBoundary] route render crashed', {
+        message: error?.message,
+        componentStack: info?.componentStack,
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <SafeAreaView style={[styles.safeArea, styles.safeAreaFatal]} edges={['top', 'left', 'right', 'bottom']}>
+          <ScrollView contentContainerStyle={styles.fatalScrollContainer}>
+            <View style={styles.fatalContainer}>
+              <Text style={styles.fatalTitle}>Screen failed to render</Text>
+              <View style={styles.fatalErrorBox}>
+                <Text style={styles.fatalMessage}>{this.state.error.message}</Text>
+                {this.state.componentStack ? (
+                  <Text style={styles.fatalStack}>{this.state.componentStack}</Text>
+                ) : null}
+              </View>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Expo Router Error Boundary Component
 function ExpoRouterErrorBoundary({ children }: { children: React.ReactNode }) {
@@ -1190,7 +1238,9 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
       {/* Render the current route with proper spacing */}
       <View style={{ flex: 1 }}>
         <ExpoRouterErrorBoundary>
-          <Slot />
+          <SlotRenderBoundary>
+            <Slot />
+          </SlotRenderBoundary>
         </ExpoRouterErrorBoundary>
       </View>
       {/* Global popups & overlays */}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import PremiumLoadingScreen from '@/components/PremiumLoadingScreen';
 import { usePreload } from '@/hooks/usePreload';
 import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
 
@@ -156,12 +155,41 @@ export default function Index() {
   const currentProgress = isPreloaded ? progress : preloadProgress;
   const currentMessage = isPreloaded ? loadingMessage : 'Initializing scaling system...';
   
+  // R8 hotfix: render a dependency-light loading screen (React Native core only).
+  // PremiumLoadingScreen pulled in lazy TurboModule loading + gradient fallbacks;
+  // a production-only `undefined` element somewhere in that subtree was crashing
+  // the router on first paint ("Element type is invalid"). Keep the critical
+  // first render crash-proof — and cleaner-looking than the old bare splash.
+  const pct = Math.max(0, Math.min(100, currentProgress || 0));
   return (
-    <View style={{ flex: 1 }}>
-      <PremiumLoadingScreen 
-        progress={currentProgress}
-        message={currentMessage}
-      />
+    <View style={loadingStyles.container}>
+      <View style={loadingStyles.center}>
+        <Text style={loadingStyles.title}>DeepLife Simulator</Text>
+        <Text style={loadingStyles.tagline}>Your life. Every choice.</Text>
+        <ActivityIndicator size="large" color="#3B82F6" style={loadingStyles.spinner} />
+        <View style={loadingStyles.track}>
+          <View style={[loadingStyles.bar, { width: `${pct}%` }]} />
+        </View>
+        <Text style={loadingStyles.message}>{currentMessage}</Text>
+      </View>
     </View>
   );
 }
+
+const loadingStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0F172A' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  title: { color: '#FFFFFF', fontSize: 30, fontWeight: '800', letterSpacing: 0.5, textAlign: 'center' },
+  tagline: { color: '#94A3B8', fontSize: 15, fontWeight: '500', marginTop: 8, textAlign: 'center' },
+  spinner: { marginTop: 32 },
+  track: {
+    width: '70%',
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginTop: 28,
+  },
+  bar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
+  message: { color: '#64748B', fontSize: 13, marginTop: 16, textAlign: 'center' },
+});
