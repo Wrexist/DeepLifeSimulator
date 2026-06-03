@@ -3,7 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Switch, Al
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGame } from '@/contexts/GameContext';
+// Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
+// require-cycle from the barrel's eager `export * from './game'`).
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
@@ -35,8 +37,8 @@ interface SettingsModalProps {
 }
 
 function SettingsModal({ visible, onClose }: SettingsModalProps) {
-  const { gameState, setGameState, saveGame } = useGame();
-  const { currentSlot } = useGameState();
+  const { gameState, setGameState, currentSlot } = useGameState();
+  const { saveGame } = useGameActions();
   const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
   const router = useRouter();
   const { t } = useTranslation();

@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ArrowLeft, Info } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useGame } from '@/contexts/GameContext';
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { fontScale, responsiveSpacing, scale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
@@ -26,7 +26,7 @@ export default function OnboardingTopBar({
   totalSteps,
 }: OnboardingTopBarProps) {
   const router = useRouter();
-  const { gameState } = useGame();
+  const { gameState } = useGameState();
   const isDarkMode = Boolean(gameState?.settings?.darkMode);
   const theme = getOnboardingTheme(isDarkMode);
 

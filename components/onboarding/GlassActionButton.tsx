@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import { useGame } from '@/contexts/GameContext';
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { getGlassButton } from '@/utils/glassmorphismStyles';
 import {
@@ -35,7 +35,7 @@ export default function GlassActionButton({
   loading = false,
   loadingText,
 }: GlassActionButtonProps) {
-  const { gameState } = useGame();
+  const { gameState } = useGameState();
   const isDarkMode = Boolean(gameState?.settings?.darkMode);
   const theme = getOnboardingTheme(isDarkMode);
   const blurTint = isDarkMode ? 'dark' : 'light';

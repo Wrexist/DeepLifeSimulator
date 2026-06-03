@@ -18,7 +18,11 @@ import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { perks } from '@/src/features/onboarding/perksData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
-import { useGame, initialGameState, STATE_VERSION } from '@/contexts/GameContext';
+// Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
+// require-cycle from the barrel's eager `export * from './game'`).
+import { useGameState } from '@/contexts/game/GameStateContext';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
+import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
 import { type MindsetId, type MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset/config';
 import {
   Lock,
@@ -102,7 +106,8 @@ const getStatIcon = (stat: string) => {
 
 export default function Perks() {
   const { state, setState, clearDraft } = useOnboarding();
-  const { gameState, loadGame } = useGame();
+  const { gameState } = useGameState();
+  const { loadGame } = useGameActions();
   const router = useRouter();
   const navigation = useNavigation();
   useOnboardingFlowGuard('Perks');

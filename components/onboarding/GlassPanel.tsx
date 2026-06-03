@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import { useGame } from '@/contexts/GameContext';
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 
@@ -12,7 +12,7 @@ interface GlassPanelProps {
 }
 
 export default function GlassPanel({ children, style, strong = false }: GlassPanelProps) {
-  const { gameState } = useGame();
+  const { gameState } = useGameState();
   const isDarkMode = Boolean(gameState?.settings?.darkMode);
   const theme = getOnboardingTheme(isDarkMode);
 

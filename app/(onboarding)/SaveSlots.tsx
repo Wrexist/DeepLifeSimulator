@@ -10,7 +10,10 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
-import { useGame } from '@/contexts/GameContext';
+// Leaf context, not the @/contexts/GameContext barrel — the barrel's eager
+// `export * from './game'` pulled the whole provider graph into this screen's
+// module init and caused a production require-cycle (undefined screen export).
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import {
   type SaveSlotData,
@@ -41,7 +44,7 @@ export default function SaveSlots() {
   const router = useRouter();
   const navigation = useNavigation();
   const { state, setState } = useOnboarding();
-  const { loadGame } = useGame();
+  const { loadGame } = useGameActions();
   const [slots, setSlots] = useState<SaveSlotData[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);

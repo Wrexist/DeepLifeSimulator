@@ -7,7 +7,13 @@ import { Play, Plus, Save, Settings } from 'lucide-react-native';
 import SettingsModal from '@/components/SettingsModal';
 import GlassActionButton from '@/components/onboarding/GlassActionButton';
 import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
-import { useGame } from '@/contexts/GameContext';
+// Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
+// `export * from './game'` which eagerly pulls the entire provider graph
+// (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
+// this screen's module init — a require cycle that left this screen's default
+// export `undefined` in the production Hermes bundle ("Element type is invalid").
+import { useGameState } from '@/contexts/game/GameStateContext';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { hasSaveStateShape, hasMeaningfulSaveData, checkIfAllSlotsFull } from '@/src/features/onboarding/saveSlotHelpers';
@@ -26,7 +32,8 @@ const MAIN_MENU_BACKGROUNDS = [
 export default function MainMenu() {
   const log = logger.scope('MainMenu');
   const router = useRouter();
-  const { loadGame, gameState } = useGame();
+  const { gameState } = useGameState();
+  const { loadGame } = useGameActions();
   const { t } = useTranslation();
   const [hasSave, setHasSave] = useState(false);
   const [showSettings, setShowSettings] = useState(false);

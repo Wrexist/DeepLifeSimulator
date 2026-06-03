@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGame } from '@/contexts/GameContext';
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { responsivePadding, scale, verticalScale } from '@/utils/scaling';
@@ -29,7 +29,7 @@ export default function OnboardingScreenShell({
   contentContainerStyle,
   contentMaxWidth = scale(420),
 }: OnboardingScreenShellProps) {
-  const { gameState } = useGame();
+  const { gameState } = useGameState();
   const insets = useSafeAreaInsets();
   const { opacity, translateY } = useOnboardingScreenAnimation();
   const isDarkMode = Boolean(gameState?.settings?.darkMode);
