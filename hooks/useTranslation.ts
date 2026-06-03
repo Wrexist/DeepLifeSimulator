@@ -1,9 +1,15 @@
-import { useGame } from '@/contexts/GameContext';
+// Leaf context, NOT the @/contexts/GameContext barrel: the barrel does
+// `export * from './game'`, dragging the whole provider graph (GameProvider →
+// IAPHandler → barrel) into every screen that translates. That require cycle
+// resolved to `undefined` in the production Hermes bundle ("Element type is
+// invalid" the moment the first translated screen — MainMenu — mounted). This
+// hook only needs gameState.settings.language, so the leaf state context is enough.
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { t, type Language } from '@/utils/translations';
 import { logger } from '@/utils/logger';
 
 export function useTranslation() {
-  const { gameState } = useGame();
+  const { gameState } = useGameState();
   
   // Ensure the language is properly typed and has a fallback
   const language = (gameState.settings.language as Language) || 'English';
