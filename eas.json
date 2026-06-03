@@ -5,6 +5,7 @@
   },
   "build": {
     "production": {
+      "environment": "production",
       "env": {
         "EXPO_PUBLIC_ENABLE_ADMOB": "true",
         "EXPO_PUBLIC_ENABLE_IAP": "true",
