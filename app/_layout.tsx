@@ -24,7 +24,7 @@ import {
 // Boot breadcrumbs for crash diagnosis
 import { markBootStage } from '@/lib/utils/bootBreadcrumbs';
 
-import { useSegments, Slot } from 'expo-router';
+import { useSegments, usePathname, Slot } from 'expo-router';
 import Constants from 'expo-constants';
 
 // CRITICAL: Lazy load StatusBar to prevent TurboModule crash
@@ -612,7 +612,7 @@ const ZeroStatPopup = lazy(() => import('@/components/ZeroStatPopup'));
 // this class boundary captures errorInfo.componentStack so a production
 // "Element type is invalid: undefined" names the exact component that is missing.
 class SlotRenderBoundary extends Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; pathname?: string },
   { error: Error | null; componentStack: string | null }
 > {
   state: { error: Error | null; componentStack: string | null } = {
@@ -626,6 +626,7 @@ class SlotRenderBoundary extends Component<
     this.setState({ error, componentStack: info?.componentStack ?? null });
     try {
       logger.error('[SlotRenderBoundary] route render crashed', {
+        route: this.props.pathname,
         message: error?.message,
         componentStack: info?.componentStack,
       });
@@ -640,6 +641,9 @@ class SlotRenderBoundary extends Component<
           <ScrollView contentContainerStyle={styles.fatalScrollContainer}>
             <View style={styles.fatalContainer}>
               <Text style={styles.fatalTitle}>Screen failed to render</Text>
+              <Text style={styles.fatalSubtitle}>
+                Route: {this.props.pathname || '(unknown)'}
+              </Text>
               <View style={styles.fatalErrorBox}>
                 <Text style={styles.fatalMessage}>{this.state.error.message}</Text>
                 {this.state.componentStack ? (
@@ -653,6 +657,13 @@ class SlotRenderBoundary extends Component<
     }
     return this.props.children;
   }
+}
+
+// Functional wrapper so the class boundary can report the active route path —
+// which directly identifies the screen whose component resolved to undefined.
+function SlotBoundary({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  return <SlotRenderBoundary pathname={pathname}>{children}</SlotRenderBoundary>;
 }
 
 // Expo Router Error Boundary Component
@@ -1238,9 +1249,9 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
       {/* Render the current route with proper spacing */}
       <View style={{ flex: 1 }}>
         <ExpoRouterErrorBoundary>
-          <SlotRenderBoundary>
+          <SlotBoundary>
             <Slot />
-          </SlotRenderBoundary>
+          </SlotBoundary>
         </ExpoRouterErrorBoundary>
       </View>
       {/* Global popups & overlays */}
