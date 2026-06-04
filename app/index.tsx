@@ -39,17 +39,24 @@ export default function Index() {
       }
     };
     (async () => {
-      // leaf deps first (innermost), then MainMenu (which imports them all)
-      await probe('lucide-react-native', () => import('lucide-react-native'));
-      await probe('fallbacks/BlurView', () => import('@/components/fallbacks/BlurViewFallback'));
-      await probe('fallbacks/LinearGradient', () => import('@/components/fallbacks/LinearGradientFallback'));
-      await probe('GlassActionButton', () => import('@/components/onboarding/GlassActionButton'));
-      await probe('OnboardingScreenShell', () => import('@/components/onboarding/OnboardingScreenShell'));
-      await probe('useTranslation', () => import('@/hooks/useTranslation'));
-      await probe('saveSlotHelpers', () => import('@/src/features/onboarding/saveSlotHelpers'));
-      await probe('gameEntryValidation', () => import('@/utils/gameEntryValidation'));
-      const ok = await probe('app/(onboarding)/MainMenu', () => import('./(onboarding)/MainMenu'));
-      if (!cancelled) setProbeOk(ok);
+      // Probe EVERY route screen module — whichever has default=undefined is the
+      // one the navigator renders as <undefined/> ("Element type is invalid").
+      const results: boolean[] = [];
+      results.push(await probe('(onboarding)/MainMenu', () => import('./(onboarding)/MainMenu')));
+      results.push(await probe('(onboarding)/Scenarios', () => import('./(onboarding)/Scenarios')));
+      results.push(await probe('(onboarding)/Customize', () => import('./(onboarding)/Customize')));
+      results.push(await probe('(onboarding)/SaveSlots', () => import('./(onboarding)/SaveSlots')));
+      results.push(await probe('(onboarding)/Perks', () => import('./(onboarding)/Perks')));
+      results.push(await probe('(tabs)/index', () => import('./(tabs)/index')));
+      results.push(await probe('(tabs)/work', () => import('./(tabs)/work')));
+      results.push(await probe('(tabs)/mobile', () => import('./(tabs)/mobile')));
+      results.push(await probe('(tabs)/computer', () => import('./(tabs)/computer')));
+      results.push(await probe('(tabs)/progression', () => import('./(tabs)/progression')));
+      results.push(await probe('(tabs)/market', () => import('./(tabs)/market')));
+      results.push(await probe('(tabs)/health', () => import('./(tabs)/health')));
+      results.push(await probe('(tabs)/_layout', () => import('./(tabs)/_layout')));
+      results.push(await probe('(onboarding)/_layout', () => import('./(onboarding)/_layout')));
+      if (!cancelled) setProbeOk(results.every(Boolean));
     })();
     return () => { cancelled = true; };
   }, []);
@@ -211,9 +218,9 @@ export default function Index() {
           <View style={[loadingStyles.bar, { width: `${pct}%` }]} />
         </View>
         <Text style={loadingStyles.message}>{currentMessage}</Text>
-        {probeOk === false && (
+        {diag.length > 0 && (
           <View style={loadingStyles.diagBox}>
-            <Text style={loadingStyles.diagTitle}>Startup module probe</Text>
+            <Text style={loadingStyles.diagTitle}>Startup module probe {probeOk === false ? '— FAILURE' : ''}</Text>
             <ScrollView style={loadingStyles.diagScroll}>
               {diag.map((line, i) => (
                 <Text key={i} style={loadingStyles.diagLine}>{line}</Text>
