@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePreload } from '@/hooks/usePreload';
 import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
@@ -13,6 +13,46 @@ export default function Index() {
   const [routerReady, setRouterReady] = useState(false);
   const [_startupHealthCheck, setStartupHealthCheck] = useState<any>(null);
   const hasNavigatedRef = useRef(false); // Use ref to prevent double navigation without re-render
+
+  // R9 diagnostic: now that "/" correctly renders this loader, probe each
+  // onboarding route module BEFORE navigating, to find which default export is
+  // undefined in the production Hermes bundle (the nameless "Element type is
+  // invalid" crash). Gates navigation so we never crash into a nameless screen;
+  // the result is shown SELECTABLE for copying.
+  const [diag, setDiag] = useState<string[]>([]);
+  const [probeOk, setProbeOk] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const out: string[] = [];
+    const push = (s: string) => {
+      out.push(s);
+      if (!cancelled) setDiag([...out]);
+    };
+    const probe = async (name: string, fn: () => Promise<any>) => {
+      try {
+        const m: any = await fn();
+        const kind = typeof m?.default;
+        push(`${kind === 'undefined' ? '❌' : '✅'} ${name}: ${kind}`);
+        return kind !== 'undefined';
+      } catch (e: any) {
+        push(`💥 ${name}: ${e?.message || e}`);
+        return false;
+      }
+    };
+    (async () => {
+      const r: boolean[] = [];
+      r.push(await probe('(onboarding)/_layout', () => import('./(onboarding)/_layout')));
+      r.push(await probe('(onboarding)/MainMenu', () => import('./(onboarding)/MainMenu')));
+      r.push(await probe('(onboarding)/Scenarios', () => import('./(onboarding)/Scenarios')));
+      r.push(await probe('(onboarding)/Customize', () => import('./(onboarding)/Customize')));
+      r.push(await probe('(onboarding)/SaveSlots', () => import('./(onboarding)/SaveSlots')));
+      r.push(await probe('(onboarding)/Perks', () => import('./(onboarding)/Perks')));
+      if (!cancelled) setProbeOk(r.every(Boolean));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // CRITICAL: Startup health check - verify critical modules before rendering
   useEffect(() => {
@@ -94,7 +134,7 @@ export default function Index() {
   // Use ref for navigation guard to avoid re-render cycles and race conditions
   useEffect(() => {
     // Guard: Only navigate once, when all conditions are met
-    if (hasNavigatedRef.current || !router || !routerReady || !isPreloaded || isLoading) {
+    if (hasNavigatedRef.current || !router || !routerReady || !isPreloaded || isLoading || probeOk !== true) {
       return;
     }
 
@@ -149,7 +189,7 @@ export default function Index() {
     }, 100); // Increased delay to ensure all providers are ready
 
     return () => clearTimeout(navigateTimeout);
-  }, [isLoading, isPreloaded, routerReady, router]);
+  }, [isLoading, isPreloaded, routerReady, router, probeOk]);
 
   // ALWAYS render a safe fallback screen (never crash)
   const currentProgress = isPreloaded ? progress : preloadProgress;
@@ -170,6 +210,14 @@ export default function Index() {
           <View style={[loadingStyles.bar, { width: `${pct}%` }]} />
         </View>
         <Text style={loadingStyles.message}>{currentMessage}</Text>
+        {probeOk === false && (
+          <View style={loadingStyles.diagBox}>
+            <Text style={loadingStyles.diagTitle}>Startup probe — long-press to Select All & Copy</Text>
+            <ScrollView style={loadingStyles.diagScroll}>
+              <Text selectable style={loadingStyles.diagText}>{diag.join('\n')}</Text>
+            </ScrollView>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -191,4 +239,17 @@ const loadingStyles = StyleSheet.create({
   },
   bar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
   message: { color: '#64748B', fontSize: 13, marginTop: 16, textAlign: 'center' },
+  diagBox: {
+    marginTop: 24,
+    width: '100%',
+    maxHeight: 320,
+    backgroundColor: 'rgba(220,38,38,0.12)',
+    borderColor: 'rgba(248,113,113,0.5)',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+  },
+  diagTitle: { color: '#FCA5A5', fontSize: 13, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  diagScroll: { maxHeight: 270 },
+  diagText: { color: '#FECACA', fontSize: 12, fontFamily: 'Courier' },
 });

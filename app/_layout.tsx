@@ -636,19 +636,25 @@ class SlotRenderBoundary extends Component<
   }
   render() {
     if (this.state.error) {
+      // Single SELECTABLE block so it can be copied on-device (no clipboard
+      // module is installed): long-press → Select All → Copy. Stamped with the
+      // build number so we can confirm which build is actually installed.
+      const diag = [
+        `Build ${Constants.expoConfig?.ios?.buildNumber ?? '?'} · v${Constants.expoConfig?.version ?? '?'}`,
+        `Route: ${this.props.pathname || '(unknown)'}`,
+        '',
+        `ERROR: ${this.state.error.message}`,
+        '',
+        this.state.componentStack ?? '(no component stack)',
+      ].join('\n');
       return (
         <SafeAreaView style={[styles.safeArea, styles.safeAreaFatal]} edges={['top', 'left', 'right', 'bottom']}>
           <ScrollView contentContainerStyle={styles.fatalScrollContainer}>
             <View style={styles.fatalContainer}>
               <Text style={styles.fatalTitle}>Screen failed to render</Text>
-              <Text style={styles.fatalSubtitle}>
-                Route: {this.props.pathname || '(unknown)'}
-              </Text>
+              <Text style={styles.fatalSubtitle}>Long-press the box → Select All → Copy, then paste it to me.</Text>
               <View style={styles.fatalErrorBox}>
-                <Text style={styles.fatalMessage}>{this.state.error.message}</Text>
-                {this.state.componentStack ? (
-                  <Text style={styles.fatalStack}>{this.state.componentStack}</Text>
-                ) : null}
+                <Text style={styles.fatalStack} selectable>{diag}</Text>
               </View>
             </View>
           </ScrollView>
