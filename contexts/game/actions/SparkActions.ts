@@ -124,6 +124,9 @@ export interface SwipeResult {
   matched?: boolean;
   catfishSuspected?: boolean;
   superUsed?: boolean;
+  /** P1-5: id of the SparkMatch created on a match, so the UI opens the right
+   *  chat instead of guessing the last entry from stale closure state. */
+  matchId?: string;
 }
 
 /**
@@ -177,6 +180,12 @@ export const swipeOnProfile = (
   const lineageSeed = gameState.lineageId ?? 'initial';
   const catfishSuspected = isCatfish(profile, lineageSeed);
 
+  // P1-5: mint the match id OUTSIDE the updater so we can return it. The UI
+  // previously read the "last match" from the stale closure gameState, which on
+  // the first match was undefined → "Conversation not found", and on later
+  // matches opened the wrong chat.
+  const newMatchId = matched ? genId('spm') : undefined;
+
   setGameState((prev) => {
     const s = ensureSpark(prev);
     const swipe = {
@@ -191,7 +200,7 @@ export const swipeOnProfile = (
       ? [
           ...s.matches,
           {
-            id: genId('spm'),
+            id: newMatchId as string,
             profileId,
             matchedWeek: weeksLived,
             superLiked: isSuper,
@@ -225,6 +234,7 @@ export const swipeOnProfile = (
     matched,
     catfishSuspected,
     superUsed: isSuper,
+    matchId: newMatchId,
   };
 };
 

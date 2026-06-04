@@ -47,6 +47,19 @@ export function applyScheduledWedding(
 ): ScheduledWeddingResult | null {
   const nextWeeksLived = ctx.nextWeeksLived;
 
+  // P1-2: if the relationship is ALREADY a spouse but still carries a planned
+  // wedding (e.g. an event-resolution "marry" path promoted to spouse without
+  // clearing the plan), drop the stale plan WITHOUT charging again. Otherwise
+  // Gate 1 below would deduct the remaining 75% a second time on the scheduled
+  // week — a double-charge for one wedding.
+  if (rel.type === 'spouse' && rel.weddingPlanned) {
+    logger.info(`[WEDDING] Clearing leftover wedding plan for spouse ${rel.name} (no re-charge).`);
+    return {
+      rel: { ...rel, weddingPlanned: undefined },
+      weddingPopup: null,
+    };
+  }
+
   // Gate 1+2: wedding scheduled for THIS exact week.
   if (rel.weddingPlanned && rel.weddingPlanned.scheduledWeek === nextWeeksLived) {
     // ANTI-EXPLOIT: Deduct remaining 75% of wedding budget on auto-execution

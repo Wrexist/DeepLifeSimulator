@@ -77,11 +77,13 @@ function HealthScreenContent() {
     }
   }, [gameState.jailWeeks, router]);
 
-  const canAfford = (price: number) => gameState.stats.money >= price;
+  // P1-6: every other tab guards stats with optional chaining; health was the
+  // outlier and would throw if `stats` is briefly undefined on degraded state.
+  const canAfford = (price: number) => (gameState.stats?.money ?? 0) >= price;
   const canPerformActivity = (activity: HealthActivity) => {
     const energyCost = activity.energyCost || 0;
-    const hasEnoughEnergy = energyCost <= 0 || gameState.stats.energy >= energyCost;
-    const hasEnoughMoney = gameState.stats.money >= activity.price;
+    const hasEnoughEnergy = energyCost <= 0 || (gameState.stats?.energy ?? 0) >= energyCost;
+    const hasEnoughMoney = (gameState.stats?.money ?? 0) >= activity.price;
     return hasEnoughMoney && hasEnoughEnergy;
   };
 
@@ -110,7 +112,7 @@ function HealthScreenContent() {
     }
   };
 
-  const activeDietPlan = gameState.dietPlans.find(plan => plan.active);
+  const activeDietPlan = (gameState.dietPlans ?? []).find(plan => plan.active);
   const currentDiseases = gameState.diseases || [];
   const hasDiseases = currentDiseases.length > 0;
 
@@ -174,7 +176,7 @@ function HealthScreenContent() {
               const locked = !canPerformActivity(activity);
               const lockReason = !canAfford(activity.price)
                 ? `Need $${activity.price}`
-                : (activity.energyCost || 0) > 0 && gameState.stats.energy < (activity.energyCost || 0)
+                : (activity.energyCost || 0) > 0 && (gameState.stats?.energy ?? 0) < (activity.energyCost || 0)
                   ? `Need ${activity.energyCost} energy`
                   : undefined;
               const isCureActivity = activity.id === 'doctor' || activity.id === 'hospital';
@@ -212,7 +214,7 @@ function HealthScreenContent() {
           </View>
           <Text style={sectionDescStyle}>{t('health.chooseAutomaticDaily')}</Text>
 
-          {gameState.dietPlans.map(plan => {
+          {(gameState.dietPlans ?? []).map(plan => {
             const weeklyCost = plan.dailyCost * 7;
             const deltas: HealthDelta[] = [
               { stat: 'health', delta: plan.healthGain },

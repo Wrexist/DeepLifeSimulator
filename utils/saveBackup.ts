@@ -7,6 +7,7 @@ import {
   decodePersistedSaveEnvelope,
   shouldAllowUnsignedLegacySaves,
   verifySaveData,
+  verifySaveEnvelopeData,
 } from './saveValidation';
 import { safeSetItem, safeGetItem, safeRemoveItem, safeMultiRemove, safeGetAllKeys } from './safeStorage';
 
@@ -623,9 +624,15 @@ export async function loadBackup(backupId: string): Promise<{ data: string; chec
     }
 
     const expectedHmac = typeof parsed.hmac === 'string' ? parsed.hmac : undefined;
-    const valid = verifySaveData(parsed.data, parsed.checksum, undefined, expectedHmac);
+    const expectedSignature = typeof parsed.signature === 'string' ? parsed.signature : undefined;
+    // P1-9: verify backups with the SAME strict envelope check as primary saves —
+    // requires HMAC or signature (CRC32 alone is not tamper-evidence). Previously
+    // loadBackup used verifySaveData, which accepts checksum-only during the weak
+    // migration window, making the recovery path a weaker integrity tier than the
+    // main slot loader.
+    const valid = verifySaveEnvelopeData(parsed.data, parsed.checksum, expectedSignature, expectedHmac);
     if (!valid) {
-      logger.warn(`Backup checksum verification failed: ${backupId}`);
+      logger.warn(`Backup verification failed (missing/invalid HMAC or signature): ${backupId}`);
       return null;
     }
     return {

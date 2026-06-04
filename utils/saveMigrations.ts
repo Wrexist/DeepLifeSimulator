@@ -535,7 +535,7 @@ export function isMigrationVersionCovered(v: number): boolean {
   return migrations[v] !== undefined || NO_OP_MIGRATION_VERSIONS.has(v);
 }
 
-export function runMigrations(state: any): { state: any; migrationsApplied: number[]; errors: string[] } {
+export function runMigrations(state: any): { state: any; migrationsApplied: number[]; errors: string[]; versionFromFuture?: boolean } {
   const migrationsApplied: number[] = [];
   const errors: string[] = [];
 
@@ -553,7 +553,10 @@ export function runMigrations(state: any): { state: any; migrationsApplied: numb
     const msg = `Save version ${currentVersion} is newer than app version ${CURRENT_STATE_VERSION} — loading anyway, but unknown fields may be ignored or cause unexpected behavior.`;
     logger.warn(`[MIGRATION] ${msg}`);
     errors.push(msg);
-    return { state, migrationsApplied, errors };
+    // P1-7: flag the future-version case so loadGame can refuse to load (and,
+    // crucially, refuse to re-persist) — preventing an older build from
+    // overwriting a newer save with a downgraded shape.
+    return { state, migrationsApplied, errors, versionFromFuture: true };
   }
 
   if (currentVersion === CURRENT_STATE_VERSION) {

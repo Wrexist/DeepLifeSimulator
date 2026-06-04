@@ -237,7 +237,9 @@ export const sellItem = (
       dailySummary = {
         ...dailySummary,
         moneyChange: (dailySummary.moneyChange || 0) + moneyChange,
-        totalMoneyEarned: (dailySummary.totalMoneyEarned || 0) + moneyChange,
+        // P1-4: selling an item converts an asset to cash — NOT income — so it
+        // must not count toward the daily "earn $X" gem challenges.
+        totalMoneyEarned: (dailySummary.totalMoneyEarned || 0),
         statsChange: { ...(dailySummary.statsChange || {}) },
         events: [...(dailySummary.events || [])],
       };

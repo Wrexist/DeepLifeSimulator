@@ -30,7 +30,7 @@ import { haptic } from '@/utils/haptics';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
-import { updateMoney as updateMoneyAction } from './actions/MoneyActions';
+import { updateMoney as updateMoneyAction, applyMoneyDelta } from './actions/MoneyActions';
 import { updateStats as updateStatsAction } from './actions/StatsActions';
 import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
 import { runCryptoWeeklyTick } from '@/lib/crypto/weeklyTick';
@@ -1804,6 +1804,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Wedding event: promote partner to spouse when player chooses 'marry'
  if (eventId === 'wedding' && choiceId === 'marry' && rel.type === 'partner') {
  (updated as Record<string, unknown>).type = 'spouse';
+ // P1-2: clear any planned/engagement state so the weekly scheduled-wedding
+ // tick doesn't later charge the 75% balance again for an already-married spouse.
+ (updated as Record<string, unknown>).weddingPlanned = undefined;
+ (updated as Record<string, unknown>).engagementWeek = undefined;
  logger.info(`[WEDDING] ${rel.name} changed from partner to spouse via event`);
  }
  return updated;
@@ -2606,6 +2610,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (migrationResult.errors.length > 0) {
  logger.error('[LOAD_GAME] Migration errors:', migrationResult.errors);
  }
+ if (migrationResult.versionFromFuture) {
+ // P1-7: the save is from a NEWER app version. Loading it would merge a
+ // downgraded shape over initialGameState, and the next autosave would then
+ // overwrite the newer save permanently. Refuse to load so the save is
+ // preserved intact until the user updates the app.
+ logger.error('[LOAD_GAME] Save is from a newer app version — refusing to load to avoid overwriting it.');
+ return null;
+ }
  } catch (migrationError) {
  logger.error('[LOAD_GAME] Migration system failed (non-fatal, continuing with repair):', migrationError);
  }
@@ -2963,16 +2975,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return { success: false, message: 'You need at least $5,000 for a proper proposal.' };
  }
 
- // Set engagement week
- setGameState(prev => ({
+ // P1-1: fold engagement + the $5,000 charge + the happiness bump into ONE atomic
+ // updater. Previously engagement was set in one setGameState and the charge ran in
+ // a separate hook updateMoney that could be rejected — engaging the player for free
+ // — with no in-updater re-check of partner type / already-engaged.
+ setGameState(prev => {
+ const p = (prev.relationships || []).find(r => r.id === partnerId && r.type === 'partner');
+ if (!p || p.engagementWeek != null) return prev; // partner gone or already engaged
+ const spend = applyMoneyDelta(prev, -5000, `Engagement ring for ${p.name}`);
+ if (!spend) return prev; // unaffordable → no free engagement
+ return {
 ...prev,
+...spend,
+ stats: { ...spend.stats, happiness: Math.max(0, Math.min(100, (prev.stats?.happiness ?? 0) + 15)) },
  relationships: (prev.relationships || []).map(r =>
  r.id === partnerId ? {...r, engagementWeek: prev.weeksLived || 0 }: r
  ),
- }));
-
- updateMoney(-5000, `Engagement ring for ${partner.name}`);
- updateStats({ happiness: 15 });
+ };
+ });
 
  logger.info(`Proposed to partner: ${partner.name}`);
  return {

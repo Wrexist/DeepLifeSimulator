@@ -844,24 +844,38 @@ export const tickLiveStream = (
     const live = sm.liveSession;
     if (!live || !live.active) return prev;
 
-    const minutesDelta = realSecondsElapsed / 60;
+    // P1-3: clamp the elapsed time so a backgrounded app (or a remounted screen
+    // that resumes the stream) can't pass a huge wall-clock delta and harvest
+    // unbounded tips in one tick.
+    const MAX_TICK_SECONDS = 60;
+    const MAX_STREAM_MINUTES = 30; // a session only earns for its first 30 minutes
+    const clampedSeconds = Math.max(0, Math.min(MAX_TICK_SECONDS, realSecondsElapsed));
+    const minutesDelta = clampedSeconds / 60;
+    const overCap = live.minutesElapsed >= MAX_STREAM_MINUTES;
+
     const followerScale = Math.max(1, (sm.followers ?? 0) / 1000);
-    const drift = (Math.random() - 0.4) * followerScale; // bias upward
-    const newViewers = Math.max(0, Math.floor(live.currentViewers + drift));
+    // Past the cap, viewers decay toward 0 and donations stop.
+    const drift = overCap ? -followerScale * 2 : (Math.random() - 0.4) * followerScale; // bias upward
+    const newViewers = overCap
+      ? Math.max(0, Math.floor(live.currentViewers * 0.7))
+      : Math.max(0, Math.floor(live.currentViewers + drift));
     const peak = Math.max(live.peakViewers, newViewers);
     const newMinutes = live.minutesElapsed + minutesDelta;
-    const donationDelta = calculateLiveStreamDonations(
-      newViewers,
-      minutesDelta,
-      sm.followers ?? 0,
-    );
+    const donationDelta = overCap
+      ? 0
+      : calculateLiveStreamDonations(newViewers, minutesDelta, sm.followers ?? 0);
+
+    // P1-3: hard-cap total session tips at a follower-based ceiling so a long
+    // stream can't print money beyond what the audience could plausibly tip.
+    const sessionDonationCap = Math.max(50, (sm.followers ?? 0) * 2);
+    const newDonations = Math.min(sessionDonationCap, live.donationsEarned + donationDelta);
 
     sm.liveSession = {
       ...live,
       currentViewers: newViewers,
       peakViewers: peak,
       minutesElapsed: newMinutes,
-      donationsEarned: live.donationsEarned + donationDelta,
+      donationsEarned: newDonations,
     };
     return { ...prev, socialMedia: sm };
   });

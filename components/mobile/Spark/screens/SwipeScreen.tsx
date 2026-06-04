@@ -87,12 +87,12 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
         sparkHaptics.swipe();
         if (result.matched) {
           sparkHaptics.match();
-          // Find the new match id (added by the action — it'll be the last entry)
-          setTimeout(() => {
-            const newMatch = gameState.sparkApp?.matches?.[gameState.sparkApp.matches.length - 1];
-            if (newMatch) onMatch(newMatch.id, profile);
-            else onMatch(profile.id, profile);
-          }, 200);
+          // P1-5: open the exact match the action just created (its id is returned),
+          // instead of guessing the last entry from stale closure state.
+          const matchId = result.matchId;
+          if (matchId) {
+            setTimeout(() => onMatch(matchId, profile), 200);
+          }
         }
         saveGame?.();
       } else {

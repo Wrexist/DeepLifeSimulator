@@ -55,7 +55,13 @@ const easyChallenges: DailyChallenge[] = [
     difficulty: 'easy',
     reward: 10,
     checkProgress: (state, initial) => {
-      const earned = state.stats.money - initial.stats.money;
+      // P1-4: measure genuine income (dailySummary.totalMoneyEarned now excludes
+      // bank withdrawals / asset sales / loans) rather than the net cash-balance
+      // delta, which was farmable by shuffling money in and out of the bank.
+      const earned = Math.max(
+        0,
+        (state.dailySummary?.totalMoneyEarned ?? 0) - (initial.dailySummary?.totalMoneyEarned ?? 0),
+      );
       return Math.min(earned, 500);
     },
     maxProgress: 500,
@@ -123,7 +129,13 @@ const mediumChallenges: DailyChallenge[] = [
     difficulty: 'medium',
     reward: 25,
     checkProgress: (state, initial) => {
-      const earned = state.stats.money - initial.stats.money;
+      // P1-4: measure genuine income (dailySummary.totalMoneyEarned now excludes
+      // bank withdrawals / asset sales / loans) rather than the net cash-balance
+      // delta, which was farmable by shuffling money in and out of the bank.
+      const earned = Math.max(
+        0,
+        (state.dailySummary?.totalMoneyEarned ?? 0) - (initial.dailySummary?.totalMoneyEarned ?? 0),
+      );
       return Math.min(earned, 2000);
     },
     maxProgress: 2000,
@@ -205,7 +217,13 @@ const hardChallenges: DailyChallenge[] = [
     difficulty: 'hard',
     reward: 50,
     checkProgress: (state, initial) => {
-      const earned = state.stats.money - initial.stats.money;
+      // P1-4: measure genuine income (dailySummary.totalMoneyEarned now excludes
+      // bank withdrawals / asset sales / loans) rather than the net cash-balance
+      // delta, which was farmable by shuffling money in and out of the bank.
+      const earned = Math.max(
+        0,
+        (state.dailySummary?.totalMoneyEarned ?? 0) - (initial.dailySummary?.totalMoneyEarned ?? 0),
+      );
       return Math.min(earned, 10000);
     },
     maxProgress: 10000,

@@ -190,8 +190,10 @@ class SaveQueue {
       // Check if data is too large (localStorage limit is typically 5-10MB)
       if (serializedData.length > MAX_SAVE_SIZE) {
         this.log.warn(`Save data is large: ${(serializedData.length / 1024 / 1024).toFixed(2)}MB`);
-        // Try more aggressive pruning
-        const morePruned = this.pruneSaveData(prunedData);
+        // P1-8: actually prune MORE aggressively (halved caps) this pass. The
+        // previous code re-ran pruneSaveData with the same caps — a no-op — so an
+        // over-size save still threw and the player could never save again.
+        const morePruned = this.pruneSaveData(prunedData, true);
         try {
           serializedData = JSON.stringify(morePruned);
         } catch (error) {
@@ -343,8 +345,10 @@ class SaveQueue {
       // Check if data is too large
       if (serializedData.length > MAX_SAVE_SIZE) {
         this.log.warn(`Save data is large: ${(serializedData.length / 1024 / 1024).toFixed(2)}MB`);
-        // Try more aggressive pruning
-        const morePruned = this.pruneSaveData(prunedData);
+        // P1-8: actually prune MORE aggressively (halved caps) this pass. The
+        // previous code re-ran pruneSaveData with the same caps — a no-op — so an
+        // over-size save still threw and the player could never save again.
+        const morePruned = this.pruneSaveData(prunedData, true);
         try {
           serializedData = JSON.stringify(morePruned);
         } catch (error) {
@@ -597,10 +601,67 @@ class SaveQueue {
    * Prune save data by removing old/unused properties
    * This is a lightweight compression that removes unnecessary data
    */
-  private pruneSaveData(data: any): any {
+  private pruneSaveData(data: any, aggressive: boolean = false): any {
     try {
       const pruned = { ...data };
-      
+
+      // P1-8: many history arrays grew forever and could push a late-game save
+      // past MAX_SAVE_SIZE (4MB), after which the save throws and the player can
+      // no longer save AT ALL. Cap them here. `aggressive` (used by the over-size
+      // retry) halves the caps for a genuinely smaller second pass.
+      const k = aggressive ? 0.5 : 1;
+      const cap = (n: number) => Math.max(20, Math.floor(n * k));
+      const tail = (arr: any, n: number) =>
+        Array.isArray(arr) && arr.length > n ? arr.slice(-n) : arr;
+
+      if (pruned.lifetimeStatistics && typeof pruned.lifetimeStatistics === 'object') {
+        const ls = { ...pruned.lifetimeStatistics };
+        ls.netWorthHistory = tail(ls.netWorthHistory, cap(200));
+        ls.careerHistory = tail(ls.careerHistory, cap(100));
+        ls.weeklyEarningsHistory = tail(ls.weeklyEarningsHistory, cap(200));
+        pruned.lifetimeStatistics = ls;
+      }
+      if (pruned.cryptoMarket && typeof pruned.cryptoMarket === 'object') {
+        const cm = { ...pruned.cryptoMarket };
+        cm.orderHistory = tail(cm.orderHistory, cap(100));
+        if (cm.coinMarkets && typeof cm.coinMarkets === 'object') {
+          const coins: any = {};
+          for (const [id, coin] of Object.entries<any>(cm.coinMarkets)) {
+            coins[id] =
+              coin && Array.isArray(coin.priceHistory)
+                ? { ...coin, priceHistory: tail(coin.priceHistory, cap(104)) }
+                : coin;
+          }
+          cm.coinMarkets = coins;
+        }
+        pruned.cryptoMarket = cm;
+      }
+      if (pruned.darkWeb && typeof pruned.darkWeb === 'object') {
+        pruned.darkWeb = { ...pruned.darkWeb, jobHistory: tail(pruned.darkWeb.jobHistory, cap(100)) };
+      }
+      if (pruned.socialMedia && typeof pruned.socialMedia === 'object') {
+        const sm = { ...pruned.socialMedia };
+        sm.scandalHistory = tail(sm.scandalHistory, cap(50));
+        sm.recentPosts = tail(sm.recentPosts, cap(100));
+        pruned.socialMedia = sm;
+      }
+      if (pruned.gamingStreaming && typeof pruned.gamingStreaming === 'object') {
+        const gs = { ...pruned.gamingStreaming };
+        gs.streamHistory = tail(gs.streamHistory, cap(100));
+        gs.videos = tail(gs.videos, cap(100));
+        pruned.gamingStreaming = gs;
+      }
+      if (pruned.hustleApp && pruned.hustleApp.companies && typeof pruned.hustleApp.companies === 'object') {
+        const companies: any = {};
+        for (const [id, c] of Object.entries<any>(pruned.hustleApp.companies)) {
+          companies[id] =
+            c && Array.isArray(c.scandalHistory) ? { ...c, scandalHistory: tail(c.scandalHistory, cap(40)) } : c;
+        }
+        pruned.hustleApp = { ...pruned.hustleApp, companies };
+      }
+      pruned.socialPosts = tail(pruned.socialPosts, cap(100));
+      pruned.previousLives = tail(pruned.previousLives, cap(50));
+
       // PERFORMANCE FIX: Enforce event log limit (keep only last 500 events)
       if (pruned.eventLog && Array.isArray(pruned.eventLog) && pruned.eventLog.length > 500) {
         pruned.eventLog = pruned.eventLog.slice(-500);

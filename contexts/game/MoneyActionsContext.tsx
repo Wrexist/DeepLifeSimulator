@@ -5,6 +5,7 @@ import { simulateWeek, getStockInfo } from '@/lib/economy/stockMarket';
 import { MAX_ACTIVE_RELATIONSHIPS, MAX_RELATIONSHIP_INCOME, MAX_RELATIONSHIPS_FOR_INCOME } from '@/lib/economy/balanceConstants';
 import { validateStats, clampStatByKey } from '@/utils/statUtils';
 import { logger } from '@/utils/logger';
+import { isIncomeReason } from './actions/MoneyActions';
 import { getBonusPurchaseCost, canPurchaseBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
 import { validateMoneyInvariants } from '@/utils/stateInvariants';
@@ -100,7 +101,11 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       if (updateDailySummary && newState.dailySummary) {
         newState.dailySummary = {
           ...newState.dailySummary,
-          totalMoneyEarned: (newState.dailySummary.totalMoneyEarned || 0) + Math.max(0, amount),
+          // P1-4: only count genuine income toward "earned" — exclude bank
+          // withdrawals / asset sales / loans so the daily "earn $X" gem
+          // challenges can't be farmed by shuffling existing money.
+          totalMoneyEarned:
+            (newState.dailySummary.totalMoneyEarned || 0) + (amount > 0 && isIncomeReason(reason) ? amount : 0),
           totalMoneySpent: (newState.dailySummary.totalMoneySpent || 0) + Math.max(0, -amount),
         };
       }

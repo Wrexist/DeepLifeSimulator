@@ -117,6 +117,14 @@ export function applyMoneyDelta(
   };
 }
 
+// P1-4: reasons that just move EXISTING money around rather than earning new
+// money. Used to keep `dailySummary.totalMoneyEarned` (and the daily "earn $X"
+// challenges that read it) honest — withdrawing savings, selling an asset, or
+// taking a loan must NOT count as "earning", otherwise the highest-value gem
+// challenges are farmable by shuffling money in and out of the bank.
+const NON_INCOME_REASON = /withdraw|deposit|loan|repay|sold|sell|transfer|inherit|refund|savings|cash ?out|redeem|\bbank\b/i;
+export const isIncomeReason = (reason: string | undefined): boolean => !NON_INCOME_REASON.test(reason || '');
+
 export const batchUpdateMoney = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   transactions: { amount: number; reason: string }[]

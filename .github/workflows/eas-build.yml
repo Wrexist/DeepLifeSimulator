@@ -33,6 +33,12 @@ jobs:
       - name: Run Expo Doctor
         run: npx --yes expo-doctor
 
+      # R9 P1-10: fast-fail on expo-router route conflicts. Production silently
+      # DROPS conflicting routes (dev-only error) — this is exactly how the v2.5.0
+      # launch crash shipped (app/index.tsx vs app/(tabs)/index.tsx both at "/").
+      - name: Route conflict check
+        run: npm run check:routes
+
       - name: Type check
         run: npm run type-check
 
@@ -49,6 +55,28 @@ jobs:
 
       - name: Test
         run: npm test -- --ci
+
+      # R9 P1-10: enforce revenue-critical production config (IAP verify URL, real
+      # AdMob unit IDs vs Google test IDs, save-signing) BEFORE building. These
+      # checks live only in scripts/preflight-check.js and were never run in CI, so
+      # a missing EAS secret would silently ship (purchases refused at runtime /
+      # test ads = zero revenue). Non-blocking for now (continue-on-error) so it
+      # surfaces issues without breaking a pipeline that uses EAS-hosted env;
+      # mirror the values below into GitHub Actions secrets and then remove
+      # `continue-on-error` to make this a hard gate.
+      - name: Preflight (production config)
+        continue-on-error: true
+        run: node scripts/preflight-check.js --platform ${{ matrix.platform }}
+        env:
+          EXPO_PUBLIC_ENABLE_ADMOB: 'true'
+          EXPO_PUBLIC_ENABLE_IAP: 'true'
+          EXPO_PUBLIC_ENABLE_ATT: 'true'
+          EXPO_PUBLIC_IAP_VERIFY_URL: ${{ secrets.EXPO_PUBLIC_IAP_VERIFY_URL }}
+          EXPO_PUBLIC_ADMOB_IOS_APP_ID: ${{ secrets.EXPO_PUBLIC_ADMOB_IOS_APP_ID }}
+          EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ secrets.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID }}
+          EXPO_PUBLIC_ADMOB_BANNER_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_BANNER_IOS }}
+          EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS }}
+          EXPO_PUBLIC_ADMOB_REWARDED_IOS: ${{ secrets.EXPO_PUBLIC_ADMOB_REWARDED_IOS }}
 
       - name: EAS Build ${{ matrix.platform }}
         run: eas build --platform ${{ matrix.platform }} --profile production --non-interactive
