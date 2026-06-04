@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePreload } from '@/hooks/usePreload';
 import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
@@ -14,53 +14,6 @@ export default function Index() {
   const [_startupHealthCheck, setStartupHealthCheck] = useState<any>(null);
   const hasNavigatedRef = useRef(false); // Use ref to prevent double navigation without re-render
 
-  // R8 DIAGNOSTIC: probe the MainMenu route module (and its key deps) directly.
-  // The native crash shows SceneView rendering `undefined` with NO MainMenu frame,
-  // i.e. MainMenu's module default is undefined in the production Hermes bundle.
-  // Dynamically importing each module tells us exactly which one fails to evaluate
-  // (and the throw message), instead of guessing. If everything resolves, we clear
-  // the gate and navigate as normal.
-  const [diag, setDiag] = useState<string[]>([]);
-  const [probeOk, setProbeOk] = useState<boolean | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const out: string[] = [];
-    const push = (s: string) => { out.push(s); if (!cancelled) setDiag([...out]); };
-    const probe = async (name: string, fn: () => Promise<any>) => {
-      try {
-        const m: any = await fn();
-        const def = m?.default;
-        const kind = typeof def;
-        push(`${kind === 'undefined' ? '❌' : '✅'} ${name}: default=${kind}`);
-        return kind !== 'undefined';
-      } catch (e: any) {
-        push(`💥 ${name}: THREW ${e?.message || e}`);
-        return false;
-      }
-    };
-    (async () => {
-      // Probe EVERY route screen module — whichever has default=undefined is the
-      // one the navigator renders as <undefined/> ("Element type is invalid").
-      const results: boolean[] = [];
-      results.push(await probe('(onboarding)/MainMenu', () => import('./(onboarding)/MainMenu')));
-      results.push(await probe('(onboarding)/Scenarios', () => import('./(onboarding)/Scenarios')));
-      results.push(await probe('(onboarding)/Customize', () => import('./(onboarding)/Customize')));
-      results.push(await probe('(onboarding)/SaveSlots', () => import('./(onboarding)/SaveSlots')));
-      results.push(await probe('(onboarding)/Perks', () => import('./(onboarding)/Perks')));
-      results.push(await probe('(tabs)/index', () => import('./(tabs)/index')));
-      results.push(await probe('(tabs)/work', () => import('./(tabs)/work')));
-      results.push(await probe('(tabs)/mobile', () => import('./(tabs)/mobile')));
-      results.push(await probe('(tabs)/computer', () => import('./(tabs)/computer')));
-      results.push(await probe('(tabs)/progression', () => import('./(tabs)/progression')));
-      results.push(await probe('(tabs)/market', () => import('./(tabs)/market')));
-      results.push(await probe('(tabs)/health', () => import('./(tabs)/health')));
-      results.push(await probe('(tabs)/_layout', () => import('./(tabs)/_layout')));
-      results.push(await probe('(onboarding)/_layout', () => import('./(onboarding)/_layout')));
-      if (!cancelled) setProbeOk(results.every(Boolean));
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
   // CRITICAL: Startup health check - verify critical modules before rendering
   useEffect(() => {
     const checkStartupHealth = () => {
@@ -68,7 +21,7 @@ export default function Index() {
       if (typeof healthCheck === 'function') {
         const health = healthCheck();
         setStartupHealthCheck(health);
-        
+
         if (health && health.failedModules && health.failedModules.length > 0) {
           if (__DEV__) {
             console.warn('[Index] Startup health check: Some modules failed to load:', health.failedModules);
@@ -84,7 +37,7 @@ export default function Index() {
     // Check immediately and also after a short delay
     checkStartupHealth();
     const timeout = setTimeout(checkStartupHealth, 500);
-    
+
     return () => clearTimeout(timeout);
   }, []);
 
@@ -141,7 +94,7 @@ export default function Index() {
   // Use ref for navigation guard to avoid re-render cycles and race conditions
   useEffect(() => {
     // Guard: Only navigate once, when all conditions are met
-    if (hasNavigatedRef.current || !router || !routerReady || !isPreloaded || isLoading || probeOk !== true) {
+    if (hasNavigatedRef.current || !router || !routerReady || !isPreloaded || isLoading) {
       return;
     }
 
@@ -175,7 +128,7 @@ export default function Index() {
           // Don't navigate yet, retry in 500ms
           setTimeout(() => {
             // Trigger effect re-run by updating state
-            setRouterReady(prev => prev);
+            setRouterReady((prev) => prev);
           }, 500);
           return;
         }
@@ -196,17 +149,16 @@ export default function Index() {
     }, 100); // Increased delay to ensure all providers are ready
 
     return () => clearTimeout(navigateTimeout);
-  }, [isLoading, isPreloaded, routerReady, router, probeOk]);
+  }, [isLoading, isPreloaded, routerReady, router]);
 
   // ALWAYS render a safe fallback screen (never crash)
   const currentProgress = isPreloaded ? progress : preloadProgress;
   const currentMessage = isPreloaded ? loadingMessage : 'Initializing scaling system...';
-  
-  // R8 hotfix: render a dependency-light loading screen (React Native core only).
-  // PremiumLoadingScreen pulled in lazy TurboModule loading + gradient fallbacks;
-  // a production-only `undefined` element somewhere in that subtree was crashing
-  // the router on first paint ("Element type is invalid"). Keep the critical
-  // first render crash-proof — and cleaner-looking than the old bare splash.
+
+  // Dependency-light loading screen (React Native core only) so the very first
+  // production render is crash-proof. This screen owns "/" — app/(tabs) must NOT
+  // also claim "/" (it lives at /(tabs)/home), or a production bundle would
+  // silently drop this loader. See app/(tabs)/_layout.tsx unstable_settings.
   const pct = Math.max(0, Math.min(100, currentProgress || 0));
   return (
     <View style={loadingStyles.container}>
@@ -218,16 +170,6 @@ export default function Index() {
           <View style={[loadingStyles.bar, { width: `${pct}%` }]} />
         </View>
         <Text style={loadingStyles.message}>{currentMessage}</Text>
-        {diag.length > 0 && (
-          <View style={loadingStyles.diagBox}>
-            <Text style={loadingStyles.diagTitle}>Startup module probe {probeOk === false ? '— FAILURE' : ''}</Text>
-            <ScrollView style={loadingStyles.diagScroll}>
-              {diag.map((line, i) => (
-                <Text key={i} style={loadingStyles.diagLine}>{line}</Text>
-              ))}
-            </ScrollView>
-          </View>
-        )}
       </View>
     </View>
   );
@@ -249,17 +191,4 @@ const loadingStyles = StyleSheet.create({
   },
   bar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
   message: { color: '#64748B', fontSize: 13, marginTop: 16, textAlign: 'center' },
-  diagBox: {
-    marginTop: 24,
-    width: '100%',
-    maxHeight: 320,
-    backgroundColor: 'rgba(220,38,38,0.12)',
-    borderColor: 'rgba(248,113,113,0.5)',
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-  },
-  diagTitle: { color: '#FCA5A5', fontSize: 14, fontWeight: '700', marginBottom: 8 },
-  diagScroll: { maxHeight: 270 },
-  diagLine: { color: '#FECACA', fontSize: 12, fontFamily: 'Courier', marginBottom: 3 },
 });

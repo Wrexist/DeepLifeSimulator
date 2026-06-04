@@ -54,7 +54,7 @@ export default function Preview() {
     setViewportOverride(w, h);
     if (Platform.OS === 'web') {
       // Redirect to the main app with the new viewport
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/home');
     }
   };
 

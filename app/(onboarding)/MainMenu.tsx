@@ -196,7 +196,7 @@ export default function MainMenu() {
           slot: slotNumber,
           version: loadedState.version,
         });
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/home');
       }, 100);
     } catch (error) {
       log.error('Error in continueGame:', error);

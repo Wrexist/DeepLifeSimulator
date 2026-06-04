@@ -265,7 +265,7 @@ export default function Perks() {
       void clearDraft();
       navigating = true;
       setTimeout(() => {
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/home');
       }, 100);
     } finally {
       // Always release the synchronous guard. On the failure/return paths also

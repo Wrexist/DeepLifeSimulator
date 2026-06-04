@@ -31,7 +31,7 @@ const APP_DIR = path.resolve(__dirname, '..', '..', 'app');
 // router boots through both — the R6 lazy-load crash showed how a single
 // undefined component anywhere in the boot path crashes the navigator.
 const SCREEN_FILES_TO_VERIFY = [
-  '(tabs)/index.tsx',
+  '(tabs)/home.tsx',
   '(tabs)/computer.tsx',
   '(tabs)/mobile.tsx',
   '(tabs)/work.tsx',

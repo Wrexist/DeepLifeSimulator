@@ -15,6 +15,14 @@ import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
 const LifeMomentModal = lazy(() => import('@/components/LifeMomentModal'));
 
+// The game home tab lives at `home`, NOT the bare `index`. app/index.tsx is the
+// boot loader and owns "/"; if a (tabs)/index.tsx existed it would ALSO resolve
+// to "/" and — in a production bundle — expo-router silently keeps whichever file
+// sorts first by context key ("(tabs)/index" < "index"), dropping the loader and
+// rendering the game home at launch (the long-standing launch crash). Anchoring
+// the group on `home` keeps "/" unambiguously the loader.
+export const unstable_settings = { initialRouteName: 'home' };
+
 export default function TabLayout() {
   const { gameState } = useGame();
   const { t } = useTranslation();
@@ -99,7 +107,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: t('tabs.home'),
           tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,

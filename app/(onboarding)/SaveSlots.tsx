@@ -209,7 +209,7 @@ export default function SaveSlots() {
       }
 
       setTimeout(() => {
-        router.push('/(tabs)');
+        router.push('/(tabs)/home');
       }, 80);
     } catch (error) {
       log.error('Error continuing game', error);

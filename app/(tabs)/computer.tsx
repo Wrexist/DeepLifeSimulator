@@ -116,7 +116,7 @@ function ComputerScreenContent() {
     const ownsComputer = gameState.items.find(item => item.id === 'computer')?.owned;
     if (!ownsComputer && currentRoute === 'computer') {
       // Redirect to home tab if computer is sold
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)/home');
     }
   }, [gameState.items, router]);
   const navigation = useNavigation<any>();
