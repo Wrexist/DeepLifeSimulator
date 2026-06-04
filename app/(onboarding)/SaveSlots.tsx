@@ -297,7 +297,9 @@ export default function SaveSlots() {
             if (navigation.canGoBack()) {
               router.back();
             } else {
-              router.push('/');
+              // L: go straight to the menu. "/" is the boot loader, which would
+              // re-mount the full loading screen + preload before bouncing here.
+              router.replace('/(onboarding)/MainMenu');
             }
           }}
           onInfo={() =>

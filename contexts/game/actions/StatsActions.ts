@@ -19,6 +19,14 @@ export const updateStats = (
 
     Object.entries(newStats).forEach(([key, value]) => {
       const k = key as keyof GameStats;
+      // P2-2: money & gems MUST go through updateMoney/applyMoneyDelta (overdraft
+      // reject + transaction/daily-summary tracking), not this stats path which
+      // just clamps and adds. Two money-mutation paths with different guarantees
+      // is a double-spend / accounting-drift vector, so reject them here.
+      if (k === 'money' || k === 'gems') {
+        log.warn(`updateStats ignored "${k}" — route money/gems through updateMoney, not updateStats.`);
+        return;
+      }
       if (typeof value === 'number' && !isNaN(value)) {
         const currentVal = prev.stats[k];
         const newVal = clampStatByKey(k, currentVal + value);

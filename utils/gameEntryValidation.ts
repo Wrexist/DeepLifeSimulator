@@ -19,9 +19,12 @@ export interface GameEntryValidationResult {
 
 /**
  * Minimum required version for compatibility
- * Saves below this version are considered incompatible
+ * Saves below this version are considered incompatible.
+ * P2-10: aligned to the lowest version the migration registry covers (v2 → v19
+ * via the v2–v9 no-op chain + the v10–v19 transforms). The old floor of 5
+ * rejected v2–v4 saves at entry even though runMigrations upgrades them fine.
  */
-const MIN_SUPPORTED_VERSION = 5;
+const MIN_SUPPORTED_VERSION = 2;
 
 /**
  * Maximum supported version (current version)

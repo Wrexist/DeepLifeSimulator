@@ -1677,14 +1677,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setGameState(prevState => {
  if (!prevState.automation) return prevState;
 
+ // P2-1: automation must not spend money the player doesn't have. The old code
+ // clamped `money - cost` to 0, effectively granting the actions' value for
+ // free. If the batch isn't affordable, skip it (don't deduct, don't record).
+ const currentMoney = prevState.stats?.money || 0;
+ if (totalAutomationCost > currentMoney) {
+ logger.warn(`[AUTOMATION] Insufficient funds: cost $${totalAutomationCost} > $${currentMoney}. Batch skipped.`);
+ return prevState;
+ }
+
  const currentHistory = prevState.automation.executionHistory || [];
  const newHistory = [...currentHistory,...executions].slice(-50);
-
- // Deduct automation costs from player money
- const currentMoney = prevState.stats?.money || 0;
- const newMoney = totalAutomationCost > 0
- ? Math.max(0, currentMoney - totalAutomationCost)
-: currentMoney;
+ const newMoney = totalAutomationCost > 0 ? currentMoney - totalAutomationCost : currentMoney;
 
  return {
 ...prevState,
@@ -1774,13 +1778,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const updatedStats = {...prevState.stats };
 
  // Apply money change
+ // P2-4: if a negative money cost can't be fully covered, the player shouldn't
+ // get the choice's beneficial stat effects for free (the cost just clamped to
+ // 0). Track affordability and skip the beneficial stat block below when broke.
+ // (Event choices should also be gated to affordable-only in the UI.)
+ let effectsAffordable = true;
  if (effects.money!== undefined) {
  const currentMoney = updatedStats.money || 0;
+ if (effects.money < 0 && currentMoney + effects.money < 0) {
+ effectsAffordable = false;
+ }
  updatedStats.money = Math.max(0, currentMoney + effects.money);
  }
 
  // Apply stat changes
- if (effects.stats) {
+ if (effects.stats && effectsAffordable) {
  Object.entries(effects.stats).forEach(([key, value]) => {
  if (typeof value === 'number' && key in updatedStats) {
  const statKey = key as keyof typeof updatedStats;

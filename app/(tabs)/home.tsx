@@ -342,8 +342,8 @@ function HomeScreenContent() {
       </ScrollView>
 
       {/* First Week Guide Overlay - Floating at bottom */}
-      {gameState.weeksLived <= 3 && !hasCompletedTutorial && (
-        <FirstWeekGuide currentWeek={gameState.weeksLived} />
+      {(gameState.weeksLived ?? 0) <= 3 && !hasCompletedTutorial && (
+        <FirstWeekGuide currentWeek={gameState.weeksLived ?? 0} />
       )}
 
       <Suspense fallback={null}>

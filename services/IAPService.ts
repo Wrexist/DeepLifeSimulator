@@ -183,6 +183,10 @@ export class IAPService {
   }
 
   // Validate receipt (handles both sandbox and production)
+  // P2-11: this is ONLY a structural pre-check (non-empty receipt + productId).
+  // It does NOT prove the purchase is genuine — the real gate is
+  // `verifyReceiptWithServer`, which MUST be called (and must pass) before any
+  // `applyBenefit`. Do not treat a `true` here as authorization to grant.
   private async validateReceipt(
     receipt: string,
     productId: string,

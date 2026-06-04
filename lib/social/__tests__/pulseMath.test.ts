@@ -137,7 +137,9 @@ describe('generateBrandOffersExtended', () => {
     const offers = generateBrandOffersExtended(state, 5);
     for (const o of offers) {
       if (o.weeklyPayment !== undefined && o.duration > 1) {
-        expect(o.weeklyPayment).toBe(Math.floor(o.payment / o.duration));
+        // P0-1: 25% is a signing-bonus advance, so only 75% is streamed weekly
+        // (total payout = 100% of `payment`, was 125%).
+        expect(o.weeklyPayment).toBe(Math.floor((o.payment * 0.75) / o.duration));
       }
     }
   });

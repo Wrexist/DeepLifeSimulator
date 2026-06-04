@@ -34,16 +34,24 @@ function ProgressionScreenContent() {
   const [showLifeStory, setShowLifeStory] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
 
+  // P2-7: depend on PRIMITIVES, not object/array references. Under the current
+  // provider, `gameState.stats`/`relationships`/`items` get a fresh identity on
+  // every save (every stat-decay tick), so the object deps re-ran the full
+  // achievement sweep many times per second while this tab was open.
+  const achievementSignal = [
+    gameState.stats?.money,
+    gameState.stats?.happiness,
+    gameState.stats?.health,
+    gameState.relationships?.length,
+    gameState.items?.length,
+    gameState.educations?.length,
+    gameState.company?.id,
+    gameState.weeksLived,
+  ].join('|');
   React.useEffect(() => {
     checkAchievements();
-  }, [
-    gameState.stats,
-    gameState.relationships,
-    gameState.items,
-    gameState.educations,
-    gameState.company,
-    checkAchievements,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [achievementSignal]);
 
   const achievements = (gameState.achievements || []).filter(a => a.category !== 'secret');
   const categories = ['money', 'career', 'education', 'relationships', 'health', 'items', 'special'];

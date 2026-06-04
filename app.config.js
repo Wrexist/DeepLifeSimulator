@@ -84,8 +84,11 @@ module.exports = {
         {
           iosAppId: admobIosAppId,
           androidAppId: admobAndroidAppId,
-          delayAppMeasurementInit: true,
-          userTrackingUsageDescription: "This identifier will be used to deliver personalized ads to you."
+          delayAppMeasurementInit: true
+          // P2-12: NSUserTrackingUsageDescription is owned by the
+          // expo-tracking-transparency plugin below (single source of truth).
+          // Two plugins writing the same Info.plist key drift apart over time and
+          // plugin ordering decides which wins — so it's set in exactly one place.
         }
       ],
       [

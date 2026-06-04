@@ -122,6 +122,11 @@ export function GameStateProvider({
         ...prev,
         showDeathPopup: false,
         deathReason: undefined,
+        // P2-3: cure active diseases on revive. Without this, a disease that
+        // caused the death is still present at full severity and re-applies its
+        // lethal penalty on the very next tick — re-killing the player and
+        // consuming another 15,000-gem revive with no progress.
+        diseases: [],
         stats: {
           ...prev.stats,
           health: 100,

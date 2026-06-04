@@ -521,7 +521,10 @@ function TopStatsBarComponent() {
  const calculateStockValue = () => {
  if (!stocks?.holdings) return 0;
  return stocks.holdings.reduce((total, holding) => {
- return total + (holding.shares * holding.currentPrice);
+ // L-1: guard against a NaN/Infinity currentPrice (corrupt save) propagating
+ // into total → "NaN" displayed for total savings.
+ const value = holding.shares * holding.currentPrice;
+ return total + (Number.isFinite(value) ? value : 0);
  }, 0);
  };
 

@@ -147,7 +147,7 @@ function HealthScreenContent() {
                     : disease.severity === 'serious' ? '#EF4444'
                       : '#F59E0B';
                 return (
-                  <View key={index} style={styles.diseaseRow}>
+                  <View key={disease.id ?? disease.name ?? index} style={styles.diseaseRow}>
                     <View style={[styles.diseaseDot, { backgroundColor: dotColor }]} />
                     <Heart size={scale(12)} color={dotColor} />
                     <Text style={styles.diseaseName}>{disease.name}</Text>

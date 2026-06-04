@@ -174,7 +174,10 @@ export default function TabLayout() {
         and on a tick that produces both a life moment AND a weekly event,
         their backdrops stack and taps on the lower one are blocked. Let the
         life moment win first; the weekly event will show after dismissal. */}
-    {gameState.lifeMoments?.pendingMoment ? (
+    {/* P2-6: suppress these tabs-layer modals while the root-level DeathPopup is
+        up. DeathPopup gates its own dismissal, so a transparent LifeMoment/Weekly
+        modal underneath would otherwise intercept taps and soft-lock the player. */}
+    {gameState.showDeathPopup ? null : gameState.lifeMoments?.pendingMoment ? (
       <Suspense fallback={null}>
         <LifeMomentModal />
       </Suspense>

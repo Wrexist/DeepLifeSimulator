@@ -85,7 +85,7 @@ function MobileScreenContent() {
   
   const { settings } = gameState;
   const navigation = useNavigation<any>();
-  const { buttonPress, haptic } = useFeedback(gameState.settings.hapticFeedback);
+  const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
   const { logRender } = usePerformanceMonitor();
 
   // Reset to apps grid when the Mobile tab is pressed
@@ -207,6 +207,12 @@ function MobileScreenContent() {
     };
 
     const AppComponent = apps[activeApp as keyof typeof apps];
+    // P2-15: a stale/unknown activeApp id makes AppComponent undefined →
+    // "Element type is invalid" hard crash. Reset to the grid instead.
+    if (!AppComponent) {
+      setActiveApp(null);
+      return null;
+    }
     return (
       <AppComponent onBack={() => {
         buttonPress();

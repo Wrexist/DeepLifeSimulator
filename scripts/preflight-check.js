@@ -412,6 +412,24 @@ try {
   hasErrors = true;
 }
 
+// 8b. R9 P2-13: the legacy-local-IAP-entitlements escape hatch must be OFF for
+// production. It's an EXPO_PUBLIC_ var baked into the JS bundle; if shipped
+// `true` it re-enables reading UNSIGNED local entitlement data, restoring the
+// local-tamper "grant yourself perks" vector the signed-envelope path closed.
+logSection('8b. IAP Legacy Entitlements Flag');
+try {
+  const legacy = String(process.env.EXPO_PUBLIC_ALLOW_LEGACY_LOCAL_IAP_ENTITLEMENTS || '').toLowerCase();
+  if (legacy === 'true' || legacy === '1') {
+    log('[FAIL] EXPO_PUBLIC_ALLOW_LEGACY_LOCAL_IAP_ENTITLEMENTS is enabled — unsigned local entitlements are a tamper vector. Unset it for production.', RED);
+    hasErrors = true;
+  } else {
+    log('[PASS] Legacy local IAP entitlements are disabled', GREEN);
+  }
+} catch (error) {
+  log('[FAIL] Legacy IAP entitlements check failed: ' + (error instanceof Error ? error.message : String(error)), RED);
+  hasErrors = true;
+}
+
 // 9. IAP receipt verification configuration (R7 SB-3)
 // In production, IAPService.verifyReceiptWithServer returns true when
 // EXPO_PUBLIC_IAP_VERIFY_URL is unset — every purchase passes without any

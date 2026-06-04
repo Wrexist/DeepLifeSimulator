@@ -345,6 +345,13 @@ function ComputerScreenContent() {
 
     const AppComponent = apps[activeApp as keyof typeof apps];
 
+    // P2-15: a stale/unknown activeApp id makes AppComponent undefined →
+    // "Element type is invalid" hard crash. Reset to the grid instead.
+    if (!AppComponent) {
+      setActiveApp(null);
+      return null;
+    }
+
     return <AppComponent onBack={() => setActiveApp(null)} />;
   }
 

@@ -355,6 +355,21 @@ function WorkScreenContent() {
         return missing;
     };
 
+    // P2-14: compute street-job interconnections ONCE per render (memoized on
+    // gameState) instead of re-walking the whole interconnection graph + filtering
+    // inside renderJobCard for every legal street job on every render.
+    const streetJobInterconnections = React.useMemo(() => {
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { getSystemInterconnections } = require('@/lib/depth/systemInterconnections');
+            return getSystemInterconnections(gameState).filter(
+                (ic: any) => ic.sourceSystem === 'streetJobs' || ic.targetSystem === 'streetJobs'
+            );
+        } catch {
+            return [];
+        }
+    }, [gameState]);
+
     const renderJobCard = (job: StreetJob) => {
         const lowReward = Math.floor(job.basePayment * 0.7);
         const highReward = Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3));
@@ -388,28 +403,13 @@ function WorkScreenContent() {
             });
         }
 
-        const interconnectionFooter = (() => {
-            try {
-                // eslint-disable-next-line @typescript-eslint/no-require-imports
-                const { getSystemInterconnections } = require('@/lib/depth/systemInterconnections');
-                const interconnections = getSystemInterconnections(gameState);
-                const relevant = interconnections.filter(
-                    (ic: any) => ic.sourceSystem === 'streetJobs' || ic.targetSystem === 'streetJobs'
-                );
-                if (relevant.length > 0) {
-                    return (
-                        <SystemInterconnectionIndicator
-                            interconnections={relevant}
-                            compact={true}
-                            darkMode={settings.darkMode}
-                        />
-                    );
-                }
-            } catch {
-                // depth system optional
-            }
-            return null;
-        })();
+        const interconnectionFooter = streetJobInterconnections.length > 0 ? (
+            <SystemInterconnectionIndicator
+                interconnections={streetJobInterconnections}
+                compact={true}
+                darkMode={settings.darkMode}
+            />
+        ) : null;
 
         if (job.illegal) {
             const meetsCriminalLevel = !job.criminalLevelReq || gameState.criminalLevel >= job.criminalLevelReq;
@@ -955,14 +955,13 @@ function WorkScreenContent() {
                                     ) : (
                                         <View style={{ padding: 16, alignItems: 'center' }}>
                                             <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
-                                                No crime jobs available at this time.
+                                                No underground jobs available right now — raise your criminal level or check back later.
                                             </Text>
-                                            <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark, { fontSize: 12, marginTop: 8 }]}>
-                                                Total jobs: {gameState.streetJobs.length}
-                                            </Text>
-                                            <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark, { fontSize: 12 }]}>
-                                                Jobs with illegal=true: {gameState.streetJobs.filter(job => job.illegal === true).length}
-                                            </Text>
+                                            {__DEV__ && (
+                                                <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark, { fontSize: 12, marginTop: 8 }]}>
+                                                    [dev] total={gameState.streetJobs.length} illegal={gameState.streetJobs.filter(job => job.illegal === true).length}
+                                                </Text>
+                                            )}
                                         </View>
                                     )}
                                 </View>

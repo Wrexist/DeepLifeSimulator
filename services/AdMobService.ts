@@ -319,19 +319,35 @@ class AdMobServiceImpl {
   async showRewardedAd(onReward: () => void): Promise<boolean> {
     if (circuitOpen || !this.state.isRewardedLoaded || !this.rewarded) return false;
 
-    try {
-      let rewarded = false;
+    const ad = this.rewarded;
+    let rewarded = false;
+    let unsubReward: (() => void) | undefined;
+    let unsubClosed: (() => void) | undefined;
 
+    try {
       const rewardEvent = NativeRewardedAdEventType?.EARNED_REWARD;
-      let unsubReward: (() => void) | undefined;
+      const closedEvent = NativeAdEventType?.CLOSED;
+
       if (rewardEvent) {
-        unsubReward = this.rewarded.addAdEventListener(rewardEvent, () => {
+        unsubReward = ad.addAdEventListener(rewardEvent, () => {
           rewarded = true;
         });
       }
 
-      await this.rewarded.show();
-      unsubReward?.();
+      // P2-16: resolve when the ad CLOSES, not when show() resolves. EARNED_REWARD
+      // can arrive around close time, so reading `rewarded` immediately after
+      // show() could drop a legitimately-earned reward. A timeout fallback ensures
+      // we never hang if no CLOSED event is delivered.
+      const closed = new Promise<void>((resolve) => {
+        if (closedEvent) {
+          unsubClosed = ad.addAdEventListener(closedEvent, () => resolve());
+        }
+        setTimeout(resolve, 60000);
+      });
+
+      await ad.show();
+      await closed;
+
       this.setState({ isRewardedLoaded: false });
       recordSuccess();
 
@@ -347,6 +363,9 @@ class AdMobServiceImpl {
       log.warn('Rewarded show failed:', error?.message);
       this.setState({ isRewardedLoaded: false });
       return false;
+    } finally {
+      unsubReward?.();
+      unsubClosed?.();
     }
   }
 
