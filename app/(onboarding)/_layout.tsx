@@ -6,6 +6,14 @@ import { Stack } from 'expo-router';
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { getThemeColors } from '@/lib/config/theme';
 
+// CRITICAL: the (onboarding) group has NO index route, so navigating to it (e.g.
+// router.replace('/(onboarding)/MainMenu') from the boot loader) gives expo-router
+// no anchor to build the group's initial navigation state from — and the native
+// Stack then renders an initial screen whose component resolves to `undefined`
+// ("Element type is invalid: …got: undefined", crashing on launch). Declaring the
+// anchor route fixes it. (Same fix the (tabs) group needed.)
+export const unstable_settings = { initialRouteName: 'MainMenu' };
+
 export default function OnboardingLayout() {
   const { gameState } = useGameState();
   const isDarkMode = gameState?.settings?.darkMode ?? true;

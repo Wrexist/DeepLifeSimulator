@@ -640,7 +640,11 @@ class SlotRenderBoundary extends Component<
       // module is installed): long-press → Select All → Copy. Stamped with the
       // build number so we can confirm which build is actually installed.
       const diag = [
-        `Build ${Constants.expoConfig?.ios?.buildNumber ?? '?'} · v${Constants.expoConfig?.version ?? '?'}`,
+        // nativeBuildVersion = the REAL CFBundleVersion EAS assigned (remote
+        // autoIncrement). expoConfig.ios.buildNumber is hardcoded "99" in
+        // app.config.js and is the SAME on every build — useless for identifying
+        // which build is installed.
+        `Build ${(Constants as any).nativeBuildVersion ?? Constants.expoConfig?.ios?.buildNumber ?? '?'} · v${(Constants as any).nativeAppVersion ?? Constants.expoConfig?.version ?? '?'}`,
         `Route: ${this.props.pathname || '(unknown)'}`,
         '',
         `ERROR: ${this.state.error.message}`,
