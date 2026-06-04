@@ -163,25 +163,32 @@ export default function EnhancedAchievementScreen({
 
     const gemReward = achievement.rewards?.gems ?? 0;
 
-    setGameState(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        gems: (prev.stats?.gems ?? 0) + gemReward,
-      },
-      claimedEnhancedAchievements: [
-        ...(prev.claimedEnhancedAchievements ?? []),
-        achievementId,
-      ],
-      // Mirror into lifetimeStatistics for the StatisticsApp tile
-      // (Statistics screen shows total achievements unlocked).
-      lifetimeStatistics: prev.lifetimeStatistics
-        ? {
-            ...prev.lifetimeStatistics,
-            totalAchievementsUnlocked: (prev.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
-          }
-        : prev.lifetimeStatistics,
-    }));
+    setGameState(prev => {
+      // P0-3: re-check the claimed set INSIDE the updater. The closure
+      // `alreadyClaimed` check above reads stale state, so two rapid taps (or a
+      // re-render before the first claim commits) could both pass it and credit
+      // the gems twice. The updater sees fresh `prev` and is the atomic gate.
+      if (prev.claimedEnhancedAchievements?.includes(achievementId)) return prev;
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          gems: (prev.stats?.gems ?? 0) + gemReward,
+        },
+        claimedEnhancedAchievements: [
+          ...(prev.claimedEnhancedAchievements ?? []),
+          achievementId,
+        ],
+        // Mirror into lifetimeStatistics for the StatisticsApp tile
+        // (Statistics screen shows total achievements unlocked).
+        lifetimeStatistics: prev.lifetimeStatistics
+          ? {
+              ...prev.lifetimeStatistics,
+              totalAchievementsUnlocked: (prev.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
+            }
+          : prev.lifetimeStatistics,
+      };
+    });
     saveGame();
     haptic('success');
     Alert.alert('Reward Claimed', `+${gemReward} gems for ${achievement.title}!`);

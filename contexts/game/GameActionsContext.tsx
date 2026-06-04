@@ -2617,8 +2617,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.warn('Repaired corrupted state during load:', repairResult.repairs);
  }
 
- // Validate the repaired state
- const validation = validateGameState(parsed, false);
+ // Validate AND auto-fix the repaired state. P0-6: passing autoFix=true runs
+ // autoFixStats, which now also resets non-finite (NaN/Infinity) core stats —
+ // otherwise such a save loads as "valid" but is rejected at entry (unplayable).
+ const validation = validateGameState(parsed, true);
  if (!validation.valid) {
  logger.error('Loaded state failed validation:', validation.errors);
  // Still set the state (callers will validate before navigation)

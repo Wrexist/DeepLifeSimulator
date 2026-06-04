@@ -5,9 +5,10 @@
  * Verified Pro triples the reward (50 → 150 followers).
  */
 import React, { useCallback } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Play, Users } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -30,7 +31,31 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;
   const expectedFollowers = proActive ? 150 : 50;
 
-  const handleWatch = useCallback(() => {
+  const handleWatch = useCallback(async () => {
+    // P0-4: actually show a rewarded video ad and grant the boost ONLY when the
+    // ad reports the reward earned. Previously the follower boost was granted with
+    // no ad ever shown — a deceptive-UX (Apple 2.3.1) risk and lost ad revenue.
+    const adsOn = isFeatureEnabled('adMob') && Platform.OS !== 'web';
+    if (adsOn) {
+      try {
+        const { adMobService } = await import('@/services/AdMobService');
+        const shown = await adMobService.showRewardedAd(() => {
+          watchAdForFollowerBoost(setGameState, gameState);
+        });
+        if (shown) {
+          pulseHaptics.success();
+          onDismiss();
+        } else {
+          // Ad wasn't available — do NOT silently grant the reward.
+          pulseHaptics.error();
+        }
+      } catch {
+        pulseHaptics.error();
+      }
+      return;
+    }
+    // Ads disabled (dev / boring build) — there is no ad system to show, so grant
+    // directly. Not deceptive: this configuration ships no ads at all.
     const result = watchAdForFollowerBoost(setGameState, gameState);
     if (result.success) {
       pulseHaptics.success();

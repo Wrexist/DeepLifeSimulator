@@ -183,7 +183,10 @@ export function generateBrandOffersExtended(
       brandName: brand.name,
       type: 'sponsored_post',
       payment,
-      weeklyPayment: payment,
+      // P0-1: 25% is paid as a signing bonus on accept; the remaining 75% is
+      // streamed. Total payout = 100% of `payment` (was 125% — bonus on top of
+      // a full 100% stream).
+      weeklyPayment: Math.floor(payment * 0.75),
       postsRequired: 1,
       duration: 1,
       category: brand.category,
@@ -206,7 +209,7 @@ export function generateBrandOffersExtended(
       brandName: brand.name,
       type: 'brand_deal',
       payment,
-      weeklyPayment: Math.floor(payment / duration),
+      weeklyPayment: Math.floor((payment * 0.75) / duration),
       postsRequired: 3,
       duration,
       category: brand.category,
@@ -229,7 +232,7 @@ export function generateBrandOffersExtended(
       brandName: brand.name,
       type: 'long_campaign',
       payment,
-      weeklyPayment: Math.floor(payment / duration),
+      weeklyPayment: Math.floor((payment * 0.75) / duration),
       postsRequired: 6,
       duration,
       category: brand.category,
@@ -253,7 +256,7 @@ export function generateBrandOffersExtended(
       brandName: brand.name,
       type: 'ambassador',
       payment,
-      weeklyPayment: Math.floor(payment / duration),
+      weeklyPayment: Math.floor((payment * 0.75) / duration),
       postsRequired: 12,
       duration,
       category: brand.category,

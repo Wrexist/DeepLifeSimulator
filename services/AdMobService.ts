@@ -14,6 +14,7 @@
 
 import { Platform } from 'react-native';
 import { logger } from '@/utils/logger';
+import { isTrackingAllowed } from '@/utils/trackingTransparency';
 
 const log = logger.scope('AdMob');
 
@@ -146,6 +147,15 @@ class AdMobServiceImpl {
   private listeners: ((state: AdMobState) => void)[] = [];
   private interstitial: any = null;
   private rewarded: any = null;
+  // P0-5: gate personalized ads on ATT / consent. Defaults to false
+  // (non-personalized — the GDPR + Apple 5.1.2 safe default) until the cached
+  // tracking status resolves after init.
+  private trackingAllowed = false;
+
+  /** P0-5: request options — non-personalized ads unless ATT/consent is granted. */
+  adRequestOptions(): { requestNonPersonalizedAds: boolean } {
+    return { requestNonPersonalizedAds: !this.trackingAllowed };
+  }
 
   // --- Listener management ---
 
@@ -185,6 +195,16 @@ class AdMobServiceImpl {
       recordSuccess();
       log.info('Initialized successfully');
 
+      // P0-5: cache ATT/consent so ad requests can synchronously request
+      // non-personalized ads when tracking isn't allowed (iOS ATT denied / EU).
+      void isTrackingAllowed()
+        .then((allowed) => {
+          this.trackingAllowed = allowed;
+        })
+        .catch(() => {
+          this.trackingAllowed = false; // fail closed → non-personalized
+        });
+
       // Pre-load ads in background
       void this.loadInterstitialAd();
       void this.loadRewardedAd();
@@ -202,7 +222,7 @@ class AdMobServiceImpl {
 
     try {
       const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.INTERSTITIAL : AD_UNITS.INTERSTITIAL;
-      this.interstitial = NativeInterstitialAd.createForAdRequest(adUnitId);
+      this.interstitial = NativeInterstitialAd.createForAdRequest(adUnitId, this.adRequestOptions());
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Load timeout')), 15000);
@@ -257,7 +277,7 @@ class AdMobServiceImpl {
 
     try {
       const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.REWARDED : AD_UNITS.REWARDED;
-      this.rewarded = NativeRewardedAd.createForAdRequest(adUnitId);
+      this.rewarded = NativeRewardedAd.createForAdRequest(adUnitId, this.adRequestOptions());
 
       // Determine the correct event type constants — RewardedAd may use its own enum
       const loadedEvent = NativeRewardedAdEventType?.LOADED || NativeAdEventType?.LOADED;

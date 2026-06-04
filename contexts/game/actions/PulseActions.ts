@@ -609,7 +609,12 @@ export const acceptBrandDeal = (
       expiresIn: offer.duration,
       postsRequired: offer.postsRequired,
       postsDelivered: 0,
-      weeklyPayment: offer.weeklyPayment ?? Math.floor(offer.payment / Math.max(1, offer.duration)),
+      // P0-1: stream 75% of the contract over the duration. The 25% signing
+      // bonus paid below is an advance against the total, so total payout is
+      // 100% of `payment` (previously: 25% bonus + 100% stream = 125%).
+      // Recomputed here (not trusting offer.weeklyPayment) so any in-flight
+      // offer minted before this fix still pays correctly.
+      weeklyPayment: Math.floor((offer.payment * 0.75) / Math.max(1, offer.duration)),
       category: offer.category,
       riskOfBreach: 0,
       logoColor1: offer.logoColor1,
@@ -702,7 +707,7 @@ export const deliverBrandDealPost = (
       // instead of shorting the player the weeks they cut short. Total payout is
       // identical to riding the deal to expiry — no double-pay, no exploit.
       const remainingWeeks = Math.max(0, (deal.expiresAt ?? ws) - ws);
-      const weeklyPay = deal.weeklyPayment ?? Math.floor((deal.payment ?? 0) / Math.max(1, deal.expiresIn ?? 1));
+      const weeklyPay = deal.weeklyPayment ?? Math.floor(((deal.payment ?? 0) * 0.75) / Math.max(1, deal.expiresIn ?? 1));
       completionPayout = Math.max(0, weeklyPay * remainingWeeks);
       sm.activeBrandDeals = deals.filter((d) => d.id !== dealId);
       sm.brandInbox = {

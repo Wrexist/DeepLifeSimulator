@@ -24,7 +24,7 @@ import type {
   HustleActiveScandal,
 } from '../types';
 import { logger } from '@/utils/logger';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import {
   generateCandidates,
@@ -204,7 +204,7 @@ export const hireCandidate = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    return withOverlay(prev, companyId, weeksLived, (o) => {
+    const next = withOverlay(prev, companyId, weeksLived, (o) => {
       if (!accepted) {
         // Remove the candidate from the pipeline regardless — they took
         // another offer (or stayed at their current job).
@@ -242,11 +242,15 @@ export const hireCandidate = (
         weeksLived,
       );
     });
+    // P0-2: charge the sign-on bonus IN THE SAME updater so a double-tap / low-cash
+    // race can't grant the hire while a separate `updateMoney` charge is rejected.
+    if (accepted && offeredBonus > 0) {
+      const spend = applyMoneyDelta(next, -offeredBonus, `Hustle sign-on bonus: ${candidate.name}`);
+      if (!spend) return prev; // unaffordable → abort the hire entirely (no free hire)
+      return { ...next, ...spend };
+    }
+    return next;
   });
-
-  if (accepted && offeredBonus > 0) {
-    updateMoney(setGameState, -offeredBonus, `Hustle sign-on bonus: ${candidate.name}`);
-  }
 
   log.info(`Offer to ${candidate.name}: score=${score}, accepted=${accepted}`);
   return {
@@ -270,10 +274,13 @@ export const fireNamedHire = (
   if (!overlay || !hire) return { success: false, message: 'Hire not found', severance: 0 };
 
   const severance = Math.floor(hire.salary * 4); // 4 weeks severance
+  if ((gameState.stats?.money ?? 0) < severance) {
+    return { success: false, message: `Need $${severance.toLocaleString()} to cover severance`, severance: 0 };
+  }
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    return withOverlay(prev, companyId, weeksLived, (o) => {
+    const next = withOverlay(prev, companyId, weeksLived, (o) => {
       const ha = ensureHustle(prev);
       ha.lifetimeStats.totalFires += 1;
       return pushNotif(
@@ -290,9 +297,12 @@ export const fireNamedHire = (
         weeksLived,
       );
     });
+    // P0-2: pay severance IN THE SAME updater (atomic — closes the fire-without-paying race).
+    const spend = applyMoneyDelta(next, -severance, `Hustle severance payout`);
+    if (!spend) return prev; // can't cover severance → don't fire
+    return { ...next, ...spend };
   });
 
-  updateMoney(setGameState, -severance, `Hustle severance payout`);
   // Small reputation hit (-1) for firing — letting people go has consequences
   updateStats(setGameState, { reputation: -1 });
   return { success: true, message: `Fired. Severance: $${severance.toLocaleString()}`, severance };
@@ -324,7 +334,7 @@ export const launchCampaign = (
   const projectedROI = projectCampaignROI(kind, spendPerWeek, company.weeklyIncome ?? 0);
 
   setGameState((prev) => {
-    return withOverlay(prev, companyId, weeksLived, (o) => {
+    const next = withOverlay(prev, companyId, weeksLived, (o) => {
       const ha = ensureHustle(prev);
       ha.lifetimeStats.totalCampaignsRun += 1;
       const campaign: HustleCampaign = {
@@ -352,9 +362,12 @@ export const launchCampaign = (
         weeksLived,
       );
     });
+    // P0-2: charge the first-week spend IN THE SAME updater (atomic — no free campaign).
+    const spend = applyMoneyDelta(next, -upfront, `${kind} campaign first-week spend`);
+    if (!spend) return prev; // unaffordable → don't launch
+    return { ...next, ...spend };
   });
 
-  updateMoney(setGameState, -upfront, `${kind} campaign first-week spend`);
   return { success: true, message: 'Campaign launched', projectedROI };
 };
 
@@ -449,7 +462,7 @@ export const resolveScandal = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    return withOverlay(prev, companyId, weeksLived, (o) => {
+    const next = withOverlay(prev, companyId, weeksLived, (o) => {
       if (!o.activeScandal) return o;
       const newSeverity = Math.max(0, o.activeScandal.severity - severityDrop);
       const ha = ensureHustle(prev);
@@ -489,9 +502,15 @@ export const resolveScandal = (
         activeScandal: { ...o.activeScandal, severity: newSeverity, resolutionMethod: method },
       };
     });
+    // P0-2: pay the resolution cost IN THE SAME updater (atomic — no free resolution).
+    if (cost > 0) {
+      const spend = applyMoneyDelta(next, -cost, `Hustle scandal ${method}`);
+      if (!spend) return prev; // unaffordable → don't resolve
+      return { ...next, ...spend };
+    }
+    return next;
   });
 
-  if (cost > 0) updateMoney(setGameState, -cost, `Hustle scandal ${method}`);
   if (rep !== 0) updateStats(setGameState, { reputation: rep });
 
   return { success: true, message: msg, reputationDelta: rep, costPaid: cost };
@@ -587,7 +606,7 @@ export const acceptAcquisition = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    return withOverlay(prev, companyId, weeksLived, (o) => {
+    const next = withOverlay(prev, companyId, weeksLived, (o) => {
       const ha = ensureHustle(prev);
       ha.lifetimeStats.totalAcquisitionsCompleted += 1;
       return pushNotif(
@@ -602,9 +621,12 @@ export const acceptAcquisition = (
         weeksLived,
       );
     });
+    // P0-2: pay the acquisition price IN THE SAME updater (atomic — no free acquisition).
+    const spend = applyMoneyDelta(next, -offer.askingPrice, `Acquisition: ${offer.targetName}`);
+    if (!spend) return prev; // unaffordable → don't close the deal
+    return { ...next, ...spend };
   });
 
-  updateMoney(setGameState, -offer.askingPrice, `Acquisition: ${offer.targetName}`);
   updateStats(setGameState, { reputation: 3 });
 
   return { success: true, message: `Closed: ${offer.targetName} is now part of your empire` };

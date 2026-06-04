@@ -136,7 +136,10 @@ function IdentityCard() {
 
   const scenario = (scenarios || []).find(s => s.id === scenarioId);
 
-  const sex = userProfile.sex || userProfile.gender || 'male';
+  // P0-7: userProfile can be absent on degraded/migrating state (TopStatsBar
+  // early-returns on the same condition). IdentityCard renders unconditionally on
+  // the home tab, so raw access here crashed the whole tab. Guard every access.
+  const sex = userProfile?.sex || userProfile?.gender || 'male';
   const name =
     [userProfile?.firstName, userProfile?.lastName].filter(Boolean).join(' ') ||
     userProfile?.name;
@@ -314,7 +317,7 @@ function IdentityCard() {
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
-  const avatar = getCharacterImage(date.age, sex);
+  const avatar = getCharacterImage(date?.age ?? 0, sex);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   return (

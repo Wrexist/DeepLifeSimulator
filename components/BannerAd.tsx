@@ -45,6 +45,8 @@ export default function BannerAd({ style }: BannerAdProps) {
       <NativeBanner
         unitId={unitId}
         size={BannerSize.ANCHORED_ADAPTIVE_BANNER}
+        // P0-5: non-personalized ads unless ATT/consent is granted.
+        requestOptions={adMobService.adRequestOptions()}
         onAdFailedToLoad={() => setAdError(true)}
       />
     </View>

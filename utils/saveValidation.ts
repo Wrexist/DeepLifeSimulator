@@ -279,6 +279,14 @@ export function autoFixStats(state: unknown): { fixed: boolean; fixes: string[] 
         fixes.push(`${stat} clamped from ${oldValue} to ${state.stats[stat]}`);
         fixed = true;
       }
+    } else if (state.stats[stat] !== undefined) {
+      // P0-6: a NaN/Infinity/non-number core stat would pass save validation but
+      // then be rejected by gameEntryValidation's isFinite check — an unplayable
+      // save. Reset it to a safe neutral midpoint so the save loads and plays.
+      const oldValue = state.stats[stat];
+      state.stats[stat] = Math.round((min + max) / 2);
+      fixes.push(`${stat} reset from ${String(oldValue)} to ${state.stats[stat]} (was non-finite)`);
+      fixed = true;
     }
   }
 
@@ -1040,11 +1048,15 @@ export function validateGameState(state: any, autoFix: boolean = false): { valid
 
   // Allow saving with warnings (only block on critical errors)
   // Critical errors are: missing required objects, invalid types that can't be fixed
-  const criticalErrors = errors.filter(e => 
-    e.includes('null or undefined') || 
+  const criticalErrors = errors.filter(e =>
+    e.includes('null or undefined') ||
     e.includes('Missing') ||
     e.includes('must be an array') ||
-    e.includes('repair failed')
+    e.includes('repair failed') ||
+    // P0-6: NaN/Infinity in a stat is corruption that makes a save load as
+    // "valid" but then fail gameEntryValidation (isFinite check) — an
+    // unplayable save. Treat it as critical so the load path repairs it.
+    e.includes('NaN/Infinity')
   );
   
   return {
