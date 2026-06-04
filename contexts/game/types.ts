@@ -3,18 +3,23 @@
  * Extracted from GameContext.tsx for reuse across split contexts
  */
 
-import { Memory } from '@/lib/legacy/memories';
-import { FamilyMemberNode } from '@/lib/legacy/familyTree';
-import { PrestigeData } from '@/lib/prestige/prestigeTypes';
+// All `import type` — these are interfaces only. Using plain `import { X }` here
+// makes the single-file Babel transform KEEP the import at runtime if its
+// type-only-elision heuristic misfires, which creates a require cycle
+// (types.ts ↔ lib/events/engine.ts ↔ … ↔ lib/legacy/familyTree.ts) that resolves
+// to undefined in the production Hermes bundle. `import type` is always erased.
+import type { Memory } from '@/lib/legacy/memories';
+import type { FamilyMemberNode } from '@/lib/legacy/familyTree';
+import type { PrestigeData } from '@/lib/prestige/prestigeTypes';
 
-import { SocialState } from '@/lib/social/relations';
-import { WeeklyEvent } from '@/lib/events/engine';
-import { DiscoveredSystem } from '@/lib/depth/discoverySystem';
-import { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
-import { KarmaState } from '@/lib/karma/karmaSystem';
+import type { SocialState } from '@/lib/social/relations';
+import type { WeeklyEvent } from '@/lib/events/engine';
+import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
+import type { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
+import type { KarmaState } from '@/lib/karma/karmaSystem';
 import type { AutomationState } from '@/lib/automation/automationTypes';
 
-import { CareerRequirements } from '@/lib/types/requirements';
+import type { CareerRequirements } from '@/lib/types/requirements';
 
 export interface GameStats {
   health: number;

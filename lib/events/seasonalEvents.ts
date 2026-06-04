@@ -1,5 +1,8 @@
 import type { GameState } from '@/contexts/game/types';
-import { WeeklyEvent, EventTemplate } from './engine';
+// `import type` — both are interfaces. A plain value import here forms a runtime
+// require cycle with engine.ts (engine imports getSeasonalEvents from this file),
+// which can resolve to undefined in the production Hermes bundle.
+import type { WeeklyEvent, EventTemplate } from './engine';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';

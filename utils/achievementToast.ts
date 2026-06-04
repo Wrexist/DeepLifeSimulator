@@ -1,4 +1,6 @@
-import { AchievementData } from '@/components/anim/AchievementToast';
+// `import type` — AchievementData is an interface. A value import forms a require
+// cycle with the component (which imports this util), avoided by erasing it.
+import type { AchievementData } from '@/components/anim/AchievementToast';
 
 // Global reference to the achievement toast component
 let achievementToastRef: any = null;
