@@ -50,6 +50,12 @@ const PRESETS = [
 ];
 
 export default function Preview() {
+  // P3: web-only viewport-preview dev tool. The nested <Stack> below references
+  // the (tabs) group from inside a leaf route, which can throw on native
+  // ("another navigator is already registered for this container"). Render
+  // nothing on native so the route is harmless if ever opened on a device.
+  if (Platform.OS !== 'web') return null;
+
   const apply = (w?: number, h?: number) => {
     setViewportOverride(w, h);
     if (Platform.OS === 'web') {

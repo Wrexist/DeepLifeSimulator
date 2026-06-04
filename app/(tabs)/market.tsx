@@ -90,12 +90,10 @@ function MarketScreenContent() {
         return;
       }
 
-      // buyItem doesn't return a value, so we check if the purchase worked by checking if item is owned after
+      // P2-8: buyItem applies its money + ownership change synchronously via
+      // setGameState (and re-checks affordability atomically). Affordability is
+      // already gated above, so confirm immediately — no arbitrary delay/jank.
       buyItem(itemId);
-
-      // Give a small delay for state to update
-      await new Promise(resolve => setTimeout(resolve, 100));
-
       showSuccess(`Purchased ${itemName}!`);
     } catch (error) {
       showError("Purchase failed");
@@ -107,8 +105,9 @@ function MarketScreenContent() {
   const handleSell = async (itemId: string, itemName: string) => {
     setLoading(itemId, true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-
+      // P2-8: compute the sale price from CURRENT state (the item is still owned
+      // here) BEFORE selling, then sell synchronously — no arbitrary delay, and
+      // the "$0" race (reading the item after it's removed) can't happen.
       const sellPrice = parseFloat((getInflatedPrice(
         gameState.items.find(i => i.id === itemId)?.price || 0,
         gameState.economy?.priceIndex ?? 1

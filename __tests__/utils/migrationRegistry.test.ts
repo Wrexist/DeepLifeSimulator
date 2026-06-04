@@ -48,4 +48,35 @@ describe('Save migration registry completeness (R8 H-2)', () => {
     expect(result.migrationsApplied).toEqual([]);
     expect(result.state.version).toBe(CURRENT_STATE_VERSION);
   });
+
+  // R9 P2-9: field-level integrity — a migration that runs without throwing but
+  // empties/NaNs a required field would pass the coverage tests above. Assert the
+  // migrated state is actually playable.
+  it('a migrated save keeps finite core stats and required top-level collections', () => {
+    const state = { ...createTestGameState(), version: 2 } as Record<string, unknown>;
+    const result = runMigrations(state) as { state: Record<string, any> };
+    const s = result.state;
+    for (const k of ['money', 'happiness', 'health', 'energy']) {
+      expect(Number.isFinite(s.stats?.[k])).toBe(true);
+    }
+    expect(typeof s.weeksLived).toBe('number');
+    expect(Array.isArray(s.relationships)).toBe(true);
+    expect(Array.isArray(s.items)).toBe(true);
+  });
+
+  // R9 P1-7: a save from a NEWER app version must NOT be migrated/downgraded —
+  // runMigrations flags it and returns the state untouched so loadGame can refuse
+  // to load (and refuse to overwrite the newer save).
+  it('refuses to migrate a future-version save (flags versionFromFuture, leaves state untouched)', () => {
+    const future = CURRENT_STATE_VERSION + 5;
+    const state = { ...createTestGameState(), version: future } as Record<string, unknown>;
+    const result = runMigrations(state) as {
+      state: Record<string, any>;
+      errors: string[];
+      versionFromFuture?: boolean;
+    };
+    expect(result.versionFromFuture).toBe(true);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.state.version).toBe(future); // unchanged, not downgraded
+  });
 });

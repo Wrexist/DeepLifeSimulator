@@ -11,6 +11,24 @@ Cross-confirmed = found independently by 2 agents (higher confidence).
 
 ---
 
+## ✅ RESOLUTION STATUS (all actionable items fixed)
+
+- **Phase 0 (7 CRITICAL):** all fixed — commit `45df1a2`.
+- **Phase 1 (11 HIGH):** all fixed + route-conflict CI guard — commit `428c64f`.
+- **Phase 2 (MEDIUM):** P2-1,2,3,4,6,7,10,11,12,13,14,15,16 fixed — commit `aa19f26`;
+  P2-8 (market jank) + P2-9 (migration field tests) + P2-17 (secrets doc) fixed in the
+  follow-up commit. **P2-5 = working-as-intended** after P0-1 (paying out on early
+  delivery is an efficiency reward, no longer an exploit since the total is 100%).
+- **Phase 3 (LOW):** crash-safety/correctness items fixed (TopStatsBar NaN, null-safety,
+  disease keys, SaveSlots back-nav, work debug text, preview.tsx native guard).
+- **Intentionally not done (cosmetic/a11y, noted):** progression default-theme nuance,
+  DeathPopup memo narrowing, IdentityCard accessibility labels, FTUE spacer magic number.
+
+Verification: type-check clean, route guard passing, full suite green. Shipped in
+build 115 (Phase 0–3 core) and build 116 (+ P2-8/9/17 + LOW polish).
+
+---
+
 ## Executive summary
 
 | Domain | CRIT | HIGH | MED | LOW |
