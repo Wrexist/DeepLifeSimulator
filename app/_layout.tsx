@@ -26,6 +26,7 @@ import { markBootStage } from '@/lib/utils/bootBreadcrumbs';
 
 import { useSegments, usePathname, Slot } from 'expo-router';
 import Constants from 'expo-constants';
+import { BUILD_TAG } from '@/lib/config/buildTag';
 
 // CRITICAL: Lazy load StatusBar to prevent TurboModule crash
 // import { StatusBar } from 'expo-status-bar'; // REMOVED - lazy load instead
@@ -640,11 +641,11 @@ class SlotRenderBoundary extends Component<
       // module is installed): long-press → Select All → Copy. Stamped with the
       // build number so we can confirm which build is actually installed.
       const diag = [
-        // nativeBuildVersion = the REAL CFBundleVersion EAS assigned (remote
-        // autoIncrement). expoConfig.ios.buildNumber is hardcoded "99" in
-        // app.config.js and is the SAME on every build — useless for identifying
-        // which build is installed.
-        `Build ${(Constants as any).nativeBuildVersion ?? Constants.expoConfig?.ios?.buildNumber ?? '?'} · v${(Constants as any).nativeAppVersion ?? Constants.expoConfig?.version ?? '?'}`,
+        // BUILD_TAG is a hardcoded marker we control (the native build number is
+        // unreadable: app.config.js hardcodes "99" and Constants.nativeBuildVersion
+        // is undefined in SDK 54). When the user reports this tag we know EXACTLY
+        // which code is running.
+        `build: ${BUILD_TAG}`,
         `Route: ${this.props.pathname || '(unknown)'}`,
         '',
         `ERROR: ${this.state.error.message}`,

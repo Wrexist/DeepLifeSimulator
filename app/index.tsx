@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { useRouter } from 'expo-router';
 import { usePreload } from '@/hooks/usePreload';
 import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
+import { BUILD_TAG } from '@/lib/config/buildTag';
 
 export default function Index() {
   const router = useRouter();
@@ -205,6 +206,7 @@ export default function Index() {
       <View style={loadingStyles.center}>
         <Text style={loadingStyles.title}>DeepLife Simulator</Text>
         <Text style={loadingStyles.tagline}>Your life. Every choice.</Text>
+        <Text style={loadingStyles.buildTag}>build: {BUILD_TAG}</Text>
         <ActivityIndicator size="large" color="#3B82F6" style={loadingStyles.spinner} />
         <View style={loadingStyles.track}>
           <View style={[loadingStyles.bar, { width: `${pct}%` }]} />
@@ -228,6 +230,7 @@ const loadingStyles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
   title: { color: '#FFFFFF', fontSize: 30, fontWeight: '800', letterSpacing: 0.5, textAlign: 'center' },
   tagline: { color: '#94A3B8', fontSize: 15, fontWeight: '500', marginTop: 8, textAlign: 'center' },
+  buildTag: { color: '#FBBF24', fontSize: 14, fontWeight: '700', marginTop: 10, textAlign: 'center', letterSpacing: 1 },
   spinner: { marginTop: 32 },
   track: {
     width: '70%',
