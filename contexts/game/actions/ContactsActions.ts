@@ -21,7 +21,7 @@ import { updateMoney } from './MoneyActions';
 const log = logger.scope('ContactsActions');
 
 function ledgerOf(state: GameState): FavorLedger {
-  return (state as any).favorLedger ?? emptyLedger();
+  return state.favorLedger ?? emptyLedger();
 }
 
 /**

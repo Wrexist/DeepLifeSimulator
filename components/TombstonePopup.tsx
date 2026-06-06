@@ -8,6 +8,9 @@ import { initialGameState } from '@/contexts/game/initialState';
 import { deleteSaveSlot } from '@/utils/saveValidation';
 // safeSettings/safeStats/safeDate are imported here for the death-modal defenses below.
 import { safeSettings, safeStats, safeDate } from '@/utils/safeGameState';
+import { logger } from '@/utils/logger';
+
+const log = logger.scope('TombstonePopup');
 
 export default function TombstonePopup() {
   const { gameState, setGameState, reviveCharacter, currentSlot } = useGame();
@@ -54,7 +57,7 @@ export default function TombstonePopup() {
       // Navigate to main menu
       router.replace('/(onboarding)/MainMenu');
     } catch (error) {
-      console.error('Failed to start new life:', error);
+      log.error('Failed to start new life:', error);
       // Re-show the death popup if there was an error
       setGameState(prev => ({
         ...prev,

@@ -1162,6 +1162,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const activeCareer = (updatedCareers || []).find((c: any) => c?.id === newCurrentJob && c?.accepted);
  return activeCareer?.progress || 0;
  })(),
+ // Side-channel teaser set just below after the cliffhanger roll resolves.
+ cliffhangerTeaser: undefined as string | undefined,
  };
 
  // R7 Phase 2 step 2.10: end-of-week cliffhanger roll extracted into
@@ -1171,7 +1173,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const cliffRoll = applyCliffhangerRoll({ prevState, nextWeeksLived });
  const newPendingCliffhanger = cliffRoll.pendingCliffhanger;
  if (cliffRoll.teaser) {
-   (weekResult as any).cliffhangerTeaser = cliffRoll.teaser;
+   weekResult.cliffhangerTeaser = cliffRoll.teaser;
  }
 
  // Pulse tick effects fold into the final return: replace socialMedia,
@@ -1577,8 +1579,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // PERF FIX: Flush batched notifications in a single timeout instead of N individual ones.
  // This reduces event loop pressure from ~10+ timeouts/week to exactly 1.
  if (pendingNotifications.length > 0) {
+ // R10-2: dedupe by id before flushing. The setGameState updater is pure but
+ // React 19 StrictMode / concurrent rendering can invoke it twice, pushing each
+ // notification into this outer array twice → duplicate toasts. Keep first per id.
+ const seenIds = new Set<string>();
+ const uniqueNotifications = pendingNotifications.filter((n) =>
+ seenIds.has(n.id) ? false: (seenIds.add(n.id), true)
+ );
  setTimeout(() => {
- for (const n of pendingNotifications) {
+ for (const n of uniqueNotifications) {
  showWarning(n.id, n.message, n.title);
  }
  }, 100);

@@ -39,7 +39,7 @@ function SicknessModal() {
       const doctorDisabled = playerMoney < 500 || isClosing || !performHealthActivity;
       const hospitalDisabled = playerMoney < 2000 || isClosing || !performHealthActivity;
 
-      console.log('[SicknessModal] Button state:', {
+      logger.info('[SicknessModal] Button state:', {
         playerMoney,
         isClosing,
         hasPerformHealthActivity: !!performHealthActivity,

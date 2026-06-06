@@ -93,6 +93,9 @@ export default function InfoButton({
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <X size={20} color={darkMode ? '#D1D5DB' : '#6B7280'} />
               </TouchableOpacity>

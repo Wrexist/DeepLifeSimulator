@@ -209,8 +209,18 @@ export const swipeOnProfile = (
         ]
       : s.matches;
 
+    // R10-2: also record the match in the top-level `datingMatches` ledger. The
+    // "first match" / "25 matches" achievements read `gs.datingMatches?.length`,
+    // which nothing wrote to — so they were permanently stuck at 0. Append the
+    // matched profile id (deduped) so that progress actually accrues.
+    const newDatingMatches =
+      matched && !(prev.datingMatches ?? []).includes(profileId)
+        ? [...(prev.datingMatches ?? []), profileId]
+        : prev.datingMatches;
+
     return {
       ...prev,
+      datingMatches: newDatingMatches,
       sparkApp: {
         ...s,
         swipes: newSwipes,
@@ -476,7 +486,7 @@ export const promoteMatchToRelationship = (
         ...s,
         matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
       },
-      relationships: [...(prev.relationships ?? []), newRelationship as any],
+      relationships: [...(prev.relationships ?? []), newRelationship],
     };
   });
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, View } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
-import { getButtonAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
+import { getButtonAccessibilityProps } from '@/utils/accessibility';
 const LinearGradient = LinearGradientFallback;
 
 interface LoadingButtonProps {
@@ -16,6 +16,11 @@ interface LoadingButtonProps {
   textStyle?: TextStyle;
   loadingText?: string;
   icon?: React.ReactNode;
+  /** Screen-reader hint. Defaults to none — the title is usually self-describing.
+   *  Pass e.g. ACCESSIBILITY_HINTS.BUTTONS.BUY for purchase buttons. */
+  accessibilityHint?: string;
+  /** Screen-reader label override (defaults to `title`). */
+  accessibilityLabel?: string;
 }
 
 export default function LoadingButton({
@@ -29,6 +34,8 @@ export default function LoadingButton({
   textStyle,
   loadingText,
   icon,
+  accessibilityHint,
+  accessibilityLabel,
 }: LoadingButtonProps) {
   const isDisabled = disabled || loading;
 
@@ -73,9 +80,12 @@ export default function LoadingButton({
   const sizeStyles = getSizeStyles();
   const colors = getVariantColors();
 
+  // R10-UX: don't hard-code the "Tap to purchase" hint for every button — a Sell
+  // or generic action button announced the wrong intent. Use the caller's hint
+  // (or none) and let the label default to the title.
   const accessibilityProps = getButtonAccessibilityProps({
-    label: title,
-    hint: ACCESSIBILITY_HINTS.BUTTONS.BUY, // Default hint, can be customized
+    label: accessibilityLabel ?? title,
+    hint: accessibilityHint,
     disabled: isDisabled,
     loading: loading,
   });

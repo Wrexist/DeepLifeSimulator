@@ -7,6 +7,12 @@ import { logger } from '@/utils/logger';
 
 const log = logger.scope('MoneyActions');
 
+// R10-2: hard ceiling on cash. Without it a runaway exploit can push money to
+// ~1e308 and then `currentMoney + amount` overflows to Infinity, which
+// validateGameState treats as critical and RESETS to 0 on the next load (a worse
+// outcome than capping). Capping keeps the save valid.
+const MONEY_CEILING = Number.MAX_SAFE_INTEGER;
+
 export const updateMoney = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   amount: number,
@@ -33,7 +39,7 @@ export const updateMoney = (
       return prev; // REJECT — don't allow this deduction
     }
 
-    const newMoney = Math.max(0, currentMoney + amount);
+    const newMoney = Math.min(MONEY_CEILING, Math.max(0, currentMoney + amount));
     const moneyChange = newMoney - prev.stats.money;
 
     if (moneyChange !== 0 && updateDailySummary) {
@@ -104,7 +110,7 @@ export function applyMoneyDelta(
     );
     return null;
   }
-  const newMoney = Math.max(0, currentMoney + amount);
+  const newMoney = Math.min(MONEY_CEILING, Math.max(0, currentMoney + amount));
   const moneyChange = newMoney - currentMoney;
   return {
     stats: { ...prev.stats, money: newMoney },

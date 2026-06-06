@@ -26,6 +26,8 @@ function ProgressionScreen() {
 function ProgressionScreenContent() {
   const { gameState, checkAchievements } = useGame();
   const { settings } = gameState;
+  // Screen defaults to dark unless darkMode is explicitly false.
+  const isDark = settings?.darkMode !== false;
   const [showDataVisualization, setShowDataVisualization] = useState(false);
   const [showSmartNotifications, setShowSmartNotifications] = useState(false);
   const [showPrestigeHistory, setShowPrestigeHistory] = useState(false);
@@ -88,47 +90,47 @@ function ProgressionScreenContent() {
         )}
 
         {/* Enhanced Features Section */}
-        <View style={styles.enhancedFeaturesSection}>
-          <Text style={styles.sectionTitle}>Enhanced Features</Text>
+        <View style={[styles.enhancedFeaturesSection, settings?.darkMode !== false && styles.enhancedFeaturesSectionDark]}>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Enhanced Features</Text>
           <View style={styles.featureButtons}>
             <TouchableOpacity
-              style={styles.featureButton}
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
               onPress={() => setShowDataVisualization(true)}
             >
               <BarChart3 size={24} color="#3B82F6" />
-              <Text style={styles.featureButtonText}>Data Analytics</Text>
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Data Analytics</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.featureButton}
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
               onPress={() => setShowSmartNotifications(true)}
             >
               <Bell size={24} color="#10B981" />
-              <Text style={styles.featureButtonText}>Smart Notifications</Text>
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Smart Notifications</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.featureButton}
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
               onPress={() => setShowCommitments(true)}
             >
               <Target size={24} color="#F59E0B" />
-              <Text style={styles.featureButtonText}>Activity Commitments</Text>
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Activity Commitments</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.featureButton}
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
               onPress={() => setShowLifeStory(true)}
             >
               <BookOpen size={24} color="#8B5CF6" />
-              <Text style={styles.featureButtonText}>My Life Story</Text>
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>My Life Story</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.featureButton}
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
               onPress={() => setShowSkillTree(true)}
             >
               <Brain size={24} color="#10B981" />
-              <Text style={styles.featureButtonText}>Life Skills</Text>
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Life Skills</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -138,8 +140,8 @@ function ProgressionScreenContent() {
 
         {/* Hobbies removed - minigames section no longer available */}
 
-        <View style={styles.overallProgress}>
-          <Text style={styles.progressTitle}>Overall Achievement Progress</Text>
+        <View style={[styles.overallProgress, settings?.darkMode !== false && styles.overallProgressDark]}>
+          <Text style={[styles.progressTitle, isDark && styles.progressTitleDark]}>Overall Achievement Progress</Text>
           <View style={styles.progressStats}>
             <Text style={styles.progressText}>
               {completedAchievements} / {totalAchievements} Completed
@@ -227,11 +229,11 @@ function ProgressionScreenContent() {
               <Text style={styles.statLabel}>Weeks Lived</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{gameState.relationships.length}</Text>
+              <Text style={styles.statValue}>{(gameState.relationships || []).length}</Text>
               <Text style={styles.statLabel}>Relationships</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{gameState.items.filter(i => i.owned).length}</Text>
+              <Text style={styles.statValue}>{(gameState.items || []).filter(i => i.owned).length}</Text>
               <Text style={styles.statLabel}>Items Owned</Text>
             </View>
           </View>
@@ -240,7 +242,7 @@ function ProgressionScreenContent() {
       
       {/* Enhanced Components */}
         {showDataVisualization && (
-          <EnhancedDataVisualization darkMode={gameState.settings.darkMode} compact={false} />
+          <EnhancedDataVisualization darkMode={gameState.settings?.darkMode} compact={false} />
         )}
         <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
         <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
@@ -259,6 +261,15 @@ const styles = StyleSheet.create({
   },
   containerDark: {
     backgroundColor: '#0F172A',
+  },
+  // R10-UX: dark-mode card surfaces. The screen defaults to dark
+  // (darkMode !== false), but these two cards were hardcoded white — jarring
+  // bright panels on the #0F172A background.
+  overallProgressDark: {
+    backgroundColor: '#1E293B',
+  },
+  enhancedFeaturesSectionDark: {
+    backgroundColor: '#1E293B',
   },
   content: {
     flex: 1,
@@ -533,6 +544,11 @@ const styles = StyleSheet.create({
     color: '#374151',
     textAlign: 'center',
   },
+  // R10-UX: dark-mode text/button variants so the now-dark cards stay legible.
+  progressTitleDark: { color: '#F1F5F9' },
+  sectionTitleDark: { color: '#F1F5F9' },
+  featureButtonDark: { backgroundColor: '#0F172A', borderColor: '#334155' },
+  featureButtonTextDark: { color: '#E2E8F0' },
 });
 
 export default React.memo(ProgressionScreen);

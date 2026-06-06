@@ -31,8 +31,8 @@ const CATEGORY_LABEL: Record<PoliticalScandalEntry['category'], string> = {
 export default function ScandalRow({ scandal, darkMode, onSuppress }: Props) {
   const theme = getThemeColors(darkMode);
   const color = SEVERITY_COLOR[scandal.severity];
-  const cost = SEVERITY_PARAMS[scandal.severity].suppressionCost;
-  const suppressionFraction = Math.min(1, scandal.suppressedUSD / cost);
+  const cost = SEVERITY_PARAMS[scandal.severity]?.suppressionCost ?? 1;
+  const suppressionFraction = cost > 0 ? Math.min(1, scandal.suppressedUSD / cost) : 0;
 
   let StatusIcon = AlertTriangle;
   if (!scandal.active) {

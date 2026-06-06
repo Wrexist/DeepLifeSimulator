@@ -1063,7 +1063,11 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
   useEffect(() => {
     markBootStage('layout_providers_init');
     const appVersion = Constants.expoConfig?.version || '2.2.7';
-    const buildNumber = Constants.expoConfig?.ios?.buildNumber || '51';
+    // `Constants.expoConfig.ios.buildNumber` is a hardcoded config placeholder
+    // (EAS remote versioning owns the real store build number), so it can't
+    // identify which build is running. Pair it with the JS-baked BUILD_TAG —
+    // the marker we actually control and bump per build — for diagnostics.
+    const buildNumber = `${Constants.expoConfig?.ios?.buildNumber || 'dev'} (${BUILD_TAG})`;
     initializeDebugContext({
       appVersion,
       buildNumber,

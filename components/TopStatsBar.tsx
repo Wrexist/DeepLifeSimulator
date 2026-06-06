@@ -285,6 +285,28 @@ function TopStatsBarComponent() {
  }, [stats?.health, stats?.happiness, stats?.energy]);
 
  // Calculate net change for each stat
+ // R10-perf: derive the primitive signals the memo actually depends on. These
+ // are cheap single-pass scans; depending on them (instead of the careers/
+ // educations/dietPlans/realEstate ARRAYS, which get a new identity every decay
+ // tick) means the heavier memo body — including the prestige require() and the
+ // rounding math — only recomputes when a value that matters actually changes.
+ const currentCareerAccepted = !!careers?.find(c => c.id === currentJob && c.accepted);
+ const activeEducationCount = (educations || []).filter(edu =>
+ edu &&!edu.completed &&!edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0
+ ).length;
+ const activeDietPlanSig = (() => {
+ const p = (gameState?.dietPlans || []).find(plan => plan && plan.active);
+ return p ? `${p.healthGain ?? 0}|${p.happinessGain ?? 0}|${p.energyGain ?? 0}`: '';
+ })();
+ const residenceSig = (() => {
+ const r = (gameState?.realEstate || []).find(p => {
+ const hasStatus = 'status'in p && p.status ==='owner';
+ const hasCurrentResidence = 'currentResidence'in p && p.currentResidence === true;
+ return p.owned && hasStatus && hasCurrentResidence;
+ });
+ return r ? `${r.weeklyHappiness ?? 0}|${r.weeklyEnergy ?? 0}`: '';
+ })();
+
  const statNetChanges = React.useMemo(() => {
  if (!stats ||!gameState) return { health: 0, happiness: 0, energy: 0 };
 
@@ -382,7 +404,8 @@ function TopStatsBarComponent() {
  // objects. With the GameStateProvider identity short-circuit (P0-1) these
  // objects only change when something actually changed, but heavy memos like
  // this still benefit from primitive-only deps.
- }, [stats?.health, stats?.happiness, stats?.energy, stats?.money, bankSavings, currentJob, careers, educations, prestige?.unlockedBonuses, gameState?.dietPlans, gameState?.realEstate]);
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [stats?.health, stats?.happiness, stats?.energy, stats?.money, bankSavings, currentJob, currentCareerAccepted, activeEducationCount, prestige?.unlockedBonuses, activeDietPlanSig, residenceSig]);
 
  const progressStats = React.useMemo(
  () => {

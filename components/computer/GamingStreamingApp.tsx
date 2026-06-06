@@ -337,7 +337,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View key={k} style={styles.gearRow}>
               <Text style={[styles.gearName, { color: theme.text, flex: 1 }]}>{ACCESSORY_LABELS[k]}</Text>
               <Text style={[styles.gearPrice, { color: theme.textSecondary }]}>
-                ${ACCESSORY_PRICES[k].toLocaleString()}
+                ${(ACCESSORY_PRICES[k] ?? 0).toLocaleString()}
               </Text>
               <TouchableOpacity
                 onPress={() => handleAccessory(k)}

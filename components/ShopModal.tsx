@@ -7,6 +7,9 @@ import usePressableScale from '@/hooks/usePressableScale';
 import Skeleton from '@/components/anim/Skeleton';
 import { iapService, IAPService } from '@/services/IAPService';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { logger } from '@/utils/logger';
+
+const log = logger.scope('ShopModal');
 
 interface ScaleButtonProps {
   onPress: () => void;
@@ -142,7 +145,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     setIapLoading(true);
     
     try {
-      console.log(`Attempting to purchase: ${itemId} (${type})`);
+      log.info(`Attempting to purchase: ${itemId} (${type})`);
       
       // Use IAP service for purchase
       const result = await iapService.purchaseProduct(itemId);
@@ -156,7 +159,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
         Alert.alert('Purchase Failed', result.message || 'Unable to complete purchase. Please try again.');
       }
     } catch (error) {
-      console.error('Purchase error:', error);
+      log.error('Purchase error:', error);
       Alert.alert('Error', 'An error occurred during purchase. Please try again.');
     } finally {
       setIapLoading(false);
@@ -268,7 +271,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     setIapLoading(true);
     
     try {
-      console.log('Starting purchase restoration...');
+      log.info('Starting purchase restoration...');
       const success = await iapService.restorePurchases();
       
       if (success) {
@@ -283,7 +286,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
         );
       }
     } catch (error) {
-      console.error('Restore purchases error:', error);
+      log.error('Restore purchases error:', error);
       Alert.alert(
         'Restore Failed',
         'Unable to restore purchases. Please try again or contact support.',
@@ -315,7 +318,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
         <View style={modalStyle}>
           <View style={styles.header}>
             <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Shop</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
             </TouchableOpacity>
           </View>

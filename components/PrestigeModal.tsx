@@ -199,7 +199,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
                   <Text style={styles.subtitle}>{formatMoney(currentNetWorth)} Net Worth</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <X size={20} color="#9CA3AF" />
               </TouchableOpacity>
             </View>

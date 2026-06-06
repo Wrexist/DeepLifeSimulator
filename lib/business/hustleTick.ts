@@ -80,6 +80,12 @@ export function processHustleWeeklyTick(
   let cashDelta = 0;
   const cashReasons: string[] = [];
 
+  // R10-2: track spendable cash so a broke player can't run marketing campaigns
+  // "for free". The weekly-tick consumer floors money at `Math.max(0, money +
+  // cashDelta)`, which silently masked unaffordable campaign spend. Gate each
+  // campaign's weekly spend on the running balance and pause it otherwise.
+  let availableCash = state.stats?.money ?? 0;
+
   const playerCompanies = state.companies ?? [];
 
   for (const company of playerCompanies) {
@@ -98,13 +104,21 @@ export function processHustleWeeklyTick(
         o = pushNotif(o, `${camp.kind} campaign ended`, 'campaign_complete', nextWeeksLived);
         continue;
       }
+      // Can the player actually fund this week's spend? If not, pause the
+      // campaign rather than running it for free against the floored balance.
+      if (availableCash < camp.spendPerWeek) {
+        o = pushNotif(o, `${camp.kind} campaign paused — insufficient funds`, 'campaign_complete', nextWeeksLived);
+        continue;
+      }
       // Pay spend
       cashDelta -= camp.spendPerWeek;
+      availableCash -= camp.spendPerWeek;
       cashReasons.push(`${camp.kind} campaign weekly spend`);
       // Add ROI-driven revenue lift
       const lift = Math.floor(camp.spendPerWeek * (camp.projectedROI - 1));
       if (lift > 0) {
         cashDelta += lift;
+        availableCash += lift;
         cashReasons.push(`${camp.kind} campaign revenue lift`);
       }
       stillActive.push(camp);

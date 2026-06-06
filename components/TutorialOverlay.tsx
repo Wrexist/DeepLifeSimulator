@@ -9,6 +9,9 @@ import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from '@/utils/safeGameState';
 import { getTutorialSteps } from '@/utils/tutorialData';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
+import { logger } from '@/utils/logger';
+
+const log = logger.scope('TutorialOverlay');
 
 const TUTORIAL_COMPLETED_KEY = 'tutorial_completed';
 
@@ -38,7 +41,7 @@ export default function TutorialOverlay({ visible, onClose }: TutorialOverlayPro
       setCurrentStepIndex(0);
       onClose();
     } catch (error) {
-      console.error('Error saving tutorial completion:', error);
+      log.error('Error saving tutorial completion:', error);
     }
   };
 
@@ -48,7 +51,7 @@ export default function TutorialOverlay({ visible, onClose }: TutorialOverlayPro
       setCurrentStepIndex(0);
       onClose();
     } catch (error) {
-      console.error('Error saving tutorial completion:', error);
+      log.error('Error saving tutorial completion:', error);
     }
   };
 

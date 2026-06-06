@@ -42,7 +42,7 @@ export interface LoanQuote {
  */
 export function politicsAprReduction(state: GameState): number {
   try {
-    const careerLevel = (state as any).politics?.careerLevel ?? 0;
+    const careerLevel = state.politics?.careerLevel ?? 0;
     if (!careerLevel) return 0;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getCombinedPerkEffects } = require('@/lib/politics/perks');

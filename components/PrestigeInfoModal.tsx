@@ -220,7 +220,8 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
     };
 
     activeBonuses.forEach(bonus => {
-      grouped[bonus.category].push(bonus);
+      // Guard against a save carrying a category outside the pre-seeded buckets.
+      if (grouped[bonus.category]) grouped[bonus.category].push(bonus);
     });
 
     return grouped;

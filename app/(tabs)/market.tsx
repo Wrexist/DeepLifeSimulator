@@ -140,8 +140,8 @@ function MarketScreenContent() {
   // Memoized data with stable sorting and filtering
   const sortedItems = useMemo(() => {
     const filtered = activeFilter === 'all'
-      ? [...gameState.items]
-      : [...gameState.items].filter(item => ITEM_CATEGORIES[item.id] === activeFilter);
+      ? [...(gameState.items || [])]
+      : [...(gameState.items || [])].filter(item => ITEM_CATEGORIES[item.id] === activeFilter);
 
     return filtered.sort((a, b) => {
       // Sort by price first, then by name for stability
@@ -151,7 +151,7 @@ function MarketScreenContent() {
   }, [gameState.items, activeFilter]);
 
   const sortedFoods = useMemo(() =>
-    [...gameState.foods].sort((a, b) => {
+    [...(gameState.foods || [])].sort((a, b) => {
       // Sort by price first, then by name for stability
       if (a.price !== b.price) return a.price - b.price;
       return a.name.localeCompare(b.name);
@@ -245,17 +245,6 @@ function MarketScreenContent() {
             </Text>
           )}
           <Text style={styles.itemPrice}>${inflatedPrice}</Text>
-
-          {(item as any).weeklyBonus && (
-            <View style={styles.bonusInfo}>
-              <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.weeklyBonus')}</Text>
-              {Object.entries((item as any).weeklyBonus).map(([stat, bonus]) => (
-                <Text key={stat} style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>
-                  +{String(bonus)} {stat.charAt(0).toUpperCase() + stat.slice(1)}
-                </Text>
-              ))}
-            </View>
-          )}
         </View>
 
         {item.owned ? (

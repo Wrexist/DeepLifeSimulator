@@ -121,8 +121,8 @@ function WorkScreenContent() {
     const { settings } = gameState;
     // Filter out any creative/hobby jobs that might exist in streetJobs
     const creativeHobbyJobIds = ['guitar', 'music', 'art', 'football', 'basketball', 'tennis'];
-    const legalStreetJobs = gameState.streetJobs.filter(job => !job.illegal && !creativeHobbyJobIds.includes(job.id));
-    const criminalStreetJobs = gameState.streetJobs.filter(job => job.illegal === true && !creativeHobbyJobIds.includes(job.id));
+    const legalStreetJobs = (gameState.streetJobs || []).filter(job => !job.illegal && !creativeHobbyJobIds.includes(job.id));
+    const criminalStreetJobs = (gameState.streetJobs || []).filter(job => job.illegal === true && !creativeHobbyJobIds.includes(job.id));
 
     // State for negative stats popup
     const [showNegativeStatsPopup, setShowNegativeStatsPopup] = useState(false);

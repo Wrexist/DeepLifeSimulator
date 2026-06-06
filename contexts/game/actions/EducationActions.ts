@@ -31,7 +31,7 @@ function politicsEducationPerks(state: GameState): {
   costReduction: number;
   scholarshipAmount: number;
 } {
-  const careerLevel = (state as any).politics?.careerLevel ?? 0;
+  const careerLevel = state.politics?.careerLevel ?? 0;
   if (!careerLevel) return { weeksReduction: 0, costReduction: 0, scholarshipAmount: 0 };
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports

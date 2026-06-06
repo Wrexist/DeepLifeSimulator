@@ -82,6 +82,17 @@ function MobileScreenContent() {
       router.replace('/(tabs)/work');
     }
   }, [gameState.jailWeeks, router]);
+
+  // R10-UX: once a computer is owned the layout hides the Mobile tab
+  // (showMobileTab = ownsSmartphone && !ownsComputer), but expo-router keeps this
+  // screen mounted until the user navigates — leaving them stranded on a tab
+  // that's no longer in the bar. Mirror computer.tsx and redirect to home.
+  useEffect(() => {
+    const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
+    if (ownsComputer) {
+      router.replace('/(tabs)/home');
+    }
+  }, [gameState.items, router]);
   
   const { settings } = gameState;
   const navigation = useNavigation<any>();

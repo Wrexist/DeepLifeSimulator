@@ -9,6 +9,7 @@ import { WEDDING_VENUES, WEDDING_ADDONS, calculateWeddingCost, getVenueTypeColor
 import { WeddingPlan } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
+import { logger } from '@/utils/logger';
 const LinearGradient = LinearGradientFallback;
 
 interface WeddingPlanningModalProps {
@@ -26,7 +27,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
   // Debug: Log venues on mount
   React.useEffect(() => {
     if (__DEV__ && visible) {
-      console.log('[WeddingPlanningModal] Venues count:', WEDDING_VENUES.length);
+      logger.info(`[WeddingPlanningModal] Venues count: ${WEDDING_VENUES.length}`);
     }
   }, [visible]);
 

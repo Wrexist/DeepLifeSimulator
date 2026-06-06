@@ -766,7 +766,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
         <View style={modalStyle}>
           <View style={styles.header}>
             <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Help</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
             </TouchableOpacity>
           </View>

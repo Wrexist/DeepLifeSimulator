@@ -23,6 +23,9 @@ import { useGame } from '@/contexts/GameContext';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { responsiveFontSize, responsivePadding } from '@/utils/scaling';
+import { logger } from '@/utils/logger';
+
+const log = logger.scope('GemsStoreModal');
 
 interface GemsStoreModalProps {
   visible: boolean;
@@ -99,10 +102,10 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
       // Initialize IAP service when modal opens (non-blocking)
       iapService.initialize()
         .then(() => {
-          console.log('IAP service initialized successfully in GemsStoreModal');
+          log.info('IAP service initialized successfully');
         })
         .catch(error => {
-          console.log('IAP initialization failed in GemsStoreModal:', error);
+          log.warn('IAP initialization failed:', error);
           // Don't block the modal if IAP fails to initialize
         })
         .finally(() => {
@@ -141,7 +144,7 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
         Alert.alert('Purchase Failed', result.message);
       }
     } catch (error) {
-      console.error('Purchase error:', error);
+      log.error('Purchase error:', error);
       Alert.alert('Purchase Error', 'Something went wrong. Please try again.');
     } finally {
       setPurchasing(null);
@@ -158,7 +161,7 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
     setIsLoading(true);
     
     try {
-      console.log('Starting purchase restoration...');
+      log.info('Starting purchase restoration...');
       const success = await iapService.restorePurchases();
       
       if (success) {
@@ -173,7 +176,7 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
         );
       }
     } catch (error) {
-      console.error('Restore purchases error:', error);
+      log.error('Restore purchases error:', error);
       Alert.alert(
         'Restore Failed',
         'Unable to restore purchases. Please try again or contact support.',

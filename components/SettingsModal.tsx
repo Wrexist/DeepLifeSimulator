@@ -323,7 +323,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 </View>
                 <Text style={[styles.title,  styles.titleDark]}>{t('settings.title')}</Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.glassCloseButton}>
+              <TouchableOpacity onPress={onClose} style={styles.glassCloseButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <View style={styles.glassOverlay} />
                 <X size={20} color="#FFFFFF" />
               </TouchableOpacity>
