@@ -13,8 +13,21 @@ module.exports = {
     runtimeVersion: {
       policy: "sdkVersion"
     },
+    // CRITICAL (TestFlight determinism): expo-updates is HARD-DISABLED so the
+    // ONLY JS that ever runs is the bundle embedded in the native binary. With
+    // updates enabled + runtimeVersion policy "sdkVersion", a stale/broken OTA
+    // bundle published to runtime "exposdk:54.0.0" would override every new
+    // native build on launch — the classic "I shipped the fix 20 times and it
+    // still crashes the same way" trap. `enabled: false` is the only setting
+    // that 100% guarantees the embedded (fixed) bundle runs; checkAutomatically
+    // NEVER alone would still let an already-cached bad update load. Re-enable
+    // OTA only after the app is stable in TestFlight (and pin a real
+    // runtimeVersion, not the SDK-wide one, before doing so).
     updates: {
-      url: "https://u.expo.dev/55bb8510-7ba6-4ec5-9174-cc370f5f6fdb"
+      url: "https://u.expo.dev/55bb8510-7ba6-4ec5-9174-cc370f5f6fdb",
+      enabled: false,
+      checkAutomatically: "ON_ERROR_RECOVERY",
+      fallbackToCacheTimeout: 0
     },
     extra: {
       eas: {

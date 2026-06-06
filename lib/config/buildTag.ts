@@ -7,4 +7,4 @@
  *
  * Bump the suffix on every diagnostic/fix build.
  */
-export const BUILD_TAG = 'ANCHOR-FIX-r1';
+export const BUILD_TAG = 'OTA-OFF-1';
