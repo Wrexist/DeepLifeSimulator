@@ -3,7 +3,7 @@
  * Tracks discovered systems and features, calculates depth score
  */
 
-import { GameState } from '@/contexts/game/types';
+import type { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 
 import { SystemUnlockRequirements } from '@/lib/types/requirements';

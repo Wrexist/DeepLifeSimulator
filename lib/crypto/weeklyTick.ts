@@ -187,12 +187,20 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
         c.id === fill.order.cryptoId ? { ...c, owned: safe(c.owned) + fill.coinAmount } : c
       );
     } else {
-      cashDelta += fill.notionalUSD;
-      cryptos = cryptos.map((c) =>
-        c.id === fill.order.cryptoId
-          ? { ...c, owned: Math.max(0, safe(c.owned) - fill.coinAmount) }
-          : c
-      );
+      // Sell — credit cash ONLY for coins actually held. R10-1: clamp to owned
+      // so an order for more coins than the player holds can't print cash for
+      // phantom coins (the authoritative safety net behind placement validation).
+      const held = safe(cryptos.find((c) => c.id === fill.order.cryptoId)?.owned);
+      const sellable = Math.min(safe(fill.coinAmount), held);
+      if (sellable > 0) {
+        const pricePerCoin = fill.coinAmount > 0 ? fill.notionalUSD / fill.coinAmount : 0;
+        cashDelta += pricePerCoin * sellable;
+        cryptos = cryptos.map((c) =>
+          c.id === fill.order.cryptoId
+            ? { ...c, owned: Math.max(0, safe(c.owned) - sellable) }
+            : c
+        );
+      }
     }
     if (fill.order.type === 'stop') {
       notifications.push({

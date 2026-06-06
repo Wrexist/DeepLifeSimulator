@@ -143,6 +143,50 @@ export const sellStockMarket = (
 // Limit / stop orders — placed in the book; weekly tick fills them
 // ---------------------------------------------------------------------------
 
+/**
+ * R10-1: gate limit/stop placement on real solvency/holdings so the weekly
+ * tick can never fill an order into money/shares the player never had.
+ * BUY `amount` is USD to spend; SELL `amount` is shares to sell.
+ */
+function canPlaceStockOrder(
+  prev: GameState,
+  stocks: StocksSlice,
+  symbol: string,
+  side: StockOrderSide,
+  amount: number,
+  triggerPrice: number
+): boolean {
+  if (!isFinite(amount) || amount <= 0 || !isFinite(triggerPrice) || triggerPrice <= 0) {
+    log.warn(`Order rejected: amount=${amount}, price=${triggerPrice}`);
+    return false;
+  }
+  if (side === 'buy') {
+    const cash = prev.stats?.money ?? 0;
+    // Reserve the full notional (incl. fee) against existing open BUY orders so
+    // a player can't stack multiple unaffordable buys that each pass alone.
+    const reserved = (stocks.openOrders ?? [])
+      .filter((o) => o.side === 'buy' && o.status === 'open')
+      .reduce((sum, o) => sum + (o.amount ?? 0) * (1 + STOCK_FEE), 0);
+    const grossCost = amount * (1 + STOCK_FEE);
+    if (grossCost + reserved > cash) {
+      log.warn(`Buy order rejected: grossCost=${grossCost} reserved=${reserved} cash=${cash}`);
+      return false;
+    }
+    return true;
+  }
+  // SELL — must own enough shares, net of shares already committed to open sells.
+  const sym = symbol.toUpperCase();
+  const owned = (stocks.holdings ?? []).find((h) => h.symbol.toUpperCase() === sym)?.shares ?? 0;
+  const committed = (stocks.openOrders ?? [])
+    .filter((o) => o.side === 'sell' && o.status === 'open' && o.symbol.toUpperCase() === sym)
+    .reduce((sum, o) => sum + (o.amount ?? 0), 0);
+  if (amount + committed > owned) {
+    log.warn(`Sell order rejected: want=${amount} committed=${committed} owned=${owned}`);
+    return false;
+  }
+  return true;
+}
+
 export const placeStockLimitOrder = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   symbol: string,
@@ -152,6 +196,11 @@ export const placeStockLimitOrder = (
 ) => {
   setGameState((prev) => {
     const stocks = ensureStocks(prev);
+    // R10-1: validate solvency/holdings at placement. Without this, a limit
+    // SELL for shares you don't own filled into pure cash (phantom-sell money
+    // printer), and a limit BUY beyond your cash filled into free shares
+    // (the weekly-tick `Math.max(0, money + cashDelta)` floor masked the debt).
+    if (!canPlaceStockOrder(prev, stocks, symbol, side, amount, limitPrice)) return prev;
     const r = placeOrderPure(stocks.openOrders ?? [], {
       symbol: symbol.toUpperCase(),
       side,
@@ -173,6 +222,8 @@ export const placeStockStopOrder = (
 ) => {
   setGameState((prev) => {
     const stocks = ensureStocks(prev);
+    // R10-1: same solvency/holdings guard as limit orders (see above).
+    if (!canPlaceStockOrder(prev, stocks, symbol, side, amount, stopPrice)) return prev;
     const r = placeOrderPure(stocks.openOrders ?? [], {
       symbol: symbol.toUpperCase(),
       side,

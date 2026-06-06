@@ -387,6 +387,12 @@ export function useContextualTip(gameState: any) {
     const currentJob = gameState?.currentJob;
     const weeksLived = gameState?.weeksLived || 0;
     const careers = gameState?.careers;
+    // R10-perf: derive the one career-dependent signal as a primitive so the memo
+    // below doesn't list the `careers` array (new identity every decay tick) and
+    // `gameState.stats` (ditto) in its deps and recompute on every tick.
+    const promotionReady = !!careers?.some(
+        (c: any) => c.id === currentJob && c.accepted && c.progress >= 100
+    );
 
     const activeTip = useMemo(() => {
         if (!gameState?.stats) return null;
@@ -409,15 +415,13 @@ export function useContextualTip(gameState: any) {
         }
 
         // Check for promotion ready
-        const career = careers?.find((c: any) =>
-            c.id === currentJob && c.accepted && c.progress >= 100
-        );
-        if (career && !dismissedTips.has('promotion_ready')) {
+        if (promotionReady && !dismissedTips.has('promotion_ready')) {
             return 'promotion_ready';
         }
 
         return null;
-    }, [health, happiness, energy, money, currentJob, weeksLived, careers, dismissedTips, gameState?.stats]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [health, happiness, energy, money, currentJob, weeksLived, promotionReady, dismissedTips]);
 
     const dismissTip = (tipType: string) => {
         setDismissedTips(prev => new Set([...prev, tipType]));

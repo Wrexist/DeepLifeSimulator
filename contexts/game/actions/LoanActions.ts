@@ -146,15 +146,15 @@ export const acceptLoan = (
       latePayments: 0,
     };
 
-    const accounts = [...state.banking.accounts];
-    accounts[depositIdx] = {
-      ...accounts[depositIdx],
-      balance: accounts[depositIdx].balance + spec.principal,
-    };
-
+    // R10-1: do NOT also credit the deposit account's balance. The weekly tick's
+    // `mirrorAccountsFromLegacy` only syncs `checking-default` from `stats.money`;
+    // any other account (e.g. savings) keeps a balance crediting it here adds on
+    // top of the `stats.money` credit below → the principal is counted twice and
+    // withdrawing yields a second copy. Cash (`stats.money`) is authoritative;
+    // checking-default reflects it on the next tick. `depositIdx` is still
+    // validated above so a bad account id rejects the loan.
     const banking = {
       ...state.banking,
-      accounts,
       creditScore: {
         ...state.banking.creditScore,
         inquiries: [

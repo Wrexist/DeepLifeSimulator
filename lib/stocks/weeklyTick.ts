@@ -127,20 +127,29 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
         );
       }
     } else {
-      // Sell — pay out proceeds, reduce holdings, compute realized gain.
-      cashDelta += fill.notionalUSD;
+      // Sell — pay out proceeds ONLY for shares actually held, reduce holdings,
+      // compute realized gain. R10-1: clamp to owned shares so an order placed
+      // (or migrated) for more shares than the player holds can't print cash for
+      // phantom shares. Placement validation already guards this; this is the
+      // authoritative safety net regardless of how the order entered the book.
       const idx = holdings.findIndex((h) => h.symbol.toUpperCase() === sym);
       if (idx !== -1) {
         const existing = holdings[idx];
-        const gainPerShare = fill.order.filledPrice! - existing.averagePrice;
-        realizedGains += gainPerShare * fill.shares;
-        const remaining = existing.shares - fill.shares;
-        if (remaining <= 0.0001) {
-          holdings = holdings.filter((_, i) => i !== idx);
-        } else {
-          holdings = holdings.map((h, i) => (i === idx ? { ...h, shares: remaining } : h));
+        const sellable = Math.min(fill.shares, existing.shares);
+        if (sellable > 0) {
+          const pricePerShare = fill.shares > 0 ? fill.notionalUSD / fill.shares : safe(fill.order.filledPrice);
+          cashDelta += pricePerShare * sellable;
+          const gainPerShare = fill.order.filledPrice! - existing.averagePrice;
+          realizedGains += gainPerShare * sellable;
+          const remaining = existing.shares - sellable;
+          if (remaining <= 0.0001) {
+            holdings = holdings.filter((_, i) => i !== idx);
+          } else {
+            holdings = holdings.map((h, i) => (i === idx ? { ...h, shares: remaining } : h));
+          }
         }
       }
+      // No holdings for this symbol → credit nothing (was a phantom-sell printer).
     }
     notifications.push({
       id: `stk-fill-${fill.order.id}`,

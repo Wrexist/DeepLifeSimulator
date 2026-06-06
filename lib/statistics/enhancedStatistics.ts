@@ -3,9 +3,9 @@
  * Extends existing statistics with system-level analytics
  */
 
-import { GameState, LifetimeStatistics } from '@/contexts/game/types';
-import { SystemInterconnection } from '@/lib/depth/systemInterconnections';
-import { DiscoveredSystem } from '@/lib/depth/discoverySystem';
+import type { GameState, LifetimeStatistics } from '@/contexts/game/types';
+import type { SystemInterconnection } from '@/lib/depth/systemInterconnections';
+import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 
 export interface SystemStatistics {
   systemId: string;

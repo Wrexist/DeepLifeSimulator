@@ -150,7 +150,7 @@ function politicsInputFor(state: GameState, currentWeek: number, seed: number) {
   return {
     politics,
     darkWebHeat: state.darkWeb?.heat ?? 0,
-    karma: state.karma ?? 0,
+    karma: state.karma?.score ?? 0,
     contentiousPolicies: 0,
     currentWeek,
     rollFor: deterministicRoll(seed),

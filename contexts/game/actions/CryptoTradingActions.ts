@@ -126,6 +126,46 @@ export const sellCryptoMarket = (
 // Limit / stop orders (sit in the book; weekly tick fills them)
 // ---------------------------------------------------------------------------
 
+/**
+ * R10-1: gate limit/stop placement on real solvency/holdings so the weekly
+ * tick can never fill an order into money/coins the player never had.
+ * BUY `amount` is USD to spend; SELL `amount` is coin units to sell.
+ */
+function canPlaceCryptoOrder(
+  state: GameState,
+  cryptoId: string,
+  side: CryptoOrderSide,
+  amount: number,
+  triggerPrice: number
+): boolean {
+  if (!isFinite(amount) || amount <= 0 || !isFinite(triggerPrice) || triggerPrice <= 0) {
+    log.warn(`Order rejected: amount=${amount}, price=${triggerPrice}`);
+    return false;
+  }
+  const openOrders = state.cryptoMarket?.openOrders ?? [];
+  if (side === 'buy') {
+    const cash = state.stats?.money ?? 0;
+    const reserved = openOrders
+      .filter((o) => o.side === 'buy' && o.status === 'open')
+      .reduce((sum, o) => sum + (o.amount ?? 0), 0);
+    if (amount + reserved > cash) {
+      log.warn(`Buy order rejected: amount=${amount} reserved=${reserved} cash=${cash}`);
+      return false;
+    }
+    return true;
+  }
+  // SELL — must own enough coins, net of coins already committed to open sells.
+  const owned = state.cryptos.find((c) => c.id === cryptoId)?.owned ?? 0;
+  const committed = openOrders
+    .filter((o) => o.side === 'sell' && o.status === 'open' && o.cryptoId === cryptoId)
+    .reduce((sum, o) => sum + (o.amount ?? 0), 0);
+  if (amount + committed > owned) {
+    log.warn(`Sell order rejected: want=${amount} committed=${committed} owned=${owned}`);
+    return false;
+  }
+  return true;
+}
+
 export const placeLimitOrder = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   cryptoId: string,
@@ -136,6 +176,9 @@ export const placeLimitOrder = (
   setGameState((prev) => {
     const state = ensureMarket(prev);
     if (!state.cryptoMarket) return prev;
+    // R10-1: solvency/holdings guard — without it a limit SELL printed cash for
+    // coins you never owned, and a limit BUY beyond cash printed free coins.
+    if (!canPlaceCryptoOrder(state, cryptoId, side, amount, limitPrice)) return prev;
     const result = placeOrder(state.cryptoMarket, {
       cryptoId,
       side,
@@ -159,6 +202,8 @@ export const placeStopOrder = (
   setGameState((prev) => {
     const state = ensureMarket(prev);
     if (!state.cryptoMarket) return prev;
+    // R10-1: same solvency/holdings guard as limit orders (see above).
+    if (!canPlaceCryptoOrder(state, cryptoId, side, amount, stopPrice)) return prev;
     const result = placeOrder(state.cryptoMarket, {
       cryptoId,
       side,

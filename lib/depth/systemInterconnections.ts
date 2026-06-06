@@ -3,7 +3,7 @@
  * Tracks and calculates how game systems affect each other
  */
 
-import { GameState } from '@/contexts/game/types';
+import type { GameState } from '@/contexts/game/types';
 
 export interface SystemInterconnection {
   sourceSystem: string;

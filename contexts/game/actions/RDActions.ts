@@ -5,7 +5,7 @@
  */
 import { GameState, RDLab } from '../types';
 import { logger } from '@/utils/logger';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { LAB_TYPES, getLabUpgradeCost, LabType } from '@/lib/rd/labs';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -14,9 +14,8 @@ import { createPatent } from '@/lib/rd/patents';
 import { 
   COMPETITIONS,
   getActiveCompetitions, 
-  canEnterCompetition, 
+  canEnterCompetition,
   calculateCompetitionScore,
-  type Competition 
 } from '@/lib/rd/competitions';
 import type { Dispatch, SetStateAction } from 'react';
 
@@ -443,93 +442,91 @@ export const enterCompetition = (
   };
 };
 
+/**
+ * Resolve any company R&D competitions whose result week has arrived.
+ *
+ * R10-1: this used to be orphaned — `enterCompetition` charged the entry fee but
+ * nothing ever called this to award prizes, so every entry was a permanent money
+ * sink. It is now wired into the weekly tick (CompanyActionsContext effect on
+ * `weeksLived`). Resolution runs in a SINGLE `setGameState` updater and grants
+ * the prize via `applyMoneyDelta` folded into that same updater, so it is atomic
+ * and idempotent: a double-invoke (React StrictMode) recomputes from the same
+ * `prev` and only ever marks each entry `completed` once — no double-award.
+ */
 export const processCompetitionResults = (
-  gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
-  deps: { updateMoney: typeof updateMoney },
   currentWeek?: number
 ): void => {
-  const week = currentWeek ?? (gameState.weeksLived || 0);
-  
-  (gameState.companies || []).forEach(company => {
-    const competitionHistory = company.competitionHistory || [];
-    const pendingCompetitions = competitionHistory.filter(
-      entry => !entry.completed && entry.endWeek <= week
-    );
+  setGameState(prev => {
+    const week = currentWeek ?? (prev.weeksLived || 0);
+    const companies = prev.companies || [];
 
-    if (pendingCompetitions.length === 0) return;
+    // Collect resolutions across all companies first so we can grant the total
+    // prize in one money delta and rewrite each company's history once.
+    let totalPrize = 0;
+    const resolvedByCompany = new Map<string, Map<string, { rank: number; prize: number }>>();
+    let anyResolved = false;
 
-    pendingCompetitions.forEach(entry => {
-      // Resolve by id from canonical list so resolution does not depend on current active window.
-      const competition = COMPETITIONS.find(c => c.id === entry.competitionId);
-      if (!competition) return;
+    for (const company of companies) {
+      const pending = (company.competitionHistory || []).filter(
+        entry => !entry.completed && entry.endWeek <= week
+      );
+      if (pending.length === 0) continue;
 
-      // Generate AI competitors (3-10 competitors with random scores)
-      const numCompetitors = Math.floor(Math.random() * 8) + 3;
-      const competitorScores: number[] = [];
-      
-      // Base competitor scores around player's score with variation
-      const baseScore = entry.score;
-      for (let i = 0; i < numCompetitors; i++) {
-        const variation = (Math.random() - 0.5) * baseScore * 0.5; // ±25% variation
-        competitorScores.push(Math.max(0, Math.floor(baseScore + variation)));
+      const resolutions = new Map<string, { rank: number; prize: number }>();
+      for (const entry of pending) {
+        const competition = COMPETITIONS.find(c => c.id === entry.competitionId);
+        if (!competition) continue;
+
+        // Generate 3–10 AI competitors scoring around the player's score (±25%).
+        const numCompetitors = Math.floor(Math.random() * 8) + 3;
+        const competitorScores: number[] = [];
+        const baseScore = entry.score;
+        for (let i = 0; i < numCompetitors; i++) {
+          const variation = (Math.random() - 0.5) * baseScore * 0.5;
+          competitorScores.push(Math.max(0, Math.floor(baseScore + variation)));
+        }
+        const allScores = [...competitorScores, entry.score].sort((a, b) => b - a);
+        const playerRank = allScores.indexOf(entry.score) + 1;
+
+        let prize = 0;
+        if (playerRank === 1) prize = competition.prizes.first;
+        else if (playerRank === 2) prize = competition.prizes.second;
+        else if (playerRank === 3) prize = competition.prizes.third;
+
+        totalPrize += prize;
+        anyResolved = true;
+        resolutions.set(`${entry.competitionId}|${entry.entryWeek}`, { rank: playerRank, prize });
+        log.info(`Competition ${competition.name} resolved for ${company.id}: rank ${playerRank}, prize $${prize}`);
       }
+      if (resolutions.size > 0) resolvedByCompany.set(company.id, resolutions);
+    }
 
-      // Add player score and sort
-      const allScores = [...competitorScores, entry.score].sort((a, b) => b - a);
-      const playerRank = allScores.indexOf(entry.score) + 1;
+    if (!anyResolved) return prev;
 
-      // Determine prize
-      let prize = 0;
-      if (playerRank === 1) {
-        prize = competition.prizes.first;
-      } else if (playerRank === 2) {
-        prize = competition.prizes.second;
-      } else if (playerRank === 3) {
-        prize = competition.prizes.third;
-      }
-
-      // Update competition entry
-      const updatedEntry = {
-        ...entry,
-        completed: true,
-        rank: playerRank,
-        prize: prize,
-      };
-
-      // Award prize if won
-      if (prize > 0) {
-        deps.updateMoney(setGameState, prize, `Won ${competition.name} (${playerRank === 1 ? '1st' : playerRank === 2 ? '2nd' : '3rd'} place)`);
-      }
-
-      // Update company state
-      setGameState(prev => ({
-        ...prev,
-        companies: (prev.companies || []).map(c => {
-          if (c.id !== company.id) return c;
-          return {
-            ...c,
-            competitionHistory: (c.competitionHistory || []).map(e => 
-              e.competitionId === entry.competitionId && e.entryWeek === entry.entryWeek
-                ? updatedEntry
-                : e
-            ),
-          };
+    const applyHistory = (c: GameState['companies'][number]) => {
+      const resolutions = resolvedByCompany.get(c.id);
+      if (!resolutions) return c;
+      return {
+        ...c,
+        competitionHistory: (c.competitionHistory || []).map(e => {
+          const r = resolutions.get(`${e.competitionId}|${e.entryWeek}`);
+          return r && !e.completed ? { ...e, completed: true, rank: r.rank, prize: r.prize } : e;
         }),
-        company: prev.company?.id === company.id
-          ? {
-              ...prev.company,
-              competitionHistory: (prev.company.competitionHistory || []).map(e => 
-                e.competitionId === entry.competitionId && e.entryWeek === entry.entryWeek
-                  ? updatedEntry
-                  : e
-              ),
-            }
-          : prev.company,
-      }));
+      };
+    };
 
-      log.info(`Competition ${competition.name} completed for ${company.id}: Rank ${playerRank}, Prize: $${prize}`);
-    });
+    // Grant the summed prize atomically. applyMoneyDelta returns null only for an
+    // invalid amount; totalPrize is a non-negative finite sum, so on the rare null
+    // we still mark entries completed (prize forfeited rather than re-resolved forever).
+    const moneySlice = totalPrize > 0 ? applyMoneyDelta(prev, totalPrize, 'R&D competition winnings') : null;
+
+    return {
+      ...prev,
+      ...(moneySlice ?? {}),
+      companies: companies.map(applyHistory),
+      company: prev.company ? applyHistory(prev.company) : prev.company,
+    };
   });
 };
 

@@ -1,4 +1,4 @@
-import { GameStats } from '@/contexts/game/types';
+import type { GameStats } from '@/contexts/game/types';
 
 export interface FamilyMemberNode {
   id: string;

@@ -15,6 +15,15 @@ export const clampStat = (value: number, min = 0, max = 100): number => {
 };
 
 /**
+ * Clamp an unbounded non-negative amount (money/gems). Unlike `Math.max(0, v)`,
+ * this also sanitizes NaN/Infinity — `Math.max(0, NaN)` returns NaN, so the bare
+ * form let a poisoned money/gems value slip through the very validator meant to
+ * catch it and then propagate to every display and comparison.
+ */
+export const sanitizeAmount = (value: number, fallback = 0): number =>
+  isFinite(value) && value > 0 ? value : fallback;
+
+/**
  * Validate and clamp all stats to valid ranges
  */
 export const validateStats = (stats: GameStats): GameStats => {
@@ -23,9 +32,9 @@ export const validateStats = (stats: GameStats): GameStats => {
     happiness: clampStat(stats.happiness),
     energy: clampStat(stats.energy),
     fitness: clampStat(stats.fitness),
-    money: Math.max(0, stats.money), // Money can be any positive number
+    money: sanitizeAmount(stats.money), // Money: any positive number, NaN/Inf → 0
     reputation: clampStat(stats.reputation),
-    gems: Math.max(0, stats.gems), // Gems can be any positive number
+    gems: sanitizeAmount(stats.gems), // Gems: any positive number, NaN/Inf → 0
   };
 };
 
@@ -42,7 +51,7 @@ export const clampStatByKey = (key: keyof GameStats, value: number): number => {
       return clampStat(value, 0, 100);
     case 'money':
     case 'gems':
-      return Math.max(0, value);
+      return sanitizeAmount(value); // NaN/Infinity → 0 (not Math.max(0, NaN) === NaN)
     default:
       return value;
   }

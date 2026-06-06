@@ -210,7 +210,10 @@ function IdentityCard() {
     [gameState.realEstate, gameState.vehicles, (gameState as any).loans]
   );
   const passive = passiveInfo.total;
-  const jobIncome = currentCareer ? currentCareer.levels[currentCareer.level].salary : 0;
+  // Guard the level index the same way `job` (line ~153) does: a stale/migrated
+  // save can carry a `level` out of bounds for `levels`, making the lookup
+  // undefined and crashing the home tab with `.salary of undefined`.
+  const jobIncome = currentCareer?.levels?.[currentCareer.level]?.salary ?? 0;
 
   // Partner / spouse weekly income (counts even after marriage) - nerfed to 25%
   const partnerIncome = useMemo(() => (relationships || [])

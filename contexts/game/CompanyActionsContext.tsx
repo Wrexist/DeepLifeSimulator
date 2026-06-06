@@ -9,7 +9,7 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import * as CompanyActions from './company';
 import * as MiningActions from './actions/MiningActions';
 import { createFamilyBusiness as createFamilyBusinessModule } from './actions/FamilyBusinessActions';
-import { enterCompetition as enterCompetitionModule } from './actions/RDActions';
+import { enterCompetition as enterCompetitionModule, processCompetitionResults } from './actions/RDActions';
 import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import type { GameState } from './types';
 
@@ -60,6 +60,16 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   useEffect(() => {
     stateRef.current = gameState;
   }, [gameState]);
+
+  // R10-1: resolve due R&D competitions once per week. `enterCompetition` charges
+  // the entry fee up front; this is the matching payout pass (previously orphaned,
+  // so every entry was a pure money sink). Keyed on `weeksLived` so it fires once
+  // per advance; processCompetitionResults is atomic + idempotent (it only touches
+  // entries whose endWeek has arrived and that aren't already completed).
+  const weeksLived = gameState?.weeksLived ?? 0;
+  useEffect(() => {
+    processCompetitionResults(setGameState, weeksLived);
+  }, [weeksLived, setGameState]);
 
   const buyWarehouse = useCallback(() => {
     const latestState = stateRef.current;

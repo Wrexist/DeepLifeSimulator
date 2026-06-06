@@ -143,6 +143,9 @@ export default function BaseModal({
                     onPress={onClose}
                     style={styles.closeButton}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close"
+                    accessibilityHint="Closes this dialog"
                   >
                     <X size={20} color={colors.dark.textSecondary} />
                   </TouchableOpacity>

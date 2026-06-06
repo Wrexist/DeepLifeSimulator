@@ -52,6 +52,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { logger } from '@/utils/logger';
 import { colors as themeColors } from '@/lib/config/theme';
 import { CareerPathCard } from '@/components/CareerPathCard';
+import type { AdvancedCareer } from '@/lib/careers/advancedCareers';
 const LinearGradient = LinearGradientFallback;
 const BlurView = BlurViewFallback;
 
@@ -368,7 +369,22 @@ function WorkScreenContent() {
         } catch {
             return [];
         }
-    }, [gameState]);
+        // R10-perf: depend on the primitives that gate `getActiveSystems` (which
+        // systems are unlocked), NOT the whole `gameState` object — that changes
+        // identity every decay tick, re-walking the entire interconnection graph
+        // each tick while the Work tab is open. The body still reads gameState via
+        // closure; only the dep list is narrowed.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        gameState.currentJob,
+        gameState.careers?.length,
+        gameState.relationships?.length,
+        gameState.healthActivities?.length,
+        gameState.hobbies?.length,
+        gameState.educations?.length,
+        gameState.travel,
+        gameState.criminalLevel,
+    ]);
 
     const renderJobCard = (job: StreetJob) => {
         const lowReward = Math.floor(job.basePayment * 0.7);
@@ -543,8 +559,10 @@ function WorkScreenContent() {
     };
 
     const renderCareerCard = (career: Career): React.ReactElement => {
-        const requiresFitness = !!('fitness' in career.requirements && career.requirements.fitness);
-        const meetsFitness = !requiresFitness || (gameState?.stats?.fitness ?? 0) >= (career.requirements as any).fitness;
+        // CareerRequirements types `fitness`/`items` directly, so no `as any`
+        // needed (was a rule-2 violation that bypassed the narrowed type).
+        const requiresFitness = !!career.requirements.fitness;
+        const meetsFitness = !requiresFitness || (gameState?.stats?.fitness ?? 0) >= (career.requirements.fitness ?? 0);
         const requiresEdu = !!('education' in career.requirements && career.requirements.education && career.requirements.education.length > 0);
         const hasEdu =
             !requiresEdu ||
@@ -553,24 +571,26 @@ function WorkScreenContent() {
             ));
         const requiresItems = !!('items' in career.requirements && career.requirements.items && career.requirements.items.length > 0);
         const missingItemNames: string[] = requiresItems
-            ? ((career.requirements as any).items as string[])
+            ? (career.requirements.items ?? [])
                 .filter((id) => !(gameState.items || []).find(i => i.id === id)?.owned)
                 .map((id) => (gameState.items || []).find(i => i.id === id)?.name || id)
             : [];
 
-        const level = career.levels[career.level];
+        // Guard the level index — a stale/migrated save can carry `level` out of
+        // bounds for `levels`, making this undefined and crashing the card.
+        const level = career.levels?.[career.level] ?? career.levels?.[0];
         const isEmployedHere = gameState.currentJob === career.id;
         const canPromote = isEmployedHere && career.progress >= 100 && career.level < career.levels.length - 1;
         const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
         const { happinessPenalty, healthPenalty } = getCareerPenalties();
 
-        const reward = requiresEdu && !hasEdu ? '— Locked' : `$${level.salary}/wk`;
+        const reward = requiresEdu && !hasEdu ? '— Locked' : `$${level?.salary ?? 0}/wk`;
 
         const metadata: JobCardMetadata[] = [];
         if (requiresFitness) {
             metadata.push({
                 icon: <Trophy size={scale(13)} color={meetsFitness ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
-                value: `Fitness ${(career.requirements as any).fitness}+`,
+                value: `Fitness ${career.requirements.fitness}+`,
                 tone: meetsFitness ? 'default' : 'bad',
             });
         }
@@ -633,7 +653,7 @@ function WorkScreenContent() {
         } else if (requiresFitness && !meetsFitness) {
             buttonText = 'Requires fitness';
             locked = true;
-            lockReason = `Reach Fitness ${(career.requirements as any).fitness} to apply.`;
+            lockReason = `Reach Fitness ${career.requirements.fitness} to apply.`;
         } else if (missingItemNames.length > 0) {
             buttonText = 'Locked';
             locked = true;
@@ -688,7 +708,7 @@ function WorkScreenContent() {
                 key={career.id}
                 accent="career"
                 buttonAccent={buttonAccent}
-                title={level.name}
+                title={level?.name ?? 'Unemployed'}
                 description={career.description}
                 reward={reward}
                 metadata={metadata}
@@ -701,8 +721,8 @@ function WorkScreenContent() {
         );
     };
 
-    const sortedCareers = [...gameState.careers].sort(
-        (a, b) => a.levels[0].salary - b.levels[0].salary
+    const sortedCareers = [...(gameState.careers || [])].sort(
+        (a, b) => (a.levels?.[0]?.salary ?? 0) - (b.levels?.[0]?.salary ?? 0)
     );
     const advancedIds = ['politician', 'celebrity', 'athlete'];
     const basicCareers = sortedCareers.filter(c => !advancedIds.includes(c.id));
@@ -829,7 +849,10 @@ function WorkScreenContent() {
                                             );
                                         }
 
-                                        return unlockedCareers.map((career: Career) => {
+                                        return unlockedCareers.map((career: AdvancedCareer) => {
+                                            // Advanced careers carry no top-level `name`; the
+                                            // human title is the entry-level label.
+                                            const displayName = career.levels?.[0]?.name ?? career.id;
                                             const isLocked = !isCareerUnlocked(career, {
                                                 education: gameState.educations || [],
                                                 achievements: gameState.achievements || [],
@@ -851,7 +874,7 @@ function WorkScreenContent() {
                                                     ]}
                                                     onPress={() => {
                                                         if (isLocked) {
-                                                            const req = (career as any).unlockRequirements || (career as any).requirements;
+                                                            const req = career.unlockRequirements || career.requirements;
                                                             const requirements = [];
                                                             if ('education' in req && req.education) requirements.push(`Education: ${req.education.join(', ')}`);
                                                             if ('experience' in req && req.experience) requirements.push(`Experience: ${req.experience} weeks`);
@@ -865,9 +888,9 @@ function WorkScreenContent() {
                                                                 careers: [...prev.careers, { ...career, applied: true }],
                                                             }));
                                                             saveGame();
-                                                            Alert.alert('Application Submitted', `You've applied for ${(career as any).name || career.id}!`);
+                                                            Alert.alert('Application Submitted', `You've applied for ${displayName}!`);
                                                         } else if (isAccepted) {
-                                                            Alert.alert('Career Active', `You're currently working as ${career.levels[career.level].name}.`);
+                                                            Alert.alert('Career Active', `You're currently working as ${career.levels?.[career.level]?.name ?? displayName}.`);
                                                         } else {
                                                             Alert.alert('Application Pending', 'Your application is being reviewed.');
                                                         }
@@ -877,7 +900,7 @@ function WorkScreenContent() {
                                                     <View style={styles.careerCardHeader}>
                                                         <View>
                                                             <Text style={[styles.careerName, settings.darkMode && styles.careerNameDark]}>
-                                                                {(career as any).name || career.id}
+                                                                {displayName}
                                                             </Text>
                                                             <Text style={[styles.careerDescription, settings.darkMode && styles.careerDescriptionDark]}>
                                                                 {career.description}
@@ -887,7 +910,7 @@ function WorkScreenContent() {
                                                         {isAccepted && <Check size={scale(20)} color="#22C55E" />}
                                                     </View>
                                                     <Text style={[styles.careerSalary, settings.darkMode && styles.careerSalaryDark]}>
-                                                        ${career.levels[0].salary.toLocaleString()}/year
+                                                        ${(career.levels?.[0]?.salary ?? 0).toLocaleString()}/year
                                                     </Text>
                                                 </TouchableOpacity>
                                             );

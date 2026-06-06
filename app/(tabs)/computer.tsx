@@ -130,6 +130,10 @@ function ComputerScreenContent() {
   }, [navigation]);
 
   // Memoize apps list - must be called before any early returns (Rules of Hooks)
+  // R10-perf: hoist the only career-dependent flag to a primitive so the 17-app
+  // list (and its 3 derived filtered lists) don't rebuild every decay tick just
+  // because `gameState.careers` got a new array identity.
+  const canRunPolitical = gameState.careers.some(c => c.id === 'political' && c.accepted);
   const appsList = useMemo(() => [
     {
       id: 'bitcoin',
@@ -264,7 +268,7 @@ function ComputerScreenContent() {
       icon: Vote,
       gradient: ['#DC2626', '#B91C1C'], // Red gradient for politics
       iconGradient: ['#DC2626', '#B91C1C'],
-      available: gameState.careers.some(c => c.id === 'political' && c.accepted),
+      available: canRunPolitical,
     },
     {
       id: 'statistics',
@@ -284,7 +288,7 @@ function ComputerScreenContent() {
       iconGradient: ['#6366F1', '#8B5CF6'],
       available: true,
     },
-  ], [t, gameState.careers]);
+  ], [t, canRunPolitical]);
 
   // Separate apps into categories
   const desktopApps = useMemo(() => appsList.filter(app => 

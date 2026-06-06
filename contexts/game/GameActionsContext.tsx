@@ -1054,11 +1054,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newStats.happiness = Math.min(100, newStats.happiness + housingHappinessBonus);
  }
 
- // CRITICAL: Cap stats to valid ranges (0-100) after all calculations
- newStats.energy = Math.max(0, Math.min(100, typeof newStats.energy === 'number' ? newStats.energy: 0));
- newStats.health = Math.max(0, Math.min(100, typeof newStats.health === 'number' ? newStats.health: 0));
- newStats.happiness = Math.max(0, Math.min(100, typeof newStats.happiness === 'number' ? newStats.happiness: 0));
- newStats.fitness = Math.max(0, Math.min(100, typeof newStats.fitness === 'number' ? newStats.fitness: 0));
+ // CRITICAL: Cap stats to valid ranges (0-100) after all calculations.
+ // Use isFinite, NOT `typeof === 'number'`: `typeof NaN === 'number'` is true and
+ // `Math.max(0, Math.min(100, NaN))` stays NaN, so the bare typeof check let a NaN
+ // stat survive the cap and show "NaN" in the UI until the next save/load repair.
+ const clampStat0to100 = (v: number): number => (isFinite(v) ? Math.max(0, Math.min(100, v)) : 0);
+ newStats.energy = clampStat0to100(newStats.energy);
+ newStats.health = clampStat0to100(newStats.health);
+ newStats.happiness = clampStat0to100(newStats.happiness);
+ newStats.fitness = clampStat0to100(newStats.fitness);
 
  // ── ENGAGEMENT: Lucky Bonus System (variable ratio reinforcement) ──
  // Unpredictable rewards on week advance create anticipation and excitement
@@ -1316,7 +1320,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  campaignFunds: 0,
  },
  darkWebHeat: darkWebTick.darkWeb.heat,
- karma: (prevState.karma as any)?.totalKarma ?? 0,
+ karma: prevState.karma?.score ?? 0,
  contentiousPolicies: (prevState.politics?.policiesEnacted ?? []).length,
  currentWeek: nextWeeksLived,
  rollFor: () => Math.random(),
@@ -1374,7 +1378,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  socialMedia: pulseSocialMedia,
  sparkApp: sparkAppNext,
  hustleApp: hustleAppNext,
- stats: {...newStats, reputation: pulseRepAdjusted },
+ // Final NaN/Infinity guard on the unbounded fields: once money or reputation
+ // goes NaN (a bad delta upstream), every later `Math.max(0, NaN + x)` stays NaN
+ // and the UI shows "NaN" until the next save/load repair. isFinite catches it.
+ stats: {
+ ...newStats,
+ money: isFinite(newStats.money) ? newStats.money: 0,
+ reputation: isFinite(pulseRepAdjusted) ? pulseRepAdjusted: (isFinite(newStats.reputation) ? newStats.reputation: 50),
+ },
  // Death warning system tracking
  healthZeroWeeks: newHealthZeroWeeks,
  happinessZeroWeeks: newHappinessZeroWeeks,
