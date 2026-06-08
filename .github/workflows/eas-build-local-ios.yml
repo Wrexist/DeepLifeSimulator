@@ -20,12 +20,19 @@ concurrency:
   group: ios-local-release
   cancel-in-progress: false
 
+# Least privilege: these jobs only read code, run EAS, and upload artifacts.
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   # ---- Cheap gates on ubuntu (mirrors eas-build.yml) -----------------------
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -71,6 +78,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:

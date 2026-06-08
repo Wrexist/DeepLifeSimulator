@@ -27,7 +27,8 @@ eas whoami                        # confirm
 
 ## 1. Required production secrets
 
-The iOS preflight gate (`npm run preflight`) **fails** without these three.
+The iOS preflight gate (`npm run preflight`) **fails** without these three secret
+groups (five env vars total — the AdMob row covers three IDs).
 `eas.json` `production` env sets `ENABLE_ADMOB=true`, `ENABLE_IAP=true`,
 `ENABLE_ATT=true`, which is what makes them mandatory.
 
@@ -66,7 +67,8 @@ Also keep these at their safe production defaults (preflight FAILS otherwise):
 npm ci
 npm run preflight        # MUST print "PREFLIGHT CHECK PASSED" — do not bypass (CLAUDE.md rule #6)
 ```
-If preflight still flags the three vars, they aren't visible to your shell —
+If preflight still flags those vars (five env vars across the three groups above),
+they aren't visible to your shell —
 re-check `.env.local`. Code-level checks (routes, type-check, lint, 2344 tests)
 already pass on this branch as of this runbook.
 
