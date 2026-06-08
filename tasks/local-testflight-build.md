@@ -94,9 +94,34 @@ directly in Xcode (`npx expo prebuild --platform ios --clean` → open the
 
 ---
 
-## Fallbacks if you have no Mac
+## CI option — build on a GitHub macOS runner (no Mac needed, no cloud credits)
+
+Workflow: `.github/workflows/eas-build-local-ios.yml` — manual trigger
+(Actions ▸ "EAS Build iOS (local · no cloud credits)" ▸ Run workflow). It runs
+the cheap gates on ubuntu, then `eas build --local` + TestFlight submit on
+`macos-latest`. macOS minutes bill ~10x, so the gates fail fast on ubuntu first.
+
+Required **GitHub Actions repo secrets** (Settings ▸ Secrets and variables ▸ Actions):
+
+| Secret | Notes |
+|---|---|
+| `EXPO_TOKEN` | Expo access token (expo.dev ▸ Account ▸ Access Tokens). Authenticates eas-cli. |
+| `EXPO_PUBLIC_SAVE_HMAC_KEY` | long random, stable across releases |
+| `EXPO_PUBLIC_IAP_VERIFY_URL` | `https://…` |
+| `EXPO_PUBLIC_IAP_VERIFY_TOKEN` | optional auth token for the verify endpoint |
+| `EXPO_PUBLIC_ADMOB_IOS_APP_ID` | `ca-app-pub-…~…` |
+| `EXPO_PUBLIC_ADMOB_BANNER_IOS` | `ca-app-pub-…/…` |
+| `EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS` | `ca-app-pub-…/…` |
+| `EXPO_PUBLIC_ADMOB_REWARDED_IOS` | `ca-app-pub-…/…` |
+
+The preflight step is a **hard gate** in this workflow — missing any of the above
+fails the run before macOS time is spent. The `submit` step needs an **App Store
+Connect API key stored as EAS credentials** (set once via `eas credentials` or an
+interactive `eas submit`) so `--non-interactive` can reuse it. The `.ipa` is also
+uploaded as a build artifact for manual Transporter upload if submit is skipped.
+
+## Other fallbacks if you have no Mac
 
 iOS binaries cannot be built on Linux/Windows. Options:
 1. **Upgrade the EAS plan** (Production tier raises/removes the monthly cloud build cap) — then the original `eas build --platform ios --profile production --auto-submit` works.
 2. **Wait for the rolling monthly quota to reset.**
-3. Use a CI macOS runner (e.g. GitHub Actions `macos-latest`) to run `eas build --local`.
