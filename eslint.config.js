@@ -46,6 +46,58 @@ module.exports = [
     },
   },
   {
+    // --- Type-safety guardrails (Round 11 §0.5) -----------------------------
+    // Scoped to TS/TSX only: `@typescript-eslint` rules + the `as any`
+    // selector are meaningless on plain .js (and the plugin isn't registered
+    // for .js, which errors). These encode CLAUDE.md Hard Rule #2 ("No `as any`
+    // casts") and the recurring root cause in tasks/lessons.md (untyped
+    // internal require() degrades return types to any/never). 'warn' globally
+    // during the burndown (~320 `as any` + ~95 internal requires remain) for
+    // visibility; ratcheted to 'error' per directory as each is cleaned (see
+    // the lib/travel block below — the first fully-clean directory). Flip the
+    // global severity to 'error' once Sprint 1 completes the burndown.
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      'no-restricted-syntax': ['warn',
+        {
+          selector: 'TSAsExpression > TSAnyKeyword',
+          message: "No `as any` casts (CLAUDE.md Hard Rule #2) — use a real type or a type guard. For RN-web style shadows, use a typed helper.",
+        },
+        {
+          selector: "CallExpression[callee.name='require'][arguments.0.value=/^@.(lib|utils|contexts)/]",
+          message: "Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. See tasks/lessons.md.",
+        },
+      ],
+      // Block bare @ts-ignore / @ts-nocheck; require a justification on
+      // @ts-expect-error. The 4 existing suppressions are all described
+      // @ts-expect-error, so this is non-breaking today.
+      '@typescript-eslint/ban-ts-comment': ['error', {
+        'ts-expect-error': 'allow-with-description',
+        'ts-ignore': true,
+        'ts-nocheck': true,
+        minimumDescriptionLength: 5,
+      }],
+    },
+  },
+  {
+    // Ratchet: lib/travel is fully clean of `as any` / internal require()
+    // (Round 11 §1.1). Enforce at 'error' so it can never regress. Add more
+    // directories here as the burndown clears them.
+    files: ["lib/travel/**/*.{ts,tsx}"],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: 'TSAsExpression > TSAnyKeyword',
+          message: "No `as any` casts (CLAUDE.md Hard Rule #2) — use a real type or a type guard.",
+        },
+        {
+          selector: "CallExpression[callee.name='require'][arguments.0.value=/^@.(lib|utils|contexts)/]",
+          message: "Use a static `import` for internal modules — require() degrades types. See tasks/lessons.md.",
+        },
+      ],
+    },
+  },
+  {
     files: ["jest.setup.js", "**/*.test.{js,ts,tsx}", "**/__tests__/**/*.{js,ts,tsx}"],
     languageOptions: {
       globals: {
@@ -62,6 +114,9 @@ module.exports = [
     },
     rules: {
       'react/display-name': 'off',
+      // Tests legitimately use `as any` (state-corruption fixtures) and require().
+      'no-restricted-syntax': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
   {

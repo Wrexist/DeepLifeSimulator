@@ -276,6 +276,45 @@ directly (Sprint 2.2). Flagged there.
 **Verification:** `npm run type-check` 0 errors; `npx jest --ci` → **2344 passed / 145 suites /
 308 snapshots** (zero regressions); state-growth invariants green; no test referenced DevToolsModal.
 
+## Sprint 0.5 (ESLint guardrails) + 1.1 (high-risk as-any burndown, clean subset) — shipped 2026-06-09
+
+**0.5 — Type-safety guardrails (`eslint.config.js`, `package.json`).** Added three rules,
+scoped to `**/*.{ts,tsx}` (TS-only so the `@typescript-eslint` plugin is registered and plain
+`.js` config files don't break): (1) ban `as any` via `no-restricted-syntax`
+`TSAsExpression > TSAnyKeyword`; (2) ban internal `require('@/lib|@/utils|@/contexts')` via
+`no-restricted-syntax`; (3) `@typescript-eslint/ban-ts-comment` (bare `@ts-ignore`/`@ts-nocheck`
+banned, `@ts-expect-error` needs a ≥5-char description). Globally `'warn'` during the burndown
+(~320 `as any` + ~95 internal requires remain — visibility without blocking); ratcheted to
+`'error'` for `lib/travel/**` (the first fully-clean dir). Tests opt out (they legitimately use
+`as any`/`require`). Added `lint:errors` (`eslint --quiet`, errors-only) and wired it into
+`preflight` so the ratchet + ban-ts-comment block locally; CI's existing `npm run lint` step
+already blocks on errors.
+
+**Guardrail immediately paid off:** caught 3 bare `@ts-ignore`s in `src/dev/animatedDriverGuard.ts`
+(missed by manual greps) — converted to documented `@ts-expect-error` (they suppress real
+read-only-`Animated.*` monkey-patch errors; type-check confirms no unused-directive).
+
+**1.1 — High-risk `as any` burndown (clean, behavior-preserving subset).**
+- **TS-4 (Hard-Rule-2 violation):** `lib/travel/operations.ts` (5 casts) + `transportation.ts`
+  (1 cast) → 0. `destination.requirements` is already `TravelDestinationRequirements`
+  (money/happiness/items typed); `Item` has `id`/`owned`; `politics.activePolicyEffects.transportation`
+  is typed. All removals behavior-identical; dir now enforced at `error`.
+- **TS-7:** `IdentityCard.tsx` `(gameState as any).loans` → `gameState.loans` (typed `Loan[]`).
+
+**Deliberately deferred (investigative, NOT mechanical).** `lib/statistics/crossSystemSummary.ts`
+(~13 casts) and `StatisticsApp.tsx` look like easy `(state as any).X → state.X` removals, but
+direct reading shows the card readers reference legacy/mismatched sub-shapes — e.g. `realEstateCard`
+reads `realEstate.properties` though `realEstate` is now `RealEstate[]` (a latent display bug).
+Removing those casts type-checks ~15 child-field reads and would force behavior changes / protected
+`types.ts` edits per field. That is per-field schema reconciliation, not a cast sweep, so it's queued
+as a focused task rather than risked in a type-safety pass on money-display code. The 23
+`useGame() as any` sites (TS-2) are similarly per-component (each surfaces whatever fields that
+screen reads) — next batch. The 185 RN-web `boxShadow … as any` casts (Phase 5) await the
+`webShadow` typed helper.
+
+**Verification:** `npm run type-check` 0 errors; `npx eslint . --quiet` (errors-only) **0 errors**
+repo-wide; `lib/travel` clean at `error`; rules fire as `warn` on remaining offenders.
+
 ---
 
 # PART 4 — VERIFICATION CHECKLIST (per the project's gates)

@@ -58,18 +58,18 @@ export function quoteTrip(
   }
 
   // Passport requirement
-  const reqItems = (destination.requirements as any)?.items as string[] | undefined;
+  const reqItems = destination.requirements?.items;
   if (reqItems?.includes('passport')) {
-    const passportItem = state.items?.find((i: any) => i.id === 'passport');
-    const ownsPassport = state.travel?.passportOwned || (passportItem as any)?.owned;
+    const passportItem = state.items?.find((i) => i.id === 'passport');
+    const ownsPassport = state.travel?.passportOwned || passportItem?.owned;
     if (!ownsPassport) {
       return { ok: false, reason: 'needs-passport', message: 'You need a passport to visit this destination' };
     }
   }
 
   // Stat / money requirement
-  const reqMoney = (destination.requirements as any)?.money as number | undefined;
-  const reqHappiness = (destination.requirements as any)?.happiness as number | undefined;
+  const reqMoney = destination.requirements?.money;
+  const reqHappiness = destination.requirements?.happiness;
 
   const mods = transportationMods(state);
   const baseCost = safe(destination.cost, 0);
