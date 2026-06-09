@@ -10,6 +10,7 @@ import { Platform, Modal,
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, Crown, Award, TrendingUp, Unlock, Settings, Star, Check, Sparkles } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { safeSettings } from '@/utils/safeGameState';
 import { PRESTIGE_BONUSES, getBonusLevel, PrestigeBonusCategory } from '@/lib/prestige/prestigeBonuses';
 import {
   getSkillGainMultiplier,
@@ -37,7 +38,7 @@ interface PrestigeInfoModalProps {
 }
 
 export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModalProps) {
-  const darkMode = useGameSelector((s) => s.settings.darkMode);
+  const darkMode = useGameSelector((s) => safeSettings(s).darkMode);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 

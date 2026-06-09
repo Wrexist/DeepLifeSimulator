@@ -36,7 +36,7 @@ Severity: **P0** release/revenue/store blocker · **P1** high (exploit/broken/co
 | MON-8 | P2 | Dead duplicate reads: `goldUpgrades.work_boost/fast_learner/mindset` are read but never written (IAP writes `perks.*`). Vestigial OR-branches. | `MoneyActionsContext.tsx:161-170` |
 | MON-9 | P2 | **Three divergent entitlement-apply paths** (`applyBenefitToDisk`, `applyProductToState`, `ShopModal.applyPurchaseBenefits`) — drift risk. Consolidate to one. | IAPService + ShopModal |
 | MON-10 | P2 | `EXPO_PUBLIC_ALLOW_LEGACY_LOCAL_IAP_ENTITLEMENTS` tamper hatch (preflight-blocked in prod; keep unset). | `IAPService.ts:28-30` |
-| — | OK | **Confirmed FIXED** (prior audits): Mindset 50%-faster-promotions, Time Machine, Immortality, the four $1.99 perks, gem gold-upgrades, rewarded-ad gating (grants only on EARNED_REWARD), restore dedup. |
+| — | — | OK | **Confirmed FIXED** (prior audits): Mindset 50%-faster-promotions, Time Machine, Immortality, the four $1.99 perks, gem gold-upgrades, rewarded-ad gating (grants only on EARNED_REWARD), restore dedup. |
 
 ## B. Type-safety (Hard Rule #2: no `as any`, no unguarded unions)
 
@@ -51,7 +51,7 @@ Severity: **P0** release/revenue/store blocker · **P1** high (exploit/broken/co
 | TS-5 | P2 | **`{} as any` state fallbacks** defeat checking on whole branches in mutation paths. | `EducationActions.ts:215`, `PoliticalActions.ts:797-875`, `PulseActions.ts:187-191` |
 | TS-6 | P2 | **~95 internal `require()` of code modules** degrade types to any/never (the recurring root cause in lessons.md), concentrated in `contexts/game/actions/*`, `lib/economy/*`, `lib/prestige/*`. | grep |
 | TS-7 | P2 | `(gameState as any).loans` though `loans?: Loan[]` is typed. | `IdentityCard.tsx:210`, `FinanceOverview.tsx:63` |
-| — | OK | IAPService, MoneyActions, saveValidation, initialState, requirements.ts itself are **clean** of `as any`. |
+| — | — | OK | IAPService, MoneyActions, saveValidation, initialState, requirements.ts itself are **clean** of `as any`. |
 
 ## C. Performance & memory (contexts/game/*)
 
@@ -65,7 +65,7 @@ Severity: **P0** release/revenue/store blocker · **P1** high (exploit/broken/co
 | PERF-6 | P2 | **Fixed `setTimeout(50ms)` post-tick** — pure latency tax, no compute purpose. | `GameActionsContext.tsx:1620` |
 | PERF-7 | P2 | `work.tsx` re-renders fully each tick (memo useless because `useGame()` returns new object); `streetJobs` filtered twice per render, unmemoized. | `work.tsx:110-125` |
 | PERF-8 | P2 | Always-mounted `TopStatsBar`/`IdentityCard` consume broad `useGame()` + unmemoized `.find()` in render. | `TopStatsBar.tsx:337,359` |
-| — | OK | No timer/listener leaks (autosave, live-stream, app/index all clean up). |
+| — | — | OK | No timer/listener leaks (autosave, live-stream, app/index all clean up). |
 
 ## D. Architecture / decomposition / CI
 
@@ -77,7 +77,7 @@ Severity: **P0** release/revenue/store blocker · **P1** high (exploit/broken/co
 | ARCH-4 | P2 | Mega-files: `work.tsx` 4,577 (74% is a 3,370-line stylesheet), `GameActionsContext` 3,182 (`nextWeek` ~1,474), `types.ts` 2,709, `SettingsModal` 1,902, `DeathPopup` 1,901, `IdentityCard` 1,783, `_layout.tsx` 1,413. | wc -l |
 | ARCH-5 | P2 | Constants drift: `100000`/`1000000` cost literals across company/political/family-business actions; time-ms formulas duplicated in ~15 files (no `MS_PER_DAY`/`MS_PER_WEEK`). | gameConstants gaps |
 | ARCH-6 | P3 | 11-level provider pyramid — flattenable via `composeProviders` (keep the per-provider boundaries). Low priority. | `GameProvider.tsx` |
-| — | OK | `entry.ts` 17 lines compliant; `check-route-conflicts.cjs` wired into CI+preflight; `gameConstants.ts` well-adopted (72 importers). |
+| — | — | OK | `entry.ts` 17 lines compliant; `check-route-conflicts.cjs` wired into CI+preflight; `gameConstants.ts` well-adopted (72 importers). |
 
 ## E. UX / design system / accessibility
 

@@ -117,7 +117,7 @@ export function buildMilestones(state: GameState): Milestone[] {
   if (safe(pol?.electionsWon, 0) > 0) {
     out.push({
       id: 'elected',
-      label: `Won ${pol.electionsWon} election(s)`,
+      label: `Won ${pol?.electionsWon} election(s)`,
       category: 'career',
     });
   }
@@ -126,7 +126,7 @@ export function buildMilestones(state: GameState): Milestone[] {
   if (((dw?.jobHistory ?? []).length) >= 10) {
     out.push({
       id: 'fence',
-      label: `${dw.jobHistory.length} dark-web jobs`,
+      label: `${(dw?.jobHistory ?? []).length} dark-web jobs`,
       category: 'risk',
     });
   }

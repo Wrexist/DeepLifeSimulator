@@ -24,7 +24,7 @@ interface BoostModalProps {
 }
 
 export default function BoostModal({ visible, onDismiss }: BoostModalProps) {
-  const { gameState, setGameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const gems = gameState.stats?.gems ?? 0;
   const canAfford = gems >= BOOST_COST;
@@ -37,11 +37,12 @@ export default function BoostModal({ visible, onDismiss }: BoostModalProps) {
     const r = boostProfile(setGameState, gameState);
     if (r.success) {
       sparkHaptics.boost();
+      saveGame();
       onDismiss();
     } else {
       sparkHaptics.error();
     }
-  }, [canAfford, setGameState, gameState, onDismiss]);
+  }, [canAfford, setGameState, gameState, saveGame, onDismiss]);
 
   if (!visible) return null;
 

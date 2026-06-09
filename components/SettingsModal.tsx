@@ -397,7 +397,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 {/* Game Dev Tools — dev/QA only; gated so the simulator graph is stripped from production. */}
                 {DEV_TOOLS_ENABLED && (
                   <TouchableOpacity
-                    style={[styles.actionButtonContainer, { marginBottom: 16 }]}
+                    style={[styles.actionButtonContainer, styles.devToolsButtonContainer]}
                     onPress={() => setShowDevTools(true)}
                     activeOpacity={0.85}
                     accessibilityRole="button"
@@ -410,7 +410,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                       style={styles.actionButton}
                     >
                       <Code size={22} color="#FFFFFF" style={styles.actionButtonIcon} />
-                      <Text style={[styles.actionButtonText, { fontSize: 16, fontWeight: '700' }]}>Game Dev Tools</Text>
+                      <Text style={[styles.actionButtonText, styles.devToolsButtonText]}>Game Dev Tools</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
@@ -1159,6 +1159,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: responsiveFontSize.base,
+  },
+  devToolsButtonContainer: {
+    marginBottom: scale(16),
+  },
+  devToolsButtonText: {
+    fontSize: fontScale(16),
+    fontWeight: '700',
   },
   // Enhanced Danger Section Styles
   dangerSection: {

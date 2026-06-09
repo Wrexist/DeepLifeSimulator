@@ -106,7 +106,7 @@ export default function StatisticsApp({ onBack }: Props) {
           <Text style={[styles.peakValue, { color: accent.gold }]}>
             ${Math.round((lifetime.peakNetWorth ?? netWorth)).toLocaleString()}
           </Text>
-          {(lifetime.peakNetWorthWeek) ? (
+          {typeof lifetime.peakNetWorthWeek === 'number' ? (
             <Text style={[styles.peakLabel, { color: theme.textSecondary }]}>
               week {lifetime.peakNetWorthWeek}
             </Text>

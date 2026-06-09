@@ -3,6 +3,7 @@ import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Crown, TrendingUp, Sparkles } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { safeSettings } from '@/utils/safeGameState';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 const LinearGradient = LinearGradientFallback;
@@ -13,7 +14,7 @@ interface PrestigePreviewCardProps {
 
 function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
   const currentNetWorth = useGameSelector((s) => netWorth(s));
-  const darkMode = useGameSelector((s) => s.settings.darkMode);
+  const darkMode = useGameSelector((s) => safeSettings(s).darkMode);
   const prestigeLevel = 0; // Preview for players who haven't prestiged yet
   const threshold = getPrestigeThreshold(prestigeLevel);
   const progress = Math.min(100, (currentNetWorth / threshold) * 100);

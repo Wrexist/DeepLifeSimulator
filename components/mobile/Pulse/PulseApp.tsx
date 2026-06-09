@@ -274,12 +274,12 @@ export default function PulseApp({ onBack }: PulseAppProps) {
         <Pressable
           onPress={openBrandDeals}
           accessibilityRole="button"
-          accessibilityLabel={`Brand deals, ${sm.brandInbox?.pending?.length ?? 0} pending`}
+          accessibilityLabel={`Brand deals, ${sm?.brandInbox?.pending?.length ?? 0} pending`}
           style={[styles.dealChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
           <Briefcase size={fontScale(14)} color={PULSE_GRADIENT[0]} />
           <Text style={[styles.dealChipText, { color: theme.text }]}>
-            Brand deals · {(sm.brandInbox?.pending?.length ?? 0) + (sm.activeBrandDeals?.length ?? 0)}
+            Brand deals · {(sm?.brandInbox?.pending?.length ?? 0) + (sm?.activeBrandDeals?.length ?? 0)}
           </Text>
         </Pressable>
       ) : null}

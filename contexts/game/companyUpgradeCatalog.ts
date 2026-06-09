@@ -216,7 +216,7 @@ export const COMPANY_UPGRADES: Record<string, CompanyUpgrade[]> = {
       },
       {
         id: 'property_management',
-        name: 'Property Management',
+        name: 'Professional Management',
         description: 'Professional management',
         cost: 40000,
         weeklyIncomeBonus: 2000,
