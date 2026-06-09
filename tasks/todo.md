@@ -481,7 +481,13 @@ Properties: **non-breaking**, **dependency-free**, **React-19-native**, **increm
       `AncestorProfileModal`, `AutoSaveIndicator`, `MemoryBookModal`, `FamilyTreeModal`,
       `PrestigeInfoModal`. Caught + fixed a `rules-of-hooks` ordering issue (hook moved above an
       early return in OfflineIndicator). type-check 0, lint 0, jest 2353/147 green.
-- [ ] **Batch 3+**: continue the ~121 remaining `useGame()` consumers in per-area batches.
+- [x] **Batch 3** (computed-value pattern): `PrestigeButton`, `PrestigePreviewCard` →
+      `useGameSelector((s) => netWorth(s))` + `prestige`/`darkMode`. Demonstrates selecting a
+      *derived number* (memoized comparison re-renders only when the computed value changes).
+      type-check 0, lint 0, jest 2353/147 green.
+- [ ] **Batch 4+**: continue the ~119 remaining `useGame()` consumers in per-area batches.
+      Note: `HelpModal`/`BugReportSheet` read state only inside a callback — better served by a
+      future `getGameState()` accessor than a subscription; deferred.
       Deferred pattern: components that pass whole `gameState` to a calc (`netWorth(gameState)`,
       etc.) — select the derived number directly (`useGameSelector((s) => netWorth(s))`) or the
       needed slices. Order by render frequency / always-on-screen first.

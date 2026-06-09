@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Crown, TrendingUp, Sparkles } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 const LinearGradient = LinearGradientFallback;
@@ -12,8 +12,8 @@ interface PrestigePreviewCardProps {
 }
 
 function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
-  const { gameState } = useGame();
-  const currentNetWorth = netWorth(gameState);
+  const currentNetWorth = useGameSelector((s) => netWorth(s));
+  const darkMode = useGameSelector((s) => s.settings.darkMode);
   const prestigeLevel = 0; // Preview for players who haven't prestiged yet
   const threshold = getPrestigeThreshold(prestigeLevel);
   const progress = Math.min(100, (currentNetWorth / threshold) * 100);
@@ -27,13 +27,13 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
 
   return (
     <TouchableOpacity
-      style={[styles.container, gameState.settings.darkMode && styles.containerDark]}
+      style={[styles.container, darkMode && styles.containerDark]}
       onPress={onPress}
       activeOpacity={0.8}
     >
       <LinearGradient
         colors={
-          gameState.settings.darkMode
+          darkMode
             ? ['#1F2937', '#111827']
             : ['#FFFFFF', '#F3F4F6']
         }
@@ -47,10 +47,10 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
               <Crown size={24} color="#F59E0B" />
             </View>
             <View style={styles.textContainer}>
-              <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]}>
+              <Text style={[styles.title, darkMode && styles.titleDark]}>
                 Prestige System
               </Text>
-              <Text style={[styles.subtitle, gameState.settings.darkMode && styles.subtitleDark]}>
+              <Text style={[styles.subtitle, darkMode && styles.subtitleDark]}>
                 Reach {formatMoney(threshold)} net worth to unlock
               </Text>
             </View>
@@ -61,7 +61,7 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
         </View>
 
         <View style={styles.descriptionContainer}>
-          <Text style={[styles.description, gameState.settings.darkMode && styles.descriptionDark]}>
+          <Text style={[styles.description, darkMode && styles.descriptionDark]}>
             Prestige to reset your character and earn permanent bonuses that make your next life easier!
           </Text>
         </View>
@@ -70,42 +70,42 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
           <View style={styles.progressHeader}>
             <View style={styles.progressLabelContainer}>
               <TrendingUp size={16} color="#F59E0B" />
-              <Text style={[styles.progressLabel, gameState.settings.darkMode && styles.progressLabelDark]}>
+              <Text style={[styles.progressLabel, darkMode && styles.progressLabelDark]}>
                 Progress to Prestige
               </Text>
             </View>
-            <Text style={[styles.progressText, gameState.settings.darkMode && styles.progressTextDark]}>
+            <Text style={[styles.progressText, darkMode && styles.progressTextDark]}>
               {formatMoney(currentNetWorth)} / {formatMoney(threshold)}
             </Text>
           </View>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
-          <Text style={[styles.progressPercent, gameState.settings.darkMode && styles.progressPercentDark]}>
+          <Text style={[styles.progressPercent, darkMode && styles.progressPercentDark]}>
             {progress.toFixed(1)}%
           </Text>
         </View>
 
         <View style={styles.benefitsContainer}>
-          <Text style={[styles.benefitsTitle, gameState.settings.darkMode && styles.benefitsTitleDark]}>
+          <Text style={[styles.benefitsTitle, darkMode && styles.benefitsTitleDark]}>
             Prestige Benefits:
           </Text>
           <View style={styles.benefitsList}>
             <View style={styles.benefitItem}>
               <Crown size={14} color="#F59E0B" />
-              <Text style={[styles.benefitText, gameState.settings.darkMode && styles.benefitTextDark]}>
+              <Text style={[styles.benefitText, darkMode && styles.benefitTextDark]}>
                 Earn Prestige Points to buy permanent bonuses
               </Text>
             </View>
             <View style={styles.benefitItem}>
               <TrendingUp size={14} color="#10B981" />
-              <Text style={[styles.benefitText, gameState.settings.darkMode && styles.benefitTextDark]}>
+              <Text style={[styles.benefitText, darkMode && styles.benefitTextDark]}>
                 Start stronger with bonus stats, money, and multipliers
               </Text>
             </View>
             <View style={styles.benefitItem}>
               <Sparkles size={14} color="#8B5CF6" />
-              <Text style={[styles.benefitText, gameState.settings.darkMode && styles.benefitTextDark]}>
+              <Text style={[styles.benefitText, darkMode && styles.benefitTextDark]}>
                 Unlock special abilities and quality-of-life improvements
               </Text>
             </View>
