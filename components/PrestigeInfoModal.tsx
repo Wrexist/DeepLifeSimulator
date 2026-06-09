@@ -9,7 +9,7 @@ import { Platform, Modal,
   Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, Crown, Award, TrendingUp, Unlock, Settings, Star, Check, Sparkles } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { PRESTIGE_BONUSES, getBonusLevel, PrestigeBonusCategory } from '@/lib/prestige/prestigeBonuses';
 import {
   getSkillGainMultiplier,
@@ -37,11 +37,11 @@ interface PrestigeInfoModalProps {
 }
 
 export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModalProps) {
-  const { gameState } = useGame();
+  const darkMode = useGameSelector((s) => s.settings.darkMode);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  const prestigeData = gameState.prestige;
+  const prestigeData = useGameSelector((s) => s.prestige);
   const unlockedBonuses = prestigeData?.unlockedBonuses || [];
 
   useEffect(() => {
@@ -276,7 +276,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
           ]}
         >
           <LinearGradient
-            colors={gameState.settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
+            colors={darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -285,12 +285,12 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 <Crown size={24} color="#F59E0B" />
-                <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]}>
+                <Text style={[styles.title, darkMode && styles.titleDark]}>
                   Prestige Bonuses
                 </Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={gameState.settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+                <X size={24} color={darkMode ? '#FFFFFF' : '#1F2937'} />
               </TouchableOpacity>
             </View>
 
@@ -298,19 +298,19 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
             <View style={styles.summary}>
               <View style={styles.summaryItem}>
                 <Crown size={20} color="#F59E0B" />
-                <Text style={[styles.summaryLabel, gameState.settings.darkMode && styles.summaryLabelDark]}>
+                <Text style={[styles.summaryLabel, darkMode && styles.summaryLabelDark]}>
                   Total Bonuses
                 </Text>
-                <Text style={[styles.summaryValue, gameState.settings.darkMode && styles.summaryValueDark]}>
+                <Text style={[styles.summaryValue, darkMode && styles.summaryValueDark]}>
                   {unlockedBonuses.length}
                 </Text>
               </View>
               <View style={styles.summaryItem}>
                 <Award size={20} color="#3B82F6" />
-                <Text style={[styles.summaryLabel, gameState.settings.darkMode && styles.summaryLabelDark]}>
+                <Text style={[styles.summaryLabel, darkMode && styles.summaryLabelDark]}>
                   Prestige Level
                 </Text>
-                <Text style={[styles.summaryValue, gameState.settings.darkMode && styles.summaryValueDark]}>
+                <Text style={[styles.summaryValue, darkMode && styles.summaryValueDark]}>
                   {prestigeData?.prestigeLevel || 0}
                 </Text>
               </View>
@@ -327,10 +327,10 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
                   <View key={category} style={styles.categorySection}>
                     <View style={styles.categoryHeader}>
                       <Icon size={18} color="#F59E0B" />
-                      <Text style={[styles.categoryTitle, gameState.settings.darkMode && styles.categoryTitleDark]}>
+                      <Text style={[styles.categoryTitle, darkMode && styles.categoryTitleDark]}>
                         {getCategoryName(category as PrestigeBonusCategory)}
                       </Text>
-                      <Text style={[styles.categoryCount, gameState.settings.darkMode && styles.categoryCountDark]}>
+                      <Text style={[styles.categoryCount, darkMode && styles.categoryCountDark]}>
                         ({bonuses.length})
                       </Text>
                     </View>
@@ -340,17 +340,17 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
                         key={`${bonus.name}-${index}`}
                         style={[
                           styles.bonusItem,
-                          gameState.settings.darkMode && styles.bonusItemDark,
+                          darkMode && styles.bonusItemDark,
                         ]}
                       >
                         <View style={styles.bonusItemHeader}>
                           <Check size={16} color="#10B981" />
-                          <Text style={[styles.bonusName, gameState.settings.darkMode && styles.bonusNameDark]}>
+                          <Text style={[styles.bonusName, darkMode && styles.bonusNameDark]}>
                             {bonus.name}
                             {bonus.level && bonus.maxLevel && ` (Level ${bonus.level}/${bonus.maxLevel})`}
                           </Text>
                         </View>
-                        <Text style={[styles.bonusEffect, gameState.settings.darkMode && styles.bonusEffectDark]}>
+                        <Text style={[styles.bonusEffect, darkMode && styles.bonusEffectDark]}>
                           {bonus.effect || bonus.description}
                         </Text>
                       </View>
@@ -361,7 +361,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
 
               {activeBonuses.length === 0 && (
                 <View style={styles.emptyState}>
-                  <Text style={[styles.emptyText, gameState.settings.darkMode && styles.emptyTextDark]}>
+                  <Text style={[styles.emptyText, darkMode && styles.emptyTextDark]}>
                     No bonuses unlocked yet. Visit the Shop to purchase bonuses!
                   </Text>
                 </View>

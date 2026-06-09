@@ -477,7 +477,11 @@ Properties: **non-breaking**, **dependency-free**, **React-19-native**, **increm
       (settings+achievements), `BankBreakdownModal` (bankSavings+stocks+weeksLived). Established the
       `useGameSelector((s) => safeSettings(s), shallowEqual)` pattern (unlocks the 32 `safeSettings`
       consumers). type-check 0, lint 0, jest 2353/147 green.
-- [ ] **Batch 2+**: continue the ~128 remaining `useGame()` consumers in per-area batches.
+- [x] **Batch 2** (settings/darkMode + narrow slice): `OfflineIndicator`, `shared/EconomyEventBanner`,
+      `AncestorProfileModal`, `AutoSaveIndicator`, `MemoryBookModal`, `FamilyTreeModal`,
+      `PrestigeInfoModal`. Caught + fixed a `rules-of-hooks` ordering issue (hook moved above an
+      early return in OfflineIndicator). type-check 0, lint 0, jest 2353/147 green.
+- [ ] **Batch 3+**: continue the ~121 remaining `useGame()` consumers in per-area batches.
       Deferred pattern: components that pass whole `gameState` to a calc (`netWorth(gameState)`,
       etc.) — select the derived number directly (`useGameSelector((s) => netWorth(s))`) or the
       needed slices. Order by render frequency / always-on-screen first.
