@@ -464,12 +464,20 @@ Properties: **non-breaking**, **dependency-free**, **React-19-native**, **increm
       derived selector + `shallowEqual` stable; no tearing. (3 tests, green)
 - [x] Gate: full suite **2352 / 146 suites** (incl. realProviderLoop + gameFlow) green;
       type-check 0; lint 0. Committed.
-### Phase 2 — Migrate hot, safe consumers (demonstrate the win)
-- [ ] Migrate a few high-frequency read-only components to `useGameSelector`.
-- [ ] Render-count regression test proving no re-render on unrelated state change.
-- [ ] Gate + commit.
-### Phase 3 — Incremental migration (follow-up)
+### Phase 2 — Migrate hot, safe consumers (demonstrate the win) ✅ shipped
+- [x] Migrated `components/StatsDisplay.tsx` (reads only `stats`) from `useGame()` to
+      `useGameSelector((s) => s.stats, shallowEqual)`.
+- [x] `React.Profiler` render-count regression test proving it does NOT re-render on
+      unrelated changes (loans, weeksLived) and re-renders exactly once on a stat change.
+- [x] Gate: full suite **2353 / 147 suites** green; type-check 0; lint 0. Committed.
+
+### Phase 3 — Incremental migration (follow-up, not yet done)
 - [ ] Burn down the 133 `useGame()` consumers in per-area batches, each its own commit.
+      Recommended order by render frequency / always-on-screen first:
+      `TopStatsBar` (large — split carefully), Pulse feed/cards, Spark swipe/chat, Hustle
+      dashboards, Computer apps. Each batch: select only the slices the component reads,
+      add a render-count test for the hottest one, verify full suite + stress, commit.
+      **Rule:** never select a derived object/array without an `isEqual` (`shallowEqual`).
 
 ## 5. Verification gates (every phase)
 type-check 0 · `eslint --quiet` 0 · `jest` all green (2349/145) · stress: `realProviderLoop`,

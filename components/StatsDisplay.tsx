@@ -1,12 +1,13 @@
 import React from 'react';
 import { Platform, View, Text, StyleSheet } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { Heart, Smile, Zap, Dumbbell, DollarSign, Gem } from 'lucide-react-native';
 import StatBar from './anim/StatBar';
 
 export default function StatsDisplay() {
-  const { gameState } = useGame();
-  const { stats } = gameState;
+  // Sprint 2: this view reads only `stats`, so select that slice — it now
+  // re-renders only when a stat value changes, not on every game-state mutation.
+  const stats = useGameSelector((s) => s.stats, shallowEqual);
 
   const getStatColor = (stat: string, value: number) => {
     if (stat === 'money' || stat === 'fitness') {
