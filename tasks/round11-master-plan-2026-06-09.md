@@ -235,6 +235,49 @@ per-release quality scorecard. Gated on Sprints 0–2 landing.
 
 ---
 
+# IMPLEMENTATION LOG
+
+## Sprint 0.3 + 0.6 — shipped 2026-06-09 (`claude/app-audit-roadmap-f5ukvy`)
+
+**0.3 — Simulator suite no longer ships in production (ARCH-1).** Traced the chain to a
+single live entry edge: `TopStatsBar → SettingsModal:18 (static import) → DevToolsModal →
+{TestRunner→ComprehensiveGameSimulator, AIDebugMenu→SimulationRunner→RealActionSimulator}`.
+`AppSimulationMenu` (the other SimulationRunner importer) is orphaned, so cutting the one edge
+strips the whole ~10k-LOC graph. Replaced the static import with a build-time-gated conditional
+require: `DEV_TOOLS_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_ENABLE_DEVTOOLS === 'true'`
+(matches the codebase's existing `EXPO_PUBLIC_*` flag convention; statically foldable so Metro
+drops the branch from App Store builds). Gated the Dev Tools button + modal mount on the same
+flag (so they're dev/QA-only, with an env opt-in for TestFlight). Added an a11y label on the
+button while there. Files: `components/SettingsModal.tsx`.
+
+**0.6 — Memory caps (PERF-3/4).** Write-site caps added for the two arrays confirmed to grow
+unbounded per real reading: `memories` (GameActionsContext.tsx, cap 200, mirrors the adjacent
+`EVENT_LOG_CAP` idiom — this was the primary heap driver) and `sparkApp.jealousyHistory`
+(SparkActions.ts, cap 50). Save-time safety net (`pruneSaveData`) extended for `darkWeb.recentEvents`
+(50), `sparkApp.jealousyHistory` (50), `travelHistory` (100). Regression invariants added to the
+state-growth stress test (organic post-loop assertions, not re-implemented caps).
+
+**Audit corrections found while implementing** (verified by direct reading — the auditors
+over-reported "capped nowhere"): `sparkApp.messages` is already capped per-thread on BOTH paths
+(`MESSAGE_HISTORY_CAP=100`, SparkActions:348,420); `lifeMilestones` only grows on child births
+(bounded); `recentEarnings` is under `HustleIPO` (write-capped at 3), not `politics`;
+`hustleApp.notifications` is nested under `HustleCompanyOverlay` (per-company, low growth — skipped);
+`competitionHistory`/`miningHistory` are deeply nested (per-company / MiningStatistics — skipped as
+low-growth/high-risk). The remaining live state grower is `checkpoints` (time-machine, +73KB/1000wk
+in the serialized audit) — out of 0.6 scope; total serialized payload at 1000 weeks is ~143 KB.
+
+**PERF-6 (remove `setTimeout(50)`) — NOT done, deliberately.** The audit called it a "pure
+latency tax," but direct reading shows it's load-bearing: `nextWeek` awaits it so React flushes
+the `setGameState` and `gameStateRef.current` (synced in render at GameActionsContext:2341)
+reflects the new state before validation + save run. Removing it would validate/save STALE state.
+It can only be removed safely when `nextWeek` is refactored to return its computed next-state
+directly (Sprint 2.2). Flagged there.
+
+**Verification:** `npm run type-check` 0 errors; `npx jest --ci` → **2344 passed / 145 suites /
+308 snapshots** (zero regressions); state-growth invariants green; no test referenced DevToolsModal.
+
+---
+
 # PART 4 — VERIFICATION CHECKLIST (per the project's gates)
 
 - [ ] `npm test` green after every sprint (currently 2344/2344).
