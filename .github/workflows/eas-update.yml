@@ -9,6 +9,12 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    # Expose only a boolean to the job (least privilege); the raw token is added
+    # per-step on the login/update steps that need it. `secrets` is allowed in
+    # `env:` (not in `if:`, which would cause a startup failure), and `env` IS
+    # allowed in step `if:` — so gate on this flag.
+    env:
+      HAS_EXPO_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +29,7 @@ jobs:
       # Programmatic auth: https://docs.expo.dev/accounts/programmatic-access/
       # Repo → Settings → Secrets → Actions → EXPO_TOKEN (Expo access token)
       - name: Expo/EAS login
-        if: ${{ secrets.EXPO_TOKEN != '' }}
+        if: ${{ env.HAS_EXPO_TOKEN == 'true' }}
         uses: expo/expo-github-action@v8
         with:
           expo-version: latest
@@ -44,22 +50,27 @@ jobs:
 
       # PR → preview channel (skipped until EXPO_TOKEN is configured)
       - name: EAS Update (preview for PRs)
-        if: ${{ github.event_name == 'pull_request' && secrets.EXPO_TOKEN != '' }}
+        if: ${{ github.event_name == 'pull_request' && env.HAS_EXPO_TOKEN == 'true' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # Skip auto-fingerprint: @expo/fingerprint's minimatch@10 expects
+          # brace-expansion@^5 (named `.expand`), but the resolved tree dedupes
+          # to 2.x and crashes. The bundle still uploads fine without it.
+          EAS_SKIP_AUTO_FINGERPRINT: '1'
         run: eas update --channel=preview --message="CI preview update" --non-interactive
 
       - name: EAS Update skipped (no EXPO_TOKEN)
-        if: ${{ github.event_name == 'pull_request' && secrets.EXPO_TOKEN == '' }}
+        if: ${{ github.event_name == 'pull_request' && env.HAS_EXPO_TOKEN != 'true' }}
         run: echo "::notice title=EAS Update skipped::Add repository secret EXPO_TOKEN to enable eas update on PRs (https://docs.expo.dev/accounts/programmatic-access/)"
 
       # main → production channel
       - name: EAS Update (production on main)
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.EXPO_TOKEN != '' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_EXPO_TOKEN == 'true' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_SKIP_AUTO_FINGERPRINT: '1'
         run: eas update --channel=production --message="CI production update" --non-interactive
 
       - name: EAS Update skipped on main (no EXPO_TOKEN)
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.EXPO_TOKEN == '' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_EXPO_TOKEN != 'true' }}
         run: echo "::notice title=EAS Update skipped::Add repository secret EXPO_TOKEN to publish updates from main"
