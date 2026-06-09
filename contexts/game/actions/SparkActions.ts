@@ -44,6 +44,7 @@ const log = logger.scope('SparkActions');
 
 const SWIPE_HISTORY_CAP = 200;
 const MESSAGE_HISTORY_CAP = 100;
+const JEALOUSY_HISTORY_CAP = 50;
 const BOOST_GEM_COST = 50;
 const BOOST_DURATION_WEEKS = 1;
 const REWIND_GEM_COST = 20;
@@ -724,7 +725,7 @@ export const resolveJealousy = (
       sparkApp: {
         ...s,
         activeJealousy: null,
-        jealousyHistory: [...s.jealousyHistory, resolvedEvent],
+        jealousyHistory: [...s.jealousyHistory, resolvedEvent].slice(-JEALOUSY_HISTORY_CAP),
         lifetimeStats: {
           ...s.lifetimeStats,
           totalJealousyEvents: s.lifetimeStats.totalJealousyEvents + 1,

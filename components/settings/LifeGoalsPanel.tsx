@@ -8,14 +8,14 @@ import { View, Text, ScrollView, Image, StyleSheet, Platform, type ViewStyle } f
 import { Target, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { perks } from '@/src/features/onboarding/perksData';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 const LinearGradient = LinearGradientFallback;
 
 export default function LifeGoalsPanel() {
-  const { gameState } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const achievements = useGameSelector((s) => s.achievements);
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
 
   return (
     <>
@@ -39,7 +39,7 @@ export default function LifeGoalsPanel() {
         showsVerticalScrollIndicator={false}
       >
         {perks.map(perk => {
-          const isCompleted = gameState.achievements?.some(
+          const isCompleted = achievements?.some(
             a => a.id === perk.unlock?.achievementId && a.completed
           ) ?? false;
           const current = isCompleted ? 1 : 0;

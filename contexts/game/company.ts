@@ -1,5 +1,6 @@
 // cspell:words realestate fintech
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from './companyUpgradeCatalog';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { logger } from '@/utils/logger';
 import type { GameState, Company, CompanyUpgrade } from './types';
@@ -49,288 +50,7 @@ export function createCompany(
     return { success: false, message: 'You need to complete Entrepreneurship Course first! (Or unlock Early Company Access prestige bonus)' };
   }
 
-  const companyUpgrades: Record<string, CompanyUpgrade[]> = {
-    factory: [
-      {
-        id: 'machinery',
-        name: 'Better Machinery',
-        description: 'Increase production efficiency',
-        cost: 10000,
-        weeklyIncomeBonus: 500,
-        level: 0,
-        maxLevel: 5,
-      },
-      {
-        id: 'workers',
-        name: 'More Workers',
-        description: 'Hire additional staff',
-        cost: 15000,
-        weeklyIncomeBonus: 800,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'automation',
-        name: 'Assembly Line',
-        description: 'Automated production line',
-        cost: 25000,
-        weeklyIncomeBonus: 1200,
-        level: 0,
-        maxLevel: 4,
-      },
-      {
-        id: 'quality_control',
-        name: 'Quality Control',
-        description: 'Advanced quality assurance',
-        cost: 20000,
-        weeklyIncomeBonus: 1000,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'warehouse',
-        name: 'Smart Warehouse',
-        description: 'Automated inventory management',
-        cost: 30000,
-        weeklyIncomeBonus: 1500,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'safety',
-        name: 'Safety Systems',
-        description: 'Workplace safety improvements',
-        cost: 18000,
-        weeklyIncomeBonus: 800,
-        level: 0,
-        maxLevel: 4,
-      },
-    ],
-    ai: [
-      {
-        id: 'servers',
-        name: 'Better Servers',
-        description: 'Upgrade computing power',
-        cost: 25000,
-        weeklyIncomeBonus: 1200,
-        level: 0,
-        maxLevel: 4,
-      },
-      {
-        id: 'algorithms',
-        name: 'Advanced Algorithms',
-        description: 'Improve AI capabilities',
-        cost: 30000,
-        weeklyIncomeBonus: 1500,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'gpu_cluster',
-        name: 'GPU Cluster',
-        description: 'Faster AI training',
-        cost: 50000,
-        weeklyIncomeBonus: 2500,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'data_center',
-        name: 'Data Center',
-        description: 'Scale operations',
-        cost: 75000,
-        weeklyIncomeBonus: 3500,
-        level: 0,
-        maxLevel: 2,
-      },
-      {
-        id: 'ai_researchers',
-        name: 'AI Researchers',
-        description: 'Cutting-edge research team',
-        cost: 40000,
-        weeklyIncomeBonus: 2000,
-        level: 0,
-        maxLevel: 4,
-      },
-      {
-        id: 'machine_learning',
-        name: 'ML Platform',
-        description: 'Machine learning infrastructure',
-        cost: 60000,
-        weeklyIncomeBonus: 3000,
-        level: 0,
-        maxLevel: 3,
-      },
-    ],
-    restaurant: [
-      {
-        id: 'kitchen',
-        name: 'Kitchen Upgrade',
-        description: 'Modernize kitchen equipment',
-        cost: 20000,
-        weeklyIncomeBonus: 1000,
-        level: 0,
-        maxLevel: 4,
-      },
-      {
-        id: 'staff',
-        name: 'Professional Staff',
-        description: 'Hire experienced chefs',
-        cost: 18000,
-        weeklyIncomeBonus: 900,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'delivery_service',
-        name: 'Delivery Service',
-        description: 'Expand customer reach',
-        cost: 25000,
-        weeklyIncomeBonus: 1200,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'michelin_chef',
-        name: 'Michelin Chef',
-        description: 'Premium dining experience',
-        cost: 40000,
-        weeklyIncomeBonus: 2000,
-        level: 0,
-        maxLevel: 2,
-      },
-      {
-        id: 'interior_design',
-        name: 'Interior Design',
-        description: 'Upscale dining atmosphere',
-        cost: 30000,
-        weeklyIncomeBonus: 1500,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'wine_cellar',
-        name: 'Wine Cellar',
-        description: 'Premium wine selection',
-        cost: 35000,
-        weeklyIncomeBonus: 1800,
-        level: 0,
-        maxLevel: 2,
-      },
-    ],
-    realestate: [
-      {
-        id: 'properties',
-        name: 'More Properties',
-        description: 'Expand property portfolio',
-        cost: 50000,
-        weeklyIncomeBonus: 2000,
-        level: 0,
-        maxLevel: 5,
-      },
-      {
-        id: 'management',
-        name: 'Property Management',
-        description: 'Improve property management',
-        cost: 30000,
-        weeklyIncomeBonus: 1500,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'property_portfolio',
-        name: 'Property Portfolio',
-        description: 'More rental properties',
-        cost: 75000,
-        weeklyIncomeBonus: 3000,
-        level: 0,
-        maxLevel: 4,
-      },
-      {
-        id: 'commercial_real_estate',
-        name: 'Commercial Properties',
-        description: 'Higher value investments',
-        cost: 100000,
-        weeklyIncomeBonus: 4000,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'property_management',
-        name: 'Property Management',
-        description: 'Professional management',
-        cost: 40000,
-        weeklyIncomeBonus: 2000,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'luxury_developments',
-        name: 'Luxury Developments',
-        description: 'High-end property development',
-        cost: 150000,
-        weeklyIncomeBonus: 6000,
-        level: 0,
-        maxLevel: 2,
-      },
-    ],
-    bank: [
-      {
-        id: 'technology',
-        name: 'Banking Technology',
-        description: 'Upgrade banking systems',
-        cost: 100000,
-        weeklyIncomeBonus: 5000,
-        level: 0,
-        maxLevel: 4,
-      },
-      {
-        id: 'services',
-        name: 'Financial Services',
-        description: 'Expand financial services',
-        cost: 80000,
-        weeklyIncomeBonus: 4000,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'investment_division',
-        name: 'Investment Division',
-        description: 'Wealth management services',
-        cost: 200000,
-        weeklyIncomeBonus: 10000,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'international_banking',
-        name: 'International Banking',
-        description: 'Global operations',
-        cost: 300000,
-        weeklyIncomeBonus: 15000,
-        level: 0,
-        maxLevel: 2,
-      },
-      {
-        id: 'fintech_integration',
-        name: 'FinTech Integration',
-        description: 'Digital banking solutions',
-        cost: 150000,
-        weeklyIncomeBonus: 7500,
-        level: 0,
-        maxLevel: 3,
-      },
-      {
-        id: 'private_banking',
-        name: 'Private Banking',
-        description: 'Exclusive client services',
-        cost: 250000,
-        weeklyIncomeBonus: 12000,
-        level: 0,
-        maxLevel: 2,
-      },
-    ],
-  };
+  const companyUpgrades = COMPANY_UPGRADES;
 
   const workerConfigs = {
     factory: { salary: 500 },
@@ -395,48 +115,7 @@ export function buyCompanyUpgrade(
   const companyType = company.type;
   
   // Define company upgrades locally
-  const companyUpgrades: Record<string, any[]> = {
-    factory: [
-      { id: 'machinery', name: 'Better Machinery', description: 'Increase production efficiency', cost: 10000, weeklyIncomeBonus: 500, level: 1, maxLevel: 5 },
-      { id: 'workers', name: 'More Workers', description: 'Hire additional staff', cost: 15000, weeklyIncomeBonus: 800, level: 1, maxLevel: 3 },
-      { id: 'automation', name: 'Assembly Line', description: 'Automated production line', cost: 25000, weeklyIncomeBonus: 1200, level: 1, maxLevel: 4 },
-      { id: 'quality_control', name: 'Quality Control', description: 'Advanced quality assurance', cost: 20000, weeklyIncomeBonus: 1000, level: 1, maxLevel: 3 },
-      { id: 'warehouse', name: 'Smart Warehouse', description: 'Automated inventory management', cost: 30000, weeklyIncomeBonus: 1500, level: 1, maxLevel: 3 },
-      { id: 'safety', name: 'Safety Systems', description: 'Workplace safety improvements', cost: 18000, weeklyIncomeBonus: 800, level: 1, maxLevel: 4 },
-    ],
-    ai: [
-      { id: 'servers', name: 'Better Servers', description: 'Upgrade computing power', cost: 25000, weeklyIncomeBonus: 1200, level: 1, maxLevel: 4 },
-      { id: 'algorithms', name: 'Advanced Algorithms', description: 'Improve AI capabilities', cost: 30000, weeklyIncomeBonus: 1500, level: 1, maxLevel: 3 },
-      { id: 'gpu_cluster', name: 'GPU Cluster', description: 'Faster AI training', cost: 50000, weeklyIncomeBonus: 2500, level: 1, maxLevel: 3 },
-      { id: 'data_center', name: 'Data Center', description: 'Scale operations', cost: 75000, weeklyIncomeBonus: 3500, level: 1, maxLevel: 2 },
-      { id: 'ai_researchers', name: 'AI Researchers', description: 'Cutting-edge research team', cost: 40000, weeklyIncomeBonus: 2000, level: 1, maxLevel: 4 },
-      { id: 'machine_learning', name: 'ML Platform', description: 'Machine learning infrastructure', cost: 60000, weeklyIncomeBonus: 3000, level: 1, maxLevel: 3 },
-    ],
-    restaurant: [
-      { id: 'kitchen', name: 'Kitchen Upgrade', description: 'Modernize kitchen equipment', cost: 20000, weeklyIncomeBonus: 1000, level: 1, maxLevel: 4 },
-      { id: 'staff', name: 'Professional Staff', description: 'Hire experienced chefs', cost: 18000, weeklyIncomeBonus: 900, level: 1, maxLevel: 3 },
-      { id: 'delivery_service', name: 'Delivery Service', description: 'Expand customer reach', cost: 25000, weeklyIncomeBonus: 1200, level: 1, maxLevel: 3 },
-      { id: 'michelin_chef', name: 'Michelin Chef', description: 'Premium dining experience', cost: 40000, weeklyIncomeBonus: 2000, level: 1, maxLevel: 2 },
-      { id: 'interior_design', name: 'Interior Design', description: 'Upscale dining atmosphere', cost: 30000, weeklyIncomeBonus: 1500, level: 1, maxLevel: 3 },
-      { id: 'wine_cellar', name: 'Wine Cellar', description: 'Premium wine selection', cost: 35000, weeklyIncomeBonus: 1800, level: 1, maxLevel: 2 },
-    ],
-    realestate: [
-      { id: 'properties', name: 'More Properties', description: 'Expand property portfolio', cost: 50000, weeklyIncomeBonus: 2000, level: 1, maxLevel: 5 },
-      { id: 'management', name: 'Property Management', description: 'Improve property management', cost: 30000, weeklyIncomeBonus: 1500, level: 1, maxLevel: 3 },
-      { id: 'property_portfolio', name: 'Property Portfolio', description: 'More rental properties', cost: 75000, weeklyIncomeBonus: 3000, level: 1, maxLevel: 4 },
-      { id: 'commercial_real_estate', name: 'Commercial Properties', description: 'Higher value investments', cost: 100000, weeklyIncomeBonus: 4000, level: 1, maxLevel: 3 },
-      { id: 'property_management', name: 'Property Management', description: 'Professional management', cost: 40000, weeklyIncomeBonus: 2000, level: 1, maxLevel: 3 },
-      { id: 'luxury_developments', name: 'Luxury Developments', description: 'High-end property development', cost: 150000, weeklyIncomeBonus: 6000, level: 1, maxLevel: 2 },
-    ],
-    bank: [
-      { id: 'technology', name: 'Banking Technology', description: 'Upgrade banking systems', cost: 100000, weeklyIncomeBonus: 5000, level: 1, maxLevel: 4 },
-      { id: 'services', name: 'Financial Services', description: 'Expand financial services', cost: 80000, weeklyIncomeBonus: 4000, level: 1, maxLevel: 3 },
-      { id: 'investment_division', name: 'Investment Division', description: 'Wealth management services', cost: 200000, weeklyIncomeBonus: 10000, level: 1, maxLevel: 3 },
-      { id: 'international_banking', name: 'International Banking', description: 'Global operations', cost: 300000, weeklyIncomeBonus: 15000, level: 1, maxLevel: 2 },
-      { id: 'fintech_integration', name: 'FinTech Integration', description: 'Digital banking solutions', cost: 150000, weeklyIncomeBonus: 7500, level: 1, maxLevel: 3 },
-      { id: 'private_banking', name: 'Private Banking', description: 'Exclusive client services', cost: 250000, weeklyIncomeBonus: 12000, level: 1, maxLevel: 2 },
-    ],
-  };
+  const companyUpgrades = COMPANY_UPGRADES;
   
   const availableUpgrades = companyUpgrades[companyType] || [];
   const upgradeDefinition = availableUpgrades.find((u: { id: string }) => u.id === upgradeId);
@@ -459,12 +138,14 @@ export function buyCompanyUpgrade(
     const bonusEfficiency = Math.max(0.5, 1 - levelPenalty); // Minimum 50% efficiency
     
     // Calculate cost based on current level (using a simple multiplier for now)
-    const costMultiplier = 1.5; // Simple cost increase per level
+    const costMultiplier = COMPANY_UPGRADE_COST_MULTIPLIER; // shared catalog constant
     const nextLevelCost = currentLevel === 0 
       ? upgradeDefinition.cost 
       : Math.round(upgradeDefinition.cost * Math.pow(costMultiplier, currentLevel));
     
-    const cost = getInflatedPrice(nextLevelCost, prev.economy.priceIndex);
+    // Business Banking IAP: 15% off all company upgrade purchases.
+    const businessBankingDiscount = prev.settings?.businessBanking ? 0.15 : 0;
+    const cost = Math.round(getInflatedPrice(nextLevelCost, prev.economy.priceIndex) * (1 - businessBankingDiscount));
     if (prev.stats.money < cost) return prev;
 
     // Calculate bonus for this level with diminishing returns
@@ -648,48 +329,7 @@ export function sellCompany(
   const inflatedCompanyCost = getInflatedPrice(baseCompanyCost, gameState.economy.priceIndex);
   
   // Calculate total upgrade costs using the same upgrade definitions as the upgrade system
-  const companyUpgrades: Record<string, any[]> = {
-    factory: [
-      { id: 'machinery', cost: 10000, maxLevel: 5, costMultiplier: 1.5 },
-      { id: 'workers', cost: 15000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'automation', cost: 25000, maxLevel: 4, costMultiplier: 1.5 },
-      { id: 'quality_control', cost: 20000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'warehouse', cost: 30000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'safety', cost: 18000, maxLevel: 4, costMultiplier: 1.5 },
-    ],
-    ai: [
-      { id: 'servers', cost: 25000, maxLevel: 4, costMultiplier: 1.5 },
-      { id: 'algorithms', cost: 30000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'gpu_cluster', cost: 50000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'data_center', cost: 75000, maxLevel: 2, costMultiplier: 1.5 },
-      { id: 'ai_researchers', cost: 40000, maxLevel: 4, costMultiplier: 1.5 },
-      { id: 'machine_learning', cost: 60000, maxLevel: 3, costMultiplier: 1.5 },
-    ],
-    restaurant: [
-      { id: 'kitchen', cost: 20000, maxLevel: 4, costMultiplier: 1.5 },
-      { id: 'staff', cost: 18000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'delivery_service', cost: 25000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'michelin_chef', cost: 40000, maxLevel: 2, costMultiplier: 1.5 },
-      { id: 'interior_design', cost: 30000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'wine_cellar', cost: 35000, maxLevel: 2, costMultiplier: 1.5 },
-    ],
-    realestate: [
-      { id: 'properties', cost: 50000, maxLevel: 5, costMultiplier: 1.5 },
-      { id: 'management', cost: 30000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'property_portfolio', cost: 75000, maxLevel: 4, costMultiplier: 1.5 },
-      { id: 'commercial_real_estate', cost: 100000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'property_management', cost: 40000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'luxury_developments', cost: 150000, maxLevel: 2, costMultiplier: 1.5 },
-    ],
-    bank: [
-      { id: 'technology', cost: 100000, maxLevel: 4, costMultiplier: 1.5 },
-      { id: 'services', cost: 80000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'investment_division', cost: 200000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'international_banking', cost: 300000, maxLevel: 2, costMultiplier: 1.5 },
-      { id: 'fintech_integration', cost: 150000, maxLevel: 3, costMultiplier: 1.5 },
-      { id: 'private_banking', cost: 250000, maxLevel: 2, costMultiplier: 1.5 },
-    ],
-  };
+  const companyUpgrades = COMPANY_UPGRADES;
   
   let totalUpgradeCost = 0;
   company.upgrades.forEach(upgrade => {
@@ -700,7 +340,7 @@ export function sellCompany(
       for (let level = 1; level <= upgrade.level; level++) {
         const levelCost = level === 1 
           ? upgradeDef.cost 
-          : Math.round(upgradeDef.cost * Math.pow(upgradeDef.costMultiplier, level - 1));
+          : Math.round(upgradeDef.cost * Math.pow(COMPANY_UPGRADE_COST_MULTIPLIER, level - 1));
         totalUpgradeCost += getInflatedPrice(levelCost, gameState.economy.priceIndex);
       }
     }

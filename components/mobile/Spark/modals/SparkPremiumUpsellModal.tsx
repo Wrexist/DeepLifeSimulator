@@ -39,7 +39,7 @@ interface SparkPremiumUpsellModalProps {
 }
 
 export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPremiumUpsellModalProps) {
-  const { setGameState } = useGame() as any;
+  const { setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
   const handleSubscribe = useCallback(
@@ -48,9 +48,10 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
       const sku = tier === 'ultra' ? 'deeplife_spark_ultra_monthly' : 'deeplife_spark_plus_monthly';
       const expires = Date.now() + 30 * 24 * 60 * 60 * 1000;
       subscribeSparkPremium(setGameState, tier, sku, expires);
+      saveGame();
       onDismiss();
     },
-    [setGameState, onDismiss],
+    [setGameState, saveGame, onDismiss],
   );
 
   if (!visible) return null;

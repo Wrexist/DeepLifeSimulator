@@ -3,7 +3,7 @@ import { Platform, Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet, 
 import { FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, User, Star, Brain } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 const LinearGradient = LinearGradientFallback;
 
@@ -16,8 +16,7 @@ interface Props {
 }
 
 export default function AncestorProfileModal({ member, visible, onClose }: Props) {
-  const { gameState } = useGame();
-  const settings = safeSettings(gameState);
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
 
   if (!member) return null;
 

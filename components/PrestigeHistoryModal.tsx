@@ -9,7 +9,8 @@ import { Platform, Modal,
   Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, Crown, Calendar, DollarSign, TrendingUp, Users, RotateCcw } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { safeSettings } from '@/utils/safeGameState';
 import { PrestigeRecord } from '@/lib/prestige/prestigeTypes';
 const LinearGradient = LinearGradientFallback;
 
@@ -21,11 +22,11 @@ interface PrestigeHistoryModalProps {
 }
 
 export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHistoryModalProps) {
-  const { gameState } = useGame();
+  const darkMode = useGameSelector((s) => safeSettings(s).darkMode);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  const prestigeData = gameState.prestige;
+  const prestigeData = useGameSelector((s) => s.prestige);
   const history = prestigeData?.prestigeHistory || [];
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
           ]}
         >
           <LinearGradient
-            colors={gameState.settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
+            colors={darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F3F4F6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -92,16 +93,16 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
               <View style={styles.headerLeft}>
                 <Crown size={28} color="#F59E0B" />
                 <View>
-                  <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]}>
+                  <Text style={[styles.title, darkMode && styles.titleDark]}>
                     Prestige History
                   </Text>
-                  <Text style={[styles.subtitle, gameState.settings.darkMode && styles.subtitleDark]}>
+                  <Text style={[styles.subtitle, darkMode && styles.subtitleDark]}>
                     {history.length} Prestige{history.length !== 1 ? 's' : ''} Completed
                   </Text>
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={gameState.settings.darkMode ? '#FFFFFF' : '#1F2937'} />
+                <X size={24} color={darkMode ? '#FFFFFF' : '#1F2937'} />
               </TouchableOpacity>
             </View>
 
@@ -110,10 +111,10 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
               {history.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Crown size={48} color="#9CA3AF" />
-                  <Text style={[styles.emptyText, gameState.settings.darkMode && styles.emptyTextDark]}>
+                  <Text style={[styles.emptyText, darkMode && styles.emptyTextDark]}>
                     No prestige history yet
                   </Text>
-                  <Text style={[styles.emptySubtext, gameState.settings.darkMode && styles.emptySubtextDark]}>
+                  <Text style={[styles.emptySubtext, darkMode && styles.emptySubtextDark]}>
                     Complete your first prestige to see it here
                   </Text>
                 </View>
@@ -126,14 +127,14 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                       key={record.prestigeNumber}
                       style={[
                         styles.historyCard,
-                        gameState.settings.darkMode && styles.historyCardDark,
+                        darkMode && styles.historyCardDark,
                       ]}
                     >
                       <LinearGradient
                         colors={
                           index === 0
                             ? ['#F59E0B', '#D97706']
-                            : gameState.settings.darkMode
+                            : darkMode
                             ? ['#374151', '#1F2937']
                             : ['#F3F4F6', '#E5E7EB']
                         }
@@ -151,7 +152,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                               <Text
                                 style={[
                                   styles.historyTitle,
-                                  gameState.settings.darkMode && styles.historyTitleDark,
+                                  darkMode && styles.historyTitleDark,
                                   index === 0 && styles.historyTitleLatest,
                                 ]}
                               >
@@ -162,7 +163,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                                 <Text
                                   style={[
                                     styles.historyDate,
-                                    gameState.settings.darkMode && styles.historyDateDark,
+                                    darkMode && styles.historyDateDark,
                                   ]}
                                 >
                                   {formatDate(record.timestamp)}
@@ -179,7 +180,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                             <Text
                               style={[
                                 styles.pathText,
-                                gameState.settings.darkMode && styles.pathTextDark,
+                                darkMode && styles.pathTextDark,
                               ]}
                             >
                               {record.chosenPath === 'reset' ? 'Reset' : 'Child'}
@@ -193,7 +194,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                             <Text
                               style={[
                                 styles.statLabel,
-                                gameState.settings.darkMode && styles.statLabelDark,
+                                darkMode && styles.statLabelDark,
                               ]}
                             >
                               Net Worth:
@@ -201,7 +202,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                             <Text
                               style={[
                                 styles.statValue,
-                                gameState.settings.darkMode && styles.statValueDark,
+                                darkMode && styles.statValueDark,
                               ]}
                             >
                               {formatMoney(record.netWorthAtPrestige)}
@@ -212,7 +213,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                             <Text
                               style={[
                                 styles.statLabel,
-                                gameState.settings.darkMode && styles.statLabelDark,
+                                darkMode && styles.statLabelDark,
                               ]}
                             >
                               Points Earned:
@@ -220,7 +221,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                             <Text
                               style={[
                                 styles.statValue,
-                                gameState.settings.darkMode && styles.statValueDark,
+                                darkMode && styles.statValueDark,
                               ]}
                             >
                               {record.prestigePointsEarned.toLocaleString()}
@@ -231,7 +232,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                             <Text
                               style={[
                                 styles.statLabel,
-                                gameState.settings.darkMode && styles.statLabelDark,
+                                darkMode && styles.statLabelDark,
                               ]}
                             >
                               Age: {record.ageAtPrestige} • Weeks: {record.weeksLived}
@@ -244,7 +245,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                             <Text
                               style={[
                                 styles.achievementsTitle,
-                                gameState.settings.darkMode && styles.achievementsTitleDark,
+                                darkMode && styles.achievementsTitleDark,
                               ]}
                             >
                               Key Achievements:
@@ -255,7 +256,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                                   <Text
                                     style={[
                                       styles.achievementText,
-                                      gameState.settings.darkMode && styles.achievementTextDark,
+                                      darkMode && styles.achievementTextDark,
                                     ]}
                                   >
                                     {achievement}

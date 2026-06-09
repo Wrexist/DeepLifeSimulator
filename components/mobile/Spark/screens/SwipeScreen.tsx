@@ -47,7 +47,7 @@ interface SwipeScreenProps {
 }
 
 export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: SwipeScreenProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
   // Filter out already-swiped, reported, or promoted profiles.

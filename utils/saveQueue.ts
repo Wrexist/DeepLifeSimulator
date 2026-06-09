@@ -637,8 +637,19 @@ class SaveQueue {
         pruned.cryptoMarket = cm;
       }
       if (pruned.darkWeb && typeof pruned.darkWeb === 'object') {
-        pruned.darkWeb = { ...pruned.darkWeb, jobHistory: tail(pruned.darkWeb.jobHistory, cap(100)) };
+        pruned.darkWeb = {
+          ...pruned.darkWeb,
+          jobHistory: tail(pruned.darkWeb.jobHistory, cap(100)),
+          recentEvents: tail(pruned.darkWeb.recentEvents, cap(50)),
+        };
       }
+      if (pruned.sparkApp && typeof pruned.sparkApp === 'object') {
+        pruned.sparkApp = {
+          ...pruned.sparkApp,
+          jealousyHistory: tail(pruned.sparkApp.jealousyHistory, cap(50)),
+        };
+      }
+      pruned.travelHistory = tail(pruned.travelHistory, cap(100));
       if (pruned.socialMedia && typeof pruned.socialMedia === 'object') {
         const sm = { ...pruned.socialMedia };
         sm.scandalHistory = tail(sm.scandalHistory, cap(50));

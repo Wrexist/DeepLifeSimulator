@@ -2,7 +2,8 @@ import React from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Crown, Award, DollarSign } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { safeSettings } from '@/utils/safeGameState';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 const LinearGradient = LinearGradientFallback;
@@ -14,9 +15,10 @@ interface PrestigeStatsCardProps {
 }
 
 function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsCardProps) {
-  const { gameState } = useGame();
-  const prestigeData = gameState.prestige;
-  const currentNetWorth = netWorth(gameState);
+  const darkMode = useGameSelector((s) => safeSettings(s).darkMode);
+  const prestigeAvailable = useGameSelector((s) => s.prestigeAvailable);
+  const prestigeData = useGameSelector((s) => s.prestige);
+  const currentNetWorth = useGameSelector((s) => netWorth(s));
   const prestigeLevel = prestigeData?.prestigeLevel || 0;
   const threshold = getPrestigeThreshold(prestigeLevel);
   const progress = Math.min(100, (currentNetWorth / threshold) * 100);
@@ -32,13 +34,13 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
 
   return (
     <TouchableOpacity
-      style={[styles.container, gameState.settings.darkMode && styles.containerDark]}
+      style={[styles.container, darkMode && styles.containerDark]}
       onPress={onPress}
       activeOpacity={0.8}
     >
       <LinearGradient
         colors={
-          gameState.settings.darkMode
+          darkMode
             ? ['#1F2937', '#111827']
             : ['#FFFFFF', '#F3F4F6']
         }
@@ -52,10 +54,10 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
               <Crown size={24} color="#F59E0B" />
             </View>
             <View style={styles.titleContainer}>
-              <Text style={[styles.title, gameState.settings.darkMode && styles.titleDark]} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={[styles.title, darkMode && styles.titleDark]} numberOfLines={1} ellipsizeMode="tail">
                 Prestige Level {prestigeData.prestigeLevel}
               </Text>
-              <Text style={[styles.subtitle, gameState.settings.darkMode && styles.subtitleDark]} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={[styles.subtitle, darkMode && styles.subtitleDark]} numberOfLines={1} ellipsizeMode="tail">
                 {prestigeData.totalPrestiges} Prestige{prestigeData.totalPrestiges !== 1 ? 's' : ''} Completed
               </Text>
             </View>
@@ -105,40 +107,40 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Crown size={16} color="#F59E0B" />
-            <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+            <Text style={[styles.statValue, darkMode && styles.statValueDark]}>
               {prestigeData.prestigePoints.toLocaleString()}
             </Text>
-            <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
+            <Text style={[styles.statLabel, darkMode && styles.statLabelDark]}>
               Points
             </Text>
           </View>
           <View style={styles.statItem}>
             <Award size={16} color="#3B82F6" />
-            <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+            <Text style={[styles.statValue, darkMode && styles.statValueDark]}>
               {prestigeData.unlockedBonuses.length}
             </Text>
-            <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
+            <Text style={[styles.statLabel, darkMode && styles.statLabelDark]}>
               Bonuses
             </Text>
           </View>
           <View style={styles.statItem}>
             <DollarSign size={16} color="#10B981" />
-            <Text style={[styles.statValue, gameState.settings.darkMode && styles.statValueDark]}>
+            <Text style={[styles.statValue, darkMode && styles.statValueDark]}>
               {formatMoney(prestigeData.lifetimeStats.maxNetWorth)}
             </Text>
-            <Text style={[styles.statLabel, gameState.settings.darkMode && styles.statLabelDark]}>
+            <Text style={[styles.statLabel, darkMode && styles.statLabelDark]}>
               Max Net Worth
             </Text>
           </View>
         </View>
 
-        {!gameState.prestigeAvailable && (
+        {!prestigeAvailable && (
           <View style={styles.progressSection}>
             <View style={styles.progressHeader}>
-              <Text style={[styles.progressLabel, gameState.settings.darkMode && styles.progressLabelDark]}>
+              <Text style={[styles.progressLabel, darkMode && styles.progressLabelDark]}>
                 Next Prestige
               </Text>
-              <Text style={[styles.progressText, gameState.settings.darkMode && styles.progressTextDark]}>
+              <Text style={[styles.progressText, darkMode && styles.progressTextDark]}>
                 {formatMoney(currentNetWorth)} / {formatMoney(threshold)}
               </Text>
             </View>

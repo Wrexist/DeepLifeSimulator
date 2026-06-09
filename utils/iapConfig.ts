@@ -390,15 +390,14 @@ export const PRODUCT_CONFIGS = {
 
   [IAP_PRODUCTS.BUSINESS_BANKING]: {
     name: 'Business Banking',
-    description: 'Company loans and upgrades',
+    description: '15% off all company upgrades',
     businessBanking: true,
     price: '$3.99',
     popular: false,
     bestValue: false,
     features: [
-      'Company loans',
+      '15% off all company upgrades',
       'Business account management',
-      'Company upgrade purchases',
       'Dedicated business advisor',
     ],
   },

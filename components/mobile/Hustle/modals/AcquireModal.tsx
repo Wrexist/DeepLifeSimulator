@@ -22,7 +22,7 @@ interface AcquireModalProps {
 }
 
 export default function AcquireModal({ visible, companyId, onDismiss }: AcquireModalProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const offers = overlay?.pendingAcquisitions ?? [];

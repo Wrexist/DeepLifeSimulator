@@ -30,21 +30,21 @@ export function installAnimatedDriverGuard() {
   if (!isDev) return;
 
   const origTiming = Animated.timing;
-  // @ts-ignore
+  // @ts-expect-error -- dev-only monkey-patch of the read-only Animated.timing method to instrument native-driver usage
   Animated.timing = (value: any, config: any) => {
     mark(value, config?.useNativeDriver ? 'native' : 'js');
     return origTiming(value, config);
   };
 
   const origSpring = Animated.spring;
-  // @ts-ignore
+  // @ts-expect-error -- dev-only monkey-patch of the read-only Animated.spring method to instrument native-driver usage
   Animated.spring = (value: any, config: any) => {
     mark(value, config?.useNativeDriver ? 'native' : 'js');
     return origSpring(value, config);
   };
 
   const origDecay = Animated.decay;
-  // @ts-ignore
+  // @ts-expect-error -- dev-only monkey-patch of the read-only Animated.decay method to instrument native-driver usage
   Animated.decay = (value: any, config: any) => {
     mark(value, config?.useNativeDriver ? 'native' : 'js');
     return origDecay(value, config);

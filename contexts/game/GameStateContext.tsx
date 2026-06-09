@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { GameState, ChildInfo } from './types';
 import { logger } from '@/utils/logger';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 import { safeSetItem } from '@/utils/safeStorage';
+import { GameStoreContext, GameStore } from './useGameSelector';
 
 interface GameStateContextType {
   gameState: GameState;
@@ -38,6 +39,44 @@ export function GameStateProvider({
   const [gameState, setGameState] = useState<GameState>(initialState);
   const [currentSlot, setCurrentSlot] = useState<number>(initialSlot);
 
+  // --- Selector channel (Sprint 2) -----------------------------------------
+  // An external-store mirror of `gameState` so `useGameSelector` consumers can
+  // subscribe to slices and re-render only when their slice changes. This is
+  // purely additive — `useGameState()`/`useGame()` below are unchanged.
+  const mirrorRef = useRef<{ state: GameState; listeners: Set<() => void> } | null>(null);
+  if (mirrorRef.current === null) {
+    mirrorRef.current = { state: gameState, listeners: new Set() };
+  } else {
+    // Keep the mirror in sync synchronously so getSnapshot never tears.
+    mirrorRef.current.state = gameState;
+  }
+  // Stable store object (created once) — its identity never changes, so the
+  // GameStoreContext provider never causes re-renders on its own. Its
+  // setGameState forwards through a ref to the wrapped setter declared below
+  // (stable useCallback), giving write access without a state subscription.
+  const setterRef = useRef<React.Dispatch<React.SetStateAction<GameState>>>(() => {});
+  const storeRef = useRef<GameStore | null>(null);
+  if (storeRef.current === null) {
+    storeRef.current = {
+      subscribe: (listener: () => void) => {
+        mirrorRef.current!.listeners.add(listener);
+        return () => {
+          mirrorRef.current!.listeners.delete(listener);
+        };
+      },
+      getSnapshot: () => mirrorRef.current!.state,
+      setGameState: (update) => setterRef.current(update),
+    };
+  }
+  // Notify selector subscribers after the source-of-truth commit.
+  useLayoutEffect(() => {
+    const mirror = mirrorRef.current;
+    if (!mirror) return;
+    mirror.state = gameState;
+    mirror.listeners.forEach((l) => l());
+  }, [gameState]);
+  // -------------------------------------------------------------------------
+
   // Wrapper for setGameState — respects user's dark mode preference (no longer forced).
   // CRITICAL: short-circuit on identity. Actions use `return prev` to mean "no change"
   // (e.g. rejecting an overdraw); bumping updatedAt on no-ops cascades whole-app re-renders.
@@ -56,6 +95,8 @@ export function GameStateProvider({
     },
     []
   );
+  // Keep the store's forwarding setter pointed at the wrapped setter.
+  setterRef.current = wrappedSetGameState;
 
   const setCurrentSlotSafe = useCallback((slot: number) => {
     const normalizedSlot = slot >= 1 && slot <= 3 ? slot : 1;
@@ -151,9 +192,11 @@ export function GameStateProvider({
   }), [gameState, wrappedSetGameState, updateGameState, currentSlot, setCurrentSlotSafe, startNewLifeFromLegacy, reviveCharacter]);
 
   return (
-    <GameStateContext.Provider value={value}>
-      {children}
-    </GameStateContext.Provider>
+    <GameStoreContext.Provider value={storeRef.current}>
+      <GameStateContext.Provider value={value}>
+        {children}
+      </GameStateContext.Provider>
+    </GameStoreContext.Provider>
   );
 }
 

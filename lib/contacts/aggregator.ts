@@ -95,7 +95,7 @@ export function aggregateContacts(
   }
 
   // 2) Politics — lobbyists + alliances.
-  const politics = (state as any).politics;
+  const politics = state.politics;
   if (politics?.lobbyists) {
     for (const l of politics.lobbyists) {
       if (!l.active) continue;
@@ -130,7 +130,7 @@ export function aggregateContacts(
   }
 
   // 3) Dark-web vendors with whom the player has done business.
-  const dw = (state as any).darkWeb;
+  const dw = state.darkWeb;
   if (dw?.vendors) {
     for (const v of dw.vendors) {
       if (v.flaggedScam && !opts.includeFlaggedVendors) continue;

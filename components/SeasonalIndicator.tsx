@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { isIPad } from '@/utils/scaling';
@@ -13,10 +13,10 @@ interface SeasonalIndicatorProps {
 }
 
 export default function SeasonalIndicator({ size = 22 }: SeasonalIndicatorProps) {
-  const { gameState } = useGame();
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
+  const weeksLived = useGameSelector((s) => s.weeksLived);
   const [showInfo, setShowInfo] = useState(false);
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
-  const seasonData = getCurrentSeason(gameState.weeksLived || 0);
+  const seasonData = getCurrentSeason(weeksLived || 0);
 
   const getSeasonConfig = () => {
     switch (seasonData.season) {

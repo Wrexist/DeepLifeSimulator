@@ -38,6 +38,7 @@ import { calculateRetirementPlanning } from '@/lib/statistics/retirementCalculat
 import { buildCrossSystemSummary, SystemCard } from '@/lib/statistics/crossSystemSummary';
 import { buildMilestones } from '@/lib/statistics/milestones';
 import { trendOf } from '@/lib/statistics/trends';
+import type { LifetimeStatistics } from '@/contexts/game/types';
 import { aggregateContacts, contactCountsByKind } from '@/lib/contacts/aggregator';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
@@ -59,7 +60,7 @@ export default function StatisticsApp({ onBack }: Props) {
   const theme = getThemeColors(darkMode);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
-  const lifetime = gameState.lifetimeStatistics ?? {};
+  const lifetime: Partial<LifetimeStatistics> = gameState.lifetimeStatistics ?? {};
   const week = gameState.weeksLived || 0;
 
   const netWorth = useMemo(() => calculateNetWorth(gameState), [gameState]);
@@ -72,12 +73,16 @@ export default function StatisticsApp({ onBack }: Props) {
     [gameState, contactsByKind]
   );
   const milestones = useMemo(() => buildMilestones(gameState), [gameState]);
+  // netWorthHistory / weeklyEarningsHistory are NetWorthSnapshot[] ({week,value});
+  // trendOf expects a number series, so map to the value. (Previously these were
+  // cast to `any` and passed as objects, so trendOf filtered them all out and
+  // every trend silently rendered flat/0.)
   const netWorthTrend = useMemo(
-    () => trendOf((lifetime as any).netWorthHistory),
+    () => trendOf((lifetime.netWorthHistory ?? []).map((s) => s.value)),
     [lifetime]
   );
   const earningsTrend = useMemo(
-    () => trendOf((lifetime as any).weeklyEarningsHistory),
+    () => trendOf((lifetime.weeklyEarningsHistory ?? []).map((s) => s.value)),
     [lifetime]
   );
 
@@ -99,11 +104,11 @@ export default function StatisticsApp({ onBack }: Props) {
         <View style={styles.peakRow}>
           <Text style={[styles.peakLabel, { color: theme.textSecondary }]}>Peak</Text>
           <Text style={[styles.peakValue, { color: accent.gold }]}>
-            ${Math.round(((lifetime as any).peakNetWorth ?? netWorth)).toLocaleString()}
+            ${Math.round((lifetime.peakNetWorth ?? netWorth)).toLocaleString()}
           </Text>
-          {((lifetime as any).peakNetWorthWeek) ? (
+          {typeof lifetime.peakNetWorthWeek === 'number' ? (
             <Text style={[styles.peakLabel, { color: theme.textSecondary }]}>
-              week {(lifetime as any).peakNetWorthWeek}
+              week {lifetime.peakNetWorthWeek}
             </Text>
           ) : null}
         </View>
@@ -112,11 +117,11 @@ export default function StatisticsApp({ onBack }: Props) {
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Lifetime money</Text>
         <View style={styles.statsRow}>
-          <MoneyStat label="Earned" value={`$${Math.round(((lifetime as any).totalMoneyEarned ?? 0)).toLocaleString()}`} color={accent.success} theme={theme} />
-          <MoneyStat label="Spent" value={`$${Math.round(((lifetime as any).totalMoneySpent ?? 0)).toLocaleString()}`} color={accent.danger} theme={theme} />
+          <MoneyStat label="Earned" value={`$${Math.round((lifetime.totalMoneyEarned ?? 0)).toLocaleString()}`} color={accent.success} theme={theme} />
+          <MoneyStat label="Spent" value={`$${Math.round((lifetime.totalMoneySpent ?? 0)).toLocaleString()}`} color={accent.danger} theme={theme} />
           <MoneyStat
             label="Top salary"
-            value={`$${Math.round(((lifetime as any).highestSalary ?? 0)).toLocaleString()}`}
+            value={`$${Math.round((lifetime.highestSalary ?? 0)).toLocaleString()}`}
             color={accent.info}
             theme={theme}
           />
@@ -145,14 +150,14 @@ export default function StatisticsApp({ onBack }: Props) {
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Life snapshot</Text>
         <View style={styles.gridRow}>
-          <Counter label="Companies" value={(lifetime as any).totalCompaniesOwned ?? 0} theme={theme} />
-          <Counter label="Properties" value={(lifetime as any).totalPropertiesOwned ?? 0} theme={theme} />
-          <Counter label="Relationships" value={(lifetime as any).totalRelationships ?? 0} theme={theme} />
+          <Counter label="Companies" value={lifetime.totalCompaniesOwned ?? 0} theme={theme} />
+          <Counter label="Properties" value={lifetime.totalPropertiesOwned ?? 0} theme={theme} />
+          <Counter label="Relationships" value={lifetime.totalRelationships ?? 0} theme={theme} />
         </View>
         <View style={styles.gridRow}>
-          <Counter label="Children" value={(lifetime as any).totalChildren ?? 0} theme={theme} />
-          <Counter label="Destinations" value={(lifetime as any).totalTravelDestinations ?? 0} theme={theme} />
-          <Counter label="Posts" value={(lifetime as any).totalPostsMade ?? 0} theme={theme} />
+          <Counter label="Children" value={lifetime.totalChildren ?? 0} theme={theme} />
+          <Counter label="Destinations" value={lifetime.totalTravelDestinations ?? 0} theme={theme} />
+          <Counter label="Posts" value={lifetime.totalPostsMade ?? 0} theme={theme} />
         </View>
       </View>
 
@@ -293,10 +298,10 @@ export default function StatisticsApp({ onBack }: Props) {
         </Text>
       </View>
 
-      {(gameState as any).previousLives?.length ? (
+      {gameState.previousLives?.length ? (
         <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Past lives</Text>
-          {(gameState as any).previousLives.slice(0, 5).map((pl: any, idx: number) => (
+          {gameState.previousLives.slice(0, 5).map((pl, idx: number) => (
             <View key={idx} style={styles.pastLifeRow}>
               <Text style={[styles.cardName, { color: theme.text }]}>Life {idx + 1}</Text>
               <Text style={[styles.cardSub, { color: theme.textSecondary }]}>

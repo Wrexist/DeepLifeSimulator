@@ -207,7 +207,7 @@ function IdentityCard() {
   const expenseInfo = useMemo(
     () => calcWeeklyExpenses(gameState),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [gameState.realEstate, gameState.vehicles, (gameState as any).loans]
+    [gameState.realEstate, gameState.vehicles, gameState.loans]
   );
   const passive = passiveInfo.total;
   // Guard the level index the same way `job` (line ~153) does: a stale/migrated

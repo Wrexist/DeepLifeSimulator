@@ -46,7 +46,7 @@ interface PostCardProps {
 export default function PostCard({
   post, authorHandle, authorPhoto, currentWeeksLived, onOpenDetail, onBoost, isPlayerPost,
 }: PostCardProps) {
-  const { setGameState, saveGame } = useGame() as any;
+  const { setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
   const onLike = useCallback(() => {

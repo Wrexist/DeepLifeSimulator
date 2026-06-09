@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckCircle, Clock, AlertCircle, Save } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { saveQueue } from '@/utils/saveQueue';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
@@ -21,7 +21,7 @@ interface AutoSaveIndicatorProps {
 }
 
 export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveIndicatorProps) {
-  const { gameState } = useGame();
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
   const insets = useSafeAreaInsets();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({
     status: 'saved',
@@ -131,7 +131,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
 
   // R2-A: AutoSaveIndicator mounts globally — a missing settings would crash
   // the entire layout. Use safe accessor with autoSave/darkMode defaults.
-  const safeAutoSaveSettings = safeSettings(gameState);
+  const safeAutoSaveSettings = settings;
   if (!safeAutoSaveSettings.autoSave) {
     return null;
   }
@@ -151,7 +151,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
         <Text
           style={[
             styles.statusText,
-            gameState.settings.darkMode && styles.statusTextDark,
+            settings.darkMode && styles.statusTextDark,
             { color: getStatusColor() },
           ]}
         >
@@ -162,18 +162,18 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
       {showDetails && (
         <View style={[
           styles.detailsContainer,
-          gameState.settings.darkMode && styles.detailsContainerDark,
+          settings.darkMode && styles.detailsContainerDark,
         ]}>
           <Text style={[
             styles.detailText,
-            gameState.settings.darkMode && styles.detailTextDark,
+            settings.darkMode && styles.detailTextDark,
           ]}>
             Last save: {formatLastSaveTime(saveStatus.lastSaveTime)}
           </Text>
           {saveStatus.queueLength > 0 && (
             <Text style={[
               styles.detailText,
-              gameState.settings.darkMode && styles.detailTextDark,
+              settings.darkMode && styles.detailTextDark,
             ]}>
               Queue: {saveStatus.queueLength} pending
             </Text>

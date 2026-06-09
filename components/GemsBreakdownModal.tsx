@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import BaseModal from '@/components/ui/BaseModal';
@@ -12,8 +12,7 @@ interface GemsBreakdownModalProps {
 }
 
 export default function GemsBreakdownModal({ visible, onClose }: GemsBreakdownModalProps) {
-  const { gameState } = useGame();
-  const { stats } = gameState;
+  const stats = useGameSelector((s) => s.stats, shallowEqual);
   const { theme, isDark } = useTheme();
   const gems = stats?.gems ?? 0;
 

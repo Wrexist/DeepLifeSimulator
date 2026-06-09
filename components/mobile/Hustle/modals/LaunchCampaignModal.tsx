@@ -35,7 +35,7 @@ interface LaunchCampaignModalProps {
 }
 
 export default function LaunchCampaignModal({ visible, companyId, onDismiss }: LaunchCampaignModalProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const [selectedKind, setSelectedKind] = useState<HustleCampaignKind | null>(null);
   const [spend, setSpend] = useState('');

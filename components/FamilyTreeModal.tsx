@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -16,17 +16,17 @@ interface Props {
 }
 
 export default function FamilyTreeModal({ visible, onClose }: Props) {
-  const { gameState } = useGame();
-  const settings = safeSettings(gameState);
+  const familyTreeData = useGameSelector((s) => s.familyTreeData);
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   // Reconstruct tree from data
   const tree = useMemo(() => {
-    if (!gameState.familyTreeData) return null;
-    const t = new FamilyTree(gameState.familyTreeData.lineageId);
-    t.members = gameState.familyTreeData.members;
+    if (!familyTreeData) return null;
+    const t = new FamilyTree(familyTreeData.lineageId);
+    t.members = familyTreeData.members;
     return t;
-  }, [gameState.familyTreeData]);
+  }, [familyTreeData]);
 
   // Group members by generation
   const generations = useMemo(() => {

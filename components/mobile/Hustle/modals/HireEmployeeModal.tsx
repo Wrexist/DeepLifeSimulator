@@ -26,7 +26,7 @@ interface HireEmployeeModalProps {
 }
 
 export default function HireEmployeeModal({ visible, companyId, onDismiss }: HireEmployeeModalProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [salaryOffer, setSalaryOffer] = useState('');

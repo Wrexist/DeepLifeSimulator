@@ -33,7 +33,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { JournalEntry } from '@/contexts/game/types';
 import { scale, fontScale } from '@/utils/scaling';
@@ -96,9 +96,8 @@ interface JournalProps {
 }
 
 export default function Journal({ compact = false }: JournalProps) {
-  const { gameState } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
-  const entries = gameState.journal || [];
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
+  const entries = useGameSelector((s) => s.journal) || [];
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<JournalCategory>('all');

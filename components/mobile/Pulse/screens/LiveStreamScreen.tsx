@@ -32,7 +32,7 @@ interface SummaryData {
 }
 
 export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
-  const { gameState, setGameState } = useGame() as any;
+  const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
   const [phase, setPhase] = useState<Phase>(gameState.socialMedia?.liveSession?.active ? 'live' : 'setup');
   const [topic, setTopic] = useState('Just chatting');

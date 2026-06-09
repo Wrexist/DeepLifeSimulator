@@ -418,3 +418,110 @@ gated on Phases 2–3 per the user's chosen sequencing.
 
 Previous verification: 10 passed, 24 failed (all pre-existing) — zero regressions
 
+---
+
+# Sprint 2 — Re-render performance via `useGameSelector` (selector channel) — June 9, 2026
+
+**Status legend:** `[ ]` todo · `[x]` done · `[~]` in progress
+
+## 1. Problem (measured from the code)
+
+`contexts/game/GameStateContext.tsx` stores the **entire** `GameState` in one `useState`,
+exposed through a single memoized context value. React Context has no selector, so when
+that value changes **every** consumer re-renders. Any action does
+`setGameState(prev => ({ ...prev, … }))`, so every state change re-renders every subscriber.
+
+Consumer surface (measured): **`useGame()` → 133 files**, **`useGameState()` → 29 files**.
+A single field change (e.g. `stats.money`) re-renders ~160 component trees, most of which
+never read the changed field. On the weekly tick (dozens of fields change) this is the
+dominant render cost.
+
+## 2. Rejected alternatives
+- **Split into N contexts** — changes the state model, touches all consumers, no incremental path.
+- **External store (Zustand/Redux/Jotai)** — rewrites every `setGameState` call site (hundreds).
+- **`use-context-selector` dependency** — adds a runtime dep + needs `npm install`.
+
+## 3. Chosen approach — additive selector channel (no dependency)
+Keep `useState<GameState>` as the **source of truth** (existing 160 consumers untouched).
+Add a parallel read channel on React 19's built-in `useSyncExternalStore`:
+- in-provider store mirror (`{ state, listeners }` ref) kept in sync each render; listeners
+  fired in a `useLayoutEffect` when `gameState` changes;
+- a **stable** `GameStoreContext` value (created once → never re-renders);
+- `useGameSelector(selector, isEqual?)` subscribes to a slice; re-renders only when the
+  slice changes. Selector memoization (the `use-sync-external-store/with-selector`
+  algorithm, vendored ~40 LOC) makes derived selectors loop-safe.
+
+Properties: **non-breaking**, **dependency-free**, **React-19-native**, **incremental**.
+
+## 4. Phases
+### Phase 0 — Plan
+- [x] Investigate provider tree, consumer counts, test coverage, deps; write this plan.
+### Phase 1 — Selector infrastructure (additive, non-breaking) ✅ shipped
+- [x] `contexts/game/useGameSelector.ts` — `GameStoreContext`, `useGameSelector`, vendored
+      with-selector memoization, `shallowEqual` helper.
+- [x] Wire `GameStateProvider` (mirror ref + layout-effect notify + stable store context).
+- [x] Render tests: unrelated-slice change → no re-render; changed-slice → re-render;
+      derived selector + `shallowEqual` stable; no tearing. (3 tests, green)
+- [x] Gate: full suite **2352 / 146 suites** (incl. realProviderLoop + gameFlow) green;
+      type-check 0; lint 0. Committed.
+### Phase 2 — Migrate hot, safe consumers (demonstrate the win) ✅ shipped
+- [x] Migrated `components/StatsDisplay.tsx` (reads only `stats`) from `useGame()` to
+      `useGameSelector((s) => s.stats, shallowEqual)`.
+- [x] `React.Profiler` render-count regression test proving it does NOT re-render on
+      unrelated changes (loans, weeksLived) and re-renders exactly once on a stat change.
+- [x] Gate: full suite **2353 / 147 suites** green; type-check 0; lint 0. Committed.
+
+### Phase 3 — Incremental migration (follow-up, in progress)
+- [x] **Batch 1** (single-/narrow-slice, pure-display): `SeasonalIndicator` (settings+weeksLived),
+      `SeasonalEventModal` (weeksLived), `Journal` (settings+journal), `settings/LifeGoalsPanel`
+      (settings+achievements), `BankBreakdownModal` (bankSavings+stocks+weeksLived). Established the
+      `useGameSelector((s) => safeSettings(s), shallowEqual)` pattern (unlocks the 32 `safeSettings`
+      consumers). type-check 0, lint 0, jest 2353/147 green.
+- [x] **Batch 2** (settings/darkMode + narrow slice): `OfflineIndicator`, `shared/EconomyEventBanner`,
+      `AncestorProfileModal`, `AutoSaveIndicator`, `MemoryBookModal`, `FamilyTreeModal`,
+      `PrestigeInfoModal`. Caught + fixed a `rules-of-hooks` ordering issue (hook moved above an
+      early return in OfflineIndicator). type-check 0, lint 0, jest 2353/147 green.
+- [x] **Batch 3** (computed-value pattern): `PrestigeButton`, `PrestigePreviewCard` →
+      `useGameSelector((s) => netWorth(s))` + `prestige`/`darkMode`. Demonstrates selecting a
+      *derived number* (memoized comparison re-renders only when the computed value changes).
+      type-check 0, lint 0, jest 2353/147 green.
+- [x] **Batch 4** (action-using + multi-slice): `GemsBreakdownModal`, `MoneyBreakdownModal`,
+      `HealthBreakdownModal` (9 slices), `EnergyBreakdownModal` (7 slices), `GemsStoreModal`
+      (gems slice + `setGameState` from `useGameState()`), `GemShopModal` (goldUpgrades/perks/
+      settings/gems + `buyGoldUpgrade` from `useMoneyActions()`, `saveGame` from `useGameActions()`).
+      Establishes the action pattern: state via selectors, writes via the split action hooks.
+      type-check 0, lint 0, jest 2353/147 green.
+- [x] **Batch 5** (`useSetGameState` + TopStatsBar): Added `GameStore.setGameState` (forwarding ref
+      to the stable wrapped setter) + `useSetGameState()` hook — write access WITHOUT a state
+      subscription. Fixed the Batch 4 miss in `GemsStoreModal` (it took `setGameState` from
+      `useGameState()`, which subscribes to the full context). Migrated **TopStatsBar** (1608L,
+      always-on-screen, both components in the file) to 15 slice selectors + `useSetGameState` —
+      it no longer re-renders on unrelated mutations (loans, companies, social feeds, …).
+      New test: setter writes land + caller never re-renders + identity stable.
+      type-check 0, lint 0, jest 2354/147 green.
+      **Not tested:** on-device render timing / animation smoothness of TopStatsBar (jest only).
+- [ ] **Batch 6+**: continue the ~112 remaining `useGame()` consumers in per-area batches.
+      **Rule update:** in migrated components take the setter from `useSetGameState()`, never
+      from `useGameState()`.
+- [x] **Batch 6** (narrow-slice components/ root): `RealEstateManager`, `YouthPillModal`,
+      `LegacyOverviewTab`, `LegacyTimeline`, `ProgressOverview`, `PrestigeHistoryModal`,
+      `PrestigeStatsCard` (netWorth derived-selector). setGameState via `useSetGameState`,
+      settings via `safeSettings(s)`/`shallowEqual`, darkMode crash-safe. ~107 consumers remain.
+      cold tsc 0, lint 0, jest 2354/147 green.
+      Note: `HelpModal`/`BugReportSheet` read state only inside a callback — better served by a
+      future `getGameState()` accessor than a subscription; deferred.
+      Deferred pattern: components that pass whole `gameState` to a calc (`netWorth(gameState)`,
+      etc.) — select the derived number directly (`useGameSelector((s) => netWorth(s))`) or the
+      needed slices. Order by render frequency / always-on-screen first.
+      **Rule:** never select a derived object/array without an `isEqual` (`shallowEqual`).
+
+## 5. Verification gates (every phase)
+type-check 0 · `eslint --quiet` 0 · `jest` all green (2349/145) · stress: `realProviderLoop`,
+`gameFlow`. Never leave red.
+
+## 6. Risks & mitigations
+- Infinite loop from derived selectors → vendored with-selector memoization + tests.
+- Stale reads/tearing → mirror updated in render body; notify in `useLayoutEffect`.
+- Breaking existing consumers → impossible by construction (their path is untouched).
+- Budget runs out mid-Phase-2 → Phase 1 is committed first; live app never left broken.
+

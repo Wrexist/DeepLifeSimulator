@@ -13,7 +13,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { TrendingDown, TrendingUp, Activity, Zap } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
@@ -75,10 +75,9 @@ function contextCopy(state: EconomyState, ctx: Props['context']): string {
 }
 
 export default function EconomyEventBanner({ context = 'generic' }: Props) {
-  const { gameState } = useGame();
-  const darkMode = !!gameState.settings?.darkMode;
+  const darkMode = useGameSelector((s) => !!s.settings?.darkMode);
   const theme = getThemeColors(darkMode);
-  const state = (gameState.economy?.economyEvents?.currentState ?? 'normal') as EconomyState;
+  const state = useGameSelector((s) => (s.economy?.economyEvents?.currentState ?? 'normal') as EconomyState);
 
   // Don't show a banner during normal conditions — keeps the UI quiet.
   if (state === 'normal') return null;

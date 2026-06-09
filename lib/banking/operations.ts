@@ -213,7 +213,14 @@ export function applyForCreditCard(
 export function chargeCreditCard(
   banking: BankingState,
   cardId: string,
-  amount: number
+  amount: number,
+  /**
+   * Floor for the cashback rate (decimal) from the Premium Credit Card IAP
+   * ("10% cashback on all purchases"). The effective rate is the better of the
+   * card's own rewardsRate and this floor, so the perk applies on top of any
+   * card tier without ever reducing a higher built-in rate.
+   */
+  minRewardsRate?: number
 ): { banking: BankingState; ok: boolean; rewardsEarned: number; reason?: string } {
   const idx = banking.creditCards.findIndex((c) => c.id === cardId);
   if (idx === -1) return { banking, ok: false, rewardsEarned: 0, reason: 'Card not found' };
@@ -229,7 +236,11 @@ export function chargeCreditCard(
   if (safe(card.balance) + amt > safeLimit) {
     return { banking, ok: false, rewardsEarned: 0, reason: 'Over credit limit' };
   }
-  const rewards = amt * safe(card.rewardsRate);
+  const effectiveRate = Math.max(
+    safe(card.rewardsRate),
+    typeof minRewardsRate === 'number' && isFinite(minRewardsRate) ? Math.max(0, minRewardsRate) : 0
+  );
+  const rewards = amt * effectiveRate;
   const next: BankingState = { ...banking, creditCards: [...banking.creditCards] };
   next.creditCards[idx] = {
     ...card,
@@ -465,6 +476,8 @@ export function quoteLoan(
     weeklyIncome: number;
     /** Political-perk APR reduction (decimal, e.g. 0.05 = 5% off). Computed by the caller from gameState.politics. */
     aprReduction?: number;
+    /** Hard APR cap (decimal) from the Private Banking IAP — caps the offered rate (e.g. 0.03 = "VIP 3% APR"). */
+    aprCap?: number;
   }
 ): { rejected: false; offeredAPR: number; weeklyPayment: number; totalRepaid: number } | { rejected: true; reason: string } {
   const minScore = MIN_SCORE_BY_LOAN_TYPE[request.type];
@@ -483,10 +496,14 @@ export function quoteLoan(
     mortgage: 0.065,
   };
   const aprReduction = Math.max(0, Math.min(0.2, safe(request.aprReduction, 0)));
-  const offeredAPR = Math.max(
+  let offeredAPR = Math.max(
     0.025,
     baseByType[request.type] + creditScoreAPRAdjustment(banking.creditScore.score) - aprReduction
   );
+  // Private Banking IAP caps the rate (never below the 0.025 floor).
+  if (typeof request.aprCap === 'number' && isFinite(request.aprCap)) {
+    offeredAPR = Math.min(offeredAPR, Math.max(0.025, request.aprCap));
+  }
   const weeklyPayment = calculatePeriodicPayment(request.principal, offeredAPR, request.termWeeks);
   const existingDebtPayments = (loans ?? []).reduce((s, l) => s + safe(l.weeklyPayment), 0);
 

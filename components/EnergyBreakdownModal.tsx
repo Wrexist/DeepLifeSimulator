@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { TrendingDown, TrendingUp, Briefcase, GraduationCap, Coffee, Utensils } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import BaseModal from '@/components/ui/BaseModal';
@@ -13,8 +13,13 @@ interface EnergyBreakdownModalProps {
 }
 
 export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdownModalProps) {
-  const { gameState } = useGame();
-  const { stats, careers, currentJob, educations, prestige } = gameState;
+  const stats = useGameSelector((s) => s.stats, shallowEqual);
+  const careers = useGameSelector((s) => s.careers);
+  const currentJob = useGameSelector((s) => s.currentJob);
+  const educations = useGameSelector((s) => s.educations);
+  const prestige = useGameSelector((s) => s.prestige);
+  const dietPlans = useGameSelector((s) => s.dietPlans);
+  const realEstate = useGameSelector((s) => s.realEstate);
   const { theme, isDark } = useTheme();
 
   const breakdown = useMemo(() => {
@@ -91,7 +96,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
     });
 
     // Add active diet plan energy gain
-    const activeDietPlan = (gameState.dietPlans || []).find(plan => plan && plan.active);
+    const activeDietPlan = (dietPlans || []).find(plan => plan && plan.active);
     if (activeDietPlan && activeDietPlan.energyGain > 0) {
       incomes.push({
         label: `${activeDietPlan.name} Diet`,
@@ -103,7 +108,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
     }
 
     // Add real estate energy boost from current residence
-    const currentResidence = (gameState.realEstate || []).find(p => {
+    const currentResidence = (realEstate || []).find(p => {
       const hasStatus = 'status' in p && p.status === 'owner';
       const hasCurrentResidence = 'currentResidence' in p && p.currentResidence === true;
       return p.owned && hasStatus && hasCurrentResidence;
@@ -136,7 +141,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       currentEnergy,
       projectedEnergy,
     };
-  }, [stats?.energy, currentJob, careers, educations, prestige, gameState.dietPlans, gameState.realEstate]);
+  }, [stats?.energy, currentJob, careers, educations, prestige, dietPlans, realEstate]);
 
   return (
     <BaseModal visible={visible} onClose={onClose} title="Energy Breakdown">

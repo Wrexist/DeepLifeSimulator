@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 const LinearGradient = LinearGradientFallback;
@@ -13,10 +13,10 @@ interface YouthPillModalProps {
 }
 
 export default function YouthPillModal({ visible, onClose }: YouthPillModalProps) {
-  const { gameState, setGameState } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
-  const youthPills = gameState.youthPills || 0;
-  const currentAge = gameState.date?.age || 18;
+  const setGameState = useSetGameState();
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
+  const youthPills = useGameSelector((s) => s.youthPills || 0);
+  const currentAge = useGameSelector((s) => s.date?.age ?? 18);
 
   const handleUseYouthPill = () => {
     if (youthPills <= 0) return;

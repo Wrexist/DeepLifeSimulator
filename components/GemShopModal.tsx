@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image, Animated } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import { useMoneyActions } from '@/contexts/game/MoneyActionsContext';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { X, TrendingUp, ArrowRightCircle, Gift, Gem, Star, Zap, Shield, Crown, CheckCircle, Sparkles, Diamond, Coins, Award, Heart, RefreshCw } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
@@ -18,8 +20,12 @@ interface GemShopModalProps {
 
 
 function GemShopModal({ visible, onClose }: GemShopModalProps) {
-  const { gameState, buyGoldUpgrade, saveGame } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const { buyGoldUpgrade } = useMoneyActions();
+  const { saveGame } = useGameActions();
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
+  const goldUpgrades = useGameSelector((s) => s.goldUpgrades);
+  const perks = useGameSelector((s) => s.perks);
+  const gems = useGameSelector((s) => s.stats?.gems ?? 0);
   const [tab, setTab] = useState<'upgrades' | 'store' | 'perks' | 'gems'>('upgrades');
   const [iapLoading, setIapLoading] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -46,7 +52,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       icon: TrendingUp,
       image: require('@/assets/images/iap/upgrades/money_multiplier.png'),
       permanent: true,
-      owned: gameState.goldUpgrades?.multiplier || false,
+      owned: goldUpgrades?.multiplier || false,
       gradient: ['#10B981', '#059669'],
       category: 'Economy',
     },
@@ -58,7 +64,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       icon: Zap,
       image: require('@/assets/images/iap/upgrades/energy_boost.png'),
       permanent: true,
-      owned: gameState.goldUpgrades?.energy_boost || false,
+      owned: goldUpgrades?.energy_boost || false,
       gradient: ['#F59E0B', '#D97706'],
       category: 'Stats',
     },
@@ -70,7 +76,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       icon: Star,
       image: require('@/assets/images/iap/upgrades/happiness_boost.png'),
       permanent: true,
-      owned: gameState.goldUpgrades?.happiness_boost || false,
+      owned: goldUpgrades?.happiness_boost || false,
       gradient: ['#8B5CF6', '#7C3AED'],
       category: 'Stats',
     },
@@ -82,7 +88,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       icon: Shield,
       image: require('@/assets/images/iap/upgrades/fitness_boost.png'),
       permanent: true,
-      owned: gameState.goldUpgrades?.fitness_boost || false,
+      owned: goldUpgrades?.fitness_boost || false,
       gradient: ['#EF4444', '#DC2626'],
       category: 'Stats',
     },
@@ -94,7 +100,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       icon: Award,
       image: require('@/assets/images/iap/upgrades/skill_mastery.png'),
       permanent: true,
-      owned: gameState.goldUpgrades?.skill_mastery || false,
+      owned: goldUpgrades?.skill_mastery || false,
       gradient: ['#6366F1', '#4F46E5'],
       category: 'Skills',
     },
@@ -106,7 +112,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       icon: ArrowRightCircle,
       image: require('@/assets/images/iap/upgrades/time_machine.png'),
       permanent: true,
-      owned: gameState.goldUpgrades?.time_machine || false,
+      owned: goldUpgrades?.time_machine || false,
       gradient: ['#EC4899', '#DB2777'],
       category: 'Special',
     },
@@ -118,7 +124,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       icon: Crown,
       image: require('@/assets/images/iap/upgrades/immortality.png'),
       permanent: true,
-      owned: gameState.goldUpgrades?.immortality || false,
+      owned: goldUpgrades?.immortality || false,
       gradient: ['#FBBF24', '#F59E0B'],
       category: 'Special',
     },
@@ -282,7 +288,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$6.99',
       icon: Crown,
       value: 'allPerks',
-      owned: gameState.perks?.workBoost && gameState.perks?.fastLearner && gameState.perks?.goodCredit || false,
+      owned: perks?.workBoost && perks?.fastLearner && perks?.goodCredit || false,
       gradient: ['#FBBF24', '#F59E0B'],
       image: require('@/assets/images/iap/premium/unlock_all_perks.png'),
       popular: true,
@@ -295,7 +301,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$1.99',
       icon: TrendingUp,
       value: 'workBoost',
-      owned: gameState.perks?.workBoost || false,
+      owned: perks?.workBoost || false,
       gradient: ['#10B981', '#059669'],
       image: require('@/assets/images/iap/perks/work_pay_boost.png'),
     },
@@ -306,7 +312,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$1.99',
       icon: Star,
       value: 'fastLearner',
-      owned: gameState.perks?.fastLearner || false,
+      owned: perks?.fastLearner || false,
       gradient: ['#8B5CF6', '#7C3AED'],
       image: require('@/assets/images/iap/perks/fast_learner.png'),
     },
@@ -317,7 +323,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$1.99',
       icon: Shield,
       value: 'goodCredit',
-      owned: gameState.perks?.goodCredit || false,
+      owned: perks?.goodCredit || false,
       gradient: ['#6366F1', '#4F46E5'],
       image: require('@/assets/images/iap/perks/good_credit_score.png'),
     },
@@ -328,7 +334,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$2.99',
       icon: CheckCircle,
       value: 'removeAds',
-      owned: gameState.settings?.adsRemoved || false,
+      owned: settings?.adsRemoved || false,
       gradient: ['#06B6D4', '#0891B2'],
       image: require('@/assets/images/iap/premium/remove_ads.png'),
     },
@@ -339,7 +345,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$2.99',
       icon: Heart,
       value: 'revival',
-      owned: gameState.settings?.hasRevivalPack || false,
+      owned: settings?.hasRevivalPack || false,
       gradient: ['#EF4444', '#DC2626'],
       image: require('@/assets/images/iap/items/youth_pill_single.png'),
       popular: true,
@@ -351,20 +357,20 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
       price: '$79.99',
       icon: Crown,
       value: 'lifetimePremium',
-      owned: gameState.settings?.lifetimePremium || false,
+      owned: settings?.lifetimePremium || false,
       gradient: ['#8B5CF6', '#7C3AED'],
       image: require('@/assets/images/iap/perks/mindset.png'),
     },
   ];
 
   const handleBuy = async (id: string, price: number) => {
-    if ((gameState?.stats?.gems ?? 0) < price) {
+    if (gems < price) {
       Alert.alert('Insufficient Gems', 'You need more gems to purchase this upgrade.');
       return;
     }
     
     // Check if already owned
-    const isOwned = gameState.goldUpgrades?.[id as keyof typeof gameState.goldUpgrades];
+    const isOwned = goldUpgrades?.[id as keyof typeof goldUpgrades];
     if (isOwned) {
       Alert.alert('Already Owned', 'You already own this upgrade.');
       return;
@@ -491,7 +497,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
   ];
 
   const renderUpgradeCard = (item: any) => {
-    const afford = (gameState?.stats?.gems ?? 0) >= item.price;
+    const afford = gems >= item.price;
     const isOwned = item.owned;
     const badges: ShopBadge[] = [];
     if (item.permanent) badges.push({ label: 'Permanent', color: '#A5B4FC' });
@@ -599,7 +605,7 @@ function GemShopModal({ visible, onClose }: GemShopModalProps) {
               <View style={styles.balanceRow}>
                 <Gem size={scale(13)} color="#A5B4FC" />
                 <Text style={styles.balanceText}>
-                  {(gameState?.stats?.gems ?? 0).toLocaleString()}
+                  {gems.toLocaleString()}
                 </Text>
                 <Text style={styles.balanceLabel}>gems</Text>
               </View>

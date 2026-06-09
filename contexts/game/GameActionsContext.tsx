@@ -2002,7 +2002,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Create memory if specified (NEW - enhances existing system)
  if (enhancedChoice.createsMemory && enhancedChoice.memoryText) {
  const newMemory = createMemoryFromChoice(prevState, eventId, choiceId, enhancedChoice.memoryText);
- updatedMemories = [...(prevState.memories || []), newMemory];
+ // Cap memories at the WRITE site (mirrors the eventLog cap below). The
+ // save-time pruner only runs periodically; without a write cap this array
+ // grows one entry per memory-creating choice for the whole life, and every
+ // setGameState copy walks it — the primary driver of long-session heap
+ // growth. 200 matches the save-time cap in saveQueue.pruneSaveData.
+ const MEMORIES_CAP = 200;
+ const memoryTail = prevState.memories || [];
+ updatedMemories = memoryTail.length >= MEMORIES_CAP
+   ? [...memoryTail.slice(-(MEMORIES_CAP - 1)), newMemory]
+   : [...memoryTail, newMemory];
  }
 
  // Remove event from pendingEvents

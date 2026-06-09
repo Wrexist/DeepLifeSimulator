@@ -26,7 +26,7 @@ interface BrandDealsScreenProps {
 }
 
 export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
-  const { gameState, setGameState } = useGame() as any;
+  const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<BrandTab>('inbox');
 

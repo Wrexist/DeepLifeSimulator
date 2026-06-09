@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Crown, Sparkles } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 const LinearGradient = LinearGradientFallback;
@@ -12,13 +12,12 @@ interface PrestigeButtonProps {
 }
 
 export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
-  const { gameState } = useGame();
+  const currentNetWorth = useGameSelector((s) => netWorth(s));
+  const prestigeLevel = useGameSelector((s) => s.prestige?.prestigeLevel || 0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const sparkleAnim = useRef(new Animated.Value(0)).current;
 
-  const currentNetWorth = netWorth(gameState);
-  const prestigeLevel = gameState.prestige?.prestigeLevel || 0;
   const threshold = getPrestigeThreshold(prestigeLevel);
   // Only check actual net worth, not the flag (which might be stale)
   const isAvailable = currentNetWorth >= threshold;

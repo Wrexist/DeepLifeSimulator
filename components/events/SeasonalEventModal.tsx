@@ -29,7 +29,7 @@ import {
  Package,
 } from 'lucide-react-native';
 import { SeasonalEvent } from '@/lib/events/seasonal';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { scale, fontScale } from '@/utils/scaling';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 const LinearGradient = LinearGradientFallback;
@@ -55,7 +55,7 @@ export default function SeasonalEventModal({
  onClaimRewards,
  darkMode = false,
 }: SeasonalEventModalProps) {
- const { gameState } = useGame();
+ const weeksLived = useGameSelector((s) => s.weeksLived);
  const [eventProgress, setEventProgress] = useState<EventProgress>({
  currentStep: 0,
  totalSteps: event?.specialActions?.length || 1,
@@ -137,7 +137,7 @@ export default function SeasonalEventModal({
  const countdown = useMemo(() => {
  if (!event) return null;
 
- const absoluteWeek = gameState.weeksLived || 0;
+ const absoluteWeek = weeksLived || 0;
  const currentMonth = Math.floor(absoluteWeek / 4) + 1;
  const weekInMonth = (absoluteWeek % 4) + 1;
 
@@ -151,14 +151,14 @@ export default function SeasonalEventModal({
  isEnding: weeksRemaining <= 2,
  hasEnded: weeksRemaining < 0,
  };
- }, [event, gameState.weeksLived]);
+ }, [event, weeksLived]);
 
  // Get participation history (deterministic from year — avoids random re-rolls on each render)
  const participationHistory = useMemo(() => {
  if (!event) return [];
 
  const history: { year: number; participated: boolean; rewardsClaimed: boolean }[] = [];
- const currentYear = Math.floor((gameState.weeksLived || 0) / WEEKS_PER_YEAR) + 1;
+ const currentYear = Math.floor((weeksLived || 0) / WEEKS_PER_YEAR) + 1;
 
  // Deterministic pseudo-random based on year (stable across renders)
  for (let i = Math.max(1, currentYear - 3); i < currentYear; i++) {
@@ -171,7 +171,7 @@ export default function SeasonalEventModal({
  }
 
  return history;
- }, [event, gameState.weeksLived]);
+ }, [event, weeksLived]);
 
  if (!event) return null;
 

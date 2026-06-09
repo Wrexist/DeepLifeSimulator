@@ -14,7 +14,7 @@ import { Platform, Modal,
   StyleSheet,
   Dimensions,
   Animated } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import {
   X,
@@ -58,9 +58,8 @@ function getMemoryStyle(memory: Memory) {
 }
 
 export default function MemoryBookModal({ visible, onClose }: Props) {
-  const { gameState } = useGame();
   // R2-A: defensive — `settings.darkMode` is read in ~30 places below.
-  const settings = safeSettings(gameState);
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
 
@@ -68,7 +67,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  const memories = gameState.memories || [];
+  const memories = useGameSelector((s) => s.memories) || [];
 
   // Entry animation
   useEffect(() => {

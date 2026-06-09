@@ -19,7 +19,8 @@ import {
  isIPad,
  isAndroidXLarge,
 } from '@/utils/scaling';
-import { useGameState, useGameActions } from '@/contexts/GameContext';
+import { useGameActions } from '@/contexts/GameContext';
+import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import { Z_INDEX } from '@/utils/zIndexConstants';
@@ -63,23 +64,24 @@ const LinearGradient = LinearGradientFallback;
 
 // Memoized TopStatsBar to prevent unnecessary re-renders
 function TopStatsBarComponent() {
- // Use useGameState and useGameActions for disease modal control
- const { gameState, setGameState } = useGameState();
-
- // Extract only the values we need from gameState to reduce re-renders
- // React's useMemo will handle object reference equality automatically
- const stats = gameState?.stats;
- const settings = gameState?.settings;
- const bankSavings = gameState?.bankSavings ?? 0;
- const stocks = gameState?.stocks;
- const generationNumber = gameState?.generationNumber;
- const prestigeLevel = gameState?.prestige?.prestigeLevel ?? 0;
- const date = gameState?.date;
- const careers = gameState?.careers;
- const currentJob = gameState?.currentJob;
- const educations = gameState?.educations;
- const prestige = gameState?.prestige;
- const diseases = gameState?.diseases || [];
+ // Sprint 2: select only the slices this bar reads — it no longer re-renders
+ // on changes to unrelated state (loans, companies, social feeds, ...).
+ const setGameState = useSetGameState();
+ const stats = useGameSelector((s) => s?.stats, shallowEqual);
+ const settings = useGameSelector((s) => s?.settings, shallowEqual);
+ const bankSavings = useGameSelector((s) => s?.bankSavings ?? 0);
+ const stocks = useGameSelector((s) => s?.stocks);
+ const generationNumber = useGameSelector((s) => s?.generationNumber);
+ const prestige = useGameSelector((s) => s?.prestige);
+ const prestigeLevel = prestige?.prestigeLevel ?? 0;
+ const date = useGameSelector((s) => s?.date, shallowEqual);
+ const careers = useGameSelector((s) => s?.careers);
+ const currentJob = useGameSelector((s) => s?.currentJob);
+ const educations = useGameSelector((s) => s?.educations);
+ const dietPlans = useGameSelector((s) => s?.dietPlans);
+ const realEstate = useGameSelector((s) => s?.realEstate);
+ const userProfile = useGameSelector((s) => s?.userProfile);
+ const diseases = useGameSelector((s) => s?.diseases) || [];
  const hasDiseases = diseases.length > 0;
  const hasCriticalDisease = diseases.some(d => d.severity === 'critical');
  const hasSeriousDisease = diseases.some(d => d.severity === 'serious');
@@ -104,9 +106,9 @@ function TopStatsBarComponent() {
 
  // Stat anims (JS driver) - must be initialized before early return (Rules of Hooks)
  const animatedStats = useRef({
- health: new Animated.Value(gameState?.stats?.health ?? 0),
- happiness: new Animated.Value(gameState?.stats?.happiness ?? 0),
- energy: new Animated.Value(gameState?.stats?.energy ?? 0),
+ health: new Animated.Value(stats?.health ?? 0),
+ happiness: new Animated.Value(stats?.happiness ?? 0),
+ energy: new Animated.Value(stats?.energy ?? 0),
  }).current;
 
  const weekAnimations = useRef([
@@ -295,11 +297,11 @@ function TopStatsBarComponent() {
  edu &&!edu.completed &&!edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0
  ).length;
  const activeDietPlanSig = (() => {
- const p = (gameState?.dietPlans || []).find(plan => plan && plan.active);
+ const p = (dietPlans || []).find(plan => plan && plan.active);
  return p ? `${p.healthGain ?? 0}|${p.happinessGain ?? 0}|${p.energyGain ?? 0}`: '';
  })();
  const residenceSig = (() => {
- const r = (gameState?.realEstate || []).find(p => {
+ const r = (realEstate || []).find(p => {
  const hasStatus = 'status'in p && p.status ==='owner';
  const hasCurrentResidence = 'currentResidence'in p && p.currentResidence === true;
  return p.owned && hasStatus && hasCurrentResidence;
@@ -308,7 +310,7 @@ function TopStatsBarComponent() {
  })();
 
  const statNetChanges = React.useMemo(() => {
- if (!stats ||!gameState) return { health: 0, happiness: 0, energy: 0 };
+ if (!stats) return { health: 0, happiness: 0, energy: 0 };
 
  // Calculate natural decay
  const netWorth = (stats.money || 0) + (bankSavings || 0);
@@ -334,7 +336,7 @@ function TopStatsBarComponent() {
  healthChange += Math.round(baseHealthPenalty * numActiveEducations * stressMultiplier);
  }
  // Add diet plan health gain
- const activeDietPlan = (gameState.dietPlans || []).find(plan => plan && plan.active);
+ const activeDietPlan = (dietPlans || []).find(plan => plan && plan.active);
  if (activeDietPlan && activeDietPlan.healthGain > 0) {
  healthChange += activeDietPlan.healthGain;
  }
@@ -356,7 +358,7 @@ function TopStatsBarComponent() {
  happinessChange += activeDietPlan.happinessGain;
  }
  // Add real estate happiness boost from current residence
- const currentResidence = (gameState.realEstate || []).find(p => {
+ const currentResidence = (realEstate || []).find(p => {
  const hasStatus = 'status'in p && p.status ==='owner';
  const hasCurrentResidence = 'currentResidence'in p && p.currentResidence === true;
  return p.owned && hasStatus && hasCurrentResidence;
@@ -456,13 +458,13 @@ function TopStatsBarComponent() {
  );
 
  useEffect(() => {
- if (!gameState?.date?.week) return;
- const currentIndex = Math.min(3, Math.max(0, (gameState?.date?.week ?? 1) - 1));
+ if (!date?.week) return;
+ const currentIndex = Math.min(3, Math.max(0, (date?.week ?? 1) - 1));
  Animated.sequence([
  Animated.timing(weekAnimations[currentIndex], { toValue: 1.35, duration: 180, useNativeDriver: true }),
  Animated.timing(weekAnimations[currentIndex], { toValue: 1, duration: 180, useNativeDriver: true }),
  ]).start();
- }, [gameState?.date?.week, weekAnimations]);
+ }, [date?.week, weekAnimations]);
 
  // Standardized breakpoint for small devices (covers iPhone SE and Android small devices)
  const SMALL_DEVICE_BREAKPOINT = 360;
@@ -496,7 +498,7 @@ function TopStatsBarComponent() {
  const progressBarWidth = getProgressBarWidth();
 
  // Don't render if no game state or if we're in onboarding
- if (!gameState?.stats ||!gameState?.userProfile) return null;
+ if (!stats ||!userProfile) return null;
 
  const darkMode =!!settings?.darkMode;
  // Dynamic container padding for small devices - more conservative
@@ -928,13 +930,12 @@ function TopStatsBarComponent() {
 const RightSide = React.memo(function RightSide({ date }: { date?: { week?: number; year?: number; month?: string | number; age?: number } }) {
  // RightSide needs nextWeek action, so use both hooks
  // Hooks must be called unconditionally - if provider isn't ready, the error will be caught by ErrorBoundary
- const { gameState } = useGameState();
  const { nextWeek } = useGameActions();
  const { width } = useWindowDimensions();
  // Handle both iPhone Pro Max (428px+) and large Android devices (600px+)
  const isExtraLargeDevice = width > 428 || isAndroidXLarge(); // iPhone 15 Pro Max and large Android phones
  const { AnimatedView, animatedStyle, onPressIn, onPressOut } = usePressableScale();
- const settings = useMemo(() => gameState?.settings, [gameState?.settings]);
+ const settings = useGameSelector((s) => s?.settings, shallowEqual);
  const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
 
  // All hooks must be called before any early returns (Rules of Hooks)

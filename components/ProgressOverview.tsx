@@ -26,7 +26,7 @@ import {
   Award,
   X,
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
 import { Achievement } from '@/contexts/game/types';
@@ -58,8 +58,9 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 export default function ProgressOverview({ compact = false }: ProgressOverviewProps) {
-  const { gameState } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const achievements = useGameSelector((s) => s.achievements);
+  const progressAchievements = useGameSelector((s) => s.progress?.achievements);
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
   const darkMode = settings?.darkMode ?? false;
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -70,19 +71,19 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
 
   // Get all achievements from game state
   const allAchievements = useMemo(() => {
-    return gameState.achievements || [];
-  }, [gameState.achievements]);
+    return achievements || [];
+  }, [achievements]);
 
   // Get unlocked achievements with timestamps
   const unlockedMap = useMemo(() => {
     const map = new Map<string, number>();
-    (gameState.progress?.achievements || []).forEach(ach => {
+    (progressAchievements || []).forEach(ach => {
       if (ach.unlockedAt !== undefined) {
         map.set(ach.id, ach.unlockedAt);
       }
     });
     return map;
-  }, [gameState.progress?.achievements]);
+  }, [progressAchievements]);
 
   // Filter and sort achievements
   const filteredAchievements = useMemo(() => {

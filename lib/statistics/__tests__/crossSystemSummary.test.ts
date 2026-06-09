@@ -14,13 +14,14 @@ describe('buildCrossSystemSummary', () => {
   });
 
   it('produces a banking card with credit + interest details', () => {
+    // Real schema: creditScore.score, total* fields, loans on state.loans.
     const s = base({
       banking: {
-        creditScore: 720,
-        lifetimeInterestPaid: 5000,
-        lifetimeInterestEarned: 800,
-        loans: [{ id: 'l1' }, { id: 'l2' }],
+        creditScore: { score: 720 },
+        totalInterestPaid: 5000,
+        totalInterestEarned: 800,
       },
+      loans: [{ id: 'l1' }, { id: 'l2' }],
     });
     const card = buildCrossSystemSummary(s).cards.find((c) => c.id === 'banking');
     expect(card).toBeDefined();
@@ -29,9 +30,47 @@ describe('buildCrossSystemSummary', () => {
   });
 
   it('flags credit warning when score < 600', () => {
-    const s = base({ banking: { creditScore: 540 } });
+    const s = base({ banking: { creditScore: { score: 540 } } });
     const card = buildCrossSystemSummary(s).cards.find((c) => c.id === 'banking');
     expect(card?.warning).toMatch(/credit/i);
+  });
+
+  it('crypto card shows lifetime realized gains (regression: read wrong field → always $0)', () => {
+    const s = base({
+      cryptos: [{ owned: 2, price: 30000 }],
+      cryptoMarket: { totalRealizedGains: 12000, realizedGainsThisYear: 4000 },
+    });
+    const card = buildCrossSystemSummary(s).cards.find((c) => c.id === 'crypto');
+    expect(card).toBeDefined();
+    expect(card!.details.find((d) => d.label === 'Realized gains')?.value).toBe('$12.0k');
+  });
+
+  it('stocks card shows lifetime dividends (regression: read wrong field → always $0)', () => {
+    const s = base({
+      stocks: { holdings: [{ symbol: 'AAA' }], totalDividends: 3500, realizedGains: 900 },
+    });
+    const card = buildCrossSystemSummary(s).cards.find((c) => c.id === 'stocks');
+    expect(card).toBeDefined();
+    expect(card!.details.find((d) => d.label === 'Dividends')?.value).toBe('$3.5k');
+  });
+
+  it('produces a real-estate card from owned properties (regression: was always [])', () => {
+    const s = base({
+      realEstate: [
+        { id: 'h1', owned: true, currentValue: 300000, price: 250000 },
+        { id: 'h2', owned: true, price: 150000 }, // no currentValue → falls back to price
+        { id: 'h3', owned: false, currentValue: 999999 }, // not owned → excluded
+      ],
+    });
+    const card = buildCrossSystemSummary(s).cards.find((c) => c.id === 'realEstate');
+    expect(card).toBeDefined();
+    expect(card!.lead.value).toBe('2');
+    expect(card!.details.find((d) => d.label === 'Value')?.value).toBe('$450.0k');
+  });
+
+  it('skips real-estate card when no owned properties', () => {
+    const s = base({ realEstate: [{ id: 'h1', owned: false, currentValue: 100000 }] });
+    expect(buildCrossSystemSummary(s).cards.find((c) => c.id === 'realEstate')).toBeUndefined();
   });
 
   it('skips politics card when no career level', () => {

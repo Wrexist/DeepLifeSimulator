@@ -2,19 +2,17 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { WifiOff, Wifi } from 'lucide-react-native';
 import { useNetworkStatus } from '@/utils/offlineManager';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { responsiveFontSize } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 
 export default function OfflineIndicator() {
   const { isOnline, pendingActions } = useNetworkStatus();
-  const { gameState } = useGame();
+  const isDarkMode = useGameSelector((s) => s?.settings?.darkMode ?? false);
 
   if (isOnline && pendingActions === 0) {
     return null;
   }
-
-  const isDarkMode = gameState?.settings?.darkMode ?? false;
 
   return (
     <View style={[

@@ -164,7 +164,9 @@ export const spendOnCard = (
   setGameState((prev) => {
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
-    const result = chargeCreditCard(state.banking, cardId, amount);
+    // Premium Credit Card IAP guarantees a 10% cashback floor on all card spend.
+    const cashbackFloor = state.settings?.premiumCreditCard ? 0.1 : undefined;
+    const result = chargeCreditCard(state.banking, cardId, amount, cashbackFloor);
     if (!result.ok) {
       log.warn(`Card charge failed: ${result.reason}`);
       return prev;

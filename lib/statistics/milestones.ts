@@ -97,7 +97,7 @@ export function buildMilestones(state: GameState): Milestone[] {
   }
 
   // Cross-system milestones that the old `lifetimeStatistics` ignored.
-  const channel: any = (state as any).gamingStreaming;
+  const channel = state.gamingStreaming;
   if (safe(channel?.subscribers, 0) >= 1_000) {
     out.push({
       id: 'creator-1k',
@@ -113,20 +113,20 @@ export function buildMilestones(state: GameState): Milestone[] {
     });
   }
 
-  const pol: any = (state as any).politics;
+  const pol = state.politics;
   if (safe(pol?.electionsWon, 0) > 0) {
     out.push({
       id: 'elected',
-      label: `Won ${pol.electionsWon} election(s)`,
+      label: `Won ${pol?.electionsWon} election(s)`,
       category: 'career',
     });
   }
 
-  const dw: any = (state as any).darkWeb;
+  const dw = state.darkWeb;
   if (((dw?.jobHistory ?? []).length) >= 10) {
     out.push({
       id: 'fence',
-      label: `${dw.jobHistory.length} dark-web jobs`,
+      label: `${(dw?.jobHistory ?? []).length} dark-web jobs`,
       category: 'risk',
     });
   }

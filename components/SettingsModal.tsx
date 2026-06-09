@@ -15,7 +15,6 @@ import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
-import DevToolsModal from './DevToolsModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
@@ -30,6 +29,21 @@ import { getShadow } from '@/utils/shadow';
 import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
 import { DISCORD_JOIN_REWARD_GEMS } from '@/lib/config/gameConstants';
 const LinearGradient = LinearGradientFallback;
+
+// Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
+// debug graph (DevToolsModal → TestRunner / AIDebugMenu → SimulationRunner →
+// lib/simulation/*, ~10k LOC) is dead-code-eliminated from production App Store
+// builds. SettingsModal is reached from every screen via TopStatsBar, so a
+// static import of DevToolsModal pulled that entire graph into the release
+// bundle. __DEV__ is false in every release build; set
+// EXPO_PUBLIC_ENABLE_DEVTOOLS=true to opt a TestFlight/internal build back in.
+// Kept as a plain module-level constant + conditional require (not via
+// featureFlags) so Metro can statically fold the branch and drop the chain.
+const DEV_TOOLS_ENABLED =
+  __DEV__ || process.env.EXPO_PUBLIC_ENABLE_DEVTOOLS === 'true';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const DevToolsModal: React.ComponentType<{ visible: boolean; onClose: () => void }> | null =
+  DEV_TOOLS_ENABLED ? require('./DevToolsModal').default : null;
 
 interface SettingsModalProps {
   visible: boolean;
@@ -51,8 +65,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
   const [showBackupManager, setShowBackupManager] = useState(false);
-  // TEMP: Game Dev Tools surface — leave enabled in production for now;
-  // remove once the dev tools are no longer needed.
+  // Game Dev Tools surface — only reachable when DEV_TOOLS_ENABLED (dev builds
+  // or an explicit EXPO_PUBLIC_ENABLE_DEVTOOLS opt-in). Stripped from prod.
   const [showDevTools, setShowDevTools] = useState(false);
   const [showRewardPopup, setShowRewardPopup] = useState(false);
   const [rewardPopupMessage, setRewardPopupMessage] = useState('');
@@ -380,22 +394,26 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
             {activeSettingsTab === 'settings' ? (
               <>
-                {/* TEMP: Game Dev Tools — pinned to the top of Settings while in active development. Remove this block when the dev tools surface is no longer needed. */}
-                <TouchableOpacity
-                  style={[styles.actionButtonContainer, { marginBottom: 16 }]}
-                  onPress={() => setShowDevTools(true)}
-                  activeOpacity={0.85}
-                >
-                  <LinearGradient
-                    colors={['#6366F1', '#4F46E5', '#4338CA']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButton}
+                {/* Game Dev Tools — dev/QA only; gated so the simulator graph is stripped from production. */}
+                {DEV_TOOLS_ENABLED && (
+                  <TouchableOpacity
+                    style={[styles.actionButtonContainer, styles.devToolsButtonContainer]}
+                    onPress={() => setShowDevTools(true)}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open Game Dev Tools"
                   >
-                    <Code size={22} color="#FFFFFF" style={styles.actionButtonIcon} />
-                    <Text style={[styles.actionButtonText, { fontSize: 16, fontWeight: '700' }]}>Game Dev Tools</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={['#6366F1', '#4F46E5', '#4338CA']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.actionButton}
+                    >
+                      <Code size={22} color="#FFFFFF" style={styles.actionButtonIcon} />
+                      <Text style={[styles.actionButtonText, styles.devToolsButtonText]}>Game Dev Tools</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
 
                 {settingItems.map(item => (
                   <View key={item.id} style={[styles.settingItem,  styles.settingItemDark]}>
@@ -636,8 +654,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       <BugReportSheet visible={showBugReport} onClose={() => setShowBugReport(false)} />
 
       <LegacyOverviewTab visible={showLegacyOverview} onClose={() => setShowLegacyOverview(false)} />
-      {/* TEMP: Game Dev Tools modal mount. */}
-      <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
+      {/* Game Dev Tools modal mount — only present in dev/QA builds (see DEV_TOOLS_ENABLED). */}
+      {DEV_TOOLS_ENABLED && DevToolsModal ? (
+        <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
+      ) : null}
       <BackupRecoveryModal
         visible={showBackupManager}
         slot={currentSlot || 1}
@@ -1139,6 +1159,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: responsiveFontSize.base,
+  },
+  devToolsButtonContainer: {
+    marginBottom: scale(16),
+  },
+  devToolsButtonText: {
+    fontSize: fontScale(16),
+    fontWeight: '700',
   },
   // Enhanced Danger Section Styles
   dangerSection: {

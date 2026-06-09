@@ -40,9 +40,9 @@ export function transportationMods(state: GameState): TransportationMods {
   }
 
   // Politics: read activePolicyEffects.transportation.
-  const transport = (state as any).politics?.activePolicyEffects?.transportation ?? {};
-  const politicsCostReductionPct = Math.max(0, Math.min(1, safe(transport.travelCostReduction, 0))) * 100;
-  const politicsCommuteReductionPct = Math.max(0, Math.min(1, safe(transport.commuteTimeReduction, 0))) * 100;
+  const transport = state.politics?.activePolicyEffects?.transportation;
+  const politicsCostReductionPct = Math.max(0, Math.min(1, safe(transport?.travelCostReduction, 0))) * 100;
+  const politicsCommuteReductionPct = Math.max(0, Math.min(1, safe(transport?.commuteTimeReduction, 0))) * 100;
 
   const costMultiplier = Math.max(0, 1 - politicsCostReductionPct / 100);
 

@@ -160,6 +160,14 @@ describe('State Growth Audit', () => {
     // 5 MB is a generous ceiling; production target is much lower.
     expect(final.total).toBeLessThan(5_000_000);
     process.stdout.write(`[state-growth] final total: ${(final.total / 1024).toFixed(1)}KB\n`);
+
+    // Write-site cap invariants (Round 11 §0.6). These arrays append during the
+    // real tick / event resolution; the caps live in GameActionsContext
+    // (memories) and SparkActions (jealousyHistory). Asserting on the organic
+    // post-loop state guards against the caps being removed — unbounded growth
+    // here was a primary driver of long-session heap growth.
+    expect((captured!.state.memories || []).length).toBeLessThanOrEqual(200);
+    expect((captured!.state.sparkApp?.jealousyHistory || []).length).toBeLessThanOrEqual(50);
   });
 
   it('Pin: pendingEvents bounded at MAX_PENDING_EVENTS (100)', async () => {
