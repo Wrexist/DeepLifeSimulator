@@ -382,9 +382,24 @@ as investigative, not mechanical):
    card skipped. Fixed to read the typed array filtered to `owned` (matching
    `lib/economy/expenses.ts`), valuing each at `currentValue ?? price`. Added two regression tests.
 
-Also removed the mechanical `(state as any)` field casts across `crossSystemSummary.ts` and
-`milestones.ts` (all fields are on `GameState`). Type-check + lint clean; statistics suite 26
-passed; full suite green.
+Then fully typed the cross-system cards (removed every `: any` local), which the compiler used to
+surface **four more silent-data bugs** of the same class — each card read a field name that does
+not exist on the real type, so the `as any` made them quietly render 0 / '—':
+
+- **Banking card** read `creditScore` as a number (real: `creditScore.score`),
+  `lifetimeInterestPaid`/`lifetimeInterestEarned`/`lifetimeLateFees` (real: `total*`), and
+  `banking.loans` (real: `state.loans`) — every detail was wrong. Fixed + updated the test, which
+  had encoded the same stale shape.
+- **Crypto card** read `cryptoMarket.realizedGains` (real: `totalRealizedGains`) → always $0.
+- **Stocks card** read `stocks.lifetimeDividends` (real: `totalDividends`) → always $0.
+- **Vehicles card** read a non-existent `accidentCount` → always 0; replaced with average condition.
+
+Added regression tests for the realEstate, crypto, and stocks fixes. `milestones.ts` typed cleanly
+(no stale fields there). Type-check + lint clean; statistics suite 28 passed; full suite 2349
+passed / 145 suites.
+
+Net for TS-3: **6 latent display bugs fixed** (2 trends + 4 cards), the whole statistics layer typed,
+and ~25 `as any`/`: any` removed — all caught by *removing* casts, not by reading the UI.
 
 ---
 

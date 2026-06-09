@@ -49,11 +49,15 @@ function fmtPct(n: number): string {
 function bankingCard(state: GameState): SystemCard | null {
   const banking = state.banking;
   if (!banking) return null;
-  const credit = safe(banking.creditScore, 0);
-  const lateFees = safe(banking.lifetimeLateFees, 0);
-  const interestPaid = safe(banking.lifetimeInterestPaid, 0);
-  const interestEarned = safe(banking.lifetimeInterestEarned, 0);
-  const loans = Array.isArray(banking.loans) ? banking.loans.length : 0;
+  // These all read stale/imagined field names under the old `as any`: the real
+  // BankingState nests the score under creditScore.score and names the totals
+  // total*; open loans live on state.loans, not banking.loans. So every detail
+  // here previously rendered 0 / '—'.
+  const credit = safe(banking.creditScore?.score, 0);
+  const lateFees = safe(banking.totalLateFeesPaid, 0);
+  const interestPaid = safe(banking.totalInterestPaid, 0);
+  const interestEarned = safe(banking.totalInterestEarned, 0);
+  const loans = Array.isArray(state.loans) ? state.loans.length : 0;
   const warning =
     credit > 0 && credit < 600 ? 'Credit score below 600' :
     lateFees > 1000 ? 'High late-fee history' : undefined;
@@ -73,9 +77,11 @@ function bankingCard(state: GameState): SystemCard | null {
 function cryptoCard(state: GameState): SystemCard | null {
   const ct = state.cryptoMarket ?? state.cryptos;
   if (!ct) return null;
-  const realized = safe(state.cryptoMarket?.realizedGains, 0);
+  // Field is `totalRealizedGains` (lifetime); `realizedGains` does not exist on
+  // CryptoMarketState, so under the old `as any` this detail was always $0.
+  const realized = safe(state.cryptoMarket?.totalRealizedGains, 0);
   const cryptos = state.cryptos ?? [];
-  const totalOwnedUSD = cryptos.reduce((s: number, c: any) => s + safe(c.owned, 0) * safe(c.price, 0), 0);
+  const totalOwnedUSD = cryptos.reduce((s, c) => s + safe(c.owned, 0) * safe(c.price, 0), 0);
   const dirty = safe(state.darkWeb?.dirtyBtc, 0);
   return {
     id: 'crypto',
@@ -90,10 +96,12 @@ function cryptoCard(state: GameState): SystemCard | null {
 }
 
 function stocksCard(state: GameState): SystemCard | null {
-  const stocks: any = state.stocks;
+  const stocks = state.stocks;
   if (!stocks) return null;
-  const holdings = Object.values(stocks.holdings ?? {});
-  const dividends = safe(stocks.lifetimeDividends, 0);
+  const holdings = stocks.holdings ?? [];
+  // Field is `totalDividends`; `lifetimeDividends` does not exist, so under the
+  // old `as any` this detail was always $0.
+  const dividends = safe(stocks.totalDividends, 0);
   const realized = safe(stocks.realizedGains, 0);
   return {
     id: 'stocks',
@@ -146,12 +154,12 @@ function darkWebCard(state: GameState): SystemCard | null {
 }
 
 function politicsCard(state: GameState): SystemCard | null {
-  const pol: any = state.politics;
+  const pol = state.politics;
   if (!pol || safe(pol.careerLevel, 0) === 0) return null;
   const approval = safe(pol.approvalRating, 50);
   const elections = safe(pol.electionsWon, 0);
   const policies = (pol.policiesEnacted ?? []).length;
-  const scandals = (pol.scandals ?? []).filter((s: any) => s.active).length;
+  const scandals = (pol.scandals ?? []).filter((s) => s.active).length;
   return {
     id: 'politics',
     label: 'Politics',
@@ -166,7 +174,7 @@ function politicsCard(state: GameState): SystemCard | null {
 }
 
 function contentCard(state: GameState): SystemCard | null {
-  const ch: any = state.gamingStreaming;
+  const ch = state.gamingStreaming;
   if (!ch) return null;
   const totalViews = safe(ch.totalViews, 0);
   const subs = safe(ch.subscribers, 0);
@@ -204,13 +212,15 @@ function petsCard(state: GameState): SystemCard | null {
 function vehiclesCard(state: GameState): SystemCard | null {
   const v = state.vehicles ?? [];
   if (!Array.isArray(v) || v.length === 0) return null;
-  const accidents = v.reduce((s: number, x: any) => s + safe(x.accidentCount, 0), 0);
+  // Vehicle has no `accidentCount` (the old `as any` read a field that never
+  // existed → always 0). Surface average condition, a real field instead.
+  const avgCondition = Math.round(v.reduce((s, x) => s + safe(x.condition, 0), 0) / v.length);
   return {
     id: 'vehicles',
     label: 'Vehicles',
     lead: { label: 'Owned', value: String(v.length) },
     details: [
-      { label: 'Accidents', value: String(accidents) },
+      { label: 'Avg condition', value: `${avgCondition}/100` },
     ],
   };
 }
@@ -220,7 +230,7 @@ function travelCard(state: GameState): SystemCard | null {
   if (!t) return null;
   const visited = (t.visitedDestinations ?? []).length;
   const opps = Object.values(t.businessOpportunities ?? {});
-  const partners = opps.filter((o: any) => o.invested).length;
+  const partners = opps.filter((o) => o.invested).length;
   if (visited === 0 && partners === 0) return null;
   return {
     id: 'travel',
