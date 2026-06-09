@@ -19,4 +19,5 @@ jobs:
       xcode_project: ios/App/App.xcodeproj
       bundle_map: '{"App": "com.deeplife.simulator"}'   # ← change the bundle id
       match_branch: new-apps
+      default_version: '1.0.0'
       marketing_version: ${{ inputs.marketing_version }}
