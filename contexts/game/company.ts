@@ -464,7 +464,9 @@ export function buyCompanyUpgrade(
       ? upgradeDefinition.cost 
       : Math.round(upgradeDefinition.cost * Math.pow(costMultiplier, currentLevel));
     
-    const cost = getInflatedPrice(nextLevelCost, prev.economy.priceIndex);
+    // Business Banking IAP: 15% off all company upgrade purchases.
+    const businessBankingDiscount = prev.settings?.businessBanking ? 0.15 : 0;
+    const cost = Math.round(getInflatedPrice(nextLevelCost, prev.economy.priceIndex) * (1 - businessBankingDiscount));
     if (prev.stats.money < cost) return prev;
 
     // Calculate bonus for this level with diminishing returns

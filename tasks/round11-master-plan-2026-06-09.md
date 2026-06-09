@@ -315,6 +315,34 @@ screen reads) — next batch. The 185 RN-web `boxShadow … as any` casts (Phase
 **Verification:** `npm run type-check` 0 errors; `npx eslint . --quiet` (errors-only) **0 errors**
 repo-wide; `lib/travel` clean at `error`; rules fire as `warn` on remaining offenders.
 
+## MON-2 — Wire the 3 dead bank IAPs to deliver value — shipped 2026-06-09
+
+User decision: **wire them** (IAP verify backend MON-1 deferred). Each flag was set on purchase
+but read nowhere ("paid, delivers nothing" — App Store 2.3.1 risk). Now each delivers its
+advertised value, with copy aligned to what actually ships:
+
+- **Private Banking ($9.99) → "VIP 3% APR loans."** Added an `aprCap` to `quoteLoan`
+  (`lib/banking/operations.ts`) and thread `privateBankingAprCap(state)` (0.03) through both
+  new-loan quotes and refinance (`contexts/game/actions/LoanActions.ts`). Caps the offered rate at
+  3%, never below the 0.025 floor. Regression test added (`lib/banking/__tests__/operations.test.ts`).
+- **Premium Credit Card ($4.99) → "10% cashback."** Added a `minRewardsRate` floor to
+  `chargeCreditCard`; `spendOnCard` passes 0.10 when owned (`BankingActions.ts`). Effective rate =
+  `max(card.rewardsRate, 0.10)`. Not a faucet — cashback is a fraction of money the player spends.
+- **Business Banking ($3.99) → "15% off all company upgrades."** Applied a 15% discount to the
+  upgrade cost in **both** `buyCompanyUpgrade` implementations (`company.ts` and
+  `actions/CompanyActions.ts` — the live path was ambiguous, so both get it consistently). Chose a
+  value-add discount over *gating* `buyCompanyUpgrade` (gating would remove existing functionality
+  from non-payers — a dark pattern). Updated the advertised copy in `utils/iapConfig.ts` to "15%
+  off all company upgrades" (the old "Company loans" claim described a feature that does not exist).
+
+**Verification:** type-check 0 errors; `eslint --quiet` 0 errors; `jest` 2344 passed / 145 suites;
+new Private Banking APR-cap test green; zero regressions.
+
+**Note for the IAP backend (MON-1, when revisited):** these effects are gated only on
+`settings.*` flags. Until the verify backend (RevenueCat or endpoint) exists, the flags can't be
+purchased in production (verifyReceiptWithServer fails closed) — so the wiring is dormant but
+correct, and activates the moment MON-1 lands.
+
 ---
 
 # PART 4 — VERIFICATION CHECKLIST (per the project's gates)

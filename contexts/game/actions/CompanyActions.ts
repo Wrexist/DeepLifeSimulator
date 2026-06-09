@@ -210,7 +210,9 @@ export const buyCompanyUpgrade = (
 
   // CRITICAL: Validate priceIndex before calculation
   const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 ? gameState.economy.priceIndex : 1;
-  const costOuter = getInflatedPrice(nextLevelCostOuter, priceIndex);
+  // Business Banking IAP: 15% off all company upgrade purchases.
+  const businessBankingDiscount = gameState.settings?.businessBanking ? 0.15 : 0;
+  const costOuter = Math.round(getInflatedPrice(nextLevelCostOuter, priceIndex) * (1 - businessBankingDiscount));
 
   // CRITICAL: Validate cost before comparison
   if (!isFinite(costOuter) || costOuter < 0) {
@@ -248,7 +250,9 @@ export const buyCompanyUpgrade = (
       : Math.round(upgradeDefinition.cost * Math.pow(costMultiplier, currentLevel));
 
     const freshPriceIndex = typeof prev.economy?.priceIndex === 'number' && isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0 ? prev.economy.priceIndex : 1;
-    const cost = getInflatedPrice(nextLevelCost, freshPriceIndex);
+    // Business Banking IAP: 15% off (read from fresh state).
+    const innerDiscount = prev.settings?.businessBanking ? 0.15 : 0;
+    const cost = Math.round(getInflatedPrice(nextLevelCost, freshPriceIndex) * (1 - innerDiscount));
 
     if (!isFinite(cost) || cost < 0) return prev;
 

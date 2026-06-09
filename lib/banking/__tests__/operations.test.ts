@@ -316,6 +316,21 @@ describe('loans', () => {
     }
   });
 
+  it('Private Banking aprCap caps the offered APR at the VIP 3% rate (never below the 2.5% floor)', () => {
+    const req = { principal: 5000, termWeeks: 52, type: 'personal' as const, weeklyIncome: 2000 };
+    const base = quoteLoan(emptyBanking(), [], req);
+    const capped = quoteLoan(emptyBanking(), [], { ...req, aprCap: 0.03 });
+    expect(base.rejected).toBe(false);
+    expect(capped.rejected).toBe(false);
+    if (!base.rejected && !capped.rejected) {
+      // A normal personal loan prices well above 3%; the cap brings it down.
+      expect(base.offeredAPR).toBeGreaterThan(0.03);
+      expect(capped.offeredAPR).toBeLessThanOrEqual(0.03);
+      expect(capped.offeredAPR).toBeGreaterThanOrEqual(0.025);
+      expect(capped.weeklyPayment).toBeLessThan(base.weeklyPayment);
+    }
+  });
+
   it('rejects a loan when DTI is breached', () => {
     const q = quoteLoan(emptyBanking(), [], {
       principal: 100_000,

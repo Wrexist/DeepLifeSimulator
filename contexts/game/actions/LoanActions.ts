@@ -56,6 +56,16 @@ export function politicsAprReduction(state: GameState): number {
 }
 
 /**
+ * Private Banking IAP delivers "VIP 3% APR loans" — caps every loan's offered
+ * rate at 3% (and refinances down to it). Returns undefined when not owned so
+ * pricing falls through to the normal credit-score + politics formula.
+ */
+export const PRIVATE_BANKING_APR_CAP = 0.03;
+export function privateBankingAprCap(state: GameState): number | undefined {
+  return state.settings?.privateBanking ? PRIVATE_BANKING_APR_CAP : undefined;
+}
+
+/**
  * Synchronous quote for the UI (read-only, doesn't mutate state).
  * Mirrors lib/banking/operations.quoteLoan but flattens the result for component use.
  */
@@ -75,6 +85,7 @@ export function getLoanQuote(
   const result = quoteLoan(banking, state.loans ?? [], {
     ...request,
     aprReduction: politicsAprReduction(state),
+    aprCap: privateBankingAprCap(state),
   });
   if (result.rejected) {
     return { rejected: true, reason: result.reason };
@@ -116,6 +127,7 @@ export const acceptLoan = (
       type: spec.type,
       weeklyIncome: spec.weeklyIncome,
       aprReduction: politicsAprReduction(state),
+      aprCap: privateBankingAprCap(state),
     });
     if (quote.rejected) {
       log.info(`Loan rejected: ${quote.reason}`);
@@ -280,10 +292,14 @@ export const refinanceLoan = (
       business: 0.10,
       mortgage: 0.065,
     };
-    const newAPR = Math.max(
+    const cap = privateBankingAprCap(state);
+    let newAPR = Math.max(
       0.025,
       baseByType[loan.type] + creditScoreAPRAdjustment(state.banking.creditScore.score) - politicsAprReduction(state)
     );
+    if (typeof cap === 'number') {
+      newAPR = Math.min(newAPR, Math.max(0.025, cap));
+    }
     const newWeekly = calculatePeriodicPayment(loan.remaining, newAPR, newTermWeeks);
 
     const loans = [...state.loans];
