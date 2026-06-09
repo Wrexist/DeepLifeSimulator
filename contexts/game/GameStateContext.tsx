@@ -51,7 +51,10 @@ export function GameStateProvider({
     mirrorRef.current.state = gameState;
   }
   // Stable store object (created once) — its identity never changes, so the
-  // GameStoreContext provider never causes re-renders on its own.
+  // GameStoreContext provider never causes re-renders on its own. Its
+  // setGameState forwards through a ref to the wrapped setter declared below
+  // (stable useCallback), giving write access without a state subscription.
+  const setterRef = useRef<React.Dispatch<React.SetStateAction<GameState>>>(() => {});
   const storeRef = useRef<GameStore | null>(null);
   if (storeRef.current === null) {
     storeRef.current = {
@@ -62,6 +65,7 @@ export function GameStateProvider({
         };
       },
       getSnapshot: () => mirrorRef.current!.state,
+      setGameState: (update) => setterRef.current(update),
     };
   }
   // Notify selector subscribers after the source-of-truth commit.
@@ -91,6 +95,8 @@ export function GameStateProvider({
     },
     []
   );
+  // Keep the store's forwarding setter pointed at the wrapped setter.
+  setterRef.current = wrappedSetGameState;
 
   const setCurrentSlotSafe = useCallback((slot: number) => {
     const normalizedSlot = slot >= 1 && slot <= 3 ? slot : 1;

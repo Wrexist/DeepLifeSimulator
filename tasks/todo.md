@@ -491,7 +491,18 @@ Properties: **non-breaking**, **dependency-free**, **React-19-native**, **increm
       settings/gems + `buyGoldUpgrade` from `useMoneyActions()`, `saveGame` from `useGameActions()`).
       Establishes the action pattern: state via selectors, writes via the split action hooks.
       type-check 0, lint 0, jest 2353/147 green.
-- [ ] **Batch 5+**: continue the ~113 remaining `useGame()` consumers in per-area batches.
+- [x] **Batch 5** (`useSetGameState` + TopStatsBar): Added `GameStore.setGameState` (forwarding ref
+      to the stable wrapped setter) + `useSetGameState()` hook — write access WITHOUT a state
+      subscription. Fixed the Batch 4 miss in `GemsStoreModal` (it took `setGameState` from
+      `useGameState()`, which subscribes to the full context). Migrated **TopStatsBar** (1608L,
+      always-on-screen, both components in the file) to 15 slice selectors + `useSetGameState` —
+      it no longer re-renders on unrelated mutations (loans, companies, social feeds, …).
+      New test: setter writes land + caller never re-renders + identity stable.
+      type-check 0, lint 0, jest 2354/147 green.
+      **Not tested:** on-device render timing / animation smoothness of TopStatsBar (jest only).
+- [ ] **Batch 6+**: continue the ~112 remaining `useGame()` consumers in per-area batches.
+      **Rule update:** in migrated components take the setter from `useSetGameState()`, never
+      from `useGameState()`.
       Note: `HelpModal`/`BugReportSheet` read state only inside a callback — better served by a
       future `getGameState()` accessor than a subscription; deferred.
       Deferred pattern: components that pass whole `gameState` to a calc (`netWorth(gameState)`,

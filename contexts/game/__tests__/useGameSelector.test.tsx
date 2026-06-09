@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import { GameStateProvider, useGameState } from '../GameStateContext';
-import { useGameSelector, shallowEqual } from '../useGameSelector';
+import { useGameSelector, useSetGameState, shallowEqual } from '../useGameSelector';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import type { GameState } from '../types';
 
@@ -104,6 +104,54 @@ describe('useGameSelector', () => {
       }));
     });
     expect(renders).toHaveBeenCalledTimes(2);
+
+    act(() => root.unmount());
+  });
+
+  it('useSetGameState writes without subscribing — caller never re-renders on state changes', () => {
+    const renders = jest.fn();
+    const setters: unknown[] = [];
+    let writerSet: ReturnType<typeof useSetGameState> | null = null;
+
+    function Writer() {
+      const set = useSetGameState();
+      writerSet = set;
+      setters.push(set);
+      renders();
+      return null;
+    }
+    let observedMoney = -1;
+    function Observer() {
+      observedMoney = useGameSelector((s) => s.stats.money);
+      return null;
+    }
+
+    let root: any;
+    act(() => {
+      root = TestRenderer.create(
+        <GameStateProvider initialState={createTestGameState({ stats: { money: 10 } as any })}>
+          <Probe />
+          <Writer />
+          <Observer />
+        </GameStateProvider>
+      );
+    });
+    expect(renders).toHaveBeenCalledTimes(1);
+
+    // Writes through the store setter land in the source of truth.
+    act(() => {
+      writerSet!((prev) => ({ ...prev, stats: { ...prev.stats, money: prev.stats.money + 5 } }));
+    });
+    expect(observedMoney).toBe(15);
+    // The writer itself did NOT re-render on the state change.
+    expect(renders).toHaveBeenCalledTimes(1);
+
+    // External setGameState churn also doesn't re-render the writer; identity is stable.
+    act(() => {
+      setState!((prev) => ({ ...prev, weeksLived: (prev.weeksLived ?? 0) + 1 }));
+    });
+    expect(renders).toHaveBeenCalledTimes(1);
+    expect(new Set(setters).size).toBe(1);
 
     act(() => root.unmount());
   });

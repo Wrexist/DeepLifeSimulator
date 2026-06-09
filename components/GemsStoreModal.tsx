@@ -19,8 +19,7 @@ const LinearGradient = LinearGradientFallback;
 const BlurView = BlurViewFallback;
 import { Ionicons } from '@expo/vector-icons';
 import { RefreshCw } from 'lucide-react-native';
-import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { useGameState } from '@/contexts/game/GameStateContext';
+import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { responsiveFontSize, responsivePadding } from '@/utils/scaling';
@@ -92,7 +91,7 @@ const GEM_PACKAGES: GemPackage[] = [
 ];
 
 export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps) {
-  const { setGameState } = useGameState();
+  const setGameState = useSetGameState();
   const gems = useGameSelector((s) => s.stats.gems);
   const [isLoading, setIsLoading] = useState(false);
   const [purchasing, setPurchasing] = useState<string | null>(null);

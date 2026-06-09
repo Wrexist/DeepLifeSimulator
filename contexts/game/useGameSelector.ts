@@ -27,6 +27,9 @@ export interface GameStore {
   subscribe: (onStoreChange: () => void) => () => void;
   /** Read the current GameState synchronously (always up to date). */
   getSnapshot: () => GameState;
+  /** Stable setter (identical to useGameState().setGameState) — write access
+   *  without subscribing to state, so callers don't re-render on every change. */
+  setGameState: (update: GameState | ((prev: GameState) => GameState)) => void;
 }
 
 /**
@@ -64,6 +67,20 @@ export function useGameSelector<Selected>(
     selector,
     isEqual
   );
+}
+
+/**
+ * Stable setGameState without a state subscription. Use this (instead of
+ * `useGameState().setGameState`) in components migrated to `useGameSelector` —
+ * `useGameState()` subscribes to the full context and would reintroduce the
+ * every-mutation re-render the selector migration removes.
+ */
+export function useSetGameState(): GameStore['setGameState'] {
+  const store = useContext(GameStoreContext);
+  if (!store) {
+    throw new Error('useSetGameState must be used within a GameProvider');
+  }
+  return store.setGameState;
 }
 
 /** Shallow-equality helper for selectors that return arrays/objects of primitives. */
