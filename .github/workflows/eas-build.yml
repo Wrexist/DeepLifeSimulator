@@ -80,3 +80,10 @@ jobs:
 
       - name: EAS Build ${{ matrix.platform }}
         run: eas build --platform ${{ matrix.platform }} --profile production --non-interactive
+        env:
+          # eas-cli's upload-side fingerprint computation crashes with
+          # "(0, brace_expansion_1.expand) is not a function" (broken
+          # brace-expansion dep inside @expo/fingerprint). Safe to skip:
+          # runtimeVersion policy is "sdkVersion" and expo-updates is
+          # hard-disabled, so the fingerprint is unused metadata here.
+          EAS_SKIP_AUTO_FINGERPRINT: '1'

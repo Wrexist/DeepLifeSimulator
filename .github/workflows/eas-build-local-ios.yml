@@ -122,6 +122,8 @@ jobs:
             --non-interactive \
             --output "$GITHUB_WORKSPACE/build/deeplife.ipa"
         env:
+          # Same fingerprint crash as eas-build.yml — see comment there.
+          EAS_SKIP_AUTO_FINGERPRINT: '1'
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'
           EXPO_PUBLIC_ENABLE_IAP: 'true'
           EXPO_PUBLIC_ENABLE_ATT: 'true'
