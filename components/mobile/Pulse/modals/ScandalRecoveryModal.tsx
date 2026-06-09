@@ -59,7 +59,7 @@ const OPTION_BLURBS: Record<
 };
 
 export default function ScandalRecoveryModal({ visible, scandal, onDismiss }: ScandalRecoveryModalProps) {
-  const { gameState, setGameState } = useGame() as any;
+  const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
 
   const handleChoice = useCallback(

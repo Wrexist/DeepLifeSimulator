@@ -43,7 +43,7 @@ interface ResolveScandalModalProps {
 }
 
 export default function ResolveScandalModal({ visible, companyId, onDismiss }: ResolveScandalModalProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const scandal = overlay?.activeScandal;

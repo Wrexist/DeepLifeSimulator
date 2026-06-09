@@ -39,7 +39,7 @@ interface PartnerProfileScreenProps {
 }
 
 export default function PartnerProfileScreen({ matchId, onBack, onClosed }: PartnerProfileScreenProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
   const sp = gameState.sparkApp;

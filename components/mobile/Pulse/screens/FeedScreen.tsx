@@ -40,7 +40,7 @@ interface FeedScreenProps {
 }
 
 export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBoostPost }: FeedScreenProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [draft, setDraft] = useState('');

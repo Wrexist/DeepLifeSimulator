@@ -45,7 +45,7 @@ interface CreateCompanyScreenProps {
 const TAB_BAR_HEIGHT = scale(70);
 
 export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompanyScreenProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<HustleIndustry | null>(null);

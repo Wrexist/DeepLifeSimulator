@@ -26,7 +26,7 @@ interface BoostPostModalProps {
 }
 
 export default function BoostPostModal({ visible, postId, onDismiss }: BoostPostModalProps) {
-  const { gameState, setGameState } = useGame() as any;
+  const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
 
   const gems = gameState.stats?.gems ?? 0;

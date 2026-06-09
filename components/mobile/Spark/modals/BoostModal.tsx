@@ -24,7 +24,7 @@ interface BoostModalProps {
 }
 
 export default function BoostModal({ visible, onDismiss }: BoostModalProps) {
-  const { gameState, setGameState } = useGame() as any;
+  const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
   const gems = gameState.stats?.gems ?? 0;
   const canAfford = gems >= BOOST_COST;

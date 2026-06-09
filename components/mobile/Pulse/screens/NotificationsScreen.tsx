@@ -122,7 +122,7 @@ export default function NotificationsScreen({
   onOpenScandalRecovery,
   onWatchAd,
 }: NotificationsScreenProps = {}) {
-  const { gameState, setGameState } = useGame() as any;
+  const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
 
   const notifications: PulseNotification[] = useMemo(

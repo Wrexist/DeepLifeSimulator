@@ -43,7 +43,7 @@ interface ComposeModalProps {
 }
 
 export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
 
   const [content, setContent] = useState('');

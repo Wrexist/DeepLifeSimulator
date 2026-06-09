@@ -29,7 +29,7 @@ interface IPOModalProps {
 }
 
 export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const [floatPct, setFloatPct] = useState<number>(25);
   const [resultMsg, setResultMsg] = useState<string | null>(null);

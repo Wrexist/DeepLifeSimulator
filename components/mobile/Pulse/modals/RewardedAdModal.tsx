@@ -25,7 +25,7 @@ interface RewardedAdModalProps {
 }
 
 export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalProps) {
-  const { gameState, setGameState } = useGame() as any;
+  const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
 
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;

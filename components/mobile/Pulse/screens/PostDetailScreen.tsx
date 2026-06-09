@@ -42,7 +42,7 @@ interface PostDetailScreenProps {
 }
 
 export default function PostDetailScreen({ postId, onClose }: PostDetailScreenProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);

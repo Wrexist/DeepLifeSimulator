@@ -39,7 +39,7 @@ interface SparkPremiumUpsellModalProps {
 }
 
 export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPremiumUpsellModalProps) {
-  const { setGameState } = useGame() as any;
+  const { setGameState } = useGame();
   const { theme } = useTheme();
 
   const handleSubscribe = useCallback(

@@ -49,7 +49,7 @@ interface PulseAppProps {
 }
 
 export default function PulseApp({ onBack }: PulseAppProps) {
-  const { gameState, setGameState } = useGame() as any;
+  const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<PulseTab>('home');
   const [overlay, setOverlay] = useState<PulseOverlay>(null);

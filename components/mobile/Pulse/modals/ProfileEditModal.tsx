@@ -49,7 +49,7 @@ interface ProfileEditModalProps {
 }
 
 export default function ProfileEditModal({ visible, onDismiss }: ProfileEditModalProps) {
-  const { gameState, setGameState, saveGame } = useGame() as any;
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const profile = gameState.userProfile ?? {};
 
