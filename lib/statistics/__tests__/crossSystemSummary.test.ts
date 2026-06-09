@@ -34,6 +34,25 @@ describe('buildCrossSystemSummary', () => {
     expect(card?.warning).toMatch(/credit/i);
   });
 
+  it('produces a real-estate card from owned properties (regression: was always [])', () => {
+    const s = base({
+      realEstate: [
+        { id: 'h1', owned: true, currentValue: 300000, price: 250000 },
+        { id: 'h2', owned: true, price: 150000 }, // no currentValue → falls back to price
+        { id: 'h3', owned: false, currentValue: 999999 }, // not owned → excluded
+      ],
+    });
+    const card = buildCrossSystemSummary(s).cards.find((c) => c.id === 'realEstate');
+    expect(card).toBeDefined();
+    expect(card!.lead.value).toBe('2');
+    expect(card!.details.find((d) => d.label === 'Value')?.value).toBe('$450.0k');
+  });
+
+  it('skips real-estate card when no owned properties', () => {
+    const s = base({ realEstate: [{ id: 'h1', owned: false, currentValue: 100000 }] });
+    expect(buildCrossSystemSummary(s).cards.find((c) => c.id === 'realEstate')).toBeUndefined();
+  });
+
   it('skips politics card when no career level', () => {
     const s = base({ politics: { careerLevel: 0, approvalRating: 50 } });
     expect(buildCrossSystemSummary(s).cards.find((c) => c.id === 'politics')).toBeUndefined();

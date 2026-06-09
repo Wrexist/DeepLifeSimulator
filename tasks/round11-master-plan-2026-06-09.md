@@ -365,6 +365,27 @@ fixed `sellCompany`, which read a now-absent `costMultiplier` field → routed t
 Removed 4 `Record<string, any[]>` casts in the process. Type-check + lint clean; full suite 2345
 passed; zero regressions.
 
+## TS-3 — Type the statistics layer + fix two bugs the `as any` masked — shipped 2026-06-09
+
+Removing the `as any` here surfaced two real latent bugs (this is why the earlier pass flagged it
+as investigative, not mechanical):
+
+1. **Net-worth & earnings trends were always flat/0.** `StatisticsApp` passed
+   `lifetimeStatistics.netWorthHistory` (a `NetWorthSnapshot[]` of `{week,value}` objects) straight
+   into `trendOf(series: number[])`. `trendOf` filters `typeof v === 'number'`, so every snapshot
+   was discarded → empty series → flat. Fixed by mapping to `.value`. Typed `lifetime` as
+   `Partial<LifetimeStatistics>` and removed ~15 `(lifetime as any)` / `(gameState as any)` casts;
+   all accessed fields are real members of the type.
+2. **The real-estate cross-system card never rendered.** `crossSystemSummary` read
+   `state.realEstate?.properties` — a stale schema where `realEstate` was an object. Today
+   `state.realEstate` is `RealEstate[]`, so `?.properties` was always `undefined` → `props = []` →
+   card skipped. Fixed to read the typed array filtered to `owned` (matching
+   `lib/economy/expenses.ts`), valuing each at `currentValue ?? price`. Added two regression tests.
+
+Also removed the mechanical `(state as any)` field casts across `crossSystemSummary.ts` and
+`milestones.ts` (all fields are on `GameState`). Type-check + lint clean; statistics suite 26
+passed; full suite green.
+
 ---
 
 # PART 4 — VERIFICATION CHECKLIST (per the project's gates)

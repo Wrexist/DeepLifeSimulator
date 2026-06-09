@@ -47,7 +47,7 @@ function fmtPct(n: number): string {
 }
 
 function bankingCard(state: GameState): SystemCard | null {
-  const banking = (state as any).banking;
+  const banking = state.banking;
   if (!banking) return null;
   const credit = safe(banking.creditScore, 0);
   const lateFees = safe(banking.lifetimeLateFees, 0);
@@ -71,12 +71,12 @@ function bankingCard(state: GameState): SystemCard | null {
 }
 
 function cryptoCard(state: GameState): SystemCard | null {
-  const ct = (state as any).cryptoMarket ?? (state as any).cryptos;
+  const ct = state.cryptoMarket ?? state.cryptos;
   if (!ct) return null;
-  const realized = safe((state as any).cryptoMarket?.realizedGains, 0);
-  const cryptos = (state as any).cryptos ?? [];
+  const realized = safe(state.cryptoMarket?.realizedGains, 0);
+  const cryptos = state.cryptos ?? [];
   const totalOwnedUSD = cryptos.reduce((s: number, c: any) => s + safe(c.owned, 0) * safe(c.price, 0), 0);
-  const dirty = safe((state as any).darkWeb?.dirtyBtc, 0);
+  const dirty = safe(state.darkWeb?.dirtyBtc, 0);
   return {
     id: 'crypto',
     label: 'Crypto',
@@ -90,7 +90,7 @@ function cryptoCard(state: GameState): SystemCard | null {
 }
 
 function stocksCard(state: GameState): SystemCard | null {
-  const stocks: any = (state as any).stocks;
+  const stocks: any = state.stocks;
   if (!stocks) return null;
   const holdings = Object.values(stocks.holdings ?? {});
   const dividends = safe(stocks.lifetimeDividends, 0);
@@ -107,27 +107,23 @@ function stocksCard(state: GameState): SystemCard | null {
 }
 
 function realEstateCard(state: GameState): SystemCard | null {
-  const props = (state as any).realEstate?.properties ?? (state as any).properties ?? [];
-  if (!Array.isArray(props) || props.length === 0) return null;
-  const totalValue = props.reduce((s: number, p: any) => s + safe(p.value ?? p.currentValue, 0), 0);
-  const totalEquity = props.reduce((s: number, p: any) => {
-    const v = safe(p.value ?? p.currentValue, 0);
-    const balance = safe(p.mortgageBalance ?? p.loanBalance, 0);
-    return s + Math.max(0, v - balance);
-  }, 0);
+  // `state.realEstate` is the RealEstate[] holdings array. The previous code read
+  // `state.realEstate?.properties` — a stale schema where realEstate was an object —
+  // so `props` always resolved to [] and this card never rendered. Read the array
+  // directly and count owned properties (matching lib/economy/expenses.ts).
+  const props = (state.realEstate ?? []).filter((p) => p.owned);
+  if (props.length === 0) return null;
+  const totalValue = props.reduce((s, p) => s + safe(p.currentValue ?? p.price, 0), 0);
   return {
     id: 'realEstate',
     label: 'Real estate',
     lead: { label: 'Properties', value: String(props.length) },
-    details: [
-      { label: 'Value', value: fmtMoney(totalValue) },
-      { label: 'Equity', value: fmtMoney(totalEquity) },
-    ],
+    details: [{ label: 'Value', value: fmtMoney(totalValue) }],
   };
 }
 
 function darkWebCard(state: GameState): SystemCard | null {
-  const dw = (state as any).darkWeb;
+  const dw = state.darkWeb;
   if (!dw) return null;
   const heat = safe(dw.heat, 0);
   const jobs = (dw.jobHistory ?? []).length + (dw.activeJobs ?? []).length;
@@ -150,7 +146,7 @@ function darkWebCard(state: GameState): SystemCard | null {
 }
 
 function politicsCard(state: GameState): SystemCard | null {
-  const pol: any = (state as any).politics;
+  const pol: any = state.politics;
   if (!pol || safe(pol.careerLevel, 0) === 0) return null;
   const approval = safe(pol.approvalRating, 50);
   const elections = safe(pol.electionsWon, 0);
@@ -170,7 +166,7 @@ function politicsCard(state: GameState): SystemCard | null {
 }
 
 function contentCard(state: GameState): SystemCard | null {
-  const ch: any = (state as any).gamingStreaming;
+  const ch: any = state.gamingStreaming;
   if (!ch) return null;
   const totalViews = safe(ch.totalViews, 0);
   const subs = safe(ch.subscribers, 0);
@@ -206,7 +202,7 @@ function petsCard(state: GameState): SystemCard | null {
 }
 
 function vehiclesCard(state: GameState): SystemCard | null {
-  const v = (state as any).vehicles ?? [];
+  const v = state.vehicles ?? [];
   if (!Array.isArray(v) || v.length === 0) return null;
   const accidents = v.reduce((s: number, x: any) => s + safe(x.accidentCount, 0), 0);
   return {
@@ -259,7 +255,7 @@ export function buildCrossSystemSummary(
   state: GameState,
   contactsByKind: Record<string, number> = {}
 ): CrossSystemSummary {
-  const ledger = (state as any).favorLedger;
+  const ledger = state.favorLedger;
   let netFavorMoney = 0;
   if (ledger?.favors) {
     for (const f of ledger.favors) {
