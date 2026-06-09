@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PiggyBank, TrendingUp } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -14,8 +14,9 @@ interface BankBreakdownModalProps {
 }
 
 export default function BankBreakdownModal({ visible, onClose }: BankBreakdownModalProps) {
-  const { gameState } = useGame();
-  const { bankSavings, stocks } = gameState;
+  const bankSavings = useGameSelector((s) => s.bankSavings);
+  const stocks = useGameSelector((s) => s.stocks);
+  const weeksLived = useGameSelector((s) => s.weeksLived);
   const { theme, isDark } = useTheme();
 
   const breakdown = useMemo(() => {
@@ -54,7 +55,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
       totalStockValue,
       totalSavings,
     };
-  }, [bankSavings, stocks, gameState.weeksLived]); // Recalculate when week changes
+  }, [bankSavings, stocks, weeksLived]); // Recalculate when week changes
 
   return (
     <BaseModal visible={visible} onClose={onClose} title="Bank & Investments">

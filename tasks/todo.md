@@ -471,12 +471,16 @@ Properties: **non-breaking**, **dependency-free**, **React-19-native**, **increm
       unrelated changes (loans, weeksLived) and re-renders exactly once on a stat change.
 - [x] Gate: full suite **2353 / 147 suites** green; type-check 0; lint 0. Committed.
 
-### Phase 3 — Incremental migration (follow-up, not yet done)
-- [ ] Burn down the 133 `useGame()` consumers in per-area batches, each its own commit.
-      Recommended order by render frequency / always-on-screen first:
-      `TopStatsBar` (large — split carefully), Pulse feed/cards, Spark swipe/chat, Hustle
-      dashboards, Computer apps. Each batch: select only the slices the component reads,
-      add a render-count test for the hottest one, verify full suite + stress, commit.
+### Phase 3 — Incremental migration (follow-up, in progress)
+- [x] **Batch 1** (single-/narrow-slice, pure-display): `SeasonalIndicator` (settings+weeksLived),
+      `SeasonalEventModal` (weeksLived), `Journal` (settings+journal), `settings/LifeGoalsPanel`
+      (settings+achievements), `BankBreakdownModal` (bankSavings+stocks+weeksLived). Established the
+      `useGameSelector((s) => safeSettings(s), shallowEqual)` pattern (unlocks the 32 `safeSettings`
+      consumers). type-check 0, lint 0, jest 2353/147 green.
+- [ ] **Batch 2+**: continue the ~128 remaining `useGame()` consumers in per-area batches.
+      Deferred pattern: components that pass whole `gameState` to a calc (`netWorth(gameState)`,
+      etc.) — select the derived number directly (`useGameSelector((s) => netWorth(s))`) or the
+      needed slices. Order by render frequency / always-on-screen first.
       **Rule:** never select a derived object/array without an `isEqual` (`shallowEqual`).
 
 ## 5. Verification gates (every phase)
