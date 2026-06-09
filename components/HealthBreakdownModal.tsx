@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { TrendingDown, TrendingUp, Briefcase, GraduationCap, Utensils, AlertTriangle } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import BaseModal from '@/components/ui/BaseModal';
@@ -13,8 +13,15 @@ interface HealthBreakdownModalProps {
 }
 
 export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdownModalProps) {
-  const { gameState } = useGame();
-  const { stats, careers, currentJob, educations, prestige, diseases } = gameState;
+  const stats = useGameSelector((s) => s.stats, shallowEqual);
+  const careers = useGameSelector((s) => s.careers);
+  const currentJob = useGameSelector((s) => s.currentJob);
+  const educations = useGameSelector((s) => s.educations);
+  const prestige = useGameSelector((s) => s.prestige);
+  const diseases = useGameSelector((s) => s.diseases);
+  const bankSavings = useGameSelector((s) => s.bankSavings);
+  const dietPlans = useGameSelector((s) => s.dietPlans);
+  const realEstate = useGameSelector((s) => s.realEstate);
   const { theme, isDark } = useTheme();
 
   const breakdown = useMemo(() => {
@@ -22,7 +29,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
     const incomes: { label: string; value: number; icon: any; color: string; description?: string }[] = [];
 
     // Calculate natural decay
-    const netWorth = (stats?.money || 0) + (gameState.bankSavings || 0);
+    const netWorth = (stats?.money || 0) + (bankSavings || 0);
     const safeNetWorth = isFinite(netWorth) && netWorth > 0 ? netWorth : 1000;
     const wealthMultiplier = Math.max(0.5, Math.min(2.0, 100000 / Math.max(1000, safeNetWorth)));
     const prestigeMultiplier = 1.0; // Simplified for display
@@ -89,7 +96,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
     }
 
     // Add active diet plan health gain
-    const activeDietPlan = (gameState.dietPlans || []).find(plan => plan && plan.active);
+    const activeDietPlan = (dietPlans || []).find(plan => plan && plan.active);
     if (activeDietPlan && activeDietPlan.healthGain > 0) {
       incomes.push({
         label: `${activeDietPlan.name} Diet`,
@@ -148,7 +155,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       currentHealth,
       projectedHealth,
     };
-  }, [stats?.health, currentJob, careers, educations, prestige, stats?.money, gameState.bankSavings, gameState.dietPlans, gameState.realEstate, diseases]);
+  }, [stats?.health, currentJob, careers, educations, prestige, stats?.money, bankSavings, dietPlans, realEstate, diseases]);
 
   return (
     <BaseModal visible={visible} onClose={onClose} title="Health Breakdown">

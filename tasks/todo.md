@@ -485,7 +485,13 @@ Properties: **non-breaking**, **dependency-free**, **React-19-native**, **increm
       `useGameSelector((s) => netWorth(s))` + `prestige`/`darkMode`. Demonstrates selecting a
       *derived number* (memoized comparison re-renders only when the computed value changes).
       type-check 0, lint 0, jest 2353/147 green.
-- [ ] **Batch 4+**: continue the ~119 remaining `useGame()` consumers in per-area batches.
+- [x] **Batch 4** (action-using + multi-slice): `GemsBreakdownModal`, `MoneyBreakdownModal`,
+      `HealthBreakdownModal` (9 slices), `EnergyBreakdownModal` (7 slices), `GemsStoreModal`
+      (gems slice + `setGameState` from `useGameState()`), `GemShopModal` (goldUpgrades/perks/
+      settings/gems + `buyGoldUpgrade` from `useMoneyActions()`, `saveGame` from `useGameActions()`).
+      Establishes the action pattern: state via selectors, writes via the split action hooks.
+      type-check 0, lint 0, jest 2353/147 green.
+- [ ] **Batch 5+**: continue the ~113 remaining `useGame()` consumers in per-area batches.
       Note: `HelpModal`/`BugReportSheet` read state only inside a callback — better served by a
       future `getGameState()` accessor than a subscription; deferred.
       Deferred pattern: components that pass whole `gameState` to a calc (`netWorth(gameState)`,

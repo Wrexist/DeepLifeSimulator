@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -13,8 +13,7 @@ interface MoneyBreakdownModalProps {
 }
 
 export default function MoneyBreakdownModal({ visible, onClose }: MoneyBreakdownModalProps) {
-  const { gameState } = useGame();
-  const { stats } = gameState;
+  const stats = useGameSelector((s) => s.stats, shallowEqual);
   const { theme, isDark } = useTheme();
   const money = stats?.money ?? 0;
 

@@ -19,7 +19,8 @@ const LinearGradient = LinearGradientFallback;
 const BlurView = BlurViewFallback;
 import { Ionicons } from '@expo/vector-icons';
 import { RefreshCw } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { useGameState } from '@/contexts/game/GameStateContext';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { responsiveFontSize, responsivePadding } from '@/utils/scaling';
@@ -91,7 +92,8 @@ const GEM_PACKAGES: GemPackage[] = [
 ];
 
 export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps) {
-  const { gameState, setGameState } = useGame();
+  const { setGameState } = useGameState();
+  const gems = useGameSelector((s) => s.stats.gems);
   const [isLoading, setIsLoading] = useState(false);
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -263,7 +265,7 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
               <Text style={styles.currentGemsLabel}>Your Gems:</Text>
               <View style={styles.currentGemsValue}>
                 <Ionicons name="diamond" size={20} color="#FFD700" />
-                <Text style={styles.currentGemsText}>{gameState.stats.gems}</Text>
+                <Text style={styles.currentGemsText}>{gems}</Text>
               </View>
             </View>
 
