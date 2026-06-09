@@ -14,7 +14,9 @@ on:
       submit:
         description: 'Submit the build to TestFlight after building'
         type: boolean
-        default: true
+        # Safe by default: TestFlight submission is outward-facing and hard to
+        # reverse, so it is opt-in — tick this when you actually want to submit.
+        default: false
 
 concurrency:
   group: ios-local-release
@@ -38,6 +40,13 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      # Fail fast on Ubuntu if the EAS auth token is missing, before the
+      # build job spends (10x-billed) macOS minutes.
+      - name: Require EXPO_TOKEN
+        run: test -n "$EXPO_TOKEN" || { echo "::error::EXPO_TOKEN repo secret is not set — add it under Settings ▸ Secrets ▸ Actions"; exit 1; }
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
         run: npm ci
