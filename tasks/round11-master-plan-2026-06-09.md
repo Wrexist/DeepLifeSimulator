@@ -343,6 +343,28 @@ new Private Banking APR-cap test green; zero regressions.
 purchased in production (verifyReceiptWithServer fails closed) — so the wiring is dormant but
 correct, and activates the moment MON-1 lands.
 
+## TS-2 — Remove all `useGame() as any` casts — shipped 2026-06-09
+
+`useGame()` already returns a fully-typed merged context value; the 23 `as any` casts across
+Spark/Pulse/Hustle screens + modals disabled type-checking for no reason. Stripped all 23 — type-check
+clean with **zero masked errors** surfacing, full suite 2345 passed. (Broader scattered `as any`
+left alone — those are investigative, not mechanical.)
+
+## QUAL-1 — Consolidate the duplicated company-upgrade catalog — shipped 2026-06-09
+
+While wiring Business Banking (MON-2) I hit the catalog duplicated **5×**: `createCompany` (typed),
+`buyCompanyUpgrade` (×2 — `company.ts` + `actions/CompanyActions.ts`), `sellCompany`, and the
+simulator. The copies had already drifted into different field projections (some carried
+`costMultiplier`, some `weeklyIncomeBonus`, etc.) though the underlying cost/maxLevel values still
+matched — a cost change would have needed edits in five places to stay consistent.
+
+Extracted the rich typed table to a single source — `contexts/game/companyUpgradeCatalog.ts`
+(`COMPANY_UPGRADES` + `COMPANY_UPGRADE_COST_MULTIPLIER`) — and repointed all five sites at it.
+Diffed every copy first to prove values were identical, so the change is behavior-preserving (also
+fixed `sellCompany`, which read a now-absent `costMultiplier` field → routed to the shared const).
+Removed 4 `Record<string, any[]>` casts in the process. Type-check + lint clean; full suite 2345
+passed; zero regressions.
+
 ---
 
 # PART 4 — VERIFICATION CHECKLIST (per the project's gates)

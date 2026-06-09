@@ -4,6 +4,7 @@
  */
 
 import { GameState } from '@/contexts/game/types';
+import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/game/companyUpgradeCatalog';
 import { logger } from '@/utils/logger';
 import React from 'react';
 import { LongTermSimulator } from './LongTermSimulator';
@@ -2909,48 +2910,7 @@ export class ComprehensiveGameSimulator {
                   if (!company) continue;
                   
                   // Company upgrade definitions (from company.ts)
-                  const companyUpgrades: Record<string, any[]> = {
-                    factory: [
-                      { id: 'machinery', cost: 10000, weeklyIncomeBonus: 500, maxLevel: 5 },
-                      { id: 'workers', cost: 15000, weeklyIncomeBonus: 800, maxLevel: 3 },
-                      { id: 'automation', cost: 25000, weeklyIncomeBonus: 1200, maxLevel: 4 },
-                      { id: 'quality_control', cost: 20000, weeklyIncomeBonus: 1000, maxLevel: 3 },
-                      { id: 'warehouse', cost: 30000, weeklyIncomeBonus: 1500, maxLevel: 3 },
-                      { id: 'safety', cost: 18000, weeklyIncomeBonus: 800, maxLevel: 4 },
-                    ],
-                    ai: [
-                      { id: 'servers', cost: 25000, weeklyIncomeBonus: 1200, maxLevel: 4 },
-                      { id: 'algorithms', cost: 30000, weeklyIncomeBonus: 1500, maxLevel: 3 },
-                      { id: 'gpu_cluster', cost: 50000, weeklyIncomeBonus: 2500, maxLevel: 3 },
-                      { id: 'data_center', cost: 75000, weeklyIncomeBonus: 3500, maxLevel: 2 },
-                      { id: 'ai_researchers', cost: 40000, weeklyIncomeBonus: 2000, maxLevel: 4 },
-                      { id: 'machine_learning', cost: 60000, weeklyIncomeBonus: 3000, maxLevel: 3 },
-                    ],
-                    restaurant: [
-                      { id: 'kitchen', cost: 20000, weeklyIncomeBonus: 1000, maxLevel: 4 },
-                      { id: 'staff', cost: 18000, weeklyIncomeBonus: 900, maxLevel: 3 },
-                      { id: 'delivery_service', cost: 25000, weeklyIncomeBonus: 1200, maxLevel: 3 },
-                      { id: 'michelin_chef', cost: 40000, weeklyIncomeBonus: 2000, maxLevel: 2 },
-                      { id: 'interior_design', cost: 30000, weeklyIncomeBonus: 1500, maxLevel: 3 },
-                      { id: 'wine_cellar', cost: 35000, weeklyIncomeBonus: 1800, maxLevel: 2 },
-                    ],
-                    realestate: [
-                      { id: 'properties', cost: 50000, weeklyIncomeBonus: 2000, maxLevel: 5 },
-                      { id: 'management', cost: 30000, weeklyIncomeBonus: 1500, maxLevel: 3 },
-                      { id: 'property_portfolio', cost: 75000, weeklyIncomeBonus: 3000, maxLevel: 4 },
-                      { id: 'commercial_real_estate', cost: 100000, weeklyIncomeBonus: 4000, maxLevel: 3 },
-                      { id: 'property_management', cost: 40000, weeklyIncomeBonus: 2000, maxLevel: 3 },
-                      { id: 'luxury_developments', cost: 150000, weeklyIncomeBonus: 6000, maxLevel: 2 },
-                    ],
-                    bank: [
-                      { id: 'technology', cost: 100000, weeklyIncomeBonus: 5000, maxLevel: 4 },
-                      { id: 'services', cost: 80000, weeklyIncomeBonus: 4000, maxLevel: 3 },
-                      { id: 'investment_division', cost: 200000, weeklyIncomeBonus: 10000, maxLevel: 3 },
-                      { id: 'international_banking', cost: 300000, weeklyIncomeBonus: 15000, maxLevel: 2 },
-                      { id: 'fintech_integration', cost: 150000, weeklyIncomeBonus: 7500, maxLevel: 3 },
-                      { id: 'private_banking', cost: 250000, weeklyIncomeBonus: 12000, maxLevel: 2 },
-                    ],
-                  };
+                  const companyUpgrades = COMPANY_UPGRADES;
                   
                   const upgrades = companyUpgrades[company.type] || [];
                   for (const upgradeDef of upgrades) {
@@ -2960,7 +2920,7 @@ export class ComprehensiveGameSimulator {
                     if (currentLevel >= upgradeDef.maxLevel) continue; // Already maxed
                     
                     // Calculate cost with level scaling (1.5x per level)
-                    const costMultiplier = 1.5;
+                    const costMultiplier = COMPANY_UPGRADE_COST_MULTIPLIER;
                     const nextLevelCost = currentLevel === 0 
                       ? upgradeDef.cost 
                       : Math.round(upgradeDef.cost * Math.pow(costMultiplier, currentLevel));
