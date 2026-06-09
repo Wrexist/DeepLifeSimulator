@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { X, Users, BookOpen, Crown, TrendingUp, Activity, Brain } from 'lucide-react-native';
@@ -17,13 +17,15 @@ interface Props {
 }
 
 export default function LegacyOverviewTab({ visible, onClose }: Props) {
-  const { gameState } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const activeTraits = useGameSelector((s) => s.activeTraits);
+  const legacyBonuses = useGameSelector((s) => s.legacyBonuses);
+  const generationNumber = useGameSelector((s) => s.generationNumber);
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
   const [showTree, setShowTree] = useState(false);
   const [showMemories, setShowMemories] = useState(false);
 
-  const traits = (gameState.activeTraits || []).map(id => getTraitById(id)).filter(Boolean);
-  const bonuses = gameState.legacyBonuses || { incomeMultiplier: 1, learningMultiplier: 1, reputationBonus: 0 };
+  const traits = (activeTraits || []).map(id => getTraitById(id)).filter(Boolean);
+  const bonuses = legacyBonuses || { incomeMultiplier: 1, learningMultiplier: 1, reputationBonus: 0 };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -51,7 +53,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
             >
               <View>
                 <Text style={styles.genLabel}>Current Generation</Text>
-                <Text style={styles.genValue}>{gameState.generationNumber || 1}</Text>
+                <Text style={styles.genValue}>{generationNumber || 1}</Text>
               </View>
               <Crown size={40} color="rgba(255,255,255,0.3)" />
             </LinearGradient>

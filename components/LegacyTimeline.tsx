@@ -31,7 +31,7 @@ import {
   Award,
   Zap,
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import {
   scale,
@@ -66,10 +66,9 @@ interface PreviousLife {
 }
 
 export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: LegacyTimelineProps) {
-  const { gameState } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
-  const previousLives = (gameState.previousLives || []) as PreviousLife[];
-  const currentGeneration = gameState.generationNumber || 1;
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
+  const previousLives = useGameSelector((s) => (s.previousLives || []) as PreviousLife[], shallowEqual);
+  const currentGeneration = useGameSelector((s) => s.generationNumber || 1);
 
   const [expandedLife, setExpandedLife] = useState<number | null>(null);
 

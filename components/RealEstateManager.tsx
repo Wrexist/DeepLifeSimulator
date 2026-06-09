@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, PanResponder } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { DECOR_ITEMS, getUpgradeTier } from '@/lib/realEstate/housing';
 
 export default function RealEstateManager() {
-  const { gameState, setGameState } = useGame();
+  const setGameState = useSetGameState();
+  const realEstate = useGameSelector((s) => s.realEstate);
   const [dragItem, setDragItem] = useState<string | null>(null);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => !!dragItem,
     onPanResponderRelease: () => {
       if (!dragItem) return;
-      const target = gameState.realEstate[0];
+      const target = realEstate[0];
       if (target) {
         setGameState(prev => ({
           ...prev,
@@ -25,7 +26,7 @@ export default function RealEstateManager() {
   });
 
   const purchaseUpgrade = (propertyId: string) => {
-    const property = gameState.realEstate.find(p => p.id === propertyId);
+    const property = realEstate.find(p => p.id === propertyId);
     if (!property) return;
     const nextLevel = property.upgradeLevel + 1;
     const tier = getUpgradeTier(nextLevel);
@@ -41,7 +42,7 @@ export default function RealEstateManager() {
 
   return (
     <View style={styles.container}>
-      {gameState.realEstate.map(property => {
+      {realEstate.map(property => {
         const nextTier = getUpgradeTier(property.upgradeLevel + 1);
         return (
           <View key={property.id} style={styles.property}>

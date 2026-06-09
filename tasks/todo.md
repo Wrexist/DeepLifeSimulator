@@ -503,6 +503,11 @@ Properties: **non-breaking**, **dependency-free**, **React-19-native**, **increm
 - [ ] **Batch 6+**: continue the ~112 remaining `useGame()` consumers in per-area batches.
       **Rule update:** in migrated components take the setter from `useSetGameState()`, never
       from `useGameState()`.
+- [x] **Batch 6** (narrow-slice components/ root): `RealEstateManager`, `YouthPillModal`,
+      `LegacyOverviewTab`, `LegacyTimeline`, `ProgressOverview`, `PrestigeHistoryModal`,
+      `PrestigeStatsCard` (netWorth derived-selector). setGameState via `useSetGameState`,
+      settings via `safeSettings(s)`/`shallowEqual`, darkMode crash-safe. ~107 consumers remain.
+      cold tsc 0, lint 0, jest 2354/147 green.
       Note: `HelpModal`/`BugReportSheet` read state only inside a callback — better served by a
       future `getGameState()` accessor than a subscription; deferred.
       Deferred pattern: components that pass whole `gameState` to a calc (`netWorth(gameState)`,
