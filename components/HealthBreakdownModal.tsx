@@ -17,7 +17,6 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
   const careers = useGameSelector((s) => s.careers);
   const currentJob = useGameSelector((s) => s.currentJob);
   const educations = useGameSelector((s) => s.educations);
-  const prestige = useGameSelector((s) => s.prestige);
   const diseases = useGameSelector((s) => s.diseases);
   const bankSavings = useGameSelector((s) => s.bankSavings);
   const dietPlans = useGameSelector((s) => s.dietPlans);
@@ -155,7 +154,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       currentHealth,
       projectedHealth,
     };
-  }, [stats?.health, currentJob, careers, educations, prestige, stats?.money, bankSavings, dietPlans, realEstate, diseases]);
+  }, [stats?.health, currentJob, careers, educations, stats?.money, bankSavings, dietPlans, realEstate, diseases]);
 
   return (
     <BaseModal visible={visible} onClose={onClose} title="Health Breakdown">
