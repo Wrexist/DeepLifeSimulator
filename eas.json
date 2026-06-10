@@ -5,6 +5,8 @@
   },
   "build": {
     "production": {
+      "ios": {
+        "image": "latest"
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_ENABLE_ADMOB": "true",
