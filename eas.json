@@ -1,12 +1,9 @@
 {
   "cli": {
-    "version": ">= 9.0.0",
     "appVersionSource": "remote"
   },
   "build": {
     "production": {
-      "ios": {
-        "image": "latest"
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_ENABLE_ADMOB": "true",
@@ -14,10 +11,7 @@
         "EXPO_PUBLIC_ENABLE_ATT": "true"
       },
       "ios": {
-        "resourceClass": "m-medium",
-        "autoIncrement": "buildNumber",
-        "buildConfiguration": "Release",
-        "simulator": false
+        "image": "latest"
       },
       "android": {
         "buildType": "app-bundle",
