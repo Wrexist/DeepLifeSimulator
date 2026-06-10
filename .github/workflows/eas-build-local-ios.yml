@@ -84,7 +84,7 @@ jobs:
   # ---- Expensive build + submit on macOS -----------------------------------
   build-ios:
     needs: verify
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
@@ -112,6 +112,11 @@ jobs:
       # artifact path so submit/upload are deterministic. EXPO_PUBLIC_* are
       # passed explicitly so Metro embeds them at bundle time even if a project
       # secret is missing.
+      - name: Show Xcode Version
+        run: |
+          xcodebuild -version
+          xcode-select -p
+          ls /Applications | grep Xcode
       - name: EAS Build iOS (local)
         run: |
           mkdir -p build
