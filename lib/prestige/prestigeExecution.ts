@@ -86,6 +86,9 @@ export function executePrestige(
     lifetimeStats: updatedLifetimeStats,
     unlockedBonuses: [...prestigeData.unlockedBonuses], // Preserve unlocked bonuses
     prestigeHistory: cappedHistory,
+    // H-5: record how many achievements have now been credited toward points so
+    // they can't be farmed again on the next prestige.
+    achievementsCreditedForPoints: (gameState.achievements || []).filter((a) => a.completed).length,
   };
 
   // Award challenge scenario gems only on first prestige

@@ -39,9 +39,14 @@ export function calculatePrestigePoints(
   // negative prestige points that poison the save.
   const basePoints = Math.max(0, Math.floor(netWorth / 1_000_000) * 100);
 
-  // Achievement bonus: +10 points per achievement unlocked
+  // Achievement bonus: +10 points per achievement unlocked, but only for ones
+  // NOT already credited on a prior prestige. Achievements persist across resets,
+  // so crediting the full count every time (the old behavior) let a player farm
+  // the same achievements for points each prestige (H-5).
   const completedAchievements = (gameState.achievements || []).filter(a => a.completed);
-  const achievementBonus = completedAchievements.length * 10;
+  const alreadyCredited = prestigeData.achievementsCreditedForPoints ?? 0;
+  const newlyCreditedAchievements = Math.max(0, completedAchievements.length - alreadyCredited);
+  const achievementBonus = newlyCreditedAchievements * 10;
 
   // Generation bonus: +50 points per *completed* generation.
   // R2-G: previously written as `(gameState.generationNumber || 1 - 1) * 50`,
