@@ -438,6 +438,34 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // Backfill the v14/v16/v18 app subsystems. Their migrations only create the
+  // slice when it is ENTIRELY missing (`if (!state.banking)`), so a save with a
+  // present-but-PARTIAL object (CloudSync merge, hand-edit, future field rename)
+  // slipped through every safety net with e.g. banking.creditScore / darkWeb.heat
+  // / cryptoMarket.coinMarkets undefined → crash on first access. Restore a
+  // missing object wholesale; shallow-merge defaults into a partial one to fill
+  // any missing top-level keys.
+  const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket'];
+  for (const key of subsystemObjects) {
+    const seed = initialFields[key];
+    if (!seed || typeof seed !== 'object') continue;
+    const current = s[key];
+    if (!current || typeof current !== 'object') {
+      s[key] = JSON.parse(JSON.stringify(seed));
+      repairs.push(`Restored missing ${key} subsystem from defaults`);
+      repaired = true;
+    } else {
+      const seedObj = JSON.parse(JSON.stringify(seed)) as Record<string, unknown>;
+      const currentObj = current as Record<string, unknown>;
+      const merged = { ...seedObj, ...currentObj };
+      if (Object.keys(merged).length > Object.keys(currentObj).length) {
+        s[key] = merged;
+        repairs.push(`Filled missing ${key} fields from defaults`);
+        repaired = true;
+      }
+    }
+  }
+
   // Fix invalid hobbies
   if (Array.isArray(s.hobbies)) {
     s.hobbies = s.hobbies.map((hobby: any) => {

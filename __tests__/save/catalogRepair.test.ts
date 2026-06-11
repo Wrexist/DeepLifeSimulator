@@ -35,3 +35,32 @@ describe('repairGameState backfills entry-required catalog arrays', () => {
     expect(validateGameEntry(state as never).canEnter).toBe(true);
   });
 });
+
+describe('repairGameState backfills app subsystems (H1)', () => {
+  it('restores an entirely-missing banking slice', () => {
+    const state = createTestGameState() as unknown as Record<string, unknown>;
+    delete state.banking;
+    const result = repairGameState(state);
+    expect(result.repaired).toBe(true);
+    expect((state.banking as Record<string, unknown>)?.creditScore).toBeDefined();
+  });
+
+  it('fills a present-but-partial banking slice (missing creditScore)', () => {
+    // Deep-clone so deleting a NESTED field doesn't mutate the shared
+    // initialGameState that the test factory and repair both reference.
+    const state = JSON.parse(JSON.stringify(createTestGameState())) as Record<string, unknown>;
+    const banking = state.banking as Record<string, unknown>;
+    delete banking.creditScore; // partial object — migrations would skip it
+    repairGameState(state);
+    expect((state.banking as Record<string, unknown>).creditScore).toBeDefined();
+  });
+
+  it('restores darkWeb.heat and cryptoMarket.coinMarkets when their slices are missing', () => {
+    const state = createTestGameState() as unknown as Record<string, unknown>;
+    delete state.darkWeb;
+    delete state.cryptoMarket;
+    repairGameState(state);
+    expect((state.darkWeb as Record<string, unknown>)?.heat).toBeDefined();
+    expect((state.cryptoMarket as Record<string, unknown>)?.coinMarkets).toBeDefined();
+  });
+});

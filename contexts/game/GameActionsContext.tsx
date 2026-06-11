@@ -250,7 +250,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // than CURRENT — never downgrade from a future-state save either.
  const stateVersionField = (stateToPersist as { version?: unknown }).version;
  const inMemoryVersion = typeof stateVersionField === 'number' ? stateVersionField : 0;
- const versionToWrite = inMemoryVersion >= STATE_VERSION ? inMemoryVersion : STATE_VERSION;
+ // P0-11 / C1: preserve ANY valid in-memory version (>= 1) — only stamp
+ // STATE_VERSION when it's missing/invalid (0). The previous `>= STATE_VERSION`
+ // check force-upgraded a half-migrated save (e.g. v15 after a mid-chain
+ // migration failure) up to current, so the next load saw version === current,
+ // skipped migrations 16-19, and later crashed on undefined nested fields
+ // (state.darkWeb.heat, banking.creditScore). Keeping the low version lets
+ // runMigrations re-run and self-heal. Future-version saves are still preserved
+ // (never downgraded).
+ const versionToWrite = inMemoryVersion >= 1 ? inMemoryVersion : STATE_VERSION;
  const gameData = {
 ...stateToPersist,
  lastSaved: new Date().toISOString(),
