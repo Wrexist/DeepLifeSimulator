@@ -171,7 +171,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       setGameState(prev => ({
         ...prev,
         stats: { ...prev.stats, energy: Math.max(0, (prev.stats.energy ?? 0) - hack.energyCost) },
-        jailWeeks: (prev.jailWeeks ?? 0) + 4,
+        jailWeeks: Math.min(52, (prev.jailWeeks ?? 0) + 4),
       }));
       logger.warn('Hack caught:', { hackId, risk: effectiveRisk });
       return { success: false, caught: true, reward: 0, btcReward: 0, risk: effectiveRisk, jailed: true };

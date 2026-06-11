@@ -179,9 +179,14 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
         }
     }, [hasSeenGuide, visible, fadeAnim]);
 
-    // Get relevant steps for current week
+    // Get relevant steps for current week.
+    // `currentWeek` is the absolute weeksLived, which is 0 for age-18 starts and
+    // 100+ for older starts — so clamp it into the guide's 1-3 "life week" range.
+    // Without this, age-18 players saw 0 steps (blank card) and older starts were
+    // hidden entirely by the currentWeek > 3 gate below.
     const relevantSteps = useMemo(() => {
-        return GUIDE_STEPS.filter(step => step.week <= Math.min(currentWeek, 3));
+        const guideWeek = Math.min(Math.max(currentWeek, 1), 3);
+        return GUIDE_STEPS.filter(step => step.week <= guideWeek);
     }, [currentWeek]);
 
     const handleDismiss = async () => {
@@ -203,8 +208,15 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
         }
     };
 
-    // Don't show if already seen or still loading
-    if (hasSeenGuide !== false || !visible || currentWeek > 3) {
+    // Don't show if already seen or still loading. (The guide is a one-time,
+    // dismiss-gated intro — we no longer hide it by absolute week, which had
+    // hidden it entirely for any start older than age 18.)
+    if (hasSeenGuide !== false || !visible) {
+        return null;
+    }
+
+    // Defensive: never render an empty card ("1 of 0 tips").
+    if (relevantSteps.length === 0) {
         return null;
     }
 

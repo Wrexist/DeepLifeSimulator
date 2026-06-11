@@ -227,7 +227,7 @@ export const performStreetJob = (
 
       return {
         ...prev,
-        jailWeeks: job.jailWeeks || 1,
+        jailWeeks: Math.min(52, job.jailWeeks || 1),
         wantedLevel: prev.wantedLevel + (job.wantedIncrease || 1),
         streetJobFailureCount: newFailureCount,
         streetJobsCompleted: prev.streetJobsCompleted || 0, // Don't count caught jobs as completed
