@@ -466,6 +466,18 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // L5: clamp jailWeeks. nextWeek self-heals a bad value on the first tick, but
+  // until then a tampered/corrupt save could display a multi-thousand-week
+  // sentence (and inflate bail cost = jailWeeks * 500).
+  if (s.jailWeeks !== undefined) {
+    const jw = Number.isFinite(s.jailWeeks) ? Math.max(0, Math.min(52, Math.floor(s.jailWeeks))) : 0;
+    if (jw !== s.jailWeeks) {
+      s.jailWeeks = jw;
+      repairs.push(`Clamped jailWeeks to ${jw}`);
+      repaired = true;
+    }
+  }
+
   // Fix invalid hobbies
   if (Array.isArray(s.hobbies)) {
     s.hobbies = s.hobbies.map((hobby: any) => {
