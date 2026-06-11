@@ -48,7 +48,8 @@ export interface MiningWarehouseResult {
   updatedWarehouse: Warehouse;
 }
 
-const MINER_REPAIR_COSTS: Record<string, number> = {
+// USD repair cost per miner at 0% durability (scaled by damage + count at use).
+export const MINER_REPAIR_COSTS: Record<string, number> = {
   basic: 125,
   advanced: 500,
   pro: 2000,
