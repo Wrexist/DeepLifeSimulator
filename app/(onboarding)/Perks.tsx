@@ -905,6 +905,9 @@ const styles = StyleSheet.create({
   perkBlur: { borderRadius: 16, overflow: 'hidden' },
   perkCard: {
     padding: 20,
+    // Match the parent's rounded clip so the white border doesn't get sliced
+    // off at the corners (square border inside an overflow:hidden rounded box).
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
