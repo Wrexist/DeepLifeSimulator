@@ -211,8 +211,34 @@ export const acquireNewIdentity = (
     const state = ensureDarkWeb(prev);
     if (!state.darkWeb) return prev;
     const btc = getBtcOwned(state);
-    if (btc < NEW_IDENTITY_COST_BTC) {
-      log.warn(`New identity rejected: need ${NEW_IDENTITY_COST_BTC} BTC, have ${btc}`);
+
+    // R2-G keeps mortgage/auto loans (still tied to collateral); personal/business
+    // loans taken under the old name are discharged. EXPLOIT FIX (M-1): that used
+    // to cost a flat 0.5 BTC, so maxing out unsecured loans, spending the cash,
+    // and buying a new identity wiped the debt for almost nothing — repeatable
+    // free money. Charge a settlement fee proportional to the discharged unsecured
+    // principal (in BTC), so walking away from debt costs nearly as much as
+    // repaying it. The base cost still covers a heat/rep reset when you owe little.
+    const keptLoans = (state.loans ?? []).filter(
+      (loan: { type?: string }) => loan?.type === 'mortgage' || loan?.type === 'auto'
+    );
+    const droppedLoans = (state.loans ?? []).filter(
+      (loan: { type?: string }) => loan?.type !== 'mortgage' && loan?.type !== 'auto'
+    );
+    const dischargedPrincipal = droppedLoans.reduce((sum, l: { remaining?: number }) => {
+      const r = typeof l?.remaining === 'number' && isFinite(l.remaining) ? Math.max(0, l.remaining) : 0;
+      return sum + r;
+    }, 0);
+    const btcPrice = state.cryptos.find((c) => c.id === 'btc')?.price ?? 0;
+    const DISCHARGE_FEE_RATE = 0.8; // pay 80% of walked-away debt in BTC
+    const settlementFeeBtc = btcPrice > 0 ? (dischargedPrincipal * DISCHARGE_FEE_RATE) / btcPrice : 0;
+    const totalCostBtc = NEW_IDENTITY_COST_BTC + settlementFeeBtc;
+
+    if (btc < totalCostBtc) {
+      log.warn(
+        `New identity rejected: need ${totalCostBtc.toFixed(4)} BTC ` +
+          `(base ${NEW_IDENTITY_COST_BTC} + ${settlementFeeBtc.toFixed(4)} debt settlement), have ${btc}`
+      );
       return prev;
     }
     const newDarkWeb = {
@@ -242,19 +268,11 @@ export const acquireNewIdentity = (
           },
         }
       : state.banking;
-    // R2-G: keep mortgage and auto loans tied to the underlying collateral
-    // (the property/vehicle still exists with the new identity, so wiping the
-    // debt would be a 0.5 BTC trick to clear million-dollar mortgages).
-    // Personal/business loans were taken in the old name and can be dropped.
-    const keptLoans = (state.loans ?? []).filter(
-      (loan: { type?: string }) => loan?.type === 'mortgage' || loan?.type === 'auto'
-    );
-    const droppedCount = (state.loans ?? []).length - keptLoans.length;
     log.info(
-      `New identity acquired. Heat → 0, buyer rep → 0, credit score → 580, ${state.darkWeb.activeJobs.length} jobs dropped, ${droppedCount} unsecured loans walked away from (${keptLoans.length} secured loans retained).`
+      `New identity acquired for ${totalCostBtc.toFixed(4)} BTC. Heat → 0, buyer rep → 0, credit score → 580, ${state.darkWeb.activeJobs.length} jobs dropped, ${droppedLoans.length} unsecured loans walked away from (${keptLoans.length} secured loans retained).`
     );
     return {
-      ...setBtcOwned(state, btc - NEW_IDENTITY_COST_BTC),
+      ...setBtcOwned(state, btc - totalCostBtc),
       darkWeb: newDarkWeb,
       banking: newBanking,
       loans: keptLoans,
