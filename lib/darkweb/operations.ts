@@ -44,6 +44,11 @@ import {
 
 const RECENT_EVENT_CAP = 20;
 const JOB_HISTORY_CAP = 30;
+// EXPLOIT FIX (H-4): a failed stage used to only reset progress to 0, so a job
+// could be brute-forced indefinitely (energy-gated only, no cash/jail cost). Cap
+// total failed attempts per job — exceed it and the job is lost ('failed'), so
+// failure carries a real cost.
+const MAX_STAGE_FAILS = 3;
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -275,10 +280,16 @@ export function attemptJobStage(
   let outcome: StageOutcome['outcome'] = 'success';
 
   if (!attempt.success) {
-    // Mark stage failed; reset progress; the job continues until expiry.
+    // Reset progress on failure. After MAX_STAGE_FAILS total failures the job is
+    // lost (terminal 'failed' status) — attemptJobStage rejects non-in-progress
+    // jobs, so it can no longer be retried. This makes brute-forcing cost you the
+    // job instead of being free.
+    const priorFails = job.completedStages.filter((c) => c.outcome === 'fail').length;
+    const failedOut = priorFails + 1 >= MAX_STAGE_FAILS;
     const updatedJob: DarkWebActiveJob = {
       ...job,
       currentStage: 0,
+      status: failedOut ? 'failed' : job.status,
       completedStages: [...job.completedStages, { stage: job.currentStage, week: currentWeek, outcome: 'fail' }],
     };
     updatedDw = {
