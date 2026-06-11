@@ -77,10 +77,18 @@ already pass on this branch as of this runbook.
 ## 3. Build locally (no cloud credits)
 
 ```bash
-eas build --platform ios --profile production --local
+# CFBundleVersion must be UNIQUE per upload — Apple rejects a duplicate with
+# "You've already submitted this build of the app." `eas build --local` does NOT
+# auto-increment (remote autoIncrement is a cloud-build-only feature), so mint a
+# fresh number from the epoch. eas.json uses appVersionSource:"local", so
+# app.config.js reads this BUILD_NUMBER into ios.buildNumber / android.versionCode.
+BUILD_NUMBER=$(date +%s) eas build --platform ios --profile production --local
 ```
 This produces an `.ipa` in the project directory (e.g. `build-XXXXXXXXXXX.ipa`).
 First run is slow (pod install + native compile).
+
+> If a submit fails with "already submitted this build", you must **rebuild** with
+> a new `BUILD_NUMBER` — the existing `.ipa` can never be re-submitted as-is.
 
 ---
 
