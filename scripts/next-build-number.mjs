@@ -30,6 +30,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
+import { Buffer } from 'node:buffer';
 
 const ARGS = process.argv.slice(2);
 const has = (flag) => ARGS.includes(flag);
