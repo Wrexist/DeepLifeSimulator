@@ -13,6 +13,9 @@ export default function Index() {
   const [loadingMessage, setLoadingMessage] = useState('Initializing DeepLife Simulator...');
   const [routerReady, setRouterReady] = useState(false);
   const [_startupHealthCheck, setStartupHealthCheck] = useState<any>(null);
+  // Bumped to re-run the navigation effect when a health check defers navigation.
+  // (Must be a real value change — `setState(prev => prev)` is a no-op React bails on.)
+  const [navRetry, setNavRetry] = useState(0);
   const hasNavigatedRef = useRef(false); // Use ref to prevent double navigation without re-render
 
   // CRITICAL: Startup health check - verify critical modules before rendering
@@ -126,10 +129,11 @@ export default function Index() {
           if (__DEV__) {
             console.warn('[Index] Navigation blocked by health check - waiting for system stabilization');
           }
-          // Don't navigate yet, retry in 500ms
+          // Don't navigate yet, retry in 500ms. Bump a counter (a real value
+          // change) so the effect actually re-runs — `setRouterReady(prev => prev)`
+          // is a no-op React bails on, which left the app stuck on the loader.
           setTimeout(() => {
-            // Trigger effect re-run by updating state
-            setRouterReady((prev) => prev);
+            setNavRetry((n) => n + 1);
           }, 500);
           return;
         }
@@ -150,7 +154,7 @@ export default function Index() {
     }, 100); // Increased delay to ensure all providers are ready
 
     return () => clearTimeout(navigateTimeout);
-  }, [isLoading, isPreloaded, routerReady, router]);
+  }, [isLoading, isPreloaded, routerReady, router, navRetry]);
 
   // ALWAYS render a safe fallback screen (never crash)
   const currentProgress = isPreloaded ? progress : preloadProgress;
