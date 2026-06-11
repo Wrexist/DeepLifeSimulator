@@ -74,13 +74,27 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
   result.cryptoEarned = result.cryptoEarned * halvingMultiplier;
   result.totalEarnings = result.totalEarnings * halvingMultiplier;
 
+  // EXPLOIT FIX (H-2): the weekly electricity cost was computed but never
+  // charged, making mining free/infinite profit. Charge it out of the mined
+  // crypto (you pay the power bill from what you mine) — this keeps the fix
+  // self-contained instead of threading a USD debit through the whole tick.
+  // Electricity is NOT halved, so post-halving mining can become unprofitable,
+  // which is the intended real-world behavior. Big rigs (tiny power %) are
+  // barely affected; small rigs near break-even can net zero.
+  if (result.cryptoEarned > 0 && result.totalEarnings > 0) {
+    const powerCostFraction = result.totalPowerCost / result.totalEarnings;
+    const net = result.cryptoEarned * (1 - powerCostFraction);
+    result.cryptoEarned = Number.isFinite(net) ? Math.max(0, net) : 0;
+  }
+
   if (result.cryptoEarned > 0) {
     // Add crypto to balance.
     let updatedCryptos = input.prevCryptos.map((crypto) => {
       if (crypto.id === selectedCryptoId) {
+        const base = Number.isFinite(crypto.owned) ? crypto.owned : 0;
         return {
           ...crypto,
-          owned: crypto.owned + result.cryptoEarned,
+          owned: base + result.cryptoEarned,
         };
       }
       return crypto;
