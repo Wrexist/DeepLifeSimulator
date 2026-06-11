@@ -98,9 +98,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Authenticates eas-cli non-interactively via EXPO_TOKEN. `eas build
-      # --local` still resolves EAS project secrets + remote build number
-      # (appVersionSource: remote in eas.json) while logged in.
+      # Authenticates eas-cli non-interactively via EXPO_TOKEN so `eas build
+      # --local` can resolve EAS project secrets while logged in. NOTE: the build
+      # number is NOT taken from EAS here — see the "Compute unique build number"
+      # step below. Remote autoIncrement only runs on EAS *cloud* builds, never
+      # on --local, so the version is minted locally (eas.json appVersionSource
+      # is "local").
       - name: Expo/EAS login
         uses: expo/expo-github-action@v8
         with:
@@ -117,6 +120,24 @@ jobs:
           xcodebuild -version
           xcode-select -p
           ls /Applications | grep Xcode
+
+      # CFBundleVersion must be UNIQUE for every App Store upload — Apple rejects
+      # a resubmission of a build number it has already seen ("You've already
+      # submitted this build of the app"). `eas build --local` does NOT
+      # auto-increment (remote autoIncrement only runs on EAS cloud builds), so
+      # resolve it here: scripts/next-build-number.mjs returns one HIGHER than
+      # App Store Connect's current highest build (when the ASC_* secrets below
+      # are set), else a monotonic epoch fallback. app.config.js bakes it into
+      # ios.buildNumber / android.versionCode (eas.json appVersionSource: local).
+      - name: Compute unique build number (CFBundleVersion)
+        run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
+        env:
+          # Optional — set these repo secrets to track App Store Connect exactly.
+          # Without them the resolver falls back to epoch seconds (still unique).
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+
       - name: EAS Build iOS (local)
         run: |
           mkdir -p build
@@ -129,6 +150,10 @@ jobs:
         env:
           # Same fingerprint crash as eas-build.yml — see comment there.
           EAS_SKIP_AUTO_FINGERPRINT: '1'
+          # Consumed by app.config.js → ios.buildNumber / android.versionCode.
+          # eas.json appVersionSource is "local", so this value is what gets
+          # baked into the binary's CFBundleVersion.
+          BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'
           EXPO_PUBLIC_ENABLE_IAP: 'true'
           EXPO_PUBLIC_ENABLE_ATT: 'true'

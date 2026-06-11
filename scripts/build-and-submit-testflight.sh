@@ -29,14 +29,14 @@ echo ""
 
 # Display current version info
 echo "Current Build Configuration:"
-if grep -q 'version:' app.config.js; then
-    VERSION=$(grep -oP 'version:\s*"\K[^"]+' app.config.js | head -1)
-    echo "  Version: $VERSION"
-fi
-if grep -q 'buildNumber:' app.config.js; then
-    BUILD_NUMBER=$(grep -oP 'buildNumber:\s*"\K[^"]+' app.config.js | head -1)
-    echo "  Build Number: $BUILD_NUMBER"
-fi
+VERSION=$(node -p "require('./package.json').version" 2>/dev/null)
+echo "  Version: ${VERSION:-unknown}"
+# Mint a build number strictly higher than App Store Connect's latest (or an
+# epoch fallback) so the submit is never rejected as a duplicate. Exported so
+# app.config.js bakes it into CFBundleVersion. Set ASC_KEY_ID / ASC_ISSUER_ID /
+# ASC_KEY_P8 first for exact App Store Connect tracking.
+export BUILD_NUMBER=$(node scripts/next-build-number.mjs --ask)
+echo "  Build Number: $BUILD_NUMBER"
 echo ""
 
 # Confirm before proceeding

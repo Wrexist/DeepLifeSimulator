@@ -30,13 +30,14 @@ Write-Host ""
 
 # Display current version info
 Write-Host "Current Build Configuration:" -ForegroundColor Cyan
-$appConfig = Get-Content app.config.js -Raw
-if ($appConfig -match 'version:\s*"([^"]+)"') {
-    Write-Host "  Version: $($matches[1])" -ForegroundColor White
-}
-if ($appConfig -match 'buildNumber:\s*"([^"]+)"') {
-    Write-Host "  Build Number: $($matches[1])" -ForegroundColor White
-}
+$version = (node -p "require('./package.json').version" 2>$null)
+Write-Host "  Version: $version" -ForegroundColor White
+# Mint a build number strictly higher than App Store Connect's latest (or an
+# epoch fallback) so the submit is never rejected as a duplicate. Exported so
+# app.config.js bakes it into CFBundleVersion. Set $env:ASC_KEY_ID /
+# $env:ASC_ISSUER_ID / $env:ASC_KEY_P8 first for exact App Store Connect tracking.
+$env:BUILD_NUMBER = (node scripts/next-build-number.mjs --ask)
+Write-Host "  Build Number: $($env:BUILD_NUMBER)" -ForegroundColor White
 Write-Host ""
 
 # Confirm before proceeding
