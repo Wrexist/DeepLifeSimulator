@@ -122,6 +122,19 @@ export const acceptLoan = (
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
 
+    // M-3: hard cap on concurrent active loans. The DTI gate alone could be
+    // stacked past intent (missed-payment penalties inflate a loan's `remaining`
+    // but not its `weeklyPayment`, so quoteLoan understates debt service). A
+    // count cap bounds pathological loan stacking regardless.
+    const MAX_ACTIVE_LOANS = 6;
+    const activeLoanCount = (state.loans ?? []).filter(
+      (l) => (typeof l?.remaining === 'number' ? l.remaining : 0) > 0
+    ).length;
+    if (activeLoanCount >= MAX_ACTIVE_LOANS) {
+      log.info(`Loan rejected: already at the ${MAX_ACTIVE_LOANS}-loan limit`);
+      return prev;
+    }
+
     const quote = quoteLoan(state.banking, state.loans ?? [], {
       principal: spec.principal,
       termWeeks: spec.termWeeks,
