@@ -14,6 +14,7 @@ import {
   applyLoanPayment,
   quoteLoan,
   recomputeCreditScore,
+  MIRRORED_ACCOUNT_IDS,
 } from '@/lib/banking/operations';
 import {
   calculatePeriodicPayment,
@@ -259,6 +260,20 @@ export const prepayLoan = (
       // Recalculate weekly payment for the new principal over remaining weeks.
       const newWeekly = calculatePeriodicPayment(remaining, loan.rateAPR, loan.weeksRemaining);
       loans[loanIdx] = { ...loan, remaining, weeklyPayment: newWeekly };
+    }
+
+    // EXPLOIT FIX (H-1): when prepaying from the mirrored checking account, the
+    // debit above only touched the account balance, which the next mirror tick
+    // restored from stats.money — free debt repayment. Debit authoritative
+    // stats.money so the prepayment actually costs the player.
+    if (MIRRORED_ACCOUNT_IDS.has(fromAccountId)) {
+      const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+      return {
+        ...state,
+        loans,
+        banking,
+        stats: { ...state.stats, money: Math.max(0, currentMoney - payAmount) },
+      };
     }
 
     return { ...state, loans, banking };

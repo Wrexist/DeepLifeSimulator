@@ -32,6 +32,20 @@ const BUDGET_BUCKET_CAP = 12; // keep last 12 weeks of spend
 const HISTORY_CAP = 100;
 const INQUIRY_LOOKBACK_WEEKS = 2 * WEEKS_PER_YEAR;
 
+/**
+ * Accounts that are weekly 1:1 MIRRORS of the legacy fields, not independent
+ * pools: `checking-default` mirrors `stats.money` and `savings-default` mirrors
+ * `bankSavings` (see lib/banking/weeklyTick.ts → mirrorAccountsFromLegacy).
+ * Manual cash moves on them desynced from the legacy source — the next mirror
+ * tick overwrote the balance back, letting players print cash (withdraw/pay) or
+ * destroy it (deposit). The action layer treats these as read-only mirrors and
+ * routes any cash movement through the authoritative legacy field instead.
+ */
+export const MIRRORED_ACCOUNT_IDS: ReadonlySet<string> = new Set([
+  'checking-default',
+  'savings-default',
+]);
+
 const safe = (n: number | undefined, fb = 0): number => (typeof n === 'number' && isFinite(n) ? n : fb);
 
 // ---------------------------------------------------------------------------

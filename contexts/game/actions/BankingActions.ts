@@ -25,6 +25,7 @@ import {
   trackBudgetSpend,
   findCheckingAccount,
   recomputeCreditScore,
+  MIRRORED_ACCOUNT_IDS,
 } from '@/lib/banking/operations';
 
 const log = logger.scope('BankingActions');
@@ -47,6 +48,13 @@ export const depositCashToAccount = (
   setGameState((prev) => {
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
+    // checking-default / savings-default mirror legacy cash; depositing into them
+    // is silently erased by the next mirror tick (money loss). Reject. Players
+    // save by depositing into a self-opened account, which is a real pool.
+    if (MIRRORED_ACCOUNT_IDS.has(accountId)) {
+      log.warn(`Deposit rejected: ${accountId} mirrors cash and is read-only`);
+      return prev;
+    }
     const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
     if (amount <= 0 || amount > currentMoney) {
       log.warn(`Deposit rejected: amount=${amount}, available=${currentMoney}`);
@@ -73,6 +81,14 @@ export const withdrawCashFromAccount = (
   setGameState((prev) => {
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
+    // CRITICAL EXPLOIT FIX (C-1): checking-default mirrors stats.money. Crediting
+    // cash here and letting the next mirror tick restore the account balance was
+    // an unbounded money printer. There is nothing to withdraw FROM your own cash
+    // mirror, so reject. (Real, self-opened accounts withdraw normally below.)
+    if (MIRRORED_ACCOUNT_IDS.has(accountId)) {
+      log.warn(`Withdraw rejected: ${accountId} mirrors cash and is read-only`);
+      return prev;
+    }
     const result = withdrawFromAccount(state.banking, accountId, amount, state.weeksLived);
     if (!result.ok) {
       log.warn(`Withdraw failed: ${result.reason}`);
@@ -96,6 +112,13 @@ export const transferBetweenOwnAccounts = (
   setGameState((prev) => {
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
+    // Transfers touching a mirrored account desync from legacy cash (printer when
+    // moving out of it, money loss when moving into it). Reject; use deposit into
+    // / withdraw out of a real self-opened account instead.
+    if (MIRRORED_ACCOUNT_IDS.has(fromId) || MIRRORED_ACCOUNT_IDS.has(toId)) {
+      log.warn('Transfer rejected: mirrored accounts are read-only');
+      return prev;
+    }
     const result = transferBetweenAccounts(state.banking, fromId, toId, amount, state.weeksLived);
     if (!result.ok) {
       log.warn(`Transfer failed: ${result.reason}`);
@@ -184,10 +207,26 @@ export const payDownCard = (
   setGameState((prev) => {
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
+    // EXPLOIT FIX (H-1): when paying from the mirrored checking account, the debit
+    // landed only on the account balance, which the next mirror tick restored from
+    // stats.money — i.e. free debt repayment. Compute the amount actually paid and
+    // debit authoritative stats.money so the payment really costs the player.
+    const fundedFromCash = MIRRORED_ACCOUNT_IDS.has(fromAccountId);
+    const card = state.banking.creditCards.find((c) => c.id === cardId);
+    const cardBalance = typeof card?.balance === 'number' && isFinite(card.balance) ? card.balance : 0;
+    const paid = Math.min(cardBalance, Math.max(0, amount));
     const result = payCreditCard(state.banking, cardId, fromAccountId, amount, state.weeksLived);
     if (!result.ok) {
       log.warn(`Card pay failed: ${result.reason}`);
       return prev;
+    }
+    if (fundedFromCash) {
+      const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+      return {
+        ...state,
+        banking: result.banking,
+        stats: { ...state.stats, money: Math.max(0, currentMoney - paid) },
+      };
     }
     return { ...state, banking: result.banking };
   });
