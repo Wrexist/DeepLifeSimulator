@@ -81,10 +81,14 @@ export function addHeat(currentHeat: number, heatCost: number, opsecLevel: numbe
  */
 export function policeEventProbability(heat: number): number {
   const h = clampHeat(heat);
+  // Raised so high heat actually bites. At the old 0.12 top rate a raid (≈25% of
+  // police events) was only ~3%/week even at heat 100 — players never got caught.
+  // At 0.40 a police event is 40%/week at max heat (~10%/week is a jail raid),
+  // making heat a real threat you have to manage.
   if (h < 20) return 0;
-  if (h < 50) return 0.01;
-  if (h < 80) return 0.05;
-  return 0.12;
+  if (h < 50) return 0.05;
+  if (h < 80) return 0.18;
+  return 0.40;
 }
 
 /**

@@ -117,7 +117,15 @@ export const runJobStage = (
       log.warn(`Stage attempt failed: ${r.reason}`);
       return prev;
     }
-    const energyAfter = Math.max(0, (state.stats?.energy ?? 0) - r.result.energyCost);
+    // BUGFIX: gate on energy. Previously the cost was only subtracted (floored at
+    // 0) AFTER the attempt, so a player at 0 energy could spam Run Stage for free.
+    // attemptJobStage is pure (no state mutation), so bailing here is safe.
+    const energy = state.stats?.energy ?? 0;
+    if (energy < r.result.energyCost) {
+      log.info(`Stage attempt blocked: need ${r.result.energyCost} energy, have ${Math.round(energy)}`);
+      return prev;
+    }
+    const energyAfter = Math.max(0, energy - r.result.energyCost);
     return {
       ...state,
       stats: { ...state.stats, energy: energyAfter },
