@@ -445,7 +445,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
       <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
         <TouchableOpacity
           onPress={onBack}

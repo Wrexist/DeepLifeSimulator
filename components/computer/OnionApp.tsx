@@ -353,7 +353,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
   );
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
       <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
           <ArrowLeft size={scale(22)} color={theme.text} />
