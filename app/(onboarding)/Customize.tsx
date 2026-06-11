@@ -200,7 +200,7 @@ export default function Customize() {
       <OnboardingStepBar currentStep={2} totalSteps={3} />
 
       <Text style={styles.guidanceText}>
-        Set up your character. These choices shape your social life and relationships.
+        Name, sex, and sexuality only shape your story and relationships — not difficulty. Tap Shuffle for a random name.
       </Text>
 
       <ScrollView

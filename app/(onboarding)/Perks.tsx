@@ -320,10 +320,10 @@ export default function Perks() {
             accessibilityLabel="More information"
             onPress={() =>
               Alert.alert(
-                activeTab === 'perks' ? 'Perks' : 'Mindset',
+                activeTab === 'perks' ? 'Perks (Optional)' : 'Mindset (Optional)',
                 activeTab === 'perks'
-                  ? 'Select perks that will give you advantages in your new life. Choose as many as you want!'
-                  : 'Select one mindset trait that will influence your gameplay with unique bonuses and penalties. This is optional.'
+                  ? 'Perks give small head-starts. Most of them unlock by earning achievements as you play, so they will be locked on your first game — that is normal. This step is optional: tap "Start Your Life" whenever you are ready.'
+                  : 'A mindset is one optional trait that shapes your run with bonuses and trade-offs. Pick one that fits your plan, or skip it and start.'
               )
             }
             style={styles.infoButton}
@@ -341,8 +341,8 @@ export default function Perks() {
 
         <Text style={styles.guidanceText}>
           {activeTab === 'perks'
-            ? 'Perks unlock through achievements. Skip this on your first game!'
-            : 'Pick a mindset to shape how you play. This is optional.'}
+            ? 'Optional. Most perks unlock as you earn achievements — new players can just tap "Start Your Life".'
+            : 'Optional. A mindset adds bonuses and trade-offs. Skip it if you’re not sure.'}
         </Text>
 
         {/* Tab Selector */}

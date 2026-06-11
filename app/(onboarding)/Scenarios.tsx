@@ -55,6 +55,21 @@ const CHALLENGE_FALLBACK_ICON = require('@/assets/images/Scenarios/Street Hustle
 
 const RECOMMENDED_SCENARIO_ID = 'food_courier';
 
+// Display-only ordering so brand-new players see the gentlest starts first.
+// (We sort a copy for rendering — the source `scenarios` array and every lookup
+// by id are untouched.)
+const LIFE_PATH_DIFFICULTY_RANK: Record<string, number> = {
+  Easy: 0,
+  Moderate: 1,
+  Hard: 2,
+};
+
+const rankLifePath = (scenario: OnboardingScenario): number => {
+  // Pin the recommended beginner path to the very top, then easiest-first.
+  if (scenario.id === RECOMMENDED_SCENARIO_ID) return -1;
+  return LIFE_PATH_DIFFICULTY_RANK[scenario.difficulty] ?? 99;
+};
+
 const isChallengeDifficulty = (
   difficulty: unknown
 ): difficulty is ChallengeScenarioDefinition['difficulty'] => {
@@ -214,7 +229,18 @@ export default function Scenarios() {
     }).filter((scenario): scenario is ChallengeScenarioCard => scenario !== null);
   }, [log]);
 
-  const currentScenarios: ScenarioCard[] = activeTab === 'life_paths' ? LIFE_PATH_SCENARIOS : challengeScenarios;
+  // Easiest-first, recommended pinned to the top. Stable for equal ranks so the
+  // original authored order is preserved within a difficulty tier.
+  const sortedLifePaths = useMemo<OnboardingScenario[]>(
+    () =>
+      [...LIFE_PATH_SCENARIOS]
+        .map((scenario, index) => ({ scenario, index }))
+        .sort((a, b) => rankLifePath(a.scenario) - rankLifePath(b.scenario) || a.index - b.index)
+        .map((entry) => entry.scenario),
+    []
+  );
+
+  const currentScenarios: ScenarioCard[] = activeTab === 'life_paths' ? sortedLifePaths : challengeScenarios;
 
   const selectedScenario = useMemo(
     () => currentScenarios.find((scenario) => scenario.id === selectedId) ?? null,
@@ -296,7 +322,9 @@ export default function Scenarios() {
       <OnboardingStepBar currentStep={1} totalSteps={3} />
 
       <Text style={styles.guidanceText}>
-        Pick how your life begins. Easy paths are great for your first playthrough.
+        {activeTab === 'life_paths'
+          ? 'Pick how your life begins. New here? Tap the green "Recommended" path at the top.'
+          : 'Challenges add tougher goals and gem rewards — best once you know the game.'}
       </Text>
 
       {/* Tab Selector */}

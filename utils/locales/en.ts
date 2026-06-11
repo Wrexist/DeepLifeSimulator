@@ -84,7 +84,7 @@ export default {
         notEnoughMoney: 'Not enough money',
         notEnoughEnergy: 'Not enough energy',
         startWorkout: 'Start Workout',
-        purchaseItems: 'Purchase Items',
+        purchaseItems: 'Buy gear to unlock new features. A phone is the best first buy.',
         buyFood: 'Buy Food',
     },
     mobile: {
