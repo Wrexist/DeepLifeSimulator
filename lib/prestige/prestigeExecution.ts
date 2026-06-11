@@ -1,5 +1,5 @@
 import { GameState } from '@/contexts/game/types';
-import { PrestigeData, PrestigeRecord, defaultPrestigeData } from './prestigeTypes';
+import { PrestigeData, PrestigeRecord, defaultPrestigeData, getPrestigeThreshold } from './prestigeTypes';
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
@@ -24,6 +24,15 @@ export function executePrestige(
 ): GameState {
   const currentNetWorth = netWorth(gameState);
   const prestigeData = gameState.prestige || defaultPrestigeData;
+
+  // Model-layer gate (M-4): the net-worth requirement was enforced ONLY in
+  // PrestigeModal — executePrestige trusted its caller, so any non-modal entry
+  // point (or a modified client) could prestige at $0 net worth and still mint
+  // prestige points and first-prestige gems. Re-validate here, matching the
+  // modal which gates both the reset and child paths.
+  if (currentNetWorth < getPrestigeThreshold(prestigeData.prestigeLevel)) {
+    return gameState; // below threshold — no-op
+  }
 
   // Calculate prestige points earned
   const pointsBreakdown = calculatePrestigePoints(
