@@ -1,5 +1,5 @@
 import { GameState } from '@/contexts/game/types';
-import { STATE_VERSION } from '@/contexts/game/initialState';
+import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
 import {
   resolveSaveSigningRuntimeConfig,
@@ -417,6 +417,23 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     if (!Array.isArray(s[field])) {
       s[field] = [];
       repairs.push(`Created missing ${field} array`);
+      repaired = true;
+    }
+  }
+
+  // Catalog arrays hold the game's available jobs/foods/activities/hacks. An
+  // empty default would break gameplay, and validateGameEntry REQUIRES these to
+  // exist — so when repair didn't create them (its list had drifted behind the
+  // entry validator), a save missing one passed repair but failed entry, locking
+  // the player out of their own save. Restore them from initialGameState so
+  // repair's required set is a superset of validateGameEntry's.
+  const catalogArrays = ['streetJobs', 'jailActivities', 'foods', 'healthActivities', 'dietPlans', 'darkWebItems', 'hacks'];
+  const initialFields = initialGameState as unknown as Record<string, unknown>;
+  for (const field of catalogArrays) {
+    if (!Array.isArray(s[field])) {
+      const seed = initialFields[field];
+      s[field] = Array.isArray(seed) ? JSON.parse(JSON.stringify(seed)) : [];
+      repairs.push(`Restored missing ${field} catalog from defaults`);
       repaired = true;
     }
   }
