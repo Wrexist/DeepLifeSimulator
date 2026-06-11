@@ -64,8 +64,11 @@ export function applyVehiclesForWeek(
       const healthLoss = severity === 'minor' ? 3 : severity === 'moderate' ? 10 : 25;
       ctx.newStats.health = Math.max(0, ctx.newStats.health - healthLoss);
 
-      // Repair cost (partially covered by insurance)
-      const repairCost = Math.floor(v.price * damage * 0.001);
+      // Repair cost (partially covered by insurance). Guard v.price: a corrupt
+      // non-finite price would make repairCost NaN and poison money for the rest
+      // of the tick (Math.max(0, money - NaN) === NaN defeats the later guard).
+      const safePrice = typeof v.price === 'number' && isFinite(v.price) ? v.price : 0;
+      const repairCost = Math.floor(safePrice * damage * 0.001);
       const coveragePercent = v.insurance?.active ? (v.insurance.coveragePercent || 0) : 0;
       const outOfPocket = Math.floor(repairCost * (1 - coveragePercent / 100));
       ctx.newStats.money = Math.max(0, ctx.newStats.money - outOfPocket);

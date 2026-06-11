@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { HealthActivity } from '@/contexts/game/types';
 import { Activity, Utensils, AlertTriangle, Heart } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 
@@ -20,6 +21,7 @@ function HealthScreen() {
 
 function HealthScreenContent() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { gameState, performHealthActivity, toggleDietPlan, setGameState } = useGame();
   const { settings } = gameState;
@@ -123,7 +125,7 @@ function HealthScreenContent() {
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
       <ScrollView
         style={styles.content}
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Disease status — quiet warning card, no left bar */}

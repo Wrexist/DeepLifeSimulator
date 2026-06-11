@@ -1769,6 +1769,8 @@ export interface StreamSession {
   chatMessages: number;
   donations: number;
   timestamp?: number; // ms since epoch; used to sort recent streams for income decay
+  /** weeksLived when this stream ran — used to decay income by REAL elapsed weeks. */
+  uploadedAt?: number;
 }
 
 export interface StreamHistoryItem extends StreamSession {

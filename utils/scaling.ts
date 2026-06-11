@@ -151,6 +151,15 @@ export const fontScale = (size: number): number => {
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
 
+// The bottom tab bar floats with `position: absolute` (see app/(tabs)/_layout.tsx),
+// so scrollable tab screens must reserve space for it or their last item is hidden
+// behind the bar (the long-standing "can't see the Computer price / can't scroll"
+// bug). TAB_BAR_HEIGHT mirrors the bar height in the layout; the extra spacing gives
+// breathing room above it, and the caller adds the device's bottom safe-area inset.
+export const TAB_BAR_HEIGHT = scale(70);
+export const getTabBarSafePadding = (bottomInset = 0): number =>
+  TAB_BAR_HEIGHT + scale(30) + bottomInset;
+
 // Responsive spacing with safe fallbacks
 export const responsiveSpacing = {
   xs: scale(4),

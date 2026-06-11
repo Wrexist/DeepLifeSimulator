@@ -39,6 +39,14 @@ export interface PrestigeData {
   lifetimeStats: LifetimeStats; // Track lifetime achievements
   unlockedBonuses: string[]; // IDs of purchased bonuses
   prestigeHistory: PrestigeRecord[]; // History of all prestiges
+  /**
+   * How many completed achievements have already been credited toward prestige
+   * points. Achievements persist across resets, so without this each one paid
+   * out +10 on EVERY prestige (H-5 farming). Only achievements earned since the
+   * last prestige count. Optional for backward-compat with old saves (treated
+   * as 0, which preserves the original behavior on the first prestige).
+   */
+  achievementsCreditedForPoints?: number;
 }
 
 /**
@@ -61,6 +69,7 @@ export const defaultPrestigeData: PrestigeData = {
   },
   unlockedBonuses: [],
   prestigeHistory: [],
+  achievementsCreditedForPoints: 0,
 };
 
 /**

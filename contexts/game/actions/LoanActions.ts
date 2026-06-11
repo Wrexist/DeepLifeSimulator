@@ -14,6 +14,7 @@ import {
   applyLoanPayment,
   quoteLoan,
   recomputeCreditScore,
+  MIRRORED_ACCOUNT_IDS,
 } from '@/lib/banking/operations';
 import {
   calculatePeriodicPayment,
@@ -120,6 +121,19 @@ export const acceptLoan = (
     if (isPlayerBlocked(prev)) return prev;
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
+
+    // M-3: hard cap on concurrent active loans. The DTI gate alone could be
+    // stacked past intent (missed-payment penalties inflate a loan's `remaining`
+    // but not its `weeklyPayment`, so quoteLoan understates debt service). A
+    // count cap bounds pathological loan stacking regardless.
+    const MAX_ACTIVE_LOANS = 6;
+    const activeLoanCount = (state.loans ?? []).filter(
+      (l) => (typeof l?.remaining === 'number' ? l.remaining : 0) > 0
+    ).length;
+    if (activeLoanCount >= MAX_ACTIVE_LOANS) {
+      log.info(`Loan rejected: already at the ${MAX_ACTIVE_LOANS}-loan limit`);
+      return prev;
+    }
 
     const quote = quoteLoan(state.banking, state.loans ?? [], {
       principal: spec.principal,
@@ -259,6 +273,20 @@ export const prepayLoan = (
       // Recalculate weekly payment for the new principal over remaining weeks.
       const newWeekly = calculatePeriodicPayment(remaining, loan.rateAPR, loan.weeksRemaining);
       loans[loanIdx] = { ...loan, remaining, weeklyPayment: newWeekly };
+    }
+
+    // EXPLOIT FIX (H-1): when prepaying from the mirrored checking account, the
+    // debit above only touched the account balance, which the next mirror tick
+    // restored from stats.money — free debt repayment. Debit authoritative
+    // stats.money so the prepayment actually costs the player.
+    if (MIRRORED_ACCOUNT_IDS.has(fromAccountId)) {
+      const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+      return {
+        ...state,
+        loans,
+        banking,
+        stats: { ...state.stats, money: Math.max(0, currentMoney - payAmount) },
+      };
     }
 
     return { ...state, loans, banking };

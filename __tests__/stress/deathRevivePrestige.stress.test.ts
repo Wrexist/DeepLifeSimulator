@@ -290,7 +290,7 @@ describe('Death → Revive → Prestige cycle', () => {
       ...prev,
       weeksLived: 1500,
       date: { ...prev.date, age: 47, year: 2052 },
-      stats: { ...prev.stats, money: 5_000_000, gems: 5000, health: 80, happiness: 80, energy: 80, fitness: 80, reputation: 80 },
+      stats: { ...prev.stats, money: 15_000_000, gems: 5000, health: 80, happiness: 80, energy: 80, fitness: 80, reputation: 80 },
       bankSavings: 1_000_000,
     })));
     const generationBefore = captured!.state.generationNumber || 1;
@@ -313,7 +313,7 @@ describe('Death → Revive → Prestige cycle', () => {
       ...prev,
       weeksLived: 1000,
       date: { ...prev.date, age: 37, year: 2042 },
-      stats: { ...prev.stats, money: 1_000_000, gems: 5000, health: 80, happiness: 80, energy: 80, fitness: 80, reputation: 80 },
+      stats: { ...prev.stats, money: 15_000_000, gems: 5000, health: 80, happiness: 80, energy: 80, fitness: 80, reputation: 80 },
     })));
 
     const beforeTotal = captured!.state.prestige?.totalPrestiges || 0;
@@ -352,7 +352,7 @@ describe('Death → Revive → Prestige cycle', () => {
       ...prev,
       weeksLived: 1500,
       date: { ...prev.date, age: 50, year: 2055 },
-      stats: { ...prev.stats, money: 2_000_000, gems: 5000, health: 80, happiness: 80, energy: 80, fitness: 80, reputation: 80 },
+      stats: { ...prev.stats, money: 15_000_000, gems: 5000, health: 80, happiness: 80, energy: 80, fitness: 80, reputation: 80 },
       family: { ...prev.family, children: [child], spouse: prev.family?.spouse },
       relationships: [...(prev.relationships || []), child],
     })));
@@ -416,6 +416,13 @@ describe('Death → Revive → Prestige cycle', () => {
       await tick();
     }
     expect(captured!.state.weeksLived).toBeGreaterThan(200);
+
+    // Reach the prestige net-worth threshold before resetting (the model-layer
+    // gate now no-ops a prestige below it).
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      stats: { ...prev.stats, money: 15_000_000 },
+    })));
 
     // Prestige reset.
     act(() => { captured!.game.executePrestige('reset'); });

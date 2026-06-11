@@ -1,5 +1,51 @@
 # Task Tracker
 
+## Settings theme + new-life slot fix + tutorial cleanup - June 11, 2026
+
+- [x] Settings modal: replace the saturated rainbow action buttons with one
+      on-theme `SettingsActionButton` (dark glass + tinted icon chip), matching
+      the onboarding GlassActionButton look. Removed now-dead styles.
+- [x] Data-loss bug ("can start a new life right now"): "New Game" defaulted to
+      slot 1 and silently overwrote an existing save. Added `findFirstEmptySlot`
+      and MainMenu now auto-targets the first empty slot (new players still land
+      in slot 1 with zero friction; returning players' saves are protected).
+- [x] Tutorial system audit: CORRECTED earlier wrong claim — TutorialManager is
+      mounted in app/_layout.tsx (system is live). Only TutorialOverlay.tsx and
+      TutorialTooltip.tsx were truly orphaned → deleted.
+- [x] SaveSlots-before-first-game: CORRECTED — new players are NOT forced through
+      the slot picker (boot → MainMenu → New Game → Scenarios; slot defaults).
+      No flow change needed; the real adjacent bug (overwrite) is fixed above.
+- [ ] "Corners" polish — needs the user to point at the specific screens/elements
+      that look off (awaiting clarification).
+- [x] Verify: type-check 0 errors, 274 onboarding/save tests pass.
+
+## New-Player UX Cleanup ("dumb dumb proof") - June 11, 2026
+
+Goal: make the first-session experience and the Market clean, readable, and
+obvious for brand-new players. Copy/hierarchy/progressive-disclosure only —
+NO game-logic, state-shape, or save-format changes.
+
+Market (app/(tabs)/market.tsx)
+- [x] Fix Computer price / bottom-clipping (prior commit)
+- [x] Gym tab: trim the 9-bullet "Why Work Out?" wall to 3 clear benefits
+- [x] Gym tab: remove the redundant filler "Fitness Goals" card (dropped unused Trophy import)
+- [x] Items tab: clearer one-line guidance (en.ts market.purchaseItems)
+
+Scenario select (app/(onboarding)/Scenarios.tsx)
+- [x] Sort Life Paths Easy → Moderate → Hard, recommended pinned first (display only)
+- [x] Clearer guidance pointing beginners at the recommended/easy paths
+- [x] Short "for experienced players" hint on the Challenges tab
+
+First-session onboarding copy
+- [x] Perks.tsx: fixed contradictory guidance, perks + mindset clearly OPTIONAL (inline + Info popup)
+- [x] Customize.tsx: clarified name/sex/sexuality only affect story, not difficulty
+
+Verify
+- [x] type-check passes (tsc 0 errors), 189 related tests pass
+
+Out of scope (flagged): dead tutorial system (TutorialManager et al., never
+mounted) and SaveSlots/navigation restructuring — separate decisions.
+
 ## iOS Onboarding SceneView Crash - May 27, 2026
 
 - [x] Review lessons and trace the crash stack to the onboarding route layer.

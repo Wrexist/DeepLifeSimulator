@@ -180,7 +180,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     if (stats.energy < activity.energyCost) return false;
     if (activity.cost && stats.money < activity.cost) return false;
     if (activity.requiresEducation) {
-      const hasEducation = gameState.educations.find(e => e.id === activity.requiresEducation)?.completed;
+      const hasEducation = (gameState.educations ?? []).find(e => e.id === activity.requiresEducation)?.completed;
       if (!hasEducation) return false;
     }
     // Check if requires minimum weeks remaining in jail

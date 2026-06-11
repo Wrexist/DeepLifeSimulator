@@ -388,15 +388,19 @@ export function stakeCrypto(
     return { success: false, message: 'Lock period must be 1-4 weeks' };
   }
 
-  // Calculate reward rate based on lock period
+  // Calculate reward rate based on lock period.
+  // EXPLOIT FIX: these were 2-5% PER WEEK with full principal returned on claim
+  // (~14x/year, an unbounded crypto printer). Re-tuned to realistic weekly
+  // staking yields (~0.1-0.25%/week ≈ 5-13%/yr) so longer locks still pay more
+  // without minting free crypto.
   const rewardRates: Record<number, number> = {
-    1: 0.02, // 2% weekly
-    2: 0.03, // 3% weekly
-    3: 0.04, // 4% weekly
-    4: 0.05, // 5% weekly
+    1: 0.001,  // 0.10% weekly
+    2: 0.0015, // 0.15% weekly
+    3: 0.002,  // 0.20% weekly
+    4: 0.0025, // 0.25% weekly
   };
 
-  const rewardRate = rewardRates[lockWeeks] || 0.02;
+  const rewardRate = rewardRates[lockWeeks] || 0.001;
 
   setGameState(prev => {
     if (!prev.warehouse) return prev;

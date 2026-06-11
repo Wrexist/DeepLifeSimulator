@@ -1,6 +1,29 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, ReactNode } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Linking, Platform } from 'react-native';
 import ToastNotification from '@/components/ui/ToastNotification';
+import { BUILD_TAG } from '@/lib/config/buildTag';
+
+const SUPPORT_EMAIL = 'isacmolin@gmail.com';
+
+/**
+ * Open the player's mail client pre-filled with a debug report for an error.
+ * This is what turns a raw error into something actionable: one tap on the
+ * error's "Report" button and the developer gets the issue + build context.
+ */
+function emailDebugReport(message: string) {
+  const subject = encodeURIComponent(`DeepLife bug: ${message.slice(0, 60)}`);
+  const body = encodeURIComponent(
+    `What were you doing when this happened?\n\n\n` +
+      `------- debug info (please keep) -------\n` +
+      `Issue: ${message}\n` +
+      `Build: ${BUILD_TAG}\n` +
+      `Platform: ${Platform.OS} ${String(Platform.Version)}\n` +
+      `When: ${new Date().toISOString()}\n`
+  );
+  Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`).catch(() => {
+    // No mail client / blocked — nothing else we can do from here.
+  });
+}
 
 interface Toast {
   id: string;
@@ -49,6 +72,13 @@ export function ToastProvider({ children }: ToastProviderProps) {
       action?: Toast['action'],
       persistent?: boolean
     ) => {
+      // Players never see raw yellow "warning" toasts — they were noise that
+      // overlapped the status bar. Log for diagnostics and render nothing.
+      if (type === 'warning') {
+        if (__DEV__) console.warn('[toast suppressed]', message);
+        return;
+      }
+
       const id = `toast-${Date.now()}-${Math.random()}`;
       const newToast: Toast = {
         id,
@@ -56,7 +86,9 @@ export function ToastProvider({ children }: ToastProviderProps) {
         type,
         duration,
         position,
-        action,
+        // Errors get a one-tap Report that emails the debug info to the dev,
+        // unless the caller already supplied its own action.
+        action: action ?? (type === 'error' ? { label: 'Report', onPress: () => emailDebugReport(message) } : undefined),
         persistent,
       };
 
@@ -81,7 +113,9 @@ export function ToastProvider({ children }: ToastProviderProps) {
 
   const showError = useCallback(
     (message: string, duration?: number) => {
-      showToast(message, 'error', duration);
+      // Errors linger a little longer than other toasts so there's time to tap
+      // the "Report" button (which emails the debug info to the developer).
+      showToast(message, 'error', duration ?? 6000);
     },
     [showToast]
   );
@@ -115,7 +149,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
     <ToastContext.Provider value={contextValue}>
       {children}
       <View style={styles.toastContainer} pointerEvents="box-none">
-        {toasts.map((toast) => (
+        {toasts.map((toast, index) => (
           <ToastNotification
             key={toast.id}
             id={toast.id}
@@ -127,6 +161,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
             hapticEnabled={true}
             action={toast.action}
             persistent={toast.persistent}
+            stackIndex={index}
           />
         ))}
       </View>

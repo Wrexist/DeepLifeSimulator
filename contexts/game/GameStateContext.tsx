@@ -3,6 +3,7 @@ import { GameState, ChildInfo } from './types';
 import { logger } from '@/utils/logger';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 import { safeSetItem } from '@/utils/safeStorage';
+import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
 import { GameStoreContext, GameStore } from './useGameSelector';
 
 interface GameStateContextType {
@@ -150,7 +151,9 @@ export function GameStateProvider({
   // Revive character
   // Uses functional update to avoid stale state closures
   const reviveCharacter = useCallback(() => {
-    const reviveCost = 15000;
+    // Use the shared constant the DeathPopup gates on, so the button enable
+    // condition and the actual charge can never drift apart (L8).
+    const reviveCost = REVIVE_GEM_COST;
 
     wrappedSetGameState(prev => {
       if ((prev.stats.gems || 0) < reviveCost) {

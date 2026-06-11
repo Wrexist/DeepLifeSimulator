@@ -330,11 +330,11 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
 
         // Special failure consequences for risky activities
         if (activityId === 'escape_attempt') {
-          newJailWeeks += 3; // Failed escape adds 3 weeks
+          newJailWeeks = Math.min(52, newJailWeeks + 3); // Failed escape adds 3 weeks (capped at 52)
           newStats.health = Math.max(0, (newStats.health || 0) - 10);
           messages.push('+3 weeks sentence, -10 health');
         } else if (activityId === 'contraband_trade') {
-          newJailWeeks += 1; // Caught with contraband adds 1 week
+          newJailWeeks = Math.min(52, newJailWeeks + 1); // Caught with contraband adds 1 week (capped at 52)
           messages.push('+1 week sentence (caught with contraband)');
         }
       }

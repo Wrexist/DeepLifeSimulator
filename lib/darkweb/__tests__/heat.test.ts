@@ -75,9 +75,9 @@ describe('policeEventProbability', () => {
   });
 
   it('increases with each band', () => {
-    expect(policeEventProbability(30)).toBe(0.01);
-    expect(policeEventProbability(60)).toBe(0.05);
-    expect(policeEventProbability(90)).toBe(0.12);
+    expect(policeEventProbability(30)).toBe(0.05);
+    expect(policeEventProbability(60)).toBe(0.18);
+    expect(policeEventProbability(90)).toBe(0.40);
   });
 });
 

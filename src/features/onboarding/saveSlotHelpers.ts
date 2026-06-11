@@ -49,6 +49,45 @@ export const hasMeaningfulSaveData = (state: SaveSlotSnapshot): boolean => {
 };
 
 /**
+ * Find the first save slot (1-3) that is safe to start a new life in, so a new
+ * game can never silently overwrite an existing save. A slot counts as empty
+ * when it has no data or no meaningful gameplay; unreadable/corrupt slots are
+ * treated as OCCUPIED (skipped) so we never clobber a save that might still be
+ * recoverable from a backup. Returns null when all 3 slots are occupied.
+ */
+export const findFirstEmptySlot = async (): Promise<number | null> => {
+  try {
+    const { readSaveSlot, decodePersistedSaveEnvelope, shouldAllowUnsignedLegacySaves } = await import(
+      '@/utils/saveValidation'
+    );
+    const allowLegacy = shouldAllowUnsignedLegacySaves();
+
+    for (let i = 1; i <= 3; i++) {
+      const data = await readSaveSlot(i, undefined, { allowLegacy });
+      if (!data) return i; // nothing stored → safe to use
+
+      try {
+        const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
+        // Unreadable envelope: treat as occupied (don't risk a recoverable save).
+        if (!decoded.valid || typeof decoded.data !== 'string') continue;
+
+        const parsed = JSON.parse(decoded.data);
+        if (!(hasSaveStateShape(parsed) && hasMeaningfulSaveData(parsed))) {
+          return i; // present but empty/placeholder → safe to use
+        }
+      } catch {
+        // Corrupt JSON → treat as occupied, skip it.
+        continue;
+      }
+    }
+
+    return null; // all 3 occupied
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Check whether all 3 save slots contain meaningful data.
  * Async because it lazily imports saveValidation to read each slot.
  */

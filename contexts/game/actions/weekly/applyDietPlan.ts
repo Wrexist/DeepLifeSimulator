@@ -51,7 +51,12 @@ export function applyDietPlanForWeek(
   }
   // Deduct weekly cost (dailyCost × 7). Sanitize newStats.money via NaN-guard
   // matching the legacy inline code.
-  const weeklyCost = activeDietPlan.dailyCost * 7;
+  // Guard the subtrahend too: a non-finite dailyCost would make weeklyCost NaN
+  // and turn money into NaN despite the minuend guard below.
+  const safeDailyCost = typeof activeDietPlan.dailyCost === 'number' && isFinite(activeDietPlan.dailyCost)
+    ? activeDietPlan.dailyCost
+    : 0;
+  const weeklyCost = safeDailyCost * 7;
   const currentMoney = typeof ctx.newStats.money === 'number' && !isNaN(ctx.newStats.money)
     ? ctx.newStats.money
     : 0;

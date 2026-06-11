@@ -5,7 +5,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Trophy } from 'lucide-react-native';
+import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription, type ItemBadgeInfo } from '@/utils/marketBadges';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
@@ -13,7 +13,7 @@ import { useToast } from '@/contexts/ToastContext';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
-import { responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { responsiveBorderRadius, responsiveSpacing, getTabBarSafePadding } from '@/utils/scaling';
 import ErrorBoundary from '@/components/ErrorBoundary';
 const LinearGradient = LinearGradientFallback;
 
@@ -417,7 +417,11 @@ function MarketScreenContent() {
       {/* Scrollable Content */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, settings.darkMode && styles.scrollContentDark]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          settings.darkMode && styles.scrollContentDark,
+          { paddingBottom: getTabBarSafePadding(insets.bottom) },
+        ]}
         showsVerticalScrollIndicator={true}
       >
         <View style={[styles.content, settings.darkMode && styles.contentDark]}>
@@ -658,38 +662,11 @@ function MarketScreenContent() {
                     </Text>
                   </View>
                   <Text style={[styles.gymCardDescription, settings.darkMode && styles.gymCardDescriptionDark]}>
-                    Regular exercise provides numerous benefits:{'\n\n'}
-                    • Reduces risk of diseases and health complications{'\n'}
-                    • Strengthens your immune system{'\n'}
-                    • Improves mental health and reduces stress{'\n'}
-                    • Increases energy levels throughout the day{'\n'}
-                    • Better sleep quality and recovery{'\n'}
-                    • Unlocks better career opportunities{'\n'}
-                    • Boosts confidence and self-esteem{'\n'}
-                    • Helps maintain a healthy weight{'\n\n'}
-                    Consistency is key - regular workouts provide long-term benefits!
-                  </Text>
-                </LinearGradient>
-              </View>
-
-              {/* Fitness Goals Card */}
-              <View style={styles.gymCardWrapper}>
-                <LinearGradient
-                  colors={settings.darkMode
-                    ? ['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.4)']
-                    : ['rgba(243, 244, 246, 0.6)', 'rgba(229, 231, 235, 0.7)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.gymCardGradient}
-                >
-                  <View style={styles.gymCardHeader}>
-                    <Trophy size={16} color="#FBBF24" style={{ marginRight: 8 }} />
-                    <Text style={[styles.gymCardTitle, settings.darkMode && styles.gymCardTitleDark]}>
-                      Fitness Goals
-                    </Text>
-                  </View>
-                  <Text style={[styles.gymCardDescription, settings.darkMode && styles.gymCardDescriptionDark]}>
-                    Set realistic fitness goals and track your progress. Remember that fitness is a journey, not a destination. Every workout session brings you closer to your goals!
+                    Working out a little each week pays off:{'\n\n'}
+                    • More energy and better health{'\n'}
+                    • Higher fitness unlocks better jobs{'\n'}
+                    • A quick happiness boost{'\n\n'}
+                    Keep it consistent — small sessions add up.
                   </Text>
                 </LinearGradient>
               </View>

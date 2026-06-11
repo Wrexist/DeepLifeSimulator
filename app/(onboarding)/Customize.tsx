@@ -200,7 +200,7 @@ export default function Customize() {
       <OnboardingStepBar currentStep={2} totalSteps={3} />
 
       <Text style={styles.guidanceText}>
-        Set up your character. These choices shape your social life and relationships.
+        Name, sex, and sexuality only shape your story and relationships — not difficulty. Tap Shuffle for a random name.
       </Text>
 
       <ScrollView
@@ -371,6 +371,9 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     padding: 20,
+    // Match the parent's rounded clip so the white border doesn't get sliced
+    // off at the corners (square border inside an overflow:hidden rounded box).
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     gap: responsiveSpacing.md,

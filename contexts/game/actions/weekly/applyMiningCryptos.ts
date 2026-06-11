@@ -23,11 +23,41 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { MINER_REPAIR_COSTS } from './applyMiningWarehouse';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { calculateMiningEarnings } = require('@/contexts/game/actions/MiningActions');
 
 type Crypto = NonNullable<GameState['cryptos']>[number];
 type Warehouse = GameState['warehouse'];
+
+/**
+ * EXPLOIT FIX (M-6): the auto-repair deduction used a flat, player/config-set
+ * `autoRepairWeeklyCost` while the warehouse repaired the whole fleet to 100%,
+ * so a giant rig stayed pristine for almost nothing. Charge the REAL repair cost
+ * instead — base USD cost per miner (MINER_REPAIR_COSTS) scaled by damage and
+ * count, converted to the repair crypto via its price. Capped at what's owned and
+ * floored at the configured flat cost so the deduction is never tiny.
+ */
+function autoRepairCostInCrypto(warehouse: Warehouse, cryptos: Crypto[]): number {
+  if (!warehouse?.autoRepairEnabled || !warehouse.autoRepairCryptoId) return 0;
+  const repairCrypto = cryptos.find((c) => c.id === warehouse.autoRepairCryptoId);
+  const price = repairCrypto && Number.isFinite(repairCrypto.price) && repairCrypto.price > 0 ? repairCrypto.price : 0;
+
+  let totalUsd = 0;
+  for (const minerId of Object.keys(warehouse.miners || {})) {
+    const durability = warehouse.minerDurability?.[minerId] ?? 100;
+    if (durability < 50) {
+      const baseCost = MINER_REPAIR_COSTS[minerId] || 0;
+      const healthToRestore = 100 - durability;
+      totalUsd += baseCost * (healthToRestore / 100) * (warehouse.miners[minerId] || 0);
+    }
+  }
+
+  const realCrypto = price > 0 ? totalUsd / price : 0;
+  const flat = warehouse.autoRepairWeeklyCost || 0;
+  const cost = Math.max(flat, realCrypto);
+  return Number.isFinite(cost) ? Math.max(0, cost) : 0;
+}
 
 export interface MiningCryptosInput {
   prevWarehouse: Warehouse;
@@ -74,29 +104,39 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
   result.cryptoEarned = result.cryptoEarned * halvingMultiplier;
   result.totalEarnings = result.totalEarnings * halvingMultiplier;
 
+  // EXPLOIT FIX (H-2): the weekly electricity cost was computed but never
+  // charged, making mining free/infinite profit. Charge it out of the mined
+  // crypto (you pay the power bill from what you mine) — this keeps the fix
+  // self-contained instead of threading a USD debit through the whole tick.
+  // Electricity is NOT halved, so post-halving mining can become unprofitable,
+  // which is the intended real-world behavior. Big rigs (tiny power %) are
+  // barely affected; small rigs near break-even can net zero.
+  if (result.cryptoEarned > 0 && result.totalEarnings > 0) {
+    const powerCostFraction = result.totalPowerCost / result.totalEarnings;
+    const net = result.cryptoEarned * (1 - powerCostFraction);
+    result.cryptoEarned = Number.isFinite(net) ? Math.max(0, net) : 0;
+  }
+
   if (result.cryptoEarned > 0) {
     // Add crypto to balance.
     let updatedCryptos = input.prevCryptos.map((crypto) => {
       if (crypto.id === selectedCryptoId) {
+        const base = Number.isFinite(crypto.owned) ? crypto.owned : 0;
         return {
           ...crypto,
-          owned: crypto.owned + result.cryptoEarned,
+          owned: base + result.cryptoEarned,
         };
       }
       return crypto;
     });
 
-    // Deduct auto-repair cost if enabled.
-    if (input.prevWarehouse.autoRepairEnabled
-      && input.prevWarehouse.autoRepairCryptoId
-      && input.prevWarehouse.autoRepairWeeklyCost) {
+    // Deduct the REAL auto-repair cost (M-6) if enabled.
+    const repairCost = autoRepairCostInCrypto(input.prevWarehouse, input.prevCryptos);
+    if (repairCost > 0 && input.prevWarehouse.autoRepairCryptoId) {
       updatedCryptos = updatedCryptos.map((crypto) => {
         if (crypto.id === input.prevWarehouse?.autoRepairCryptoId) {
-          const cost = input.prevWarehouse?.autoRepairWeeklyCost || 0;
-          return {
-            ...crypto,
-            owned: Math.max(0, crypto.owned - cost),
-          };
+          const base = Number.isFinite(crypto.owned) ? crypto.owned : 0;
+          return { ...crypto, owned: Math.max(0, base - repairCost) };
         }
         return crypto;
       });
@@ -106,16 +146,12 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
   }
 
   // Still deduct auto-repair even if no mining earnings.
-  if (input.prevWarehouse.autoRepairEnabled
-    && input.prevWarehouse.autoRepairCryptoId
-    && input.prevWarehouse.autoRepairWeeklyCost) {
+  const repairCost = autoRepairCostInCrypto(input.prevWarehouse, input.prevCryptos);
+  if (repairCost > 0 && input.prevWarehouse.autoRepairCryptoId) {
     const updatedCryptos = input.prevCryptos.map((crypto) => {
       if (input.prevWarehouse && crypto.id === input.prevWarehouse.autoRepairCryptoId) {
-        const cost = input.prevWarehouse.autoRepairWeeklyCost || 0;
-        return {
-          ...crypto,
-          owned: Math.max(0, crypto.owned - cost),
-        };
+        const base = Number.isFinite(crypto.owned) ? crypto.owned : 0;
+        return { ...crypto, owned: Math.max(0, base - repairCost) };
       }
       return crypto;
     });

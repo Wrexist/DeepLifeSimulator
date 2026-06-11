@@ -3310,7 +3310,7 @@ exports[`pre-tick equivalence — applyMiningCryptos auto-repair enabled with ea
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.005,
+      "owned": 0.0042,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,
@@ -3333,7 +3333,7 @@ exports[`pre-tick equivalence — applyMiningCryptos halving 1: cryptoEarned cut
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.0025,
+      "owned": 0.0017,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,
@@ -3348,7 +3348,7 @@ exports[`pre-tick equivalence — applyMiningCryptos halving 4: cryptoEarned red
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.0003125,
+      "owned": 0,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,
@@ -3371,7 +3371,7 @@ exports[`pre-tick equivalence — applyMiningCryptos mining ETH (lower multiplie
     {
       "id": "eth",
       "name": "Ether",
-      "owned": 0.004,
+      "owned": 0,
       "price": 3000,
       "symbol": "ETH",
       "weeklyRate": 0.01,
@@ -3401,7 +3401,7 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse with basic miners
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.0025,
+      "owned": 0.0021,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,
@@ -3416,7 +3416,7 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse with industrial m
     {
       "id": "btc",
       "name": "Bitcoin",
-      "owned": 0.10799999999999998,
+      "owned": 0.10199999999999998,
       "price": 50000,
       "symbol": "BTC",
       "weeklyRate": 0.01,

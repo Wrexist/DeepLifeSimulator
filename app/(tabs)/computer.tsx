@@ -69,6 +69,7 @@ import {
   fontScale,
   scale,
   isTablet,
+  getTabBarSafePadding,
 } from '@/utils/scaling';
 import { 
   getGlassHeader, 
@@ -444,9 +445,9 @@ function ComputerScreenContent() {
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollContent}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={true}
       >
         <View style={styles.appsGrid}>

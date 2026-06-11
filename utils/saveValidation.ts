@@ -1,5 +1,5 @@
 import { GameState } from '@/contexts/game/types';
-import { STATE_VERSION } from '@/contexts/game/initialState';
+import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
 import {
   resolveSaveSigningRuntimeConfig,
@@ -417,6 +417,63 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     if (!Array.isArray(s[field])) {
       s[field] = [];
       repairs.push(`Created missing ${field} array`);
+      repaired = true;
+    }
+  }
+
+  // Catalog arrays hold the game's available jobs/foods/activities/hacks. An
+  // empty default would break gameplay, and validateGameEntry REQUIRES these to
+  // exist — so when repair didn't create them (its list had drifted behind the
+  // entry validator), a save missing one passed repair but failed entry, locking
+  // the player out of their own save. Restore them from initialGameState so
+  // repair's required set is a superset of validateGameEntry's.
+  const catalogArrays = ['streetJobs', 'jailActivities', 'foods', 'healthActivities', 'dietPlans', 'darkWebItems', 'hacks'];
+  const initialFields = initialGameState as unknown as Record<string, unknown>;
+  for (const field of catalogArrays) {
+    if (!Array.isArray(s[field])) {
+      const seed = initialFields[field];
+      s[field] = Array.isArray(seed) ? JSON.parse(JSON.stringify(seed)) : [];
+      repairs.push(`Restored missing ${field} catalog from defaults`);
+      repaired = true;
+    }
+  }
+
+  // Backfill the v14/v16/v18 app subsystems. Their migrations only create the
+  // slice when it is ENTIRELY missing (`if (!state.banking)`), so a save with a
+  // present-but-PARTIAL object (CloudSync merge, hand-edit, future field rename)
+  // slipped through every safety net with e.g. banking.creditScore / darkWeb.heat
+  // / cryptoMarket.coinMarkets undefined → crash on first access. Restore a
+  // missing object wholesale; shallow-merge defaults into a partial one to fill
+  // any missing top-level keys.
+  const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket'];
+  for (const key of subsystemObjects) {
+    const seed = initialFields[key];
+    if (!seed || typeof seed !== 'object') continue;
+    const current = s[key];
+    if (!current || typeof current !== 'object') {
+      s[key] = JSON.parse(JSON.stringify(seed));
+      repairs.push(`Restored missing ${key} subsystem from defaults`);
+      repaired = true;
+    } else {
+      const seedObj = JSON.parse(JSON.stringify(seed)) as Record<string, unknown>;
+      const currentObj = current as Record<string, unknown>;
+      const merged = { ...seedObj, ...currentObj };
+      if (Object.keys(merged).length > Object.keys(currentObj).length) {
+        s[key] = merged;
+        repairs.push(`Filled missing ${key} fields from defaults`);
+        repaired = true;
+      }
+    }
+  }
+
+  // L5: clamp jailWeeks. nextWeek self-heals a bad value on the first tick, but
+  // until then a tampered/corrupt save could display a multi-thousand-week
+  // sentence (and inflate bail cost = jailWeeks * 500).
+  if (s.jailWeeks !== undefined) {
+    const jw = Number.isFinite(s.jailWeeks) ? Math.max(0, Math.min(52, Math.floor(s.jailWeeks))) : 0;
+    if (jw !== s.jailWeeks) {
+      s.jailWeeks = jw;
+      repairs.push(`Clamped jailWeeks to ${jw}`);
       repaired = true;
     }
   }

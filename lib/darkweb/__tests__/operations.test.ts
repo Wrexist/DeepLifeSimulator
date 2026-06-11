@@ -172,6 +172,27 @@ describe('jobs', () => {
     }
   });
 
+  it('H-4: a job fails out after repeated failures and cannot be brute-forced', () => {
+    const r = startJob(emptyDw(), 'phish-pack', 1);
+    if (!r.ok) throw new Error('start failed');
+    let dw = r.dw;
+    const jobId = r.job.id;
+
+    // Fail the stage three times (high roll = fail).
+    for (let i = 0; i < 3; i++) {
+      const res = attemptJobStage(dw, jobId, 0.999, 2 + i);
+      expect(res.ok).toBe(true);
+      if (res.ok) dw = res.result.dw;
+    }
+
+    const job = dw.activeJobs.find((j) => j.id === jobId);
+    expect(job?.status).toBe('failed');
+
+    // A further attempt is rejected — the free infinite-retry exploit is closed.
+    const retry = attemptJobStage(dw, jobId, 0.01, 10);
+    expect(retry.ok).toBe(false);
+  });
+
   it('completing the final stage credits dirty BTC and moves to history', () => {
     let dw = emptyDw();
     // Pump opsec/hacking/social/laundering high enough that easy stages pass.

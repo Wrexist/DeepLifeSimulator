@@ -45,7 +45,9 @@ import {
     responsiveBorderRadius,
     scale,
     fontScale,
+    getTabBarSafePadding,
 } from '@/utils/scaling';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getResponsiveValue } from '@/utils/responsiveDesign';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -96,6 +98,7 @@ function WorkScreen() {
 
 function WorkScreenContent() {
     const { t } = useTranslation();
+    const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<'street' | 'career' | 'skills'>('street');
     const [workFeedback, setWorkFeedback] = useState<{ [key: string]: string }>({});
     // Hobbies removed - unused state variables removed
@@ -789,7 +792,7 @@ function WorkScreenContent() {
 
                         <ScrollView
                             style={styles.content}
-                            contentContainerStyle={{ paddingTop: 0 }}
+                            contentContainerStyle={{ paddingTop: 0, paddingBottom: getTabBarSafePadding(insets.bottom) }}
                             showsVerticalScrollIndicator={true}
                         >
                             {activeTab === 'street' && (

@@ -141,7 +141,16 @@ export const buyPropertyWithMortgage = (
       return prev;
     }
     const cash = prev.stats?.money ?? 0;
-    const newMoney = Math.max(0, cash - (quote.downPaymentUSD ?? 0));
+    const downPayment = quote.downPaymentUSD ?? 0;
+    // EXPLOIT FIX (M-7): previously the down payment was floored with Math.max(0,…)
+    // and the purchase still went through, so a quote-vs-apply race (or float/int
+    // drift) could buy a property for less than its stated down payment. Reject
+    // instead of silently flooring.
+    if (cash < downPayment) {
+      log.info(`Purchase rejected: insufficient cash for down payment (need ${downPayment}, have ${cash})`);
+      return prev;
+    }
+    const newMoney = cash - downPayment;
 
     // Create the Loan record if there's a mortgage.
     let updatedLoans = prev.loans ?? [];
