@@ -13,7 +13,7 @@ import { useToast } from '@/contexts/ToastContext';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
-import { responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { responsiveBorderRadius, responsiveSpacing, getTabBarSafePadding } from '@/utils/scaling';
 import ErrorBoundary from '@/components/ErrorBoundary';
 const LinearGradient = LinearGradientFallback;
 
@@ -417,7 +417,11 @@ function MarketScreenContent() {
       {/* Scrollable Content */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, settings.darkMode && styles.scrollContentDark]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          settings.darkMode && styles.scrollContentDark,
+          { paddingBottom: getTabBarSafePadding(insets.bottom) },
+        ]}
         showsVerticalScrollIndicator={true}
       >
         <View style={[styles.content, settings.darkMode && styles.contentDark]}>

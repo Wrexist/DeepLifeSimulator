@@ -43,6 +43,7 @@ import {
   responsiveIconSize,
   isTablet,
   scale,
+  getTabBarSafePadding,
 } from '@/utils/scaling';
 import { 
   getGlassHeader, 
@@ -261,9 +262,9 @@ function MobileScreenContent() {
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollContent}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={true}
       >
         <View style={styles.appsGrid}>
