@@ -176,6 +176,7 @@ export function runStream(
     chatMessages: Math.round(outcome.viewers * 2),
     donations: outcome.donations,
     timestamp: Date.now(),
+    uploadedAt: currentWeek,
   };
 
   deps.updateMoney(setGameState, earnings, `Stream: ${args.game}`);
