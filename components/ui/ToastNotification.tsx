@@ -8,6 +8,7 @@ import {
   Easing,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react-native';
 import { DesignSystem } from '@/utils/designSystem';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -24,6 +25,8 @@ interface ToastNotificationProps {
   hapticEnabled?: boolean;
   action?: { label: string; onPress: () => void };
   persistent?: boolean;
+  /** Index in the visible stack — offsets each toast so they don't overlap. */
+  stackIndex?: number;
 }
 
 export default function ToastNotification({
@@ -36,8 +39,10 @@ export default function ToastNotification({
   hapticEnabled = false,
   action,
   persistent = false,
+  stackIndex = 0,
 }: ToastNotificationProps) {
   const { buttonPress } = useFeedback(hapticEnabled);
+  const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -144,8 +149,12 @@ export default function ToastNotification({
   const containerStyle = [
     styles.container,
     {
-      top: position === 'top' ? 50 : undefined,
-      bottom: position === 'bottom' ? 50 : undefined,
+      // Respect the safe-area inset so a top toast sits BELOW the status bar /
+      // notch instead of overlapping the clock and battery (the old flat 50px
+      // landed right in the notch on modern phones). stackIndex offsets each
+      // toast so multiple don't pile on top of each other.
+      top: position === 'top' ? insets.top + 8 + stackIndex * 72 : undefined,
+      bottom: position === 'bottom' ? insets.bottom + 8 + stackIndex * 72 : undefined,
       transform: [
         { translateY: slideAnim },
         { scale: scaleAnim },
