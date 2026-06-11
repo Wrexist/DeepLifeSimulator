@@ -125,11 +125,18 @@ jobs:
       # a resubmission of a build number it has already seen ("You've already
       # submitted this build of the app"). `eas build --local` does NOT
       # auto-increment (remote autoIncrement only runs on EAS cloud builds), so
-      # mint the number here from the Unix epoch: strictly increasing, always
-      # higher than any prior upload, and within Android's versionCode ceiling
-      # (~2.1e9, good until 2036) since app.config.js derives versionCode from it.
+      # resolve it here: scripts/next-build-number.mjs returns one HIGHER than
+      # App Store Connect's current highest build (when the ASC_* secrets below
+      # are set), else a monotonic epoch fallback. app.config.js bakes it into
+      # ios.buildNumber / android.versionCode (eas.json appVersionSource: local).
       - name: Compute unique build number (CFBundleVersion)
-        run: echo "BUILD_NUMBER=$(date +%s)" >> "$GITHUB_ENV"
+        run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
+        env:
+          # Optional — set these repo secrets to track App Store Connect exactly.
+          # Without them the resolver falls back to epoch seconds (still unique).
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
 
       - name: EAS Build iOS (local)
         run: |

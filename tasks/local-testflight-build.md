@@ -79,16 +79,43 @@ already pass on this branch as of this runbook.
 ```bash
 # CFBundleVersion must be UNIQUE per upload — Apple rejects a duplicate with
 # "You've already submitted this build of the app." `eas build --local` does NOT
-# auto-increment (remote autoIncrement is a cloud-build-only feature), so mint a
-# fresh number from the epoch. eas.json uses appVersionSource:"local", so
-# app.config.js reads this BUILD_NUMBER into ios.buildNumber / android.versionCode.
-BUILD_NUMBER=$(date +%s) eas build --platform ios --profile production --local
+# auto-increment, so resolve the next number explicitly. The resolver returns one
+# higher than App Store Connect's latest build when the ASC_* env vars are set
+# (see "Accurate build numbers" below), otherwise a monotonic epoch fallback.
+# `--ask` lets you confirm/override the number (auto-skipped when non-interactive).
+# eas.json uses appVersionSource:"local", so app.config.js reads BUILD_NUMBER
+# into ios.buildNumber / android.versionCode.
+BUILD_NUMBER=$(node scripts/next-build-number.mjs --ask) eas build --platform ios --profile production --local
 ```
 This produces an `.ipa` in the project directory (e.g. `build-XXXXXXXXXXX.ipa`).
 First run is slow (pod install + native compile).
 
 > If a submit fails with "already submitted this build", you must **rebuild** with
 > a new `BUILD_NUMBER` — the existing `.ipa` can never be re-submitted as-is.
+
+### Accurate build numbers (optional)
+
+By default the resolver uses **epoch seconds** — always unique and always higher
+than the last build, but not sequential. To make it return exactly **one more
+than App Store Connect's latest build**, expose an App Store Connect API key to
+`scripts/next-build-number.mjs` (locally as env vars; in CI as repo secrets of
+the same names, already wired into `eas-build-local-ios.yml`):
+
+| Variable | Where to find it |
+|---|---|
+| `ASC_KEY_ID` | App Store Connect ▸ Users and Access ▸ Integrations ▸ Keys (the Key ID, e.g. `68Z3A533XY`) |
+| `ASC_ISSUER_ID` | same page — the Issuer ID (a UUID) |
+| `ASC_KEY_P8` | contents of the downloaded `AuthKey_<KeyID>.p8` (raw PEM or base64) |
+
+```bash
+export ASC_KEY_ID=68Z3A533XY
+export ASC_ISSUER_ID=00000000-0000-0000-0000-000000000000
+export ASC_KEY_P8="$(cat ~/Downloads/AuthKey_68Z3A533XY.p8)"
+node scripts/next-build-number.mjs           # e.g. prints 53 when ASC's latest is 52
+node scripts/next-build-number.mjs --selftest # debug: prints the signed JWT, no API call
+```
+
+The App ID is read automatically from `eas.json` (`submit.production.ios.ascAppId`).
 
 ---
 
