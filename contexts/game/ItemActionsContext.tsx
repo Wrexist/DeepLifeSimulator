@@ -327,6 +327,10 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         deathsFromDisease: 0,
       };
       let updatedImmunities = [...(prevState.diseaseImmunities || [])];
+      // H3: vaccinations are a SEPARATE concept from disease immunities. Keeping
+      // them in their own local (instead of overloading updatedImmunities) stops
+      // the vaccine branch from clobbering cure-built immunities and vice-versa.
+      let vaccinationsResult = prevState.vaccinations;
 
       // Validate diseases array
       if (!Array.isArray(updatedDiseases)) {
@@ -463,17 +467,14 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           };
         }
       } else if (activityId === 'flu_shot' || activityId === 'pneumonia_vaccine') {
-        // Vaccinations: Add to vaccinations array
-        const vaccinationId = activityId === 'flu_shot' ? 'flu_shot' : 'pneumonia_vaccine';
+        // Vaccinations: add to the vaccinations array only (NOT diseaseImmunities).
+        const vaccinationId = activityId;
         const currentVaccinations = prevState.vaccinations || [];
-        
-        if (!currentVaccinations.includes(vaccinationId)) {
-          updatedImmunities = [...currentVaccinations, vaccinationId];
-        } else {
-          updatedImmunities = currentVaccinations;
-        }
-        
-        result = { 
+        vaccinationsResult = currentVaccinations.includes(vaccinationId)
+          ? currentVaccinations
+          : [...currentVaccinations, vaccinationId];
+
+        result = {
           message: `${activity.name} completed successfully! You're now protected against ${activityId === 'flu_shot' ? 'influenza' : 'pneumonia'}.` 
         };
       } else {
@@ -525,11 +526,6 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         result = { message: `${activity.name} completed successfully!` };
       }
 
-      // Update vaccinations if vaccination activity
-      const updatedVaccinations = (activityId === 'flu_shot' || activityId === 'pneumonia_vaccine')
-        ? updatedImmunities // Reuse immunities variable for vaccinations
-        : prevState.vaccinations;
-
       return {
         ...prevState,
         stats: updatedStats,
@@ -542,8 +538,8 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         curedDiseases: Array.from(new Set(updatedCuredDiseases)).slice(-30),
         showCureSuccessModal: showCureSuccessModal,
         diseaseHistory: updatedDiseaseHistory,
-        diseaseImmunities: (activityId === 'flu_shot' || activityId === 'pneumonia_vaccine') ? prevState.diseaseImmunities : updatedImmunities,
-        vaccinations: updatedVaccinations,
+        diseaseImmunities: updatedImmunities,
+        vaccinations: vaccinationsResult,
         lastGymVisitWeek: updatedLastGymVisitWeek,
       };
     });
