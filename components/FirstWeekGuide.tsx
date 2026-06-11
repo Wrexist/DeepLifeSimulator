@@ -107,12 +107,12 @@ const GUIDE_STEPS: GuideStep[] = [
         reward: { type: 'gems', amount: 10 },
     },
 
-    // Week 2 - Daily Challenges
+    // Week 2 - Earn rewards
     {
-        id: 'daily_challenges',
+        id: 'earn_rewards',
         week: 2,
-        title: 'Daily Challenges',
-        description: 'Check the Challenges tab for daily tasks that reward gems! Complete all 3 daily challenges to build a streak multiplier.',
+        title: 'Earn Rewards',
+        description: 'Open the app each day for a login bonus, and chase achievements as you play — both hand out gems you can spend on perks.',
         icon: Sparkles,
         iconColor: '#F59E0B',
         priority: 'medium',

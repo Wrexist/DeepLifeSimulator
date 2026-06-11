@@ -430,7 +430,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Energy REGAINS when advancing weeks (like sleeping/resting)
  // BUG FIX: Apply prestige energy regen multiplier
  // CRITICAL FIX: Don't cap regen early - apply full regen, then penalties, then cap to 100
- const baseEnergyRegen = 30; // Base regain per week
+ // Base energy regained per week. Raised 30 → 40 so the early loop isn't
+ // starved: street jobs cost 15-35 energy each, and at +30 a player could only
+ // sustain ~1 job/week after week 1. +40 supports ~2 jobs/week, making the
+ // grind feel steady rather than stalled (new-user fun audit).
+ const baseEnergyRegen = 40; // Base regain per week
  const unlockedBonuses = prevState.prestige?.unlockedBonuses || [];
  // R3-A: `getEnergyRegenMultiplier` is an ES import now.
  const energyRegenMultiplier = getEnergyRegenMultiplier(unlockedBonuses);

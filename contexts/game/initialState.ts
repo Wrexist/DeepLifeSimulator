@@ -720,7 +720,10 @@ export const initialGameState: GameState = {
     {
       id: 'smartphone',
       name: 'Smartphone',
-      price: 900,
+      // Lowered 900 → 600: the phone is the master key to the whole Mobile half
+      // of the game (banking, social, dating). $900 left low-cash "Easy" starts
+      // grinding ~3-4 weeks before any of it opened; $600 brings that to ~1-2.
+      price: 600,
       description: 'Unlocks mobile apps and new ways to earn money',
       owned: false,
     },
