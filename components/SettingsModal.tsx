@@ -50,6 +50,50 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+// On-theme action row for the Settings list. Replaces the old rainbow of fully
+// saturated gradient buttons with the game's dark-glass surface + a tinted icon
+// chip, so every row reads as one consistent family (matches the onboarding
+// GlassActionButton look). The accent only colors the icon chip — never the
+// whole button — which is what keeps the screen feeling like the rest of the game.
+function SettingsActionButton({
+  icon: Icon,
+  label,
+  accent,
+  onPress,
+  disabled = false,
+  accessibilityLabel,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  accent: string;
+  onPress: () => void;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.actionButtonContainer, disabled ? styles.actionButtonDisabled : undefined]}
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+    >
+      <LinearGradient
+        colors={['rgba(31, 41, 55, 0.85)', 'rgba(17, 24, 39, 0.85)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.glassActionButton}
+      >
+        <View style={[styles.glassActionIconChip, { backgroundColor: `${accent}22`, borderColor: `${accent}55` }]}>
+          <Icon size={18} color={accent} />
+        </View>
+        <Text style={styles.glassActionLabel}>{label}</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+}
+
 function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { gameState, setGameState, currentSlot } = useGameState();
   const { saveGame } = useGameActions();
@@ -396,23 +440,13 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
               <>
                 {/* Game Dev Tools — dev/QA only; gated so the simulator graph is stripped from production. */}
                 {DEV_TOOLS_ENABLED && (
-                  <TouchableOpacity
-                    style={[styles.actionButtonContainer, styles.devToolsButtonContainer]}
+                  <SettingsActionButton
+                    icon={Code}
+                    label="Game Dev Tools"
+                    accent="#818CF8"
                     onPress={() => setShowDevTools(true)}
-                    activeOpacity={0.85}
-                    accessibilityRole="button"
                     accessibilityLabel="Open Game Dev Tools"
-                  >
-                    <LinearGradient
-                      colors={['#6366F1', '#4F46E5', '#4338CA']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionButton}
-                    >
-                      <Code size={22} color="#FFFFFF" style={styles.actionButtonIcon} />
-                      <Text style={[styles.actionButtonText, styles.devToolsButtonText]}>Game Dev Tools</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                  />
                 )}
 
                 {settingItems.map(item => (
@@ -463,58 +497,36 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 ))}
 
                 {/* Enhanced Action Buttons */}
-                <TouchableOpacity
-                  style={styles.actionButtonContainer}
+                <SettingsActionButton
+                  icon={Users}
+                  label="Legacy & Lineage"
+                  accent="#C084FC"
                   onPress={() => setShowLegacyOverview(true)}
-                >
-                  <LinearGradient
-                    colors={['#4F46E5', '#7C3AED']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButton}
-                  >
-                    <Users size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
-                    <Text style={styles.actionButtonText}>Legacy & Lineage</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                />
 
-                <TouchableOpacity
-                  style={styles.actionButtonContainer}
+                <SettingsActionButton
+                  icon={Save}
+                  label={t('settings.switchSaveSlot')}
+                  accent="#60A5FA"
                   onPress={() => {
                     onClose();
                     const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
                     router.push(saveSlotsPath);
                   }}
-                >
-                  <LinearGradient
-                    colors={['#3B82F6', '#1D4ED8']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButton}
-                  >
-                    <Save size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
-                    <Text style={styles.actionButtonText}>{t('settings.switchSaveSlot')}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                />
 
                 {/* Backup & Recovery Section */}
-                <TouchableOpacity
-                  style={styles.actionButtonContainer}
+                <SettingsActionButton
+                  icon={HardDrive}
+                  label="Backups & Recovery"
+                  accent="#38BDF8"
                   onPress={() => setShowBackupManager(true)}
-                >
-                  <LinearGradient
-                    colors={['#6366F1', '#4F46E5']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButton}
-                  >
-                    <HardDrive size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
-                    <Text style={styles.actionButtonText}>Backups & Recovery</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                />
 
-                <TouchableOpacity
-                  style={styles.actionButtonContainer}
+                <SettingsActionButton
+                  icon={HelpCircle}
+                  label={t('settings.showTutorial')}
+                  accent="#34D399"
                   onPress={async () => {
                     try {
                       logger.info('Opening tutorial...');
@@ -529,17 +541,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                       Alert.alert('Error', 'Failed to open tutorial. Please try again.');
                     }
                   }}
-                >
-                  <LinearGradient
-                    colors={['#10B981', '#059669']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButton}
-                  >
-                    <HelpCircle size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
-                    <Text style={styles.actionButtonText}>{t('settings.showTutorial')}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                />
 
                 {/* Special Discord Button with Animation */}
                 <TouchableOpacity
@@ -599,43 +601,25 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 </TouchableOpacity>
 
                 {/* Restore Purchases */}
-                <TouchableOpacity
-                  style={styles.actionButtonContainer}
+                <SettingsActionButton
+                  icon={RefreshCw}
+                  label={isRestoringPurchases ? 'Restoring...' : 'Restore Purchases'}
+                  accent="#A78BFA"
                   onPress={handleRestorePurchases}
                   disabled={isRestoringPurchases}
-                >
-                  <LinearGradient
-                    colors={isRestoringPurchases ? ['#9CA3AF', '#6B7280'] : ['#8B5CF6', '#7C3AED']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButton}
-                  >
-                    <RefreshCw size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
-                    <Text style={styles.actionButtonText}>
-                      {isRestoringPurchases ? 'Restoring...' : 'Restore Purchases'}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                />
 
                 {/* Privacy Policy & Terms */}
-                <TouchableOpacity
-                  style={styles.actionButtonContainer}
+                <SettingsActionButton
+                  icon={Shield}
+                  label="Privacy Policy"
+                  accent="#94A3B8"
                   onPress={() => {
                     Linking.openURL(PRIVACY_POLICY_URL).catch(() => {
                       Alert.alert('Error', `Could not open privacy policy. Please visit ${PRIVACY_POLICY_URL} in your browser.`);
                     });
                   }}
-                >
-                  <LinearGradient
-                    colors={['#6366F1', '#4F46E5']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.actionButton}
-                  >
-                    <Shield size={20} color="#FFFFFF" style={styles.actionButtonIcon} />
-                    <Text style={styles.actionButtonText}>Privacy Policy</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                />
 
                 {/* Danger Zone (restart & bug report) */}
                 <DangerZone
@@ -1144,28 +1128,34 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  actionButton: {
+  // On-theme glass action row (see SettingsActionButton). Dark surface + a
+  // tinted icon chip + left-aligned label — the accent never fills the button.
+  glassActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.lg,
+    paddingHorizontal: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    gap: responsiveSpacing.md,
   },
-  actionButtonIcon: {
-    marginRight: responsiveSpacing.sm,
+  glassActionIconChip: {
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
-  actionButtonText: {
-    color: '#FFFFFF',
+  glassActionLabel: {
+    flex: 1,
+    color: '#F9FAFB',
     fontWeight: '600',
     fontSize: responsiveFontSize.base,
   },
-  devToolsButtonContainer: {
-    marginBottom: scale(16),
-  },
-  devToolsButtonText: {
-    fontSize: fontScale(16),
-    fontWeight: '700',
+  actionButtonDisabled: {
+    opacity: 0.6,
   },
   // Enhanced Danger Section Styles
   dangerSection: {

@@ -22,7 +22,8 @@ import { useGameState } from '@/contexts/game/GameStateContext';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
-import { hasSaveStateShape, hasMeaningfulSaveData, checkIfAllSlotsFull } from '@/src/features/onboarding/saveSlotHelpers';
+import { hasSaveStateShape, hasMeaningfulSaveData, findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
+import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
@@ -40,6 +41,7 @@ export default function MainMenu() {
   const router = useRouter();
   const { gameState } = useGameState();
   const { loadGame } = useGameActions();
+  const { setState: setOnboardingState } = useOnboarding();
   const { t } = useTranslation();
   const [hasSave, setHasSave] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -208,8 +210,13 @@ export default function MainMenu() {
 
   const startNew = async () => {
     try {
-      const allSlotsFull = await checkIfAllSlotsFull();
-      if (allSlotsFull) {
+      // Always target the first EMPTY slot. Previously a new life inherited the
+      // default slot (1) and could silently overwrite an existing save — tapping
+      // "New Game" with a game already in slot 1 clobbered it with no warning.
+      // Auto-picking the first free slot keeps brand-new players friction-free
+      // (they land in slot 1) while protecting returning players' saves.
+      const targetSlot = await findFirstEmptySlot();
+      if (targetSlot === null) {
         Alert.alert(
           'All Save Slots Full',
           'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
@@ -217,6 +224,8 @@ export default function MainMenu() {
         );
         return;
       }
+
+      setOnboardingState((prev) => ({ ...prev, slot: targetSlot }));
 
       if (router && typeof router.push === 'function') {
         router.push('/(onboarding)/Scenarios');
