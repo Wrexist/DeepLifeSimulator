@@ -14,6 +14,7 @@ import Constants from 'expo-constants';
 import { BUILD_TAG } from '@/lib/config/buildTag';
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import { SUPPORT_EMAIL, DISCORD_URL } from '@/lib/config/appConfig';
+import { aiDebugContext } from '@/src/debug/aiDebugConfig';
 import { logger } from '@/utils/logger';
 
 interface BuildReportOptions {
@@ -35,12 +36,34 @@ const safe = <T>(fn: () => T, fallback: T): T => {
   }
 };
 
+/**
+ * Resolve the game state to report on: the explicitly-passed state wins, but if
+ * a caller has none (e.g. a global toast handler), fall back to the live state
+ * getter registered with the AI debug context. This is what lets a one-tap
+ * "Report" from anywhere still produce a rich, debuggable report.
+ */
+function resolveGameState(passed?: any): any {
+  if (passed) return passed;
+  return safe(() => aiDebugContext.getStoreState?.() ?? undefined, undefined);
+}
+
+function currentScreen(): string {
+  return safe(() => aiDebugContext.getCurrentScreen?.() || 'unknown', 'unknown');
+}
+
 function appVersion(): string {
   return safe(() => Constants.expoConfig?.version || 'unknown', 'unknown');
 }
 
 function buildNumber(): string {
-  return safe(() => String(Constants.expoConfig?.ios?.buildNumber ?? 'dev'), 'dev');
+  return safe(() => {
+    // iOS exposes buildNumber; Android exposes versionCode. Report whichever
+    // applies so Android crash triage isn't stuck on "dev".
+    if (Platform.OS === 'android') {
+      return String(Constants.expoConfig?.android?.versionCode ?? 'dev');
+    }
+    return String(Constants.expoConfig?.ios?.buildNumber ?? 'dev');
+  }, 'dev');
 }
 
 /** Pull the last few error/warning log lines (no full state dumps). */
@@ -112,13 +135,15 @@ function errorSection(error: unknown): string {
  * Build the full diagnostic report text. Never throws.
  */
 export function buildDiagnosticReport(options: BuildReportOptions = {}): string {
-  const { gameState, error, userNote, source } = options;
+  const { error, userNote, source } = options;
+  const gameState = resolveGameState(options.gameState);
   const note = userNote && userNote.trim().length > 0 ? userNote.trim() : '(none provided)';
 
   return [
     '=== DEEPLIFE SIMULATOR — PLAYER REPORT ===',
     `Generated: ${new Date().toISOString()}`,
     source ? `Triggered from: ${source}` : '',
+    `Screen: ${currentScreen()}`,
     '',
     '--- WHAT HAPPENED (from player) ---',
     note,
@@ -126,6 +151,7 @@ export function buildDiagnosticReport(options: BuildReportOptions = {}): string 
     '--- BUILD / DEVICE ---',
     `Build marker: ${BUILD_TAG}`,
     `App version: ${appVersion()} (build ${buildNumber()})`,
+    `Device: ${safe(() => Constants.deviceName || 'unknown', 'unknown')}`,
     `State version: ${STATE_VERSION}`,
     `Platform: ${Platform.OS} ${String(Platform.Version)}`,
     `Environment: ${__DEV__ ? 'dev' : 'prod'}`,

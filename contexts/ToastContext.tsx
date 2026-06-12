@@ -1,27 +1,20 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, ReactNode } from 'react';
-import { View, StyleSheet, Linking, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import ToastNotification from '@/components/ui/ToastNotification';
-import { BUILD_TAG } from '@/lib/config/buildTag';
-
-const SUPPORT_EMAIL = 'isacmolin@gmail.com';
+import { Z_INDEX } from '@/utils/zIndexConstants';
+import { emailDiagnosticReport } from '@/utils/diagnosticReport';
 
 /**
- * Open the player's mail client pre-filled with a debug report for an error.
- * This is what turns a raw error into something actionable: one tap on the
- * error's "Report" button and the developer gets the issue + build context.
+ * Turn a raw error into something actionable: one tap on an error toast's
+ * "Report" button emails us a COMPREHENSIVE diagnostic (build, live game
+ * position, state validation, recent logs) — built via the shared
+ * diagnosticReport helper, which pulls the live game state from the AI debug
+ * getter when no state is passed. Goes to the canonical support inbox.
  */
-function emailDebugReport(message: string) {
-  const subject = encodeURIComponent(`DeepLife bug: ${message.slice(0, 60)}`);
-  const body = encodeURIComponent(
-    `What were you doing when this happened?\n\n\n` +
-      `------- debug info (please keep) -------\n` +
-      `Issue: ${message}\n` +
-      `Build: ${BUILD_TAG}\n` +
-      `Platform: ${Platform.OS} ${String(Platform.Version)}\n` +
-      `When: ${new Date().toISOString()}\n`
-  );
-  Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`).catch(() => {
-    // No mail client / blocked — nothing else we can do from here.
+function reportErrorToast(message: string) {
+  void emailDiagnosticReport({
+    error: new Error(message),
+    source: 'Error toast',
   });
 }
 
@@ -88,7 +81,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         position,
         // Errors get a one-tap Report that emails the debug info to the dev,
         // unless the caller already supplied its own action.
-        action: action ?? (type === 'error' ? { label: 'Report', onPress: () => emailDebugReport(message) } : undefined),
+        action: action ?? (type === 'error' ? { label: 'Report', onPress: () => reportErrorToast(message) } : undefined),
         persistent,
       };
 
@@ -176,7 +169,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 9999,
+    // Use the project's standard TOAST layer (was a raw 9999, which sat above
+    // the LOADING/error-banner layer and inverted the intended stacking).
+    zIndex: Z_INDEX.TOAST,
   },
 });
 

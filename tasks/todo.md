@@ -31,6 +31,32 @@ Discord link.
 - [x] Verify: `tsc -p tsconfig.typecheck.json` → 0 errors; gameFlow +
       navigation tests pass
 
+### Round 2 — deeper audit (subagents) + fixes
+
+Root cause of "freezes after working 2 jobs" FOUND: working a crime job can roll
+"caught" → sets `jailWeeks > 0` → the whole Work screen is replaced by
+`JailScreen`, which could soft-lock when the player had no bail money, no energy,
+and had used their weekly activities (only recovery was advancing the week, which
+isn't offered on that screen).
+
+- [x] `components/jail/JailScreen.tsx` — added a guaranteed, cost-free **"Serve a
+      Week"** escape (calls `nextWeek`) so the player can never get stuck
+- [x] `app/(tabs)/work.tsx` — the 500ms feedback-modal timer was never cleared;
+      now stored in a ref, cancelled on a new tap and on unmount (it could fire
+      over a transitioned screen / JailScreen)
+- [x] `contexts/ToastContext.tsx` — error-toast "Report" emailed a **personal
+      account** (`isacmolin@gmail.com`) with a weak body; now uses the shared
+      `emailDiagnosticReport` → canonical support inbox + full diagnostics.
+      Also fixed the raw `zIndex: 9999` → `Z_INDEX.TOAST`.
+- [x] `utils/diagnosticReport.ts` — falls back to the live AI-debug state getter
+      when no gameState is passed (so a global toast Report is still rich); adds
+      Android `versionCode`, device name, and current screen
+- [x] `components/ErrorMessage.tsx` + `UIUXOverlay.tsx` — banners no longer
+      overlap the notch (safe-area inset) or each other (stackIndex offset)
+- [x] `components/SmartNotificationCenter.tsx` — advisory "warning" notification
+      no longer uses the red `AlertTriangle` (→ amber `AlertCircle`)
+- [x] Verify: tsc 0 errors; crimeJailFlow + invariants tests pass; full suite
+
 Note on the freeze: the screenshot could not be reproduced from a still, but the
 root mechanism behind "old warning symbols + stuck UI after a couple of job/week
 actions" is the persistent, never-auto-dismissing orange warning banners that

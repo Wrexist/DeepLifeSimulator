@@ -15,7 +15,7 @@ import {
   X,
   Settings,
   Check,
-  AlertTriangle,
+  AlertCircle,
   Info,
   Lightbulb,
   Calendar,
@@ -116,7 +116,7 @@ export default function SmartNotificationCenter({
     switch (type) {
       case 'achievement': return <Check size={20} color="#10B981" />;
       case 'milestone': return <Calendar size={20} color="#3B82F6" />;
-      case 'warning': return <AlertTriangle size={20} color="#EF4444" />;
+      case 'warning': return <AlertCircle size={20} color="#F59E0B" />;
       case 'tip': return <Lightbulb size={20} color="#F59E0B" />;
       case 'reminder': return <Bell size={20} color="#6B7280" />;
       case 'celebration': return <PartyPopper size={20} color="#8B5CF6" />;
@@ -277,7 +277,7 @@ export default function SmartNotificationCenter({
                       style={styles.settingItem}
                     >
                       <View style={styles.settingInfo}>
-                        <AlertTriangle size={20} color="#EF4444" />
+                        <AlertCircle size={20} color="#F59E0B" />
                         <Text style={[styles.settingLabel, gameState.settings.darkMode && styles.settingLabelDark]}>
                           Show Warnings
                         </Text>

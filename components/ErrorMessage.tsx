@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { MotiView } from '@/components/anim/MotiStub';
 import { X, RefreshCw, Info, AlertCircle, AlertOctagon, XCircle, FileText } from 'lucide-react-native';
@@ -19,6 +20,8 @@ interface ErrorMessageProps {
  onReport?: () => void;
  autoDismiss?: boolean;
  dismissAfter?: number;
+ /** Position in the visible banner stack — offsets each so they don't overlap. */
+ stackIndex?: number;
 }
 
 export default function ErrorMessage({
@@ -31,7 +34,9 @@ export default function ErrorMessage({
  onReport,
  autoDismiss = false,
  dismissAfter = 5000,
+ stackIndex = 0,
 }: ErrorMessageProps) {
+ const insets = useSafeAreaInsets();
  React.useEffect(() => {
  if (visible && autoDismiss && onDismiss) {
  const timer = setTimeout(onDismiss, dismissAfter);
@@ -82,7 +87,12 @@ export default function ErrorMessage({
  animate={{ opacity: 1, translateY: 0 }}
  exit={{ opacity: 0, translateY: -20 }}
  transition={{ type: 'timing', duration: 300 }}
- style={styles.container}
+ style={[
+ styles.container,
+ // Sit below the status bar / notch, and stagger multiple banners so they
+ // don't render superimposed (each ~96pt tall incl. margin).
+ { marginTop: insets.top + 8 + stackIndex * 96 },
+ ]}
  >
  <LinearGradient
  colors={colors as [string, string]}

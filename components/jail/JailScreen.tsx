@@ -30,7 +30,7 @@ interface JailScreenProps {
 }
 
 export default function JailScreen({ onClose }: JailScreenProps) {
-  const { gameState, performJailActivity, payBail, updateStats } = useGame();
+  const { gameState, performJailActivity, payBail, updateStats, nextWeek } = useGame();
   const { jailActivities, jailWeeks, stats, foods, economy } = gameState;
   const [_selectedActivity, _setSelectedActivity] = useState<string | null>(null);
   const [activityCooldowns, setActivityCooldowns] = useState<Record<string, number>>({});
@@ -54,6 +54,33 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     } else {
       Alert.alert('Insufficient Funds', `You need $${bailCost} to post bail.`);
     }
+  };
+
+  // GUARANTEED escape valve. Bail needs money and activities need energy + the
+  // weekly cooldown — so a player who is broke, out of energy, and has used
+  // their activities could previously get stuck on this screen (the whole Work
+  // tab is replaced by it) until they happened to advance the week from the top
+  // bar. "Serve a Week" always works: it advances the week, which decrements the
+  // sentence, with no cost. This is the fix for the "freezes after working 2
+  // jobs" report (2 crime jobs → caught → jail with no obvious way out).
+  const handleServeTime = () => {
+    Alert.alert(
+      'Serve Your Time',
+      `Advance one week to serve part of your sentence (${jailWeeks} week${jailWeeks !== 1 ? 's' : ''} remaining). You'll be released once it reaches zero.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Serve a Week',
+          onPress: () => {
+            try {
+              nextWeek();
+            } catch {
+              // nextWeek guards itself; never let this throw block the escape.
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleActivity = (activityId: string) => {
@@ -287,6 +314,24 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                 <Text style={styles.bailButtonText}>
                   {stats.money < bailCost ? 'Insufficient Funds' : `Pay Bail $${bailCost}`}
                 </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Always-available escape so the player can never get stuck here. */}
+            <Text style={[styles.sectionDescription, styles.serveTimeHint]}>
+              Can't pay bail or do activities? Just serve your time.
+            </Text>
+            <TouchableOpacity onPress={handleServeTime} style={styles.bailButton}>
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bailButtonGradient}
+              >
+                <View style={styles.serveTimeRow}>
+                  <Clock size={16} color="#FFFFFF" />
+                  <Text style={styles.bailButtonText}>Serve a Week</Text>
+                </View>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -621,6 +666,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  serveTimeHint: {
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  serveTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   activitiesSection: {
     marginTop: 20,

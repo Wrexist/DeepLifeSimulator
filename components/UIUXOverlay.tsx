@@ -71,7 +71,7 @@ export default function UIUXOverlay() {
       )}
 
       {/* Error Messages */}
-      {errorStates.map((error) => (
+      {errorStates.map((error, index) => (
         <ErrorMessage
           key={error.id}
           visible={true}
@@ -82,6 +82,7 @@ export default function UIUXOverlay() {
           onRetry={error.onRetry}
           onReport={() => reportError(error.message, error.title)}
           autoDismiss={error.autoDismiss}
+          stackIndex={index}
         />
       ))}
 
