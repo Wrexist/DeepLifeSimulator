@@ -56,7 +56,10 @@ export default function OnboardingScreenShellV2({
           {
             opacity,
             transform: [{ translateY }],
-            paddingTop: 50 + insets.top,
+            // Just the safe-area inset plus a small breathing gap. The screen's
+            // own glass header already supplies its top padding, so the old
+            // flat +50 here was pure dead space above the title.
+            paddingTop: insets.top + 8,
           },
           contentContainerStyle,
         ]}

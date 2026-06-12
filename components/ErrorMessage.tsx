@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { MotiView } from '@/components/anim/MotiStub';
-import { X, RefreshCw, Info, AlertTriangle, AlertOctagon, XCircle } from 'lucide-react-native';
+import { X, RefreshCw, Info, AlertCircle, AlertOctagon, XCircle, FileText } from 'lucide-react-native';
 const LinearGradient = LinearGradientFallback;
 
 interface ErrorMessageProps {
@@ -12,6 +12,11 @@ interface ErrorMessageProps {
  severity?: 'info'|'warning'|'error'|'critical';
  onDismiss?: () => void;
  onRetry?: () => void;
+ /**
+  * Called when the player taps "Report" on a real error (error/critical).
+  * Wired from UIUXOverlay to send a comprehensive diagnostic report.
+  */
+ onReport?: () => void;
  autoDismiss?: boolean;
  dismissAfter?: number;
 }
@@ -23,6 +28,7 @@ export default function ErrorMessage({
  severity = 'error',
  onDismiss,
  onRetry,
+ onReport,
  autoDismiss = false,
  dismissAfter = 5000,
 }: ErrorMessageProps) {
@@ -54,13 +60,18 @@ export default function ErrorMessage({
  case 'info':
  return Info;
  case 'warning':
- return AlertTriangle;
+ // Friendly rounded icon — no alarming yellow triangle for advisories.
+ return AlertCircle;
  case 'critical':
  return AlertOctagon;
  default:
  return XCircle;
  }
  };
+
+ // Real errors (error/critical) are the only place we surface a "Report"
+ // action — gameplay advisories (info/warning) stay quiet and dismissible.
+ const isRealError = severity === 'error' || severity === 'critical';
 
  const colors = getSeverityColors();
  const IconComponent = getIcon();
@@ -93,7 +104,7 @@ export default function ErrorMessage({
  )}
  </View>
  
- {(onRetry || severity ==='critical') && (
+ {(onRetry || (isRealError && onReport)) && (
  <View style={styles.actions}>
  {onRetry && (
  <TouchableOpacity onPress={onRetry} style={styles.retryButton}>
@@ -101,12 +112,10 @@ export default function ErrorMessage({
  <Text style={styles.retryText}>Retry</Text>
  </TouchableOpacity>
  )}
- {severity ==='critical'&& (
- <TouchableOpacity
- onPress={() => Alert.alert('Contact Support','Please contact support for assistance.')}
- style={styles.supportButton}
- >
- <Text style={styles.supportText}>Get Help</Text>
+ {isRealError && onReport && (
+ <TouchableOpacity onPress={onReport} style={styles.supportButton}>
+ <FileText size={16} color="#fff"/>
+ <Text style={styles.supportText}>Report</Text>
  </TouchableOpacity>
  )}
  </View>
@@ -183,6 +192,8 @@ const styles = StyleSheet.create({
  marginLeft: 4,
  },
  supportButton: {
+ flexDirection: 'row',
+ alignItems: 'center',
  backgroundColor: 'rgba(255,255,255,0.2)',
  paddingHorizontal: 12,
  paddingVertical: 6,
@@ -192,6 +203,7 @@ const styles = StyleSheet.create({
  color: '#fff',
  fontSize: 12,
  fontWeight: '600',
+ marginLeft: 4,
  },
 });
 

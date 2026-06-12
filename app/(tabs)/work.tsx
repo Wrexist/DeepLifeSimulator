@@ -180,6 +180,10 @@ function WorkScreenContent() {
     // Hobbies completely removed - no state variables needed
 
     const handleStreetJob = (jobId: string) => {
+      // Hard guard: a throw anywhere in this handler used to leave the work
+      // screen wedged (stuck toast, no response). Now any unexpected error
+      // surfaces a reportable error toast and the game keeps running.
+      try {
         const job = gameState.streetJobs.find(j => j.id === jobId);
         const result = performStreetJob(jobId);
         if (result) {
@@ -259,6 +263,12 @@ function WorkScreenContent() {
             return () => clearTimeout(timeoutId);
         }
         return undefined;
+      } catch (error) {
+        logger.error('handleStreetJob crashed:', error as any);
+        // showError toasts carry a one-tap "Report" that emails us the details.
+        showError('Something went wrong working that job. Tap Report to send us the details.');
+        return undefined;
+      }
     };
 
     const handlePayBail = () => {

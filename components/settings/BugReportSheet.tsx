@@ -12,15 +12,19 @@ import {
   Modal,
   ScrollView,
   Alert,
-  Linking,
   Platform,
   KeyboardAvoidingView,
   StyleSheet,
 } from 'react-native';
-import { X } from 'lucide-react-native';
+import { X, Mail, Share2, MessageCircle } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { SUPPORT_EMAIL } from '@/lib/config/appConfig';
+import {
+  emailDiagnosticReport,
+  shareDiagnosticReport,
+  openSupportDiscord,
+} from '@/utils/diagnosticReport';
 
 interface Props {
   visible: boolean;
@@ -31,31 +35,50 @@ export default function BugReportSheet({ visible, onClose }: Props) {
   const { gameState } = useGame();
   const [bugReportText, setBugReportText] = useState('');
 
-  const handleBugReport = () => {
-    if (!bugReportText.trim()) {
-      Alert.alert('Empty Report', 'Please describe the bug you encountered.');
-      return;
-    }
+  // Every path here attaches a comprehensive diagnostic report (build marker,
+  // game position, state validation, recent error logs) built from the LIVE
+  // game state — so whatever reaches us is rich enough to debug right away.
+  const reportOptions = () => ({
+    gameState,
+    userNote: bugReportText,
+    source: 'Settings → Report a Problem',
+  });
 
-    const subject = 'Bug Report - DeepLife Simulator';
-    const body = `Bug Report:\n\n${bugReportText.trim()}\n\nGame Info:\nWeek: ${gameState.week}\nMoney: $${Math.floor(gameState.stats.money)}\nAge: ${Math.floor(gameState.date.age)}`;
-    const emailUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const finishWith = (message: string) => {
+    setBugReportText('');
+    onClose();
+    Alert.alert('Thank you!', message);
+  };
 
-    Linking.openURL(emailUrl)
-      .then(() => {
-        setBugReportText('');
-        onClose();
-        Alert.alert(
-          'Thank you!',
-          'Your bug report has been prepared. Please send the email to help us improve the game.'
-        );
+  const handleEmail = () => {
+    emailDiagnosticReport(reportOptions())
+      .then((opened) => {
+        if (opened) {
+          finishWith('Your report (with diagnostic details) is ready in your email app — just hit send.');
+        } else {
+          Alert.alert(
+            'Could not open email',
+            `Please email ${SUPPORT_EMAIL} directly, or use Share / Discord instead.`
+          );
+        }
       })
       .catch(() => {
-        Alert.alert(
-          'Error',
-          `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`
-        );
+        Alert.alert('Error', `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`);
       });
+  };
+
+  const handleShare = () => {
+    shareDiagnosticReport(reportOptions())
+      .then((shared) => {
+        if (shared) {
+          finishWith('Thanks for sending the report — it helps us fix issues faster!');
+        }
+      })
+      .catch(() => { /* share failures are non-fatal */ });
+  };
+
+  const handleDiscord = () => {
+    void openSupportDiscord();
   };
 
   return (
@@ -66,7 +89,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
       >
         <View style={styles.modal}>
           <View style={styles.header}>
-            <Text style={styles.title}>Report Bug</Text>
+            <Text style={styles.title}>Report a Problem</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <X size={24} color="#D1D5DB" />
             </TouchableOpacity>
@@ -80,12 +103,13 @@ export default function BugReportSheet({ visible, onClose }: Props) {
             showsVerticalScrollIndicator
           >
             <Text style={styles.description}>
-              Please describe the bug you encountered. Include steps to reproduce it if possible.
+              Tell us what happened (steps to reproduce help a lot!). We'll attach
+              diagnostic details automatically so we can fix it fast — no personal data.
             </Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Describe the bug here..."
+              placeholder="What happened? What were you doing?"
               placeholderTextColor="#9CA3AF"
               value={bugReportText}
               onChangeText={setBugReportText}
@@ -99,29 +123,19 @@ export default function BugReportSheet({ visible, onClose }: Props) {
           </ScrollView>
 
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => {
-                onClose();
-                setBugReportText('');
-              }}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+            <TouchableOpacity style={styles.discordButton} onPress={handleDiscord}>
+              <MessageCircle size={18} color="#FFFFFF" />
+              <Text style={styles.sendButtonText}>Discord</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.sendButton, !bugReportText.trim() && styles.sendButtonDisabled]}
-              onPress={handleBugReport}
-              disabled={!bugReportText.trim()}
-            >
-              <Text
-                style={[
-                  styles.sendButtonText,
-                  !bugReportText.trim() && styles.sendButtonTextDisabled,
-                ]}
-              >
-                Send Report
-              </Text>
+            <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+              <Share2 size={18} color="#FFFFFF" />
+              <Text style={styles.sendButtonText}>Share</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.sendButton} onPress={handleEmail}>
+              <Mail size={18} color="#FFFFFF" />
+              <Text style={styles.sendButtonText}>Email</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -199,36 +213,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     padding: responsivePadding.large,
-    gap: 12,
+    gap: 10,
     borderTopWidth: 1,
     borderTopColor: 'rgba(229, 231, 235, 0.15)',
   },
-  cancelButton: {
+  discordButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderRadius: responsiveBorderRadius.md,
-    backgroundColor: 'rgba(107, 114, 128, 0.3)',
+    backgroundColor: '#5865F2',
   },
-  cancelButtonText: {
-    fontSize: responsiveFontSize.base,
-    fontWeight: '600',
-    color: '#D1D5DB',
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: responsiveBorderRadius.md,
+    backgroundColor: 'rgba(107, 114, 128, 0.5)',
   },
   sendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderRadius: responsiveBorderRadius.md,
     backgroundColor: '#3B82F6',
-  },
-  sendButtonDisabled: {
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
   },
   sendButtonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  sendButtonTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
   },
 });

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePreload } from '@/hooks/usePreload';
 import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
-import { BUILD_TAG } from '@/lib/config/buildTag';
 
 export default function Index() {
   const router = useRouter();
@@ -17,6 +16,38 @@ export default function Index() {
   // (Must be a real value change — `setState(prev => prev)` is a no-op React bails on.)
   const [navRetry, setNavRetry] = useState(0);
   const hasNavigatedRef = useRef(false); // Use ref to prevent double navigation without re-render
+
+  // Lightweight "alive" animations — RN core only (Animated), so the very first
+  // production render stays crash-proof (no third-party animation deps here).
+  const titleGlow = useRef(new Animated.Value(0)).current;
+  const dot0 = useRef(new Animated.Value(0.3)).current;
+  const dot1 = useRef(new Animated.Value(0.3)).current;
+  const dot2 = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    // Soft pulsing glow behind the title so the screen breathes while loading.
+    const glow = Animated.loop(
+      Animated.sequence([
+        Animated.timing(titleGlow, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(titleGlow, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+
+    // Three dots that pulse in sequence — a calm "working…" rhythm.
+    const pulse = (value: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(value, { toValue: 1, duration: 400, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+          Animated.timing(value, { toValue: 0.3, duration: 400, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+          Animated.delay(800 - delay),
+        ])
+      );
+
+    const animations = [glow, pulse(dot0, 0), pulse(dot1, 200), pulse(dot2, 400)];
+    animations.forEach((a) => a.start());
+    return () => animations.forEach((a) => a.stop());
+  }, [titleGlow, dot0, dot1, dot2]);
 
   // CRITICAL: Startup health check - verify critical modules before rendering
   useEffect(() => {
@@ -168,10 +199,26 @@ export default function Index() {
   return (
     <View style={loadingStyles.container}>
       <View style={loadingStyles.center}>
-        <Text style={loadingStyles.title}>DeepLife Simulator</Text>
+        <View style={loadingStyles.titleWrap}>
+          <Animated.View
+            style={[
+              loadingStyles.titleGlow,
+              {
+                opacity: titleGlow.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.6] }),
+                transform: [{ scale: titleGlow.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.08] }) }],
+              },
+            ]}
+          />
+          <Text style={loadingStyles.title}>DeepLife Simulator</Text>
+        </View>
         <Text style={loadingStyles.tagline}>Your life. Every choice.</Text>
-        <Text style={loadingStyles.buildTag}>build: {BUILD_TAG}</Text>
-        <ActivityIndicator size="large" color="#3B82F6" style={loadingStyles.spinner} />
+
+        <View style={loadingStyles.dots}>
+          <Animated.View style={[loadingStyles.dot, { opacity: dot0, transform: [{ scale: dot0 }] }]} />
+          <Animated.View style={[loadingStyles.dot, { opacity: dot1, transform: [{ scale: dot1 }] }]} />
+          <Animated.View style={[loadingStyles.dot, { opacity: dot2, transform: [{ scale: dot2 }] }]} />
+        </View>
+
         <View style={loadingStyles.track}>
           <View style={[loadingStyles.bar, { width: `${pct}%` }]} />
         </View>
@@ -184,10 +231,18 @@ export default function Index() {
 const loadingStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F172A' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  titleWrap: { alignItems: 'center', justifyContent: 'center' },
+  titleGlow: {
+    position: 'absolute',
+    width: 240,
+    height: 120,
+    borderRadius: 120,
+    backgroundColor: 'rgba(59, 130, 246, 0.35)',
+  },
   title: { color: '#FFFFFF', fontSize: 30, fontWeight: '800', letterSpacing: 0.5, textAlign: 'center' },
   tagline: { color: '#94A3B8', fontSize: 15, fontWeight: '500', marginTop: 8, textAlign: 'center' },
-  buildTag: { color: '#FBBF24', fontSize: 14, fontWeight: '700', marginTop: 10, textAlign: 'center', letterSpacing: 1 },
-  spinner: { marginTop: 32 },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 36 },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#3B82F6' },
   track: {
     width: '70%',
     height: 6,

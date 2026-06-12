@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import { Alert, View, StyleSheet } from 'react-native';
 import { useUIUX } from '@/contexts/UIUXContext';
 import { useGameState } from '@/contexts/GameContext';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+import { emailDiagnosticReport, openSupportDiscord } from '@/utils/diagnosticReport';
 
 export default function UIUXOverlay() {
   const {
@@ -33,6 +34,31 @@ export default function UIUXOverlay() {
   // This ensures the death popup can render on top
   const shouldShowLoading = highestPriorityLoading && !gameState?.showDeathPopup;
 
+  // Real errors get a one-tap "Report" that emails us a comprehensive
+  // diagnostic (build, game position, validation, recent logs). We also offer
+  // Discord so players can follow up. Built from the LIVE game state so the
+  // report we receive is rich enough to debug without any back-and-forth.
+  const reportError = useCallback(
+    (message: string, title?: string) => {
+      const error = new Error(title ? `${title}: ${message}` : message);
+      emailDiagnosticReport({ gameState, error, source: 'In-game error banner' })
+        .then((opened) => {
+          if (!opened) {
+            Alert.alert(
+              'Report sent another way',
+              'We could not open your email app. Tap "Join Discord" to report it there instead.',
+              [
+                { text: 'Join Discord', onPress: () => { void openSupportDiscord(); } },
+                { text: 'OK', style: 'cancel' },
+              ]
+            );
+          }
+        })
+        .catch(() => { /* never throw from the report path */ });
+    },
+    [gameState]
+  );
+
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* Loading Overlay */}
@@ -54,6 +80,7 @@ export default function UIUXOverlay() {
           severity={error.severity}
           onDismiss={() => hideError(error.id)}
           onRetry={error.onRetry}
+          onReport={() => reportError(error.message, error.title)}
           autoDismiss={error.autoDismiss}
         />
       ))}

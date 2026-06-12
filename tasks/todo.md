@@ -1,5 +1,44 @@
 # Task Tracker
 
+## Loading screen + warnings + report-popup fixes - June 12, 2026
+
+Branch: `claude/loading-screen-warnings-fixes-j3fohl`. Scope confirmed with user:
+only REAL errors open the report popup; gameplay "warnings" keep friendly,
+non-triangle styling; the report message must be comprehensive; email-backed +
+Discord link.
+
+- [x] `app/index.tsx` — removed yellow `build:` text; pulsing title glow +
+      animated loading dots (RN-core only, crash-proof)
+- [x] `components/onboarding/OnboardingScreenShellV2.tsx` — killed the top dead
+      space (`paddingTop: 50 + insets.top` → `insets.top + 8`; header already pads)
+- [x] `utils/diagnosticReport.ts` (new) — comprehensive report builder + email/
+      share/discord helpers (the "output extremely good" requirement)
+- [x] `contexts/game/GameActionsContext.tsx` — gameplay notifications (week
+      summary, milestone hint) `showWarning` → `showInfo` (the orange
+      AlertTriangle banners that never auto-dismissed were the "old warning
+      symbols" piling up after week/job actions). Storage-low kept as a real
+      advisory but now renders a friendly circle, not a triangle.
+- [x] `components/ErrorMessage.tsx` — `warning` icon AlertTriangle → AlertCircle;
+      error/critical get a "Report" button wired to the diagnostic report
+- [x] `components/UIUXOverlay.tsx` — passes `onReport` (live gameState) for errors
+- [x] `components/WeeklyEventModal.tsx` — `warning` event: friendly icon + "Heads
+      Up" title (gameplay, not an error)
+- [x] `components/ui/ToastNotification.tsx` — `warning` icon → AlertCircle
+- [x] `components/settings/BugReportSheet.tsx` — comprehensive report + Share +
+      Discord
+- [x] `app/(tabs)/work.tsx` — `handleStreetJob` try/catch so a thrown error
+      surfaces a reportable error toast instead of freezing
+- [x] Verify: `tsc -p tsconfig.typecheck.json` → 0 errors; gameFlow +
+      navigation tests pass
+
+Note on the freeze: the screenshot could not be reproduced from a still, but the
+root mechanism behind "old warning symbols + stuck UI after a couple of job/week
+actions" is the persistent, never-auto-dismissing orange warning banners that
+piled up — now fixed. handleStreetJob is also guarded so a thrown error becomes a
+reportable toast rather than a wedged screen. If a hard freeze ever recurs, the
+new Report button now sends us a full diagnostic to pinpoint it.
+
+
 ## Settings theme + new-life slot fix + tutorial cleanup - June 11, 2026
 
 - [x] Settings modal: replace the saturated rainbow action buttons with one

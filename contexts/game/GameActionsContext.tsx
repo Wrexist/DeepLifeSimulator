@@ -168,7 +168,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const { gameState, setGameState, currentSlot } = useGameState();
  const { setIsLoading, setLoadingProgress, setLoadingMessage } = useGameUI();
  const { updateMoney } = useMoneyActions();
- const { showError, showWarning } = useUIUX();
+ // NOTE: gameplay notifications use `showInfo` (friendly, auto-dismissing) — not
+ // `showWarning`, whose orange AlertTriangle banner never auto-dismissed and piled
+ // up after week/job actions (the "old warning symbols" players were seeing).
+ // `showWarning` is reserved for genuinely actionable problems.
+ const { showError, showWarning, showInfo } = useUIUX();
 
  // Refs for AppState listener (prevents stale closures)
  const gameStateRef = useRef<GameState | null>(null);
@@ -1600,7 +1604,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  );
  setTimeout(() => {
  for (const n of uniqueNotifications) {
- showWarning(n.id, n.message, n.title);
+ showInfo(n.id, n.message, n.title);
  }
  }, 100);
  }
@@ -1617,7 +1621,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const remaining = threshold - currentMoney;
  const formatted = remaining >= 1000 ? `$${(remaining / 1000).toFixed(1)}k`: `$${remaining}`;
  setTimeout(() => {
- showWarning('milestone-hint', `${formatted} away from $${threshold >= 1000 ? (threshold / 1000).toLocaleString() + 'k': threshold}!`, 'Almost There');
+ showInfo('milestone-hint', `${formatted} away from $${threshold >= 1000 ? (threshold / 1000).toLocaleString() + 'k': threshold}!`, 'Almost There');
  }, 2000); // Delay so it shows after other notifications
  break; // Only show one hint per week
  }
@@ -1763,7 +1767,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ANTI-EXPLOIT: Release the week progression guard
  nextWeekInProgressRef.current = false;
  }
- }, [setGameState, setIsLoading, setLoadingMessage, setLoadingProgress, showError, showWarning, saveGame]);
+ }, [setGameState, setIsLoading, setLoadingMessage, setLoadingProgress, showError, showWarning, showInfo, saveGame]);
 
  // Ref to track resolving events (prevent duplicates)
  const resolvingEventsRef = useRef<Set<string>>(new Set());
