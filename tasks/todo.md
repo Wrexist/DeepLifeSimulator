@@ -64,6 +64,25 @@ piled up — now fixed. handleStreetJob is also guarded so a thrown error become
 reportable toast rather than a wedged screen. If a hard freeze ever recurs, the
 new Report button now sends us a full diagnostic to pinpoint it.
 
+### Round 3 — "fix the jail screen completely"
+
+`components/jail/JailScreen.tsx`:
+- [x] Header used a hardcoded `paddingTop: 60` even though the screen renders
+      BELOW the TopStatsBar inside the Work tab → big dead gap. Now safe-area
+      aware (`insets.top + 12` full-screen, `14` in-tab).
+- [x] ScrollView had no bottom padding → the last "Prison Stats" card was cut
+      off behind the tab bar. Added `paddingBottom: insets.bottom + 90`.
+- [x] Release activities (escape/parole) used `sentenceReduction: 99` as a
+      sentinel and the card literally showed "-99w". Now shows "Release".
+- [x] The "Final Activity → will release you" confirm lied for chance-based
+      activities (escape = 20%). Now shows the real odds + risk + "Take the risk".
+- [x] Surfaced `reputationGain` in the activity rewards (applied but not shown).
+- [x] Cooldown ticker ran a 1s setState forever (re-rendered the whole screen
+      every second when idle). Now only ticks while a cooldown is active and
+      self-stops.
+- [x] (Round 2) Guaranteed cost-free "Serve a Week" escape remains.
+- [x] Verify: tsc 0 errors; crimeJailFlow + invariants pass; full suite re-run
+
 
 ## Settings theme + new-life slot fix + tutorial cleanup - June 11, 2026
 
