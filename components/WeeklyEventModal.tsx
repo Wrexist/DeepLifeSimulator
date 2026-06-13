@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
-import { AlertTriangle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown } from 'lucide-react-native';
+import { AlertCircle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown } from 'lucide-react-native';
 import type { EnhancedEventChoice } from '@/lib/events/engine';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
@@ -175,10 +175,12 @@ export default function WeeklyEventModal() {
  case 'warning':
  return {
  backgroundColor: '#1F2937', // Dark gray
- borderColor: '#F59E0B', // Yellow border
- icon: AlertTriangle,
+ borderColor: '#F59E0B', // Amber accent
+ // Friendly rounded icon — these are gameplay life events, not errors,
+ // so no alarming warning triangle.
+ icon: AlertCircle,
  iconColor: '#F59E0B',
- title: isPersonalCrisisEvent ? 'Personal Crisis': 'Warning',
+ title: isPersonalCrisisEvent ? 'Personal Crisis': 'Heads Up',
  titleColor: '#FFFFFF',
  };
  case 'bad':

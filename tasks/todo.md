@@ -1,5 +1,89 @@
 # Task Tracker
 
+## Loading screen + warnings + report-popup fixes - June 12, 2026
+
+Branch: `claude/loading-screen-warnings-fixes-j3fohl`. Scope confirmed with user:
+only REAL errors open the report popup; gameplay "warnings" keep friendly,
+non-triangle styling; the report message must be comprehensive; email-backed +
+Discord link.
+
+- [x] `app/index.tsx` — removed yellow `build:` text; pulsing title glow +
+      animated loading dots (RN-core only, crash-proof)
+- [x] `components/onboarding/OnboardingScreenShellV2.tsx` — killed the top dead
+      space (`paddingTop: 50 + insets.top` → `insets.top + 8`; header already pads)
+- [x] `utils/diagnosticReport.ts` (new) — comprehensive report builder + email/
+      share/discord helpers (the "output extremely good" requirement)
+- [x] `contexts/game/GameActionsContext.tsx` — gameplay notifications (week
+      summary, milestone hint) `showWarning` → `showInfo` (the orange
+      AlertTriangle banners that never auto-dismissed were the "old warning
+      symbols" piling up after week/job actions). Storage-low kept as a real
+      advisory but now renders a friendly circle, not a triangle.
+- [x] `components/ErrorMessage.tsx` — `warning` icon AlertTriangle → AlertCircle;
+      error/critical get a "Report" button wired to the diagnostic report
+- [x] `components/UIUXOverlay.tsx` — passes `onReport` (live gameState) for errors
+- [x] `components/WeeklyEventModal.tsx` — `warning` event: friendly icon + "Heads
+      Up" title (gameplay, not an error)
+- [x] `components/ui/ToastNotification.tsx` — `warning` icon → AlertCircle
+- [x] `components/settings/BugReportSheet.tsx` — comprehensive report + Share +
+      Discord
+- [x] `app/(tabs)/work.tsx` — `handleStreetJob` try/catch so a thrown error
+      surfaces a reportable error toast instead of freezing
+- [x] Verify: `tsc -p tsconfig.typecheck.json` → 0 errors; gameFlow +
+      navigation tests pass
+
+### Round 2 — deeper audit (subagents) + fixes
+
+Root cause of "freezes after working 2 jobs" FOUND: working a crime job can roll
+"caught" → sets `jailWeeks > 0` → the whole Work screen is replaced by
+`JailScreen`, which could soft-lock when the player had no bail money, no energy,
+and had used their weekly activities (only recovery was advancing the week, which
+isn't offered on that screen).
+
+- [x] `components/jail/JailScreen.tsx` — added a guaranteed, cost-free **"Serve a
+      Week"** escape (calls `nextWeek`) so the player can never get stuck
+- [x] `app/(tabs)/work.tsx` — the 500ms feedback-modal timer was never cleared;
+      now stored in a ref, cancelled on a new tap and on unmount (it could fire
+      over a transitioned screen / JailScreen)
+- [x] `contexts/ToastContext.tsx` — error-toast "Report" emailed a **personal
+      account** (`isacmolin@gmail.com`) with a weak body; now uses the shared
+      `emailDiagnosticReport` → canonical support inbox + full diagnostics.
+      Also fixed the raw `zIndex: 9999` → `Z_INDEX.TOAST`.
+- [x] `utils/diagnosticReport.ts` — falls back to the live AI-debug state getter
+      when no gameState is passed (so a global toast Report is still rich); adds
+      Android `versionCode`, device name, and current screen
+- [x] `components/ErrorMessage.tsx` + `UIUXOverlay.tsx` — banners no longer
+      overlap the notch (safe-area inset) or each other (stackIndex offset)
+- [x] `components/SmartNotificationCenter.tsx` — advisory "warning" notification
+      no longer uses the red `AlertTriangle` (→ amber `AlertCircle`)
+- [x] Verify: tsc 0 errors; crimeJailFlow + invariants tests pass; full suite
+
+Note on the freeze: the screenshot could not be reproduced from a still, but the
+root mechanism behind "old warning symbols + stuck UI after a couple of job/week
+actions" is the persistent, never-auto-dismissing orange warning banners that
+piled up — now fixed. handleStreetJob is also guarded so a thrown error becomes a
+reportable toast rather than a wedged screen. If a hard freeze ever recurs, the
+new Report button now sends us a full diagnostic to pinpoint it.
+
+### Round 3 — "fix the jail screen completely"
+
+`components/jail/JailScreen.tsx`:
+- [x] Header used a hardcoded `paddingTop: 60` even though the screen renders
+      BELOW the TopStatsBar inside the Work tab → big dead gap. Now safe-area
+      aware (`insets.top + 12` full-screen, `14` in-tab).
+- [x] ScrollView had no bottom padding → the last "Prison Stats" card was cut
+      off behind the tab bar. Added `paddingBottom: insets.bottom + 90`.
+- [x] Release activities (escape/parole) used `sentenceReduction: 99` as a
+      sentinel and the card literally showed "-99w". Now shows "Release".
+- [x] The "Final Activity → will release you" confirm lied for chance-based
+      activities (escape = 20%). Now shows the real odds + risk + "Take the risk".
+- [x] Surfaced `reputationGain` in the activity rewards (applied but not shown).
+- [x] Cooldown ticker ran a 1s setState forever (re-rendered the whole screen
+      every second when idle). Now only ticks while a cooldown is active and
+      self-stops.
+- [x] (Round 2) Guaranteed cost-free "Serve a Week" escape remains.
+- [x] Verify: tsc 0 errors; crimeJailFlow + invariants pass; full suite re-run
+
+
 ## Settings theme + new-life slot fix + tutorial cleanup - June 11, 2026
 
 - [x] Settings modal: replace the saturated rainbow action buttons with one

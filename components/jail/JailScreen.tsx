@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
@@ -30,19 +31,30 @@ interface JailScreenProps {
 }
 
 export default function JailScreen({ onClose }: JailScreenProps) {
-  const { gameState, performJailActivity, payBail, updateStats } = useGame();
+  const { gameState, performJailActivity, payBail, updateStats, nextWeek } = useGame();
   const { jailActivities, jailWeeks, stats, foods, economy } = gameState;
+  const insets = useSafeAreaInsets();
   const [_selectedActivity, _setSelectedActivity] = useState<string | null>(null);
   const [activityCooldowns, setActivityCooldowns] = useState<Record<string, number>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
 
-  // Update current time every second for real-time cooldown display
+  // Tick the cooldown countdown — but ONLY while a cooldown is actually active,
+  // and stop as soon as none remain. The old version ran a 1s setState forever,
+  // re-rendering the whole jail screen every second even when idle.
+  const hasActiveCooldown = Object.values(activityCooldowns).some(
+    (t) => Date.now() - t < 2000
+  );
   useEffect(() => {
+    if (!hasActiveCooldown) return;
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
-    }, 1000);
+      const stillActive = Object.values(activityCooldowns).some(
+        (t) => Date.now() - t < 2000
+      );
+      if (!stillActive) clearInterval(interval);
+    }, 250);
     return () => clearInterval(interval);
-  }, []);
+  }, [hasActiveCooldown, activityCooldowns]);
 
   const bailCost = jailWeeks * 500;
 
@@ -54,6 +66,33 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     } else {
       Alert.alert('Insufficient Funds', `You need $${bailCost} to post bail.`);
     }
+  };
+
+  // GUARANTEED escape valve. Bail needs money and activities need energy + the
+  // weekly cooldown — so a player who is broke, out of energy, and has used
+  // their activities could previously get stuck on this screen (the whole Work
+  // tab is replaced by it) until they happened to advance the week from the top
+  // bar. "Serve a Week" always works: it advances the week, which decrements the
+  // sentence, with no cost. This is the fix for the "freezes after working 2
+  // jobs" report (2 crime jobs → caught → jail with no obvious way out).
+  const handleServeTime = () => {
+    Alert.alert(
+      'Serve Your Time',
+      `Advance one week to serve part of your sentence (${jailWeeks} week${jailWeeks !== 1 ? 's' : ''} remaining). You'll be released once it reaches zero.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Serve a Week',
+          onPress: () => {
+            try {
+              nextWeek();
+            } catch {
+              // nextWeek guards itself; never let this throw block the escape.
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleActivity = (activityId: string) => {
@@ -111,13 +150,20 @@ export default function JailScreen({ onClose }: JailScreenProps) {
 
     // Check if this activity will complete the sentence
     if (activity.sentenceReduction && jailWeeks <= activity.sentenceReduction) {
+      // Be honest about chance-based activities: an escape attempt is NOT a
+      // guaranteed release, so don't promise one. Surface the odds + the risk.
+      const isChanceBased = typeof activity.successRate === 'number' && activity.successRate < 1;
+      const confirmTitle = isChanceBased ? 'Risky Move' : 'Final Activity';
+      const confirmBody = isChanceBased
+        ? `${activity.name} has a ${Math.round((activity.successRate ?? 0) * 100)}% chance to get you released.${activity.risk ? `\n\n${activity.risk}` : ''}`
+        : 'This activity will complete your sentence and release you from jail!';
       Alert.alert(
-        'Final Activity',
-        'This activity will complete your sentence and release you from jail!',
+        confirmTitle,
+        confirmBody,
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Continue', 
+          {
+            text: isChanceBased ? 'Take the risk' : 'Continue',
             onPress: () => {
               setActivityCooldowns(prev => ({
                 ...prev,
@@ -228,8 +274,9 @@ export default function JailScreen({ onClose }: JailScreenProps) {
         end={{ x: 1, y: 1 }}
         style={styles.background}
       >
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Header — when shown full-screen (onClose present) clear the notch;
+            inside the Work tab it sits just under the stats bar, so no big gap. */}
+        <View style={[styles.header, { paddingTop: onClose ? insets.top + 12 : 14 }]}>
           <View style={styles.headerLeft}>
             <Lock size={24} color="#EF4444" />
             <Text style={styles.headerTitle}>PRISON</Text>
@@ -241,7 +288,11 @@ export default function JailScreen({ onClose }: JailScreenProps) {
           )}
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Prison Status */}
           <View style={styles.statusCard}>
             <LinearGradient
@@ -287,6 +338,24 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                 <Text style={styles.bailButtonText}>
                   {stats.money < bailCost ? 'Insufficient Funds' : `Pay Bail $${bailCost}`}
                 </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Always-available escape so the player can never get stuck here. */}
+            <Text style={[styles.sectionDescription, styles.serveTimeHint]}>
+              Can't pay bail or do activities? Just serve your time.
+            </Text>
+            <TouchableOpacity onPress={handleServeTime} style={styles.bailButton}>
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bailButtonGradient}
+              >
+                <View style={styles.serveTimeRow}>
+                  <Clock size={16} color="#FFFFFF" />
+                  <Text style={styles.bailButtonText}>Serve a Week</Text>
+                </View>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -456,13 +525,20 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         {activity.sentenceReduction && (
                           <View style={styles.rewardItem}>
                             <Shield size={12} color="#FFFFFF" />
-                            <Text style={styles.rewardText}>-{activity.sentenceReduction}w</Text>
+                            <Text style={styles.rewardText}>
+                              {/* A "release" activity (e.g. escape/parole) uses a
+                                  huge reduction as a sentinel — show "Release",
+                                  not a nonsensical "-99w". */}
+                              {activity.sentenceReduction >= jailWeeks
+                                ? 'Release'
+                                : `-${activity.sentenceReduction}w`}
+                            </Text>
                           </View>
                         )}
                         {activity.fitnessGain && (
                           <View style={styles.rewardItem}>
                             <TrendingUp size={12} color="#FFFFFF" />
-                            <Text style={styles.rewardText}>+{activity.fitnessGain}</Text>
+                            <Text style={styles.rewardText}>+{activity.fitnessGain} Fitness</Text>
                           </View>
                         )}
                         {activity.healthGain && (
@@ -475,6 +551,12 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                           <View style={styles.rewardItem}>
                             <Smile size={12} color="#FFFFFF" />
                             <Text style={styles.rewardText}>+{activity.happinessGain} Happiness</Text>
+                          </View>
+                        )}
+                        {activity.reputationGain && (
+                          <View style={styles.rewardItem}>
+                            <Shield size={12} color="#FFFFFF" />
+                            <Text style={styles.rewardText}>+{activity.reputationGain} Rep</Text>
                           </View>
                         )}
                       </View>
@@ -535,7 +617,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    // paddingTop is set dynamically (safe-area aware) on the element.
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#374151',
@@ -621,6 +703,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  serveTimeHint: {
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  serveTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   activitiesSection: {
     marginTop: 20,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Platform, View,
     Text,
     StyleSheet,
@@ -176,10 +176,21 @@ function WorkScreenContent() {
 
     const [actionFeedbackVisible, setActionFeedbackVisible] = useState(false);
     const [actionImpact, setActionImpact] = useState<any>(null);
+    // The feedback modal is opened on a short delay; keep the timer so we can
+    // cancel a pending open (rapid taps, or the screen swapping to JailScreen
+    // when caught) instead of letting it pop up over a transitioned screen.
+    const actionFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => {
+        if (actionFeedbackTimerRef.current) clearTimeout(actionFeedbackTimerRef.current);
+    }, []);
 
     // Hobbies completely removed - no state variables needed
 
     const handleStreetJob = (jobId: string) => {
+      // Hard guard: a throw anywhere in this handler used to leave the work
+      // screen wedged (stuck toast, no response). Now any unexpected error
+      // surfaces a reportable error toast and the game keeps running.
+      try {
         const job = gameState.streetJobs.find(j => j.id === jobId);
         const result = performStreetJob(jobId);
         if (result) {
@@ -210,8 +221,12 @@ function WorkScreenContent() {
                 // Store impact for modal (only show for successful actions with system effects)
                 if (result.success && impact && impact.systemEffects.length > 0) {
                     setActionImpact(impact);
-                    // Delay modal slightly to let toast show first
-                    setTimeout(() => {
+                    // Delay modal slightly to let toast show first. Cancel any
+                    // previously-scheduled open so it can't fire over a screen
+                    // that has since changed (e.g. caught → JailScreen).
+                    if (actionFeedbackTimerRef.current) clearTimeout(actionFeedbackTimerRef.current);
+                    actionFeedbackTimerRef.current = setTimeout(() => {
+                        actionFeedbackTimerRef.current = null;
                         setActionFeedbackVisible(true);
                     }, 500);
                 }
@@ -259,6 +274,12 @@ function WorkScreenContent() {
             return () => clearTimeout(timeoutId);
         }
         return undefined;
+      } catch (error) {
+        logger.error('handleStreetJob crashed:', error as any);
+        // showError toasts carry a one-tap "Report" that emails us the details.
+        showError('Something went wrong working that job. Tap Report to send us the details.');
+        return undefined;
+      }
     };
 
     const handlePayBail = () => {

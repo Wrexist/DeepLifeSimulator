@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react-native';
+import { X, CheckCircle, AlertCircle, Info } from 'lucide-react-native';
 import { DesignSystem } from '@/utils/designSystem';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { Z_INDEX } from '@/utils/zIndexConstants';
@@ -64,7 +64,8 @@ export default function ToastNotification({
       case 'warning':
         return {
           gradient: [DesignSystem.colors.accent.warning, '#D97706'],
-          icon: AlertTriangle,
+          // Friendly rounded icon instead of the alarming warning triangle.
+          icon: AlertCircle,
           iconColor: '#FFFFFF',
         };
       case 'info':
