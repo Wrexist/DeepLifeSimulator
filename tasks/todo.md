@@ -16,7 +16,24 @@ Verification gate after EACH file: `tsc -p tsconfig.typecheck.json` → 0 errors
 - [skip] components/ShopModal.tsx (7) — all RN-web style casts (noise)
 - [skip] app/(tabs)/progression.tsx (9) — all RN-web style casts (noise)
 
-Out of scope: `*Styles.ts` RN-web style casts, `__tests__/**` casts, promoting the eslint rule to `error`.
+Additional gameplay casts removed (batches 2–3): FinanceOverview (loans), consequenceTracker
+(Memory `in`-narrowing + dead `.text`), PulseActions (`Record` cast), SparkApp/PulseApp/
+ProfileEditModal (UserProfile fields), StoriesRail (Relationship.profilePicture).
+
+Result: 297 → 269 total casts; all dangerous typed-field-access casts (the `.totalKarma`
+class) removed. Type-check + full suite green throughout.
+
+Left for a dedicated pass (need design/logic decisions, not a cast swap):
+- MemoryBookModal: `(memory as any).type` — latent bug, the color map keys don't match
+  `MemoryCategory`; styling has always been dead/`default`. Needs design input.
+- Journal: `(selectedEntry as any).category` — entries are augmented with `category` at
+  runtime; needs an augmented type threaded through state.
+- relationshipValidation: `orphan as any` bridges `Relationship`↔`ChildInfo` in save-repair;
+  needs real shape conversion.
+
+Out of scope (the audit's "RN-web noise"): `*Styles.ts` + inline `web:{boxShadow}` style
+casts, `__tests__/**` casts, `global as any`/`performance as any` runtime accesses,
+`as any as number` Animated props. Promote the eslint rule to `error` once those are gone.
 
 
 ## Loading screen + warnings + report-popup fixes - June 12, 2026

@@ -25,6 +25,13 @@
 - **#22** Write-time caps on `competitionHistory` (50) and `travelHistory` (100).
   (`lifeMilestones`/`netWorthHistory` were already write-capped — claim was stale.)
 - **#19** New money-conservation invariant test (`moneyConservation.stress.test.ts`).
+- **#21 (gameplay/state casts)** Removed all the dangerous typed-field-access `as any`
+  casts — the `.totalKarma`-class silent-bug source — across 11 files (PoliticalActions,
+  AdvancedBankApp, ContactsApp, ProfileScreen, FinanceOverview, consequenceTracker,
+  PulseActions, SparkApp, PulseApp, ProfileEditModal, StoriesRail). 297 → 269 total casts.
+  Remaining are RN-web style noise, test casts, runtime-global accesses, and 3 cases
+  needing design/logic decisions (see `tasks/todo.md`). Audit TS-1/TS-4/TS-7's named files
+  were already clean.
 - **#28** Deleted dead components `NetWorthDisplay.tsx`, `TombstonePopup.tsx`.
 - **#35** Fixed light-mode `textSecondary`/`textMuted` WCAG-AA contrast failure
   (was ~2.6:1 / ~1.4:1 on near-white bg → now ~7:1 / ~4.8:1).
