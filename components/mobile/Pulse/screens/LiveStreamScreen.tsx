@@ -5,11 +5,12 @@
  * counters, end-stream button. Summary: recap of donations + new followers.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, TextInput, View, AccessibilityInfo } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Eye, DollarSign, Square, X, Sparkles } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { PULSE_GRADIENT, PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
@@ -42,23 +43,19 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
   // Pulsing ring animation
   const ringScale = useRef(new Animated.Value(1)).current;
 
+  const reduced = useReducedMotion();
   useEffect(() => {
-    if (phase !== 'live') return;
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled || reduced) return;
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(ringScale, { toValue: 1.05, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
-          Animated.timing(ringScale, { toValue: 1, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
-        ]),
-      ).start();
-    });
+    if (phase !== 'live' || reduced) return;
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(ringScale, { toValue: 1.05, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
+        Animated.timing(ringScale, { toValue: 1, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
+      ]),
+    ).start();
     return () => {
-      cancelled = true;
       ringScale.stopAnimation();
     };
-  }, [phase, ringScale]);
+  }, [phase, ringScale, reduced]);
 
   // Drive the live session tick every 30 real seconds
   useEffect(() => {

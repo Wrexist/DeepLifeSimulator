@@ -11,12 +11,13 @@
  */
 
 import React, { useCallback, useEffect, useRef } from 'react';
-import { AccessibilityInfo, Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart, MessageCircle, Repeat2, Zap } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { likePost, repostPost } from '@/contexts/game/actions/PulseActions';
 import { formatPulseNumber } from '../utils/formatPulseNumber';
@@ -189,21 +190,20 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
   const isLikeBtn = Icon === Heart;
   const isRepostBtn = Icon === Repeat2;
 
+  const reduced = useReducedMotion();
   const animatedPress = useCallback(() => {
     onPress();
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (reduced) return;
-      if (isLikeBtn) {
-        Animated.sequence([
-          Animated.spring(scaleAnim, { toValue: 1.3, useNativeDriver: true, speed: 50, bounciness: 12 }),
-          Animated.spring(scaleAnim, { toValue: 1.0, useNativeDriver: true, speed: 30, bounciness: 8 }),
-        ]).start();
-      } else if (isRepostBtn) {
-        spinAnim.setValue(0);
-        Animated.timing(spinAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-      }
-    });
-  }, [onPress, isLikeBtn, isRepostBtn, scaleAnim, spinAnim]);
+    if (reduced) return;
+    if (isLikeBtn) {
+      Animated.sequence([
+        Animated.spring(scaleAnim, { toValue: 1.3, useNativeDriver: true, speed: 50, bounciness: 12 }),
+        Animated.spring(scaleAnim, { toValue: 1.0, useNativeDriver: true, speed: 30, bounciness: 8 }),
+      ]).start();
+    } else if (isRepostBtn) {
+      spinAnim.setValue(0);
+      Animated.timing(spinAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    }
+  }, [onPress, isLikeBtn, isRepostBtn, scaleAnim, spinAnim, reduced]);
 
   const transform: any[] = [{ scale: scaleAnim }];
   if (isRepostBtn) {
@@ -240,25 +240,21 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
 // frame. ~1200ms total. Honors Reduce Motion (snap-to-end, no animation).
 function ViralShimmer() {
   const progress = useRef(new Animated.Value(0)).current;
+  const reduced = useReducedMotion();
   useEffect(() => {
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled) return;
-      if (reduced) {
-        progress.setValue(1);
-        return;
-      }
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: 1200,
-        useNativeDriver: true,
-      }).start();
-    });
+    if (reduced) {
+      progress.setValue(1);
+      return;
+    }
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 1200,
+      useNativeDriver: true,
+    }).start();
     return () => {
-      cancelled = true;
       progress.stopAnimation();
     };
-  }, [progress]);
+  }, [progress, reduced]);
 
   // Slide a 30%-wide highlight band from −30% to +130% of card width.
   const translateX = progress.interpolate({

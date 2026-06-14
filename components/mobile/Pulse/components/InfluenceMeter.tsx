@@ -5,9 +5,10 @@
  * shows progress to the next tier. Animates the fill width on mount.
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View, AccessibilityInfo } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { PULSE_GRADIENT, PULSE_MOTION } from '../styles/pulseTheme';
 import type { PulseInfluenceLevel } from '@/contexts/game/types';
@@ -49,24 +50,18 @@ export default function InfluenceMeter({ followers, tier, compact = false }: Inf
       ? Math.max(0, Math.min(1, (followers - currentThreshold) / (nextThreshold - currentThreshold)))
       : 1;
 
+  const reduced = useReducedMotion();
   useEffect(() => {
-    let mounted = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (!mounted) return;
-      if (reduced) {
-        fill.setValue(progress);
-      } else {
-        Animated.timing(fill, {
-          toValue: progress,
-          duration: PULSE_MOTION.countUp,
-          useNativeDriver: false,
-        }).start();
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [progress, fill]);
+    if (reduced) {
+      fill.setValue(progress);
+    } else {
+      Animated.timing(fill, {
+        toValue: progress,
+        duration: PULSE_MOTION.countUp,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [progress, fill, reduced]);
 
   const barHeight = compact ? scale(4) : scale(8);
 

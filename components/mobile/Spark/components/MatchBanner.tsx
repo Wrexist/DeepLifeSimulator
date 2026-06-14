@@ -6,11 +6,12 @@
  * after 1.6s or on tap.
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Flame, MessageCircle, X } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { SPARK_GRADIENT, SPARK_MOTION } from '../styles/sparkTheme';
@@ -33,33 +34,29 @@ export default function MatchBanner({
   const opacity = useRef(new Animated.Value(0)).current;
   const flameScale = useRef(new Animated.Value(1)).current;
 
+  const reduced = useReducedMotion();
   useEffect(() => {
     if (!visible) {
       opacity.setValue(0);
       return;
     }
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled) return;
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: reduced ? 0 : SPARK_MOTION.matchCelebration,
-        useNativeDriver: true,
-      }).start();
-      if (!reduced) {
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(flameScale, { toValue: 1.12, duration: SPARK_MOTION.flameLoop / 2, useNativeDriver: true }),
-            Animated.timing(flameScale, { toValue: 1, duration: SPARK_MOTION.flameLoop / 2, useNativeDriver: true }),
-          ]),
-        ).start();
-      }
-    });
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: reduced ? 0 : SPARK_MOTION.matchCelebration,
+      useNativeDriver: true,
+    }).start();
+    if (!reduced) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(flameScale, { toValue: 1.12, duration: SPARK_MOTION.flameLoop / 2, useNativeDriver: true }),
+          Animated.timing(flameScale, { toValue: 1, duration: SPARK_MOTION.flameLoop / 2, useNativeDriver: true }),
+        ]),
+      ).start();
+    }
     return () => {
-      cancelled = true;
       flameScale.stopAnimation();
     };
-  }, [visible, opacity, flameScale]);
+  }, [visible, opacity, flameScale, reduced]);
 
   if (!visible) return null;
 
