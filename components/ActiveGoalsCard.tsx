@@ -8,7 +8,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Target, ChevronRight, Trophy, Star, Sparkles } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { getActiveGoals, getChallengeGoals, ENHANCED_GOAL_DEFINITIONS } from '@/utils/enhancedGoalSystem';
 import { GOAL_CATEGORIES, type Goal, type GoalCategory } from '@/utils/goalSystem';
 import { fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
@@ -86,48 +86,63 @@ function GoalItem({ goal, onPress, isChallenge = false }: { goal: Goal; onPress?
 }
 
 function ActiveGoalsCard({ onGoalPress, compact = false }: ActiveGoalsCardProps) {
-    const { gameState } = useGame();
+    // R-perf: subscribe to only the slices this card derives goals from, so it
+    // re-renders when goal-relevant state changes — not on every unrelated tick
+    // (it previously read the whole monolith via useGame()). Selectors return
+    // raw references only (no `|| []` inside a selector — that would defeat the
+    // store's memoization); fallbacks are applied in the memos below.
+    const stats = useGameSelector((s) => s?.stats, shallowEqual);
+    const week = useGameSelector((s) => s?.week);
+    const weeksLived = useGameSelector((s) => s?.weeksLived);
+    const currentJob = useGameSelector((s) => s?.currentJob);
+    const bankSavings = useGameSelector((s) => s?.bankSavings);
+    const completedGoals = useGameSelector((s) => s?.completedGoals);
+    const items = useGameSelector((s) => s?.items);
+    const relationships = useGameSelector((s) => s?.relationships);
+    const educations = useGameSelector((s) => s?.educations);
+    const realEstate = useGameSelector((s) => s?.realEstate);
+    const careers = useGameSelector((s) => s?.careers);
     const [showChallenges, setShowChallenges] = useState(false);
 
     // Get active goals using enhanced system
     const activeGoals = useMemo(() => {
-        if (!gameState) return [];
+        if (!stats) return [];
         return getActiveGoals({
-            stats: gameState.stats,
-            week: gameState.week,
-            weeksLived: gameState.weeksLived || 0,
-            currentJob: gameState.currentJob || null,
-            bankSavings: gameState.bankSavings || 0,
-            completedGoals: gameState.completedGoals || [],
-            items: gameState.items,
-            relationships: gameState.relationships,
-            educations: gameState.educations,
-            realEstate: gameState.realEstate,
-            careers: gameState.careers,
+            stats,
+            week,
+            weeksLived: weeksLived || 0,
+            currentJob: currentJob || null,
+            bankSavings: bankSavings || 0,
+            completedGoals: completedGoals || [],
+            items,
+            relationships,
+            educations,
+            realEstate,
+            careers,
             healthyWeeksStreak: 0, // Default value
         });
-    }, [gameState]);
+    }, [stats, week, weeksLived, currentJob, bankSavings, completedGoals, items, relationships, educations, realEstate, careers]);
 
     // Get challenge goals
     const challengeGoals = useMemo(() => {
-        if (!gameState) return [];
+        if (!stats) return [];
         return getChallengeGoals({
-            stats: gameState.stats,
-            week: gameState.week,
-            weeksLived: gameState.weeksLived || 0,
-            currentJob: gameState.currentJob || null,
-            bankSavings: gameState.bankSavings || 0,
-            completedGoals: gameState.completedGoals || [],
-            items: gameState.items,
-            relationships: gameState.relationships,
-            educations: gameState.educations,
-            realEstate: gameState.realEstate,
-            careers: gameState.careers,
+            stats,
+            week,
+            weeksLived: weeksLived || 0,
+            currentJob: currentJob || null,
+            bankSavings: bankSavings || 0,
+            completedGoals: completedGoals || [],
+            items,
+            relationships,
+            educations,
+            realEstate,
+            careers,
             healthyWeeksStreak: 0, // Default value
         });
-    }, [gameState]);
+    }, [stats, week, weeksLived, currentJob, bankSavings, completedGoals, items, relationships, educations, realEstate, careers]);
 
-    const completedCount = (gameState?.completedGoals || []).length;
+    const completedCount = (completedGoals || []).length;
     const totalGoals = ENHANCED_GOAL_DEFINITIONS.filter(g => !g.isOptional).length;
 
     if (activeGoals.length === 0 && challengeGoals.length === 0) {

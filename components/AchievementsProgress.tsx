@@ -13,7 +13,8 @@ import { Platform, View,
   ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import { useGame } from '@/contexts/GameContext';
+import { useGameActions } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import {
   Trophy,
   Gem,
@@ -129,7 +130,14 @@ function getRarityFromAchievement(goldReward: number, stackIndex: number, stackS
 }
 
 export default function AchievementsProgress() {
-  const { gameState, claimProgressAchievement } = useGame();
+  const { claimProgressAchievement } = useGameActions();
+  // R-perf: subscribe only to the slices this card reads (was the whole monolith
+  // via useGame(), which re-rendered it on every tick). darkMode/achievementUnlocks/
+  // weeksLived change rarely, so it now stays put during routine stat decay ticks.
+  const settings = useGameSelector((s) => s?.settings, shallowEqual);
+  const weeksLived = useGameSelector((s) => s?.weeksLived);
+  const achievementUnlocks = useGameSelector((s) => s?.achievementUnlocks);
+  const darkMode = settings?.darkMode;
   const { achievements } = useAchievements();
   const [sort, setSort] = useState<'progress' | 'title' | 'rarity'>('progress');
   const [selectedCategory, setSelectedCategory] = useState<AchievementCategory>('all');
@@ -166,7 +174,7 @@ export default function AchievementsProgress() {
   // ENGAGEMENT: for the first 12 weeks, bias the not-started list to show
   // beginner-tier achievements first. Otherwise a brand-new player sees a wall
   // of $1B-cash targets at the top and feels the game is unwinnable.
-  const isEarlyGame = (gameState.weeksLived ?? 0) <= 12;
+  const isEarlyGame = (weeksLived ?? 0) <= 12;
 
   // Sort achievements - show completed ones first, then by sort option
   const sortedAchievements = useMemo(() => {
@@ -256,11 +264,11 @@ export default function AchievementsProgress() {
   };
 
   return (
-    <View style={[styles.container, gameState?.settings?.darkMode && styles.containerDark]}>
+    <View style={[styles.container, darkMode && styles.containerDark]}>
       {/* Enhanced header with gradient background */}
       <BlurView intensity={20} style={styles.headerBlur}>
         <LinearGradient
-          colors={gameState?.settings?.darkMode ? ['rgba(99, 102, 241, 0.1)', 'rgba(79, 70, 229, 0.1)'] : ['rgba(99, 102, 241, 0.05)', 'rgba(79, 70, 229, 0.05)']}
+          colors={darkMode ? ['rgba(99, 102, 241, 0.1)', 'rgba(79, 70, 229, 0.1)'] : ['rgba(99, 102, 241, 0.05)', 'rgba(79, 70, 229, 0.05)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
@@ -278,10 +286,10 @@ export default function AchievementsProgress() {
               <Sparkles size={12} color="#6366F1" style={styles.sparkleIcon} />
             </View>
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.title, gameState?.settings?.darkMode && styles.titleDark]}>
+              <Text style={[styles.title, darkMode && styles.titleDark]}>
                 Achievements
               </Text>
-              <Text style={[styles.statsText, gameState?.settings?.darkMode && styles.statsTextDark]}>
+              <Text style={[styles.statsText, darkMode && styles.statsTextDark]}>
                 {stats.completed} / {stats.total} completed • {stats.inProgress} in progress
               </Text>
             </View>
@@ -295,11 +303,11 @@ export default function AchievementsProgress() {
           onPress={() => setShowFilters(!showFilters)}
           style={[styles.filterToggle, showFilters && styles.filterToggleActive]}
         >
-          <Filter size={scale(16)} color={showFilters ? '#FFF' : (gameState?.settings?.darkMode ? '#9CA3AF' : '#6B7280')} />
+          <Filter size={scale(16)} color={showFilters ? '#FFF' : (darkMode ? '#9CA3AF' : '#6B7280')} />
           <Text style={[
             styles.filterToggleText,
             showFilters && styles.filterToggleTextActive,
-            gameState?.settings?.darkMode && styles.controlTextDark,
+            darkMode && styles.controlTextDark,
           ]}>
             Filters
           </Text>
@@ -315,7 +323,7 @@ export default function AchievementsProgress() {
               <Text style={[
                 styles.sortButtonText,
                 sort === s && styles.sortButtonTextActive,
-                gameState?.settings?.darkMode && styles.controlTextDark,
+                darkMode && styles.controlTextDark,
               ]}>
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </Text>
@@ -340,7 +348,7 @@ export default function AchievementsProgress() {
                   style={[
                     styles.categoryChip,
                     isActive && { backgroundColor: category.color },
-                    !isActive && gameState?.settings?.darkMode && styles.categoryChipDark,
+                    !isActive && darkMode && styles.categoryChipDark,
                   ]}
                   onPress={() => setSelectedCategory(category.id)}
                 >
@@ -348,7 +356,7 @@ export default function AchievementsProgress() {
                   <Text style={[
                     styles.categoryChipText,
                     isActive && styles.categoryChipTextActive,
-                    !isActive && gameState?.settings?.darkMode && styles.categoryChipTextDark,
+                    !isActive && darkMode && styles.categoryChipTextDark,
                   ]}>
                     {category.label} ({count})
                   </Text>
@@ -359,18 +367,18 @@ export default function AchievementsProgress() {
 
           {/* Secret Toggle */}
           <TouchableOpacity
-            style={[styles.secretToggle, gameState?.settings?.darkMode && styles.secretToggleDark]}
+            style={[styles.secretToggle, darkMode && styles.secretToggleDark]}
             onPress={() => setShowSecret(!showSecret)}
           >
             {showSecret ? (
               <Eye size={scale(14)} color="#F59E0B" />
             ) : (
-              <EyeOff size={scale(14)} color={gameState?.settings?.darkMode ? '#6B7280' : '#9CA3AF'} />
+              <EyeOff size={scale(14)} color={darkMode ? '#6B7280' : '#9CA3AF'} />
             )}
             <Text style={[
               styles.secretToggleText,
               showSecret && styles.secretToggleTextActive,
-              gameState?.settings?.darkMode && styles.secretToggleTextDark,
+              darkMode && styles.secretToggleTextDark,
             ]}>
               {showSecret ? 'Hide Secrets' : 'Show Secret Hints'}
             </Text>
@@ -382,8 +390,8 @@ export default function AchievementsProgress() {
       <View>
         {sortedAchievements.length === 0 && (
           <View style={styles.emptyState}>
-            <Trophy size={scale(40)} color={gameState?.settings?.darkMode ? '#4B5563' : '#D1D5DB'} />
-            <Text style={[styles.empty, gameState?.settings?.darkMode && styles.cardDescDark]}>
+            <Trophy size={scale(40)} color={darkMode ? '#4B5563' : '#D1D5DB'} />
+            <Text style={[styles.empty, darkMode && styles.cardDescDark]}>
               No achievements found in this category.
             </Text>
           </View>
@@ -407,7 +415,7 @@ export default function AchievementsProgress() {
               key={a.id} 
               style={[
                 styles.card, 
-                gameState?.settings?.darkMode && styles.cardDark,
+                darkMode && styles.cardDark,
                 isCompleted && styles.cardCompleted
               ]}
             >
@@ -420,7 +428,7 @@ export default function AchievementsProgress() {
                   </View>
                 )}
                 <View style={styles.cardTitleContainer}>
-                  <Text style={[styles.cardTitle, gameState?.settings?.darkMode && styles.cardTitleDark]}>
+                  <Text style={[styles.cardTitle, darkMode && styles.cardTitleDark]}>
                     {a.isSecret && a.progress === 0 ? '???' : a.title}
                   </Text>
                   {a.isSecret && (
@@ -456,12 +464,12 @@ export default function AchievementsProgress() {
                 </Text>
               </View>
 
-              <Text style={[styles.cardDesc, gameState?.settings?.darkMode && styles.cardDescDark]}>
+              <Text style={[styles.cardDesc, darkMode && styles.cardDescDark]}>
                 {a.isSecret && a.progress === 0 ? 'Complete hidden requirements to unlock this secret achievement!' : a.description}
               </Text>
 
               {a.nextTitle && (
-                <Text style={[styles.nextText, gameState?.settings?.darkMode && styles.cardDescDark]}>
+                <Text style={[styles.nextText, darkMode && styles.cardDescDark]}>
                   Next: {a.nextTitle}
                 </Text>
               )}
@@ -473,11 +481,11 @@ export default function AchievementsProgress() {
                     <Text style={styles.claimedText}>Claimed</Text>
                   </View>
                   {/* Narrative context: when was this achievement unlocked? */}
-                  {gameState?.achievementUnlocks?.[a.id] && (
-                    <Text style={[styles.narrativeText, gameState?.settings?.darkMode && styles.narrativeTextDark]}>
-                      Unlocked at age {gameState.achievementUnlocks[a.id].age} ({gameState.achievementUnlocks[a.id].year})
-                      {gameState.achievementUnlocks[a.id].money > 0
-                        ? ` with $${gameState.achievementUnlocks[a.id].money.toLocaleString()}`
+                  {achievementUnlocks?.[a.id] && (
+                    <Text style={[styles.narrativeText, darkMode && styles.narrativeTextDark]}>
+                      Unlocked at age {achievementUnlocks[a.id].age} ({achievementUnlocks[a.id].year})
+                      {achievementUnlocks[a.id].money > 0
+                        ? ` with $${achievementUnlocks[a.id].money.toLocaleString()}`
                         : ''}
                     </Text>
                   )}
@@ -519,7 +527,7 @@ export default function AchievementsProgress() {
                     </View>
                     <View style={styles.progressGlow} />
                   </View>
-                  <Text style={[styles.progressPercent, gameState?.settings?.darkMode && styles.progressPercentDark]}>
+                  <Text style={[styles.progressPercent, darkMode && styles.progressPercentDark]}>
                     {Math.min(100, Math.round(a.progress * 100))}%
                   </Text>
                 </View>
