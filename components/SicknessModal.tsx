@@ -204,7 +204,22 @@ function SicknessModal() {
     const template = getDiseaseInfo(disease);
     const recommendations: string[] = [];
 
-    if ('weeksUntilDeath' in disease && typeof disease.weeksUntilDeath === 'number' && disease.weeksUntilDeath <= 4) {
+    // A disease with `weeksUntilDeath` that is NOT curable is terminal — no
+    // treatment can cure it. Telling the player to "seek treatment for a cure"
+    // (or that it "can be managed") would be misleading, so terminal diseases
+    // get their own honest messaging.
+    const isTerminal =
+      !disease.curable &&
+      'weeksUntilDeath' in disease &&
+      typeof disease.weeksUntilDeath === 'number';
+
+    if (isTerminal) {
+      const weeksLeft = (disease as { weeksUntilDeath: number }).weeksUntilDeath;
+      recommendations.push(
+        `This is a terminal illness — approximately ${weeksLeft} week(s) remain and there is no cure.`,
+      );
+      recommendations.push('Treatment can ease symptoms but will not stop its progression.');
+    } else if ('weeksUntilDeath' in disease && typeof disease.weeksUntilDeath === 'number' && disease.weeksUntilDeath <= 4) {
       recommendations.push(`URGENT: Only ${disease.weeksUntilDeath} week(s) until death - seek immediate treatment!`);
       if (disease.severity === 'critical' && disease.curable) {
         recommendations.push('Experimental treatment recommended for critical diseases');

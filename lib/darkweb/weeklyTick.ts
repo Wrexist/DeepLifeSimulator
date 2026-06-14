@@ -34,6 +34,8 @@ export interface DarkWebWeeklyTickInput {
   relationships?: Relationship[];
   /** Deterministic roll source. Math.random for non-deterministic flows. */
   rollFor: (key: string) => number;
+  /** True if the player is already serving a sentence — raids must not pile on jail. */
+  inJail?: boolean;
 }
 
 export interface DarkWebWeeklyTickResult {
@@ -112,14 +114,24 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
         message: `Lost ${dirtyBtcSeized.toFixed(4)} BTC in a controlled buy. Heat +5.`,
       });
     } else if (subRoll < 0.55) {
-      // Raid: jail time, heat partially decays.
-      jailWeeksAdded = Math.max(1, Math.round(severity));
+      // Raid: heat partially decays either way. Jail time is only added when the
+      // player isn't already serving a sentence — raids must never pile onto an
+      // existing jail term (which would let police events extend jail forever).
       dw = { ...dw, heat: Math.max(0, dw.heat - 25) };
-      notifications.push({
-        id: 'darkweb-raid',
-        title: '🚨 Raid',
-        message: `Caught with too much heat. ${jailWeeksAdded} week${jailWeeksAdded === 1 ? '' : 's'} jail; heat -25.`,
-      });
+      if (input.inJail) {
+        notifications.push({
+          id: 'darkweb-raid',
+          title: '🚨 Raid',
+          message: `Your operation was raided while you were already locked up. Heat -25.`,
+        });
+      } else {
+        jailWeeksAdded = Math.max(1, Math.round(severity));
+        notifications.push({
+          id: 'darkweb-raid',
+          title: '🚨 Raid',
+          message: `Caught with too much heat. ${jailWeeksAdded} week${jailWeeksAdded === 1 ? '' : 's'} jail; heat -25.`,
+        });
+      }
     } else if (subRoll < 0.80 && dw.cleanBtc > 0) {
       // Informant: an NPC is talking. Buy them off with clean BTC, or it festers.
       const payoff = Math.min(dw.cleanBtc, dw.cleanBtc * 0.30 * severity);

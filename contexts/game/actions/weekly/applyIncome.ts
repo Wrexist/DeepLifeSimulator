@@ -29,6 +29,13 @@ import {
 } from '@/lib/config/gameConstants';
 import { getIncomeMultiplier } from '@/lib/prestige/applyBonuses';
 
+/**
+ * Upper bound on the combined onboarding-perk income multiplier. Individual
+ * perks grant ~1.02–1.10; without a cap the stacked product is unbounded and
+ * can be farmed by selecting every income perk. Perks can at most double income.
+ */
+const MAX_PERK_INCOME_BONUS = 2.0;
+
 export interface IncomeTickInput {
   /** Full prev state — needed for relationships, perks, goldUpgrades. */
   prevState: GameState;
@@ -100,6 +107,9 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
         perkIncomeBonus *= mult;
       }
     }
+    // Stacked perk multipliers are otherwise unbounded; cap the combined bonus
+    // so income can at most double from perks (individual perks are ~1.02–1.10).
+    perkIncomeBonus = Math.min(perkIncomeBonus, MAX_PERK_INCOME_BONUS);
   }
 
   const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus * perkIncomeBonus);
