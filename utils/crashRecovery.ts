@@ -5,6 +5,8 @@
  * Auto-disables problematic modules after repeated failures.
  */
 
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
+
 // CRITICAL: DO NOT import AsyncStorage at module level
 // This would trigger TurboModule initialization before bridge is ready on iOS 26 Beta
 let _asyncStorage: typeof import('@react-native-async-storage/async-storage').default | null = null;
@@ -48,7 +50,7 @@ interface RecoveryOptions {
 const STORAGE_KEY = 'turbo_module_failures';
 const DEFAULT_OPTIONS: Required<RecoveryOptions> = {
   autoDisableAfterFailures: 5,
-  failureWindowMs: 24 * 60 * 60 * 1000, // 24 hours
+  failureWindowMs: MS_PER_DAY, // 24 hours
   maxErrorHistory: 10,
 };
 

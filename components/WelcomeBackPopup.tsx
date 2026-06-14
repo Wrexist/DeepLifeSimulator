@@ -7,6 +7,7 @@ import { Platform, Modal,
   Animated,
   Dimensions } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import {
   Home,
   TrendingUp,
@@ -39,7 +40,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
 
   // Calculate time away
   const lastLogin = gameState.lastLogin || Date.now();
-  const daysAway = Math.floor((Date.now() - lastLogin) / (1000 * 60 * 60 * 24));
+  const daysAway = Math.floor((Date.now() - lastLogin) / MS_PER_DAY);
   const weeksAway = Math.floor(daysAway / 7);
   const hoursAway = Math.floor((Date.now() - lastLogin) / (1000 * 60 * 60));
 

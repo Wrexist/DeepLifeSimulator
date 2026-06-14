@@ -9,6 +9,7 @@
  * see the same challenge at the same time.
  */
 import type { GameState } from '@/contexts/game/types';
+import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 
 export interface WeeklyChallengeObjective {
  id: string;
@@ -470,7 +471,7 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  * All players see the same challenge at the same time.
  */
 export function getActiveWeeklyChallengeId(timestamp: number = Date.now()): string {
- const weekNumber = Math.floor(timestamp / (7 * 24 * 60 * 60 * 1000));
+ const weekNumber = Math.floor(timestamp / MS_PER_WEEK);
  const index = weekNumber % WEEKLY_CHALLENGES.length;
  return WEEKLY_CHALLENGES[index].id;
 }
@@ -547,6 +548,5 @@ export function getOrRotateWeeklyChallenge(
 }
 
 function needsRotation(challenge: NonNullable<GameState['weeklyChallenge']>): boolean {
- const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
- return Date.now() - challenge.startedAt > WEEK_MS;
+ return Date.now() - challenge.startedAt > MS_PER_WEEK;
 }

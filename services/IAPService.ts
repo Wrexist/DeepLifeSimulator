@@ -9,6 +9,7 @@ import {
 import { logger } from '@/utils/logger';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { clampHobbySkillLevel } from '@/utils/stateValidation';
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
 
 // CRITICAL: Do NOT create logger scope here - logger may not be initialized yet
 // This module is imported at app startup before UI renders
@@ -1199,7 +1200,7 @@ export class IAPService {
       )
     ) {
       const isYearly = /yearly/i.test(purchase.productId);
-      const durationMs = (isYearly ? 365 : 30) * 24 * 60 * 60 * 1000;
+      const durationMs = (isYearly ? 365 : 30) * MS_PER_DAY;
 
       if (!gameState.socialMedia) {
         gameState.socialMedia = {

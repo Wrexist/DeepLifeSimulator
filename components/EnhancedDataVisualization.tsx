@@ -6,6 +6,7 @@ import { Platform, View,
   ScrollView,
   Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {
   TrendingUp,
@@ -71,7 +72,7 @@ export default function EnhancedDataVisualization({
         data.push({
           day: i,
           value: Math.round(value),
-          date: new Date(now.getTime() - (days - i) * 24 * 60 * 60 * 1000),
+          date: new Date(now.getTime() - (days - i) * MS_PER_DAY),
         });
       }
       return data;

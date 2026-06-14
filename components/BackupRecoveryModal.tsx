@@ -9,6 +9,7 @@ import { Platform, View,
   Dimensions,
   ActivityIndicator } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { 
   X, 
   Clock, 
@@ -115,7 +116,7 @@ export default function BackupRecoveryModal({ visible, onClose, slot, onRestoreC
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+    const diffDays = Math.floor(diffMs / MS_PER_DAY);
     
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins} min ago`;

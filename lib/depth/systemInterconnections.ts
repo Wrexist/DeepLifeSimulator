@@ -4,6 +4,7 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 
 export interface SystemInterconnection {
   sourceSystem: string;
@@ -561,6 +562,6 @@ function calculateSystemTrend(systemId: string, gameState: GameState): 'improvin
 
 function getLastActivity(_systemId: string, gameState: GameState): number {
   // Use weeksLived for a game-time approximation (week cycles 1-4, weeksLived is absolute)
-  return gameState.weeksLived ? gameState.weeksLived * 7 * 24 * 60 * 60 * 1000 : Date.now();
+  return gameState.weeksLived ? gameState.weeksLived * MS_PER_WEEK : Date.now();
 }
 

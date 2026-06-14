@@ -21,6 +21,7 @@ import {
  TextInput,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { MS_PER_HOUR, MS_PER_DAY, MS_PER_WEEK } from '@/lib/config/gameConstants';
 import {
  ArrowLeft,
  Mail,
@@ -320,7 +321,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  id: `dm_${Date.now()}_${index}`,
 ...contact,
  lastMessage: "New message...",
- timestamp: Date.now() - Math.random() * 86400000, // Random time in last 24h
+ timestamp: Date.now() - Math.random() * MS_PER_DAY, // Random time in last 24h
  unreadCount: 1,
  isPinned: false,
  clueData: {
@@ -776,9 +777,9 @@ function formatTimestamp(timestamp: number): string {
  const diff = now - timestamp;
  
  if (diff < 60000) return'Now';
- if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
- if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
- if (diff < 604800000) return `${Math.floor(diff / 86400000)}d`;
+ if (diff < MS_PER_HOUR) return `${Math.floor(diff / 60000)}m`;
+ if (diff < MS_PER_DAY) return `${Math.floor(diff / MS_PER_HOUR)}h`;
+ if (diff < MS_PER_WEEK) return `${Math.floor(diff / MS_PER_DAY)}d`;
  return new Date(timestamp).toLocaleDateString();
 }
 

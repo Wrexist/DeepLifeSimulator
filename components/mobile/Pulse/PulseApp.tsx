@@ -15,6 +15,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets } from '@/utils/scaling';
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { PULSE_GRADIENT } from './styles/pulseTheme';
 import PulseFAB from './components/PulseFAB';
 import ScandalBanner from './components/ScandalBanner';
@@ -96,7 +97,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           // Fall back to local-grant in __DEV__ so the perks can be demoed
           // without store config; production builds skip this branch.
           if (__DEV__) {
-            const ms = (plan === 'monthly' ? 30 : 365) * 24 * 60 * 60 * 1000;
+            const ms = (plan === 'monthly' ? 30 : 365) * MS_PER_DAY;
             subscribeVerifiedPro(setGameState, productId, Date.now() + ms);
             setShowProUpsell(false);
           }
@@ -104,7 +105,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
       } catch (err) {
         logger.error('[Pulse] Verified Pro purchase threw', err);
         if (__DEV__) {
-          const ms = (plan === 'monthly' ? 30 : 365) * 24 * 60 * 60 * 1000;
+          const ms = (plan === 'monthly' ? 30 : 365) * MS_PER_DAY;
           subscribeVerifiedPro(setGameState, productId, Date.now() + ms);
           setShowProUpsell(false);
         }

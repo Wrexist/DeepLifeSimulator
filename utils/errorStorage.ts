@@ -8,6 +8,7 @@
 import { safeSetItem, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import type { QueuedError, ErrorLogContext } from '@/lib/types/errors';
 import { logger } from '@/utils/logger';
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { sanitizeErrorContext, truncateError, truncateStack } from '@/lib/types/errors';
 
 const ERROR_STORAGE_KEY = 'error_storage';
@@ -140,7 +141,7 @@ export async function getErrorsInRange(
  */
 export async function cleanupOldErrors(): Promise<number> {
   try {
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const sevenDaysAgo = Date.now() - 7 * MS_PER_DAY;
     const errors = await getStoredErrors();
     const recentErrors = errors.filter(error => error.timestamp > sevenDaysAgo);
     
