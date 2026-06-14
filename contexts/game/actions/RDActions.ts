@@ -19,6 +19,9 @@ import {
 } from '@/lib/rd/competitions';
 import type { Dispatch, SetStateAction } from 'react';
 
+/** Cap per-company competition history to prevent unbounded save/heap growth. */
+const COMPETITION_HISTORY_CAP = 50;
+
 const log = logger.scope('RDActions');
 
 export const buildRDLab = (
@@ -423,13 +426,13 @@ export const enterCompetition = (
       if (c.id !== companyId) return c;
       return {
         ...c,
-        competitionHistory: [...(c.competitionHistory || []), competitionEntry],
+        competitionHistory: [...(c.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
       };
     }),
     company: prev.company?.id === companyId
       ? {
           ...prev.company,
-          competitionHistory: [...(prev.company.competitionHistory || []), competitionEntry],
+          competitionHistory: [...(prev.company.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
         }
       : prev.company,
   }));
