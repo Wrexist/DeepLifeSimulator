@@ -39,6 +39,16 @@
 - **#29** Centralized time-ms constants (`MS_PER_HOUR/DAY/WEEK`) in
   `gameConstants.ts`; replaced ~20 inline `24*60*60*1000`-style literals across
   15 files (pure de-duplication, values identical).
+- **#27 (stylesheet extractions)** Decomposed the 8 stylesheet-heavy mega-files by
+  moving each static `StyleSheet.create` to a sibling `*Styles.ts` (route files'
+  styles moved outside `app/` so expo-router ignores them) and pruning now-unused
+  imports. No behavior change — 308 snapshots + full suite green after each.
+    - `work.tsx` 4,601 → 1,228 · `SettingsModal` 1,919 → 727 · `DeathPopup` 1,901 → 975
+    - `IdentityCard` 1,783 → ~760 · `TopStatsBar` 1,609 → ~1,225 · `SicknessModal` 1,286 → ~775
+    - `LoanManager` 1,276 → ~740 · `market.tsx` 1,257 → ~725
+    - *Remaining ARCH-4 files (`GameActionsContext`, `types.ts`, `lib/events/engine.ts`,
+      `_layout.tsx`) are logic/types, not stylesheet-heavy — they need genuine logic
+      decomposition (#23-class) and are deferred to dedicated tasks.*
 
 **Investigated & debunked as already-resolved (2nd pass):**
 - **#10** NOT a bug — `applyPerkEffects` and the salary path honor BOTH the gem
