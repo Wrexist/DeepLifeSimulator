@@ -9,7 +9,7 @@
  * Tapping opens the ScandalRecoveryModal (provided by the caller).
  */
 import React, { useEffect, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View, AccessibilityInfo, Platform } from 'react-native';
+import { Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize } from '@/utils/scaling';

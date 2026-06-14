@@ -1279,6 +1279,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  currentWeek: nextWeeksLived,
  relationships: processedRelationships,
  rollFor: () => Math.random(),
+ inJail: (prevState.jailWeeks ?? 0) > 0,
  });
 
  // Stocks Remake 6 tick: sector rotation, quarterly dividends,

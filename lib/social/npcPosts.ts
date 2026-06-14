@@ -6,6 +6,7 @@
  */
 
 import { Relationship, SocialPost, GameState } from '@/contexts/game/types';
+import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 
 // Post templates by personality type
 const POST_TEMPLATES: Record<string, string[]> = {
@@ -130,7 +131,7 @@ export function generateNPCPost(
  authorPhoto: relationship.profilePicture,
  authorVerified: relationship.type === 'spouse' || relationship.relationshipScore > 80,
  content,
- timestamp: Date.now() - (Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time in last week
+ timestamp: Date.now() - (Math.random() * MS_PER_WEEK), // Random time in last week
  gameWeek: week,
  likes: Math.floor(Math.random() * baseEngagement * engagementMultiplier) + 1,
  reposts: Math.floor(Math.random() * (baseEngagement * 0.2)) + 1,
@@ -172,7 +173,7 @@ export function generateDatingProfilePost(
  authorHandle: `@${profile.name.toLowerCase().replace(/\s+/g, '')}`,
  authorVerified: false,
  content,
- timestamp: Date.now() - (Math.random() * 7 * 24 * 60 * 60 * 1000),
+ timestamp: Date.now() - (Math.random() * MS_PER_WEEK),
  gameWeek: week,
  likes: Math.floor(Math.random() * baseEngagement) + 10,
  reposts: Math.floor(Math.random() * (baseEngagement * 0.3)) + 1,

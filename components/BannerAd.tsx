@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { adMobService } from '@/services/AdMobService';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
+import { useGameSettings } from '@/contexts/game';
 
 interface BannerAdProps {
   style?: any;
@@ -28,8 +29,16 @@ export default function BannerAd({ style }: BannerAdProps) {
     return unsub;
   }, []);
 
-  // Hide ads if user purchased Remove Ads or Lifetime Premium
-  const adsRemoved = iapService.hasPurchased(IAP_PRODUCTS.REMOVE_ADS)
+  // Hide ads if the user purchased Remove Ads or Lifetime Premium. The
+  // in-memory service check is empty on a cold start until restorePurchases()
+  // completes, so also honor the persisted entitlement saved into game settings
+  // (settings.adsRemoved / lifetimePremium) — otherwise ads flash back for
+  // payers after every relaunch.
+  const settings = useGameSettings();
+  const adsRemoved =
+    settings?.adsRemoved === true
+    || settings?.lifetimePremium === true
+    || iapService.hasPurchased(IAP_PRODUCTS.REMOVE_ADS)
     || iapService.hasPurchased(IAP_PRODUCTS.LIFETIME_PREMIUM);
 
   if (adError || !isReady || adsRemoved) return null;

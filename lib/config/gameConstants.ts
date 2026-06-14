@@ -9,6 +9,12 @@
 export const WEEKS_PER_YEAR = 52;
 export const WEEKS_PER_MONTH = 4;
 
+// Real-world (wall-clock) millisecond durations. Use these instead of inline
+// `24 * 60 * 60 * 1000` style literals so the magic numbers live in one place.
+export const MS_PER_HOUR = 60 * 60 * 1000; // 3_600_000
+export const MS_PER_DAY = 24 * MS_PER_HOUR; // 86_400_000
+export const MS_PER_WEEK = 7 * MS_PER_DAY; // 604_800_000
+
 // ── Pregnancy ────────────────────────────────────────────
 export const PREGNANCY_DURATION_WEEKS = 10; // ~2.5 months game time
 

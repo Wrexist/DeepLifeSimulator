@@ -4,6 +4,7 @@
  */
 
 import type { GameState, LifetimeStatistics } from '@/contexts/game/types';
+import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 import type { SystemInterconnection } from '@/lib/depth/systemInterconnections';
 import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
 
@@ -228,7 +229,7 @@ function calculateTimeSpent(systemId: string, gameState: GameState): number {
     return 0;
   }
 
-  const weeksSinceDiscovery = Math.floor((Date.now() - discoveredSystem.discoveredAt) / (1000 * 60 * 60 * 24 * 7));
+  const weeksSinceDiscovery = Math.floor((Date.now() - discoveredSystem.discoveredAt) / MS_PER_WEEK);
   return Math.min(weeksSinceDiscovery, gameState.weeksLived || 0);
 }
 

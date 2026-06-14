@@ -6,6 +6,7 @@
  */
 
 import { SocialPost } from '@/contexts/game/types';
+import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 
 // Random profile names for posts
 const RANDOM_PROFILE_NAMES = [
@@ -124,7 +125,7 @@ export function generateRandomProfilePost(week: number, _index?: number): Social
  authorPhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&size=200`,
  authorVerified: isVerified,
  content,
- timestamp: Date.now() - (Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time in last week
+ timestamp: Date.now() - (Math.random() * MS_PER_WEEK), // Random time in last week
  gameWeek: week,
  likes: baseLikes,
  reposts: baseReposts,

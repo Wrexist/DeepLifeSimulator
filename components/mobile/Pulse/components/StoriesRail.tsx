@@ -6,11 +6,12 @@
  * tap an NPC bubble to open their profile / DMs (future).
  */
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, AccessibilityInfo, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Radio, Plus } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { PULSE_GRADIENT, PULSE_COLORS, PULSE_MOTION } from '../styles/pulseTheme';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
@@ -33,23 +34,19 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
   const isLive = !!liveSession?.active;
 
   // Loop the live ring pulse when broadcasting
+  const reduced = useReducedMotion();
   useEffect(() => {
-    if (!isLive) return;
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled || reduced) return;
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(ringScale, { toValue: 1.06, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
-          Animated.timing(ringScale, { toValue: 1, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
-        ]),
-      ).start();
-    });
+    if (!isLive || reduced) return;
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(ringScale, { toValue: 1.06, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
+        Animated.timing(ringScale, { toValue: 1, duration: PULSE_MOTION.liveRingLoop / 2, useNativeDriver: true }),
+      ]),
+    ).start();
     return () => {
-      cancelled = true;
       ringScale.stopAnimation();
     };
-  }, [isLive, ringScale]);
+  }, [isLive, ringScale, reduced]);
 
   // NPCs with relationship score >= 30 — show top 8 by score
   const npcStories = useMemo(() => {
@@ -124,7 +121,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
             style={styles.item}
           >
             <View style={[styles.ringInnerStatic, { borderColor: PULSE_GRADIENT[0] }]}>
-              <Avatar uri={(npc as any).profilePicture} fallback={npc.name.slice(0, 1).toUpperCase()} />
+              <Avatar uri={npc.profilePicture} fallback={npc.name.slice(0, 1).toUpperCase()} />
             </View>
             <Text style={[styles.label, { color: theme.text }]} numberOfLines={1}>
               {npc.name.split(' ')[0]}

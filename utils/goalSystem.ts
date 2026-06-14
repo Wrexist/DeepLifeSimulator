@@ -1,5 +1,6 @@
 import { DollarSign, Gem, Heart } from 'lucide-react-native';
 import { resolveAbsoluteWeek } from '@/utils/weekCounters';
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
 
 export interface GoalReward {
   type: 'money' | 'gems' | 'happiness' | 'energy' | 'health';
@@ -291,7 +292,7 @@ export function getGoalTimeRemaining(goal: Goal): string {
   const now = Date.now();
   const remaining = goal.deadline - now;
   if (remaining <= 0) return 'Overdue';
-  const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+  const days = Math.floor(remaining / MS_PER_DAY);
   return `${days} days remaining`;
 }
 

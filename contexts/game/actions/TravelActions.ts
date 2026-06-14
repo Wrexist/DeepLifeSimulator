@@ -10,6 +10,9 @@ import type { Dispatch, SetStateAction } from 'react';
 
 const log = logger.scope('TravelActions');
 
+/** Cap travel history at write time (matches the save-prune cap) to bound growth. */
+const TRAVEL_HISTORY_CAP = 100;
+
 /** Deterministic per-trip RNG — same trip + week always rolls the same events. */
 function makeTripRoller(seedKey: string): (key: string) => number {
   const hash = (s: string): number => {
@@ -68,7 +71,7 @@ export const travelTo = (
           week: prev.weeksLived || 0,
           year: prev.date.year,
         },
-      ],
+      ].slice(-TRAVEL_HISTORY_CAP),
       businessOpportunities: prev.travel?.businessOpportunities || {},
     } as TravelState,
   }));

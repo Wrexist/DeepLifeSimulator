@@ -5,10 +5,11 @@
  * outline that opens the Pulse Pro upsell modal on tap.
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View, AccessibilityInfo } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale } from '@/utils/scaling';
 import { PULSE_GRADIENT, PULSE_MOTION } from '../styles/pulseTheme';
 
@@ -27,21 +28,15 @@ export default function VerifiedBadge({
   const { theme } = useTheme();
   const shineX = useRef(new Animated.Value(-size)).current;
 
+  const reduced = useReducedMotion();
   useEffect(() => {
-    if (!verified) return;
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (cancelled || reduced) return;
-      Animated.timing(shineX, {
-        toValue: size * 2,
-        duration: PULSE_MOTION.verifiedShine,
-        useNativeDriver: true,
-      }).start();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [verified, size, shineX]);
+    if (!verified || reduced) return;
+    Animated.timing(shineX, {
+      toValue: size * 2,
+      duration: PULSE_MOTION.verifiedShine,
+      useNativeDriver: true,
+    }).start();
+  }, [verified, size, shineX, reduced]);
 
   if (!verified) {
     if (!showUpsellOnTapIfUnverified) return null;

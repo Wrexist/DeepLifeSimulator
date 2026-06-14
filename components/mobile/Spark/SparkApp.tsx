@@ -265,12 +265,12 @@ function ProfileTab() {
             <Image source={getDatingProfileImage(profile.gender)} style={styles.profileAvatarImg} />
           ) : (
             <Text style={styles.profileAvatarInitial}>
-              {((profile as any).displayName || profile.name || 'Y').slice(0, 1).toUpperCase()}
+              {(profile.displayName || profile.name || 'Y').slice(0, 1).toUpperCase()}
             </Text>
           )}
         </LinearGradient>
         <Text style={[styles.profileName, { color: theme.text }]}>
-          {(profile as any).displayName || profile.name || 'You'}
+          {profile.displayName || profile.name || 'You'}
           {gameState.date?.age ? `, ${Math.floor(gameState.date.age)}` : ''}
         </Text>
         {sparkProfile?.bio ? (

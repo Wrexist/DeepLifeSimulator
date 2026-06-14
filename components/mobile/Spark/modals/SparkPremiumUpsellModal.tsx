@@ -12,6 +12,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { subscribeSparkPremium } from '@/contexts/game/actions/SparkActions';
 import { SPARK_GRADIENT, SPARK_GRADIENT_GOLD, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
@@ -46,7 +47,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
     (tier: 'plus' | 'ultra') => {
       sparkHaptics.boost();
       const sku = tier === 'ultra' ? 'deeplife_spark_ultra_monthly' : 'deeplife_spark_plus_monthly';
-      const expires = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      const expires = Date.now() + 30 * MS_PER_DAY;
       subscribeSparkPremium(setGameState, tier, sku, expires);
       saveGame();
       onDismiss();

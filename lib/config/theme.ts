@@ -90,8 +90,12 @@ export const colors = {
     border: 'rgba(0, 0, 0, 0.08)',
     borderStrong: 'rgba(0, 0, 0, 0.15)',
     text: palette.dark900,
-    textSecondary: palette.light400,
-    textMuted: palette.light300,
+    // Light-mode secondary/muted text on the near-white light50 background.
+    // The previous light400/light300 grays were ~2.6:1 and ~1.4:1 contrast —
+    // both fail WCAG AA. Darker slate tokens keep secondary more prominent than
+    // muted while passing AA (~7:1 and ~4.8:1 on light50).
+    textSecondary: palette.dark600,
+    textMuted: palette.dark500,
     overlay: 'rgba(0, 0, 0, 0.4)',
     glassBg: 'rgba(255, 255, 255, 0.3)',
     glassBorder: 'rgba(255, 255, 255, 0.4)',
