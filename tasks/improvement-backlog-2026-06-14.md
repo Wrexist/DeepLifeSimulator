@@ -13,6 +13,51 @@
 
 ---
 
+## ✅ Progress — fix session 2026-06-14 (verified: type-check 0 errors, 2387 tests pass)
+
+**Fixed & committed this session:**
+- **#12** Capped stacked perk income multiplier at 2.0× (`applyIncome.ts`).
+- **#13** SicknessModal now shows honest "terminal, no cure" text for incurable
+  diseases with `weeksUntilDeath` (was telling players to "seek treatment" / that
+  it "can be managed").
+- **#14** Dark-web raids no longer pile jail time onto an existing sentence
+  (threaded `inJail` through `runDarkWebWeeklyTick`).
+- **#22** Write-time caps on `competitionHistory` (50) and `travelHistory` (100).
+  (`lifeMilestones`/`netWorthHistory` were already write-capped — claim was stale.)
+- **#19** New money-conservation invariant test (`moneyConservation.stress.test.ts`).
+- **#28** Deleted dead components `NetWorthDisplay.tsx`, `TombstonePopup.tsx`.
+- **#35** Fixed light-mode `textSecondary`/`textMuted` WCAG-AA contrast failure
+  (was ~2.6:1 / ~1.4:1 on near-white bg → now ~7:1 / ~4.8:1).
+- **#7** BannerAd now honors the persisted `settings.adsRemoved`/`lifetimePremium`
+  entitlement (no ad flash for payers on cold start). *(Component is currently
+  unmounted — latent fix.)*
+- **#6 (partial)** Added the 3 missing `*_ANDROID` ad-unit env vars to the CI
+  preflight step.
+
+**Found already fixed / stale claims (no action needed):**
+- **#34** expo-blur: all 5 "direct imports" are commented out — zero live imports,
+  crash risk already eliminated.
+- **#22** `lifeMilestones` and `netWorthHistory` were already write-capped.
+- Round-11 PERF-1/PERF-2, the dead bank IAPs, ARCH-1 simulator-in-bundle, iOS
+  splash, and `useGame() as any` were already resolved (noted at bottom).
+
+**Deliberately NOT done (needs ops or a dedicated effort — see notes inline):**
+- **#1–#4** Ops-only (IAP backend, AdMob secrets, HMAC secret, key rotation).
+- **#6 (gate flip)** Flipping `continue-on-error` would break CI unless secrets
+  are first mirrored into GitHub Actions — an ops decision, not flipped blindly.
+- **#10** `goldUpgrades.work_boost/fast_learner/mindset` are read by live tick
+  effects but IAP writes `perks.*` — this may be a *real* "purchased upgrade does
+  nothing" bug, not dead code. Needs a focused monetization-effects audit before
+  any change.
+- **#18, #21, #23, #25, #27, #29, #31, #32, #33, #36, #37** — multi-sprint
+  refactors (income ledger, as-any burndown, nextWeek decomposition, selector
+  migration, mega-file split, hex/token migration, modal migration, a11y pass,
+  fontScale sweep, reduced-motion hook). Too large to land safely in one batch.
+- **#17** `applyGemDelta` helper — valuable but its value is in routing *all* gem
+  grants through it; a partial migration would add inconsistency. Scope as its own task.
+
+---
+
 ## 1. Release & revenue blockers (P0 — mostly ops, small code surface)
 
 | # | Sev | Item | Evidence / action |
