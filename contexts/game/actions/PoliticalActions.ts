@@ -4,6 +4,7 @@
  * Core political gameplay mechanics
  */
 import { GameState, PoliticsState } from '../types';
+import { initialGameState } from '../initialState';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
@@ -794,7 +795,7 @@ export const raisePACClean = (
       log.warn(`PAC raise rejected: amount=${amountUSD}, cash=${cash}`);
       return prev;
     }
-    const politics = ensurePoliticsHasNewFields(prev.politics ?? ({} as any));
+    const politics = ensurePoliticsHasNewFields(prev.politics ?? initialGameState.politics!);
     const next = pacRaiseClean(politics, amountUSD, prev.weeksLived);
     return {
       ...prev,
@@ -821,7 +822,7 @@ export const raisePACDirty = (
       return prev;
     }
     const price = btc?.price ?? 0;
-    const politics = ensurePoliticsHasNewFields(prev.politics ?? ({} as any));
+    const politics = ensurePoliticsHasNewFields(prev.politics ?? initialGameState.politics!);
     const r = pacRaiseDirty(politics, btcAmount, price, prev.weeksLived);
     log.info(`Funneled ${btcAmount} BTC ($${Math.round(r.usdConverted).toLocaleString()}) through the PAC`);
     return {
@@ -844,7 +845,7 @@ export const spendPACOnCampaign = (
 ) => {
   setGameState((prev) => {
     if (amountUSD <= 0) return prev;
-    const politics = ensurePoliticsHasNewFields(prev.politics ?? ({} as any));
+    const politics = ensurePoliticsHasNewFields(prev.politics ?? initialGameState.politics!);
     const r = pacSpend(politics, amountUSD);
     if (r.spentUSD === 0) {
       log.warn(`PAC spend rejected: empty PAC`);
@@ -872,7 +873,7 @@ export const suppressPoliticalScandal = (
       log.warn(`Suppress rejected: amount=${amountUSD}, cash=${cash}`);
       return prev;
     }
-    const politics = ensurePoliticsHasNewFields(prev.politics ?? ({} as any));
+    const politics = ensurePoliticsHasNewFields(prev.politics ?? initialGameState.politics!);
     const next = applySuppression(politics, scandalId, amountUSD);
     if (!next) {
       log.warn(`Suppress rejected: scandal ${scandalId} not active`);

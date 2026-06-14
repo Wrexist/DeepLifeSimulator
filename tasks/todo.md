@@ -1,5 +1,24 @@
 # Task Tracker
 
+## `as any` burndown (#21) — gameplay/state casts — June 14, 2026
+
+Goal: eliminate the **gameplay/state** `as any` casts that defeat type-checking on
+already-typed GameState fields (the `.totalKarma`-class silent-bug source). Leave
+RN-web style-prop casts in `*Styles.ts` and test-file casts for later.
+Verification gate after EACH file: `tsc -p tsconfig.typecheck.json` → 0 errors; full suite at the end.
+
+- [x] lib/statistics/crossSystemSummary.ts — already clean (the 5 hits were comments)
+- [x] contexts/game/actions/PoliticalActions.ts (4) — `{} as any` → `initialGameState.politics!`
+- [x] components/computer/AdvancedBankApp.tsx (4) — removed `as any[]` (Crypto/RealEstate/Company/Relationship are typed)
+- [x] components/mobile/ContactsApp.tsx (5) — `(gameState as any).politics/travel/favorLedger` are typed; `c.raw as any` → `as Relationship`
+- [x] components/mobile/Pulse/screens/ProfileScreen.tsx (4) — UserProfile already declares the fields
+- [skip] components/AchievementsProgress.tsx (4) — all RN-web `boxShadow` style casts (noise)
+- [skip] components/ShopModal.tsx (7) — all RN-web style casts (noise)
+- [skip] app/(tabs)/progression.tsx (9) — all RN-web style casts (noise)
+
+Out of scope: `*Styles.ts` RN-web style casts, `__tests__/**` casts, promoting the eslint rule to `error`.
+
+
 ## Loading screen + warnings + report-popup fixes - June 12, 2026
 
 Branch: `claude/loading-screen-warnings-fixes-j3fohl`. Scope confirmed with user:

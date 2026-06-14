@@ -60,12 +60,12 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
   const isVerified = !!profile.verified;
 
   const displayName =
-    (profile as any).displayName || profile.name || profile.handle || 'You';
+    profile.displayName || profile.name || profile.handle || 'You';
   const handle = profile.handle || profile.username || 'you';
   const bio = profile.bio || 'No bio yet — tap edit profile to add one.';
-  const location = (profile as any).location;
-  const website = (profile as any).website;
-  const joinedDate = (profile as any).joinedDate;
+  const location = profile.location;
+  const website = profile.website;
+  const joinedDate = profile.joinedDate;
 
   const filteredPosts = useCallback(() => {
     switch (activeTab) {

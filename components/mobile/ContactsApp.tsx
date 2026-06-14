@@ -42,6 +42,7 @@ import {
   X as XIcon,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger } from '@/lib/contacts/favors';
 import { goOnDate, giveGift } from '@/contexts/game/actions/DatingActions';
@@ -89,10 +90,10 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       gameState.relationships,
-      (gameState as any).politics?.lobbyists,
-      (gameState as any).politics?.alliances,
+      gameState.politics?.lobbyists,
+      gameState.politics?.alliances,
       gameState.darkWeb?.vendors,
-      (gameState as any).travel?.businessOpportunities,
+      gameState.travel?.businessOpportunities,
       gameState.companies,
     ]
   );
@@ -106,7 +107,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
   const needAttention = useMemo(() => contactsNeedingAttention(allContacts), [allContacts]);
 
-  const ledger: FavorLedger = (gameState as any).favorLedger ?? { favors: [] };
+  const ledger: FavorLedger = gameState.favorLedger ?? { favors: [] };
   const open = useMemo(() => openFavors(ledger), [ledger]);
   const moneyPos = useMemo(() => netMoneyPosition(ledger), [ledger]);
 
@@ -195,7 +196,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderPersonalCard = (c: ContactView) => {
-    const r = c.raw as any;
+    const r = c.raw as Relationship;
     const expanded = expandedId === c.id;
     const isPartner = c.kind === 'partner';
     return (

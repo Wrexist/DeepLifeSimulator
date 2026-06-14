@@ -125,9 +125,9 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const stocks = gameState.stocks?.holdings ?? [];
     for (const h of stocks) nw += h.shares * h.currentPrice;
     const cryptos = gameState.cryptos ?? [];
-    for (const c of cryptos as any[]) nw += (c.owned ?? 0) * (c.price ?? 0);
+    for (const c of cryptos) nw += (c.owned ?? 0) * (c.price ?? 0);
     const re = gameState.realEstate ?? [];
-    for (const p of re as any[]) {
+    for (const p of re) {
       if (p.owned) nw += p.currentValue ?? p.price ?? 0;
     }
     return nw;
@@ -141,8 +141,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       const safeLevel = Math.max(0, Math.min(job.level, job.levels.length - 1));
       income += job.levels[safeLevel]?.salary ?? 0;
     }
-    for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
-    for (const rel of (gameState.relationships ?? []) as any[]) {
+    for (const co of (gameState.companies ?? [])) income += co.weeklyIncome ?? 0;
+    for (const rel of (gameState.relationships ?? [])) {
       if (rel?.income && (rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 50) {
         income += Math.round(rel.income * 0.25);
       }
