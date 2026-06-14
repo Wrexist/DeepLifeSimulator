@@ -33,6 +33,22 @@
   unmounted — latent fix.)*
 - **#6 (partial)** Added the 3 missing `*_ANDROID` ad-unit env vars to the CI
   preflight step.
+- **#37** Added shared reactive `hooks/useReducedMotion.ts` and migrated all 7
+  Pulse/Spark animation files to it (removed 8 duplicated one-shot a11y calls;
+  animations now respond live to the OS Reduce Motion toggle).
+- **#29** Centralized time-ms constants (`MS_PER_HOUR/DAY/WEEK`) in
+  `gameConstants.ts`; replaced ~20 inline `24*60*60*1000`-style literals across
+  15 files (pure de-duplication, values identical).
+
+**Investigated & debunked as already-resolved (2nd pass):**
+- **#10** NOT a bug — `applyPerkEffects` and the salary path honor BOTH the gem
+  `goldUpgrades.*` AND the IAP `perks.*` sources for work_boost/fast_learner/
+  mindset. The "vestigial reads" claim was stale.
+- **#17 (core already exists)** The highest-risk gem grant (achievements) already
+  has an idempotency ledger (`claimedProgressAchievements` + authoritative
+  same-batch guard inside the updater) — the double-claim class is closed where it
+  matters. A generic `applyGemDelta` rollout across ~10 spend sites is modest-value
+  / real-risk, so deferred rather than churned.
 
 **Found already fixed / stale claims (no action needed):**
 - **#34** expo-blur: all 5 "direct imports" are commented out — zero live imports,
