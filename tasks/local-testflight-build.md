@@ -134,7 +134,7 @@ directly in Xcode (`npx expo prebuild --platform ios --clean` → open the
 ## CI option — build on a GitHub macOS runner (no Mac needed, no cloud credits)
 
 Workflow: `.github/workflows/eas-build-local-ios.yml` — manual trigger
-(Actions ▸ "EAS Build iOS (local · no cloud credits)" ▸ Run workflow). It runs
+(Actions ▸ "iOS TestFlight (local build · no cloud credits)" ▸ Run workflow). It runs
 the cheap gates on ubuntu, then `eas build --local` + TestFlight submit on
 `macos-latest`. macOS minutes bill ~10x, so the gates fail fast on ubuntu first.
 
