@@ -95,6 +95,11 @@ export function useGamePrestige() {
   return gameState.prestige;
 }
 
+export function useGameSettings() {
+  const { gameState } = useGameState();
+  return gameState.settings;
+}
+
 /**
  * Combined hook that provides access to all game contexts.
  * Prefer specific hooks (useGameState, useMoneyActions, etc.) for better performance.
