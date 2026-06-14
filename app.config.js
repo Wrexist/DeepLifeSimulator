@@ -1,5 +1,8 @@
-// Single source of truth: version from package.json
-const { version } = require('./package.json');
+// Marketing version (CFBundleShortVersionString): defaults to package.json,
+// overridable per-build via the APP_VERSION env var (set by the iOS TestFlight
+// workflow's "Marketing version" input). package.json stays the default source.
+const { version: pkgVersion } = require('./package.json');
+const version = process.env.APP_VERSION || pkgVersion;
 // Build number can be overridden via EAS: BUILD_NUMBER env variable
 const buildNumber = process.env.BUILD_NUMBER || "99";
 const admobAppId = process.env.ADMOB_APP_ID || process.env.EXPO_PUBLIC_ADMOB_APP_ID || "ca-app-pub-2286247955186424~7015403477";
