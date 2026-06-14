@@ -60,7 +60,7 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
  const expenses = useMemo(
  () => calcWeeklyExpenses(gameState as typeof gameState & { loans?: LoanSummary[] }),
  // eslint-disable-next-line react-hooks/exhaustive-deps
- [gameState.realEstate, gameState.vehicles, (gameState as any).loans]
+ [gameState.realEstate, gameState.vehicles, gameState.loans]
  );
  const loans = ((gameState as typeof gameState & { loans?: LoanSummary[] }).loans) || [];
  const totalLoanDebt = useMemo(

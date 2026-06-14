@@ -233,14 +233,14 @@ export function getMemoryContext(
   
   // Find memory related to this event
   const memory = memories.find(m => {
-    if ('relatedEventId' in m && (m as any).relatedEventId === currentEventId) {
+    if ('relatedEventId' in m && m.relatedEventId === currentEventId) {
       return true;
     }
     return false;
   });
-  
+
   if (memory) {
-    return `You remember: ${memory.description || (memory as any).text}`;
+    return `You remember: ${memory.description}`;
   }
   
   return null;

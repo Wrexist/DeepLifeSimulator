@@ -184,11 +184,11 @@ export const composePost = (
     sm.influenceLevel = getInfluenceLevel(sm.followers);
     sm.lastPostWeek = weeksLived;
     sm.lastPostWeeks = {
-      ...(sm.lastPostWeeks ?? ({} as any)),
+      ...(sm.lastPostWeeks ?? ({} as Record<PulseContentType, number>)),
       [args.contentType]: weeksLived,
     };
     sm.lastPostTimes = {
-      ...(sm.lastPostTimes ?? ({} as any)),
+      ...(sm.lastPostTimes ?? ({} as Record<PulseContentType, number>)),
       [args.contentType]: Date.now(),
     };
     sm.recentPosts = [newPost, ...(sm.recentPosts ?? [])].slice(0, 50);
