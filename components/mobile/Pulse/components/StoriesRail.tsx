@@ -121,7 +121,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
             style={styles.item}
           >
             <View style={[styles.ringInnerStatic, { borderColor: PULSE_GRADIENT[0] }]}>
-              <Avatar uri={(npc as any).profilePicture} fallback={npc.name.slice(0, 1).toUpperCase()} />
+              <Avatar uri={npc.profilePicture} fallback={npc.name.slice(0, 1).toUpperCase()} />
             </View>
             <Text style={[styles.label, { color: theme.text }]} numberOfLines={1}>
               {npc.name.split(' ')[0]}

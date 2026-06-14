@@ -57,8 +57,8 @@ export default function ProfileEditModal({ visible, onDismiss }: ProfileEditModa
     displayName: profile.displayName || profile.name || profile.handle || '',
     handle: profile.handle || profile.username || '',
     bio: profile.bio || '',
-    location: (profile as any).location || '',
-    website: (profile as any).website || '',
+    location: profile.location || '',
+    website: profile.website || '',
   }), [profile]);
 
   const [displayName, setDisplayName] = useState(initial.displayName);

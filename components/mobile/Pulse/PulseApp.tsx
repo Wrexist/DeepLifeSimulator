@@ -219,7 +219,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
               style={[styles.headerAvatar, styles.headerAvatarFallback]}
             >
               <Text style={styles.headerAvatarLetter}>
-                {((profile as any).displayName || profile.name || profile.handle || 'Y')
+                {(profile.displayName || profile.name || profile.handle || 'Y')
                   .slice(0, 1)
                   .toUpperCase()}
               </Text>
