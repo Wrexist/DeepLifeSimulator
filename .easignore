@@ -2,6 +2,21 @@
 .expo/
 node_modules/
 
+# Git metadata — never needed in the build and the single biggest source of
+# upload bloat (~271 MB, ~half the archive). EAS reads the commit hash from the
+# local repo before archiving, so excluding .git from the upload is safe.
+.git/
+
+# Marketing assets (promo videos, content calendar) — shipped to socials, not the app
+marketing/
+
+# Dev planning docs, audits, and CI baselines (jest/tsc snapshots) — not needed for build
+tasks/
+
+# Jest mocks and test-automation output — not needed for build
+__mocks__/
+output/
+
 # Native folders — let EAS Build regenerate via CNG/Prebuild
 /ios
 /android
