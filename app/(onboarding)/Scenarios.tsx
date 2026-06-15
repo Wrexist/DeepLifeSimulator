@@ -152,6 +152,140 @@ const safeGetDifficultyColor = (difficulty: ChallengeScenarioDefinition['difficu
   return fallbackDifficultyColor(difficulty);
 };
 
+interface ScenarioCardViewProps {
+  scenario: ScenarioCard;
+  isSelected: boolean;
+  onSelect: (scenario: ScenarioCard) => void;
+}
+
+// R-perf: memoized so selecting a scenario only re-renders the affected cards
+// instead of the whole list (each card is a BlurView + LinearGradient).
+const ScenarioCardView = React.memo(function ScenarioCardView({
+  scenario,
+  isSelected,
+  onSelect,
+}: ScenarioCardViewProps) {
+  const isChallenge = 'isChallenge' in scenario && scenario.isChallenge;
+  const isRecommended = !isChallenge && scenario.id === RECOMMENDED_SCENARIO_ID;
+  const rewardGems = isChallenge ? scenario.rewardGems : 0;
+  const difficultyBadgeColor = isChallenge
+    ? safeGetDifficultyColor(scenario.difficultyKey)
+    : '#6B7280';
+  const difficultyColor =
+    scenario.difficulty === 'Easy'
+      ? '#10B981'
+      : scenario.difficulty === 'Moderate'
+        ? '#3B82F6'
+        : scenario.difficulty === 'Hard'
+          ? '#F59E0B'
+          : '#6B7280';
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.92}
+      style={styles.cardContainer}
+      onPress={() => onSelect(scenario)}
+    >
+      <BlurView intensity={20} style={styles.cardBlur}>
+        <LinearGradient
+          colors={
+            isSelected
+              ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
+              : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.card, isSelected && styles.cardSelected]}
+        >
+          {isRecommended ? (
+            <View style={styles.recommendedBanner}>
+              <Star size={12} color="#FFFFFF" />
+              <Text style={styles.recommendedBannerText}>RECOMMENDED FOR BEGINNERS</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.cardHeader}>
+            <Image source={scenario.icon} style={styles.cardImage} />
+            <View style={styles.cardTextWrap}>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.cardTitle}>{scenario.title}</Text>
+                {isChallenge ? (
+                  <View style={[styles.difficultyChip, { backgroundColor: difficultyBadgeColor }]}>
+                    <Text style={styles.difficultyText}>
+                      {scenario.difficulty.toUpperCase()}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={[styles.difficultyChip, { backgroundColor: difficultyColor }]}>
+                    <Text style={styles.difficultyText}>
+                      {scenario.difficulty.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.cardDescription}>{scenario.description}</Text>
+              <Text style={styles.goalText}>Goal: {scenario.lifeGoal}</Text>
+            </View>
+            {isSelected ? (
+              <View style={styles.selectedDot}>
+                <Check size={scale(14)} color="#10B981" />
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statCell}>
+              <Text style={styles.statLabel}>Age</Text>
+              <Text style={styles.statValue}>{scenario.start.age}</Text>
+            </View>
+            <View style={styles.statCell}>
+              <Text style={styles.statLabel}>Cash</Text>
+              <Text style={styles.statValue}>{formatMoney(scenario.start.cash)}</Text>
+            </View>
+            <View style={styles.statCell}>
+              <Text style={styles.statLabel}>Study</Text>
+              <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
+            </View>
+            {isChallenge ? (
+              <View style={styles.statCell}>
+                <Text style={styles.statLabel}>Reward</Text>
+                <View style={styles.rewardRow}>
+                  <Gem size={scale(13)} color="#FBBF24" />
+                  <Text style={styles.rewardValue}>{rewardGems}</Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+
+          {scenario.start.items?.length ||
+          scenario.start.traits?.length ||
+          (isChallenge && scenario.iconEmoji) ? (
+            <View style={styles.tagsWrap}>
+              {isChallenge && scenario.iconEmoji ? (
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>{scenario.iconEmoji} Challenge</Text>
+                </View>
+              ) : null}
+              {scenario.start.items?.map((item) => (
+                <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
+                  <Text style={styles.tagText}>
+                    {getScenarioItemIcon(item)} {formatTokenLabel(item)}
+                  </Text>
+                </View>
+              ))}
+              {scenario.start.traits?.map((trait) => (
+                <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
+                  <Text style={styles.tagText}>TRAIT {formatTokenLabel(trait)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </LinearGradient>
+      </BlurView>
+    </TouchableOpacity>
+  );
+});
+
 export default function Scenarios() {
   const log = logger.scope('Scenarios');
   const router = useRouter();
@@ -261,29 +395,23 @@ export default function Scenarios() {
     return true;
   });
 
-  const selectLifePath = (scenarioId: string) => {
-    const selected = LIFE_PATH_SCENARIOS.find((entry) => entry.id === scenarioId);
-    if (!selected) {
-      Alert.alert('Selection Error', 'This life path could not be loaded. Please try another option.');
-      return;
-    }
-
-    haptic.selection();
-    setSelectedId(selected.id);
-    setState((prev) => applyLifePathSelectionToOnboardingState(prev, selected));
-  };
-
-  const selectChallenge = (scenarioId: string) => {
-    const selected = challengeScenarios.find((entry) => entry.id === scenarioId);
-    if (!selected) {
-      Alert.alert('Selection Error', 'This challenge could not be loaded. Please try another option.');
-      return;
-    }
-
-    haptic.selection();
-    setSelectedId(selected.id);
-    setState((prev) => applyChallengeSelectionToOnboardingState(prev, selected, CHALLENGE_FALLBACK_ICON));
-  };
+  // R-perf: a single STABLE selection handler passed to the memoized scenario
+  // cards. Takes the scenario object directly — each card is rendered from the
+  // canonical list, so the old id-lookup + not-found Alert was redundant.
+  const onSelectScenario = useCallback(
+    (scenario: ScenarioCard) => {
+      haptic.selection();
+      setSelectedId(scenario.id);
+      if ('isChallenge' in scenario && scenario.isChallenge) {
+        setState((prev) =>
+          applyChallengeSelectionToOnboardingState(prev, scenario, CHALLENGE_FALLBACK_ICON)
+        );
+      } else {
+        setState((prev) => applyLifePathSelectionToOnboardingState(prev, scenario));
+      }
+    },
+    [setState]
+  );
 
   const continueToCustomize = () => {
     if (!canContinueFromScenarioSelection(selectedScenario)) {
@@ -373,129 +501,14 @@ export default function Scenarios() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
       >
-        {currentScenarios.map((scenario) => {
-          const isSelected = scenario.id === selectedId;
-          const isChallenge = 'isChallenge' in scenario && scenario.isChallenge;
-          const isRecommended = !isChallenge && scenario.id === RECOMMENDED_SCENARIO_ID;
-          const rewardGems = isChallenge ? scenario.rewardGems : 0;
-          const difficultyBadgeColor = isChallenge ? safeGetDifficultyColor(scenario.difficultyKey) : '#6B7280';
-          const difficultyColor =
-            scenario.difficulty === 'Easy' ? '#10B981' :
-            scenario.difficulty === 'Moderate' ? '#3B82F6' :
-            scenario.difficulty === 'Hard' ? '#F59E0B' : '#6B7280';
-
-          return (
-            <TouchableOpacity
-              key={scenario.id}
-              activeOpacity={0.92}
-              style={styles.cardContainer}
-              onPress={() => {
-                if (isChallenge) {
-                  selectChallenge(scenario.id);
-                  return;
-                }
-                selectLifePath(scenario.id);
-              }}
-            >
-              <BlurView intensity={20} style={styles.cardBlur}>
-                <LinearGradient
-                  colors={
-                    isSelected
-                      ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
-                      : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.card, isSelected && styles.cardSelected]}
-                >
-                  {isRecommended ? (
-                    <View style={styles.recommendedBanner}>
-                      <Star size={12} color="#FFFFFF" />
-                      <Text style={styles.recommendedBannerText}>RECOMMENDED FOR BEGINNERS</Text>
-                    </View>
-                  ) : null}
-
-                  <View style={styles.cardHeader}>
-                    <Image source={scenario.icon} style={styles.cardImage} />
-                    <View style={styles.cardTextWrap}>
-                      <View style={styles.cardTitleRow}>
-                        <Text style={styles.cardTitle}>{scenario.title}</Text>
-                        {isChallenge ? (
-                          <View style={[styles.difficultyChip, { backgroundColor: difficultyBadgeColor }]}>
-                            <Text style={styles.difficultyText}>
-                              {scenario.difficulty.toUpperCase()}
-                            </Text>
-                          </View>
-                        ) : (
-                          <View style={[styles.difficultyChip, { backgroundColor: difficultyColor }]}>
-                            <Text style={styles.difficultyText}>
-                              {scenario.difficulty.toUpperCase()}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.cardDescription}>{scenario.description}</Text>
-                      <Text style={styles.goalText}>Goal: {scenario.lifeGoal}</Text>
-                    </View>
-                    {isSelected ? (
-                      <View style={styles.selectedDot}>
-                        <Check size={scale(14)} color="#10B981" />
-                      </View>
-                    ) : null}
-                  </View>
-
-                  <View style={styles.statsRow}>
-                    <View style={styles.statCell}>
-                      <Text style={styles.statLabel}>Age</Text>
-                      <Text style={styles.statValue}>{scenario.start.age}</Text>
-                    </View>
-                    <View style={styles.statCell}>
-                      <Text style={styles.statLabel}>Cash</Text>
-                      <Text style={styles.statValue}>{formatMoney(scenario.start.cash)}</Text>
-                    </View>
-                    <View style={styles.statCell}>
-                      <Text style={styles.statLabel}>Study</Text>
-                      <Text style={styles.statValue}>
-                        {scenario.start.education || 'None'}
-                      </Text>
-                    </View>
-                    {isChallenge ? (
-                      <View style={styles.statCell}>
-                        <Text style={styles.statLabel}>Reward</Text>
-                        <View style={styles.rewardRow}>
-                          <Gem size={scale(13)} color="#FBBF24" />
-                          <Text style={styles.rewardValue}>{rewardGems}</Text>
-                        </View>
-                      </View>
-                    ) : null}
-                  </View>
-
-                  {(scenario.start.items?.length || scenario.start.traits?.length || (isChallenge && scenario.iconEmoji)) ? (
-                    <View style={styles.tagsWrap}>
-                      {isChallenge && scenario.iconEmoji ? (
-                        <View style={styles.tag}>
-                          <Text style={styles.tagText}>{scenario.iconEmoji} Challenge</Text>
-                        </View>
-                      ) : null}
-                      {scenario.start.items?.map((item) => (
-                        <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
-                          <Text style={styles.tagText}>
-                            {getScenarioItemIcon(item)} {formatTokenLabel(item)}
-                          </Text>
-                        </View>
-                      ))}
-                      {scenario.start.traits?.map((trait) => (
-                        <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
-                          <Text style={styles.tagText}>TRAIT {formatTokenLabel(trait)}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-                </LinearGradient>
-              </BlurView>
-            </TouchableOpacity>
-          );
-        })}
+        {currentScenarios.map((scenario) => (
+          <ScenarioCardView
+            key={scenario.id}
+            scenario={scenario}
+            isSelected={scenario.id === selectedId}
+            onSelect={onSelectScenario}
+          />
+        ))}
 
         <View style={{ height: 140 }} />
       </ScrollView>

@@ -56,17 +56,17 @@ feel instant — the same fix classes applied in-game. Type-checks clean.
       All existing in-flight guards, error/Alert paths, and the `navigating` finally logic preserved.
 - [x] **Stage C** — `SettingsModal` Discord glow `Animated.loop` → `useNativeDriver:true` (it only
       drives opacity+scale). Removes JS-thread churn while Settings is open. (Also helps in-game.)
-- [x] **Stage D (partial)** — memoized the 8 Perks background particle positions (were re-rolling
-      `Math.random()` every render → visible flicker).
+- [x] **Stage D** — memoized the 8 Perks background particle positions (were re-rolling
+      `Math.random()` every render → visible flicker) AND extracted the three heavy selectable
+      lists into `React.memo` card components so toggling one selection no longer re-renders the
+      whole list: `PerkCard` + `MindsetCard` (Perks.tsx, with stable `toggle`/`selectMindset`
+      `useCallback`s) and `ScenarioCardView` (Scenarios.tsx, with a single stable `onSelectScenario`
+      that takes the scenario object directly — dropping the redundant id-lookup + Alert). The
+      discriminated-union (`isChallenge`) narrowing is preserved in the extracted card.
 - [x] **Stage E (partial)** — `Perks` now subscribes to only `achievements` via `useGameSelector`
       instead of the whole `useGameState()`.
 
 **Deferred (documented):**
-- **Card `React.memo` extraction** (perk / mindset / scenario list items) — toggling a selection
-  re-renders all cards. The right fix is extracting each card to a memoized component, but it's the
-  riskiest change in an onboarding flow with **no automated test coverage**, and the cards use the
-  opacity-based `BlurViewFallback` (not native blur), so per-card cost is moderate. Consistent with
-  the in-game discipline of deferring risky re-render refactors. Clean follow-up.
 - **Remaining Stage E selector swaps** (`_layout.tsx`, `MainMenu`, `GlassActionButton` darkMode) —
   nil felt benefit pre-game (state doesn't tick when no game is running); skipped to avoid churn.
 
