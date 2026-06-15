@@ -1,9 +1,11 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-// Use leaf GameStateContext directly to avoid the GameContext barrel import cycle
-// (the barrel imports GameProvider which imports IAPHandler, which historically
-// re-imported the barrel and produced an "Element type is invalid" crash here).
-import { useGameState } from '@/contexts/game/GameStateContext';
+// Use the leaf useGameSelector channel directly to avoid the GameContext barrel
+// import cycle (the barrel imports GameProvider which imports IAPHandler, which
+// historically re-imported the barrel and produced an "Element type is invalid"
+// crash here). Selecting only `darkMode` also stops this layout — and every
+// onboarding screen under it — from re-rendering on unrelated state changes.
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { getThemeColors } from '@/lib/config/theme';
 
 // CRITICAL: the (onboarding) group has NO index route, so navigating to it (e.g.
@@ -15,8 +17,7 @@ import { getThemeColors } from '@/lib/config/theme';
 export const unstable_settings = { initialRouteName: 'MainMenu' };
 
 export default function OnboardingLayout() {
-  const { gameState } = useGameState();
-  const isDarkMode = gameState?.settings?.darkMode ?? true;
+  const isDarkMode = useGameSelector((s) => s?.settings?.darkMode ?? true);
   const colors = getThemeColors(isDarkMode);
 
   return (

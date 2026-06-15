@@ -18,7 +18,7 @@ import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
 // this screen's module init — a require cycle that left this screen's default
 // export `undefined` in the production Hermes bundle ("Element type is invalid").
-import { useGameState } from '@/contexts/game/GameStateContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
@@ -39,7 +39,6 @@ const MAIN_MENU_BACKGROUNDS = [
 export default function MainMenu() {
   const log = logger.scope('MainMenu');
   const router = useRouter();
-  const { gameState } = useGameState();
   const { loadGame } = useGameActions();
   const { setState: setOnboardingState } = useOnboarding();
   const { t } = useTranslation();
@@ -56,7 +55,7 @@ export default function MainMenu() {
     logOnboardingStepView('MainMenu');
   }, []);
 
-  const isDarkMode = Boolean(gameState?.settings?.darkMode);
+  const isDarkMode = useGameSelector((s) => Boolean(s?.settings?.darkMode));
   const onboardingTheme = getOnboardingTheme(isDarkMode);
 
   const refreshHasSaveState = useCallback(async () => {

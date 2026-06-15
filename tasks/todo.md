@@ -63,12 +63,12 @@ feel instant — the same fix classes applied in-game. Type-checks clean.
       `useCallback`s) and `ScenarioCardView` (Scenarios.tsx, with a single stable `onSelectScenario`
       that takes the scenario object directly — dropping the redundant id-lookup + Alert). The
       discriminated-union (`isChallenge`) narrowing is preserved in the extracted card.
-- [x] **Stage E (partial)** — `Perks` now subscribes to only `achievements` via `useGameSelector`
-      instead of the whole `useGameState()`.
+- [x] **Stage E** — narrowed the over-broad `useGameState()` subscriptions to `useGameSelector`
+      across the menu: `Perks` (→ `achievements`) plus the `darkMode`-only consumers
+      `app/(onboarding)/_layout.tsx` (cascaded to every onboarding screen), `MainMenu.tsx`, and
+      `components/onboarding/GlassActionButton.tsx`. None re-render on unrelated state changes now.
 
-**Deferred (documented):**
-- **Remaining Stage E selector swaps** (`_layout.tsx`, `MainMenu`, `GlassActionButton` darkMode) —
-  nil felt benefit pre-game (state doesn't tick when no game is running); skipped to avoid churn.
+All pre-game menu performance stages (A–E) are complete. Nothing deferred.
 
 ---
 
