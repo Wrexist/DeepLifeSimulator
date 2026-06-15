@@ -23,9 +23,28 @@ animations missing `.stop()`, and Expo `.js` ESM modules unparseable by ts-jest)
       components (TopStatsBar, IdentityCard, DeathPopup). All green locally.
 - [ ] **Verify full suite** (2387 → 2400) still green after the shared-mock changes, then commit.
 
-Next in this suite (incremental): assert key copy/elements (not just "mounts"); add interaction tests
-(press Next Week, toggle a perk) now that the host renders; cover modal chains. Then Phase B continues
-with the save-size + load-validate stress tests (roadmap H4/H5).
+Render-suite follow-ups (incremental): assert key copy/elements (not just "mounts"); add interaction
+tests (press Next Week, toggle a perk) now that the host renders; cover modal chains.
+
+## Roadmap Phase B — save-durability stress tests (H4/H5) — June 15, 2026
+
+Goal: close the audit's top-2 stability risks. Gap discovered: `longRunSaveLoad` advances time with the
+SIMPLIFIED `advanceWeeks` helper (no real subsystems), so it never grows the history arrays — late-game
+**save size vs MAX_SAVE_SIZE was never actually tested**. And `repairGameState` deep-clones + discards
+(doesn't mutate input); NaN-stat repair lives in `autoFixStats`, invoked by `validateGameState(autoFix=true)`
+— the exact load-path call the audit wanted verified.
+
+- [x] **H4** — `__tests__/stress/saveDurability.stress.test.ts`: drives the REAL `nextWeek` 250×, then
+      asserts `createSaveData(...)` round-trips and the serialized save is under `MAX_SAVE_SIZE`
+      (measured **~849KB** at 250 weeks, cap 4096KB) and the history arrays stay write-capped — so save
+      size is bounded at ANY week count (no ~2000-week soft-lock).
+- [x] **H5** — same file: a corrupted state (NaN/Infinity stats) self-heals via
+      `validateGameState(autoFix=true)` → finite + valid; and a RAW NaN state, loaded and ticked once,
+      stays valid + finite (the live tick's post-validation genuinely self-heals — no load-then-crash).
+- [ ] Verify full suite green with the new file, then commit.
+
+Remaining Phase B: consolidate the 3 IAP entitlement paths + verify Premium-Pack income mapping (H6/H7,
+touches monetization — more care); render-suite deepening (above).
 
 ---
 
