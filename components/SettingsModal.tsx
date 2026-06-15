@@ -132,17 +132,20 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   // Animate Discord button glow
   useEffect(() => {
     if (!discordRewardClaimed) {
+      // R-perf: native driver — discordGlowAnim only drives opacity + scale
+      // (both native-compatible), so this continuous loop no longer churns the
+      // JS thread every frame while the Settings modal is open.
       const glowLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(discordGlowAnim, {
             toValue: 1,
             duration: 2000,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
           Animated.timing(discordGlowAnim, {
             toValue: 0,
             duration: 2000,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
         ])
       );

@@ -40,6 +40,38 @@ migration, action-level save debounce, and Stages 5/6 above.
 
 ---
 
+## Performance: pre-game menu — same treatment as in-game — June 15, 2026
+
+Goal: make the pre-game menu (5 `app/(onboarding)/` screens + the loading screen + SettingsModal)
+feel instant — the same fix classes applied in-game. Type-checks clean.
+
+- [x] **Stage A** — instant native press-scale (`usePressableScale`) on the shared menu buttons
+      `components/onboarding/OnboardingFloatingButton.tsx` (+ new `loading` spinner prop) and
+      `components/onboarding/GlassActionButton.tsx`. Fixes feedback on every menu screen at once.
+- [x] **Stage B** — defer heavy work so the spinner paints before the freeze, on the navigation
+      buttons: `MainMenu.continueGame` (added a `continueInFlightRef` guard + `continuing` state +
+      rAF defer of `loadGame()`), `SaveSlots.continueToGame`/`startNewGame` (one-frame yield after
+      `setIsBusy(true)` + `loading={isBusy}`), `Perks.start` (split into a sync wrapper that paints
+      `isStarting` then rAF-defers `buildNewGameState()`+save/load; button shows spinner + scale).
+      All existing in-flight guards, error/Alert paths, and the `navigating` finally logic preserved.
+- [x] **Stage C** — `SettingsModal` Discord glow `Animated.loop` → `useNativeDriver:true` (it only
+      drives opacity+scale). Removes JS-thread churn while Settings is open. (Also helps in-game.)
+- [x] **Stage D (partial)** — memoized the 8 Perks background particle positions (were re-rolling
+      `Math.random()` every render → visible flicker).
+- [x] **Stage E (partial)** — `Perks` now subscribes to only `achievements` via `useGameSelector`
+      instead of the whole `useGameState()`.
+
+**Deferred (documented):**
+- **Card `React.memo` extraction** (perk / mindset / scenario list items) — toggling a selection
+  re-renders all cards. The right fix is extracting each card to a memoized component, but it's the
+  riskiest change in an onboarding flow with **no automated test coverage**, and the cards use the
+  opacity-based `BlurViewFallback` (not native blur), so per-card cost is moderate. Consistent with
+  the in-game discipline of deferring risky re-render refactors. Clean follow-up.
+- **Remaining Stage E selector swaps** (`_layout.tsx`, `MainMenu`, `GlassActionButton` darkMode) —
+  nil felt benefit pre-game (state doesn't tick when no game is running); skipped to avoid churn.
+
+---
+
 ## `as any` burndown (#21) — gameplay/state casts — June 14, 2026
 
 Goal: eliminate the **gameplay/state** `as any` casts that defeat type-checking on

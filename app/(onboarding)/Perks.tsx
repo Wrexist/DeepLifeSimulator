@@ -10,6 +10,8 @@ import {
   Animated,
   Platform,
   Alert,
+  ActivityIndicator,
+  type DimensionValue,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
@@ -20,7 +22,7 @@ import { perks } from '@/src/features/onboarding/perksData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
 // require-cycle from the barrel's eager `export * from './game'`).
-import { useGameState } from '@/contexts/game/GameStateContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
 import { type MindsetId, type MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset/config';
@@ -38,6 +40,7 @@ import {
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
+import usePressableScale from '@/hooks/usePressableScale';
 
 // Extracted modules
 import { buildNewGameState } from '@/src/features/onboarding/gameStateBuilder';
@@ -106,7 +109,9 @@ const getStatIcon = (stat: string) => {
 
 export default function Perks() {
   const { state, setState, clearDraft } = useOnboarding();
-  const { gameState } = useGameState();
+  // R-perf: subscribe only to `achievements` (used for perk unlock state) instead
+  // of the whole game state, so settings/theme changes don't re-render this screen.
+  const achievements = useGameSelector((s) => s.achievements);
   const { loadGame } = useGameActions();
   const router = useRouter();
   const navigation = useNavigation();
@@ -152,8 +157,19 @@ export default function Perks() {
 
   // Sorted perks using extracted logic
   const sortedPerks = useMemo(
-    () => sortPerksByUnlockStatus(perks, permanentPerks, gameState.achievements || []),
-    [gameState.achievements, permanentPerks]
+    () => sortPerksByUnlockStatus(perks, permanentPerks, achievements || []),
+    [achievements, permanentPerks]
+  );
+
+  // R-perf: stable particle positions — were re-rolled with Math.random() on every
+  // render, so the 8 background particles jumped/flickered each re-render.
+  const particlePositions = useMemo<{ left: DimensionValue; top: DimensionValue }[]>(
+    () =>
+      Array.from({ length: 8 }, () => ({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+      })),
+    []
   );
 
   const { opacity, translateY, rotate } = useOnboardingScreenAnimation({
@@ -176,11 +192,26 @@ export default function Perks() {
   // the continueInFlightRef pattern already used in SaveSlots.
   const startInFlightRef = useRef(false);
   const [isStarting, setIsStarting] = useState(false);
+  // Native-driver press scale for the "Start Your Life" button (instant tactile feedback).
+  const {
+    AnimatedView: StartButtonScale,
+    animatedStyle: startButtonScaleStyle,
+    onPressIn: onStartPressIn,
+    onPressOut: onStartPressOut,
+  } = usePressableScale({ haptic: false });
 
-  const start = async () => {
+  const start = () => {
     if (startInFlightRef.current) return;
     startInFlightRef.current = true;
     setIsStarting(true);
+    // Defer the heavy buildNewGameState() + save/load to the next frame so the
+    // "Starting…" spinner paints before the synchronous work blocks the JS thread.
+    requestAnimationFrame(() => {
+      void runStart();
+    });
+  };
+
+  const runStart = async () => {
     let navigating = false;
     try {
       haptic.heavy();
@@ -428,7 +459,7 @@ export default function Perks() {
                   const perkIsLocked = isPerkLocked(
                     perk,
                     permanentPerks,
-                    gameState.achievements || []
+                    achievements || []
                   );
                   const benefits = getPerkBenefits(perk);
 
@@ -738,38 +769,48 @@ export default function Perks() {
             { bottom: 20 + insets.bottom },
           ]}
         >
-          <TouchableOpacity
-            onPress={start}
-            disabled={isStarting}
-            style={styles.floatingButton}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#10B981', '#059669', '#047857']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.floatingGlassButton}
+          <StartButtonScale style={startButtonScaleStyle}>
+            <TouchableOpacity
+              onPress={start}
+              onPressIn={onStartPressIn}
+              onPressOut={onStartPressOut}
+              disabled={isStarting}
+              style={styles.floatingButton}
+              activeOpacity={0.8}
             >
-              <View style={styles.buttonContent}>
-                <Text style={styles.glassButtonTitle}>Start Your Life</Text>
-                <View style={styles.glassIconContainer}>
-                  <ArrowRight size={24} color="#FFFFFF" />
+              <LinearGradient
+                colors={['#10B981', '#059669', '#047857']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.floatingGlassButton}
+              >
+                <View style={styles.buttonContent}>
+                  <Text style={styles.glassButtonTitle}>
+                    {isStarting ? 'Starting…' : 'Start Your Life'}
+                  </Text>
+                  <View style={styles.glassIconContainer}>
+                    {isStarting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <ArrowRight size={24} color="#FFFFFF" />
+                    )}
+                  </View>
                 </View>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
+              </LinearGradient>
+            </TouchableOpacity>
+          </StartButtonScale>
         </View>
 
         {/* Floating particles */}
         <View style={styles.particlesContainer}>
-          {[...Array(8)].map((_, index) => (
+          {particlePositions.map((pos, index) => (
             <Animated.View
               key={index}
               style={[
                 styles.particle,
                 {
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
+                  left: pos.left,
+                  top: pos.top,
                   transform: [{ rotate }],
                 },
               ]}

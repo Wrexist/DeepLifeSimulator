@@ -180,6 +180,9 @@ export default function SaveSlots() {
 
     continueInFlightRef.current = true;
     setIsBusy(true);
+    // Yield one frame so the busy spinner paints before the heavy load
+    // (validate + JSON parse + migrate) blocks the JS thread.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     try {
       const slotValidation = await validateSaveSlot(selectedSlot);
       if (!slotValidation.valid) {
@@ -251,6 +254,8 @@ export default function SaveSlots() {
     }
 
     setIsBusy(true);
+    // Yield one frame so the busy spinner paints before the slot scan.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     try {
       const allSlotsFull = await checkIfAllSlotsFull();
       if (allSlotsFull) {
@@ -287,6 +292,7 @@ export default function SaveSlots() {
             title={selectedCard?.hasData ? 'Continue Game' : 'Start New Game'}
             onPress={() => { void primaryAction(); }}
             disabled={!selectedSlot || isBusy}
+            loading={isBusy}
             icon={<Play size={24} color="#FFFFFF" />}
           />
         }

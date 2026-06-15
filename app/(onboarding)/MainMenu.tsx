@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -45,6 +45,8 @@ export default function MainMenu() {
   const { t } = useTranslation();
   const [hasSave, setHasSave] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [continuing, setContinuing] = useState(false);
+  const continueInFlightRef = useRef(false);
   const [selectedBackground] = useState(
     () => MAIN_MENU_BACKGROUNDS[Math.floor(Math.random() * MAIN_MENU_BACKGROUNDS.length)]
   );
@@ -110,7 +112,19 @@ export default function MainMenu() {
     }, [refreshHasSaveState])
   );
 
-  const continueGame = async () => {
+  const continueGame = () => {
+    if (continueInFlightRef.current) return;
+    continueInFlightRef.current = true;
+    setContinuing(true);
+    // Defer the heavy loadGame() (JSON parse + validate + migrate) to the next
+    // frame so the button's loading spinner paints before it blocks the JS thread.
+    requestAnimationFrame(() => {
+      void runContinue();
+    });
+  };
+
+  const runContinue = async () => {
+    let navigating = false;
     try {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (!lastSlot) {
@@ -193,6 +207,7 @@ export default function MainMenu() {
         });
       }
 
+      navigating = true;
       setTimeout(() => {
         log.info('Game entry validation passed, navigating to gameplay', {
           slot: slotNumber,
@@ -205,6 +220,11 @@ export default function MainMenu() {
       Alert.alert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
         { text: 'OK' },
       ]);
+    } finally {
+      // Release the guard; re-enable the button only if we're not navigating away
+      // (on success we keep it disabled to avoid a setState-after-unmount warning).
+      continueInFlightRef.current = false;
+      if (!navigating) setContinuing(false);
     }
   };
 
@@ -259,6 +279,7 @@ export default function MainMenu() {
               title={t('mainMenu.continue')}
               subtitle={t('mainMenu.continueSubtitle')}
               onPress={continueGame}
+              loading={continuing}
             />
           ) : null}
 
