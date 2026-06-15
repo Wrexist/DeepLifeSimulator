@@ -41,10 +41,26 @@ SIMPLIFIED `advanceWeeks` helper (no real subsystems), so it never grows the his
 - [x] **H5** — same file: a corrupted state (NaN/Infinity stats) self-heals via
       `validateGameState(autoFix=true)` → finite + valid; and a RAW NaN state, loaded and ticked once,
       stays valid + finite (the live tick's post-validation genuinely self-heals — no load-then-crash).
-- [ ] Verify full suite green with the new file, then commit.
+- [x] Verified full suite green; committed (`554dd29`).
 
-Remaining Phase B: consolidate the 3 IAP entitlement paths + verify Premium-Pack income mapping (H6/H7,
-touches monetization — more care); render-suite deepening (above).
+## Roadmap Phase B — H7 verify Premium-Pack income mapping — FOUND + FIXED a real bug — June 15, 2026
+
+The "verify" task uncovered a genuine **"paid upgrade does nothing" revenue bug**. Weekly income reads
+`goldUpgrades.multiplier` for the 1.5×, but BOTH IAP entitlement-apply paths in `IAPService.ts`
+(`applyProductToState` @1578 + the disk path @~1037) set only the dead `settings.moneyMultiplier` flag for
+a money-multiplier product — `goldUpgrades.multiplier` was set only under `allUpgrades`/`everythingUnlocked`,
+which the $24.99 **Premium Pack** (`moneyMultiplier: true` only) does NOT have. So buying the Premium Pack
+gave **no income boost**. (MON-3's "it's delivered via goldUpgrades.multiplier" was wrong.)
+
+- [x] **Fix** — both `config.moneyMultiplier` blocks now also set `goldUpgrades.multiplier = true`.
+- [x] **Regression test** — `__tests__/monetization/premiumPackIncome.test.ts` locks the full chain:
+      applying GEMS_PREMIUM sets `goldUpgrades.multiplier`; `computeWeeklyIncome` applies 1.5× when set;
+      end-to-end "buy Premium Pack → income ×1.5". Type-check clean; iapMonetization + itemGoldUpgradeFlow
+      suites still green (41 tests).
+
+Remaining Phase B: **H6** — consolidate the 2–3 divergent IAP entitlement-apply paths (this bug is a
+symptom of that drift; a single `applyPurchaseToState` helper prevents recurrence) — deferred (larger,
+monetization-critical refactor). Render-suite deepening (interaction tests).
 
 ---
 

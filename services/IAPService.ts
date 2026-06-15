@@ -1081,6 +1081,14 @@ export class IAPService {
     // Handle money multiplier
     if (config.moneyMultiplier) {
       gameState.settings.moneyMultiplier = true;
+      // The weekly income calc reads `goldUpgrades.multiplier` for the 1.5×, NOT
+      // `settings.moneyMultiplier` (a dead flag nothing reads). Without this the
+      // purchased money-multiplier product (e.g. the $24.99 Premium Pack) does
+      // nothing — the paid upgrade is silently inert.
+      if (!gameState.goldUpgrades) {
+        gameState.goldUpgrades = {};
+      }
+      gameState.goldUpgrades.multiplier = true;
     }
 
     // Handle all upgrades (gold upgrades)
@@ -1636,6 +1644,14 @@ export class IAPService {
     // Handle money multiplier
     if (config.moneyMultiplier) {
       gameState.settings.moneyMultiplier = true;
+      // The weekly income calc reads `goldUpgrades.multiplier` for the 1.5×, NOT
+      // `settings.moneyMultiplier` (a dead flag nothing reads). Without this the
+      // purchased money-multiplier product (e.g. the $24.99 Premium Pack) does
+      // nothing — the paid upgrade is silently inert.
+      if (!gameState.goldUpgrades) {
+        gameState.goldUpgrades = {};
+      }
+      gameState.goldUpgrades.multiplier = true;
     }
 
     // Handle all upgrades (gold upgrades)
