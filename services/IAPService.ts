@@ -66,6 +66,146 @@ export interface PurchaseResult {
   receipt?: string;
 }
 
+/**
+ * Single source of truth for "what a purchased product grants" — applies a
+ * product config's benefits to a GameState IN PLACE. Shared by the in-memory
+ * (applyProductToState), persisted (applyBenefitToDisk), and Shop (ShopModal)
+ * apply paths so they can no longer drift. That drift is exactly what left the
+ * $24.99 Premium Pack money multiplier (and, in the Shop path, several other
+ * entitlements) silently inert.
+ *
+ * Sets perk FLAGS only; cross-slot permanent-perk persistence (savePermanentPerk),
+ * the Verified-Pro subscription, and the transaction ledger are caller concerns.
+ */
+export function applyProductBenefitsToState(
+  gameState: GameState,
+  config: NonNullable<ReturnType<typeof getProductConfig>>,
+  productId: string,
+): void {
+  if (config.gems) {
+    gameState.stats.gems = (gameState.stats.gems || 0) + config.gems;
+  }
+
+  if (config.money) {
+    gameState.stats.money = (gameState.stats.money || 0) + config.money;
+  }
+
+  if (config.youthPills) {
+    gameState.youthPills = (gameState.youthPills || 0) + config.youthPills;
+  }
+
+  if (config.skillBoost) {
+    // Bump every hobby's skillLevel (hobbies are the game's skill system).
+    if (gameState.hobbies) {
+      for (const hobby of gameState.hobbies) {
+        hobby.skillLevel = clampHobbySkillLevel(hobby.skillLevel + config.skillBoost);
+      }
+    }
+  }
+
+  // Initialize perks if it doesn't exist
+  if (!gameState.perks) {
+    gameState.perks = {};
+  }
+
+  if ('workBoost' in config && config.workBoost) gameState.perks.workBoost = true;
+  if ('mindset' in config && config.mindset) gameState.perks.mindset = true;
+  if ('fastLearner' in config && config.fastLearner) gameState.perks.fastLearner = true;
+  if ('goodCredit' in config && config.goodCredit) gameState.perks.goodCredit = true;
+  if ('allPerks' in config && config.allPerks) {
+    gameState.perks.workBoost = true;
+    gameState.perks.mindset = true;
+    gameState.perks.fastLearner = true;
+    gameState.perks.goodCredit = true;
+    gameState.perks.unlockAllPerks = true;
+  }
+
+  // Money multiplier — income reads `goldUpgrades.multiplier` for the 1.5×, NOT
+  // `settings.moneyMultiplier` (a dead flag), so set BOTH or the paid upgrade is inert.
+  if (config.moneyMultiplier) {
+    gameState.settings.moneyMultiplier = true;
+    if (!gameState.goldUpgrades) gameState.goldUpgrades = {};
+    gameState.goldUpgrades.multiplier = true;
+  }
+
+  // All gold upgrades
+  if (config.allUpgrades) {
+    if (!gameState.goldUpgrades) gameState.goldUpgrades = {};
+    gameState.goldUpgrades.multiplier = true;
+    gameState.goldUpgrades.energy_boost = true;
+    gameState.goldUpgrades.happiness_boost = true;
+    gameState.goldUpgrades.fitness_boost = true;
+    gameState.goldUpgrades.skill_mastery = true;
+    gameState.goldUpgrades.time_machine = true;
+    gameState.goldUpgrades.immortality = true;
+  }
+
+  // Everything unlocked
+  if (config.everythingUnlocked) {
+    gameState.settings.everythingUnlocked = true;
+    gameState.settings.adsRemoved = true;
+    gameState.settings.lifetimePremium = true;
+    if (!gameState.goldUpgrades) gameState.goldUpgrades = {};
+    gameState.goldUpgrades.multiplier = true;
+    gameState.goldUpgrades.energy_boost = true;
+    gameState.goldUpgrades.happiness_boost = true;
+    gameState.goldUpgrades.fitness_boost = true;
+    gameState.goldUpgrades.skill_mastery = true;
+    gameState.goldUpgrades.time_machine = true;
+    gameState.goldUpgrades.immortality = true;
+  }
+
+  // Unlimited youth pills
+  if (config.unlimitedYouthPills) {
+    gameState.settings.unlimitedYouthPills = true;
+    gameState.youthPills = 999999;
+  }
+
+  // Lifetime premium
+  if (config.lifetimePremium) {
+    gameState.settings.lifetimePremium = true;
+    gameState.settings.adsRemoved = true;
+  }
+
+  // Special products
+  switch (productId) {
+    case IAP_PRODUCTS.REMOVE_ADS:
+      gameState.settings.adsRemoved = true;
+      gameState.settings.adsRemovedDate = new Date().toISOString();
+      break;
+    case IAP_PRODUCTS.PREMIUM_CREDIT_CARD:
+      gameState.settings.premiumCreditCard = true;
+      break;
+    case IAP_PRODUCTS.FINANCIAL_PLANNING:
+      gameState.settings.financialPlanning = true;
+      break;
+    case IAP_PRODUCTS.BUSINESS_BANKING:
+      gameState.settings.businessBanking = true;
+      break;
+    case IAP_PRODUCTS.PRIVATE_BANKING:
+      gameState.settings.privateBanking = true;
+      break;
+    case IAP_PRODUCTS.REVIVAL_PACK:
+      gameState.showDeathPopup = false;
+      gameState.deathReason = undefined;
+      gameState.stats.health = 100;
+      gameState.stats.happiness = 100;
+      gameState.stats.energy = 100;
+      gameState.happinessZeroWeeks = 0;
+      gameState.healthZeroWeeks = 0;
+      gameState.settings.hasRevivalPack = true;
+      break;
+  }
+
+  // Validate gems (prevent NaN/Infinity)
+  if (!isFinite(gameState.stats.gems) || isNaN(gameState.stats.gems)) {
+    gameState.stats.gems = Math.max(0, Math.floor(gameState.stats.gems || 0));
+  }
+  if (gameState.stats.gems < 0) {
+    gameState.stats.gems = 0;
+  }
+}
+
 export class IAPService {
   private state: IAPState = {
     isConnected: false,
@@ -1004,194 +1144,12 @@ export class IAPService {
       return;
     }
 
-    // Apply benefits based on product type
-    if (config.gems) {
-      gameState.stats.gems = (gameState.stats.gems || 0) + config.gems;
-    }
+    // Apply all config benefits via the single shared helper (same logic the
+    // in-memory applyProductToState path uses — they can no longer drift).
+    applyProductBenefitsToState(gameState, config, purchase.productId);
 
-    if (config.money) {
-      gameState.stats.money = (gameState.stats.money || 0) + config.money;
-    }
-
-    if (config.youthPills) {
-      gameState.youthPills = (gameState.youthPills || 0) + config.youthPills;
-    }
-
-    if (config.skillBoost) {
-      // Bump every hobby's skillLevel by the boost amount (hobbies are
-      // the game's skill system; gameState.skills doesn't exist).
-      if (gameState.hobbies) {
-        for (const hobby of gameState.hobbies) {
-          hobby.skillLevel = clampHobbySkillLevel(
-            hobby.skillLevel + config.skillBoost,
-          );
-        }
-      }
-    }
-
-    // Initialize perks if it doesn't exist
-    if (!gameState.perks) {
-      gameState.perks = {};
-    }
-
-    // CRITICAL FIX: Save perks to gameState.perks (not goldUpgrades) for consistency
-    // Also save to permanent_perks storage for cross-slot persistence
-    if (config.workBoost) {
-      gameState.perks.workBoost = true;
-      await this.savePermanentPerk('workBoost');
-    }
-
-    if (config.mindset) {
-      gameState.perks.mindset = true;
-      await this.savePermanentPerk('mindset');
-    }
-
-    if (config.fastLearner) {
-      gameState.perks.fastLearner = true;
-      await this.savePermanentPerk('fastLearner');
-    }
-
-    if (config.goodCredit) {
-      gameState.perks.goodCredit = true;
-      await this.savePermanentPerk('goodCredit');
-    }
-
-    if (config.allPerks) {
-      gameState.perks.workBoost = true;
-      gameState.perks.mindset = true;
-      gameState.perks.fastLearner = true;
-      gameState.perks.goodCredit = true;
-      gameState.perks.unlockAllPerks = true;
-      // Save all perks as permanent. P2-11: inspect results so partial
-      // failures don't disappear silently — previously the user could be
-      // told all perks were granted but only 1 actually persisted.
-      const perkResults = await Promise.allSettled([
-        this.savePermanentPerk('workBoost'),
-        this.savePermanentPerk('mindset'),
-        this.savePermanentPerk('fastLearner'),
-        this.savePermanentPerk('goodCredit'),
-        this.savePermanentPerk('unlockAllPerks'),
-      ]);
-      const failed = perkResults.filter((r) => r.status === 'rejected');
-      if (failed.length > 0) {
-        logger.warn(`[IAP] ${failed.length}/5 permanent perk writes failed`, { failed });
-      }
-    }
-
-    // Handle money multiplier
-    if (config.moneyMultiplier) {
-      gameState.settings.moneyMultiplier = true;
-      // The weekly income calc reads `goldUpgrades.multiplier` for the 1.5×, NOT
-      // `settings.moneyMultiplier` (a dead flag nothing reads). Without this the
-      // purchased money-multiplier product (e.g. the $24.99 Premium Pack) does
-      // nothing — the paid upgrade is silently inert.
-      if (!gameState.goldUpgrades) {
-        gameState.goldUpgrades = {};
-      }
-      gameState.goldUpgrades.multiplier = true;
-    }
-
-    // Handle all upgrades (gold upgrades)
-    if (config.allUpgrades) {
-      if (!gameState.goldUpgrades) {
-        gameState.goldUpgrades = {};
-      }
-      gameState.goldUpgrades.multiplier = true;
-      gameState.goldUpgrades.energy_boost = true;
-      gameState.goldUpgrades.happiness_boost = true;
-      gameState.goldUpgrades.fitness_boost = true;
-      gameState.goldUpgrades.skill_mastery = true;
-      gameState.goldUpgrades.time_machine = true;
-      gameState.goldUpgrades.immortality = true;
-    }
-
-    // Handle everything unlocked
-    if (config.everythingUnlocked) {
-      gameState.settings.everythingUnlocked = true;
-      gameState.settings.adsRemoved = true;
-      gameState.settings.lifetimePremium = true;
-
-      if (!gameState.goldUpgrades) {
-        gameState.goldUpgrades = {};
-      }
-      gameState.goldUpgrades.multiplier = true;
-      gameState.goldUpgrades.energy_boost = true;
-      gameState.goldUpgrades.happiness_boost = true;
-      gameState.goldUpgrades.fitness_boost = true;
-      gameState.goldUpgrades.skill_mastery = true;
-      gameState.goldUpgrades.time_machine = true;
-      gameState.goldUpgrades.immortality = true;
-    }
-
-    // Handle unlimited youth pills
-    if (config.unlimitedYouthPills) {
-      gameState.settings.unlimitedYouthPills = true;
-      // Set a very high number for practical purposes
-      gameState.youthPills = 999999;
-    }
-
-    // Handle lifetime premium
-    if (config.lifetimePremium) {
-      gameState.settings.lifetimePremium = true;
-      gameState.settings.adsRemoved = true;
-    }
-
-    // Handle special products
-    switch (purchase.productId) {
-      case IAP_PRODUCTS.REMOVE_ADS:
-        gameState.settings.adsRemoved = true;
-        gameState.settings.adsRemovedDate = new Date().toISOString();
-        break;
-
-      // Removed unused IAP products: PREMIUM_PASS, DOUBLE_MONEY, UNLIMITED_ENERGY
-      // These products are not defined in IAP_PRODUCTS and are not currently used
-      // Uncomment and add to iapConfig.ts if these features are needed in the future
-      // case IAP_PRODUCTS.PREMIUM_PASS:
-      // gameState.settings.premiumPass = true;
-      // gameState.settings.premiumPassExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      // break;
-
-      // case IAP_PRODUCTS.DOUBLE_MONEY:
-      // gameState.settings.doubleMoney = true;
-      // gameState.settings.doubleMoneyExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      // break;
-
-      // case IAP_PRODUCTS.UNLIMITED_ENERGY:
-      // gameState.settings.unlimitedEnergy = true;
-      // gameState.settings.unlimitedEnergyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      // break;
-
-      // Bank Services IAP (Computer Banking App Services)
-
-      // Computer Banking App Services (to sync with mobile)
-      case IAP_PRODUCTS.PREMIUM_CREDIT_CARD:
-        gameState.settings.premiumCreditCard = true;
-        break;
-
-      case IAP_PRODUCTS.FINANCIAL_PLANNING:
-        gameState.settings.financialPlanning = true;
-        break;
-
-      case IAP_PRODUCTS.BUSINESS_BANKING:
-        gameState.settings.businessBanking = true;
-        break;
-
-      case IAP_PRODUCTS.PRIVATE_BANKING:
-        gameState.settings.privateBanking = true;
-        break;
-
-      case IAP_PRODUCTS.REVIVAL_PACK:
-        // Revival pack - restore character to life with full stats
-        gameState.showDeathPopup = false;
-        gameState.deathReason = undefined;
-        gameState.stats.health = 100; // Full health
-        gameState.stats.happiness = 100; // Full happiness
-        gameState.stats.energy = 100; // Full energy
-        gameState.happinessZeroWeeks = 0;
-        gameState.healthZeroWeeks = 0;
-        gameState.settings.hasRevivalPack = true;
-        break;
-    }
+    // Disk path only: persist permanent (cross-slot) perks to storage.
+    await this.persistPermanentPerks(config);
 
     // ─── Pulse Verified Pro subscription fulfillment (v13+) ───
     // Mirrors `subscribeVerifiedPro`from contexts/game/actions/VibeActions.ts.
@@ -1291,6 +1249,35 @@ export class IAPService {
         error,
       );
       throw error; // Re-throw to let caller handle it
+    }
+  }
+
+  /**
+   * Persist permanent (cross-slot) perks for a purchased product. Mirrors the
+   * inline savePermanentPerk calls the disk-apply path used to interleave —
+   * kept as a separate step so all the state-mutation logic lives in the shared
+   * applyProductBenefitsToState helper.
+   */
+  private async persistPermanentPerks(
+    config: NonNullable<ReturnType<typeof getProductConfig>>,
+  ): Promise<void> {
+    if ('workBoost' in config && config.workBoost) await this.savePermanentPerk('workBoost');
+    if ('mindset' in config && config.mindset) await this.savePermanentPerk('mindset');
+    if ('fastLearner' in config && config.fastLearner) await this.savePermanentPerk('fastLearner');
+    if ('goodCredit' in config && config.goodCredit) await this.savePermanentPerk('goodCredit');
+    if ('allPerks' in config && config.allPerks) {
+      // P2-11: inspect results so partial failures don't disappear silently.
+      const perkResults = await Promise.allSettled([
+        this.savePermanentPerk('workBoost'),
+        this.savePermanentPerk('mindset'),
+        this.savePermanentPerk('fastLearner'),
+        this.savePermanentPerk('goodCredit'),
+        this.savePermanentPerk('unlockAllPerks'),
+      ]);
+      const failed = perkResults.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        logger.warn(`[IAP] ${failed.length}/5 permanent perk writes failed`, { failed });
+      }
     }
   }
 
@@ -1587,161 +1574,7 @@ export class IAPService {
     const config = getProductConfig(productId);
     if (!config) return false;
 
-    // Apply benefits based on product type
-    if (config.gems) {
-      gameState.stats.gems = (gameState.stats.gems || 0) + config.gems;
-    }
-
-    if (config.money) {
-      gameState.stats.money = (gameState.stats.money || 0) + config.money;
-    }
-
-    if (config.youthPills) {
-      gameState.youthPills = (gameState.youthPills || 0) + config.youthPills;
-    }
-
-    if (config.skillBoost) {
-      // Bump every hobby's skillLevel by the boost amount (hobbies are
-      // the game's skill system; gameState.skills doesn't exist).
-      if (gameState.hobbies) {
-        for (const hobby of gameState.hobbies) {
-          hobby.skillLevel = clampHobbySkillLevel(
-            hobby.skillLevel + config.skillBoost,
-          );
-        }
-      }
-    }
-
-    // Initialize perks if it doesn't exist
-    if (!gameState.perks) {
-      gameState.perks = {};
-    }
-
-    if ('workBoost' in config && config.workBoost) {
-      gameState.perks.workBoost = true;
-    }
-
-    if ('mindset' in config && config.mindset) {
-      gameState.perks.mindset = true;
-    }
-
-    if ('fastLearner' in config && config.fastLearner) {
-      gameState.perks.fastLearner = true;
-    }
-
-    if ('goodCredit' in config && config.goodCredit) {
-      gameState.perks.goodCredit = true;
-    }
-
-    if ('allPerks' in config && config.allPerks) {
-      gameState.perks.workBoost = true;
-      gameState.perks.mindset = true;
-      gameState.perks.fastLearner = true;
-      gameState.perks.goodCredit = true;
-      gameState.perks.unlockAllPerks = true;
-    }
-
-    // Handle money multiplier
-    if (config.moneyMultiplier) {
-      gameState.settings.moneyMultiplier = true;
-      // The weekly income calc reads `goldUpgrades.multiplier` for the 1.5×, NOT
-      // `settings.moneyMultiplier` (a dead flag nothing reads). Without this the
-      // purchased money-multiplier product (e.g. the $24.99 Premium Pack) does
-      // nothing — the paid upgrade is silently inert.
-      if (!gameState.goldUpgrades) {
-        gameState.goldUpgrades = {};
-      }
-      gameState.goldUpgrades.multiplier = true;
-    }
-
-    // Handle all upgrades (gold upgrades)
-    if (config.allUpgrades) {
-      if (!gameState.goldUpgrades) {
-        gameState.goldUpgrades = {};
-      }
-      gameState.goldUpgrades.multiplier = true;
-      gameState.goldUpgrades.energy_boost = true;
-      gameState.goldUpgrades.happiness_boost = true;
-      gameState.goldUpgrades.fitness_boost = true;
-      gameState.goldUpgrades.skill_mastery = true;
-      gameState.goldUpgrades.time_machine = true;
-      gameState.goldUpgrades.immortality = true;
-    }
-
-    // Handle everything unlocked
-    if (config.everythingUnlocked) {
-      gameState.settings.everythingUnlocked = true;
-      gameState.settings.adsRemoved = true;
-      gameState.settings.lifetimePremium = true;
-
-      if (!gameState.goldUpgrades) {
-        gameState.goldUpgrades = {};
-      }
-      gameState.goldUpgrades.multiplier = true;
-      gameState.goldUpgrades.energy_boost = true;
-      gameState.goldUpgrades.happiness_boost = true;
-      gameState.goldUpgrades.fitness_boost = true;
-      gameState.goldUpgrades.skill_mastery = true;
-      gameState.goldUpgrades.time_machine = true;
-      gameState.goldUpgrades.immortality = true;
-    }
-
-    // Handle unlimited youth pills
-    if (config.unlimitedYouthPills) {
-      gameState.settings.unlimitedYouthPills = true;
-      // Set a very high number for practical purposes
-      gameState.youthPills = 999999;
-    }
-
-    // Handle lifetime premium
-    if (config.lifetimePremium) {
-      gameState.settings.lifetimePremium = true;
-      gameState.settings.adsRemoved = true;
-    }
-
-    // Handle special products
-    switch (productId) {
-      case IAP_PRODUCTS.REMOVE_ADS:
-        gameState.settings.adsRemoved = true;
-        gameState.settings.adsRemovedDate = new Date().toISOString();
-        break;
-
-      case IAP_PRODUCTS.PREMIUM_CREDIT_CARD:
-        gameState.settings.premiumCreditCard = true;
-        break;
-
-      case IAP_PRODUCTS.FINANCIAL_PLANNING:
-        gameState.settings.financialPlanning = true;
-        break;
-
-      case IAP_PRODUCTS.BUSINESS_BANKING:
-        gameState.settings.businessBanking = true;
-        break;
-
-      case IAP_PRODUCTS.PRIVATE_BANKING:
-        gameState.settings.privateBanking = true;
-        break;
-
-      case IAP_PRODUCTS.REVIVAL_PACK:
-        gameState.showDeathPopup = false;
-        gameState.deathReason = undefined;
-        gameState.stats.health = 100;
-        gameState.stats.happiness = 100;
-        gameState.stats.energy = 100;
-        gameState.happinessZeroWeeks = 0;
-        gameState.healthZeroWeeks = 0;
-        gameState.settings.hasRevivalPack = true;
-        break;
-    }
-
-    // Validate gems
-    if (!isFinite(gameState.stats.gems) || isNaN(gameState.stats.gems)) {
-      gameState.stats.gems = Math.max(0, Math.floor(gameState.stats.gems || 0));
-    }
-    if (gameState.stats.gems < 0) {
-      gameState.stats.gems = 0;
-    }
-
+    applyProductBenefitsToState(gameState, config, productId);
     return true;
   }
 }

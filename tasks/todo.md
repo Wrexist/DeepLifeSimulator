@@ -43,6 +43,27 @@ SIMPLIFIED `advanceWeeks` helper (no real subsystems), so it never grows the his
       stays valid + finite (the live tick's post-validation genuinely self-heals — no load-then-crash).
 - [x] Verified full suite green; committed (`554dd29`).
 
+## Roadmap Phase B — H6 consolidate IAP entitlement-apply paths — June 15, 2026
+
+Root cause of the H7 bug was DRIFT between duplicated entitlement-apply paths. Consolidated the two
+server-side fulfillment paths in `services/IAPService.ts` onto ONE exported helper so they can't drift again.
+
+- [x] Extracted `applyProductBenefitsToState(gameState, config, productId)` — the single source of truth
+      for "what a purchase grants" (gems/money/youthPills/skillBoost/perk-flags/moneyMultiplier→goldUpgrades/
+      allUpgrades/everythingUnlocked/unlimitedYouthPills/lifetimePremium/special-products switch/gems-clamp).
+- [x] `applyProductToState` (in-memory, used by IAPHandler) → now just calls the helper. Behavior-preserving.
+- [x] `applyBenefitToDisk` (persisted fulfillment) → calls the helper + a new `persistPermanentPerks(config)`
+      (the cross-slot savePermanentPerk persistence, extracted so the state logic stays in the helper).
+      The Verified-Pro subscription, tx-ledger, and disk save are untouched. Behavior-preserving.
+- [x] Verified: type-check 0 errors; iapMonetization + itemGoldUpgradeFlow + premiumPackIncome = 44 tests green.
+
+**Deferred (documented):** rewire the THIRD path `ShopModal.applyPurchaseBenefits` onto the helper. It's the
+most divergent (missing moneyMultiplier/youthPills/goldUpgrades/everythingUnlocked/revival) AND it handles a
+`config.removeAds` FIELD the helper doesn't (the helper keys ads-removal off the REMOVE_ADS productId + the
+everythingUnlocked/lifetimePremium flags). Switching it naively would LOSE `config.removeAds` handling. Safe
+fix = fold `config.removeAds` into the helper + verify every Shop product, then route ShopModal through it
+via `setGameState(prev => { const next = structuredClone(prev); applyProductBenefitsToState(next, config, id); return next; })`. It's an untested UI path, so deferred rather than rushed at session end.
+
 ## Roadmap Phase B — H7 verify Premium-Pack income mapping — FOUND + FIXED a real bug — June 15, 2026
 
 The "verify" task uncovered a genuine **"paid upgrade does nothing" revenue bug**. Weekly income reads
@@ -58,9 +79,7 @@ gave **no income boost**. (MON-3's "it's delivered via goldUpgrades.multiplier" 
       end-to-end "buy Premium Pack → income ×1.5". Type-check clean; iapMonetization + itemGoldUpgradeFlow
       suites still green (41 tests).
 
-Remaining Phase B: **H6** — consolidate the 2–3 divergent IAP entitlement-apply paths (this bug is a
-symptom of that drift; a single `applyPurchaseToState` helper prevents recurrence) — deferred (larger,
-monetization-critical refactor). Render-suite deepening (interaction tests).
+Remaining Phase B: **H6** — consolidate the divergent IAP entitlement-apply paths.
 
 ---
 
