@@ -1,5 +1,77 @@
 # Task Tracker
 
+## Performance: make the game feel instant/fast — June 14, 2026
+
+Goal: pressing things (esp. "Next Week") feels instant; stop re-rendering everything on
+every tick. Safe staged wins — NOT the risky `nextWeek` decomposition or full 97-file
+migration. Plan: see plan file. Verify per stage: `npm run preflight:quick` + `npm test`.
+
+- [x] **Stage 1** — `TopStatsBar` Next Week feels instant: rAF-defer the heavy work so the
+      pressed/spinner state paints first; `await nextWeek()` + clear loading on real
+      completion (dropped the fixed 1s timer, kept a 5s safety cap). `usePressableScale`
+      already wired — the press-scale paints instantly regardless of the defer. **Headline win.**
+- [x] **Stage 2** — `TopStatsBar` glow → native-driven opacity overlay (`useNativeDriver:true`),
+      replacing the JS-driver animated `shadowOpacity` loop. progressFill keeps its static halo.
+- [x] **Stage 3** — `work.tsx` streetJobs double-filter → one `React.useMemo` keyed on `streetJobs`;
+      hoisted `CREATIVE_HOBBY_JOB_IDS` to a stable module const.
+- [x] **Stage 4 (partial, the safe subset)** — migrated `ActiveGoalsCard` + `AchievementsProgress`
+      to `useGameSelector`/`useGameActions` (narrow slice subscriptions). `PrestigeStatsCard` &
+      `PrestigePreviewCard` were **already** on `useGameSelector` (no work).
+      - **Deferred `home.tsx` + `IdentityCard`:** both genuinely consume the WHOLE `gameState`
+        (`checkGoalCompletion(gameState)`, `calcWeeklyPassiveIncome(gameState)` which walks ~12
+        subsystems, `useStatChangeTracker(gameState)`, `gameState={gameState}` to a child).
+        Selecting the whole state = no re-render win; reconstructing a partial state = correctness
+        risk. Their expensive calcs are already memoized on specific deps, so per-tick re-render is
+        cheap + largely legitimate. Not a clean migration — left as-is.
+- [~] **Stage 5 (deferred)** — `gameStateRef` is updated in a PASSIVE `useEffect`
+      (`GameActionsContext.tsx:2366`), so the post-tick `setTimeout(50ms)` (line 1637) isn't
+      arbitrary: it lets the post-tick validation read the committed state (a microtask flushes
+      before passive effects, so it's insufficient). Removing it safely needs capturing the
+      computed next-state inside the 1,270-line updater. Low felt-impact after Stage 1 (save is now
+      fully off the button's critical path) + real corruption-detection risk → deferred.
+- [~] **Stage 6 (deferred)** — the post-`nextWeek` autosave's `validateGameState` is NOT cleanly
+      redundant: the automation block (`GameActionsContext.tsx:1714`) mutates state AFTER nextWeek's
+      validation, and relationship-validation cadence differs (every-save vs every-10-weeks). The
+      save is fire-and-forget post-Stage-1, so the 30-80ms skip has minimal felt benefit. Save
+      system is correctness-critical (CLAUDE.md #1) → deferred rather than risked.
+
+Deferred (too risky for one batch, per backlog): #23 nextWeek decomposition, full 97-file selector
+migration, action-level save debounce, and Stages 5/6 above.
+
+---
+
+## Performance: pre-game menu — same treatment as in-game — June 15, 2026
+
+Goal: make the pre-game menu (5 `app/(onboarding)/` screens + the loading screen + SettingsModal)
+feel instant — the same fix classes applied in-game. Type-checks clean.
+
+- [x] **Stage A** — instant native press-scale (`usePressableScale`) on the shared menu buttons
+      `components/onboarding/OnboardingFloatingButton.tsx` (+ new `loading` spinner prop) and
+      `components/onboarding/GlassActionButton.tsx`. Fixes feedback on every menu screen at once.
+- [x] **Stage B** — defer heavy work so the spinner paints before the freeze, on the navigation
+      buttons: `MainMenu.continueGame` (added a `continueInFlightRef` guard + `continuing` state +
+      rAF defer of `loadGame()`), `SaveSlots.continueToGame`/`startNewGame` (one-frame yield after
+      `setIsBusy(true)` + `loading={isBusy}`), `Perks.start` (split into a sync wrapper that paints
+      `isStarting` then rAF-defers `buildNewGameState()`+save/load; button shows spinner + scale).
+      All existing in-flight guards, error/Alert paths, and the `navigating` finally logic preserved.
+- [x] **Stage C** — `SettingsModal` Discord glow `Animated.loop` → `useNativeDriver:true` (it only
+      drives opacity+scale). Removes JS-thread churn while Settings is open. (Also helps in-game.)
+- [x] **Stage D** — memoized the 8 Perks background particle positions (were re-rolling
+      `Math.random()` every render → visible flicker) AND extracted the three heavy selectable
+      lists into `React.memo` card components so toggling one selection no longer re-renders the
+      whole list: `PerkCard` + `MindsetCard` (Perks.tsx, with stable `toggle`/`selectMindset`
+      `useCallback`s) and `ScenarioCardView` (Scenarios.tsx, with a single stable `onSelectScenario`
+      that takes the scenario object directly — dropping the redundant id-lookup + Alert). The
+      discriminated-union (`isChallenge`) narrowing is preserved in the extracted card.
+- [x] **Stage E** — narrowed the over-broad `useGameState()` subscriptions to `useGameSelector`
+      across the menu: `Perks` (→ `achievements`) plus the `darkMode`-only consumers
+      `app/(onboarding)/_layout.tsx` (cascaded to every onboarding screen), `MainMenu.tsx`, and
+      `components/onboarding/GlassActionButton.tsx`. None re-render on unrelated state changes now.
+
+All pre-game menu performance stages (A–E) are complete. Nothing deferred.
+
+---
+
 ## `as any` burndown (#21) — gameplay/state casts — June 14, 2026
 
 Goal: eliminate the **gameplay/state** `as any` casts that defeat type-checking on

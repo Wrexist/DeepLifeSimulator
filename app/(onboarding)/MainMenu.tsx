@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, lazy, Suspense } from 'react';
+import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -18,7 +18,7 @@ import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
 // this screen's module init — a require cycle that left this screen's default
 // export `undefined` in the production Hermes bundle ("Element type is invalid").
-import { useGameState } from '@/contexts/game/GameStateContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
@@ -39,12 +39,13 @@ const MAIN_MENU_BACKGROUNDS = [
 export default function MainMenu() {
   const log = logger.scope('MainMenu');
   const router = useRouter();
-  const { gameState } = useGameState();
   const { loadGame } = useGameActions();
   const { setState: setOnboardingState } = useOnboarding();
   const { t } = useTranslation();
   const [hasSave, setHasSave] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [continuing, setContinuing] = useState(false);
+  const continueInFlightRef = useRef(false);
   const [selectedBackground] = useState(
     () => MAIN_MENU_BACKGROUNDS[Math.floor(Math.random() * MAIN_MENU_BACKGROUNDS.length)]
   );
@@ -54,7 +55,7 @@ export default function MainMenu() {
     logOnboardingStepView('MainMenu');
   }, []);
 
-  const isDarkMode = Boolean(gameState?.settings?.darkMode);
+  const isDarkMode = useGameSelector((s) => Boolean(s?.settings?.darkMode));
   const onboardingTheme = getOnboardingTheme(isDarkMode);
 
   const refreshHasSaveState = useCallback(async () => {
@@ -110,7 +111,19 @@ export default function MainMenu() {
     }, [refreshHasSaveState])
   );
 
-  const continueGame = async () => {
+  const continueGame = () => {
+    if (continueInFlightRef.current) return;
+    continueInFlightRef.current = true;
+    setContinuing(true);
+    // Defer the heavy loadGame() (JSON parse + validate + migrate) to the next
+    // frame so the button's loading spinner paints before it blocks the JS thread.
+    requestAnimationFrame(() => {
+      void runContinue();
+    });
+  };
+
+  const runContinue = async () => {
+    let navigating = false;
     try {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (!lastSlot) {
@@ -193,6 +206,7 @@ export default function MainMenu() {
         });
       }
 
+      navigating = true;
       setTimeout(() => {
         log.info('Game entry validation passed, navigating to gameplay', {
           slot: slotNumber,
@@ -205,6 +219,11 @@ export default function MainMenu() {
       Alert.alert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
         { text: 'OK' },
       ]);
+    } finally {
+      // Release the guard; re-enable the button only if we're not navigating away
+      // (on success we keep it disabled to avoid a setState-after-unmount warning).
+      continueInFlightRef.current = false;
+      if (!navigating) setContinuing(false);
     }
   };
 
@@ -259,6 +278,7 @@ export default function MainMenu() {
               title={t('mainMenu.continue')}
               subtitle={t('mainMenu.continueSubtitle')}
               onPress={continueGame}
+              loading={continuing}
             />
           ) : null}
 

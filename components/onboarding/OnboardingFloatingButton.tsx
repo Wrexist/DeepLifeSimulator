@@ -1,7 +1,8 @@
 import React from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import usePressableScale from '@/hooks/usePressableScale';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -9,6 +10,7 @@ interface OnboardingFloatingButtonProps {
   title: string;
   onPress: () => void;
   disabled?: boolean;
+  loading?: boolean;
   icon?: React.ReactNode;
 }
 
@@ -16,29 +18,43 @@ export default function OnboardingFloatingButton({
   title,
   onPress,
   disabled = false,
+  loading = false,
   icon,
 }: OnboardingFloatingButtonProps) {
+  // Native-driver press scale for instant tactile feedback. Handlers own the
+  // action haptic, so disable the hook's press-in haptic to avoid doubling.
+  const { AnimatedView, animatedStyle, onPressIn, onPressOut } = usePressableScale({ haptic: false });
+  const isDisabled = disabled || loading;
+
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
-      style={[styles.floatingButton, disabled ? styles.disabled : undefined]}
-      activeOpacity={0.8}
-    >
-      <LinearGradient
-        colors={['#10B981', '#059669', '#047857']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradient}
+    <AnimatedView style={animatedStyle}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        disabled={isDisabled}
+        style={[styles.floatingButton, isDisabled ? styles.disabled : undefined]}
+        activeOpacity={0.8}
       >
-        <View style={styles.content}>
-          <Text style={styles.title}>{title}</Text>
-          <View style={styles.iconContainer}>
-            {icon || <ArrowRight size={24} color="#FFFFFF" />}
+        <LinearGradient
+          colors={['#10B981', '#059669', '#047857']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          <View style={styles.content}>
+            <Text style={styles.title}>{title}</Text>
+            <View style={styles.iconContainer}>
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                icon || <ArrowRight size={24} color="#FFFFFF" />
+              )}
+            </View>
           </View>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
+        </LinearGradient>
+      </TouchableOpacity>
+    </AnimatedView>
   );
 }
 

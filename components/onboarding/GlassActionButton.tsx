@@ -2,7 +2,8 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import { useGameState } from '@/contexts/game/GameStateContext';
+import usePressableScale from '@/hooks/usePressableScale';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { getGlassButton } from '@/utils/glassmorphismStyles';
 import {
@@ -35,15 +36,17 @@ export default function GlassActionButton({
   loading = false,
   loadingText,
 }: GlassActionButtonProps) {
-  const { gameState } = useGameState();
-  const isDarkMode = Boolean(gameState?.settings?.darkMode);
+  const isDarkMode = useGameSelector((s) => Boolean(s?.settings?.darkMode));
   const theme = getOnboardingTheme(isDarkMode);
   const blurTint = isDarkMode ? 'dark' : 'light';
   const glassStyle = getGlassButton(isDarkMode, highlighted);
 
   const isDisabled = disabled || loading;
+  // Native-driver press scale for instant tactile feedback.
+  const { AnimatedView, animatedStyle, onPressIn, onPressOut } = usePressableScale({ haptic: false });
 
   return (
+    <AnimatedView style={animatedStyle}>
     <TouchableOpacity
       accessibilityLabel={title}
       accessibilityHint={subtitle}
@@ -51,6 +54,8 @@ export default function GlassActionButton({
       activeOpacity={0.9}
       disabled={isDisabled}
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       style={[styles.touchable, isDisabled ? styles.touchableDisabled : undefined]}
     >
       <BlurViewFallback
@@ -82,6 +87,7 @@ export default function GlassActionButton({
         </View>
       </BlurViewFallback>
     </TouchableOpacity>
+    </AnimatedView>
   );
 }
 

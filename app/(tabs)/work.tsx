@@ -83,6 +83,10 @@ const CRIME_SKILL_UPGRADES: Record<
     ],
 };
 
+// Creative/hobby ids that can leak into streetJobs but must not render as street
+// work. Hoisted to module scope (and thus a stable identity) — it was a fresh
+// array literal every render, which defeated the streetJobs filter memo below.
+const CREATIVE_HOBBY_JOB_IDS = ['guitar', 'music', 'art', 'football', 'basketball', 'tennis'];
 
 function WorkScreen() {
     return (
@@ -118,10 +122,16 @@ function WorkScreenContent() {
     const { promoteCareer } = useJobActions();
 
     const { settings } = gameState;
-    // Filter out any creative/hobby jobs that might exist in streetJobs
-    const creativeHobbyJobIds = ['guitar', 'music', 'art', 'football', 'basketball', 'tennis'];
-    const legalStreetJobs = (gameState.streetJobs || []).filter(job => !job.illegal && !creativeHobbyJobIds.includes(job.id));
-    const criminalStreetJobs = (gameState.streetJobs || []).filter(job => job.illegal === true && !creativeHobbyJobIds.includes(job.id));
+    // Filter out any creative/hobby jobs that might exist in streetJobs.
+    // R-perf: memoized so these two scans don't re-run on every render of the
+    // work tab (which currently re-renders on every tick); streetJobs rarely changes.
+    const { legalStreetJobs, criminalStreetJobs } = React.useMemo(() => {
+        const jobs = gameState.streetJobs || [];
+        return {
+            legalStreetJobs: jobs.filter(job => !job.illegal && !CREATIVE_HOBBY_JOB_IDS.includes(job.id)),
+            criminalStreetJobs: jobs.filter(job => job.illegal === true && !CREATIVE_HOBBY_JOB_IDS.includes(job.id)),
+        };
+    }, [gameState.streetJobs]);
 
     // State for negative stats popup
     const [showNegativeStatsPopup, setShowNegativeStatsPopup] = useState(false);

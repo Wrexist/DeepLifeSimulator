@@ -96,7 +96,8 @@ function TopStatsBarComponent() {
  const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
  const closeModal = useCallback(() => setOpenModal(null), []);
 
- // Glow anims (JS driver) - memoized to prevent dependency changes
+ // Glow anims (native driver) - drives a native opacity overlay; memoized so
+ // the value identities stay stable across renders.
  const glowAnimations = useMemo(() => ({
  health: new Animated.Value(0),
  happiness: new Animated.Value(0),
@@ -232,19 +233,23 @@ function TopStatsBarComponent() {
  };
 
  const runGlow = (key: 'health'|'happiness'|'energy', value: number) => {
+ // R-perf: native driver. The glow value now drives ONLY a native-compatible
+ // `opacity` overlay (see progressFill below), so this continuous loop runs on
+ // the UI thread and no longer touches the JS thread every frame — it stopped
+ // janking the already-busy post-tick window.
  if (shouldGlow(value)) {
  const glowLoop = Animated.loop(
  Animated.sequence([
  Animated.timing(glowAnimations[key], {
  toValue: 1,
  duration: 1200,
- useNativeDriver: false,
+ useNativeDriver: true,
  easing: Easing.inOut(Easing.ease)
  }),
  Animated.timing(glowAnimations[key], {
  toValue: 0,
  duration: 1200,
- useNativeDriver: false,
+ useNativeDriver: true,
  easing: Easing.inOut(Easing.ease)
  }),
  ])
@@ -255,7 +260,7 @@ function TopStatsBarComponent() {
  const glowStop = Animated.timing(glowAnimations[key], {
  toValue: 0,
  duration: 300,
- useNativeDriver: false,
+ useNativeDriver: true,
  easing: Easing.out(Easing.ease)
  });
  glowStop.start();
@@ -705,16 +710,6 @@ function TopStatsBarComponent() {
  styles.progressFill,
  darkMode && styles.progressFillDark,
  { width: progressWidth },
- shouldGlow(value) && {
- shadowColor: glowColors[key as 'health'|'happiness'|'energy'],
- shadowOffset: { width: 0, height: 0 },
- shadowOpacity: glowAnimations[key as 'health'|'happiness'|'energy'].interpolate({
- inputRange: [0, 1],
- outputRange: [0, 1],
- }),
- shadowRadius: 8,
- elevation: 8,
- },
  ]}
  >
  <LinearGradient
@@ -723,6 +718,26 @@ function TopStatsBarComponent() {
  start={{ x: 0, y: 0 }}
  end={{ x: 1, y: 0 }}
  />
+ {/* R-perf: low-stat glow PULSE rendered as a native-driven opacity wash
+ (mirrors the LinearGradient child above). Previously an animated
+ shadowOpacity on the JS driver, which churned the JS thread every
+ frame and janked the busy post-tick window. progressFill keeps its
+ own static shadow for the base halo, so only the pulse moved here. */}
+ {shouldGlow(value) && (
+ <Animated.View
+ pointerEvents="none"
+ style={[
+ StyleSheet.absoluteFill,
+ {
+ backgroundColor: glowColors[key as 'health'|'happiness'|'energy'],
+ opacity: glowAnimations[key as 'health'|'happiness'|'energy'].interpolate({
+ inputRange: [0, 1],
+ outputRange: [0, 0.35],
+ }),
+ },
+ ]}
+ />
+ )}
  </Animated.View>
  </View>
  {showStatArrows && netChange!== undefined && netChange!== 0 && (
@@ -1153,16 +1168,37 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  buttonPress();
  haptic('medium');
  setIsAdvancingWeek(true);
- nextWeek();
- // Reset loading state after a short delay with cleanup
+ // Clear any prior safety timer before arming a new one.
  if (timeoutRef.current) {
  clearTimeout(timeoutRef.current);
+ timeoutRef.current = null;
  }
+ // Safety cap: if the tick somehow never settles, re-enable the button so it
+ // can't get stuck disabled. Cleared in the finally below on normal completion.
  timeoutRef.current = setTimeout(() => {
  setIsAdvancingWeek(false);
  timeoutRef.current = null;
- }, 1000);
+ }, 5000);
+ // Defer the heavy synchronous nextWeek() work to the next frame so React
+ // commits the greyed/spinner (disabled) state and PAINTS it before the tick
+ // blocks the JS thread — the press registers instantly instead of feeling
+ // frozen. Clearing isAdvancingWeek on real completion (await) keeps the
+ // spinner honest: a brief flash for fast ticks, a real spin for slow ones.
+ const rafId = requestAnimationFrame(() => {
+ void (async () => {
+ try {
+ await nextWeek();
+ } finally {
+ if (timeoutRef.current) {
+ clearTimeout(timeoutRef.current);
+ timeoutRef.current = null;
+ }
+ setIsAdvancingWeek(false);
+ }
+ })();
+ });
  addCleanup(() => {
+ cancelAnimationFrame(rafId);
  if (timeoutRef.current) {
  clearTimeout(timeoutRef.current);
  timeoutRef.current = null;

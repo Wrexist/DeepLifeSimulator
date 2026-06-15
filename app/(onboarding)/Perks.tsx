@@ -10,6 +10,8 @@ import {
   Animated,
   Platform,
   Alert,
+  ActivityIndicator,
+  type DimensionValue,
 } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
@@ -20,7 +22,7 @@ import { perks } from '@/src/features/onboarding/perksData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
 // require-cycle from the barrel's eager `export * from './game'`).
-import { useGameState } from '@/contexts/game/GameStateContext';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
 import { type MindsetId, type MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset/config';
@@ -38,6 +40,7 @@ import {
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
 import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
+import usePressableScale from '@/hooks/usePressableScale';
 
 // Extracted modules
 import { buildNewGameState } from '@/src/features/onboarding/gameStateBuilder';
@@ -47,6 +50,7 @@ import {
   isPerkPermanent,
   getPerkBenefits,
   getStatColor,
+  type PerkDefinition,
 } from '@/src/features/onboarding/perksFlow';
 import {
   validateOnboardingInputs,
@@ -104,9 +108,271 @@ const getStatIcon = (stat: string) => {
   }
 };
 
+interface PerkCardProps {
+  perk: PerkDefinition;
+  isSelected: boolean;
+  isPermanent: boolean;
+  isLocked: boolean;
+  onToggle: (id: string) => void;
+}
+
+// R-perf: memoized so toggling one perk only re-renders that card, not the whole
+// list. Previously every perk (each a BlurView + LinearGradient) re-rendered on
+// every selection change. Props are stable per-perk except `isSelected`, so only
+// the toggled card (and the previously-selected one) re-render.
+const PerkCard = React.memo(function PerkCard({
+  perk,
+  isSelected,
+  isPermanent,
+  isLocked,
+  onToggle,
+}: PerkCardProps) {
+  const benefits = getPerkBenefits(perk);
+  return (
+    <TouchableOpacity
+      style={styles.perkContainer}
+      onPress={() => !isLocked && !isPermanent && onToggle(perk.id)}
+      disabled={isLocked || isPermanent}
+    >
+      <BlurView intensity={20} style={styles.perkBlur}>
+        <LinearGradient
+          colors={
+            isPermanent
+              ? ['rgba(245, 158, 11, 0.3)', 'rgba(217, 119, 6, 0.3)']
+              : isSelected
+                ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
+                : isLocked
+                  ? ['rgba(75, 85, 99, 0.6)', 'rgba(55, 65, 81, 0.6)']
+                  : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.perkCard,
+            isLocked && styles.lockedPerkCard,
+            isPermanent && styles.permanentPerkCard,
+          ]}
+        >
+          {isPermanent && (
+            <View style={styles.permanentBadge}>
+              <Text style={styles.permanentBadgeText}>PERMANENT</Text>
+            </View>
+          )}
+          <View style={styles.perkHeader}>
+            <View style={styles.iconSection}>
+              <View style={styles.iconContainer}>
+                <Image source={perk.icon} style={styles.perkIcon} />
+              </View>
+              {isLocked ? (
+                <View style={styles.statusIconContainer}>
+                  <Lock size={32} color="#6B7280" />
+                </View>
+              ) : isPermanent ? (
+                <View style={styles.statusIconContainer}>
+                  <Check size={32} color="#F59E0B" />
+                </View>
+              ) : isSelected ? (
+                <View style={styles.statusIconContainer}>
+                  <Check size={32} color="#10B981" />
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.perkInfo}>
+              <View style={styles.perkTitleRow}>
+                <Text style={[styles.perkTitle, isLocked && styles.lockedPerkTitle]}>
+                  {perk.title}
+                </Text>
+                <View style={styles.glassRarityBadge}>
+                  <View style={styles.glassOverlay} />
+                  <Text
+                    style={[
+                      styles.rarityText,
+                      {
+                        color:
+                          perk.rarity === 'Legendary'
+                            ? '#F59E0B'
+                            : perk.rarity === 'Epic'
+                              ? '#8B5CF6'
+                              : perk.rarity === 'Rare'
+                                ? '#3B82F6'
+                                : '#10B981',
+                      },
+                    ]}
+                  >
+                    {perk.rarity}
+                  </Text>
+                </View>
+              </View>
+
+              <Text
+                style={[
+                  styles.perkDescription,
+                  isLocked && styles.lockedPerkDescription,
+                ]}
+              >
+                {perk.description}
+              </Text>
+              {perk.unlock && isLocked && (
+                <Text style={styles.requirementText}>
+                  Requires achievement: {perk.unlock.achievementId}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {benefits.length > 0 && (
+            <View style={styles.benefitsContainer}>
+              {benefits.map((benefit, index) => {
+                const Icon = getStatIcon(benefit.stat);
+                const displayValue =
+                  benefit.type === 'start'
+                    ? `+${formatMoney(benefit.value)}`
+                    : benefit.type === 'income'
+                      ? `+${benefit.value}%`
+                      : `+${benefit.value}`;
+
+                const displayStat =
+                  benefit.stat === 'Starting Money'
+                    ? 'Starting Money'
+                    : benefit.stat === 'Income Boost'
+                      ? 'Income Boost'
+                      : benefit.stat;
+
+                return (
+                  <View key={index} style={styles.glassBenefitItem}>
+                    <View style={styles.glassOverlay} />
+                    <Icon size={16} color={getStatColor(benefit.stat)} />
+                    <Text
+                      style={[
+                        styles.benefitText,
+                        { color: getStatColor(benefit.stat) },
+                      ]}
+                    >
+                      {displayValue} {displayStat}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </LinearGradient>
+      </BlurView>
+    </TouchableOpacity>
+  );
+});
+
+interface MindsetCardProps {
+  trait: MindsetTrait;
+  isSelected: boolean;
+  onSelect: (id: MindsetId) => void;
+}
+
+// R-perf: memoized — selecting a mindset only re-renders the affected cards
+// instead of the whole list.
+const MindsetCard = React.memo(function MindsetCard({
+  trait,
+  isSelected,
+  onSelect,
+}: MindsetCardProps) {
+  const isRecommended = RECOMMENDED_MINDSETS.includes(trait.id);
+  return (
+    <TouchableOpacity style={styles.perkContainer} onPress={() => onSelect(trait.id)}>
+      <BlurView intensity={20} style={styles.perkBlur}>
+        <LinearGradient
+          colors={
+            isSelected
+              ? ['rgba(139, 92, 246, 0.3)', 'rgba(124, 58, 237, 0.3)']
+              : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.perkCard, isSelected && styles.mindsetCardSelected]}
+        >
+          {isRecommended ? (
+            <View style={styles.recommendedBadge}>
+              <Star size={10} color="#FFFFFF" />
+              <Text style={styles.recommendedBadgeText}>RECOMMENDED</Text>
+            </View>
+          ) : null}
+          <View style={styles.perkHeader}>
+            <View style={styles.iconSection}>
+              <View
+                style={[
+                  styles.mindsetIconContainer,
+                  isSelected && styles.mindsetIconSelected,
+                ]}
+              >
+                <Image
+                  source={trait.icon}
+                  style={styles.mindsetIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+              {isSelected && (
+                <View style={styles.statusIconContainer}>
+                  <Check size={24} color="#8B5CF6" />
+                </View>
+              )}
+            </View>
+            <View style={styles.perkInfo}>
+              <View style={styles.perkTitleRow}>
+                <Text
+                  style={[
+                    styles.perkTitle,
+                    isSelected && styles.mindsetNameSelected,
+                  ]}
+                >
+                  {trait.name}
+                </Text>
+                <View
+                  style={[
+                    styles.glassRarityBadge,
+                    {
+                      backgroundColor:
+                        trait.category === 'personality'
+                          ? 'rgba(139, 92, 246, 0.2)'
+                          : 'rgba(16, 185, 129, 0.2)',
+                    },
+                  ]}
+                >
+                  <View style={styles.glassOverlay} />
+                  <Text
+                    style={[
+                      styles.rarityText,
+                      {
+                        color:
+                          trait.category === 'personality'
+                            ? '#A78BFA'
+                            : '#34D399',
+                      },
+                    ]}
+                  >
+                    {trait.category === 'personality' ? 'Personality' : 'Financial'}
+                  </Text>
+                </View>
+              </View>
+              <Text
+                style={[
+                  styles.perkDescription,
+                  isSelected && styles.mindsetDescSelected,
+                ]}
+              >
+                {trait.description}
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </BlurView>
+    </TouchableOpacity>
+  );
+});
+
 export default function Perks() {
   const { state, setState, clearDraft } = useOnboarding();
-  const { gameState } = useGameState();
+  // R-perf: subscribe only to `achievements` (used for perk unlock state) instead
+  // of the whole game state, so settings/theme changes don't re-render this screen.
+  const achievements = useGameSelector((s) => s.achievements);
   const { loadGame } = useGameActions();
   const router = useRouter();
   const navigation = useNavigation();
@@ -152,8 +418,19 @@ export default function Perks() {
 
   // Sorted perks using extracted logic
   const sortedPerks = useMemo(
-    () => sortPerksByUnlockStatus(perks, permanentPerks, gameState.achievements || []),
-    [gameState.achievements, permanentPerks]
+    () => sortPerksByUnlockStatus(perks, permanentPerks, achievements || []),
+    [achievements, permanentPerks]
+  );
+
+  // R-perf: stable particle positions — were re-rolled with Math.random() on every
+  // render, so the 8 background particles jumped/flickered each re-render.
+  const particlePositions = useMemo<{ left: DimensionValue; top: DimensionValue }[]>(
+    () =>
+      Array.from({ length: 8 }, () => ({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+      })),
+    []
   );
 
   const { opacity, translateY, rotate } = useOnboardingScreenAnimation({
@@ -162,12 +439,17 @@ export default function Perks() {
     rotateBackground: true,
   });
 
-  const toggle = (id: string) => {
+  const toggle = useCallback((id: string) => {
     haptic.selection();
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
-  };
+  }, []);
+
+  const selectMindset = useCallback(
+    (id: MindsetId) => setSelectedMindset((prev) => (prev === id ? null : id)),
+    []
+  );
 
   // H-7 (R8): synchronous re-entry guard for the start flow. Without it, two
   // rapid taps both run the full buildNewGameState → forceSave → loadGame
@@ -176,11 +458,26 @@ export default function Perks() {
   // the continueInFlightRef pattern already used in SaveSlots.
   const startInFlightRef = useRef(false);
   const [isStarting, setIsStarting] = useState(false);
+  // Native-driver press scale for the "Start Your Life" button (instant tactile feedback).
+  const {
+    AnimatedView: StartButtonScale,
+    animatedStyle: startButtonScaleStyle,
+    onPressIn: onStartPressIn,
+    onPressOut: onStartPressOut,
+  } = usePressableScale({ haptic: false });
 
-  const start = async () => {
+  const start = () => {
     if (startInFlightRef.current) return;
     startInFlightRef.current = true;
     setIsStarting(true);
+    // Defer the heavy buildNewGameState() + save/load to the next frame so the
+    // "Starting…" spinner paints before the synchronous work blocks the JS thread.
+    requestAnimationFrame(() => {
+      void runStart();
+    });
+  };
+
+  const runStart = async () => {
     let navigating = false;
     try {
       haptic.heavy();
@@ -419,298 +716,27 @@ export default function Perks() {
           <View style={styles.scrollContent}>
             {activeTab === 'perks' ? (
               <View style={styles.perksContainer}>
-                {sortedPerks.map((perk) => {
-                  const isSelected = selected.includes(perk.id);
-                  const perkIsPermanent = isPerkPermanent(
-                    perk.id,
-                    permanentPerks
-                  );
-                  const perkIsLocked = isPerkLocked(
-                    perk,
-                    permanentPerks,
-                    gameState.achievements || []
-                  );
-                  const benefits = getPerkBenefits(perk);
-
-                  return (
-                    <TouchableOpacity
-                      key={perk.id}
-                      style={styles.perkContainer}
-                      onPress={() =>
-                        !perkIsLocked && !perkIsPermanent && toggle(perk.id)
-                      }
-                      disabled={perkIsLocked || perkIsPermanent}
-                    >
-                      <BlurView intensity={20} style={styles.perkBlur}>
-                        <LinearGradient
-                          colors={
-                            perkIsPermanent
-                              ? [
-                                  'rgba(245, 158, 11, 0.3)',
-                                  'rgba(217, 119, 6, 0.3)',
-                                ]
-                              : isSelected
-                                ? [
-                                    'rgba(16, 185, 129, 0.2)',
-                                    'rgba(5, 150, 105, 0.2)',
-                                  ]
-                                : perkIsLocked
-                                  ? [
-                                      'rgba(75, 85, 99, 0.6)',
-                                      'rgba(55, 65, 81, 0.6)',
-                                    ]
-                                  : [
-                                      'rgba(31, 41, 55, 0.8)',
-                                      'rgba(17, 24, 39, 0.8)',
-                                    ]
-                          }
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={[
-                            styles.perkCard,
-                            perkIsLocked && styles.lockedPerkCard,
-                            perkIsPermanent && styles.permanentPerkCard,
-                          ]}
-                        >
-                          {perkIsPermanent && (
-                            <View style={styles.permanentBadge}>
-                              <Text style={styles.permanentBadgeText}>
-                                PERMANENT
-                              </Text>
-                            </View>
-                          )}
-                          <View style={styles.perkHeader}>
-                            <View style={styles.iconSection}>
-                              <View style={styles.iconContainer}>
-                                <Image
-                                  source={perk.icon}
-                                  style={styles.perkIcon}
-                                />
-                              </View>
-                              {perkIsLocked ? (
-                                <View style={styles.statusIconContainer}>
-                                  <Lock size={32} color="#6B7280" />
-                                </View>
-                              ) : perkIsPermanent ? (
-                                <View style={styles.statusIconContainer}>
-                                  <Check size={32} color="#F59E0B" />
-                                </View>
-                              ) : isSelected ? (
-                                <View style={styles.statusIconContainer}>
-                                  <Check size={32} color="#10B981" />
-                                </View>
-                              ) : null}
-                            </View>
-
-                            <View style={styles.perkInfo}>
-                              <View style={styles.perkTitleRow}>
-                                <Text
-                                  style={[
-                                    styles.perkTitle,
-                                    perkIsLocked && styles.lockedPerkTitle,
-                                  ]}
-                                >
-                                  {perk.title}
-                                </Text>
-                                <View style={styles.glassRarityBadge}>
-                                  <View style={styles.glassOverlay} />
-                                  <Text
-                                    style={[
-                                      styles.rarityText,
-                                      {
-                                        color:
-                                          perk.rarity === 'Legendary'
-                                            ? '#F59E0B'
-                                            : perk.rarity === 'Epic'
-                                              ? '#8B5CF6'
-                                              : perk.rarity === 'Rare'
-                                                ? '#3B82F6'
-                                                : '#10B981',
-                                      },
-                                    ]}
-                                  >
-                                    {perk.rarity}
-                                  </Text>
-                                </View>
-                              </View>
-
-                              <Text
-                                style={[
-                                  styles.perkDescription,
-                                  perkIsLocked && styles.lockedPerkDescription,
-                                ]}
-                              >
-                                {perk.description}
-                              </Text>
-                              {perk.unlock && perkIsLocked && (
-                                <Text style={styles.requirementText}>
-                                  Requires achievement:{' '}
-                                  {perk.unlock.achievementId}
-                                </Text>
-                              )}
-                            </View>
-                          </View>
-
-                          {benefits.length > 0 && (
-                            <View style={styles.benefitsContainer}>
-                              {benefits.map((benefit, index) => {
-                                const Icon = getStatIcon(benefit.stat);
-                                const displayValue =
-                                  benefit.type === 'start'
-                                    ? `+${formatMoney(benefit.value)}`
-                                    : benefit.type === 'income'
-                                      ? `+${benefit.value}%`
-                                      : `+${benefit.value}`;
-
-                                const displayStat =
-                                  benefit.stat === 'Starting Money'
-                                    ? 'Starting Money'
-                                    : benefit.stat === 'Income Boost'
-                                      ? 'Income Boost'
-                                      : benefit.stat;
-
-                                return (
-                                  <View
-                                    key={index}
-                                    style={styles.glassBenefitItem}
-                                  >
-                                    <View style={styles.glassOverlay} />
-                                    <Icon
-                                      size={16}
-                                      color={getStatColor(benefit.stat)}
-                                    />
-                                    <Text
-                                      style={[
-                                        styles.benefitText,
-                                        { color: getStatColor(benefit.stat) },
-                                      ]}
-                                    >
-                                      {displayValue} {displayStat}
-                                    </Text>
-                                  </View>
-                                );
-                              })}
-                            </View>
-                          )}
-                        </LinearGradient>
-                      </BlurView>
-                    </TouchableOpacity>
-                  );
-                })}
+                {sortedPerks.map((perk) => (
+                  <PerkCard
+                    key={perk.id}
+                    perk={perk}
+                    isSelected={selected.includes(perk.id)}
+                    isPermanent={isPerkPermanent(perk.id, permanentPerks)}
+                    isLocked={isPerkLocked(perk, permanentPerks, achievements || [])}
+                    onToggle={toggle}
+                  />
+                ))}
               </View>
             ) : (
               <View style={styles.perksContainer}>
-                {MINDSET_TRAITS.map((trait: MindsetTrait) => {
-                  const isSelected = selectedMindset === trait.id;
-                  const isRecommended = RECOMMENDED_MINDSETS.includes(trait.id);
-                  return (
-                    <TouchableOpacity
-                      key={trait.id}
-                      style={styles.perkContainer}
-                      onPress={() =>
-                        setSelectedMindset(isSelected ? null : trait.id)
-                      }
-                    >
-                      <BlurView intensity={20} style={styles.perkBlur}>
-                        <LinearGradient
-                          colors={
-                            isSelected
-                              ? [
-                                  'rgba(139, 92, 246, 0.3)',
-                                  'rgba(124, 58, 237, 0.3)',
-                                ]
-                              : [
-                                  'rgba(31, 41, 55, 0.8)',
-                                  'rgba(17, 24, 39, 0.8)',
-                                ]
-                          }
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={[
-                            styles.perkCard,
-                            isSelected && styles.mindsetCardSelected,
-                          ]}
-                        >
-                          {isRecommended ? (
-                            <View style={styles.recommendedBadge}>
-                              <Star size={10} color="#FFFFFF" />
-                              <Text style={styles.recommendedBadgeText}>RECOMMENDED</Text>
-                            </View>
-                          ) : null}
-                          <View style={styles.perkHeader}>
-                            <View style={styles.iconSection}>
-                              <View
-                                style={[
-                                  styles.mindsetIconContainer,
-                                  isSelected && styles.mindsetIconSelected,
-                                ]}
-                              >
-                                <Image
-                                  source={trait.icon}
-                                  style={styles.mindsetIconImage}
-                                  resizeMode="contain"
-                                />
-                              </View>
-                              {isSelected && (
-                                <View style={styles.statusIconContainer}>
-                                  <Check size={24} color="#8B5CF6" />
-                                </View>
-                              )}
-                            </View>
-                            <View style={styles.perkInfo}>
-                              <View style={styles.perkTitleRow}>
-                                <Text
-                                  style={[
-                                    styles.perkTitle,
-                                    isSelected && styles.mindsetNameSelected,
-                                  ]}
-                                >
-                                  {trait.name}
-                                </Text>
-                                <View
-                                  style={[
-                                    styles.glassRarityBadge,
-                                    {
-                                      backgroundColor:
-                                        trait.category === 'personality'
-                                          ? 'rgba(139, 92, 246, 0.2)'
-                                          : 'rgba(16, 185, 129, 0.2)',
-                                    },
-                                  ]}
-                                >
-                                  <View style={styles.glassOverlay} />
-                                  <Text
-                                    style={[
-                                      styles.rarityText,
-                                      {
-                                        color:
-                                          trait.category === 'personality'
-                                            ? '#A78BFA'
-                                            : '#34D399',
-                                      },
-                                    ]}
-                                  >
-                                    {trait.category === 'personality'
-                                      ? 'Personality'
-                                      : 'Financial'}
-                                  </Text>
-                                </View>
-                              </View>
-                              <Text
-                                style={[
-                                  styles.perkDescription,
-                                  isSelected && styles.mindsetDescSelected,
-                                ]}
-                              >
-                                {trait.description}
-                              </Text>
-                            </View>
-                          </View>
-                        </LinearGradient>
-                      </BlurView>
-                    </TouchableOpacity>
-                  );
-                })}
+                {MINDSET_TRAITS.map((trait: MindsetTrait) => (
+                  <MindsetCard
+                    key={trait.id}
+                    trait={trait}
+                    isSelected={selectedMindset === trait.id}
+                    onSelect={selectMindset}
+                  />
+                ))}
 
                 {selectedMindset && (
                   <TouchableOpacity
@@ -738,38 +764,48 @@ export default function Perks() {
             { bottom: 20 + insets.bottom },
           ]}
         >
-          <TouchableOpacity
-            onPress={start}
-            disabled={isStarting}
-            style={styles.floatingButton}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#10B981', '#059669', '#047857']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.floatingGlassButton}
+          <StartButtonScale style={startButtonScaleStyle}>
+            <TouchableOpacity
+              onPress={start}
+              onPressIn={onStartPressIn}
+              onPressOut={onStartPressOut}
+              disabled={isStarting}
+              style={styles.floatingButton}
+              activeOpacity={0.8}
             >
-              <View style={styles.buttonContent}>
-                <Text style={styles.glassButtonTitle}>Start Your Life</Text>
-                <View style={styles.glassIconContainer}>
-                  <ArrowRight size={24} color="#FFFFFF" />
+              <LinearGradient
+                colors={['#10B981', '#059669', '#047857']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.floatingGlassButton}
+              >
+                <View style={styles.buttonContent}>
+                  <Text style={styles.glassButtonTitle}>
+                    {isStarting ? 'Starting…' : 'Start Your Life'}
+                  </Text>
+                  <View style={styles.glassIconContainer}>
+                    {isStarting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <ArrowRight size={24} color="#FFFFFF" />
+                    )}
+                  </View>
                 </View>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
+              </LinearGradient>
+            </TouchableOpacity>
+          </StartButtonScale>
         </View>
 
         {/* Floating particles */}
         <View style={styles.particlesContainer}>
-          {[...Array(8)].map((_, index) => (
+          {particlePositions.map((pos, index) => (
             <Animated.View
               key={index}
               style={[
                 styles.particle,
                 {
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
+                  left: pos.left,
+                  top: pos.top,
                   transform: [{ rotate }],
                 },
               ]}
