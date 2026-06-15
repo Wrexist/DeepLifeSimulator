@@ -1,5 +1,34 @@
 # Task Tracker
 
+## Roadmap Phase B — UI render-test suite (the #1 durability gap) — June 15, 2026
+
+Goal (from `tasks/roadmap-2026-06-15.md` H2): close the near-zero UI render-test coverage —
+254 components, previously **0** `render()` tests; the import-smoke test only checked default
+exports. This is the class of bug (undefined components, bad imports, provider cycles, Animated
+mis-mocks) that only surfaced in TestFlight/production before.
+
+Key discovery: the team believed render tests needed a `jest-expo` host. They don't — `react-test-renderer`
+(19.1.0) is already installed and `react-native` is mocked to string-tag host components. The only
+blockers were **gaps in the shared mock** (no `Animated.View`, no `ActivityIndicator`, composite
+animations missing `.stop()`, and Expo `.js` ESM modules unparseable by ts-jest). Filled additively.
+
+- [x] **Harness** — `__tests__/render/helpers/renderWithProviders.tsx` mounts a component inside the
+      real `AppProviders` tree via `react-test-renderer` + `act`; asserts it commits without throwing.
+- [x] **Mock completeness (additive, in `jest.setup.js`)** — added `Animated.View/Text/Image/ScrollView/FlatList`,
+      `Animated.loop/stagger/delay` + `.stop()/.reset()` on `sequence/parallel`, `ActivityIndicator`/
+      `ImageBackground`/`RefreshControl`/`BackHandler`, and mocks for `react-native-safe-area-context`,
+      `@react-navigation/native`, and `expo-constants` (ESM). `jest.config.js`: ignore `render/helpers/`.
+- [x] **13 render smoke tests** — harness smoke + leaf (`OnboardingFloatingButton`); 5 onboarding screens
+      (MainMenu, SaveSlots, Scenarios, Customize, Perks); 3 in-game tabs (home, work, market); 3 hot
+      components (TopStatsBar, IdentityCard, DeathPopup). All green locally.
+- [ ] **Verify full suite** (2387 → 2400) still green after the shared-mock changes, then commit.
+
+Next in this suite (incremental): assert key copy/elements (not just "mounts"); add interaction tests
+(press Next Week, toggle a perk) now that the host renders; cover modal chains. Then Phase B continues
+with the save-size + load-validate stress tests (roadmap H4/H5).
+
+---
+
 ## Performance: make the game feel instant/fast — June 14, 2026
 
 Goal: pressing things (esp. "Next Week") feels instant; stop re-rendering everything on

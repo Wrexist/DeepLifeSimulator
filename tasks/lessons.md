@@ -4,6 +4,27 @@
 
 ## Patterns to Watch For
 
+### 2026-06-15 - UI render tests did NOT need a jest-expo host — just gaps in the existing RN mock
+
+- What was believed: `__tests__/integration/gameFlow.test.tsx` and `screenImports.test.ts` both stated render
+  tests were "deferred until a jest-expo / native test host is configured," so the project shipped with
+  **0 `render()` tests across 254 components** — the biggest durability gap (per the 2026-06-15 roadmap).
+- What was actually true: `react-test-renderer@19.1.0` is already installed, and `jest.setup.js` already mocks
+  `react-native` to string-tag host components. So `TestRenderer.create(<Screen/>)` works in the existing
+  ts-jest/node env — screens just hit a few **mock gaps** that threw, not a fundamental host limitation.
+- The specific gaps (all additive fixes to `jest.setup.js`): (1) `Animated.View`/`Text`/etc. were missing →
+  `usePressableScale`'s `<Animated.View>` was `undefined` ("Element type is invalid"); (2) `Animated.sequence`/
+  `parallel` returned objects without `.stop()` → crash on unmount when a component stops an entrance anim;
+  (3) `ActivityIndicator`/`ImageBackground`/`BackHandler` not mocked; (4) `react-native-safe-area-context` +
+  `@react-navigation/native` not mocked; (5) Expo native `.js` modules (e.g. `expo-constants`) ship ESM that
+  ts-jest (ts/tsx-only transform) can't parse → mock them.
+- Rule: to add render coverage in a ts-jest/string-mocked RN project, use `react-test-renderer` directly and
+  fill mock gaps reactively (run → read the throw → mock → repeat). Keep mocks ADDITIVE in `jest.setup.js`
+  (new keys only) so the existing suite is unaffected, and always re-run the FULL suite after touching shared
+  setup. Note the limitation: this renders each screen's own subtree, so it catches undefined-component /
+  bad-import / Animated-misuse / provider-cycle crashes — but NOT navigator-level version-skew crashes (see
+  the 2026-06-10 entry); those still need a real navigator mount.
+
 ### 2026-06-10 - The onboarding "Element type is invalid: undefined" was a @react-navigation version skew, NOT a screen module
 
 - What went wrong: every prior fix for the launch crash (anchor `unstable_settings`, lazy `SettingsModal`, leaf-context imports, OTA disable) chased the wrong root cause. The real bug: `@react-navigation/native-stack@7.15.1` (pulled transitively by `expo-router`) imports `NavigationProvider` from `@react-navigation/native` and renders it as the OUTER element of every screen's `SceneView`. The peer dep is `@react-navigation/native@^7.2.4`, but `package.json` pinned `^7.0.14` and the lockfile froze `@react-navigation/native` at `7.1.17` — a version that does NOT export `NavigationProvider`. So `NavigationProvider` was `undefined`, and the FIRST native-stack mounted (the `(onboarding)` Stack, since the root is `<Slot>` and tabs use bottom-tabs) crashed with "Element type is invalid: …got: undefined" at `SceneView`. npm only *warns* on violated peer deps, so the bundle built fine and crashed only at render.

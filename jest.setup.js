@@ -152,6 +152,53 @@ jest.mock('expo-router', () => ({
 
 jest.mock('expo-linear-gradient', () => 'LinearGradient');
 
+// Expo native `.js` modules ship ESM that ts-jest (which only transforms ts/tsx)
+// can't parse. Mock the ones the screen graph pulls in — we don't test their
+// behavior, only that screens mount around them.
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: { version: '1.0.0', name: 'DeepLife', slug: 'deeplife', extra: {}, ios: {}, android: {} },
+    manifest: {},
+    manifest2: {},
+    nativeAppVersion: '1.0.0',
+    nativeBuildVersion: '1',
+    executionEnvironment: 'standalone',
+    appOwnership: null,
+    deviceName: 'test-device',
+    platform: { ios: { buildNumber: '1' } },
+    sessionId: 'test-session',
+  },
+  executionEnvironment: 'standalone',
+  AppOwnership: { Standalone: 'standalone', Expo: 'expo', Guest: 'guest' },
+}));
+
+// Mock react-native-safe-area-context (used by every screen via useSafeAreaInsets).
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: ({ children }) => children,
+  SafeAreaView: 'SafeAreaView',
+  SafeAreaInsetsContext: {
+    Consumer: ({ children }) => children({ top: 0, bottom: 0, left: 0, right: 0 }),
+  },
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaFrame: () => ({ x: 0, y: 0, width: 390, height: 844 }),
+}));
+
+// Mock @react-navigation/native (screens use useNavigation/useFocusEffect/etc.).
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    addListener: jest.fn(() => jest.fn()),
+    setOptions: jest.fn(),
+    dispatch: jest.fn(),
+  }),
+  useFocusEffect: jest.fn(),
+  useIsFocused: jest.fn(() => true),
+  useRoute: jest.fn(() => ({ params: {} })),
+}));
+
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn(() => Promise.resolve('id')),
   cancelScheduledNotificationAsync: jest.fn(() => Promise.resolve()),
@@ -176,6 +223,7 @@ jest.mock('react-native', () => {
     'View',
     'Text',
     'Image',
+    'ImageBackground',
     'ScrollView',
     'FlatList',
     'SectionList',
@@ -189,6 +237,8 @@ jest.mock('react-native', () => {
     'SafeAreaView',
     'KeyboardAvoidingView',
     'StatusBar',
+    'ActivityIndicator',
+    'RefreshControl',
   ];
 
   const mockExports = {
@@ -224,6 +274,11 @@ jest.mock('react-native', () => {
       currentState: 'active',
       addEventListener: jest.fn(() => ({ remove: jest.fn() })),
       removeEventListener: jest.fn(),
+    },
+    BackHandler: {
+      addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      removeEventListener: jest.fn(),
+      exitApp: jest.fn(),
     },
     NativeModules: {},
     PixelRatio: {
@@ -278,12 +333,38 @@ jest.mock('react-native', () => {
     })),
     sequence: jest.fn(() => ({
       start: jest.fn((cb) => cb && cb({ finished: true })),
+      stop: jest.fn(),
+      reset: jest.fn(),
     })),
     parallel: jest.fn(() => ({
       start: jest.fn((cb) => cb && cb({ finished: true })),
+      stop: jest.fn(),
+      reset: jest.fn(),
+    })),
+    stagger: jest.fn(() => ({
+      start: jest.fn((cb) => cb && cb({ finished: true })),
+      stop: jest.fn(),
+      reset: jest.fn(),
+    })),
+    delay: jest.fn(() => ({
+      start: jest.fn((cb) => cb && cb({ finished: true })),
+      stop: jest.fn(),
+      reset: jest.fn(),
     })),
     event: jest.fn(),
     createAnimatedComponent: jest.fn((component) => component),
+    // Animated.* host components (string tags) so wrappers like
+    // usePressableScale's <Animated.View> render under react-test-renderer.
+    View: 'Animated.View',
+    Text: 'Animated.Text',
+    Image: 'Animated.Image',
+    ScrollView: 'Animated.ScrollView',
+    FlatList: 'Animated.FlatList',
+    loop: jest.fn(() => ({
+      start: jest.fn((cb) => cb && cb({ finished: true })),
+      stop: jest.fn(),
+      reset: jest.fn(),
+    })),
   };
 
   for (const name of componentNames) {
