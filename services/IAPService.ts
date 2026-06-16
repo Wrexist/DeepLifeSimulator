@@ -68,11 +68,12 @@ export interface PurchaseResult {
 
 /**
  * Single source of truth for "what a purchased product grants" — applies a
- * product config's benefits to a GameState IN PLACE. Shared by the in-memory
- * (applyProductToState), persisted (applyBenefitToDisk), and Shop (ShopModal)
- * apply paths so they can no longer drift. That drift is exactly what left the
- * $24.99 Premium Pack money multiplier (and, in the Shop path, several other
- * entitlements) silently inert.
+ * product config's benefits to a GameState IN PLACE. Used by the in-memory
+ * (applyProductToState) and persisted (applyBenefitToDisk) fulfillment paths so
+ * they can no longer drift — that drift is exactly what left the $24.99 Premium
+ * Pack money multiplier silently inert. (ShopModal is a third, still-divergent
+ * apply path; routing it through this helper is tracked as a follow-up — it also
+ * needs its `config.removeAds` field folded in here first.)
  *
  * Sets perk FLAGS only; cross-slot permanent-perk persistence (savePermanentPerk),
  * the Verified-Pro subscription, and the transaction ledger are caller concerns.

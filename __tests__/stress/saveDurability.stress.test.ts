@@ -47,21 +47,22 @@ import {
   parseSaveData,
   validateGameState,
 } from '@/utils/saveValidation';
-import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
+import { STATE_VERSION } from '@/contexts/game/initialState';
+import { createTestGameState } from '../helpers/createTestGameState';
 import { MAX_SAVE_SIZE } from '@/lib/config/gameConstants';
 
 const { act } = TestRenderer;
 const h = React.createElement;
 
-type Probe = {
+interface Probe {
   state: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
   nextWeek: () => Promise<void> | void;
-};
+}
 
 let captured: Probe | null = null;
 
-function ProbeComponent() {
+function ProbeComponent(): null {
   const { gameState, setGameState } = useGameState();
   const actions = useGameActions();
   captured = {
@@ -77,14 +78,14 @@ function mountGame(): { root: any } {
   let root: any;
   act(() => {
     root = TestRenderer.create(
-      h(UIUXProvider as any, null, h(GameProvider as any, null, h(ProbeComponent)))
+      h(UIUXProvider, null, h(GameProvider, null, h(ProbeComponent)))
     );
   });
   return { root };
 }
 
 /** Drive `nextWeek` once; clear any death so the soak keeps advancing. */
-async function tick() {
+async function tick(): Promise<void> {
   if (!captured) throw new Error('Probe not initialized');
   await act(async () => {
     await captured!.nextWeek();
@@ -150,17 +151,17 @@ describe('Save Durability Stress (real tick + real save serialization)', () => {
     expect(state.journal?.length ?? 0).toBeLessThanOrEqual(80);
     expect(state.memories?.length ?? 0).toBeLessThanOrEqual(300);
     expect(state.lifeMilestones?.length ?? 0).toBeLessThanOrEqual(300);
-    expect((state as any).netWorthHistory?.length ?? 0).toBeLessThanOrEqual(300);
+    expect(state.netWorthHistory?.length ?? 0).toBeLessThanOrEqual(300);
   });
 
   it('H5: a corrupted state self-heals via validate(autoFix) and survives a real tick', async () => {
     // A degraded state: NaN/Infinity numerics — the kind a CloudSync merge, a
     // hand-edited save, or arithmetic drift can produce.
-    const corrupt = JSON.parse(JSON.stringify(initialGameState)) as GameState;
-    (corrupt.stats as any).money = NaN;
-    (corrupt.stats as any).health = Infinity;
-    (corrupt.stats as any).energy = NaN;
-    (corrupt as any).bankSavings = Infinity;
+    const corrupt = createTestGameState();
+    corrupt.stats.money = NaN;
+    corrupt.stats.health = Infinity;
+    corrupt.stats.energy = NaN;
+    corrupt.bankSavings = Infinity;
 
     // 1. The documented load-path repair — validateGameState(autoFix=true), which
     //    runs autoFixStats in place — must clean the numerics and yield a valid
@@ -169,15 +170,15 @@ describe('Save Durability Stress (real tick + real save serialization)', () => {
     expect(Number.isFinite(corrupt.stats.money)).toBe(true);
     expect(Number.isFinite(corrupt.stats.health)).toBe(true);
     expect(Number.isFinite(corrupt.stats.energy)).toBe(true);
-    expect(Number.isFinite((corrupt as any).bankSavings)).toBe(true);
+    expect(Number.isFinite(corrupt.bankSavings)).toBe(true);
     expect(validateGameState(corrupt).valid).toBe(true);
 
     // 2. Even a RAW corrupt state (loaded without pre-repair) must not crash the
     //    live tick, and the post-tick path must leave it valid & finite — i.e. it
     //    can't load "valid" then soft-lock/NaN-out on the very first week-advance.
-    const raw = JSON.parse(JSON.stringify(initialGameState)) as GameState;
-    (raw.stats as any).money = NaN;
-    (raw.stats as any).energy = Infinity;
+    const raw = createTestGameState();
+    raw.stats.money = NaN;
+    raw.stats.energy = Infinity;
 
     mounted = mountGame();
     await act(async () => {

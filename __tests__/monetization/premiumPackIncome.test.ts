@@ -14,15 +14,15 @@
 
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
-import { initialGameState } from '@/contexts/game/initialState';
 import { computeWeeklyIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState } from '../helpers/createTestGameState';
 
 function freshState(): GameState {
-  return JSON.parse(JSON.stringify(initialGameState)) as GameState;
+  return createTestGameState();
 }
 
-function incomeInput(state: GameState) {
+function incomeInput(state: GameState): Parameters<typeof computeWeeklyIncome>[0] {
   return {
     prevState: state,
     careerSalary: 1000,
@@ -49,7 +49,7 @@ describe('Premium Pack money multiplier — write→read chain', () => {
   it('READ: computeWeeklyIncome applies a 1.5x bonus when goldUpgrades.multiplier is set', () => {
     const base = freshState();
     base.relationships = [];
-    base.perks = undefined as unknown as GameState['perks'];
+    base.perks = undefined;
 
     const without = computeWeeklyIncome(
       incomeInput({ ...base, goldUpgrades: { ...base.goldUpgrades, multiplier: false } })
@@ -67,13 +67,13 @@ describe('Premium Pack money multiplier — write→read chain', () => {
   it('END-TO-END: buying the Premium Pack multiplies weekly income by 1.5x', () => {
     const plain = freshState();
     plain.relationships = [];
-    plain.perks = undefined as unknown as GameState['perks'];
+    plain.perks = undefined;
     const baseline = computeWeeklyIncome(incomeInput(plain));
 
     const premium = freshState();
     iapService.applyProductToState(premium, IAP_PRODUCTS.GEMS_PREMIUM);
     premium.relationships = [];
-    premium.perks = undefined as unknown as GameState['perks'];
+    premium.perks = undefined;
     const boosted = computeWeeklyIncome(incomeInput(premium));
 
     expect(boosted.totalIncome / baseline.totalIncome).toBeCloseTo(1.5, 2);
