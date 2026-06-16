@@ -33,10 +33,12 @@ describe('render — high-traffic components', () => {
   // shared applyProductBenefitsToState helper. Smoke-mount it (open) so a render
   // crash in the previously-untested component is caught.
   it('ShopModal (open) mounts without throwing', () => {
-    const { json, unmount } = renderWithProviders(
+    const { renderer, unmount } = renderWithProviders(
       <ShopModal visible={true} onClose={() => {}} />,
     );
-    expect(json.length).toBeGreaterThan(0);
+    // An open Shop renders real content — assert it's not a null render.
+    // (json.length > 0 would pass even on JSON.stringify(null) === "null".)
+    expect(renderer.toJSON()).not.toBeNull();
     unmount();
   });
 });

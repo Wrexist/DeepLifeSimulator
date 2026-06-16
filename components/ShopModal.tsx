@@ -153,7 +153,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
       
       if (result.success) {
         // Apply the purchase benefits locally for immediate feedback
-        await applyPurchaseBenefits(itemId, type);
+        await applyPurchaseBenefits(itemId);
         
         Alert.alert('Success', 'Purchase completed! Your items have been added to your account.');
       } else {
@@ -167,7 +167,7 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     }
   };
 
-  const applyPurchaseBenefits = async (itemId: string, type: 'perk' | 'pack' | 'special' | 'gold') => {
+  const applyPurchaseBenefits = async (itemId: string) => {
     const config = getProductConfig(itemId);
     if (!config) return;
 
