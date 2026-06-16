@@ -3,6 +3,7 @@ import { renderWithProviders } from './helpers/renderWithProviders';
 import TopStatsBar from '@/components/TopStatsBar';
 import IdentityCard from '@/components/IdentityCard';
 import DeathPopup from '@/components/DeathPopup';
+import ShopModal from '@/components/ShopModal';
 
 /**
  * High-traffic component render smoke tests — always-mounted / frequently-shown
@@ -24,6 +25,17 @@ describe('render — high-traffic components', () => {
 
   it('DeathPopup mounts without throwing', () => {
     const { json, unmount } = renderWithProviders(<DeathPopup />);
+    expect(json.length).toBeGreaterThan(0);
+    unmount();
+  });
+
+  // ShopModal is the in-app store — its purchase handler now routes through the
+  // shared applyProductBenefitsToState helper. Smoke-mount it (open) so a render
+  // crash in the previously-untested component is caught.
+  it('ShopModal (open) mounts without throwing', () => {
+    const { json, unmount } = renderWithProviders(
+      <ShopModal visible={true} onClose={() => {}} />,
+    );
     expect(json.length).toBeGreaterThan(0);
     unmount();
   });

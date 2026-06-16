@@ -68,12 +68,11 @@ export interface PurchaseResult {
 
 /**
  * Single source of truth for "what a purchased product grants" — applies a
- * product config's benefits to a GameState IN PLACE. Used by the in-memory
- * (applyProductToState) and persisted (applyBenefitToDisk) fulfillment paths so
- * they can no longer drift — that drift is exactly what left the $24.99 Premium
- * Pack money multiplier silently inert. (ShopModal is a third, still-divergent
- * apply path; routing it through this helper is tracked as a follow-up — it also
- * needs its `config.removeAds` field folded in here first.)
+ * product config's benefits to a GameState IN PLACE. Used by ALL three apply
+ * paths: the in-memory (applyProductToState) and persisted (applyBenefitToDisk)
+ * IAP fulfillment paths, and the Shop (ShopModal) path — so they can no longer
+ * drift. That drift is exactly what left the $24.99 Premium Pack money
+ * multiplier silently inert (and, in the Shop path, several other entitlements).
  *
  * Sets perk FLAGS only; cross-slot permanent-perk persistence (savePermanentPerk),
  * the Verified-Pro subscription, and the transaction ledger are caller concerns.
@@ -165,6 +164,12 @@ export function applyProductBenefitsToState(
   // Lifetime premium
   if (config.lifetimePremium) {
     gameState.settings.lifetimePremium = true;
+    gameState.settings.adsRemoved = true;
+  }
+
+  // Remove ads (config flag). The REMOVE_ADS product also stamps adsRemovedDate
+  // in the switch below; any other product carrying this flag just gets adsRemoved.
+  if ('removeAds' in config && config.removeAds) {
     gameState.settings.adsRemoved = true;
   }
 
@@ -1257,9 +1262,10 @@ export class IAPService {
    * Persist permanent (cross-slot) perks for a purchased product. Mirrors the
    * inline savePermanentPerk calls the disk-apply path used to interleave —
    * kept as a separate step so all the state-mutation logic lives in the shared
-   * applyProductBenefitsToState helper.
+   * applyProductBenefitsToState helper. Public so the Shop path (ShopModal)
+   * persists perks through the exact same routine as IAP fulfillment.
    */
-  private async persistPermanentPerks(
+  public async persistPermanentPerks(
     config: NonNullable<ReturnType<typeof getProductConfig>>,
   ): Promise<void> {
     if ('workBoost' in config && config.workBoost) await this.savePermanentPerk('workBoost');

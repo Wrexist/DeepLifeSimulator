@@ -5,7 +5,8 @@ import { useGame } from '@/contexts/GameContext';
 import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Unlock, Gem, RefreshCw } from 'lucide-react-native';
 import usePressableScale from '@/hooks/usePressableScale';
 import Skeleton from '@/components/anim/Skeleton';
-import { iapService, IAPService } from '@/services/IAPService';
+import { iapService, applyProductBenefitsToState } from '@/services/IAPService';
+import type { GameState } from '@/contexts/game/types';
 import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 
@@ -170,93 +171,22 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     const config = getProductConfig(itemId);
     if (!config) return;
 
-    // Apply benefits based on product type
-    if (config.gems) {
-      setGameState(prev => ({
-        ...prev,
-        stats: {
-          ...prev.stats,
-          gems: prev.stats.gems + config.gems
-        }
-      }));
-    }
+    // Apply ALL config benefits through the single shared helper — the same
+    // source of truth the IAP fulfillment paths use — so the Shop can no longer
+    // diverge from them. (This path previously dropped moneyMultiplier, youth
+    // pills, gold upgrades, everythingUnlocked, revival, etc.)
+    setGameState(prev => {
+      const next: GameState =
+        typeof structuredClone === 'function'
+          ? structuredClone(prev)
+          : JSON.parse(JSON.stringify(prev));
+      applyProductBenefitsToState(next, config, itemId);
+      return next;
+    });
 
-    if (config.money) {
-      setGameState(prev => ({
-        ...prev,
-        stats: {
-          ...prev.stats,
-          money: prev.stats.money + config.money
-        }
-      }));
-    }
-
-    // Handle special products - Save as permanent perks
-    if (config.workBoost) {
-      await IAPService.savePermanentPerk('workBoost');
-      setGameState(prev => ({
-        ...prev,
-        perks: { ...prev.perks, workBoost: true }
-      }));
-    }
-
-    if (config.mindset) {
-      await IAPService.savePermanentPerk('mindset');
-      setGameState(prev => ({
-        ...prev,
-        perks: { ...prev.perks, mindset: true }
-      }));
-    }
-
-    if (config.fastLearner) {
-      await IAPService.savePermanentPerk('fastLearner');
-      setGameState(prev => ({
-        ...prev,
-        perks: { ...prev.perks, fastLearner: true }
-      }));
-    }
-
-    if (config.goodCredit) {
-      await IAPService.savePermanentPerk('goodCredit');
-      setGameState(prev => ({
-        ...prev,
-        perks: { ...prev.perks, goodCredit: true }
-      }));
-    }
-
-    if (config.allPerks) {
-      await Promise.all([
-        IAPService.savePermanentPerk('workBoost'),
-        IAPService.savePermanentPerk('mindset'),
-        IAPService.savePermanentPerk('fastLearner'),
-        IAPService.savePermanentPerk('goodCredit')
-      ]);
-      setGameState(prev => ({
-        ...prev,
-        perks: {
-          ...prev.perks,
-          workBoost: true,
-          mindset: true,
-          fastLearner: true,
-          goodCredit: true,
-          unlockAllPerks: true
-        }
-      }));
-    }
-
-    if (config.removeAds) {
-      setGameState(prev => ({
-        ...prev,
-        settings: { ...prev.settings, adsRemoved: true }
-      }));
-    }
-
-    if (config.lifetimePremium) {
-      setGameState(prev => ({
-        ...prev,
-        settings: { ...prev.settings, lifetimePremium: true }
-      }));
-    }
+    // Persist permanent (cross-slot) perks via the same routine the disk
+    // fulfillment path uses, so the two stay in lock-step.
+    await iapService.persistPermanentPerks(config);
 
     // Save the game state
     await saveGame();

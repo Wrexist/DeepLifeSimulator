@@ -57,12 +57,18 @@ server-side fulfillment paths in `services/IAPService.ts` onto ONE exported help
       The Verified-Pro subscription, tx-ledger, and disk save are untouched. Behavior-preserving.
 - [x] Verified: type-check 0 errors; iapMonetization + itemGoldUpgradeFlow + premiumPackIncome = 44 tests green.
 
-**Deferred (documented):** rewire the THIRD path `ShopModal.applyPurchaseBenefits` onto the helper. It's the
-most divergent (missing moneyMultiplier/youthPills/goldUpgrades/everythingUnlocked/revival) AND it handles a
-`config.removeAds` FIELD the helper doesn't (the helper keys ads-removal off the REMOVE_ADS productId + the
-everythingUnlocked/lifetimePremium flags). Switching it naively would LOSE `config.removeAds` handling. Safe
-fix = fold `config.removeAds` into the helper + verify every Shop product, then route ShopModal through it
-via `setGameState(prev => { const next = structuredClone(prev); applyProductBenefitsToState(next, config, id); return next; })`. It's an untested UI path, so deferred rather than rushed at session end.
+- [x] **THIRD path now consolidated too** — `ShopModal.applyPurchaseBenefits` routes through the shared
+      helper via `setGameState(prev => { const next = structuredClone(prev); applyProductBenefitsToState(next,
+      config, id); return next; })` + `iapService.persistPermanentPerks(config)` (made public). This FIXES the
+      Shop path silently dropping moneyMultiplier / youthPills / goldUpgrades / everythingUnlocked / revival.
+      - Folded `config.removeAds` into the helper first (only `IAP_PRODUCTS.REMOVE_ADS` carries it, which the
+        switch already handled — so this is a strict superset, no behavior lost, and the two fulfillment paths
+        gain the previously-missing generic `config.removeAds` handling).
+      - Added a ShopModal render smoke test (it was previously untested).
+      - Verified: type-check 0 errors; iapMonetization + premiumPackIncome + itemGoldUpgradeFlow +
+        raceConditionGuard = 65 green; render components incl. ShopModal = 4 green.
+
+All three IAP entitlement-apply paths now share ONE source of truth. H6 fully closed.
 
 ## Roadmap Phase B — H7 verify Premium-Pack income mapping — FOUND + FIXED a real bug — June 15, 2026
 
