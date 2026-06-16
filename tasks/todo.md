@@ -1,5 +1,94 @@
 # Task Tracker
 
+## Roadmap Phase B — UI render-test suite (the #1 durability gap) — June 15, 2026
+
+Goal (from `tasks/roadmap-2026-06-15.md` H2): close the near-zero UI render-test coverage —
+254 components, previously **0** `render()` tests; the import-smoke test only checked default
+exports. This is the class of bug (undefined components, bad imports, provider cycles, Animated
+mis-mocks) that only surfaced in TestFlight/production before.
+
+Key discovery: the team believed render tests needed a `jest-expo` host. They don't — `react-test-renderer`
+(19.1.0) is already installed and `react-native` is mocked to string-tag host components. The only
+blockers were **gaps in the shared mock** (no `Animated.View`, no `ActivityIndicator`, composite
+animations missing `.stop()`, and Expo `.js` ESM modules unparseable by ts-jest). Filled additively.
+
+- [x] **Harness** — `__tests__/render/helpers/renderWithProviders.tsx` mounts a component inside the
+      real `AppProviders` tree via `react-test-renderer` + `act`; asserts it commits without throwing.
+- [x] **Mock completeness (additive, in `jest.setup.js`)** — added `Animated.View/Text/Image/ScrollView/FlatList`,
+      `Animated.loop/stagger/delay` + `.stop()/.reset()` on `sequence/parallel`, `ActivityIndicator`/
+      `ImageBackground`/`RefreshControl`/`BackHandler`, and mocks for `react-native-safe-area-context`,
+      `@react-navigation/native`, and `expo-constants` (ESM). `jest.config.js`: ignore `render/helpers/`.
+- [x] **13 render smoke tests** — harness smoke + leaf (`OnboardingFloatingButton`); 5 onboarding screens
+      (MainMenu, SaveSlots, Scenarios, Customize, Perks); 3 in-game tabs (home, work, market); 3 hot
+      components (TopStatsBar, IdentityCard, DeathPopup). All green locally.
+- [ ] **Verify full suite** (2387 → 2400) still green after the shared-mock changes, then commit.
+
+Render-suite follow-ups (incremental): assert key copy/elements (not just "mounts"); add interaction
+tests (press Next Week, toggle a perk) now that the host renders; cover modal chains.
+
+## Roadmap Phase B — save-durability stress tests (H4/H5) — June 15, 2026
+
+Goal: close the audit's top-2 stability risks. Gap discovered: `longRunSaveLoad` advances time with the
+SIMPLIFIED `advanceWeeks` helper (no real subsystems), so it never grows the history arrays — late-game
+**save size vs MAX_SAVE_SIZE was never actually tested**. And `repairGameState` deep-clones + discards
+(doesn't mutate input); NaN-stat repair lives in `autoFixStats`, invoked by `validateGameState(autoFix=true)`
+— the exact load-path call the audit wanted verified.
+
+- [x] **H4** — `__tests__/stress/saveDurability.stress.test.ts`: drives the REAL `nextWeek` 250×, then
+      asserts `createSaveData(...)` round-trips and the serialized save is under `MAX_SAVE_SIZE`
+      (measured **~849KB** at 250 weeks, cap 4096KB) and the history arrays stay write-capped — so save
+      size is bounded at ANY week count (no ~2000-week soft-lock).
+- [x] **H5** — same file: a corrupted state (NaN/Infinity stats) self-heals via
+      `validateGameState(autoFix=true)` → finite + valid; and a RAW NaN state, loaded and ticked once,
+      stays valid + finite (the live tick's post-validation genuinely self-heals — no load-then-crash).
+- [x] Verified full suite green; committed (`554dd29`).
+
+## Roadmap Phase B — H6 consolidate IAP entitlement-apply paths — June 15, 2026
+
+Root cause of the H7 bug was DRIFT between duplicated entitlement-apply paths. Consolidated the two
+server-side fulfillment paths in `services/IAPService.ts` onto ONE exported helper so they can't drift again.
+
+- [x] Extracted `applyProductBenefitsToState(gameState, config, productId)` — the single source of truth
+      for "what a purchase grants" (gems/money/youthPills/skillBoost/perk-flags/moneyMultiplier→goldUpgrades/
+      allUpgrades/everythingUnlocked/unlimitedYouthPills/lifetimePremium/special-products switch/gems-clamp).
+- [x] `applyProductToState` (in-memory, used by IAPHandler) → now just calls the helper. Behavior-preserving.
+- [x] `applyBenefitToDisk` (persisted fulfillment) → calls the helper + a new `persistPermanentPerks(config)`
+      (the cross-slot savePermanentPerk persistence, extracted so the state logic stays in the helper).
+      The Verified-Pro subscription, tx-ledger, and disk save are untouched. Behavior-preserving.
+- [x] Verified: type-check 0 errors; iapMonetization + itemGoldUpgradeFlow + premiumPackIncome = 44 tests green.
+
+- [x] **THIRD path now consolidated too** — `ShopModal.applyPurchaseBenefits` routes through the shared
+      helper via `setGameState(prev => { const next = structuredClone(prev); applyProductBenefitsToState(next,
+      config, id); return next; })` + `iapService.persistPermanentPerks(config)` (made public). This FIXES the
+      Shop path silently dropping moneyMultiplier / youthPills / goldUpgrades / everythingUnlocked / revival.
+      - Folded `config.removeAds` into the helper first (only `IAP_PRODUCTS.REMOVE_ADS` carries it, which the
+        switch already handled — so this is a strict superset, no behavior lost, and the two fulfillment paths
+        gain the previously-missing generic `config.removeAds` handling).
+      - Added a ShopModal render smoke test (it was previously untested).
+      - Verified: type-check 0 errors; iapMonetization + premiumPackIncome + itemGoldUpgradeFlow +
+        raceConditionGuard = 65 green; render components incl. ShopModal = 4 green.
+
+All three IAP entitlement-apply paths now share ONE source of truth. H6 fully closed.
+
+## Roadmap Phase B — H7 verify Premium-Pack income mapping — FOUND + FIXED a real bug — June 15, 2026
+
+The "verify" task uncovered a genuine **"paid upgrade does nothing" revenue bug**. Weekly income reads
+`goldUpgrades.multiplier` for the 1.5×, but BOTH IAP entitlement-apply paths in `IAPService.ts`
+(`applyProductToState` @1578 + the disk path @~1037) set only the dead `settings.moneyMultiplier` flag for
+a money-multiplier product — `goldUpgrades.multiplier` was set only under `allUpgrades`/`everythingUnlocked`,
+which the $24.99 **Premium Pack** (`moneyMultiplier: true` only) does NOT have. So buying the Premium Pack
+gave **no income boost**. (MON-3's "it's delivered via goldUpgrades.multiplier" was wrong.)
+
+- [x] **Fix** — both `config.moneyMultiplier` blocks now also set `goldUpgrades.multiplier = true`.
+- [x] **Regression test** — `__tests__/monetization/premiumPackIncome.test.ts` locks the full chain:
+      applying GEMS_PREMIUM sets `goldUpgrades.multiplier`; `computeWeeklyIncome` applies 1.5× when set;
+      end-to-end "buy Premium Pack → income ×1.5". Type-check clean; iapMonetization + itemGoldUpgradeFlow
+      suites still green (41 tests).
+
+Remaining Phase B: **H6** — consolidate the divergent IAP entitlement-apply paths.
+
+---
+
 ## Performance: make the game feel instant/fast — June 14, 2026
 
 Goal: pressing things (esp. "Next Week") feels instant; stop re-rendering everything on

@@ -4,6 +4,51 @@
 
 ## Patterns to Watch For
 
+### 2026-06-15 - The $24.99 Premium Pack money multiplier was inert — dead flag written, real field not
+
+- What went wrong: weekly income applies the money multiplier by reading `goldUpgrades.multiplier`
+  (`applyIncome.ts:92`), but BOTH IAP entitlement-apply paths in `IAPService.ts` (`applyProductToState`
+  @1578 and the disk-apply path @~1037) set only `settings.moneyMultiplier = true` for a
+  `config.moneyMultiplier` product. `goldUpgrades.multiplier` was set ONLY inside the separate
+  `config.allUpgrades` / `config.everythingUnlocked` branches — which the Premium Pack
+  (`moneyMultiplier: true`, no allUpgrades/everythingUnlocked) does not have. So the paid 1.5× multiplier
+  did nothing. A prior audit (round11 MON-3) even mis-concluded "the money mult IS delivered via the
+  different goldUpgrades.multiplier" — it traced the write of the dead flag and the existence of a
+  goldUpgrades write, but never the END-TO-END write→read chain for that specific product.
+- Why it hid: a stress test (`iapMonetization`) asserted `settings.moneyMultiplier === true` after the
+  purchase — i.e. it tested the WRITE of the dead flag, which "passed", giving false confidence. No test
+  fed the purchased state through `computeWeeklyIncome` to confirm the income actually changed.
+- How it was found: a "verify the mapping" task (roadmap H7) written as an END-TO-END regression test —
+  apply the real product config, then run the real income calc and assert the 1.5×. It failed (ratio 1.0),
+  exposing the inert multiplier. Fixed by setting `goldUpgrades.multiplier` under `config.moneyMultiplier`
+  in both paths.
+- Rule: for monetization (and any write→read feature), test the END-TO-END effect, not just that a flag
+  was written. A flag/field is only "wired" if the consumer reads THAT field. When the same effect is
+  applied by multiple code paths (here: in-memory `applyProductToState` vs disk-apply — the "divergent
+  entitlement paths" / H6 drift), they WILL drift; consolidate to one helper, and assert the observable
+  game effect (income changed, ad removed, etc.), not the intermediate flag.
+
+### 2026-06-15 - UI render tests did NOT need a jest-expo host — just gaps in the existing RN mock
+
+- What was believed: `__tests__/integration/gameFlow.test.tsx` and `screenImports.test.ts` both stated render
+  tests were "deferred until a jest-expo / native test host is configured," so the project shipped with
+  **0 `render()` tests across 254 components** — the biggest durability gap (per the 2026-06-15 roadmap).
+- What was actually true: `react-test-renderer@19.1.0` is already installed, and `jest.setup.js` already mocks
+  `react-native` to string-tag host components. So `TestRenderer.create(<Screen/>)` works in the existing
+  ts-jest/node env — screens just hit a few **mock gaps** that threw, not a fundamental host limitation.
+- The specific gaps (all additive fixes to `jest.setup.js`): (1) `Animated.View`/`Text`/etc. were missing →
+  `usePressableScale`'s `<Animated.View>` was `undefined` ("Element type is invalid"); (2) `Animated.sequence`/
+  `parallel` returned objects without `.stop()` → crash on unmount when a component stops an entrance anim;
+  (3) `ActivityIndicator`/`ImageBackground`/`BackHandler` not mocked; (4) `react-native-safe-area-context` +
+  `@react-navigation/native` not mocked; (5) Expo native `.js` modules (e.g. `expo-constants`) ship ESM that
+  ts-jest (ts/tsx-only transform) can't parse → mock them.
+- Rule: to add render coverage in a ts-jest/string-mocked RN project, use `react-test-renderer` directly and
+  fill mock gaps reactively (run → read the throw → mock → repeat). Keep mocks ADDITIVE in `jest.setup.js`
+  (new keys only) so the existing suite is unaffected, and always re-run the FULL suite after touching shared
+  setup. Note the limitation: this renders each screen's own subtree, so it catches undefined-component /
+  bad-import / Animated-misuse / provider-cycle crashes — but NOT navigator-level version-skew crashes (see
+  the 2026-06-10 entry); those still need a real navigator mount.
+
 ### 2026-06-10 - The onboarding "Element type is invalid: undefined" was a @react-navigation version skew, NOT a screen module
 
 - What went wrong: every prior fix for the launch crash (anchor `unstable_settings`, lazy `SettingsModal`, leaf-context imports, OTA disable) chased the wrong root cause. The real bug: `@react-navigation/native-stack@7.15.1` (pulled transitively by `expo-router`) imports `NavigationProvider` from `@react-navigation/native` and renders it as the OUTER element of every screen's `SceneView`. The peer dep is `@react-navigation/native@^7.2.4`, but `package.json` pinned `^7.0.14` and the lockfile froze `@react-navigation/native` at `7.1.17` — a version that does NOT export `NavigationProvider`. So `NavigationProvider` was `undefined`, and the FIRST native-stack mounted (the `(onboarding)` Stack, since the root is `<Slot>` and tabs use bottom-tabs) crashed with "Element type is invalid: …got: undefined" at `SceneView`. npm only *warns* on violated peer deps, so the bundle built fine and crashed only at render.
