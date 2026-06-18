@@ -1,5 +1,48 @@
 # Task Tracker
 
+## 🔴 ACTIVE SPRINT — P0 code-bug fixes (2026-06-18)
+
+Source: `tasks/master-punchlist-2026-06-18.md` §A (9 P0 code bugs) + `tasks/salvaged-audits/*`.
+Rules: every fix folds side-effects into the atomic `setGameState` updater; tests use
+`createTestGameState()`; protected files (`GameActionsContext.tsx`, `saveValidation.ts`, `types.ts`)
+get extra care + the `game-state-reviewer` / `save-system-auditor` subagents after changes.
+Run `npm run preflight:quick` between batches. **Sequence: isolated crashers → save path → economy
+atomicity → core game loop (riskiest) last.**
+
+### Batch 1 — Isolated crash guards (low blast radius)
+- [ ] **C2** Null-safe relationship filter `((rel): rel is Relationship => rel != null)` + guard `applyNPCDepthTick` — `GameActionsContext.tsx:890`
+- [ ] **C3** Vehicle accident pre-roll OOB → bounds-guard + cap `severities` index; verify pre-roll size — `weekly/applyVehicles.ts:57–59`, `weekly/preTick.ts:309`
+- [ ] **C4** Disease complication pre-roll OOB → bounds-guard + numeric-validate `baseEffects` — `weekly/applyDiseases.ts:181,210`
+- [ ] Regression tests: >10 vehicles & >20 diseases produce **no NaN** in stats; null relationship doesn't crash the tick
+- [ ] `npm run preflight:quick` + targeted weekly-tick tests
+
+### Batch 2 — Save-path correctness
+- [ ] **C6** `autoFixStats` clone-before-mutate (match `repairGameState` pattern) — `saveValidation.ts:277,287`
+- [ ] **C7** `saveGame`: repair synchronously on a local copy, validate+persist **that** copy; drop the stale `gameStateRef.current` re-validation — `GameActionsContext.tsx:205–215`
+- [ ] Regression tests: autoFix returns a patched copy without mutating input; a repaired save persists the repaired (not stale) state
+- [ ] Run `save-system-auditor` subagent; `npm run preflight:quick`
+
+### Batch 3 — Economy atomicity
+- [ ] **C8** Route `luckyBonus`/`streakBonusAmount` through `applyMoneyDelta` (ceiling + `totalMoneyEarned`) — `GameActionsContext.tsx:1113,1126`
+- [ ] **C9** Merge `launchIPO` overlay+cash+reputation into one updater (mirror `acceptAcquisition`) — `HustleActions.ts:558–584`
+- [ ] **C5** Inline crime-XP level-up into the atomic updater; gate on `!caught`; remove `deps.gainCriminalXp/gainCrimeSkillXp` post-calls — `JobActions.ts:387–392,436–490`
+- [ ] Regression tests: lucky/streak respect `MONEY_CEILING` + tracked; IPO cash credited exactly once; caught criminal gains 0 XP; no double-XP on double-tap
+- [ ] Run `game-state-reviewer` subagent; `npm run preflight:quick`
+
+### Batch 4 — Core game loop (highest risk — architectural)
+- [ ] **C1** Move `deathTriggered`/`stateUpdateError`/`applied`/`pendingNotifications` out of the `nextWeek` updater: notifications via `useRef` append, flags derived from the returned state after settle — `GameActionsContext.tsx:349–1577,1587,1599`
+- [ ] Confirm this also closes P1 B1 (async error check), B2 (stable notif IDs), B5 (achievement flag)
+- [ ] Regression tests: StrictMode double-invoke → single death, single toast set, surfaced error
+- [ ] Run `game-state-reviewer` subagent
+
+### Close-out
+- [ ] Full `npm test` green; `npm run preflight`
+- [ ] Update `master-punchlist-2026-06-18.md` §A statuses; note any deferred follow-ups
+- [ ] Commit per batch; push to `claude/awesome-euler-jaf2z2`
+- [ ] Append the React-19 "fold side-effects into the updater" root-cause lesson to `tasks/lessons.md`
+
+---
+
 ## Roadmap Phase B — UI render-test suite (the #1 durability gap) — June 15, 2026
 
 Goal (from `tasks/roadmap-2026-06-15.md` H2): close the near-zero UI render-test coverage —
