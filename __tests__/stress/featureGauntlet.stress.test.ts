@@ -237,6 +237,32 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     assertCleanState('Money batchUpdateMoney');
   });
 
+  it('Money: batchUpdateMoney credits only genuine income to totalMoneyEarned, per-leg (P1-11)', () => {
+    mounted = mountGame();
+    act(() => makeWealthy());
+    // dailySummary is optional and absent from the initial state; updateMoney only tracks
+    // totalMoneyEarned when it exists. Seed an empty one so the credit is observable.
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      dailySummary: { moneyChange: 0, totalMoneyEarned: 0, totalMoneySpent: 0, statsChange: {}, events: [] },
+    })));
+    const earnedStart = captured!.state.dailySummary?.totalMoneyEarned ?? 0;
+    const moneyStart = captured!.state.stats.money;
+
+    // Mixed batch: a genuine income leg + a non-income "deposit" leg. The old code joined
+    // both reasons into "salary, bank deposit"; the "deposit" keyword then zeroed the
+    // income credit for the WHOLE batch. Per-leg classification must credit the +1000
+    // income only (and the -200 deposit must not count as "earned").
+    act(() => captured!.money.batchUpdateMoney([
+      { amount: 1000, reason: 'salary' },
+      { amount: -200, reason: 'bank deposit' },
+    ]));
+
+    expect((captured!.state.dailySummary?.totalMoneyEarned ?? 0) - earnedStart).toBe(1000);
+    expect(captured!.state.stats.money).toBe(moneyStart + 800);
+    assertCleanState('P1-11 batch income classification');
+  });
+
   // ── ITEMS ────────────────────────────────────────────────────────────────
   it('Items: buyItem marks item owned and deducts price', () => {
     mounted = mountGame();
@@ -284,6 +310,39 @@ describe('Feature Gauntlet — every major action through real provider', () => 
       expect(lastResult.success).toBe(false);
     }
     assertCleanState('Jobs performStreetJob cap');
+  });
+
+  it('Jobs: a same-batch double-tap on a street job runs only ONE job (P1-1 energy guard)', () => {
+    mounted = mountGame();
+    act(() => makeWealthy());
+
+    // Top energy up, then measure 'beg' energy cost with a single tap (energy is deducted
+    // regardless of the success/caught outcome).
+    act(() => captured!.setGameState(prev => ({ ...prev, stats: { ...prev.stats, energy: 100 } })));
+    const energyBefore = captured!.state.stats.energy;
+    act(() => { captured!.job.performStreetJob('beg'); });
+    const energyCost = energyBefore - captured!.state.stats.energy;
+    expect(energyCost).toBeGreaterThan(0);
+
+    // Set energy to EXACTLY one job's worth and clear the weekly tally, so a second
+    // same-batch tap is unaffordable and must no-op inside the updater.
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      weeklyStreetJobs: {},
+      stats: { ...prev.stats, energy: energyCost },
+    })));
+
+    // Two taps in ONE act() → both updaters batch against the same render, so the 2nd sees
+    // prev.energy already drained to 0 and is rejected by the P1-1 guard. Without the
+    // guard the weekly tally would reach 2 (two jobs run on one job's energy).
+    act(() => {
+      captured!.job.performStreetJob('beg');
+      captured!.job.performStreetJob('beg');
+    });
+
+    expect(captured!.state.weeklyStreetJobs?.beg ?? 0).toBe(1);
+    expect(captured!.state.stats.energy).toBe(0);
+    assertCleanState('P1-1 same-batch energy guard');
   });
 
   it('Jobs: applyForJob sets currentJob', () => {

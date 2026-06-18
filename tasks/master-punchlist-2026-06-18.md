@@ -97,10 +97,20 @@ and the fixes already landed this session (git log).
 >   render-phase), P1-5 (week-vs-weeksLived guard present), P1-6 (load-merge populates `crimeSkills`), P1-7
 >   (synchronous updater), P1-10 (load uses `autoFix=true`), P1-15 (idempotent guarded repair), P1-16
 >   (idempotent in-updater dedupe).
-> - **NEEDS-DECISION (balance/policy — not auto-fixed):** P1-1 (same-batch energy double-tap; one-line inner
->   guard possible but changes 2nd-tap behaviour), P1-2 (ceiling unreachable; consistency-only), P1-11
->   (anti-player reason-concat mis-count), P1-12 (clamp-all-nested-numerics policy), P1-13 (unemployedBonus
->   bounded by existing 3/job + 8/week caps).
+> - **NEEDS-DECISION (balance/policy) — RESOLVED 2026-06-18:**
+>   - ✅ **P1-1** (FIXED) — energy is now re-checked against fresh `prev` inside BOTH street-job updater
+>     branches (caught + not-caught), so a same-batch double-tap can't run two jobs on one job's energy; the
+>     2nd same-batch tap no-ops (mirrors the existing in-updater weekly-cap re-check). Regression test added.
+>   - ✅ **P1-2** (FIXED, prior commit) — `batchUpdateMoney` module form clamps to `MONEY_CEILING`.
+>   - ✅ **P1-11** (FIXED) — hook `batchUpdateMoney` now classifies each leg individually (income vs
+>     non-income groups) instead of joining all reasons into one string, so `totalMoneyEarned` only counts
+>     genuine income and a non-income keyword in one leg no longer poisons the whole batch. Test added.
+>   - ✅ **P1-13** (NO CHANGE — working as designed) — the quit→farm→rehire "exploit" is net-negative:
+>     `quitJob` clears `currentJob` immediately (forfeiting career salary) and `applyForJob` only marks the
+>     career *pending* — `applyCareerApplications` re-accepts it 1–2 weeks later and ONLY while unemployed.
+>     The farmer loses 1–2 weeks of (much larger) career salary to gain `8 × 0.5 × street-base-pay`. The
+>     1.5× is intended poverty-relief for the genuinely unemployed (capped 8/week); a cooldown would harm it.
+>   - ⏸️ **P1-12** (still open — policy) — clamp-all-nested-numerics on repair (e.g. tampered credit score).
 
 > **C-3 (security):** `EXPO_PUBLIC_SAVE_SIGNATURE_KEY` is inlined into the client bundle (any `EXPO_PUBLIC_*`
 > is), defeating the signature scheme; keyed-CRC32 is not cryptographic. Part-code, part-ops — see §G.

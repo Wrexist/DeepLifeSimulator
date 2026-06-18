@@ -139,15 +139,30 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [setGameState]);
 
   const batchUpdateMoney = useCallback((transactions: {amount: number, reason: string}[]) => {
-    let totalAmount = 0;
-    const reasons: string[] = [];
+    // P1-11 (C-2): classify each leg individually. Joining ALL reasons into one string
+    // and testing NON_INCOME_REASON against the result is all-or-nothing — a single
+    // non-income keyword (e.g. "deposit") in any leg wrongly zeroes the income credit
+    // for the entire batch. Split into an income group and a non-income group so
+    // `totalMoneyEarned` only ever counts genuine income. Income is applied first so it
+    // can fund a same-batch non-income outflow (preserving the old net-affordability
+    // behaviour for the common income-then-fee case).
+    let incomeTotal = 0;
+    const incomeReasons: string[] = [];
+    let nonIncomeTotal = 0;
+    const nonIncomeReasons: string[] = [];
 
     transactions.forEach(({ amount, reason }) => {
-      totalAmount += amount;
-      reasons.push(reason);
+      if (isIncomeReason(reason)) {
+        incomeTotal += amount;
+        incomeReasons.push(reason);
+      } else {
+        nonIncomeTotal += amount;
+        nonIncomeReasons.push(reason);
+      }
     });
 
-    updateMoney(totalAmount, reasons.join(', '));
+    if (incomeTotal !== 0) updateMoney(incomeTotal, incomeReasons.join(', '));
+    if (nonIncomeTotal !== 0) updateMoney(nonIncomeTotal, nonIncomeReasons.join(', '));
   }, [updateMoney]);
 
   const applyPerkEffects = useCallback((baseValue: number, perkType: string): number => {

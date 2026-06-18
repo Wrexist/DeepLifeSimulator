@@ -206,6 +206,10 @@ export const performStreetJob = (
     // When caught, update everything in a single state update to prevent race conditions
     // Use prev.stats.money (fresh from updater) — moneyBeforeJob is a stale render-time snapshot
     setGameState(prev => {
+      // P1-1: re-check energy against fresh `prev` — the outer guard reads a stale
+      // render snapshot, so without this a same-batch double-tap runs two jobs on one
+      // job's worth of energy. A 2nd same-batch tap now no-ops here.
+      if (prev.stats.energy < job.energyCost) return prev;
       // Recalculate money lost from fresh prev state to avoid stale-closure race
       const prevMoney = prev.stats.money;
       const freshMoneyLost = caught ? Math.min(prevMoney, Math.round(prevMoney * 0.1)) : 0;
@@ -262,6 +266,10 @@ export const performStreetJob = (
     
     // Not caught - update everything in a single state update to prevent race conditions
     setGameState(prev => {
+      // P1-1: re-check energy against fresh `prev` — the outer guard reads a stale
+      // render snapshot, so without this a same-batch double-tap runs two jobs on one
+      // job's worth of energy. The cap re-checks below only catch it once the cap is hit.
+      if (prev.stats.energy < job.energyCost) return prev;
       // ANTI-EXPLOIT: Re-check the per-job and global weekly caps INSIDE the
       // prev callback so two rapid same-batch street-job clicks don't both
       // pass the outer cap gate above and bypass the cap.
