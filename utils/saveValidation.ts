@@ -466,6 +466,24 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // P1-12: clamp a tampered/corrupt credit score into the real FICO range [300, 850].
+  // The loan-APR adjustment already clamps at use (amortization.ts:84), but the loan/card
+  // eligibility gates (operations.ts:194,498) and the UI read banking.creditScore.score
+  // RAW — so keep the persisted value honest after the partial-subsystem merge above.
+  const creditScore = (s.banking as unknown as { creditScore?: { score?: unknown } } | undefined)
+    ?.creditScore;
+  if (creditScore && typeof creditScore.score === 'number') {
+    const rawScore = creditScore.score;
+    const clampedScore = Number.isFinite(rawScore)
+      ? Math.max(300, Math.min(850, Math.round(rawScore)))
+      : 650;
+    if (clampedScore !== rawScore) {
+      creditScore.score = clampedScore;
+      repairs.push(`Clamped credit score ${rawScore} → ${clampedScore} (valid range 300–850)`);
+      repaired = true;
+    }
+  }
+
   // L5: clamp jailWeeks. nextWeek self-heals a bad value on the first tick, but
   // until then a tampered/corrupt save could display a multi-thousand-week
   // sentence (and inflate bail cost = jailWeeks * 500).

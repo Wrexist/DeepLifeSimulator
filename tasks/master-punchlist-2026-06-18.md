@@ -110,7 +110,10 @@ and the fixes already landed this session (git log).
 >     career *pending* — `applyCareerApplications` re-accepts it 1–2 weeks later and ONLY while unemployed.
 >     The farmer loses 1–2 weeks of (much larger) career salary to gain `8 × 0.5 × street-base-pay`. The
 >     1.5× is intended poverty-relief for the genuinely unemployed (capped 8/week); a cooldown would harm it.
->   - ⏸️ **P1-12** (still open — policy) — clamp-all-nested-numerics on repair (e.g. tampered credit score).
+>   - ✅ **P1-12** (FIXED, bounded) — `repairGameState` now clamps `banking.creditScore.score` to the real
+>     FICO range [300, 850] (NaN→650). The broader "clamp every nested numeric" is DECLINED: the credit-score
+>     *effect* is already clamped at consumption (`amortization.ts:84`) and the eligibility gates gain nothing
+>     above a legit 850, so the exploit was already neutralized — this just keeps the persisted value honest.
 
 > **C-3 (security):** `EXPO_PUBLIC_SAVE_SIGNATURE_KEY` is inlined into the client bundle (any `EXPO_PUBLIC_*`
 > is), defeating the signature scheme; keyed-CRC32 is not cryptographic. Part-code, part-ops — see §G.
@@ -156,6 +159,24 @@ and the fixes already landed this session (git log).
 >   cashout/new-identity). Defense-in-depth; UI was already gated.
 > - **P2-3** — `saveMigrations` v15 now deep-merges `sparkApp.lifetimeStats` (backfills partial objects).
 > - **P1-2** — `batchUpdateMoney` (module form) now clamps to `MONEY_CEILING` (parity with the sibling paths).
+>
+> ✅ **Final remaining-code sweep 2026-06-18 — verified & closed (evidence-based; same over-grade pattern):**
+> - **P1-12** (FIXED) — credit-score clamp on repair (above); broader clamp-all DECLINED (effect already
+>   clamped at consumption, gates gain nothing above 850).
+> - **Crash C6 / P0-C3** (vehicle-accident OOB) — ALREADY FIXED: `applyVehicles.ts:61-65` wraps the index
+>   (`vehIdx % len`) and clamps the severity pick (`Math.min(len-1, …)`).
+> - **Crash C4** (disease-complication index) — NON-ISSUE: scalar `complicationRoll` + the R4-G compounding
+>   cap (`applyDiseases.ts:182-198`); no array-index OOB.
+> - **P2-5** (v19 in `NO_OP_MIGRATION_VERSIONS`) — BY DESIGN: v19 is a deliberately *registered* migration
+>   (HMAC-key rotation boundary, `saveMigrations.ts:502-521`), not a no-op version; moving it would break the
+>   legacy-signature fallback loader.
+> - **P2-2** (date.week 1–4) — NO CHANGE: `week` is UI-only and self-heals each tick (`weeksLived` is the
+>   authoritative counter); tightening the load validator risks mishandling edge saves for ~zero value.
+> - **C-3** (signature key in bundle) — NO MEANINGFUL CLIENT FIX: the exploitable weak-migration window is
+>   already closed in prod by default (`ALLOW_WEAK_SAVE_MIGRATION = isDev || env==='true'`,
+>   `saveSigningConfig.ts:46`); client-side signing is inherently in-bundle (Expo has no non-public runtime
+>   var) and the legacy `SAVE_SIGNATURE_KEY` is load-bearing for the v19 rotation. Accepted design
+>   (tamper-evidence, not cryptographic); real integrity = server-side validation (ops, same class as L1).
 
 ---
 
