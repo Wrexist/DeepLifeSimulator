@@ -1,5 +1,32 @@
 # Task Tracker
 
+## 🟢 H3 — nextWeek decomposition (2026-06-18)
+
+Roadmap H3: instrument the ~1,475-line weekly tick into measured phases, then optimize the hot ones.
+
+### Phase 1 — instrument (DONE)
+- [x] `utils/tickProfiler.ts` — no-op-by-default per-phase profiler (mean/p95/max over a rolling
+      window). Enabled by `EXPO_PUBLIC_PROFILE_TICK=true` or `setEnabled(true)`; `performance.now()`
+      with a `Date.now()` fallback. Unit-tested.
+- [x] 8 instrumentation points in `nextWeek` (`beginTick` + 7 phase marks + `endTick`):
+      setup_stats_career_edu → income_engagement_finance_family → crime_events →
+      disease_pets_vehicles → crypto_banking_darkweb → stocks → politics.
+- [x] Zero behaviour change verified: 308 subsystemEquivalence snapshots unchanged (profiler off by
+      default = inert marks); integration test proves all 7 phases fire through a real tick.
+- [ ] NOTE: the final commit (return-object build — applyDeathRibbon / applyLifetimeStatistics /
+      applyAutoCheckpoint) is the untimed remainder in Phase 1; split it out in Phase 2 if the
+      measured phases don't account for the bulk of the ~85ms.
+
+### Phase 2 — optimize (NEXT, data-driven)
+- [ ] Run with the profiler on (`EXPO_PUBLIC_PROFILE_TICK=true`); capture per-phase p95.
+- [ ] Optimize the hottest phase(s) (memoize recompute / hoist allocation), each behind the
+      subsystemEquivalence + tick-stress tests.
+
+### Phase 3 — yield between phases (OPTIONAL)
+- [ ] Only if Phase 2 data shows the tick blocking the JS thread enough to warrant async yielding.
+
+---
+
 ## 🔴 ACTIVE SPRINT — P0 code-bug fixes (2026-06-18)
 
 Source: `tasks/master-punchlist-2026-06-18.md` §A (9 P0 code bugs) + `tasks/salvaged-audits/*`.

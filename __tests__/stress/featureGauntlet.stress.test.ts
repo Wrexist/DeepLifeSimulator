@@ -41,6 +41,7 @@ import {
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { GameState } from '@/contexts/game/types';
 import { validateGameState } from '@/utils/saveValidation';
+import { tickProfiler } from '@/utils/tickProfiler';
 
 const { act } = TestRenderer;
 const h = React.createElement;
@@ -295,6 +296,35 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     // (precision loss → save corruption). It must stay pinned at/under the ceiling, finite.
     expect(captured!.state.stats.money).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
     expect(Number.isFinite(captured!.state.stats.money)).toBe(true);
+  });
+
+  it('Tick: nextWeek records a per-phase profile when profiling is enabled (H3)', async () => {
+    mounted = mountGame();
+    tickProfiler.reset();
+    tickProfiler.setSummarySink(() => {}); // stay quiet during the test
+    tickProfiler.setEnabled(true);
+    try {
+      await act(async () => {
+        await captured!.game.nextWeek();
+      });
+    } finally {
+      tickProfiler.setEnabled(false);
+      tickProfiler.setSummarySink(null);
+    }
+    const phases = tickProfiler.getSummary().phases.map((p) => p.phase);
+    // Every instrumented boundary must have fired during a real tick.
+    for (const expected of [
+      'setup_stats_career_edu',
+      'income_engagement_finance_family',
+      'crime_events',
+      'disease_pets_vehicles',
+      'crypto_banking_darkweb',
+      'stocks',
+      'politics',
+    ]) {
+      expect(phases).toContain(expected);
+    }
+    tickProfiler.reset();
   });
 
   // ── ITEMS ────────────────────────────────────────────────────────────────

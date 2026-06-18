@@ -17,6 +17,7 @@ import { evaluateAchievements } from '@/lib/progress/achievements';
 import { GameState, GameStats, Relationship, Disease } from './types';
 import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { processAutomationRules } from '@/lib/automation/automationEngine';
 import { repairGameState, validateGameState } from '@/utils/saveValidation';
@@ -370,7 +371,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setGameState(prevState => {
  // CRITICAL: Wrap entire state update in try-catch to prevent silent failures
  try {
- const currentWeeksLived = typeof prevState.weeksLived === 'number' &&!isNaN(prevState.weeksLived) && prevState.weeksLived >= 0
+ tickProfiler.beginTick();
+
+      const currentWeeksLived = typeof prevState.weeksLived === 'number' &&!isNaN(prevState.weeksLived) && prevState.weeksLived >= 0
  ? prevState.weeksLived
 : 0;
  const nextWeeksLived = currentWeeksLived + 1;
@@ -595,7 +598,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // pendingCampusEvent is set above during education processing
 
- // Pulse weekly tick (v13+): owns brand-deal expiry, impression
+ tickProfiler.mark('setup_stats_career_edu');
+
+      // Pulse weekly tick (v13+): owns brand-deal expiry, impression
  // earnings, scandal cascade, follower decay, Pro renewal. Pre-v13
  // saves still get an empty result — passiveIncome.ts's legacy block
  // is the source of truth for them and is guarded by version<13.
@@ -918,7 +923,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  processedRelationships.length = 0;
  processedRelationships.push(...npcDepthResult.relationships);
 
- // R7 Phase 2 step 2.6-i: wanted-level decay + police-encounter roll
+ tickProfiler.mark('income_engagement_finance_family');
+
+      // R7 Phase 2 step 2.6-i: wanted-level decay + police-encounter roll
  // extracted into ./actions/weekly/applyCrimeTick.ts. Same 5%-per-level
  // chance ramp, same 30% cap, same min(4, ceil/3) jail-weeks cap.
  const crimeResult = applyCrimeTick({
@@ -1019,7 +1026,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Continue without new disease if generation fails.
  }
 
- const diseaseResult = applyDiseasesForWeek({
+ tickProfiler.mark('crime_events');
+
+      const diseaseResult = applyDiseasesForWeek({
    prevDiseases: prevState.diseases,
    prevDiseaseHistory: prevState.diseaseHistory,
    prevShowSicknessModal: prevState.showSicknessModal,
@@ -1225,7 +1234,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // schedules (debited from bank accounts, not cash). The existing mining tick
  // above already folded mining earnings into `updatedCryptos`; this tick layers
  // price evolution and order execution on top.
- const cryptoTick = runCryptoWeeklyTick({
+ tickProfiler.mark('disease_pets_vehicles');
+
+      const cryptoTick = runCryptoWeeklyTick({
  market: prevState.cryptoMarket ?? initialGameState.cryptoMarket!,
  cryptos: updatedCryptos,
  banking: prevState.banking ?? initialGameState.banking!,
@@ -1282,7 +1293,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  inJail: (prevState.jailWeeks ?? 0) > 0,
  });
 
- // Stocks Remake 6 tick: sector rotation, quarterly dividends,
+ tickProfiler.mark('crypto_banking_darkweb');
+
+      // Stocks Remake 6 tick: sector rotation, quarterly dividends,
  // limit/stop order matching. Runs after the legacy simulateWeek so
  // prices are fresh; layers sector tilt on top, then matches orders.
  let stocksTickResult: ReturnType<typeof runStocksWeeklyTick> | null = null;
@@ -1324,7 +1337,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[STOCKS TICK] failed:', stkErr);
  }
 
- // Politics tick: scandal exposure (driven by dark-web heat + dirty PAC
+ tickProfiler.mark('stocks');
+
+      // Politics tick: scandal exposure (driven by dark-web heat + dirty PAC
  // money + karma), severity decay, approval drift. Cross-wires with
  // dark-web so corrupt careers stay risky.
  const politicsTick = runPoliticsWeeklyTick({
@@ -1359,7 +1374,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  for (const note of darkWebTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
  }
- // Apply any relationship-discovery deltas to processedRelationships in-place
+ tickProfiler.mark('politics');
+      tickProfiler.endTick();
+
+      // Apply any relationship-discovery deltas to processedRelationships in-place
  // so the canonical return picks them up.
  if (darkWebTick.relationshipDeltas.length > 0) {
  const deltasById = new Map(darkWebTick.relationshipDeltas.map((d) => [d.id, d.delta]));
