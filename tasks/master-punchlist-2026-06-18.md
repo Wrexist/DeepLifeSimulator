@@ -52,7 +52,15 @@ and the fixes already landed this session (git log).
 | L5 | Privacy policy says AdMob "Currently disabled" while builds can ship ads | `UPDATED_PRIVACY_POLICY.md:31,152` | Launch ads-off OR update policy first |
 | L6 | CI preflight non-blocking (`continue-on-error: true`) + missing Android ad-unit vars | `.github/workflows/eas-build.yml:61-69` | Mirror secrets to GH Actions, add Android vars, flip to hard gate |
 
-> A code fix to P0-C8 (route bonuses through `applyMoneyDelta`) can be done by me; the L-series cannot.
+> **Verified 2026-06-18 (code-assistable parts):**
+> - **L1** — no code change needed: `verifyReceiptWithServer` (`IAPService.ts:415`) **already fails closed**
+>   in production when the URL is unset. Pure ops: deploy a verify endpoint + set `EXPO_PUBLIC_IAP_VERIFY_URL`.
+> - **L2** — ✅ **code-hardened** (commit below): production no longer falls back to Google test ad IDs
+>   (unset env → no ad). You STILL must set the 6 `EXPO_PUBLIC_ADMOB_*` EAS secrets for ads to actually serve.
+> - **L6** — the 3 Android ad-unit vars are **already in the workflow** (`eas-build.yml:82-84`); only the
+>   `continue-on-error: true` → hard-gate flip remains, and it must happen AFTER you mirror the EAS secrets
+>   into GitHub Actions secrets (else every CI run fails). One-line change, ops-gated — not safe to do now.
+> - **L3/L4/L5** — ops only (HMAC key generation, leaked-key rotation, privacy-policy alignment).
 
 ---
 
