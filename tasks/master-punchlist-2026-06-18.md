@@ -6,12 +6,22 @@ and the fixes already landed this session (git log).
 
 ---
 
-## ⚠️ Headline finding
+## ⚠️ Headline finding — CORRECTED 2026-06-18 after source verification
 
-The `2026-06-15` roadmap says **"code-ready; every release blocker is ops/config, not code."**
-The three deeper audits **contradict that** — they surfaced **9 new P0 _code_ bugs**. The app is **not**
-code-ready until these are triaged. Most share one root cause (see §F): **state/side-effects living
-outside the single atomic `setGameState` updater, which React 19 / StrictMode runs twice.**
+> **Original claim (WRONG):** the audits surfaced "9 new P0 _code_ bugs" contradicting the roadmap's
+> "code-ready" assessment.
+>
+> **Source verification of all 9 found 0 genuine P0s** (per-item analysis in `tasks/todo.md` → ACTIVE
+> SPRINT). The audit reasoned abstractly about React semantics (StrictMode double-invoke, "async setState
+> races", `MAX_SAFE_INTEGER`) **without accounting for the codebase's existing mitigations** — pre-rolled
+> RNG (`GameActionsContext.tsx:359`), id-deduped notifications (`:1599`), and in-place `repairGameState`
+> copy-back (`saveValidation.ts:894`) — or realistic value ranges.
+>
+> **The 2026-06-15 roadmap's "code-ready; every release blocker is ops/config" assessment STANDS.** The real
+> launch blockers are the L1–L6 ops items in **§B**. The §A "P0" list below is retained as the audit's *raw
+> leads* but is **re-graded to P2/P3**: Batch 1 (C2/C3/C4) hardening is done (commit `efd3e3b`); the rest are
+> optional polish (C8 `totalMoneyEarned`, C5 fold-XP-into-updater, C9 unify-with-`acceptAcquisition`, B2
+> stable notif ids). Original §A text left intact below for traceability.
 
 ---
 

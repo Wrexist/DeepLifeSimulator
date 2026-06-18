@@ -24,24 +24,49 @@ atomicity → core game loop (riskiest) last.**
 - [x] `npm run type-check` clean · **403 tests pass** (incl. 308 equivalence snapshots unchanged → no behavior drift ≤cap)
 - [ ] ⚠️ Behavior note for review: C3/C4 now make vehicle #11+/disease #21+ roll (slightly less player-favorable). Flag if the cap was intended as a feature.
 
-### Batch 2 — Save-path correctness
-- [ ] **C6** `autoFixStats` clone-before-mutate (match `repairGameState` pattern) — `saveValidation.ts:277,287`
-- [ ] **C7** `saveGame`: repair synchronously on a local copy, validate+persist **that** copy; drop the stale `gameStateRef.current` re-validation — `GameActionsContext.tsx:205–215`
-- [ ] Regression tests: autoFix returns a patched copy without mutating input; a repaired save persists the repaired (not stale) state
-- [ ] Run `save-system-auditor` subagent; `npm run preflight:quick`
+### Batch 2 — Save path — ✅ VERIFIED, NO FIX NEEDED (2026-06-18) · ⚠️ both over-graded
+> **C7 is not a bug:** `repairGameState(currentState)` at `GameActionsContext.tsx:200` mutates its input
+> **in-place** (confirmed `saveValidation.ts:894–908` — copies the repaired clone back onto the original).
+> `currentState === gameStateRef.current`, and no React commit happens between line 200 and the re-validate
+> at line 210 — so line 210 reads the **already-repaired** state, not stale. The async `setGameState` only
+> refreshes React's reference. (The audit's own gamestate-P1-5 describes this copy-back, contradicting P0-3.)
+> **C6 is not active:** only two callers pass `autoFix=true` — `conflict.remoteState` (2467) and `parsed`
+> (2693) — both throwaway **deserialized** objects, never live React state. The in-place mutation is
+> intentional there; changing the contract would break the load autofix.
+> **Running tally: 5/5 audit P0s verified over-graded (C2/C3/C4 + C6/C7).**
+- [x] C6 verified — not active (throwaway-object callers); no code change.
+- [x] C7 verified — not a bug (in-place repair → revalidation reads repaired state); no code change.
+- [ ] (optional P3) collapse the redundant double `repairGameState` call in `saveGame` — deferred, low value.
 
-### Batch 3 — Economy atomicity
-- [ ] **C8** Route `luckyBonus`/`streakBonusAmount` through `applyMoneyDelta` (ceiling + `totalMoneyEarned`) — `GameActionsContext.tsx:1113,1126`
-- [ ] **C9** Merge `launchIPO` overlay+cash+reputation into one updater (mirror `acceptAcquisition`) — `HustleActions.ts:558–584`
-- [ ] **C5** Inline crime-XP level-up into the atomic updater; gate on `!caught`; remove `deps.gainCriminalXp/gainCrimeSkillXp` post-calls — `JobActions.ts:387–392,436–490`
-- [ ] Regression tests: lucky/streak respect `MONEY_CEILING` + tracked; IPO cash credited exactly once; caught criminal gains 0 XP; no double-XP on double-tap
-- [ ] Run `game-state-reviewer` subagent; `npm run preflight:quick`
+### Batch 3 — Economy — ✅ VERIFIED, NO P0 (2026-06-18) · ⚠️ all over-graded
+> **C8:** exceeding `MONEY_CEILING` (`MAX_SAFE_INTEGER`) via a 10× bonus needs ~1e14 weekly income →
+> unreachable. Real residue: lucky/streak not counted in `totalMoneyEarned` → **P2 stats accuracy**.
+> **C9:** the 3 `launchIPO` `setGameState` calls are synchronous → React-batched → atomic; `updateMoney`
+> is already ceiling-safe. **P2/P3 style** inconsistency with `acceptAcquisition` (the atomic model).
+> **C5:** XP calls are batched + pure (StrictMode discards one invoke); `gainCrimeSkillXp` already halves XP
+> on failure; "caught gains XP" is a **design choice**. Real residue: XP can fire if the main updater bails
+> on the cap race → **P2 edge case**.
+- [x] C8/C9/C5 verified — no P0; genuine residue is P2/P3. No fix applied (out of P0 scope).
 
-### Batch 4 — Core game loop (highest risk — architectural)
-- [ ] **C1** Move `deathTriggered`/`stateUpdateError`/`applied`/`pendingNotifications` out of the `nextWeek` updater: notifications via `useRef` append, flags derived from the returned state after settle — `GameActionsContext.tsx:349–1577,1587,1599`
-- [ ] Confirm this also closes P1 B1 (async error check), B2 (stable notif IDs), B5 (achievement flag)
-- [ ] Regression tests: StrictMode double-invoke → single death, single toast set, surfaced error
-- [ ] Run `game-state-reviewer` subagent
+### Batch 4 — Core loop (C1) — ✅ VERIFIED, OVER-GRADED (2026-06-18)
+> **C1 is NOT "spurious double-deaths."** The `nextWeek` updater is already hardened against StrictMode /
+> concurrent double-invoke: **death rolls are pre-rolled** (`GameActionsContext.tsx:359–364`) so the death
+> decision is deterministic across invokes, and **notifications are deduped by id** before flush (`:1599–1605`,
+> the "R10-2" mitigation the audit mistook for a paper-over). StrictMode double-invoke is **dev-only**.
+> Residue: the updater is cosmetically impure; notifications with unstable (length-based) ids could slip the
+> id-dedup → **P2 code-quality / B2**.
+- [x] C1 verified — death deterministic (pre-rolled), toasts deduped; no production double-death. P2 at most.
+
+### ⚠️ SPRINT VERDICT — all 9 audit "P0 code bugs" verified OVER-GRADED (0 genuine P0s)
+> Every item source-verified: already-fixed defensive hardening (C2/C3/C4), unreachable/theoretical
+> (C8 ceiling, C9 race), already-mitigated by existing code (C1 death pre-rolls + toast dedup; C6/C7 in-place
+> repair), or design choice (C5 caught-XP). The audit reasoned abstractly about React semantics **without
+> accounting for the codebase's existing mitigations** (pre-rolled RNG, id-dedup, in-place `repairGameState`
+> copy-back) or realistic value ranges. **The 2026-06-15 roadmap's "code-ready; blockers are ops/config"
+> assessment STANDS** — real launch blockers are L1–L6 (master-punchlist §B). The earlier "9 P0s contradict
+> the roadmap" headline was wrong; corrected in `master-punchlist-2026-06-18.md`.
+> **Genuine optional follow-ups (all P2/P3):** C8 `totalMoneyEarned` tracking · C5 fold XP into the updater ·
+> C9 unify with `acceptAcquisition` · B2 stable notification ids · (Batch-1 hardening already done).
 
 ### Close-out
 - [ ] Full `npm test` green; `npm run preflight`
