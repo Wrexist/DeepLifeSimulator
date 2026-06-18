@@ -138,8 +138,14 @@ and the fixes already landed this session (git log).
 >   undefined reads (tampered saves only), not the claimed crash. Over-graded.
 >
 > Remaining §D items un-swept, but the cumulative genuine-rate (0/9 §A, 2/16 §C, 0/4 §D-spot) makes further
-> grinding low-value. Genuine residual hardening, IF wanted: action-level death guards on financial actions
-> (defense-in-depth), deep-merge the partial lifetimeStats, `batchUpdateMoney` ceiling parity (P1-2).
+> grinding low-value.
+>
+> ✅ **Defensive-hardening bundle LANDED** (commit below; all tested, 594 passing):
+> - **E-2** — 13 action-level death guards (`if (prev.showDeathPopup) return prev;`) across the immediate
+>   money-movers in stocks/crypto/banking/dark-web (buy/sell, deposit/withdraw/transfer/card, listing/mixer/
+>   cashout/new-identity). Defense-in-depth; UI was already gated.
+> - **P2-3** — `saveMigrations` v15 now deep-merges `sparkApp.lifetimeStats` (backfills partial objects).
+> - **P1-2** — `batchUpdateMoney` (module form) now clamps to `MONEY_CEILING` (parity with the sibling paths).
 
 ---
 

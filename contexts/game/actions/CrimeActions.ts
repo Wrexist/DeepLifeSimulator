@@ -56,6 +56,7 @@ export const buyMarketListing = (
   // outcome on each invocation.
   const purchaseRoll = Math.random();
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureDarkWeb(prev);
     if (!state.darkWeb) return prev;
     const listing = state.darkWeb.listings.find((l) => l.id === listingId);
@@ -162,6 +163,7 @@ export const submitMixerTransaction = (
   amountBtc: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureDarkWeb(prev);
     if (!state.darkWeb) return prev;
     const frontCount = countLaunderingFronts(state);
@@ -183,6 +185,7 @@ export const cashOutCleanBtc = (
   amountBtc: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureDarkWeb(prev);
     if (!state.darkWeb) return prev;
     const r = withdrawCleanBtc(state.darkWeb, amountBtc);
@@ -216,6 +219,7 @@ export const acquireNewIdentity = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureDarkWeb(prev);
     if (!state.darkWeb) return prev;
     const btc = getBtcOwned(state);

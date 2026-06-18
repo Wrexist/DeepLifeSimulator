@@ -160,7 +160,9 @@ export const batchUpdateMoney = (
       log.warn(`Rejected batch update: insufficient funds. Has: ${currentMoney}, total negative change: ${totalChange}`);
       return prev;
     }
-    const newMoney = Math.max(0, currentMoney + totalChange);
+    // P1-2: clamp to MONEY_CEILING for parity with updateMoney/applyMoneyDelta — all
+    // three money-mutation paths must enforce the same upper bound.
+    const newMoney = Math.min(MONEY_CEILING, Math.max(0, currentMoney + totalChange));
     const actualChange = newMoney - currentMoney;
 
     if (actualChange !== 0) {
