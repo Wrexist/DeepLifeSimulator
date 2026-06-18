@@ -195,7 +195,10 @@ function WorkScreenContent() {
             // and made the result feel laggy instead of instant.
             try {
                 const { updateSystemUsage } = require('@/lib/depth/discoverySystem');
-                updateSystemUsage('streetJobs', gameState);
+                // CR: apply the returned state — updateSystemUsage is pure, so discarding it dropped
+                // the discovery timesUsed / masteryLevel increments.
+                setGameState(prev => updateSystemUsage('streetJobs', prev));
+                saveGame();
             } catch (error) {
                 logger.warn('Failed to update system usage:', error as any);
             }

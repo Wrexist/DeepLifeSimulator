@@ -12,17 +12,18 @@
  * The fix folds the reputation delta into the same updater via withReputationDelta.
  * These tests capture the updater and drive it with a `prev` that has LESS money than
  * the snapshot, proving the bail leaves reputation (and money) untouched, while the
- * happy path applies BOTH money and reputation in one atomic update. fireNamedHire uses
- * the identical helper, so the two positive-rep exploits below cover the mechanism.
+ * happy path applies BOTH money and reputation in one atomic update. All three
+ * (acceptAcquisition, resolveScandal, fireNamedHire) are tested directly below.
  */
 import type { Dispatch, SetStateAction } from 'react';
 import { createTestGameState } from '../helpers/createTestGameState';
-import { acceptAcquisition, resolveScandal } from '@/contexts/game/actions/HustleActions';
+import { acceptAcquisition, resolveScandal, fireNamedHire } from '@/contexts/game/actions/HustleActions';
 import type {
   GameState,
   HustleCompanyOverlay,
   HustleAcquisitionOffer,
   HustleActiveScandal,
+  HustleHire,
 } from '@/contexts/game/types';
 
 const COMPANY_ID = 'co-1';
@@ -168,6 +169,49 @@ describe('P1-14: hustle reputation grants are atomic with their money step', () 
       expect(result).toBe(prevAtUpdate); // bailed — scandal not resolved
       expect(result.stats.reputation).toBe(50); // no free +4
       expect(result.stats.money).toBe(10_000);
+    });
+  });
+
+  describe('fireNamedHire (-1 reputation, costs 4× salary severance)', () => {
+    const hire: HustleHire = {
+      candidateId: 'cand-1',
+      hiredWeek: 0,
+      role: 'engineer',
+      salary: 1_000,
+      morale: 80,
+      performance: 70,
+    };
+    const overlay = (): HustleCompanyOverlay => ({
+      ...baseOverlay(),
+      hiringPipeline: { ...baseOverlay().hiringPipeline, namedHires: [{ ...hire }] },
+    });
+    const SEVERANCE = 4_000; // floor(1_000 salary × 4)
+
+    it('commit path pays severance AND docks -1 reputation atomically', () => {
+      const snapshot = stateWith(100_000, 50, overlay());
+      const cap = captureUpdater();
+
+      const res = fireNamedHire(cap.setGameState, snapshot, COMPANY_ID, 'cand-1');
+      expect(res.success).toBe(true);
+      expect(res.severance).toBe(SEVERANCE);
+
+      const committed = cap.run(snapshot);
+      expect(committed.stats.money).toBe(100_000 - SEVERANCE);
+      expect(committed.stats.reputation).toBe(49); // 50 − 1, same update
+    });
+
+    it('docks NO reputation when the in-updater severance step bails (same-batch funds race)', () => {
+      const overlayInstance = overlay();
+      const snapshot = stateWith(100_000, 50, overlayInstance); // passes the outer guard
+      const cap = captureUpdater();
+      fireNamedHire(cap.setGameState, snapshot, COMPANY_ID, 'cand-1');
+
+      const prevAtUpdate = stateWith(1_000, 50, overlayInstance); // can't cover $4k severance now
+      const result = cap.run(prevAtUpdate);
+
+      expect(result).toBe(prevAtUpdate); // bailed — the fire didn't happen
+      expect(result.stats.reputation).toBe(50); // no unfair −1
+      expect(result.stats.money).toBe(1_000);
     });
   });
 });

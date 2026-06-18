@@ -161,8 +161,21 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       }
     });
 
-    if (incomeTotal !== 0) updateMoney(incomeTotal, incomeReasons.join(', '));
-    if (nonIncomeTotal !== 0) updateMoney(nonIncomeTotal, nonIncomeReasons.join(', '));
+    // Atomicity (CR): reject the WHOLE batch up-front when the NET is unaffordable, and apply the
+    // money-adding leg first — so the two updateMoney calls can never half-commit (a leg only trips
+    // updateMoney's overdraft guard when the net itself overdraws, which we've already rejected).
+    const currentMoney = stateRef.current?.stats?.money ?? 0;
+    if (currentMoney + incomeTotal + nonIncomeTotal < -0.01) {
+      logger.warn(
+        `[batchUpdateMoney] Rejected: insufficient funds. Has ${currentMoney}, net ${incomeTotal + nonIncomeTotal}.`
+      );
+      return;
+    }
+    const legs: Array<{ amount: number; reason: string }> = [];
+    if (incomeTotal !== 0) legs.push({ amount: incomeTotal, reason: incomeReasons.join(', ') });
+    if (nonIncomeTotal !== 0) legs.push({ amount: nonIncomeTotal, reason: nonIncomeReasons.join(', ') });
+    legs.sort((a, b) => b.amount - a.amount); // money-adding leg first
+    for (const leg of legs) updateMoney(leg.amount, leg.reason);
   }, [updateMoney]);
 
   const applyPerkEffects = useCallback((baseValue: number, perkType: string): number => {

@@ -121,7 +121,9 @@ export function resolveAdUnitId(
   devFallbackTestId: string,
   isDev: boolean,
 ): string {
-  return envValue || (isDev ? devFallbackTestId : '');
+  // Trim so a whitespace-only env value fails closed (no ad) instead of an invalid request.
+  const normalized = typeof envValue === 'string' ? envValue.trim() : '';
+  return normalized || (isDev ? devFallbackTestId : '');
 }
 
 const AD_UNITS = {

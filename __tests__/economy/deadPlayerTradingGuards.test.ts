@@ -23,6 +23,7 @@ import {
 } from '@/contexts/game/actions/BankingActions';
 import {
   buyMarketListing,
+  submitMixerTransaction,
   cashOutCleanBtc,
   acquireNewIdentity,
 } from '@/contexts/game/actions/CrimeActions';
@@ -56,6 +57,7 @@ const cases: Array<{ name: string; invoke: (sg: Dispatch<SetStateAction<GameStat
   { name: 'spendOnCard', invoke: (sg) => spendOnCard(sg, 'card-1', 1_000, 'shopping') },
   { name: 'payDownCard', invoke: (sg) => payDownCard(sg, 'card-1', 'acct-1', 1_000) },
   { name: 'buyMarketListing', invoke: (sg) => buyMarketListing(sg, 'listing-1') },
+  { name: 'submitMixerTransaction', invoke: (sg) => submitMixerTransaction(sg, 'standard', 0.1) },
   { name: 'cashOutCleanBtc', invoke: (sg) => cashOutCleanBtc(sg, 0.5) },
   { name: 'acquireNewIdentity', invoke: (sg) => acquireNewIdentity(sg) },
 ];

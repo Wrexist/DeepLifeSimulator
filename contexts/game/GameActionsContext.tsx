@@ -1594,6 +1594,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // CRITICAL: If state update fails, log error and return previous state
  stateUpdateError = error instanceof Error ? error: new Error(String(error));
  logger.error('[WEEK PROGRESSION] Error in setGameState callback:', stateUpdateError);
+        // CR: close the profiling window on the error path too (idempotent via the started flag).
+        tickProfiler.endTick();
  // Return previous state unchanged to prevent corruption
  return prevState;
  }
