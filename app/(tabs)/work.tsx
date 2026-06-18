@@ -15,7 +15,6 @@ import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getMindsetFeedback } from '@/utils/mindsetFeedback';
-import ActionFeedbackModal from '@/components/depth/ActionFeedbackModal';
 import SystemInterconnectionIndicator from '@/components/depth/SystemInterconnectionIndicator';
 import {
     Briefcase,
@@ -180,16 +179,6 @@ function WorkScreenContent() {
         };
     }, [workFeedback, feedbackOpacity]);
 
-    const [actionFeedbackVisible, setActionFeedbackVisible] = useState(false);
-    const [actionImpact, setActionImpact] = useState<any>(null);
-    // The feedback modal is opened on a short delay; keep the timer so we can
-    // cancel a pending open (rapid taps, or the screen swapping to JailScreen
-    // when caught) instead of letting it pop up over a transitioned screen.
-    const actionFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    useEffect(() => () => {
-        if (actionFeedbackTimerRef.current) clearTimeout(actionFeedbackTimerRef.current);
-    }, []);
-
     // Hobbies completely removed - no state variables needed
 
     const handleStreetJob = (jobId: string) => {
@@ -200,45 +189,15 @@ function WorkScreenContent() {
         const job = gameState.streetJobs.find(j => j.id === jobId);
         const result = performStreetJob(jobId);
         if (result) {
-            // Calculate action impact for depth system
+            // Track street-job usage for the discovery system only. The blue
+            // depth "System Effects" feedback modal that used to auto-pop here
+            // (500ms after the action) was removed — it interrupted the action
+            // and made the result feel laggy instead of instant.
             try {
-                const { calculateActionImpact } = require('@/lib/depth/systemInterconnections');
                 const { updateSystemUsage } = require('@/lib/depth/discoverySystem');
-
-                // Determine direct effects
-                const directEffects: any = {
-                    money: result.success ? (job?.basePayment || 0) : 0,
-                    happiness: -5,
-                    health: -2,
-                    energy: -(job?.energyCost || 0),
-                };
-
-                // Calculate impact
-                const impact = calculateActionImpact(
-                    `streetJob_${jobId}`,
-                    job?.name || 'Street Job',
-                    directEffects,
-                    gameState
-                );
-
-                // Update system usage for discovery
                 updateSystemUsage('streetJobs', gameState);
-
-                // Store impact for modal (only show for successful actions with system effects)
-                if (result.success && impact && impact.systemEffects.length > 0) {
-                    setActionImpact(impact);
-                    // Delay modal slightly to let toast show first. Cancel any
-                    // previously-scheduled open so it can't fire over a screen
-                    // that has since changed (e.g. caught → JailScreen).
-                    if (actionFeedbackTimerRef.current) clearTimeout(actionFeedbackTimerRef.current);
-                    actionFeedbackTimerRef.current = setTimeout(() => {
-                        actionFeedbackTimerRef.current = null;
-                        setActionFeedbackVisible(true);
-                    }, 500);
-                }
             } catch (error) {
-                // Depth system may not be available, continue without it
-                logger.warn('Failed to calculate action impact:', error as any);
+                logger.warn('Failed to update system usage:', error as any);
             }
 
             // Show toast notification
@@ -1219,16 +1178,6 @@ function WorkScreenContent() {
                 type="warning"
             />
 
-            {/* Action Feedback Modal */}
-            <ActionFeedbackModal
-                visible={actionFeedbackVisible}
-                actionImpact={actionImpact}
-                darkMode={settings.darkMode}
-                onClose={() => {
-                    setActionFeedbackVisible(false);
-                    setActionImpact(null);
-                }}
-            />
         </LinearGradient>
     );
 }
