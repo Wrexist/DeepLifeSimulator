@@ -85,6 +85,23 @@ and the fixes already landed this session (git log).
 | P1-15 | Periodic relationship repair re-renders / risks infinite repair loop every 10 weeks | `GameActionsContext.tsx:1667–1683` | Crash B7 |
 | P1-16 | `applied` achievement flag mutated in updater → possible double gold-claim record | `GameActionsContext.tsx:2238` | Crash B5 (P0-C1 family) |
 
+> **Verified 2026-06-18 — all 16 source-checked (3 parallel agents + orchestrator confirmation).** Same
+> over-grade pattern as §A: only **2 genuine** bugs, now FIXED.
+> - ✅ **P1-14** (FIXED) — reputation granted outside the bailing money updater. Extended to
+>   **acceptAcquisition:630** (`+3`, audit missed it); folded resolveScandal/fireNamedHire/acceptAcquisition
+>   reputation into the atomic updater via `withReputationDelta`. Regression test added. `launchIPO` left
+>   as-is (an IPO raises money → its updater never bails).
+> - ✅ **P1-9** (FIXED) — unbounded IAP-init spin-wait now capped at 15s, then proceeds with current state.
+> - ✅ **P1-8** — already fixed (the lone length-based notif id, commit `6705853`).
+> - **MITIGATED (not genuine):** P1-3 (dead code + pure-updater commit-once), P1-4 (event handler, not
+>   render-phase), P1-5 (week-vs-weeksLived guard present), P1-6 (load-merge populates `crimeSkills`), P1-7
+>   (synchronous updater), P1-10 (load uses `autoFix=true`), P1-15 (idempotent guarded repair), P1-16
+>   (idempotent in-updater dedupe).
+> - **NEEDS-DECISION (balance/policy — not auto-fixed):** P1-1 (same-batch energy double-tap; one-line inner
+>   guard possible but changes 2nd-tap behaviour), P1-2 (ceiling unreachable; consistency-only), P1-11
+>   (anti-player reason-concat mis-count), P1-12 (clamp-all-nested-numerics policy), P1-13 (unemployedBonus
+>   bounded by existing 3/job + 8/week caps).
+
 > **C-3 (security):** `EXPO_PUBLIC_SAVE_SIGNATURE_KEY` is inlined into the client bundle (any `EXPO_PUBLIC_*`
 > is), defeating the signature scheme; keyed-CRC32 is not cryptographic. Part-code, part-ops — see §G.
 

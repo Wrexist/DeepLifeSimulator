@@ -548,8 +548,14 @@ export class IAPService {
 
     if (this.isInitializing) {
       logger.debug('â³ IAP initialization in progress, waiting...');
-      // Wait for existing initialization to complete
+      // P1-9: bound the wait so a hung connectAsync() (no native timeout) can't make
+      // every concurrent caller spin forever. Cap at 15s, then proceed with current state.
+      const waitStart = Date.now();
       while (this.isInitializing) {
+        if (Date.now() - waitStart > 15000) {
+          logger.warn('IAP init wait exceeded 15s; proceeding with current connection state');
+          break;
+        }
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       return this.state.isConnected;
