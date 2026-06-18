@@ -152,6 +152,20 @@ jest.mock('expo-router', () => ({
 
 jest.mock('expo-linear-gradient', () => 'LinearGradient');
 
+// Mock react-native-svg as host-component string tags. The real package calls
+// `react-native`'s native `processColor` at import time, which the RN mock doesn't
+// provide; render tests only need the SVG elements to mount as inert host nodes.
+jest.mock('react-native-svg', () => {
+  const tags = [
+    'Svg', 'Path', 'Defs', 'LinearGradient', 'RadialGradient', 'Stop', 'Circle',
+    'Rect', 'G', 'Line', 'Polygon', 'Polyline', 'Ellipse', 'Text', 'TSpan',
+    'TextPath', 'ClipPath', 'Mask', 'Use', 'Symbol', 'Pattern', 'Image', 'ForeignObject',
+  ];
+  const mock = { __esModule: true, default: 'Svg' };
+  for (const t of tags) mock[t] = t;
+  return mock;
+});
+
 // Expo native `.js` modules ship ESM that ts-jest (which only transforms ts/tsx)
 // can't parse. Mock the ones the screen graph pulls in — we don't test their
 // behavior, only that screens mount around them.
@@ -281,6 +295,9 @@ jest.mock('react-native', () => {
       exitApp: jest.fn(),
     },
     NativeModules: {},
+    // Legacy `Touchable.Mixin` is destructured at module scope by some touchable/gesture
+    // wrappers; the real RN package exports it, so provide an empty Mixin for the mock.
+    Touchable: { Mixin: {} },
     PixelRatio: {
       get: jest.fn(() => 3),
       roundToNearestPixel: jest.fn((v) => v),
