@@ -124,6 +124,23 @@ and the fixes already landed this session (git log).
 
 **Counts:** Crash audit 9×P2 · GameState audit 5×P2 · Exploit audit ~9×P2.
 
+> **Spot-verified 2026-06-18 (highest-value items) — same over-grade pattern; all MITIGATED / non-issues:**
+> - **E-2** dead-player trading — MITIGATED: `showDeathPopup` is a blocking full-screen modal
+>   (`DeathPopup.tsx:266`), tab content gated (`(tabs)/_layout.tsx:180`), only exits are new-life/revive
+>   (both make you alive again). No dead-but-trading window (same class as P1-1).
+> - **D-3** acquireNewIdentity fee waiver — NON-ISSUE: `CrimeActions.ts:242` `btcPrice > 0 ? … : 0` is a
+>   div-by-zero guard; BTC price is market-driven, never 0 in play → the waiver branch is unreachable.
+> - **C1/C2/C3/E-3** require()-in-tick — NON-ISSUES: `applyIncome.ts:101` is a static-data require (can't
+>   throw; the try/catch rule is for *native* modules), `applyMiningCryptos.ts:28` is module-level (not
+>   tick-time at all).
+> - **P2-3** sparkApp.lifetimeStats — MOSTLY MITIGATED: real file is `utils/saveMigrations.ts:327`, which
+>   replaces a missing/non-object lifetimeStats with a full default; the partial-object edge yields
+>   undefined reads (tampered saves only), not the claimed crash. Over-graded.
+>
+> Remaining §D items un-swept, but the cumulative genuine-rate (0/9 §A, 2/16 §C, 0/4 §D-spot) makes further
+> grinding low-value. Genuine residual hardening, IF wanted: action-level death guards on financial actions
+> (defense-in-depth), deep-merge the partial lifetimeStats, `batchUpdateMoney` ceiling parity (P1-2).
+
 ---
 
 ## E. Already FIXED this session (git log on `claude/awesome-euler-jaf2z2`)
