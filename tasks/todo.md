@@ -17,10 +17,16 @@ Roadmap H3: instrument the ~1,475-line weekly tick into measured phases, then op
       applyAutoCheckpoint) is the untimed remainder in Phase 1; split it out in Phase 2 if the
       measured phases don't account for the bulk of the ~85ms.
 
-### Phase 2 — optimize (NEXT, data-driven)
-- [ ] Run with the profiler on (`EXPO_PUBLIC_PROFILE_TICK=true`); capture per-phase p95.
-- [ ] Optimize the hottest phase(s) (memoize recompute / hoist allocation), each behind the
-      subsystemEquivalence + tick-stress tests.
+### Phase 2 — optimize (data-driven)
+- [x] Node profile captured (`__tests__/refactor/tickProfile.manual.test.ts`, skipped): every
+      instrumented phase is sub-ms (total ~0.9ms, empty portfolio) → the device ~85ms is NOT in
+      these phases' JS logic. Prime suspects: the UN-instrumented pre-updater (`simulateWeek` +
+      `buildPreRolls`) + commit (`applyAutoCheckpoint`); populated-state subsystem work; Hermes.
+- [ ] Extend instrumentation to the pre-updater + commit (the un-measured ends) so a device profile
+      is complete. (Commit needs the return-object → `const` refactor.)
+- [ ] Capture a DEVICE profile (`EXPO_PUBLIC_PROFILE_TICK=true` in-app) — Node/jest can't pin the
+      device hot spot (V8 ≠ Hermes; 1ms jest clock; empty test portfolio).
+- [ ] Optimize the hottest phase(s), each behind the subsystemEquivalence + tick-stress tests.
 
 ### Phase 3 — yield between phases (OPTIONAL)
 - [ ] Only if Phase 2 data shows the tick blocking the JS thread enough to warrant async yielding.
