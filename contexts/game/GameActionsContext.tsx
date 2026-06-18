@@ -1204,9 +1204,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // notifications into the pendingNotifications queue alongside everyone else.
  const sparkAppNext = sparkTickResult?.sparkApp ?? prevState.sparkApp;
  if (sparkTickResult?.notifications) {
- for (const text of sparkTickResult.notifications) {
+ for (const [i, text] of sparkTickResult.notifications.entries()) {
  pendingNotifications.push({
- id: `spark-tick-${nextWeeksLived}-${pendingNotifications.length}`,
+ id: `spark-tick-${nextWeeksLived}-${i}`,
  title: 'Spark',
  message: text,
  });

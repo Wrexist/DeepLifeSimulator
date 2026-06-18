@@ -65,8 +65,15 @@ atomicity → core game loop (riskiest) last.**
 > copy-back) or realistic value ranges. **The 2026-06-15 roadmap's "code-ready; blockers are ops/config"
 > assessment STANDS** — real launch blockers are L1–L6 (master-punchlist §B). The earlier "9 P0s contradict
 > the roadmap" headline was wrong; corrected in `master-punchlist-2026-06-18.md`.
-> **Genuine optional follow-ups (all P2/P3):** C8 `totalMoneyEarned` tracking · C5 fold XP into the updater ·
-> C9 unify with `acceptAcquisition` · B2 stable notification ids · (Batch-1 hardening already done).
+> **Optional P2/P3 follow-ups — outcome (2026-06-18):**
+> - ✅ **B2** stable spark-notification ids (`:1209` length-based → array-index based) — done + tested.
+> - ⏭️ **C8** `totalMoneyEarned` tracking — DEFER: entangled with the M3 income-ledger (no weekly-tick income
+>   tracking exists at all); an isolated lucky/streak fix would be a band-aid on missing infrastructure.
+> - ⏭️ **C9** unify `launchIPO` — DEFER: `acceptAcquisition` also keeps reputation separate; switching
+>   `updateMoney`→`applyMoneyDelta` risks **dropping the income tracking** `updateMoney` provides. The current
+>   3 calls are synchronous → batched → atomic, so benefit is marginal and regression risk is real.
+> - ⏭️ **C5** fold crime-XP — DEFER: needs a caught-XP **balance decision** (currently caught players DO gain
+>   XP) or a dual-updater refactor of the core crime flow, for a rare cap-race edge. High surface, low payoff.
 
 ### Close-out
 - [ ] Full `npm test` green; `npm run preflight`
