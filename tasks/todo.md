@@ -9,12 +9,20 @@ get extra care + the `game-state-reviewer` / `save-system-auditor` subagents aft
 Run `npm run preflight:quick` between batches. **Sequence: isolated crashers → save path → economy
 atomicity → core game loop (riskiest) last.**
 
-### Batch 1 — Isolated crash guards (low blast radius)
-- [ ] **C2** Null-safe relationship filter `((rel): rel is Relationship => rel != null)` + guard `applyNPCDepthTick` — `GameActionsContext.tsx:890`
-- [ ] **C3** Vehicle accident pre-roll OOB → bounds-guard + cap `severities` index; verify pre-roll size — `weekly/applyVehicles.ts:57–59`, `weekly/preTick.ts:309`
-- [ ] **C4** Disease complication pre-roll OOB → bounds-guard + numeric-validate `baseEffects` — `weekly/applyDiseases.ts:181,210`
-- [ ] Regression tests: >10 vehicles & >20 diseases produce **no NaN** in stats; null relationship doesn't crash the tick
-- [ ] `npm run preflight:quick` + targeted weekly-tick tests
+### Batch 1 — Isolated guards — ✅ DONE (2026-06-18) · ⚠️ RE-GRADED after source verification
+> **Verification finding:** none of these is the P0 *crash* the audit claimed. An out-of-bounds pre-roll
+> returns `undefined`, and `undefined < chance` is `false`, so the accident/complication simply never fires
+> for entities past the cap — no NaN, no crash (the dangerous severity math sits *inside* that `if`).
+> `Math.random()` never returns 1.0, so the severity index can't overflow either. C2's `undefined` leak
+> can't occur on JSON-loaded saves. **Re-graded: C2 → defensive / hard-rule fix; C3/C4 → P2 consistency.**
+> Fixed anyway (cheap, correct, removes the fragility). Confirms the audit over-graded severity → verify
+> each remaining P0 against real code before fixing.
+- [x] **C2** Null/undefined/non-object relationship filter via type guard (also closes a `CLAUDE.md` "no unions without guards" violation) — `GameActionsContext.tsx:890`
+- [x] **C3** Vehicle accident pre-roll index wrap + severity index cap — `weekly/applyVehicles.ts:56–59`
+- [x] **C4** Disease complication/progression pre-roll index wrap — `weekly/applyDiseases.ts:181,210,212`
+- [x] Regression test `__tests__/refactor/weeklyTickBounds.test.ts` — proves vehicle #11 / disease #21 now roll (would fail pre-fix); asserts no NaN
+- [x] `npm run type-check` clean · **403 tests pass** (incl. 308 equivalence snapshots unchanged → no behavior drift ≤cap)
+- [ ] ⚠️ Behavior note for review: C3/C4 now make vehicle #11+/disease #21+ roll (slightly less player-favorable). Flag if the cap was intended as a feature.
 
 ### Batch 2 — Save-path correctness
 - [ ] **C6** `autoFixStats` clone-before-mutate (match `repairGameState` pattern) — `saveValidation.ts:277,287`

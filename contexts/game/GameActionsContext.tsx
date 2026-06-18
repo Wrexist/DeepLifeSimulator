@@ -887,7 +887,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  relationshipHappinessPenalty += healthResult.happinessPenalty;
  }
  return healthResult.rel;
- }).filter(rel => rel!== null); // Remove null relationships (breakups)
+ }).filter((rel): rel is Relationship => rel != null && typeof rel === 'object'); // Remove null/undefined/non-object relationships (breakups + corruption guard)
 
  // Add newborn children to relationships
  if (newBornChildren.length > 0) {

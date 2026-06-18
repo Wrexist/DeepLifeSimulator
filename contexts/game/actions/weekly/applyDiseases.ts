@@ -157,6 +157,13 @@ export function applyDiseasesForWeek(
       return;
     }
 
+    // Pre-roll arrays are capped (length 20). For diseases beyond the cap, wrap
+    // the index deterministically so they still roll their complication /
+    // progression rather than reading `undefined` (which silently skips the
+    // roll for disease #21+). Wrapping keeps it StrictMode-deterministic.
+    const complicationRoll = ctx.preRolls.diseaseComplication[index % ctx.preRolls.diseaseComplication.length];
+    const progressionRoll = ctx.preRolls.diseaseProgression[index % ctx.preRolls.diseaseProgression.length];
+
     // Accumulate stat penalties.
     if (disease.effects) {
       Object.entries(disease.effects).forEach(([stat, value]) => {
@@ -178,7 +185,7 @@ export function applyDiseasesForWeek(
     if (disease.treatmentRequired && !disease.curable) {
       // Chronic diseases that require treatment — check if worsening.
       const complicationChance = 0.1; // 10% chance per week if untreated.
-      if (ctx.preRolls.diseaseComplication[index] < complicationChance) {
+      if (complicationRoll < complicationChance) {
         const baseEffects = (disease as { baseEffects?: typeof disease.effects }).baseEffects ?? disease.effects;
         const worsenedEffects = { ...disease.effects };
         Object.keys(worsenedEffects).forEach((stat) => {
@@ -207,9 +214,9 @@ export function applyDiseasesForWeek(
       // Higher chance of worsening the longer it's untreated.
       if (weeksWithDisease > 2) {
         const complicationChance = Math.min(0.15, weeksWithDisease * 0.05); // Up to 15% chance.
-        if (ctx.preRolls.diseaseComplication[index] < complicationChance) {
+        if (complicationRoll < complicationChance) {
           // Disease worsens — could progress to more severe.
-          if (disease.severity === 'mild' && ctx.preRolls.diseaseProgression[index] < 0.3) {
+          if (disease.severity === 'mild' && progressionRoll < 0.3) {
             // 30% chance to progress to serious.
             const worsenedEffects = { ...disease.effects };
             Object.keys(worsenedEffects).forEach((stat) => {
