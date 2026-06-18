@@ -39,20 +39,19 @@ and the fixes already landed this session (git log).
 | P0-C8 | Lucky/streak weekly bonuses bypass `updateMoney` → skip `MONEY_CEILING` + `totalMoneyEarned` | `GameActionsContext.tsx:1113,1126` | Exploit A-1 | Can exceed money ceiling (save-corruption vector); wrong lifetime stats |
 | P0-C9 | `launchIPO` uses 3 separate `setGameState` calls (overlay / cash / reputation) | `actions/HustleActions.ts:558–584` | Exploit A-2 | IPO raise can be lost or double-applied |
 
-> **§A trio source-verified 2026-06-18 — the only code-column items left after the P1/P2/§D sweeps.**
-> All three are GENUINE-but-low-priority and entangled with refactors, so they're deferred (not auto-fixed):
-> - **C5** (`JobActions.ts:393-396`) — minor: `deps.gainCriminalXp(10)` / `gainCrimeSkillXp` run OUTSIDE
->   `doStreetJob`'s updater (which closes at :390), so they're NOT covered by the P1-1 energy guard — a
->   same-batch double-tap double-grants XP, and the caught path still grants it. Fix = fold both dep
->   callbacks into the main updater (duplicates the leveling logic). XP-only, not money. Polish.
-> - **C8** (`GameActionsContext.tsx:1113,1126`) — extreme-edge: the weekly tick adds lucky/streak bonuses
->   with `Math.max(0, …)` and NO `MONEY_CEILING` clamp (the file imports no ceiling). Same class as the
->   P1-2 fix, but reachable only near the ceiling (bonuses scale off weekly income). A correct fix is ONE
->   final-money clamp after ALL the tick's money mutations — entangled with the 1,475-line monolith (H3);
->   a local lucky/streak clamp would be only partial (false confidence). Defer with H3.
-> - **C9** (`HustleActions.ts:559`) — `launchIPO` uses separate setState calls; assessed during P1-14 and
->   left as-is: an IPO only RAISES money so its updater never bails → no lost/partial-raise window in
->   practice. StrictMode-atomicity polish.
+> **§A trio source-verified & RESOLVED 2026-06-18 — the last code-column items.**
+> - ✅ **C5** (FIXED) — `JobActions.ts`: street-job criminal/crime-skill XP is now applied ATOMICALLY inside
+>   `doStreetJob`'s updater via the pure `applyStreetJobXp` helper (both caught + not-caught branches),
+>   replacing the two separate post-updater `gainCriminalXp`/`gainCrimeSkillXp` setState calls. A same-batch
+>   double-tap (whose job no-ops at the P1-1 energy guard) no longer double-grants XP. Regression test added.
+> - ✅ **C8** (FIXED) — `GameActionsContext.tsx`: the weekly tick's final money commit now clamps to
+>   `MONEY_CEILING` (`Math.min(MONEY_CEILING, …)`, now exported from `MoneyActions`), co-located with the
+>   existing isFinite guard — a single COMPLETE clamp after ALL money mutations (income/lucky/streak/hustle/
+>   crypto/banking/stocks), parity with the P1-2 fix. Regression test added (a $1M salary atop
+>   MAX_SAFE_INTEGER stays clamped). Reachable only near the ceiling, but now correct everywhere.
+> - ✅ **C9** (NO FIX — verified benign) — `launchIPO` uses separate setState calls, but an IPO only RAISES
+>   money (positive `updateMoney`, never bails) and reputation is a fixed grant — no lost/partial-raise window
+>   in practice (assessed during P1-14). Consolidating would be churn for zero behavior change.
 
 ---
 

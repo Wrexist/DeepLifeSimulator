@@ -263,6 +263,40 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     assertCleanState('P1-11 batch income classification');
   });
 
+  it('Money: the weekly tick clamps money to the ceiling (C8)', async () => {
+    mounted = mountGame();
+    // Make a $1M/week salaried career the active job so the tick adds large positive income
+    // on top of an already-ceiling balance.
+    const career = (captured!.state.careers || []).find(
+      c => Array.isArray(c.levels) && c.levels.length > 0
+    );
+    if (!career) return; // no career catalog — skip
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      currentJob: career.id,
+      careers: (prev.careers || []).map(c =>
+        c.id === career.id
+          ? {
+              ...c,
+              accepted: true,
+              applied: true,
+              level: 0,
+              levels: c.levels.map((l, i) => (i === 0 ? { ...l, salary: 1_000_000 } : l)),
+            }
+          : c
+      ),
+      stats: { ...prev.stats, money: Number.MAX_SAFE_INTEGER, health: 100, happiness: 100 },
+    })));
+    expect(captured!.state.stats.money).toBe(Number.MAX_SAFE_INTEGER);
+
+    await act(async () => { await captured!.game.nextWeek(); });
+
+    // Without the final-money clamp, the salary would push money PAST MAX_SAFE_INTEGER
+    // (precision loss → save corruption). It must stay pinned at/under the ceiling, finite.
+    expect(captured!.state.stats.money).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
+    expect(Number.isFinite(captured!.state.stats.money)).toBe(true);
+  });
+
   // ── ITEMS ────────────────────────────────────────────────────────────────
   it('Items: buyItem marks item owned and deducts price', () => {
     mounted = mountGame();
@@ -343,6 +377,42 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     expect(captured!.state.weeklyStreetJobs?.beg ?? 0).toBe(1);
     expect(captured!.state.stats.energy).toBe(0);
     assertCleanState('P1-1 same-batch energy guard');
+  });
+
+  it('Jobs: a same-batch double-tap on an illegal job grants criminal XP only ONCE (C5)', () => {
+    mounted = mountGame();
+    act(() => makeWealthy());
+
+    // Pick a doable illegal street job (no item / level prerequisites, real energy cost).
+    const illegalJob = (captured!.state.streetJobs || []).find(
+      j =>
+        j.illegal &&
+        j.energyCost > 0 &&
+        (!j.requirements || j.requirements.length === 0) &&
+        (!j.darkWebRequirements || j.darkWebRequirements.length === 0) &&
+        (!j.criminalLevelReq || j.criminalLevelReq <= 1)
+    );
+    if (!illegalJob) return; // no unconditional illegal job in the catalog — skip
+
+    // Known XP, level 1, energy for exactly ONE job, clear weekly tally.
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      criminalXp: 0,
+      criminalLevel: 1,
+      weeklyStreetJobs: {},
+      stats: { ...prev.stats, energy: illegalJob.energyCost },
+    })));
+
+    // Two taps in ONE act() → the 2nd no-ops at the energy guard, so the XP (now applied
+    // INSIDE the updater) is granted once. Pre-fix it fired via a separate post-updater
+    // setState on every tap → +20.
+    act(() => {
+      captured!.job.performStreetJob(illegalJob.id);
+      captured!.job.performStreetJob(illegalJob.id);
+    });
+
+    expect(captured!.state.criminalXp).toBe(10);
+    assertCleanState('C5 atomic street-job XP');
   });
 
   it('Jobs: applyForJob sets currentJob', () => {

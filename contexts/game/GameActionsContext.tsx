@@ -30,7 +30,7 @@ import { haptic } from '@/utils/haptics';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
-import { updateMoney as updateMoneyAction, applyMoneyDelta } from './actions/MoneyActions';
+import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from './actions/MoneyActions';
 import { updateStats as updateStatsAction } from './actions/StatsActions';
 import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
 import { runCryptoWeeklyTick } from '@/lib/crypto/weeklyTick';
@@ -1402,7 +1402,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // and the UI shows "NaN" until the next save/load repair. isFinite catches it.
  stats: {
  ...newStats,
- money: isFinite(newStats.money) ? newStats.money: 0,
+ money: isFinite(newStats.money) ? Math.min(MONEY_CEILING, newStats.money): 0,
  reputation: isFinite(pulseRepAdjusted) ? pulseRepAdjusted: (isFinite(newStats.reputation) ? newStats.reputation: 50),
  },
  // Death warning system tracking

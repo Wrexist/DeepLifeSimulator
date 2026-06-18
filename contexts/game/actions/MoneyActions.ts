@@ -11,7 +11,7 @@ const log = logger.scope('MoneyActions');
 // ~1e308 and then `currentMoney + amount` overflows to Infinity, which
 // validateGameState treats as critical and RESETS to 0 on the next load (a worse
 // outcome than capping). Capping keeps the save valid.
-const MONEY_CEILING = Number.MAX_SAFE_INTEGER;
+export const MONEY_CEILING = Number.MAX_SAFE_INTEGER;
 
 export const updateMoney = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,

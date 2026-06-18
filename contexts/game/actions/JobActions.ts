@@ -12,12 +12,52 @@ import { rejectIfBlocked } from './_guards';
 
 const log = logger.scope('JobActions');
 
+/**
+ * C5: criminal + crime-skill XP for a completed street job, computed as a PURE delta so it
+ * can be folded into doStreetJob's atomic `setGameState` updater. These used to be separate
+ * post-updater `gainCriminalXp`/`gainCrimeSkillXp` setState calls, so a same-batch double-tap
+ * (whose money/energy job no-ops at the P1-1 energy guard) still double-granted XP. Mirrors
+ * the leveling math in those hooks (level up at level*100 XP).
+ */
+function applyStreetJobXp(
+  prev: GameState,
+  job: { illegal?: boolean; skill?: CrimeSkillId | null },
+  success: boolean
+): Partial<Pick<GameState, 'criminalXp' | 'criminalLevel' | 'crimeSkills'>> {
+  const out: Partial<Pick<GameState, 'criminalXp' | 'criminalLevel' | 'crimeSkills'>> = {};
+  if (job.illegal) {
+    const newXp = (prev.criminalXp || 0) + 10;
+    const nextLevelXp = (prev.criminalLevel || 1) * 100;
+    if (newXp >= nextLevelXp) {
+      out.criminalXp = newXp - nextLevelXp;
+      out.criminalLevel = (prev.criminalLevel || 1) + 1;
+    } else {
+      out.criminalXp = newXp;
+    }
+  }
+  const skillId = job.skill;
+  if (skillId && prev.crimeSkills[skillId]) {
+    const skill = prev.crimeSkills[skillId];
+    const newXp = skill.xp + (success ? 15 : 5);
+    const nextLevelXp = skill.level * 100;
+    out.crimeSkills = {
+      ...prev.crimeSkills,
+      [skillId]:
+        newXp >= nextLevelXp
+          ? { ...skill, xp: newXp - nextLevelXp, level: skill.level + 1 }
+          : { ...skill, xp: newXp },
+    };
+  }
+  return out;
+}
+
 export const performStreetJob = (
   gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   jobId: string,
-  // We inject dependencies to avoid circular imports
-  deps: {
+  // C5: street-job XP is now applied atomically inside the updater (applyStreetJobXp); this
+  // dependency bag is retained for call-site compatibility but is no longer read here.
+  _deps: {
     updateMoney: typeof updateMoney;
     updateStats: typeof updateStats;
     gainCriminalXp: (amount: number) => void;
@@ -231,6 +271,7 @@ export const performStreetJob = (
 
       return {
         ...prev,
+        ...applyStreetJobXp(prev, job, success),
         jailWeeks: Math.min(52, job.jailWeeks || 1),
         wantedLevel: prev.wantedLevel + (job.wantedIncrease || 1),
         streetJobFailureCount: newFailureCount,
@@ -359,6 +400,7 @@ export const performStreetJob = (
 
       return {
         ...prev,
+        ...applyStreetJobXp(prev, job, success),
         streetJobs: updatedStreetJobs,
         weeklyStreetJobs: {
           ...currentWeeklyJobs,
@@ -392,13 +434,9 @@ export const performStreetJob = (
 
   const events: string[] = [];
 
-  if (job.illegal) {
-    deps.gainCriminalXp(10);
-  }
-
-  if (job.skill) {
-    deps.gainCrimeSkillXp(job.skill, success ? 15 : 5);
-  }
+  // C5: criminal/crime-skill XP is granted atomically inside the updater branches above
+  // (applyStreetJobXp), so a same-batch double-tap whose job no-ops at the energy guard no
+  // longer double-grants XP via separate post-updater setState calls.
 
   // Set message if not already set (i.e., if not caught)
   if (!caught) {
