@@ -10,8 +10,9 @@
  * Mount once inside the GameProvider tree (see app/_layout.tsx).
  */
 import { useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { track } from '@/lib/analytics';
+import { track, analytics } from '@/lib/analytics';
 
 export function AnalyticsTracker(): null {
   const weeksLived = useGameSelector((s) => s.weeksLived ?? 0);
@@ -47,6 +48,16 @@ export function AnalyticsTracker(): null {
     }
     prevGeneration.current = generation;
   }, [generation, weeksLived]);
+
+  // Flush queued events when the app backgrounds so a kill doesn't drop them
+  // (the interval flush alone can lose the tail of a session).
+  useEffect(() => {
+    const onChange = (next: AppStateStatus) => {
+      if (next === 'background' || next === 'inactive') void analytics.flush();
+    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
+  }, []);
 
   return null;
 }

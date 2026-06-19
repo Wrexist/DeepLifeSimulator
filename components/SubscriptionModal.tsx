@@ -6,7 +6,7 @@
  * (ad-free + welcome gems) via `applyDeepLifePlusBenefits` on success.
  * Also offers Restore and Manage (platform-controlled cancellation).
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { X, Crown, Check } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
@@ -14,6 +14,7 @@ import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { accent, colors } from '@/lib/config/theme';
 import { subscriptionService } from '@/services/SubscriptionService';
+import { track } from '@/lib/analytics';
 import { applyDeepLifePlusBenefits } from '@/contexts/game/actions/SubscriptionActions';
 import {
   DEEP_LIFE_PLUS_PLANS,
@@ -34,6 +35,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const active = isDeepLifePlusActive();
+
+  // Funnel: record paywall impressions (no-op unless telemetry is enabled).
+  useEffect(() => {
+    if (visible) track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
+  }, [visible, active]);
 
   const handleSubscribe = async () => {
     if (busy) return;

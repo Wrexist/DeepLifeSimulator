@@ -1410,7 +1410,8 @@ export interface GameSettings {
   autoProgression?: boolean; // Auto-progression for progressive disclosure
   adsRemoved?: boolean; // IAP: Remove Ads purchased
   adsRemovedDate?: string; // When ads were removed
-  deepLifePlusActivated?: boolean; // DeepLife+ subscription benefits applied (gates one-time welcome gems)
+  deepLifePlusActivated?: boolean; // DeepLife+ ad-free benefit currently active (cleared on lapse)
+  deepLifePlusWelcomeClaimed?: boolean; // Sticky: welcome gems granted once ever (never cleared on lapse)
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle

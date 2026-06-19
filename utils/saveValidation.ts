@@ -445,7 +445,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // / cryptoMarket.coinMarkets undefined → crash on first access. Restore a
   // missing object wholesale; shallow-merge defaults into a partial one to fill
   // any missing top-level keys.
-  const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket'];
+  const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket', 'legacyPass'];
   for (const key of subsystemObjects) {
     const seed = initialFields[key];
     if (!seed || typeof seed !== 'object') continue;

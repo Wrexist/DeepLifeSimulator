@@ -108,4 +108,14 @@ describe('reconcileSubscriptionBenefits', () => {
     const twice = reconcileSubscriptionBenefits(once, true, false);
     expect(twice.stats.gems).toBe(500); // not 1000
   });
+
+  it('does NOT re-grant welcome gems across a lapse + resubscribe (sticky flag)', () => {
+    const s = createTestGameState({ stats: { gems: 0 } as any });
+    const subscribed = reconcileSubscriptionBenefits(s, true, false); // +500, welcomeClaimed
+    const lapsed = reconcileSubscriptionBenefits(subscribed, false, false); // ads back, activated cleared
+    expect(lapsed.settings.deepLifePlusWelcomeClaimed).toBe(true); // sticky persists
+    const resubscribed = reconcileSubscriptionBenefits(lapsed, true, false);
+    expect(resubscribed.stats.gems).toBe(500); // still 500, not 1000
+    expect(resubscribed.settings.adsRemoved).toBe(true);
+  });
 });

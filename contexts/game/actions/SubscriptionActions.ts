@@ -26,8 +26,12 @@ const safeAddGems = (base: number | undefined, amount: number): number => {
  * ad removal is always (re)asserted.
  */
 export function applyDeepLifePlusBenefits(state: GameState): GameState {
-  const alreadyActivated = state.settings?.deepLifePlusActivated === true;
-  const gemGrant = alreadyActivated ? 0 : DEEP_LIFE_PLUS_WELCOME_GEMS;
+  // Welcome gems are gated by a STICKY flag so they are granted exactly once,
+  // ever — a lapse + resubscribe must not re-grant them (the benefit copy says
+  // "one-time"). `deepLifePlusActivated` toggles with the subscription; the
+  // sticky `deepLifePlusWelcomeClaimed` does not.
+  const welcomeClaimed = state.settings?.deepLifePlusWelcomeClaimed === true;
+  const gemGrant = welcomeClaimed ? 0 : DEEP_LIFE_PLUS_WELCOME_GEMS;
 
   return {
     ...state,
@@ -36,6 +40,7 @@ export function applyDeepLifePlusBenefits(state: GameState): GameState {
       adsRemoved: true,
       adsRemovedDate: state.settings?.adsRemovedDate ?? new Date().toISOString(),
       deepLifePlusActivated: true,
+      deepLifePlusWelcomeClaimed: true,
     },
     stats: {
       ...state.stats,
@@ -49,7 +54,10 @@ export function applyDeepLifePlusBenefits(state: GameState): GameState {
  * foreground. Pure — the caller supplies the two booleans read from the services.
  *
  *  - `plusActive`    : DeepLife+ subscription is currently active.
- *  - `ownsRemoveAds` : the player owns the permanent Remove Ads IAP.
+ *  - `ownsRemoveAds` : the player owns the permanent Remove Ads IAP. This MUST be
+ *                      the authoritative union of ALL non-subscription ad-free
+ *                      entitlements — if a future promo grants ad-free, fold it in
+ *                      here, otherwise a lapse would wrongly revoke it.
  *
  * If active → (re)apply benefits. If lapsed → revert ONLY the ad-free that
  * DeepLife+ granted (tracked by `deepLifePlusActivated`), and NEVER strip ad-free

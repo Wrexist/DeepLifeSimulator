@@ -89,7 +89,7 @@ function HeroStrip({ month, week, age }: { month: string; week: number; age: num
 
 function HomeScreenContent() {
   const insets = useSafeAreaInsets();
-  const { gameState, dismissWelcomePopup, setGameState } = useGame();
+  const { gameState, dismissWelcomePopup, setGameState, saveGame } = useGame();
   const { theme, isDark } = useTheme();
   const { hasCompletedTutorial, startTutorial } = useTutorial();
   // ENGAGEMENT: Track stat changes for floating indicators on week advance
@@ -207,10 +207,22 @@ function HomeScreenContent() {
         },
       }, LEGACY_PASS_XP.dailyChallenge));
       track('daily_reward_claimed', { streak: newStreak, gems: gemReward });
+      // Persist immediately so a kill before the next autosave can't let the
+      // player re-earn the daily gems/XP on relaunch (lastLoginRewardDate guard).
+      void saveGame?.(false);
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [gameState.weeksLived, gameState.lastLoginRewardDate, hasCompletedTutorial, gameState.showDailyRewardPopup]);
+  }, [
+    gameState.weeksLived,
+    gameState.lastLoginRewardDate,
+    gameState.loginStreak,
+    gameState.lastLoginDate,
+    gameState.showDailyRewardPopup,
+    hasCompletedTutorial,
+    setGameState,
+    saveGame,
+  ]);
 
   // Show welcome back popup for returning players
   useEffect(() => {

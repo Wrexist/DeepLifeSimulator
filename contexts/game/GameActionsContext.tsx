@@ -33,6 +33,7 @@ import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
 import { awardLegacyPassXp } from './actions/LegacyPassActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
+import { track } from '@/lib/analytics';
 import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from './actions/MoneyActions';
 import { updateStats as updateStatsAction } from './actions/StatsActions';
 import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
@@ -2323,6 +2324,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.warn('Achievement claim suppressed by same-batch guard:', { achievementId });
  return;
  }
+
+ track('achievement_unlocked', { achievementId });
 
  // Save global claim to AsyncStorage if it's a gold group achievement
  if (isGlobalClaim) {

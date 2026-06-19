@@ -144,7 +144,20 @@ export function ensureCurrentSeason(
   if (!pass || pass.seasonId !== seasonId) {
     return getDefaultLegacyPass(seasonId);
   }
-  return pass;
+  // Same season: defensively normalise array fields so any reader (incl. a
+  // partial pass from a CloudSync merge or hand-edited save that bypassed the
+  // v20 migration) never sees `undefined` where an array is expected.
+  const claimedFreeTiers = Array.isArray(pass.claimedFreeTiers) ? pass.claimedFreeTiers : [];
+  const claimedPremiumTiers = Array.isArray(pass.claimedPremiumTiers) ? pass.claimedPremiumTiers : [];
+  const ownedCosmetics = Array.isArray(pass.ownedCosmetics) ? pass.ownedCosmetics : [];
+  if (
+    claimedFreeTiers === pass.claimedFreeTiers &&
+    claimedPremiumTiers === pass.claimedPremiumTiers &&
+    ownedCosmetics === pass.ownedCosmetics
+  ) {
+    return pass; // already well-formed — avoid a needless allocation
+  }
+  return { ...pass, claimedFreeTiers, claimedPremiumTiers, ownedCosmetics };
 }
 
 /** Add XP (clamped non-negative), rolling the season over first if needed. */
