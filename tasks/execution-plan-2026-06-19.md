@@ -388,8 +388,18 @@ signed manifest** the app fetches — ship events with **no app-store update**.
 >       proximity *hint*; `lifeMilestones` is an event log, not threshold-keyed).
 >       Cleanly supporting it needs a new persisted "rewarded thresholds" set (a
 >       STATE_VERSION schema change) — out of scope; not forced to avoid double-grants.
-> - [ ] **Remaining (decision-gated, not code):** the DeepLife+ subscription product
->       the premium gate reads (store config + IAP-verify backend = ops work).
+> - [x] **DeepLife+ subscription (code layer) built.** `lib/subscription/deepLifePlus.ts`
+>       (plans from SUBSCRIPTION_CONFIGS + truthful benefit list + helpers);
+>       `contexts/game/actions/SubscriptionActions.ts` (`applyDeepLifePlusBenefits` —
+>       ad-free + one-time welcome gems, idempotent via a new optional
+>       `settings.deepLifePlusActivated` flag, no migration needed);
+>       `components/SubscriptionModal.tsx` (paywall: benefits, monthly/yearly plans,
+>       subscribe/restore/manage). Wired into the Progression tab + as the Legacy
+>       Pass premium `onSubscribe`. 7 unit tests; type-check + lint clean; migration/
+>       IAP/render suites green.
+> - [ ] **Remaining (ops, not code):** real store subscription products + the
+>       IAP-verify backend must be configured before purchases actually transact;
+>       lapse-revert of ad-free on a session-startup subscription re-check (follow-up).
 
 
 **Goal:** Free + premium reward track keyed to prestige progress + challenge streaks. **No pay-to-win** — rewards are cosmetics, youth pills, gems, heritable traits.
