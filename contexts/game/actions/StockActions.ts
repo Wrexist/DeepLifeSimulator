@@ -75,6 +75,7 @@ export const buyStockMarket = (
   midPrice: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const cash = prev.stats?.money ?? 0;
     // R2-G: include the broker fee in the affordability check. The previous
     // check only compared `amountUSD > cash`, so a player with exactly the
@@ -110,6 +111,7 @@ export const sellStockMarket = (
   midPrice: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const stocks = ensureStocks(prev);
     const existing = (stocks.holdings ?? []).find((h) => h.symbol.toUpperCase() === symbol.toUpperCase());
     if (!existing || existing.shares < shares || shares <= 0) {

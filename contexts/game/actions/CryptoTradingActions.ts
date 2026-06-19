@@ -49,6 +49,7 @@ export const buyCryptoMarket = (
   amountUSD: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureMarket(prev);
     if (!state.cryptoMarket) return prev;
     const cash = state.stats?.money ?? 0;
@@ -88,6 +89,7 @@ export const sellCryptoMarket = (
   coinAmount: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureMarket(prev);
     if (!state.cryptoMarket) return prev;
     const coin = state.cryptos.find((c) => c.id === cryptoId);

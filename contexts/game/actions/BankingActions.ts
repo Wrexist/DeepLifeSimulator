@@ -46,6 +46,7 @@ export const depositCashToAccount = (
   amount: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
     // checking-default / savings-default mirror legacy cash; depositing into them
@@ -79,6 +80,7 @@ export const withdrawCashFromAccount = (
   amount: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
     // CRITICAL EXPLOIT FIX (C-1): checking-default mirrors stats.money. Crediting
@@ -110,6 +112,7 @@ export const transferBetweenOwnAccounts = (
   amount: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
     // Transfers touching a mirrored account desync from legacy cash (printer when
@@ -185,6 +188,7 @@ export const spendOnCard = (
   _reason: string
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
     // Premium Credit Card IAP guarantees a 10% cashback floor on all card spend.
@@ -205,6 +209,7 @@ export const payDownCard = (
   amount: number
 ) => {
   setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
     // EXPLOIT FIX (H-1): when paying from the mirrored checking account, the debit

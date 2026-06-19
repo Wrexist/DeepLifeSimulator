@@ -139,15 +139,43 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [setGameState]);
 
   const batchUpdateMoney = useCallback((transactions: {amount: number, reason: string}[]) => {
-    let totalAmount = 0;
-    const reasons: string[] = [];
+    // P1-11 (C-2): classify each leg individually. Joining ALL reasons into one string
+    // and testing NON_INCOME_REASON against the result is all-or-nothing — a single
+    // non-income keyword (e.g. "deposit") in any leg wrongly zeroes the income credit
+    // for the entire batch. Split into an income group and a non-income group so
+    // `totalMoneyEarned` only ever counts genuine income. Income is applied first so it
+    // can fund a same-batch non-income outflow (preserving the old net-affordability
+    // behaviour for the common income-then-fee case).
+    let incomeTotal = 0;
+    const incomeReasons: string[] = [];
+    let nonIncomeTotal = 0;
+    const nonIncomeReasons: string[] = [];
 
     transactions.forEach(({ amount, reason }) => {
-      totalAmount += amount;
-      reasons.push(reason);
+      if (isIncomeReason(reason)) {
+        incomeTotal += amount;
+        incomeReasons.push(reason);
+      } else {
+        nonIncomeTotal += amount;
+        nonIncomeReasons.push(reason);
+      }
     });
 
-    updateMoney(totalAmount, reasons.join(', '));
+    // Atomicity (CR): reject the WHOLE batch up-front when the NET is unaffordable, and apply the
+    // money-adding leg first — so the two updateMoney calls can never half-commit (a leg only trips
+    // updateMoney's overdraft guard when the net itself overdraws, which we've already rejected).
+    const currentMoney = stateRef.current?.stats?.money ?? 0;
+    if (currentMoney + incomeTotal + nonIncomeTotal < -0.01) {
+      logger.warn(
+        `[batchUpdateMoney] Rejected: insufficient funds. Has ${currentMoney}, net ${incomeTotal + nonIncomeTotal}.`
+      );
+      return;
+    }
+    const legs: Array<{ amount: number; reason: string }> = [];
+    if (incomeTotal !== 0) legs.push({ amount: incomeTotal, reason: incomeReasons.join(', ') });
+    if (nonIncomeTotal !== 0) legs.push({ amount: nonIncomeTotal, reason: nonIncomeReasons.join(', ') });
+    legs.sort((a, b) => b.amount - a.amount); // money-adding leg first
+    for (const leg of legs) updateMoney(leg.amount, leg.reason);
   }, [updateMoney]);
 
   const applyPerkEffects = useCallback((baseValue: number, perkType: string): number => {

@@ -26,6 +26,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats } from './StatsActions';
+import { clampStatByKey } from '@/utils/statUtils';
 import {
   generateCandidates,
   evaluateOffer,
@@ -43,6 +44,32 @@ const log = logger.scope('HustleActions');
 const NOTIFICATION_CAP = 80;
 
 // ── Internal helpers ─────────────────────────────────────────────────────
+
+// P1-14: apply a reputation delta INSIDE an atomic updater — mirrors updateStats'
+// clamp + daily-summary tracking. resolveScandal / fireNamedHire / acceptAcquisition
+// previously granted reputation via a trailing updateStats(...) that fired even when the
+// in-updater money step bailed (`return prev`), so a same-batch funds race could grant
+// free reputation on a deal/resolution that never committed. Folding it in closes that
+// vector (same root cause as the P0-2 money fold already applied at each site).
+function withReputationDelta(state: GameState, rep: number): GameState {
+  if (!rep) return state;
+  const newRep = clampStatByKey('reputation', state.stats.reputation + rep);
+  const actualDelta = newRep - state.stats.reputation;
+  if (!actualDelta) return state;
+  return {
+    ...state,
+    stats: { ...state.stats, reputation: newRep },
+    dailySummary: {
+      ...state.dailySummary,
+      moneyChange: state.dailySummary?.moneyChange ?? 0,
+      statsChange: {
+        ...(state.dailySummary?.statsChange ?? {}),
+        reputation: (state.dailySummary?.statsChange?.reputation ?? 0) + actualDelta,
+      },
+      events: state.dailySummary?.events ?? [],
+    },
+  };
+}
 
 function ensureHustle(prev: GameState) {
   const existing = prev.hustleApp;
@@ -300,11 +327,11 @@ export const fireNamedHire = (
     // P0-2: pay severance IN THE SAME updater (atomic — closes the fire-without-paying race).
     const spend = applyMoneyDelta(next, -severance, `Hustle severance payout`);
     if (!spend) return prev; // can't cover severance → don't fire
-    return { ...next, ...spend };
+    // P1-14: -1 reputation hit folded into the SAME updater (was a trailing updateStats
+    // that docked reputation even when the severance bailed and the fire didn't happen).
+    return withReputationDelta({ ...next, ...spend }, -1);
   });
 
-  // Small reputation hit (-1) for firing — letting people go has consequences
-  updateStats(setGameState, { reputation: -1 });
   return { success: true, message: `Fired. Severance: $${severance.toLocaleString()}`, severance };
 };
 
@@ -503,15 +530,18 @@ export const resolveScandal = (
       };
     });
     // P0-2: pay the resolution cost IN THE SAME updater (atomic — no free resolution).
+    // P1-14: fold the reputation delta in too, so a money-bail can't grant free
+    // reputation on a scandal that never resolved.
+    let resolved: GameState;
     if (cost > 0) {
       const spend = applyMoneyDelta(next, -cost, `Hustle scandal ${method}`);
-      if (!spend) return prev; // unaffordable → don't resolve
-      return { ...next, ...spend };
+      if (!spend) return prev; // unaffordable → don't resolve (and don't grant rep)
+      resolved = { ...next, ...spend };
+    } else {
+      resolved = next;
     }
-    return next;
+    return withReputationDelta(resolved, rep);
   });
-
-  if (rep !== 0) updateStats(setGameState, { reputation: rep });
 
   return { success: true, message: msg, reputationDelta: rep, costPaid: cost };
 };
@@ -624,10 +654,10 @@ export const acceptAcquisition = (
     // P0-2: pay the acquisition price IN THE SAME updater (atomic — no free acquisition).
     const spend = applyMoneyDelta(next, -offer.askingPrice, `Acquisition: ${offer.targetName}`);
     if (!spend) return prev; // unaffordable → don't close the deal
-    return { ...next, ...spend };
+    // P1-14: +3 reputation folded into the SAME updater (was a trailing updateStats
+    // that granted reputation even when the price bailed and the deal didn't close).
+    return withReputationDelta({ ...next, ...spend }, 3);
   });
-
-  updateStats(setGameState, { reputation: 3 });
 
   return { success: true, message: `Closed: ${offer.targetName} is now part of your empire` };
 };

@@ -64,3 +64,39 @@ describe('repairGameState backfills app subsystems (H1)', () => {
     expect((state.cryptoMarket as Record<string, unknown>)?.coinMarkets).toBeDefined();
   });
 });
+
+describe('repairGameState clamps a tampered credit score to [300, 850] (P1-12)', () => {
+  const withScore = (score: unknown): Record<string, unknown> => {
+    // Deep-clone first (never mutate the shared initialGameState), THEN overwrite the
+    // nested score — note NaN is set AFTER the JSON round-trip, not carried through it.
+    const state = JSON.parse(JSON.stringify(createTestGameState())) as Record<string, unknown>;
+    (state.banking as { creditScore: { score: unknown } }).creditScore.score = score;
+    return state;
+  };
+  const scoreOf = (state: Record<string, unknown>): number =>
+    (state.banking as { creditScore: { score: number } }).creditScore.score;
+
+  it.each([
+    [9999, 850], // above the FICO ceiling
+    [851, 850], // just over
+    [100, 300], // below the FICO floor
+    [-5, 300], // negative
+  ])('clamps a tampered score %d → %d', (raw, expected) => {
+    const state = withScore(raw);
+    const result = repairGameState(state);
+    expect(result.repaired).toBe(true);
+    expect(scoreOf(state)).toBe(expected);
+  });
+
+  it('repairs a NaN score to the 650 default', () => {
+    const state = withScore(NaN);
+    repairGameState(state);
+    expect(scoreOf(state)).toBe(650);
+  });
+
+  it('leaves a valid in-range score untouched', () => {
+    const state = withScore(720);
+    repairGameState(state);
+    expect(scoreOf(state)).toBe(720);
+  });
+});

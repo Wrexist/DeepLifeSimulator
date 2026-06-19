@@ -324,22 +324,25 @@ const migrations: Record<number, (state: any) => any> = {
     if (!Array.isArray(s.dismissedCatfishIds)) s.dismissedCatfishIds = [];
     if (!Array.isArray(s.reportedIds)) s.reportedIds = [];
 
-    if (!s.lifetimeStats || typeof s.lifetimeStats !== 'object') {
-      s.lifetimeStats = {
-        totalSwipes: 0,
-        totalMatches: 0,
-        totalSuperLikes: 0,
-        totalDatesGoneOn: 0,
-        totalGiftsGiven: 0,
-        totalProposals: 0,
-        totalMarriages: 0,
-        totalDivorces: 0,
-        totalCatfishExposed: 0,
-        totalJealousyEvents: 0,
-        peakPremiumTier: 'free',
-        totalPremiumWeeks: 0,
-      };
-    }
+    // P2-3: deep-merge so a PARTIAL lifetimeStats (older/tampered saves missing some
+    // counters) gets the absent fields backfilled — not just the wholly-missing case.
+    const existingLifetimeStats =
+      s.lifetimeStats && typeof s.lifetimeStats === 'object' ? s.lifetimeStats : {};
+    s.lifetimeStats = {
+      totalSwipes: 0,
+      totalMatches: 0,
+      totalSuperLikes: 0,
+      totalDatesGoneOn: 0,
+      totalGiftsGiven: 0,
+      totalProposals: 0,
+      totalMarriages: 0,
+      totalDivorces: 0,
+      totalCatfishExposed: 0,
+      totalJealousyEvents: 0,
+      peakPremiumTier: 'free',
+      totalPremiumWeeks: 0,
+      ...existingLifetimeStats,
+    };
 
     state.version = 15;
     return state;

@@ -1,5 +1,121 @@
 # Task Tracker
 
+## 🟢 H3 — nextWeek decomposition (2026-06-18)
+
+Roadmap H3: instrument the ~1,475-line weekly tick into measured phases, then optimize the hot ones.
+
+### Phase 1 — instrument (DONE)
+- [x] `utils/tickProfiler.ts` — no-op-by-default per-phase profiler (mean/p95/max over a rolling
+      window). Enabled by `EXPO_PUBLIC_PROFILE_TICK=true` or `setEnabled(true)`; `performance.now()`
+      with a `Date.now()` fallback. Unit-tested.
+- [x] 8 instrumentation points in `nextWeek` (`beginTick` + 7 phase marks + `endTick`):
+      setup_stats_career_edu → income_engagement_finance_family → crime_events →
+      disease_pets_vehicles → crypto_banking_darkweb → stocks → politics.
+- [x] Zero behaviour change verified: 308 subsystemEquivalence snapshots unchanged (profiler off by
+      default = inert marks); integration test proves all 7 phases fire through a real tick.
+- [ ] NOTE: the final commit (return-object build — applyDeathRibbon / applyLifetimeStatistics /
+      applyAutoCheckpoint) is the untimed remainder in Phase 1; split it out in Phase 2 if the
+      measured phases don't account for the bulk of the ~85ms.
+
+### Phase 2 — optimize (data-driven)
+- [x] Node profile captured (`__tests__/refactor/tickProfile.manual.test.ts`, skipped): every
+      instrumented phase is sub-ms (total ~0.9ms, empty portfolio) → the device ~85ms is NOT in
+      these phases' JS logic. Prime suspects: the UN-instrumented pre-updater (`simulateWeek` +
+      `buildPreRolls`) + commit (`applyAutoCheckpoint`); populated-state subsystem work; Hermes.
+- [ ] Extend instrumentation to the pre-updater + commit (the un-measured ends) so a device profile
+      is complete. (Commit needs the return-object → `const` refactor.)
+- [ ] Capture a DEVICE profile (`EXPO_PUBLIC_PROFILE_TICK=true` in-app) — Node/jest can't pin the
+      device hot spot (V8 ≠ Hermes; 1ms jest clock; empty test portfolio).
+- [ ] Optimize the hottest phase(s), each behind the subsystemEquivalence + tick-stress tests.
+
+### Phase 3 — yield between phases (OPTIONAL)
+- [ ] Only if Phase 2 data shows the tick blocking the JS thread enough to warrant async yielding.
+
+---
+
+## 🔴 ACTIVE SPRINT — P0 code-bug fixes (2026-06-18)
+
+Source: `tasks/master-punchlist-2026-06-18.md` §A (9 P0 code bugs) + `tasks/salvaged-audits/*`.
+Rules: every fix folds side-effects into the atomic `setGameState` updater; tests use
+`createTestGameState()`; protected files (`GameActionsContext.tsx`, `saveValidation.ts`, `types.ts`)
+get extra care + the `game-state-reviewer` / `save-system-auditor` subagents after changes.
+Run `npm run preflight:quick` between batches. **Sequence: isolated crashers → save path → economy
+atomicity → core game loop (riskiest) last.**
+
+### Batch 1 — Isolated guards — ✅ DONE (2026-06-18) · ⚠️ RE-GRADED after source verification
+> **Verification finding:** none of these is the P0 *crash* the audit claimed. An out-of-bounds pre-roll
+> returns `undefined`, and `undefined < chance` is `false`, so the accident/complication simply never fires
+> for entities past the cap — no NaN, no crash (the dangerous severity math sits *inside* that `if`).
+> `Math.random()` never returns 1.0, so the severity index can't overflow either. C2's `undefined` leak
+> can't occur on JSON-loaded saves. **Re-graded: C2 → defensive / hard-rule fix; C3/C4 → P2 consistency.**
+> Fixed anyway (cheap, correct, removes the fragility). Confirms the audit over-graded severity → verify
+> each remaining P0 against real code before fixing.
+- [x] **C2** Null/undefined/non-object relationship filter via type guard (also closes a `CLAUDE.md` "no unions without guards" violation) — `GameActionsContext.tsx:890`
+- [x] **C3** Vehicle accident pre-roll index wrap + severity index cap — `weekly/applyVehicles.ts:56–59`
+- [x] **C4** Disease complication/progression pre-roll index wrap — `weekly/applyDiseases.ts:181,210,212`
+- [x] Regression test `__tests__/refactor/weeklyTickBounds.test.ts` — proves vehicle #11 / disease #21 now roll (would fail pre-fix); asserts no NaN
+- [x] `npm run type-check` clean · **403 tests pass** (incl. 308 equivalence snapshots unchanged → no behavior drift ≤cap)
+- [ ] ⚠️ Behavior note for review: C3/C4 now make vehicle #11+/disease #21+ roll (slightly less player-favorable). Flag if the cap was intended as a feature.
+
+### Batch 2 — Save path — ✅ VERIFIED, NO FIX NEEDED (2026-06-18) · ⚠️ both over-graded
+> **C7 is not a bug:** `repairGameState(currentState)` at `GameActionsContext.tsx:200` mutates its input
+> **in-place** (confirmed `saveValidation.ts:894–908` — copies the repaired clone back onto the original).
+> `currentState === gameStateRef.current`, and no React commit happens between line 200 and the re-validate
+> at line 210 — so line 210 reads the **already-repaired** state, not stale. The async `setGameState` only
+> refreshes React's reference. (The audit's own gamestate-P1-5 describes this copy-back, contradicting P0-3.)
+> **C6 is not active:** only two callers pass `autoFix=true` — `conflict.remoteState` (2467) and `parsed`
+> (2693) — both throwaway **deserialized** objects, never live React state. The in-place mutation is
+> intentional there; changing the contract would break the load autofix.
+> **Running tally: 5/5 audit P0s verified over-graded (C2/C3/C4 + C6/C7).**
+- [x] C6 verified — not active (throwaway-object callers); no code change.
+- [x] C7 verified — not a bug (in-place repair → revalidation reads repaired state); no code change.
+- [ ] (optional P3) collapse the redundant double `repairGameState` call in `saveGame` — deferred, low value.
+
+### Batch 3 — Economy — ✅ VERIFIED, NO P0 (2026-06-18) · ⚠️ all over-graded
+> **C8:** exceeding `MONEY_CEILING` (`MAX_SAFE_INTEGER`) via a 10× bonus needs ~1e14 weekly income →
+> unreachable. Real residue: lucky/streak not counted in `totalMoneyEarned` → **P2 stats accuracy**.
+> **C9:** the 3 `launchIPO` `setGameState` calls are synchronous → React-batched → atomic; `updateMoney`
+> is already ceiling-safe. **P2/P3 style** inconsistency with `acceptAcquisition` (the atomic model).
+> **C5:** XP calls are batched + pure (StrictMode discards one invoke); `gainCrimeSkillXp` already halves XP
+> on failure; "caught gains XP" is a **design choice**. Real residue: XP can fire if the main updater bails
+> on the cap race → **P2 edge case**.
+- [x] C8/C9/C5 verified — no P0; genuine residue is P2/P3. No fix applied (out of P0 scope).
+
+### Batch 4 — Core loop (C1) — ✅ VERIFIED, OVER-GRADED (2026-06-18)
+> **C1 is NOT "spurious double-deaths."** The `nextWeek` updater is already hardened against StrictMode /
+> concurrent double-invoke: **death rolls are pre-rolled** (`GameActionsContext.tsx:359–364`) so the death
+> decision is deterministic across invokes, and **notifications are deduped by id** before flush (`:1599–1605`,
+> the "R10-2" mitigation the audit mistook for a paper-over). StrictMode double-invoke is **dev-only**.
+> Residue: the updater is cosmetically impure; notifications with unstable (length-based) ids could slip the
+> id-dedup → **P2 code-quality / B2**.
+- [x] C1 verified — death deterministic (pre-rolled), toasts deduped; no production double-death. P2 at most.
+
+### ⚠️ SPRINT VERDICT — all 9 audit "P0 code bugs" verified OVER-GRADED (0 genuine P0s)
+> Every item source-verified: already-fixed defensive hardening (C2/C3/C4), unreachable/theoretical
+> (C8 ceiling, C9 race), already-mitigated by existing code (C1 death pre-rolls + toast dedup; C6/C7 in-place
+> repair), or design choice (C5 caught-XP). The audit reasoned abstractly about React semantics **without
+> accounting for the codebase's existing mitigations** (pre-rolled RNG, id-dedup, in-place `repairGameState`
+> copy-back) or realistic value ranges. **The 2026-06-15 roadmap's "code-ready; blockers are ops/config"
+> assessment STANDS** — real launch blockers are L1–L6 (master-punchlist §B). The earlier "9 P0s contradict
+> the roadmap" headline was wrong; corrected in `master-punchlist-2026-06-18.md`.
+> **Optional P2/P3 follow-ups — outcome (2026-06-18):**
+> - ✅ **B2** stable spark-notification ids (`:1209` length-based → array-index based) — done + tested.
+> - ⏭️ **C8** `totalMoneyEarned` tracking — DEFER: entangled with the M3 income-ledger (no weekly-tick income
+>   tracking exists at all); an isolated lucky/streak fix would be a band-aid on missing infrastructure.
+> - ⏭️ **C9** unify `launchIPO` — DEFER: `acceptAcquisition` also keeps reputation separate; switching
+>   `updateMoney`→`applyMoneyDelta` risks **dropping the income tracking** `updateMoney` provides. The current
+>   3 calls are synchronous → batched → atomic, so benefit is marginal and regression risk is real.
+> - ⏭️ **C5** fold crime-XP — DEFER: needs a caught-XP **balance decision** (currently caught players DO gain
+>   XP) or a dual-updater refactor of the core crime flow, for a rare cap-race edge. High surface, low payoff.
+
+### Close-out
+- [ ] Full `npm test` green; `npm run preflight`
+- [ ] Update `master-punchlist-2026-06-18.md` §A statuses; note any deferred follow-ups
+- [ ] Commit per batch; push to `claude/awesome-euler-jaf2z2`
+- [ ] Append the React-19 "fold side-effects into the updater" root-cause lesson to `tasks/lessons.md`
+
+---
+
 ## Roadmap Phase B — UI render-test suite (the #1 durability gap) — June 15, 2026
 
 Goal (from `tasks/roadmap-2026-06-15.md` H2): close the near-zero UI render-test coverage —

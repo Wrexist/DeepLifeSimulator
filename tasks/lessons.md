@@ -4,6 +4,29 @@
 
 ## Patterns to Watch For
 
+### 2026-06-18 - A "find bugs" subagent over-graded 9 findings as P0; source verification found 0 real P0s
+
+- What went wrong: three deep audit subagents (run as background agents, salvaged after a session suspend)
+  graded 9 `setGameState`/save/economy findings as P0 crashes/corruption. I consolidated them and told the
+  user the app was "not code-ready, contradicting the roadmap." On source verification, ALL 9 were
+  over-graded — 0 genuine P0s. Examples: the "out-of-bounds NaN crash" (C3/C4) can't fire because
+  `undefined < chance` is false (the math is inside that `if`); the "stale-ref revalidation" (C7) reads the
+  already-repaired state because `repairGameState` copies its clone back in-place (`saveValidation.ts:894`);
+  the "spurious double-deaths" (C1) can't happen because death rolls are pre-rolled
+  (`GameActionsContext.tsx:359`) and toasts are id-deduped (`:1599`); the "MONEY_CEILING bypass" (C8) needs
+  ~1e14 weekly income to reach `MAX_SAFE_INTEGER`.
+- Why it hid: the audits reasoned ABSTRACTLY about React semantics ("async setState", "StrictMode
+  double-invoke", "races") and worst-case constants without tracing (a) the actual call sites, (b)
+  synchronous in-place mutations, (c) React batching, (d) the codebase's EXISTING mitigations (pre-rolled
+  RNG, id-dedup, in-place repair copy-back), or (e) realistic value ranges. The failure mode of a "find as
+  many bugs as possible" prompt is severity inflation and ignoring mitigations.
+- How it was found: verifying each finding against the real code BEFORE fixing (the user chose "verify-first").
+  Batch 1 (3 items) all fell to verification, then Batch 2 (2), Batch 3 (3), and C1 — 9 of 9.
+- Rule: treat subagent/audit severity grades as UNVERIFIED LEADS, never ground truth. Source-verify each P0
+  against the actual code path — call sites, sync vs async, batching, and existing mitigations — before
+  reporting it to the user or "fixing" it. One verified non-bug is reason to re-verify the whole batch. When
+  a fresh audit contradicts a prior careful assessment ("code-ready"), suspect the audit first.
+
 ### 2026-06-15 - The $24.99 Premium Pack money multiplier was inert — dead flag written, real field not
 
 - What went wrong: weekly income applies the money multiplier by reading `goldUpgrades.multiplier`

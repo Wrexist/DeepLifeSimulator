@@ -53,10 +53,16 @@ export function applyVehiclesForWeek(
 
     // Insurance: no weekly charge — premium is paid upfront in purchaseInsurance()
 
-    // Accident chance: 1% per week, higher if condition < 30
-    if (ctx.preRolls.vehicleAccident[vehIdx] < (v.condition < 30 ? VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE : VEHICLE_ACCIDENT_BASE_CHANCE)) {
+    // Accident chance: 1% per week, higher if condition < 30.
+    // Pre-roll arrays are capped (length 10). For vehicles beyond the cap, wrap
+    // the index deterministically so they still roll — reading `undefined` here
+    // would silently skip the accident for vehicle #11+ (and could feed NaN into
+    // the severity pick). Wrapping keeps it StrictMode-deterministic.
+    const accidentRoll = ctx.preRolls.vehicleAccident[vehIdx % ctx.preRolls.vehicleAccident.length];
+    const severityRoll = ctx.preRolls.vehicleAccidentSeverity[vehIdx % ctx.preRolls.vehicleAccidentSeverity.length];
+    if (accidentRoll < (v.condition < 30 ? VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE : VEHICLE_ACCIDENT_BASE_CHANCE)) {
       const severities = ['minor', 'moderate', 'severe'] as const;
-      const severity = severities[Math.floor(ctx.preRolls.vehicleAccidentSeverity[vehIdx] * severities.length)];
+      const severity = severities[Math.min(severities.length - 1, Math.floor(severityRoll * severities.length))];
       const damage = severity === 'minor' ? 15 : severity === 'moderate' ? 30 : 60;
       v.condition = Math.max(0, v.condition - damage);
 

@@ -205,21 +205,21 @@ function TopStatsBarComponent() {
  // Use timing animations with native driver for better performance
  const healthAnimation = Animated.timing(animatedStats.health, {
  toValue: to(stats.health),
- duration: 300, // Reduced duration for snappier feel
+ duration: 0, // Instant snap — stat drain/gain shows the moment state changes
  useNativeDriver: false, // Keep false for width animations
  easing: Easing.out(Easing.quad), // Smoother easing
  });
 
  const happinessAnimation = Animated.timing(animatedStats.happiness, {
  toValue: to(stats.happiness),
- duration: 300,
+ duration: 0,
  useNativeDriver: false,
  easing: Easing.out(Easing.quad),
  });
 
  const energyAnimation = Animated.timing(animatedStats.energy, {
  toValue: to(stats.energy),
- duration: 300,
+ duration: 0,
  useNativeDriver: false,
  easing: Easing.out(Easing.quad),
  });

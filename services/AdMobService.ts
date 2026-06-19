@@ -97,7 +97,11 @@ function recordSuccess() {
 }
 
 // ---------------------------------------------------------------------------
-// Ad unit IDs — loaded from env vars, falls back to Google test IDs in dev
+// Ad unit IDs — loaded from env vars. The Google TEST IDs are a DEVELOPMENT
+// fallback only. In a production build an unset env var resolves to '' (no ad),
+// never a Google test ID: serving test ads in production is a policy violation
+// (store rejection) and earns $0. Real IDs MUST come from the EXPO_PUBLIC_ADMOB_*
+// EAS secrets — scripts/preflight-check.js hard-checks them before a build.
 // ---------------------------------------------------------------------------
 const TEST_BANNER_IOS = 'ca-app-pub-3940256099942544/2934735716';
 const TEST_BANNER_ANDROID = 'ca-app-pub-3940256099942544/6300978111';
@@ -106,18 +110,34 @@ const TEST_INTERSTITIAL_ANDROID = 'ca-app-pub-3940256099942544/1033173712';
 const TEST_REWARDED_IOS = 'ca-app-pub-3940256099942544/1712485313';
 const TEST_REWARDED_ANDROID = 'ca-app-pub-3940256099942544/5224354917';
 
+/**
+ * Resolve an ad unit ID: prefer the configured env value; fall back to the
+ * Google TEST id ONLY in development. In a production build an unset/empty value
+ * resolves to '' (no ad) — never a Google test ad (policy violation + $0 revenue).
+ * Exported for testing.
+ */
+export function resolveAdUnitId(
+  envValue: string | undefined,
+  devFallbackTestId: string,
+  isDev: boolean,
+): string {
+  // Trim so a whitespace-only env value fails closed (no ad) instead of an invalid request.
+  const normalized = typeof envValue === 'string' ? envValue.trim() : '';
+  return normalized || (isDev ? devFallbackTestId : '');
+}
+
 const AD_UNITS = {
   BANNER: Platform.select({
-    ios: process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS || TEST_BANNER_IOS,
-    android: process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID || TEST_BANNER_ANDROID,
+    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_BANNER_IOS, TEST_BANNER_IOS, __DEV__),
+    android: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_BANNER_ANDROID, TEST_BANNER_ANDROID, __DEV__),
   }) || '',
   INTERSTITIAL: Platform.select({
-    ios: process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS || TEST_INTERSTITIAL_IOS,
-    android: process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID || TEST_INTERSTITIAL_ANDROID,
+    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS, TEST_INTERSTITIAL_IOS, __DEV__),
+    android: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID, TEST_INTERSTITIAL_ANDROID, __DEV__),
   }) || '',
   REWARDED: Platform.select({
-    ios: process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS || TEST_REWARDED_IOS,
-    android: process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID || TEST_REWARDED_ANDROID,
+    ios: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS, TEST_REWARDED_IOS, __DEV__),
+    android: resolveAdUnitId(process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID, TEST_REWARDED_ANDROID, __DEV__),
   }) || '',
 };
 
@@ -222,6 +242,12 @@ class AdMobServiceImpl {
 
     try {
       const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.INTERSTITIAL : AD_UNITS.INTERSTITIAL;
+      if (!adUnitId) {
+        // Production build with no configured interstitial unit (EXPO_PUBLIC_ADMOB_*
+        // unset). Skip rather than request an empty unit / serve a test ad.
+        log.warn('No interstitial ad unit ID configured — skipping load');
+        return;
+      }
       this.interstitial = NativeInterstitialAd.createForAdRequest(adUnitId, this.adRequestOptions());
 
       await new Promise<void>((resolve, reject) => {
@@ -277,6 +303,10 @@ class AdMobServiceImpl {
 
     try {
       const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.REWARDED : AD_UNITS.REWARDED;
+      if (!adUnitId) {
+        log.warn('No rewarded ad unit ID configured — skipping load');
+        return;
+      }
       this.rewarded = NativeRewardedAd.createForAdRequest(adUnitId, this.adRequestOptions());
 
       // Determine the correct event type constants — RewardedAd may use its own enum
