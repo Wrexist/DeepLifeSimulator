@@ -100,8 +100,10 @@ cross a 6-week boundary), so no clock-threading change was made.
       shows a **Cosmetics section**: owned items as tappable swatches (frame ring /
       theme tile) with an equipped highlight and a **live preview** avatar that
       reflects the equipped frame + theme. 12 tests.
-- [ ] *Follow-up:* apply the equipped frame/theme on the actual home/profile avatar
-      (today it renders + previews inside the pass); XP-gain animation/celebration.
+- [x] **Equipped cosmetics applied on the home avatar** — `IdentityCard` now reads
+      `equippedCosmetics`: the frame recolors the avatar ring, the theme tints the
+      avatar glow. Cosmetics are visible during normal play, not just in the pass.
+- [ ] *Follow-up:* XP-gain animation/celebration on claim.
 
 ### P4 — DeepLife+ depth
 - [x] **Reconcile after save-load** — the reconciler now also re-runs when
