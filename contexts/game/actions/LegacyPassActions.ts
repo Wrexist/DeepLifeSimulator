@@ -11,12 +11,14 @@
  *   - cosmetic   → legacyPass.ownedCosmetics (visual only)
  *   - trait      → activeTraits (heritable; passes to heirs via prestige)
  */
-import type { GameState } from '@/contexts/game/types';
+import type { GameState, LegacyPassState } from '@/contexts/game/types';
 import {
   addLegacyPassXp,
   claimLegacyPassTier,
   ensureCurrentSeason,
   getCurrentSeasonId,
+  getDefaultLegacyPass,
+  getUnclaimedEarnedRewards,
   type ClaimResult,
   type LegacyPassReward,
   type LegacyPassTrack,
@@ -59,14 +61,98 @@ export function applyLegacyPassReward(state: GameState, reward: LegacyPassReward
   }
 }
 
-/** Award Legacy Pass XP (rolls the season over if needed). Pure + immutable. */
+/**
+ * Roll the pass over to a new season WITHOUT losing progress: auto-collect every
+ * earned-but-unclaimed reward (gems/youth pills/traits granted to the account;
+ * cosmetics carried forward into the new pass), then start the new season. Stamps
+ * a one-shot `legacyPassSeasonSummary` for the UI. Pure + immutable.
+ *
+ * `premiumActiveNow` sets the new season's premium flag (callers with subscription
+ * context pass the live value; XP paths pass false and let the reconciler/modal
+ * re-derive it).
+ */
+function rolloverLegacyPass(
+  state: GameState,
+  newSeasonId: string,
+  premiumActiveNow: boolean,
+): GameState {
+  const old = state.legacyPass;
+  // Normalise against its OWN season id so we read it as-is (no reset here).
+  const oldNormalized = old ? ensureCurrentSeason(old, old.seasonId) : undefined;
+  const collected = oldNormalized ? getUnclaimedEarnedRewards(oldNormalized) : [];
+
+  let next = state;
+  const carriedCosmetics = [...(oldNormalized?.ownedCosmetics ?? [])];
+  let collectedGems = 0;
+  for (const reward of collected) {
+    if (reward.kind === 'cosmetic') {
+      // Cosmetics are permanent — carry them into the new season's pass.
+      if (reward.id && !carriedCosmetics.includes(reward.id)) carriedCosmetics.push(reward.id);
+    } else {
+      if (reward.kind === 'gems') collectedGems += reward.amount ?? 0;
+      next = applyLegacyPassReward(next, reward); // gems/youthPills/trait → account-level
+    }
+  }
+
+  const newPass: LegacyPassState = {
+    ...getDefaultLegacyPass(newSeasonId),
+    premiumOwned: premiumActiveNow,
+    ownedCosmetics: carriedCosmetics,
+  };
+
+  return {
+    ...next,
+    legacyPass: newPass,
+    legacyPassSeasonSummary:
+      collected.length > 0
+        ? {
+            endedSeasonId: oldNormalized?.seasonId ?? '',
+            newSeasonId,
+            collectedCount: collected.length,
+            collectedGems,
+          }
+        : next.legacyPassSeasonSummary,
+  };
+}
+
+/**
+ * Award Legacy Pass XP. If the season has rolled over, auto-collects unclaimed
+ * rewards first (no silent loss), then adds XP to the fresh season. Pure + immutable.
+ */
 export function awardLegacyPassXp(
   state: GameState,
   amount: number,
   nowMs: number = Date.now(),
 ): GameState {
   const seasonId = getCurrentSeasonId(nowMs);
-  return { ...state, legacyPass: addLegacyPassXp(state.legacyPass, amount, seasonId) };
+  const current = state.legacyPass;
+  if (current && current.seasonId === seasonId) {
+    return { ...state, legacyPass: addLegacyPassXp(current, amount, seasonId) };
+  }
+  const rolled = rolloverLegacyPass(state, seasonId, false);
+  return { ...rolled, legacyPass: addLegacyPassXp(rolled.legacyPass, amount, seasonId) };
+}
+
+/**
+ * Reconcile the pass to the live season at session start / foreground / pass-open.
+ * On rollover: auto-collect + reset (premium re-derived from the subscription).
+ * Within a season: normalise + re-derive premium from the subscription. Pure.
+ */
+export function reconcileLegacyPassSeason(
+  state: GameState,
+  premiumActiveNow: boolean,
+  nowMs: number = Date.now(),
+): GameState {
+  const seasonId = getCurrentSeasonId(nowMs);
+  const current = state.legacyPass;
+  if (current && current.seasonId === seasonId) {
+    const normalized = ensureCurrentSeason(current, seasonId);
+    if (premiumActiveNow && !normalized.premiumOwned) {
+      return { ...state, legacyPass: { ...normalized, premiumOwned: true } };
+    }
+    return normalized === current ? state : { ...state, legacyPass: normalized };
+  }
+  return rolloverLegacyPass(state, seasonId, premiumActiveNow);
 }
 
 /**

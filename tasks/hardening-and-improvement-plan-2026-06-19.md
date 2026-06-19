@@ -53,17 +53,24 @@ cross a 6-week boundary), so no clock-threading change was made.
 
 ## C. Prioritized improvement plan
 
-### P1 — Make seasons first-class (the real fix for B)
-- [ ] **Explicit season reconciliation at session start/foreground** (mirror
-      `SubscriptionReconciler`) so rollover happens at a known, testable point —
-      not as a side effect of a random XP award.
-- [ ] **End-of-season reward delivery** — on rollover, auto-grant unclaimed earned
-      tiers (or a "collect before season ends" nudge) so progress is never silently
-      lost. This is the true fix for the H1/H2 player-harm aspect.
-- [ ] **New-season UI** — a "Season N started" moment + reset animation; re-derive
-      `premiumOwned` from subscription on rollover so subscribers keep premium.
-- [ ] Thread one `nowMs` per `nextWeek` tick into all XP awards (determinism +
-      testability) once reconciliation is explicit.
+### P1 — Make seasons first-class (the real fix for B) — ✅ CORE DONE (2026-06-19)
+- [x] **End-of-season reward delivery (no silent loss).** `awardLegacyPassXp` and
+      `reconcileLegacyPassSeason` now auto-collect every earned-but-unclaimed reward
+      on rollover: gems/youth pills/traits granted account-level, **cosmetics carried
+      forward** into the new pass (fixed a latent bug where seasonal-slice cosmetics
+      were wiped). Engine: `getUnclaimedEarnedRewards`. The true fix for H1/H2.
+- [x] **Explicit reconciliation at session start/foreground + on pass-open.** Folded
+      into `SubscriptionReconciler` (it already runs at those moments and knows the
+      subscription tier); the `LegacyPassModal` also reconciles on open.
+- [x] **New-season UI.** A `legacyPassSeasonSummary` (one-shot, optional, no
+      migration) is stamped at rollover and shown as a dismissible banner in the pass
+      ("New season started! Auto-collected N rewards (+X gems)"). `premiumOwned` is
+      re-derived from the subscription on rollover so subscribers keep premium.
+- [x] Rollover is now **atomic** inside `awardLegacyPassXp` (collect → reset → add
+      XP), so no XP path can lose rewards regardless of which fires first; the
+      determinism concern is moot (collection is order-independent + idempotent).
+- [ ] *Follow-up:* a global "new season" toast/indicator outside the modal (today
+      the summary surfaces when the pass is opened).
 
 ### P2 — Finish the analytics funnel & insight
 - [ ] Wire remaining defined events: `onboarding_step`, `tutorial_step`,

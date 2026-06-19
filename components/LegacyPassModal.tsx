@@ -23,7 +23,7 @@ import {
   claimLegacyPassTier,
   type LegacyPassTrack,
 } from '@/lib/legacyPass/legacyPass';
-import { claimLegacyPassReward, unlockLegacyPassPremium } from '@/contexts/game/actions/LegacyPassActions';
+import { claimLegacyPassReward, reconcileLegacyPassSeason } from '@/contexts/game/actions/LegacyPassActions';
 import { subscriptionService } from '@/services/SubscriptionService';
 
 interface Props {
@@ -48,6 +48,8 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const setGameState = useSetGameState();
   const [toast, setToast] = useState<string | null>(null);
 
+  const seasonSummary = useGameSelector((s) => s.legacyPassSeasonSummary);
+
   const pass = useMemo(() => ensureCurrentSeason(legacyPassRaw), [legacyPassRaw]);
   const currentTier = getTierForXp(pass.xp);
   const intoTier = xpIntoCurrentTier(pass.xp);
@@ -56,14 +58,17 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const claimedFree = useMemo(() => new Set(pass.claimedFreeTiers), [pass.claimedFreeTiers]);
   const claimedPremium = useMemo(() => new Set(pass.claimedPremiumTiers), [pass.claimedPremiumTiers]);
 
-  // Sync an active subscription into the pass's premium flag on open.
+  // Reconcile the season on open: rolls over (auto-collecting unclaimed rewards,
+  // no silent loss) and re-derives the premium flag from the live subscription.
   useEffect(() => {
     if (!visible) return;
     const subscribed = subscriptionService.getSubscriptionTier() !== 'free';
-    if (subscribed && !pass.premiumOwned) {
-      setGameState((prev) => unlockLegacyPassPremium(prev));
-    }
-  }, [visible, pass.premiumOwned, setGameState]);
+    setGameState((prev) => reconcileLegacyPassSeason(prev, subscribed));
+  }, [visible, setGameState]);
+
+  const dismissSeasonSummary = () => {
+    setGameState((prev) => ({ ...prev, legacyPassSeasonSummary: undefined }));
+  };
 
   // Auto-dismiss the toast.
   useEffect(() => {
@@ -152,6 +157,23 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
             </Text>
           </View>
 
+          {/* New-season summary — shown once after a rollover auto-collected rewards */}
+          {seasonSummary && seasonSummary.collectedCount > 0 && (
+            <View style={[styles.seasonBanner, { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: accent.success }]}>
+              <View style={styles.seasonBannerText}>
+                <Text style={[styles.seasonBannerTitle, { color: theme.text }]}>New season started!</Text>
+                <Text style={[styles.seasonBannerDesc, { color: theme.textSecondary }]}>
+                  Auto-collected {seasonSummary.collectedCount} reward
+                  {seasonSummary.collectedCount === 1 ? '' : 's'}
+                  {seasonSummary.collectedGems > 0 ? ` (+${seasonSummary.collectedGems} gems)` : ''} from last season.
+                </Text>
+              </View>
+              <TouchableOpacity onPress={dismissSeasonSummary} accessibilityRole="button" accessibilityLabel="Dismiss season summary">
+                <Check size={scale(18)} color={accent.success} />
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Premium banner */}
           {!pass.premiumOwned && (
             <TouchableOpacity
@@ -216,6 +238,14 @@ const styles = StyleSheet.create({
   progressTrack: { height: scale(8), borderRadius: scale(4), overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: scale(4) },
   progressLabel: { fontSize: fontScale(12), marginTop: scale(6) },
+  seasonBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: scale(8),
+    borderWidth: 1, borderRadius: responsiveBorderRadius.md,
+    padding: scale(10), marginBottom: scale(12),
+  },
+  seasonBannerText: { flex: 1, paddingRight: scale(8) },
+  seasonBannerTitle: { fontSize: fontScale(13), fontWeight: '700' },
+  seasonBannerDesc: { fontSize: fontScale(12), marginTop: scale(2) },
   premiumBanner: {
     flexDirection: 'row', alignItems: 'center', gap: scale(8),
     borderWidth: 1, borderRadius: responsiveBorderRadius.md,

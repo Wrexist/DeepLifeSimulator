@@ -183,6 +183,25 @@ export function getClaimableTiers(pass: LegacyPassState, track: LegacyPassTrack)
   return out;
 }
 
+/**
+ * Every reward the player has EARNED (tier reached) but not yet claimed, across
+ * both tracks (premium tiers only when premium is owned). Used at season rollover
+ * to auto-collect what would otherwise be silently lost. Returns them in tier
+ * order, free track first.
+ */
+export function getUnclaimedEarnedRewards(pass: LegacyPassState): LegacyPassReward[] {
+  const out: LegacyPassReward[] = [];
+  for (const tier of getClaimableTiers(pass, 'free')) {
+    const r = getLegacyPassReward('free', tier);
+    if (r) out.push(r);
+  }
+  for (const tier of getClaimableTiers(pass, 'premium')) {
+    const r = getLegacyPassReward('premium', tier);
+    if (r) out.push(r);
+  }
+  return out;
+}
+
 export type ClaimResult =
   | { ok: true; pass: LegacyPassState; reward: LegacyPassReward }
   | { ok: false; reason: 'locked' | 'already-claimed' | 'premium-required' | 'no-reward' };

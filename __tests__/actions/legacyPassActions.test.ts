@@ -4,6 +4,7 @@ import {
   awardLegacyPassXp,
   claimLegacyPassReward,
   unlockLegacyPassPremium,
+  reconcileLegacyPassSeason,
 } from '@/contexts/game/actions/LegacyPassActions';
 import {
   getCurrentSeasonId,
@@ -119,6 +120,76 @@ describe('LegacyPassActions', () => {
       const next = unlockLegacyPassPremium(s, NOW);
       expect(next.legacyPass?.premiumOwned).toBe(true);
       expect(next.legacyPass?.xp).toBe(200);
+    });
+  });
+
+  // A pass stuck in a clearly-different ("old") season forces a rollover when we
+  // award XP / reconcile with the NOW clock.
+  const oldSeasonPass = (over: Record<string, unknown> = {}) =>
+    createTestGameState({
+      stats: { gems: 0 } as any,
+      youthPills: 0,
+      legacyPass: {
+        seasonId: 'old-season',
+        xp: XP_PER_TIER * 3, // tiers 1-3 earned
+        premiumOwned: false,
+        claimedFreeTiers: [],
+        claimedPremiumTiers: [],
+        ownedCosmetics: [],
+        ...over,
+      },
+    });
+
+  describe('season rollover auto-collects unclaimed rewards (no silent loss)', () => {
+    it('awardLegacyPassXp collects free rewards, resets, then adds XP, and stamps a summary', () => {
+      const next = awardLegacyPassXp(oldSeasonPass(), 50, NOW);
+      // 3 free tier rewards (all gems at low tiers) were collected.
+      const expectedGems =
+        (getLegacyPassReward('free', 1)!.amount ?? 0) +
+        (getLegacyPassReward('free', 2)!.amount ?? 0) +
+        (getLegacyPassReward('free', 3)!.amount ?? 0);
+      expect(next.stats.gems).toBe(expectedGems);
+      expect(next.legacyPass?.seasonId).toBe(SEASON); // rolled to live season
+      expect(next.legacyPass?.xp).toBe(50); // fresh season + awarded XP
+      expect(next.legacyPassSeasonSummary?.collectedCount).toBe(3);
+      expect(next.legacyPassSeasonSummary?.collectedGems).toBe(expectedGems);
+    });
+
+    it('carries owned cosmetics forward across the rollover', () => {
+      const next = awardLegacyPassXp(oldSeasonPass({ xp: 0, ownedCosmetics: ['theme_a'] }), 10, NOW);
+      expect(next.legacyPass?.ownedCosmetics).toEqual(['theme_a']);
+    });
+
+    it('collects premium rewards too when premium was owned', () => {
+      const next = awardLegacyPassXp(oldSeasonPass({ premiumOwned: true }), 0, NOW);
+      // 3 free + 3 premium earned-unclaimed; premium tier 3 is a youth pill.
+      expect(next.legacyPassSeasonSummary?.collectedCount).toBe(6);
+      expect(next.youthPills).toBeGreaterThan(0);
+    });
+  });
+
+  describe('reconcileLegacyPassSeason', () => {
+    it('rolls over with collection and sets new-season premium from the subscription', () => {
+      const next = reconcileLegacyPassSeason(oldSeasonPass(), /*premiumActiveNow*/ true, NOW);
+      expect(next.legacyPass?.seasonId).toBe(SEASON);
+      expect(next.legacyPass?.premiumOwned).toBe(true);
+      expect(next.legacyPassSeasonSummary?.collectedCount).toBe(3);
+    });
+
+    it('within the same season: re-derives premium without resetting progress', () => {
+      const s = awardLegacyPassXp(createTestGameState({ stats: { gems: 0 } as any }), XP_PER_TIER * 2, NOW);
+      expect(s.legacyPass?.premiumOwned).toBe(false);
+      const next = reconcileLegacyPassSeason(s, true, NOW);
+      expect(next.legacyPass?.premiumOwned).toBe(true);
+      expect(next.legacyPass?.xp).toBe(XP_PER_TIER * 2); // progress intact
+    });
+
+    it('is idempotent within a season (no spurious rollover/summary)', () => {
+      const s = awardLegacyPassXp(createTestGameState(), 120, NOW);
+      const once = reconcileLegacyPassSeason(s, false, NOW);
+      const twice = reconcileLegacyPassSeason(once, false, NOW);
+      expect(twice.legacyPass?.xp).toBe(120);
+      expect(twice.legacyPassSeasonSummary).toBeUndefined();
     });
   });
 });

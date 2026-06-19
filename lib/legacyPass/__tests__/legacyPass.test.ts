@@ -15,6 +15,7 @@ import {
   claimLegacyPassTier,
   FREE_REWARDS,
   PREMIUM_REWARDS,
+  getUnclaimedEarnedRewards,
 } from '../legacyPass';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -170,6 +171,26 @@ describe('Legacy Pass engine', () => {
     it('lists premium tiers once owned', () => {
       const pass = { seasonId: 's', xp: XP_PER_TIER * 2, premiumOwned: true, claimedFreeTiers: [], claimedPremiumTiers: [], ownedCosmetics: [] };
       expect(getClaimableTiers(pass, 'premium')).toEqual([1, 2]);
+    });
+  });
+
+  describe('getUnclaimedEarnedRewards', () => {
+    it('returns earned-but-unclaimed free rewards', () => {
+      const pass = { seasonId: 's', xp: XP_PER_TIER * 3, premiumOwned: false, claimedFreeTiers: [1], claimedPremiumTiers: [], ownedCosmetics: [] };
+      const rewards = getUnclaimedEarnedRewards(pass);
+      // tiers 2 and 3 unclaimed on free; premium excluded (not owned)
+      expect(rewards).toHaveLength(2);
+    });
+
+    it('includes premium rewards only when premium is owned', () => {
+      const base = { seasonId: 's', xp: XP_PER_TIER * 2, claimedFreeTiers: [], claimedPremiumTiers: [], ownedCosmetics: [] };
+      expect(getUnclaimedEarnedRewards({ ...base, premiumOwned: false })).toHaveLength(2); // free 1,2
+      expect(getUnclaimedEarnedRewards({ ...base, premiumOwned: true })).toHaveLength(4); // free 1,2 + premium 1,2
+    });
+
+    it('returns nothing when no tiers are earned', () => {
+      const pass = { seasonId: 's', xp: 0, premiumOwned: true, claimedFreeTiers: [], claimedPremiumTiers: [], ownedCosmetics: [] };
+      expect(getUnclaimedEarnedRewards(pass)).toEqual([]);
     });
   });
 

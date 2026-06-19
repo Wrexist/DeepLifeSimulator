@@ -1910,6 +1910,20 @@ export interface LegacyPassState {
 }
 
 /**
+ * One-shot summary of a Legacy Pass season rollover, stamped when the season
+ * changes so the UI can show a "new season" moment + what was auto-collected.
+ * Cleared by the UI once shown. Optional (no migration needed).
+ */
+export interface LegacyPassSeasonSummary {
+  endedSeasonId: string;
+  newSeasonId: string;
+  /** How many earned-but-unclaimed rewards were auto-collected at rollover. */
+  collectedCount: number;
+  /** Total gems auto-collected at rollover. */
+  collectedGems: number;
+}
+
+/**
  * Main GameState interface
  * Contains all game state data
  */
@@ -1974,6 +1988,8 @@ export interface GameState {
   memories: Memory[];
   /** Seasonal Legacy Pass progress (STATE_VERSION 20). Optional for old saves. */
   legacyPass?: LegacyPassState;
+  /** One-shot Legacy Pass season-rollover summary for the UI (optional). */
+  legacyPassSeasonSummary?: LegacyPassSeasonSummary;
   familyTreeData?: {
     members: Record<string, FamilyMemberNode>;
     lineageId: string;
