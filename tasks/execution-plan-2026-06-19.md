@@ -357,9 +357,25 @@ signed manifest** the app fetches — ship events with **no app-store update**.
 > - [x] **Bug fixed:** prestige rebuilt state from `initialGameState` and would
 >       have wiped seasonal pass progress — both prestige paths now preserve
 >       `legacyPass`. Locked in with a dedicated test.
-> - [ ] **Remaining:** call `awardLegacyPassXp` from challenge/milestone/prestige
->       sites; register the premium IAP product; build the dual-track UI screen.
->       *(next — engine + actions are ready to consume.)*
+> **PROGRESS (2026-06-19, cont.): XP wiring + UI screen.**
+> - [x] XP sources wired (real-time, season-safe): **prestige** (+200, the marquee
+>       source) in `executePrestigeAction`; **daily reward** (+10) in
+>       `app/(tabs)/home.tsx`. Both compose `awardLegacyPassXp` around existing
+>       state updates.
+> - [x] **UI:** `components/LegacyPassModal.tsx` — dual-track ladder, season
+>       progress bar, claim buttons, premium banner. Reads via `useGameSelector`,
+>       writes via `useSetGameState`, themed + `scale()`d + a11y-labelled. Premium
+>       gated on `subscriptionService.getSubscriptionTier()` (per the
+>       subscription decision) and synced into the pass on open.
+> - [x] Type-check + lint clean; 94 tests across legacy/prestige/analytics/save/
+>       IAP/render suites green (prestige stress incl.).
+> - [ ] **Entry point:** mount the modal behind a button. Deferred on purpose —
+>       even the existing `LeaderboardModal` is unwired, and placing UI in the live
+>       home layout should be reviewed in the running app. One-liner to integrate:
+>       `const [pass,setPass]=useState(false); <LegacyPassModal visible={pass}
+>       onClose={()=>setPass(false)} onSubscribe={openPaywall} />` + a trigger.
+> - [ ] **Remaining:** more XP sources (weekly/milestone/achievement); the premium
+>       subscription product itself (DeepLife+ work); entry-point placement.
 
 
 **Goal:** Free + premium reward track keyed to prestige progress + challenge streaks. **No pay-to-win** — rewards are cosmetics, youth pills, gems, heritable traits.

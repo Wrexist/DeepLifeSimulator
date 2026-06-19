@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Animated, Easing, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { track } from '@/lib/analytics';
+import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
+import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
 import { Briefcase, ChevronRight } from 'lucide-react-native';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
@@ -192,7 +194,7 @@ function HomeScreenContent() {
     const gemReward = DAILY_LOGIN_REWARDS[rewardIndex] || 25;
 
     const timer = setTimeout(() => {
-      setGameState(prev => ({
+      setGameState(prev => awardLegacyPassXp({
         ...prev,
         showDailyRewardPopup: true,
         dailyRewardAmount: gemReward,
@@ -203,7 +205,7 @@ function HomeScreenContent() {
           ...prev.stats,
           gems: (prev.stats?.gems || 0) + gemReward,
         },
-      }));
+      }, LEGACY_PASS_XP.dailyChallenge));
       track('daily_reward_claimed', { streak: newStreak, gems: gemReward });
     }, 800);
 

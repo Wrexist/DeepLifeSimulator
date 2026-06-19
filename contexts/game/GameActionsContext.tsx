@@ -31,6 +31,8 @@ import { haptic } from '@/utils/haptics';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
+import { awardLegacyPassXp } from './actions/LegacyPassActions';
+import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
 import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from './actions/MoneyActions';
 import { updateStats as updateStatsAction } from './actions/StatsActions';
 import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
@@ -3175,7 +3177,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  try {
  haptic.heavy(); // Prestige — major life event
- const newGameState = executePrestigeFunction(currentState, chosenPath, childId);
+ // Prestige is the marquee Legacy Pass XP source (LEGACY_PASS_XP.prestige).
+ const newGameState = awardLegacyPassXp(
+   executePrestigeFunction(currentState, chosenPath, childId),
+   LEGACY_PASS_XP.prestige,
+ );
  setGameState(newGameState);
  logger.info(`[executePrestige] Prestige executed: path=${chosenPath}, childId=${childId || 'none'}`);
 
