@@ -60,6 +60,7 @@ import { AppProviders } from '@/contexts/AppProviders';
 import { markFirstFrameRendered } from '@/lib/utils/bootBreadcrumbs';
 import { isFeatureEnabled, logFeatureFlags } from '@/lib/config/featureFlags';
 import { startupOrchestrator, createSafeServiceTask } from '@/lib/utils/startupOrchestrator';
+import { analytics, track } from '@/lib/analytics';
 import { startupCircuitBreaker } from '@/lib/utils/startupCircuitBreaker';
 
 // Type alias for compatibility
@@ -1092,9 +1093,28 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     const enableAdMob = Platform.OS !== 'web' && isFeatureEnabled('adMob');
     const enableIAP = isFeatureEnabled('iap');
     const enableATT = Platform.OS === 'ios' && isFeatureEnabled('att');
+    const enableTelemetry = isFeatureEnabled('telemetry');
 
-    if (!enableAdMob && !enableIAP && !enableATT) {
+    if (!enableAdMob && !enableIAP && !enableATT && !enableTelemetry) {
       logger.info('[Boring Build] All optional systems disabled via feature flags');
+    }
+
+    // Add Telemetry task (Wave 0.1): pure-JS analytics, no native SDK. Only runs
+    // when the opt-in `telemetry` flag is set. Consent is granted here because the
+    // pipeline uses an anonymous install id (never a device/advertising id).
+    if (enableTelemetry) {
+      const telemetryTask = createSafeServiceTask(
+        'Telemetry Service',
+        async () => {
+          await analytics.init();
+          analytics.setConsent(true);
+          track('session_start', { platform: Platform.OS });
+        },
+        { timeout: 3000, critical: false, enabled: enableTelemetry }
+      );
+      if (telemetryTask) {
+        startupOrchestrator.addTask(telemetryTask);
+      }
     }
 
     // Add ATT task (if enabled)

@@ -48,28 +48,36 @@ funnels, and churn points — privacy-compliant and crash-safe (note: `analytics
 flag is currently `false` due to a past Sentry/TurboModule crash; we must avoid
 re-introducing that).
 
-**Phase 0.1.1 — Event schema & guardrails**
-- [ ] Define a typed event schema (`lib/analytics/events.ts`): `session_start`,
-      `session_end`, `week_advanced`, `challenge_completed`, `streak_changed`,
+**Phase 0.1.1 — Event schema & guardrails — ✅ DONE (2026-06-19)**
+- [x] Define a typed event schema (`lib/analytics/events.ts`): 19 events incl.
+      `session_start/end`, `week_advanced`, `challenge_completed`, `streak_changed`,
       `purchase_started/succeeded/failed`, `ad_shown/rewarded`, `prestige`,
-      `death`, `screen_view`, `tutorial_step`.
-- [ ] Add a thin `track(event, props)` wrapper that is **a no-op when the flag is
-      off** and wrapped in try/catch (honor the "native modules lazy-load in
-      try/catch" rule that prevented the last crash).
-- [ ] Gate behind a **new** flag `FEATURE_FLAGS.analytics` driven by
-      `EXPO_PUBLIC_ENABLE_ANALYTICS` (do not silently flip the existing `false`).
+      `death`, `screen_view`, `tutorial_step`, `onboarding_step`,
+      `first_week_completed`, `daily_reward_claimed`, `achievement_unlocked`,
+      `paywall_viewed`. Unknown names are rejected at runtime.
+- [x] Add a thin `track(event, props)` wrapper (`lib/analytics/AnalyticsService.ts`)
+      that is **a hard no-op** unless enabled+consented, never throws, and lazy-loads
+      AsyncStorage in try/catch (mirrors `RemoteLoggingService`).
+- [x] Gate behind a **new** flag `FEATURE_FLAGS.telemetry` driven by
+      `EXPO_PUBLIC_ENABLE_ANALYTICS === 'true'` (opt-in; left the disabled Sentry
+      `analytics` flag untouched so we never re-trigger that crash).
 
-**Phase 0.1.2 — Provider integration**
-- [ ] Pick a lightweight, Expo-SDK-54-compatible provider (e.g. PostHog/Amplitude
-      RN, or a custom HTTPS endpoint). **Validate it does NOT use the TurboModule
-      pattern that crashed Sentry on iOS 26** (this is the explicit blocker reason).
-- [ ] Add consent gating: no analytics before ATT/UMP consent resolves.
+**Phase 0.1.2 — Provider integration — ✅ DONE (custom endpoint)**
+- [x] Chose a **pure-JS HTTPS batcher** (no 3rd-party native SDK) → cannot reproduce
+      the Sentry/TurboModule iOS 26 crash. Batched queue, 60s flush interval,
+      AbortController timeout, silent-fail, anonymous install id (not device/ad id),
+      sensitive-key redaction. Endpoint via `EXPO_PUBLIC_ANALYTICS_URL`.
+- [x] Consent gating: `track()` no-op until `setConsent(true)`; wired after startup.
+- [x] 10 unit tests (gating, schema, transport success/failure, privacy) — all pass.
+- [x] Booted via `startupOrchestrator` telemetry task in `app/_layout.tsx`
+      (flag-gated, 3s timeout, non-critical) + fires `session_start`.
 
-**Phase 0.1.3 — Instrument the funnel**
+**Phase 0.1.3 — Instrument the funnel — ⏳ NEXT (foundation ready)**
+- [x] `session_start` wired at boot.
 - [ ] Fire events at: onboarding steps, first `nextWeek()`, first challenge claim,
-      paywall view, purchase outcome, prestige, death.
-- [ ] Build a minimal dashboard / saved queries for D1/D7/D30 cohorts and "last
-      screen before quit."
+      paywall view, purchase outcome, prestige, death. *(call sites — next PR)*
+- [ ] Set up the receiving endpoint + dashboard / saved queries for D1/D7/D30
+      cohorts and "last screen before quit." *(ops)*
 
 **Files:** new `lib/analytics/*`, hooks into `GameActionsContext.tsx` (week/death/prestige), `services/IAPService.ts` (purchase events), `app/_layout.tsx` (session lifecycle), `lib/config/featureFlags.ts`.
 **Dependencies:** none — start immediately.
