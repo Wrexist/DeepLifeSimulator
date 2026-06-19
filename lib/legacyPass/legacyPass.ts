@@ -129,6 +129,7 @@ export function getDefaultLegacyPass(seasonId: string = getCurrentSeasonId()): L
     premiumOwned: false,
     claimedFreeTiers: [],
     claimedPremiumTiers: [],
+    ownedCosmetics: [],
   };
 }
 

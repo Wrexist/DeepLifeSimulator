@@ -1903,6 +1903,8 @@ export interface LegacyPassState {
   claimedFreeTiers: number[];
   /** Premium-track tier indices already claimed. */
   claimedPremiumTiers: number[];
+  /** Cosmetic ids earned from the pass (purely visual; no gameplay effect). */
+  ownedCosmetics: string[];
 }
 
 /**

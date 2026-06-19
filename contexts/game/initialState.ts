@@ -104,6 +104,7 @@ export const initialGameState: GameState = {
     premiumOwned: false,
     claimedFreeTiers: [],
     claimedPremiumTiers: [],
+    ownedCosmetics: [],
   },
   previousLives: [],
   legacyBonuses: {

@@ -76,6 +76,7 @@ describe('Legacy Pass engine', () => {
         premiumOwned: false,
         claimedFreeTiers: [],
         claimedPremiumTiers: [],
+        ownedCosmetics: [],
       });
     });
 
@@ -86,6 +87,7 @@ describe('Legacy Pass engine', () => {
         premiumOwned: true,
         claimedFreeTiers: [1, 2],
         claimedPremiumTiers: [1],
+        ownedCosmetics: ['old_theme'],
       };
       const reconciled = ensureCurrentSeason(old, 'season-2');
       expect(reconciled.seasonId).toBe('season-2');
@@ -95,7 +97,7 @@ describe('Legacy Pass engine', () => {
     });
 
     it('preserves progress within the same season', () => {
-      const cur = { seasonId: 'season-2', xp: 250, premiumOwned: true, claimedFreeTiers: [1], claimedPremiumTiers: [] };
+      const cur = { seasonId: 'season-2', xp: 250, premiumOwned: true, claimedFreeTiers: [1], claimedPremiumTiers: [], ownedCosmetics: [] };
       expect(ensureCurrentSeason(cur, 'season-2')).toBe(cur);
     });
 
@@ -117,7 +119,7 @@ describe('Legacy Pass engine', () => {
     });
 
     it('rolls the season over before adding', () => {
-      const old = { seasonId: 's1', xp: 500, premiumOwned: true, claimedFreeTiers: [1], claimedPremiumTiers: [] };
+      const old = { seasonId: 's1', xp: 500, premiumOwned: true, claimedFreeTiers: [1], claimedPremiumTiers: [], ownedCosmetics: [] };
       const p = addLegacyPassXp(old, 30, 's2');
       expect(p.seasonId).toBe('s2');
       expect(p.xp).toBe(30); // reset then added, not 530
@@ -156,23 +158,23 @@ describe('Legacy Pass engine', () => {
 
   describe('getClaimableTiers', () => {
     it('lists unlocked-but-unclaimed free tiers', () => {
-      const pass = { seasonId: 's', xp: XP_PER_TIER * 3, premiumOwned: false, claimedFreeTiers: [1], claimedPremiumTiers: [] };
+      const pass = { seasonId: 's', xp: XP_PER_TIER * 3, premiumOwned: false, claimedFreeTiers: [1], claimedPremiumTiers: [], ownedCosmetics: [] };
       expect(getClaimableTiers(pass, 'free')).toEqual([2, 3]);
     });
 
     it('returns nothing on premium track without ownership', () => {
-      const pass = { seasonId: 's', xp: XP_PER_TIER * 3, premiumOwned: false, claimedFreeTiers: [], claimedPremiumTiers: [] };
+      const pass = { seasonId: 's', xp: XP_PER_TIER * 3, premiumOwned: false, claimedFreeTiers: [], claimedPremiumTiers: [], ownedCosmetics: [] };
       expect(getClaimableTiers(pass, 'premium')).toEqual([]);
     });
 
     it('lists premium tiers once owned', () => {
-      const pass = { seasonId: 's', xp: XP_PER_TIER * 2, premiumOwned: true, claimedFreeTiers: [], claimedPremiumTiers: [] };
+      const pass = { seasonId: 's', xp: XP_PER_TIER * 2, premiumOwned: true, claimedFreeTiers: [], claimedPremiumTiers: [], ownedCosmetics: [] };
       expect(getClaimableTiers(pass, 'premium')).toEqual([1, 2]);
     });
   });
 
   describe('claimLegacyPassTier', () => {
-    const baseFree = { seasonId: 's', xp: XP_PER_TIER * 2, premiumOwned: false, claimedFreeTiers: [], claimedPremiumTiers: [] };
+    const baseFree = { seasonId: 's', xp: XP_PER_TIER * 2, premiumOwned: false, claimedFreeTiers: [], claimedPremiumTiers: [], ownedCosmetics: [] };
 
     it('claims an unlocked free tier and returns the reward', () => {
       const res = claimLegacyPassTier(baseFree, 'free', 1);

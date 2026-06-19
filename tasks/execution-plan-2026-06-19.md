@@ -346,9 +346,20 @@ signed manifest** the app fetches — ship events with **no app-store update**.
 >       failure reasons. All pure/immutable.
 > - [x] 38 unit tests green; migration-registry completeness + 49 save/stress
 >       tests (incl. 500× real `nextWeek`) still pass.
-> - [ ] **Remaining:** wire XP from challenges/milestones/prestige; premium IAP
->       product; reward-application action (grant gems/pills/cosmetics to state);
->       the dual-track UI screen. *(next PR — engine is ready to consume.)*
+> **PROGRESS (2026-06-19, cont.): reward-grant actions + prestige preservation.**
+> - [x] `contexts/game/actions/LegacyPassActions.ts`: pure transformers —
+>       `applyLegacyPassReward` (gems→stats.gems, youthPills→top-level,
+>       cosmetic→`legacyPass.ownedCosmetics`, trait→`activeTraits`),
+>       `awardLegacyPassXp`, `claimLegacyPassReward` (claim+grant), and
+>       `unlockLegacyPassPremium` (for the IAP). 16 action tests via
+>       `createTestGameState`.
+> - [x] Added `ownedCosmetics` to the slice (migration[20] extended).
+> - [x] **Bug fixed:** prestige rebuilt state from `initialGameState` and would
+>       have wiped seasonal pass progress — both prestige paths now preserve
+>       `legacyPass`. Locked in with a dedicated test.
+> - [ ] **Remaining:** call `awardLegacyPassXp` from challenge/milestone/prestige
+>       sites; register the premium IAP product; build the dual-track UI screen.
+>       *(next — engine + actions are ready to consume.)*
 
 
 **Goal:** Free + premium reward track keyed to prestige progress + challenge streaks. **No pay-to-win** — rewards are cosmetics, youth pills, gems, heritable traits.

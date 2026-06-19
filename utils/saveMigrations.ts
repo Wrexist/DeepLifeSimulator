@@ -533,7 +533,11 @@ const migrations: Record<number, (state: any) => any> = {
         premiumOwned: false,
         claimedFreeTiers: [],
         claimedPremiumTiers: [],
+        ownedCosmetics: [],
       };
+    } else if (state.legacyPass.ownedCosmetics === undefined) {
+      // Defensive: a partially-shaped legacyPass from an in-dev build.
+      state.legacyPass.ownedCosmetics = [];
     }
     state.version = 20;
     return state;
