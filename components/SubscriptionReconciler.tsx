@@ -11,9 +11,9 @@
  *
  * Render-free; mount once inside the GameProvider tree.
  */
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { useSetGameState } from '@/contexts/game/useGameSelector';
+import { useSetGameState, useGameSelector } from '@/contexts/game/useGameSelector';
 import { subscriptionService } from '@/services/SubscriptionService';
 import { iapService } from '@/services/IAPService';
 import { reconcileSubscriptionBenefits } from '@/contexts/game/actions/SubscriptionActions';
@@ -23,45 +23,40 @@ import { logger } from '@/utils/logger';
 export function SubscriptionReconciler(): null {
   const setGameState = useSetGameState();
   const runningRef = useRef(false);
+  // `weeksLived` is a stable post-load value — its first change signals the save
+  // has hydrated (closing the mount-vs-load race), and later changes catch a
+  // season rollover that happens mid-session.
+  const weeksLived = useGameSelector((s) => s.weeksLived ?? 0);
 
+  const reconcile = useCallback(async () => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    try {
+      await subscriptionService.waitForInitialization();
+      const plusActive = subscriptionService.getSubscriptionTier() !== 'free';
+      const ownsRemoveAds =
+        typeof iapService.isAdsRemoved === 'function' ? iapService.isAdsRemoved() : false;
+      setGameState((prev) => {
+        const afterSub = reconcileSubscriptionBenefits(prev, plusActive, ownsRemoveAds);
+        return reconcileLegacyPassSeason(afterSub, plusActive);
+      });
+    } catch (err) {
+      // Never let entitlement reconciliation break the app.
+      logger.warn('[SubscriptionReconciler] reconcile failed (non-critical):', { error: err });
+    } finally {
+      runningRef.current = false;
+    }
+  }, [setGameState]);
+
+  // Reconcile on mount, on foreground, and whenever the save hydrates / weeks advance.
   useEffect(() => {
-    let cancelled = false;
-
-    const reconcile = async () => {
-      if (runningRef.current) return;
-      runningRef.current = true;
-      try {
-        await subscriptionService.waitForInitialization();
-        if (cancelled) return;
-        const plusActive = subscriptionService.getSubscriptionTier() !== 'free';
-        const ownsRemoveAds =
-          typeof iapService.isAdsRemoved === 'function' ? iapService.isAdsRemoved() : false;
-        setGameState((prev) => {
-          const afterSub = reconcileSubscriptionBenefits(prev, plusActive, ownsRemoveAds);
-          return reconcileLegacyPassSeason(afterSub, plusActive);
-        });
-      } catch (err) {
-        // Never let entitlement reconciliation break the app.
-        logger.warn('[SubscriptionReconciler] reconcile failed (non-critical):', { error: err });
-      } finally {
-        runningRef.current = false;
-      }
-    };
-
-    // Initial reconcile after mount.
     void reconcile();
-
-    // Re-reconcile on foreground.
     const onChange = (next: AppStateStatus) => {
       if (next === 'active') void reconcile();
     };
     const sub = AppState.addEventListener('change', onChange);
-
-    return () => {
-      cancelled = true;
-      sub.remove();
-    };
-  }, [setGameState]);
+    return () => sub.remove();
+  }, [reconcile, weeksLived]);
 
   return null;
 }

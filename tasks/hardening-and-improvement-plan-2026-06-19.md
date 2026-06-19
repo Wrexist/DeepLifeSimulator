@@ -98,10 +98,11 @@ cross a 6-week boundary), so no clock-threading change was made.
       is populated + carried across seasons, just not rendered yet).
 
 ### P4 — DeepLife+ depth
+- [x] **Reconcile after save-load** — the reconciler now also re-runs when
+      `weeksLived` first changes (save hydrates) and on later changes (mid-session
+      season rollover), closing the mount-vs-load race. (2026-06-19)
 - [ ] **Recurring monthly gem stipend** (needs a monthly tick keyed to renewal),
       then add it to the benefit list (keep the list truthful until then).
-- [ ] Run the reconcile **after** save-load (not only mount/foreground) to remove
-      the first-launch race where the loaded save can briefly precede reconciliation.
 - [ ] A/B price test ($4.99/mo vs alternatives) once analytics + store are live.
 
 ### P5 — Ops / launch (already documented, not code)
