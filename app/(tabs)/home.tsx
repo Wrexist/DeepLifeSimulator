@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
-import { Animated, Easing, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Briefcase, ChevronRight } from 'lucide-react-native';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
@@ -26,11 +26,16 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useTheme } from '@/hooks/useTheme';
 import { useStatChangeTracker } from '@/contexts/StatChangeContext';
+import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { DISCORD_URL } from '@/lib/config/appConfig';
+import { DISCORD_JOIN_REWARD_MONEY } from '@/lib/config/gameConstants';
 
 // Lazy load heavy modals and popups
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
 const WelcomeBackPopup = lazy(() => import('@/components/WelcomeBackPopup'));
 const GoalCompletionPopup = lazy(() => import('@/components/GoalCompletionPopup'));
+const CommunityRewardPopup = lazy(() => import('@/components/CommunityRewardPopup'));
 
 function HomeScreen() {
   return (
@@ -95,6 +100,7 @@ function HomeScreenContent() {
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
   const [nextGoal, setNextGoal] = useState<Goal | null>(null);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [showCommunityReward, setShowCommunityReward] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
   const [showPrestigeInfo, setShowPrestigeInfo] = useState(false);
@@ -223,6 +229,69 @@ function HomeScreenContent() {
     }
     return undefined;
   }, [gameState.lastLogin, gameState.weeksLived, gameState.week, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
+
+  // ENGAGEMENT: one-time, low-key invite to join the Discord for a cash reward.
+  // Subtle by design — only once the player is settled in (tutorial done + a few
+  // weeks lived), never stacked on the daily-reward / welcome-back popups, and
+  // suppressed forever once claimed (shared `discord_reward_claimed` flag) or
+  // dismissed (`discord_popup_seen`). The Settings entry stays as the fallback.
+  useEffect(() => {
+    if (!hasCompletedTutorial) return undefined;
+    if ((gameState.weeksLived || 0) < 4) return undefined;
+    if (gameState.showDailyRewardPopup || showWelcomeBack || showCommunityReward) return undefined;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    (async () => {
+      try {
+        const [claimed, seen] = await Promise.all([
+          safeGetItem('discord_reward_claimed'),
+          safeGetItem('discord_popup_seen'),
+        ]);
+        if (cancelled || claimed === 'true' || seen === 'true') return;
+        // Brief delay so it eases in after the screen settles, not on load.
+        timer = setTimeout(() => {
+          if (!cancelled) setShowCommunityReward(true);
+        }, 1400);
+      } catch {
+        // Non-critical: the popup simply won't show this session.
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [hasCompletedTutorial, gameState.weeksLived, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
+
+  const handleJoinCommunity = async () => {
+    // Grant the cash reward (updateMoney clamps to the money ceiling + logs it).
+    updateMoney(setGameState, DISCORD_JOIN_REWARD_MONEY, 'Discord community reward');
+    setShowCommunityReward(false);
+    // Persist the one-time flags. `discord_reward_claimed` is shared with the
+    // Settings entry point so the reward can't be taken twice.
+    try {
+      await safeSetItem('discord_reward_claimed', 'true');
+      await safeSetItem('discord_popup_seen', 'true');
+    } catch {
+      // Non-critical: money is already granted; the flag can retry next session.
+    }
+    // Open the Discord invite.
+    try {
+      const canOpen = await Linking.canOpenURL(DISCORD_URL);
+      if (canOpen) await Linking.openURL(DISCORD_URL);
+    } catch {
+      // Ignore — the reward has already been granted regardless of the link.
+    }
+  };
+
+  const handleDismissCommunity = async () => {
+    setShowCommunityReward(false);
+    try {
+      await safeSetItem('discord_popup_seen', 'true');
+    } catch {
+      // Non-critical: may re-show next session if this write fails.
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -373,6 +442,14 @@ function HomeScreenContent() {
             setShowWelcomeBack(false);
             setGameState(prev => ({ ...prev, lastLogin: Date.now() }));
           }}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CommunityRewardPopup
+          visible={showCommunityReward}
+          rewardAmount={DISCORD_JOIN_REWARD_MONEY}
+          onJoin={handleJoinCommunity}
+          onDismiss={handleDismissCommunity}
         />
       </Suspense>
 

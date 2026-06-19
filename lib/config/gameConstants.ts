@@ -94,6 +94,10 @@ export const LOGIN_STREAK_GRACE_HOURS = 48; // Forgiving: miss 1 day, keep strea
 // ── Prestige & Gems ───────────────────────────────────────
 export const REVIVE_GEM_COST = 15_000;
 export const DISCORD_JOIN_REWARD_GEMS = 500;
+// One-time cash reward for joining the Discord community. Granted from either the
+// in-game CommunityRewardPopup or the Settings "Join Our Discord" button — both
+// share the `discord_reward_claimed` flag so it can be claimed exactly once.
+export const DISCORD_JOIN_REWARD_MONEY = 5000;
 
 // ── Legacy ────────────────────────────────────────────────
 export const ADULTHOOD_AGE = 18;

@@ -1,5 +1,24 @@
 # Task Tracker
 
+## 🔵 Community (Discord) money-reward popup (2026-06-19)
+
+Goal: a sleek, subtle in-game popup offering a one-time **$5,000** money reward for joining the
+Discord. Unify the existing Settings reward (was 500 gems) onto the same **$5,000** cash reward,
+sharing the existing `discord_reward_claimed` flag so a player can claim it exactly once from either
+entry point.
+
+- [x] `lib/config/gameConstants.ts` — added `DISCORD_JOIN_REWARD_MONEY = 5000`.
+- [x] `components/CommunityRewardPopup.tsx` — new presentational popup modeled on `DailyRewardPopup`
+      (scale+fade, dark/light palette, double-tap guard, a11y). "Join & Claim" + quiet "Maybe later".
+- [x] `app/(tabs)/home.tsx` — subtle one-time trigger (tutorial done + ≥4 weeks + not while
+      daily-reward/welcome-back popups show + not claimed + not snoozed via new `discord_popup_seen`),
+      grant via `updateMoney`, persist flags, open Discord, mount under `<Suspense>`.
+- [x] `components/SettingsModal.tsx` — switched the Discord reward from 500 gems → `$5,000` cash
+      (grant via `updateMoney` + button label + reward-popup copy/icon).
+- [x] `__tests__/render/CommunityRewardPopup.render.test.tsx` — render smoke + `$5,000` copy assert.
+      (Also added MessageCircle/DollarSign/Gift to the `jest.setup.js` lucide mock.)
+- [x] Verified: type-check 0 errors · render suite 20/20 green · ESLint 0 errors (warnings pre-existing).
+
 ## 🟢 H3 — nextWeek decomposition (2026-06-18)
 
 Roadmap H3: instrument the ~1,475-line weekly tick into measured phases, then optimize the hot ones.
