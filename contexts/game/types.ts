@@ -1990,6 +1990,8 @@ export interface GameState {
   legacyPass?: LegacyPassState;
   /** One-shot Legacy Pass season-rollover summary for the UI (optional). */
   legacyPassSeasonSummary?: LegacyPassSeasonSummary;
+  /** Equipped cosmetics by slot (ids from legacyPass.ownedCosmetics). Optional. */
+  equippedCosmetics?: { frame?: string; theme?: string };
   familyTreeData?: {
     members: Record<string, FamilyMemberNode>;
     lineageId: string;

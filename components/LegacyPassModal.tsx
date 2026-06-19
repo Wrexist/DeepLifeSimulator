@@ -31,6 +31,8 @@ import {
   claimAllLegacyPassRewards,
   reconcileLegacyPassSeason,
 } from '@/contexts/game/actions/LegacyPassActions';
+import { toggleCosmetic } from '@/contexts/game/actions/CosmeticActions';
+import { resolveOwnedCosmetics, getCosmetic } from '@/lib/cosmetics/cosmetics';
 import { subscriptionService } from '@/services/SubscriptionService';
 
 interface Props {
@@ -66,6 +68,11 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
 
   const claimedFree = useMemo(() => new Set(pass.claimedFreeTiers), [pass.claimedFreeTiers]);
   const claimedPremium = useMemo(() => new Set(pass.claimedPremiumTiers), [pass.claimedPremiumTiers]);
+
+  const equipped = useGameSelector((s) => s.equippedCosmetics);
+  const ownedCosmetics = useMemo(() => resolveOwnedCosmetics(pass.ownedCosmetics), [pass.ownedCosmetics]);
+  const equippedFrame = equipped?.frame ? getCosmetic(equipped.frame) : undefined;
+  const equippedTheme = equipped?.theme ? getCosmetic(equipped.theme) : undefined;
 
   // Reconcile the season on open: rolls over (auto-collecting unclaimed rewards,
   // no silent loss) and re-derives the premium flag from the live subscription.
@@ -111,6 +118,10 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
       .reduce((sum, r) => sum + (r.amount ?? 0), 0);
     setToast(`Claimed ${rewards.length} reward${rewards.length === 1 ? '' : 's'}${gems > 0 ? ` (+${gems} gems)` : ''}`);
     setGameState((prev) => claimAllLegacyPassRewards(prev).state);
+  };
+
+  const handleToggleCosmetic = (id: string) => {
+    setGameState((prev) => toggleCosmetic(prev, id));
   };
 
   const renderCell = (track: LegacyPassTrack, tier: number) => {
@@ -211,6 +222,52 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
             </TouchableOpacity>
           )}
 
+          {/* Cosmetics — owned items, tap to equip; live preview reflects the loadout */}
+          {ownedCosmetics.length > 0 && (
+            <View style={[styles.cosmeticsBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={styles.cosmeticsHeader}>
+                <Text style={[styles.cosmeticsTitle, { color: theme.text }]}>Cosmetics</Text>
+                {/* Live preview: avatar tinted by the theme, ringed by the frame */}
+                <View
+                  style={[
+                    styles.cosmeticPreview,
+                    {
+                      backgroundColor: equippedTheme ? `${equippedTheme.color}33` : theme.surfaceElevated,
+                      borderColor: equippedFrame ? equippedFrame.color : theme.border,
+                    },
+                  ]}
+                />
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.swatchRow}>
+                {ownedCosmetics.map((c) => {
+                  const isEquipped = equipped?.[c.type] === c.id;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={styles.swatchItem}
+                      onPress={() => handleToggleCosmetic(c.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${c.name}${isEquipped ? ', equipped' : ''}`}
+                    >
+                      <View
+                        style={[
+                          c.type === 'frame' ? styles.swatchFrame : styles.swatchTheme,
+                          c.type === 'frame'
+                            ? { borderColor: c.color }
+                            : { backgroundColor: c.color },
+                          isEquipped && { borderColor: accent.success, borderWidth: 2 },
+                        ]}
+                      >
+                        {isEquipped && <Check size={scale(12)} color={accent.success} />}
+                      </View>
+                      <Text numberOfLines={1} style={[styles.swatchLabel, { color: theme.textSecondary }]}>{c.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Claim all */}
           {claimableCount > 0 && (
             <TouchableOpacity
@@ -289,6 +346,21 @@ const styles = StyleSheet.create({
     padding: scale(10), marginBottom: scale(12),
   },
   premiumText: { fontSize: fontScale(13), fontWeight: '600', flex: 1 },
+  cosmeticsBox: { borderWidth: 1, borderRadius: responsiveBorderRadius.md, padding: scale(10), marginBottom: scale(12) },
+  cosmeticsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: scale(8) },
+  cosmeticsTitle: { fontSize: fontScale(13), fontWeight: '700' },
+  cosmeticPreview: { width: scale(28), height: scale(28), borderRadius: scale(14), borderWidth: 2 },
+  swatchRow: { gap: scale(12), paddingRight: scale(4) },
+  swatchItem: { alignItems: 'center', width: scale(56) },
+  swatchFrame: {
+    width: scale(32), height: scale(32), borderRadius: scale(16), borderWidth: 3,
+    alignItems: 'center', justifyContent: 'center', marginBottom: scale(4),
+  },
+  swatchTheme: {
+    width: scale(32), height: scale(32), borderRadius: scale(8), borderWidth: 1, borderColor: 'transparent',
+    alignItems: 'center', justifyContent: 'center', marginBottom: scale(4),
+  },
+  swatchLabel: { fontSize: fontScale(10), fontWeight: '600', textAlign: 'center' },
   claimAll: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(8),
     borderRadius: responsiveBorderRadius.md, paddingVertical: scale(10), marginBottom: scale(12),

@@ -93,9 +93,15 @@ cross a 6-week boundary), so no clock-threading change was made.
 - [x] **Reduced-motion** on both new modals (`useReducedMotion` → fade instead of
       slide).
 - [x] Reward-claim toast feedback (per-claim + claim-all totals).
-- [ ] *Follow-up:* XP-gain animation/celebration; surface owned **cosmetics**
-      (themes/frames) in a profile/apartment surface (`legacyPass.ownedCosmetics`
-      is populated + carried across seasons, just not rendered yet).
+- [x] **Cosmetics rendered** — catalog (`lib/cosmetics/cosmetics.ts`) maps ids to
+      frame/theme metadata (with a pattern fallback); pure equip actions
+      (`CosmeticActions`: equip/unequip/toggle, owned-gated, slot-based);
+      `equippedCosmetics` state (optional, no migration). The Legacy Pass modal now
+      shows a **Cosmetics section**: owned items as tappable swatches (frame ring /
+      theme tile) with an equipped highlight and a **live preview** avatar that
+      reflects the equipped frame + theme. 12 tests.
+- [ ] *Follow-up:* apply the equipped frame/theme on the actual home/profile avatar
+      (today it renders + previews inside the pass); XP-gain animation/celebration.
 
 ### P4 — DeepLife+ depth
 - [x] **Reconcile after save-load** — the reconciler now also re-runs when
