@@ -151,9 +151,14 @@ function dumbbell(x, y, size, color) {
 }
 
 // ───────────────────────────────────────────────────────── screen builder
+// Module-global id counter so ids are unique ACROSS builders. The device frame
+// and the per-screen content use separate builders that get merged into one
+// <defs>; a per-builder counter would mint colliding ids (e.g. two "cr0"),
+// making clip-paths resolve to the wrong region.
+let __uid = 0;
 function screenBuilder() {
-  let defs = '', body = '', uid = 0;
-  const id = (p) => `${p}${uid++}`;
+  let defs = '', body = '';
+  const id = (p) => `${p}${__uid++}`;
   const api = {
     get defs() { return defs; }, get body() { return body; },
     add(s) { body += s; return api; },
@@ -279,23 +284,24 @@ function globalDefs(b) {
   b.def(`<filter id="headshadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#000" flood-opacity="0.5"/></filter>`);
 }
 
-function background(b, theme, seed) {
-  b.rrect(0, 0, W, H, 0, b.linGrad([[0, theme.bg[0]], [.45, theme.bg[1]], [1, theme.bg[2]]]));
+function background(b, theme, seed, w = W, h = H) {
+  b.rrect(0, 0, w, h, 0, b.linGrad([[0, theme.bg[0]], [.45, theme.bg[1]], [1, theme.bg[2]]]));
   for (const [col, a, fx, fy] of theme.orbs) {
     const g = b.radGrad([[0, col, a], [1, col, 0]]);
-    b.add(`<circle cx="${W * fx}" cy="${H * fy}" r="${W * .62}" fill="${g}" filter="url(#softblur)"/>`);
+    b.add(`<circle cx="${(w * fx).toFixed(1)}" cy="${(h * fy).toFixed(1)}" r="${(w * .62).toFixed(1)}" fill="${g}" filter="url(#softblur)"/>`);
   }
-  b.add(`<rect x="0" y="0" width="${W}" height="${H}" fill="${b.radGrad([[0, '#000', 0], [1, '#000', .45]], .5, .42, .75)}"/>`);
+  b.add(`<rect x="0" y="0" width="${w}" height="${h}" fill="${b.radGrad([[0, '#000', 0], [1, '#000', .45]], .5, .42, .75)}"/>`);
   const r = rng(seed);
+  const n = Math.round(70 * (w * h) / (W * H));
   let dots = '';
-  for (let i = 0; i < 70; i++) {
-    const x = r() * W, y = r() * H, rad = .6 + r() * 2.6, op = .04 + r() * .22;
+  for (let i = 0; i < n; i++) {
+    const x = r() * w, y = r() * h, rad = .6 + r() * 2.6, op = .04 + r() * .22;
     dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad.toFixed(1)}" fill="#ffffff" opacity="${op.toFixed(2)}"/>`;
   }
   b.add(dots);
   const sr = rng(seed * 7 + 1);
   for (let i = 0; i < 5; i++) {
-    const x = 80 + sr() * (W - 160), y = 200 + sr() * 520, s = 12 + sr() * 18;
+    const x = 80 + sr() * (w - 160), y = 180 + sr() * (h * .2), s = 12 + sr() * 18;
     b.add(icon('spark', x, y, s, theme.head[1], { fill: theme.head[1] }).replace('<g', `<g opacity="${(.25 + sr() * .4).toFixed(2)}"`));
   }
 }
@@ -684,8 +690,11 @@ function floaters(b, idx) {
   for (const [n, x, y, s, c] of (sets[idx] || [])) floatIcon(b, n, x, y, s, c, { glow: .45 });
 }
 
-// ───────────────────────────────────────────────────────── assemble + render
-async function buildScreen(idx) {
+// ───────────────────────────────────────────────────────── iPhone assemble
+// Authored in a 1290×2796 design space, emitted at Apple's current primary
+// 6.9" size (1320×2868). The 0.2% scale difference is sub-pixel/imperceptible.
+const IPH_W = 1320, IPH_H = 2868;
+async function buildPhone(idx) {
   const theme = THEMES[idx], copy = COPY[idx];
   const b = screenBuilder();
   globalDefs(b);
@@ -698,28 +707,440 @@ async function buildScreen(idx) {
   b.def(sb.defs);
   deviceFrame(b, theme, sb.body);
   floaters(b, idx);
-  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><defs>${b.defs}</defs>${b.body}</svg>`;
+  return `<svg width="${IPH_W}" height="${IPH_H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs>${b.defs}</defs>${b.body}</svg>`;
+}
+
+// ───────────────────────────────────────────────────────── iPad layout (native 2064×2752, 13")
+const IW = 2064, IH = 2752, ICX = IW / 2;
+const DPW = 1537, DPH = 2032, DPX = 264, DPY = 640, DBB = 26, DPR = 60;
+const DSX = DPX + DBB, DSY = DPY + DBB, DSW = DPW - 2 * DBB, DSH = DPH - 2 * DBB, DSR = 40;
+const DSCX = DSX + DSW / 2, DSBOT = DSY + DSH;
+const DCP = 56, dcX = DSX + DCP, dcW = DSW - 2 * DCP;
+const dColGap = 44, dColW = (dcW - dColGap) / 2, dColR = dcX + dColW + dColGap;
+const D_STATUS_H = 76, D_TAB_H = 124;
+const dAppTop = DSY + D_STATUS_H, dAppBottom = DSBOT - D_TAB_H, dFullBottom = DSBOT - 50;
+
+function appBgIpad(b, theme) {
+  b.rrect(DSX, DSY, DSW, DSH, DSR, C.bgDeep);
+  b.add(`<rect x="${DSX}" y="${DSY}" width="${DSW}" height="${DSH * .5}" fill="${b.linGrad([[0, theme.accent, .14], [1, theme.accent, 0]])}"/>`);
+}
+function deviceFrameIpad(b, theme, screenSVG) {
+  const glow = b.radGrad([[0, theme.accent, .55], [1, theme.accent, 0]]);
+  b.add(`<ellipse cx="${ICX}" cy="${DPY + DPH * 0.42}" rx="${DPW * 0.7}" ry="${DPH * 0.46}" fill="${glow}" filter="url(#softblur)" opacity="0.55"/>`);
+  b.rrect(DPX, DPY, DPW, DPH, DPR, '#05060c', { filter: 'url(#phoneshadow)' });
+  const bezel = b.linGrad([[0, '#33384a'], [.5, '#0e1018'], [1, '#2a2f40']], 0, 0, 1, 1);
+  b.rrect(DPX - 1, DPY - 1, DPW + 2, DPH + 2, DPR + 1, 'none', { stroke: bezel, sw: 3 });
+  const clip = b.clipRound(DSX, DSY, DSW, DSH, DSR);
+  b.add(`<g clip-path="url(#${clip})">${screenSVG}</g>`);
+  b.add(`<rect x="${DSX}" y="${DSY}" width="${DSW}" height="${DSH}" rx="${DSR}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`);
+  b.add(`<circle cx="${ICX}" cy="${DPY + DBB / 2 + 1}" r="5" fill="#0b0b14"/><circle cx="${ICX}" cy="${DPY + DBB / 2 + 1}" r="2.4" fill="#1c2740"/>`);
+  b.rrect(ICX - 70, DSBOT - 24, 140, 6, 3, 'rgba(255,255,255,0.45)');
+}
+function statusBarIpad(b) {
+  const col = '#F8FAFC';
+  b.txt(DSX + 46, DSY + 48, '9:41', { size: 25, w: 700, fill: col });
+  const rx = DSX + DSW - 46;
+  b.rrect(rx - 46, DSY + 28, 40, 20, 5, 'none', { stroke: col, sw: 2, opacity: .9 });
+  b.add(`<rect x="${rx - 7}" y="${DSY + 33}" width="3" height="10" rx="1.5" fill="${col}" opacity="0.9"/>`);
+  b.rrect(rx - 43, DSY + 31, 30, 14, 3, col);
+  const wx = rx - 66;
+  b.add(`<g transform="translate(${wx - 13},${DSY + 26})" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round"><path d="M2 8a13 13 0 0 1 18 0"/><path d="M5 12a8.5 8.5 0 0 1 12 0"/><path d="M8.5 16a3.6 3.6 0 0 1 5 0"/></g><circle cx="${wx - 2}" cy="${DSY + 44}" r="1.6" fill="${col}"/>`);
+}
+function tabBarIpad(b, active) {
+  const y0 = dAppBottom;
+  b.add(`<rect x="${DSX}" y="${y0}" width="${DSW}" height="${D_TAB_H}" fill="${b.linGrad([[0, 'rgba(11,16,34,0.2)'], [.5, 'rgba(11,16,34,0.92)'], [1, 'rgba(8,11,24,0.98)']])}"/>`);
+  b.add(`<line x1="${DSX}" y1="${y0}" x2="${DSX + DSW}" y2="${y0}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`);
+  const tabs = [['home', 'Life'], ['briefcase', 'Work'], ['heartline', 'Health'], ['phone', 'Phone'], ['monitor', 'PC'], ['cart', 'Market']];
+  // center the cluster
+  const span = 1180, step = span / tabs.length, x0 = DSCX - span / 2 + step / 2;
+  tabs.forEach(([ic, lb], i) => {
+    const x = x0 + step * i, on = i === active, col = on ? C.active : '#7B879F';
+    b.icon(ic, x, y0 + 46, 32, col, { sw: 2.1 });
+    b.txt(x, y0 + 84, lb, { size: 18, w: on ? 700 : 500, fill: col, anchor: 'middle' });
+    if (on) b.add(`<circle cx="${x}" cy="${y0 + 14}" r="3.2" fill="${C.active}"/>`);
+  });
+}
+function headlineIpad(b, theme, copy) {
+  const kText = theme.kicker;
+  const pillW = 80 + kText.length * 17, pillH = 58;
+  b.rrect(ICX - pillW / 2, 180, pillW, pillH, pillH / 2, b.linGrad([[0, theme.accent, .22], [1, theme.accent, .10]]), { stroke: theme.accent, sw: 1.5 });
+  b.add(`<circle cx="${ICX - pillW / 2 + 30}" cy="${180 + pillH / 2}" r="6" fill="${theme.accent}"/>`);
+  b.txt(ICX + 14, 180 + pillH / 2 + 8, kText, { size: 26, w: 800, fill: theme.head[0], anchor: 'middle', ls: 3.5 });
+  const hg = b.linGrad([[0, theme.head[0]], [1, theme.head[1]]], 0, 0, 1, 1);
+  b.txt(ICX, 360, copy.lines[0] + '  ' + copy.lines[1], { size: 100, w: 900, fill: hg, anchor: 'middle', ls: -2, filter: 'url(#headshadow)' });
+  b.txt(ICX, 444, copy.sub, { size: 36, w: 500, fill: C.sub, anchor: 'middle' });
+}
+function floatersIpad(b, idx) {
+  const sets = {
+    1: [['gem', 150, 760, 56, C.indigo], ['star', 1914, 720, 50, C.amber], ['heart', 130, 1500, 48, C.pink], ['bolt', 1930, 1520, 50, C.blue]],
+    2: [['star', 150, 760, 54, C.amber], ['spark', 1914, 720, 48, C.gold], ['crown', 130, 1500, 50, C.amber], ['gem', 1930, 1520, 48, C.violet]],
+    3: [['banknote', 150, 760, 54, C.emerald], ['bolt', 1914, 720, 52, C.amber], ['trend', 130, 1500, 50, C.emerald], ['gem', 1930, 1520, 48, C.gold]],
+    4: [['heart', 150, 760, 58, C.pink], ['spark', 1914, 720, 48, C.rose], ['heart', 130, 1500, 44, C.rose], ['msg', 1930, 1520, 48, C.blue]],
+    5: [['crown', 150, 760, 56, C.gold], ['star', 1914, 720, 48, C.sky], ['gem', 130, 1500, 48, C.violet], ['spark', 1930, 1520, 46, C.gold]],
+    6: [['heart', 150, 760, 54, C.pink], ['flame', 1914, 720, 54, C.orange], ['repeat', 130, 1500, 48, C.emerald], ['users', 1930, 1520, 48, C.cyan]],
+  };
+  for (const [n, x, y, s, c] of (sets[idx] || [])) floatIcon(b, n, x, y, s, c, { glow: .45 });
+}
+
+// iPad card header helper
+function cardHead(b, x, y, icName, title, accent, right) {
+  if (icName) b.icon(icName, x + 16, y, 30, accent, { fill: ['heart', 'star', 'crown', 'gem', 'bolt', 'flame', 'spark'].includes(icName) ? accent : undefined });
+  b.txt(x + (icName ? 42 : 0), y + 9, title, { size: 30, w: 800, fill: C.text });
+  if (right) b.txt(x, y + 9, right.t, { size: 22, w: 700, fill: right.c || C.muted, anchor: 'end', _x: 0 });
+}
+
+async function ipadScreen1(b, theme) { // HOME
+  appBgIpad(b, theme);
+  const face = await art('Face/Male.png', 380, 380);
+  const hy = dAppTop + 52;
+  const seg = (x, t) => b.txt(x, hy, t, { size: 24, w: 700, fill: 'rgba(226,232,240,0.66)', anchor: 'middle', ls: 2 });
+  seg(DSCX - 270, 'MARCH'); seg(DSCX, 'WEEK 3'); seg(DSCX + 270, 'AGE 28');
+  b.add(`<circle cx="${DSCX - 96}" cy="${hy - 7}" r="5" fill="${C.emerald}"/>`);
+  const y0 = dAppTop + 100, colH = dAppBottom - y0;
+  // LEFT identity
+  b.rrect(dcX, y0, dColW, colH, 42, C.surface, { filter: 'url(#cardshadow)' });
+  b.rrect(dcX, y0, dColW, colH, 42, b.linGrad([[0, 'rgba(99,102,241,0.20)'], [1, 'rgba(236,72,153,0.10)']], 0, 0, 1, 1));
+  b.rrect(dcX, y0, dColW, colH, 42, 'none', { stroke: C.line2, sw: 1.5 });
+  const acx = dcX + dColW / 2, acy = y0 + 150, ar = 110;
+  b.add(`<circle cx="${acx}" cy="${acy}" r="${ar + 12}" fill="${b.radGrad([[0, theme.accent, .5], [1, theme.accent, 0]])}" filter="url(#softblur2)"/>`);
+  const cc = b.clipCircle(acx, acy, ar);
+  b.add(`<circle cx="${acx}" cy="${acy}" r="${ar}" fill="#0d1326"/>`);
+  b.img(face, acx - ar, acy - ar, ar * 2, ar * 2, { clip: cc, par: 'xMidYMid slice' });
+  b.add(`<circle cx="${acx}" cy="${acy}" r="${ar}" fill="none" stroke="${b.linGrad([[0, theme.head[0]], [1, theme.head[1]]], 0, 0, 1, 1)}" stroke-width="5"/>`);
+  b.add(`<circle cx="${acx + ar - 8}" cy="${acy + ar - 18}" r="30" fill="${C.amber}" stroke="#0d1326" stroke-width="4"/>`);
+  b.txt(acx + ar - 8, acy + ar - 8, '12', { size: 30, w: 900, fill: '#1a1304', anchor: 'middle' });
+  b.txt(acx, y0 + 310, 'Alexander Reed', { size: 50, w: 800, fill: C.text, anchor: 'middle' });
+  b.txt(acx, y0 + 356, 'Age 28  ·  Software Engineer', { size: 28, w: 600, fill: C.amber, anchor: 'middle' });
+  const stats = [['heart', 'Health', 87, C.green], ['smiley', 'Happiness', 92, C.amber], ['bolt', 'Energy', 76, C.blue], ['dumbbell', 'Fitness', 64, C.violet]];
+  const gx = dcX + 46, gw = (dColW - 92 - 28) / 2, gy = y0 + 408, gh = 112;
+  stats.forEach(([ic, label, val, col], i) => {
+    const cxp = gx + (i % 2) * (gw + 28), cyp = gy + Math.floor(i / 2) * (gh + 20);
+    b.rrect(cxp, cyp, gw, gh, 20, 'rgba(255,255,255,0.05)', { stroke: C.line, sw: 1 });
+    if (ic === 'smiley') b.add(smiley(cxp + 46, cyp + 40, 38, col)); else if (ic === 'dumbbell') b.add(dumbbell(cxp + 46, cyp + 40, 38, col)); else b.icon(ic, cxp + 46, cyp + 40, 38, col, { fill: col });
+    b.txt(cxp + 80, cyp + 38, label, { size: 24, w: 600, fill: C.sub });
+    b.txt(cxp + gw - 18, cyp + 40, val + '%', { size: 28, w: 800, fill: col, anchor: 'end' });
+    b.bar(cxp + 80, cyp + 64, gw - 100, val, col, { h: 12, color2: col });
+  });
+  const ny = gy + 2 * gh + 20 + 34;
+  b.rrect(dcX + 46, ny, dColW - 92, 74, 18, 'rgba(16,185,129,0.12)', { stroke: 'rgba(16,185,129,0.3)', sw: 1.5 });
+  b.icon('trend', dcX + 86, ny + 37, 30, C.emerald);
+  b.txt(dcX + 118, ny + 46, 'NET WORTH', { size: 24, w: 700, fill: C.sub, ls: 1 });
+  b.txt(dcX + dColW - 68, ny + 48, '$1,284,920', { size: 38, w: 900, fill: C.emerald, anchor: 'end' });
+  b.txt(dcX + 46, ny + 130, 'ACTIVE PERKS', { size: 21, w: 800, fill: C.muted, ls: 2 });
+  let hx = dcX + 46;
+  [['star', 'Fast Learner', C.amber], ['bolt', 'Workaholic', C.violet], ['trend', 'Investor', C.emerald]].forEach(([ic, t, col]) => { hx += chip(b, hx, ny + 154, 48, ic, t, col, { fillIcon: ic !== 'trend', size: 22 }) + 14; });
+  // RIGHT goals + achievements
+  const gH = colH * 0.5 - 14, rx = dColR;
+  b.rrect(rx, y0, dColW, gH, 38, C.surface, { filter: 'url(#cardshadow)' });
+  b.rrect(rx, y0, dColW, gH, 38, 'none', { stroke: C.line, sw: 1.4 });
+  cardHead(b, rx + 30, y0 + 48, 'target', 'Active Goals', theme.accent);
+  b.txt(rx + dColW - 32, y0 + 57, '3 in progress', { size: 21, w: 600, fill: C.muted, anchor: 'end' });
+  const goals = [['briefcase', 'Promotion to Senior Engineer', 72, C.indigo], ['building', 'Buy a luxury penthouse', 45, C.emerald], ['heart', 'Marry the love of your life', 60, C.pink]];
+  goals.forEach(([ic, name, pct, col], i) => {
+    const gyy = y0 + 96 + i * ((gH - 120) / 3);
+    b.rrect(rx + 30, gyy, 60, 60, 16, 'rgba(255,255,255,0.05)', { stroke: C.line, sw: 1 });
+    b.icon(ic, rx + 60, gyy + 30, 28, col, { fill: ic === 'heart' ? col : undefined });
+    b.txt(rx + 106, gyy + 26, name, { size: 24, w: 600, fill: C.text });
+    b.bar(rx + 106, gyy + 42, dColW - 220, pct, col, { h: 11, color2: col });
+    b.txt(rx + dColW - 32, gyy + 34, pct + '%', { size: 24, w: 800, fill: col, anchor: 'end' });
+  });
+  const ay = y0 + gH + 28, aH = colH - gH - 28;
+  b.rrect(rx, ay, dColW, aH, 38, C.surface, { filter: 'url(#cardshadow)' });
+  b.rrect(rx, ay, dColW, aH, 38, 'none', { stroke: C.line, sw: 1.4 });
+  cardHead(b, rx + 30, ay + 48, 'star', 'Achievements', C.gold);
+  b.txt(rx + dColW - 32, ay + 57, '24 / 60', { size: 24, w: 800, fill: C.gold, anchor: 'end' });
+  const badges = [['crown', C.gold], ['banknote', C.emerald], ['heart', C.pink], ['gem', C.indigo], ['bolt', C.blue], ['trend', C.emerald]];
+  const bw = (dColW - 60 - 5 * 18) / 6;
+  badges.forEach(([ic, col], i) => { const bx = rx + 30 + i * (bw + 18); b.rrect(bx, ay + 84, bw, bw, 18, `${col}1f`, { stroke: `${col}55`, sw: 1.2 }); b.icon(ic, bx + bw / 2, ay + 84 + bw / 2, bw * 0.5, col, { fill: ['crown', 'heart', 'gem', 'bolt'].includes(ic) ? col : undefined }); });
+  const py = ay + 84 + bw + 50;
+  b.icon('target', rx + 44, py, 26, C.sky);
+  b.txt(rx + 70, py + 8, 'Next: Millionaire Mogul', { size: 24, w: 600, fill: C.text });
+  b.txt(rx + dColW - 32, py + 8, '83%', { size: 23, w: 800, fill: C.sky, anchor: 'end' });
+  b.bar(rx + 44, py + 26, dColW - 88, 83, C.sky, { h: 12, color2: C.cyan });
+  const ry = py + 78;
+  b.icon('flame', rx + 44, ry, 28, C.orange, { fill: C.orange });
+  b.txt(rx + 70, ry + 8, 'Legacy streak', { size: 24, w: 600, fill: C.text });
+  b.txt(rx + dColW - 32, ry + 8, '7 lives', { size: 24, w: 800, fill: C.orange, anchor: 'end' });
+  tabBarIpad(b, 0);
+}
+
+async function ipadScreen2(b, theme) { // ORIGINS grid
+  appBgIpad(b, theme);
+  b.txt(DSCX, dAppTop + 60, 'Choose Your Origin', { size: 44, w: 800, fill: C.text, anchor: 'middle' });
+  b.txt(DSCX, dAppTop + 106, 'Every origin changes how your story unfolds', { size: 26, w: 500, fill: C.sub, anchor: 'middle' });
+  const cards = [
+    { img: 'Scenarios/Rags to Riches_final.png', name: 'Rags to Riches', diff: 'HARD', dc: C.red, desc: 'Build an empire from the streets up.', sel: true, stats: [['banknote', '$0', C.muted], ['bolt', 'Grit 90', C.violet]] },
+    { img: 'Scenarios/Trust Fund Baby_final.png', name: 'Trust Fund Baby', diff: 'EASY', dc: C.green, desc: 'Start with $5M and famous parents.', stats: [['banknote', '$5M', C.emerald], ['star', 'Rep 80', C.amber]] },
+    { img: 'Scenarios/Street Hustler.png', name: 'Street Hustler', diff: 'HARD', dc: C.red, desc: 'Fast money, fast risk. Beat the law.', stats: [['banknote', '$200', C.muted], ['flame', 'Risk 95', C.orange]] },
+    { img: 'Scenarios/Aspiring Entrepreneur.png', name: 'Aspiring Entrepreneur', diff: 'MEDIUM', dc: C.amber, desc: 'A garage and a billion-dollar idea.', stats: [['banknote', '$8K', C.emerald], ['bolt', 'IQ 88', C.blue]] },
+    { img: 'Scenarios/Single Parent_final.png', name: 'Single Parent', diff: 'MEDIUM', dc: C.amber, desc: 'Two mouths to feed, one big dream.', stats: [['banknote', '$1.2K', C.muted], ['heart', 'Love 95', C.pink]] },
+    { img: 'Scenarios/Influencer Wannabe.png', name: 'Influencer Wannabe', diff: 'MEDIUM', dc: C.amber, desc: 'Chase clout and turn fame to fortune.', stats: [['users', '2K fans', C.cyan], ['star', 'Charm 88', C.amber]] },
+  ];
+  const bh = 100, by = dFullBottom - bh;
+  const top = dAppTop + 150, rows = 3, gapX = 44, gapY = 30;
+  const ch = (by - 30 - top - gapY * (rows - 1)) / rows;
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i], col = i % 2, row = Math.floor(i / 2);
+    const x = dcX + col * (dColW + gapX), y = top + row * (ch + gapY), sel = c.sel;
+    const im = await art(c.img, 280, 280);
+    b.rrect(x, y, dColW, ch, 28, sel ? 'rgba(245,158,11,0.12)' : C.surface, { filter: 'url(#cardshadow)' });
+    b.rrect(x, y, dColW, ch, 28, 'none', { stroke: sel ? theme.accent : C.line, sw: sel ? 2.5 : 1.2 });
+    const ts = ch - 40;
+    b.rrect(x + 22, y + 20, ts, ts, 20, b.linGrad([[0, 'rgba(124,58,237,0.25)'], [1, 'rgba(245,158,11,0.18)']], 0, 0, 1, 1));
+    b.img(im, x + 22, y + 20, ts, ts, { par: 'xMidYMid meet' });
+    const tx = x + 22 + ts + 26;
+    b.txt(tx, y + 54, c.name, { size: 29, w: 800, fill: C.text });
+    const dw = 38 + c.diff.length * 12;
+    b.rrect(x + dColW - dw - 24, y + 30, dw, 34, 17, 'rgba(0,0,0,0.28)', { stroke: c.dc, sw: 1.4 });
+    b.txt(x + dColW - 24 - dw / 2, y + 53, c.diff, { size: 17, w: 800, fill: c.dc, anchor: 'middle', ls: 1 });
+    b.txt(tx, y + 92, c.desc, { size: 21, w: 500, fill: C.sub });
+    let hx = tx;
+    for (const [ic, t, cc2] of c.stats) hx += chip(b, hx, y + ch - 58, 40, ic, t, cc2, { fillIcon: ic !== 'banknote', size: 19 }) + 12;
+    if (sel) { b.add(`<circle cx="${x + dColW - 46}" cy="${y + ch - 40}" r="22" fill="${theme.accent}"/>`); b.icon('check', x + dColW - 46, y + ch - 40, 24, '#1a1304', { sw: 3 }); }
+  }
+  b.rrect(DSCX - 360, by, 720, bh, bh / 2, b.linGrad([[0, C.amber], [1, C.orange]], 0, 0, 1, 0), { filter: 'url(#cardshadow)' });
+  b.icon('play', DSCX - 150, by + bh / 2, 30, '#1a1304', { fill: '#1a1304' });
+  b.txt(DSCX + 16, by + bh / 2 + 11, 'Start Your Life', { size: 34, w: 900, fill: '#1a1304', anchor: 'middle' });
+}
+
+async function ipadScreen3(b, theme) { // EMPIRE
+  appBgIpad(b, theme);
+  b.txt(dcX, dAppTop + 50, 'Net Worth', { size: 28, w: 700, fill: C.sub });
+  b.txt(dcX, dAppTop + 116, '$4.28M', { size: 76, w: 900, fill: C.emerald });
+  b.rrect(dcX + dcW - 184, dAppTop + 56, 184, 52, 26, 'rgba(16,185,129,0.14)', { stroke: 'rgba(16,185,129,0.35)', sw: 1.4 });
+  b.icon('trend', dcX + dcW - 156, dAppTop + 82, 24, C.emerald);
+  b.txt(dcX + dcW - 26, dAppTop + 91, '+18.4%', { size: 28, w: 800, fill: C.emerald, anchor: 'end' });
+  // chart full width
+  let y = dAppTop + 150, h = 470;
+  b.rrect(dcX, y, dcW, h, 28, C.surface, { filter: 'url(#cardshadow)' });
+  b.rrect(dcX, y, dcW, h, 28, 'none', { stroke: C.line, sw: 1.2 });
+  b.txt(dcX + 30, y + 44, 'Portfolio', { size: 24, w: 700, fill: C.text });
+  ['1M', '1Y', '5Y', 'ALL'].forEach((t, i) => { const on = i === 2, bx = dcX + dcW - 30 - (4 - i) * 66; b.rrect(bx, y + 20, 56, 34, 17, on ? 'rgba(16,185,129,0.2)' : 'transparent'); b.txt(bx + 28, y + 43, t, { size: 18, w: on ? 800 : 600, fill: on ? C.emerald : C.muted, anchor: 'middle' }); });
+  const px0 = dcX + 30, py0 = y + h - 44, pw = dcW - 60, ph = h - 120;
+  const r = rng(33); let pts = []; let v = .12;
+  for (let i = 0; i <= 28; i++) { v += (r() - 0.34) * .06; v = Math.max(.05, Math.min(.95, v + i * 0.0035)); pts.push([px0 + pw * i / 28, py0 - ph * v]); }
+  pts[pts.length - 1][1] = py0 - ph * .94;
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  b.add(`<path d="${path} L${px0 + pw} ${py0} L${px0} ${py0} Z" fill="${b.linGrad([[0, C.emerald, .35], [1, C.emerald, 0]])}"/>`);
+  b.add(`<path d="${path}" fill="none" stroke="${b.linGrad([[0, C.emerald], [1, C.gold]], 0, 0, 1, 0)}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`);
+  const last = pts[pts.length - 1]; b.add(`<circle cx="${last[0]}" cy="${last[1]}" r="8" fill="${C.gold}" stroke="#0d1326" stroke-width="3"/>`);
+  // 3 tiles full width
+  y += h + 26; const th = 172, tw = (dcW - 2 * 24) / 3;
+  const tile = (i, label, ic, big, small, col) => { const mx = dcX + i * (tw + 24); b.rrect(mx, y, tw, th, 22, C.surface, { stroke: C.line, sw: 1.2 }); b.rrect(mx + 22, y + 22, 52, 52, 14, `${col}22`, { stroke: `${col}55`, sw: 1.2 }); b.icon(ic, mx + 48, y + 48, 26, col, { fill: ic === 'bolt' ? col : undefined }); b.txt(mx + 88, y + 44, label, { size: 22, w: 600, fill: C.sub }); b.txt(mx + 22, y + 110, big, { size: 32, w: 900, fill: C.text }); b.txt(mx + 22, y + 146, small, { size: 19, w: 700, fill: col }); };
+  tile(0, 'Cash', 'banknote', '$92.4K', '+ $8.2K/wk', C.emerald);
+  tile(1, 'Crypto', 'bolt', '1.84 BTC', '▲ $124.9K', C.amber);
+  tile(2, 'Stocks', 'trend', '$1.62M', '▲ 11.3%', C.sky);
+  // bottom 2 col: passive income | assets stacked
+  y += th + 26; const bottomH = dAppBottom - y - 6;
+  // left: passive income
+  b.rrect(dcX, y, dColW, bottomH, 26, C.surface, { filter: 'url(#cardshadow)' });
+  b.rrect(dcX, y, dColW, bottomH, 26, 'none', { stroke: C.line, sw: 1.2 });
+  b.txt(dcX + 30, y + 46, 'Passive Income', { size: 27, w: 800, fill: C.text });
+  b.txt(dcX + 30, y + 76, 'per month', { size: 19, w: 600, fill: C.muted });
+  b.txt(dcX + dColW - 30, y + 60, '+$48,200', { size: 38, w: 900, fill: C.emerald, anchor: 'end' });
+  const rows2 = [['building', 'Real-estate rentals', '$22,400', .46, C.emerald], ['bolt', 'Crypto mining', '$13,800', .29, C.amber], ['trend', 'Stock dividends', '$12,000', .25, C.sky]];
+  rows2.forEach(([ic, label, amt, frac, col], i) => { const ry = y + 116 + i * ((bottomH - 130) / 3); b.rrect(dcX + 28, ry, 56, 56, 14, `${col}22`, { stroke: `${col}55`, sw: 1.1 }); b.icon(ic, dcX + 56, ry + 28, 26, col, { fill: ic === 'bolt' ? col : undefined }); b.txt(dcX + 98, ry + 24, label, { size: 23, w: 600, fill: C.text }); b.bar(dcX + 98, ry + 40, dColW - 320, frac * 100, col, { h: 10, color2: col }); b.txt(dcX + dColW - 30, ry + 34, amt, { size: 24, w: 800, fill: col, anchor: 'end' }); });
+  // right: assets stacked
+  const showH = (bottomH - 22) / 2;
+  const car = await art('Vehicles/exotic_supercar_final.png', 720, 460);
+  const house = await art('Real Estate/Modern Mansion.png', 720, 460);
+  const showcase = async (yy, label, sub, im, par, bgStops) => { const cl = b.clipRound(dColR, yy, dColW, showH, 22); b.rrect(dColR, yy, dColW, showH, 22, b.linGrad(bgStops, 0, 0, 1, 1), { filter: 'url(#cardshadow)' }); b.add(`<g clip-path="url(#${cl})">`); b.img(im, dColR, yy, dColW, showH, { par: par === 'slice' ? 'xMidYMid slice' : 'xMidYMid meet' }); b.add(`<rect x="${dColR}" y="${yy + showH - 92}" width="${dColW}" height="92" fill="${b.linGrad([[0, 'rgba(8,11,24,0)'], [1, 'rgba(8,11,24,0.94)']])}"/>`); b.add(`</g>`); b.rrect(dColR, yy, dColW, showH, 22, 'none', { stroke: C.line2, sw: 1.2 }); b.txt(dColR + 22, yy + showH - 38, label, { size: 26, w: 800, fill: C.text }); b.txt(dColR + 22, yy + showH - 12, sub, { size: 19, w: 700, fill: C.gold }); };
+  await showcase(y, 'Aventador SVJ', '$485,000', car, 'meet', [['0', 'rgba(124,58,237,0.35)'], ['1', 'rgba(8,11,24,0.6)']]);
+  await showcase(y + showH + 22, 'Modern Mansion', '$3.2M', house, 'slice', [['0', 'rgba(14,116,144,0.35)'], ['1', 'rgba(8,11,24,0.6)']]);
+  tabBarIpad(b, 4);
+}
+
+async function ipadScreen4(b, theme) { // LOVE wide profile
+  appBgIpad(b, theme);
+  const face = await art('Face/Female.png', 700, 700);
+  const y = dAppTop + 30, h = dAppBottom - y - 30;
+  const cl = b.clipRound(dcX, y, dcW, h, 36);
+  b.rrect(dcX, y, dcW, h, 36, '#160e22', { filter: 'url(#cardshadow)' });
+  b.add(`<g clip-path="url(#${cl})">`);
+  const phW = dcW * 0.46;
+  b.add(`<rect x="${dcX}" y="${y}" width="${phW}" height="${h}" fill="${b.linGrad([[0, '#EC4899'], [.5, '#A855F7'], [1, '#6366F1']], 0, 0, 1, 1)}"/>`);
+  b.add(`<circle cx="${dcX + phW / 2}" cy="${y + h * .42}" r="${phW * .5}" fill="${b.radGrad([[0, 'rgba(255,255,255,0.25)'], [1, 'rgba(255,255,255,0)']])}"/>`);
+  b.img(face, dcX + phW / 2 - h * .42, y + h * .12, h * .84, h * .82, { par: 'xMidYMid meet' });
+  b.add(`<rect x="${dcX + phW - 120}" y="${y}" width="120" height="${h}" fill="${b.linGrad([[0, 'rgba(22,14,34,0)'], [1, 'rgba(22,14,34,1)']], 0, 0, 1, 0)}"/>`);
+  b.rrect(dcX + 26, y + 26, 130, 44, 22, 'rgba(0,0,0,0.4)');
+  b.add(`<circle cx="${dcX + 50}" cy="${y + 48}" r="7" fill="${C.green}"/>`); b.txt(dcX + 66, y + 56, 'Online', { size: 20, w: 700, fill: '#fff' });
+  b.add('</g>');
+  b.rrect(dcX, y, dcW, h, 36, 'none', { stroke: C.line2, sw: 1.5 });
+  // right info
+  const ix = dcX + phW + 50, iw = dcW - phW - 100;
+  b.txt(ix, y + 90, 'Sofia, 26', { size: 56, w: 900, fill: C.text });
+  b.add(`<circle cx="${ix + 300}" cy="${y + 74}" r="17" fill="${C.sky}"/>`); b.icon('check', ix + 300, y + 74, 20, '#fff', { sw: 3 });
+  b.rrect(ix + iw - 180, y + 50, 180, 50, 25, 'rgba(236,72,153,0.92)'); b.icon('heart', ix + iw - 156, y + 75, 22, '#fff', { fill: '#fff' }); b.txt(ix + iw - 134, y + 83, '94% Match', { size: 22, w: 800, fill: '#fff' });
+  b.icon('mapPin', ix + 14, y + 138, 24, C.sub); b.txt(ix + 38, y + 146, '2 km away  ·  Marketing Director', { size: 24, w: 600, fill: C.sub });
+  b.txt(ix, y + 210, '“Coffee, hiking and spontaneous road trips.', { size: 26, w: 500, fill: 'rgba(255,255,255,0.9)' });
+  b.txt(ix, y + 248, 'Make me laugh and you’re already in.”', { size: 26, w: 500, fill: 'rgba(255,255,255,0.9)' });
+  b.txt(ix, y + 322, 'INTERESTS', { size: 20, w: 800, fill: C.muted, ls: 2 });
+  let tx = ix;
+  [['spark', 'Coffee'], ['mapPin', 'Hiking'], ['arrUR', 'Travel'], ['play', 'Music']].forEach(([ic, t]) => { tx += chip(b, tx, y + 344, 48, ic, t, '#C7D2FE', { bg: 'rgba(99,102,241,0.18)', stroke: 'rgba(129,140,248,0.4)', tc: '#C7D2FE', size: 22, fillIcon: ic === 'spark' || ic === 'play' }) + 14; if (tx > ix + iw - 160) tx = ix; });
+  // compatibility bars
+  const comps = [['Lifestyle', 92, C.pink], ['Ambition', 88, C.amber], ['Humor', 96, C.violet]];
+  comps.forEach(([l, p, col], i) => { const cy = y + 440 + i * 70; b.txt(ix, cy, l, { size: 23, w: 600, fill: C.text }); b.txt(ix + iw, cy, p + '%', { size: 23, w: 800, fill: col, anchor: 'end' }); b.bar(ix, cy + 14, iw, p, col, { h: 12, color2: col }); });
+  // action buttons
+  const ay = y + h - 80; const btns = [['x', C.red, 76], ['msg', C.blue, 66], ['heart', C.pink, 92], ['gem', C.amber, 66]];
+  const span = iw, x0 = ix + span * 0.12, step = span * 0.76 / 3;
+  btns.forEach(([ic, col, sz], i) => { const x = x0 + step * i; b.add(`<circle cx="${x}" cy="${ay}" r="${sz / 2 + 8}" fill="${b.radGrad([[0, col, .6], [1, col, 0]])}" filter="url(#softblur2)"/>`); b.add(`<circle cx="${x}" cy="${ay}" r="${sz / 2}" fill="rgba(20,16,30,0.95)" stroke="${col}" stroke-width="2.5"/>`); b.icon(ic, x, ay, sz * .46, col, { fill: ic === 'heart' || ic === 'gem' ? col : undefined, sw: 3 }); });
+  tabBarIpad(b, 3);
+}
+
+async function ipadScreen5(b, theme) { // DYNASTY wide tree
+  appBgIpad(b, theme);
+  b.txt(dcX + 4, dAppTop + 56, 'Family Tree', { size: 42, w: 800, fill: C.text });
+  b.icon('crown', dcX + 264, dAppTop + 44, 32, C.gold, { fill: C.gold });
+  b.rrect(dcX + dcW - 56, dAppTop + 26, 48, 48, 24, 'rgba(255,255,255,0.06)', { stroke: C.line, sw: 1 });
+  b.icon('x', dcX + dcW - 32, dAppTop + 50, 24, C.sub, { sw: 2.4 });
+  b.txt(dcX + 4, dAppTop + 98, 'The Reed Dynasty  ·  4 generations of wealth', { size: 24, w: 600, fill: C.sub });
+  const faces = { om: await art('Face/Old_Male.png', 240, 240), of: await art('Face/Old_Female.png', 240, 240), m: await art('Face/Male.png', 240, 240), f: await art('Face/Female.png', 240, 240), bb: await art('Face/Baby.png', 240, 240) };
+  const node = (x, yc, r, im, name, worth, ringCol, opts = {}) => {
+    if (opts.glow) b.add(`<circle cx="${x}" cy="${yc}" r="${r + 16}" fill="${b.radGrad([[0, ringCol, .6], [1, ringCol, 0]])}" filter="url(#softblur2)"/>`);
+    const cc = b.clipCircle(x, yc, r); b.add(`<circle cx="${x}" cy="${yc}" r="${r}" fill="#0d1326"/>`); b.img(im, x - r, yc - r, r * 2, r * 2, { clip: cc, par: 'xMidYMid slice' });
+    b.add(`<circle cx="${x}" cy="${yc}" r="${r}" fill="none" stroke="${ringCol}" stroke-width="${opts.glow ? 5 : 3.5}"/>`);
+    if (opts.you) { b.rrect(x - 32, yc - r - 26, 64, 32, 16, ringCol); b.txt(x, yc - r - 4, 'YOU', { size: 18, w: 900, fill: '#0d1326', anchor: 'middle', ls: 1 }); }
+    if (opts.crown) b.icon('crown', x, yc - r - 18, 26, C.gold, { fill: C.gold });
+    b.txt(x, yc + r + 34, name, { size: 22, w: 700, fill: C.text, anchor: 'middle' });
+    b.txt(x, yc + r + 62, worth, { size: 19, w: 600, fill: C.emerald, anchor: 'middle' });
+  };
+  const conn = (x1, y1, x2, y2) => b.add(`<path d="M${x1} ${y1} C ${x1} ${(y1 + y2) / 2}, ${x2} ${(y1 + y2) / 2}, ${x2} ${y2}" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="2.5"/>`);
+  const gLabel = (y, t) => b.txt(dcX + 4, y, t, { size: 18, w: 800, fill: C.muted, ls: 2 });
+  const g1 = dAppTop + 230, g2 = dAppTop + 620, g3 = dAppTop + 1010, g4 = dAppTop + 1330;
+  conn(DSCX - 150, g1 + 56, DSCX - 230, g2 - 52); conn(DSCX + 150, g1 + 56, DSCX + 230, g2 - 52);
+  conn(DSCX - 230, g2 + 52, DSCX - 110, g3 - 62); conn(DSCX + 230, g2 + 52, DSCX + 140, g3 - 52);
+  conn(DSCX - 110, g3 + 62, DSCX, g4 - 48);
+  gLabel(g1 - 96, 'GEN 1  ·  FOUNDERS');
+  node(DSCX - 150, g1, 58, faces.om, 'William R.', '$12.4M', C.gold, { crown: true });
+  node(DSCX + 150, g1, 58, faces.of, 'Margaret R.', '$8.1M', '#D7D7DD');
+  gLabel(g2 - 92, 'GEN 2');
+  node(DSCX - 230, g2, 54, faces.m, 'Robert R.', '$5.8M', '#E0A06A');
+  node(DSCX + 230, g2, 54, faces.f, 'Diana R.', '$3.2M', '#D7D7DD');
+  gLabel(g3 - 100, 'GEN 3  ·  CURRENT');
+  node(DSCX - 110, g3, 62, faces.m, 'Alexander R.', '$1.28M', theme.accent, { you: true, glow: true });
+  node(DSCX + 140, g3, 50, faces.f, 'Jessica R.', '$640K', C.emerald);
+  gLabel(g4 - 88, 'GEN 4  ·  HEIR');
+  node(DSCX, g4, 50, faces.bb, 'Baby Reed', 'Inherits $1.28M', C.amber);
+  const sy = dFullBottom - 108;
+  b.rrect(dcX, sy, dcW, 96, 24, 'rgba(250,204,21,0.08)', { stroke: 'rgba(250,204,21,0.3)', sw: 1.4, filter: 'url(#cardshadow)' });
+  const sums = [['$24.7M', 'Total Wealth', C.gold], ['7', 'Members', C.sky], ['4', 'Generations', C.emerald], ['12', 'Perks', C.pink]];
+  const sw2 = dcW / 4;
+  sums.forEach(([v, l, col], i) => { const x = dcX + sw2 * (i + .5); b.txt(x, sy + 48, v, { size: 32, w: 900, fill: col, anchor: 'middle' }); b.txt(x, sy + 76, l, { size: 18, w: 600, fill: C.sub, anchor: 'middle' }); if (i) b.add(`<line x1="${dcX + sw2 * i}" y1="${sy + 22}" x2="${dcX + sw2 * i}" y2="${sy + 74}" stroke="rgba(255,255,255,0.1)"/>`); });
+}
+
+async function ipadScreen6(b, theme) { // VIRAL 2-col
+  appBgIpad(b, theme);
+  const male = await art('Face/Male.png', 200, 200), female = await art('Face/Female.png', 200, 200);
+  b.txt(dcX, dAppTop + 56, 'Pulse', { size: 40, w: 900, fill: C.cyan });
+  b.icon('spark', dcX + 108, dAppTop + 42, 24, C.cyan, { fill: C.cyan });
+  let tx = dcX; ['For You', 'Following', 'Trending'].forEach((t, i) => { const on = i === 0; b.txt(tx + 6, dAppTop + 120, t, { size: 24, w: on ? 800 : 600, fill: on ? C.text : C.muted }); if (on) b.add(`<rect x="${tx + 4}" y="${dAppTop + 134}" width="${t.length * 14 + 8}" height="4" rx="2" fill="${C.cyan}"/>`); tx += t.length * 15 + 50; });
+  b.add(`<line x1="${dcX}" y1="${dAppTop + 150}" x2="${dcX + dColW}" y2="${dAppTop + 150}" stroke="rgba(255,255,255,0.08)"/>`);
+  // LEFT feed
+  const post = (y, ph, av, name, handle, verified, time, lines, eng, opts = {}) => {
+    if (opts.you) b.rrect(dcX, y, dColW, ph, 22, 'rgba(34,211,238,0.06)', { stroke: 'rgba(34,211,238,0.25)', sw: 1.2 });
+    else b.add(`<line x1="${dcX}" y1="${y + ph}" x2="${dcX + dColW}" y2="${y + ph}" stroke="rgba(255,255,255,0.07)"/>`);
+    const ar = 34, ax = dcX + 24 + ar, ay = y + 28 + ar;
+    if (opts.flame) { b.add(`<circle cx="${ax}" cy="${ay}" r="${ar}" fill="${b.linGrad([[0, C.orange], [1, C.red]], 0, 0, 1, 1)}"/>`); b.icon('flame', ax, ay, 36, '#fff', { fill: '#fff' }); }
+    else { const cc = b.clipCircle(ax, ay, ar); b.add(`<circle cx="${ax}" cy="${ay}" r="${ar}" fill="#0d1326"/>`); b.img(av, ax - ar, ay - ar, ar * 2, ar * 2, { clip: cc, par: 'xMidYMid slice' }); b.add(`<circle cx="${ax}" cy="${ay}" r="${ar}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>`); }
+    let nx = ax + ar + 18;
+    b.txt(nx, ay - 4, name, { size: 25, w: 800, fill: C.text });
+    let adv = name.length * 15 + 18;
+    if (verified) { b.add(`<circle cx="${nx + adv - 2}" cy="${ay - 12}" r="13" fill="${C.sky}"/>`); b.icon('check', nx + adv - 2, ay - 12, 15, '#fff', { sw: 3 }); adv += 28; }
+    b.txt(nx + adv, ay - 4, handle, { size: 20, w: 500, fill: C.muted });
+    b.txt(nx, ay + 26, time, { size: 18, w: 500, fill: C.muted });
+    lines.forEach((ln, i) => b.txt(dcX + 24, ay + ar + 26 + i * 34, ln, { size: 24, w: 500, fill: 'rgba(255,255,255,0.93)' }));
+    if (opts.viral) { const vy = ay + ar + 26 + lines.length * 34 + 8; b.icon('flame', dcX + 36, vy - 6, 20, C.orange, { fill: C.orange }); b.txt(dcX + 56, vy, 'Trending #1  ·  1.2M views', { size: 19, w: 700, fill: C.orange }); }
+    const ey = y + ph - 26; const items = [['msg', eng[0], C.muted], ['repeat', eng[1], C.emerald], ['heart', eng[2], C.pink], ['eye', eng[3], C.sky]]; let ex = dcX + 32;
+    items.forEach(([ic, val, col]) => { b.icon(ic, ex, ey, 24, col, { fill: ic === 'heart' ? col : undefined, sw: 2 }); b.txt(ex + 20, ey + 8, val, { size: 20, w: 600, fill: col }); ex += 64 + val.length * 12; });
+  };
+  let y = dAppTop + 172; const gap = 18;
+  const feedH = dAppBottom - y - 6;
+  const p1 = feedH * 0.42, p2 = (feedH - p1 - gap * 2) * 0.5, p3 = feedH - p1 - p2 - gap * 2;
+  post(y, p1, null, 'Maya Quartz', '@mayaq', true, '2h', ['Just quit my 9–5 to go all-in on', 'my startup. Terrified — let’s build.'], ['1.2K', '3.4K', '15.2K', '1.2M'], { flame: true, viral: true });
+  post(y + p1 + gap, p2, female, 'FitQueen', '@fitqueen', false, '4h', ['Morning 10K done in 44 min — PB!'], ['89', '234', '2.1K', '88K']);
+  post(y + p1 + p2 + gap * 2, p3, male, 'Alexander R.', '@alexr', true, '6h', ['Just crossed $1M net worth.', 'Started from the streets.'], ['456', '1.8K', '8.7K', '231K'], { you: true });
+  // RIGHT column: profile stats + suggested
+  const rx = dColR, ry0 = dAppTop + 36;
+  const statH = 300;
+  b.rrect(rx, ry0, dColW, statH, 28, C.surface, { filter: 'url(#cardshadow)' });
+  b.rrect(rx, ry0, dColW, statH, 28, b.linGrad([[0, 'rgba(34,211,238,0.14)'], [1, 'rgba(34,211,238,0)']], 0, 0, 1, 1));
+  b.rrect(rx, ry0, dColW, statH, 28, 'none', { stroke: 'rgba(34,211,238,0.3)', sw: 1.4 });
+  b.icon('users', rx + 44, ry0 + 56, 34, C.cyan);
+  b.txt(rx + 74, ry0 + 50, 'Followers', { size: 26, w: 700, fill: C.text });
+  b.txt(rx + 30, ry0 + 130, '128.4K', { size: 64, w: 900, fill: C.text });
+  b.rrect(rx + dColW - 150, ry0 + 90, 124, 46, 23, 'rgba(16,185,129,0.16)', { stroke: 'rgba(16,185,129,0.35)', sw: 1.3 });
+  b.icon('trend', rx + dColW - 128, ry0 + 113, 20, C.emerald); b.txt(rx + dColW - 38, ry0 + 121, '+12%', { size: 22, w: 800, fill: C.emerald, anchor: 'end' });
+  // growth sparkline
+  const gx0 = rx + 30, gy0 = ry0 + statH - 40, gpw = dColW - 60, gph = 80;
+  const rr = rng(9); let gp = []; let gv = .2; for (let i = 0; i <= 20; i++) { gv = Math.max(.08, Math.min(.95, gv + (rr() - .3) * .08 + i * .006)); gp.push([gx0 + gpw * i / 20, gy0 - gph * gv]); }
+  const gpath = gp.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  b.add(`<path d="${gpath} L${gx0 + gpw} ${gy0} L${gx0} ${gy0} Z" fill="${b.linGrad([[0, C.cyan, .3], [1, C.cyan, 0]])}"/>`);
+  b.add(`<path d="${gpath}" fill="none" stroke="${C.cyan}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`);
+  // suggested creators
+  const sug0 = ry0 + statH + 26, sugH = dAppBottom - sug0 - 6;
+  b.rrect(rx, sug0, dColW, sugH, 28, C.surface, { stroke: C.line, sw: 1.2 });
+  b.txt(rx + 30, sug0 + 50, 'Suggested creators', { size: 25, w: 800, fill: C.text });
+  b.txt(rx + dColW - 30, sug0 + 50, 'See all', { size: 19, w: 700, fill: C.cyan, anchor: 'end' });
+  const sug = [[female, 'Luna Vale', '@lunav', '2.4M'], [male, 'Max Steel', '@maxs', '880K'], [female, 'Aria Gold', '@ariag', '1.1M']];
+  sug.forEach(([av, nm, hd, fol], i) => {
+    const ry = sug0 + 90 + i * ((sugH - 110) / 3), ar = 30, ax = rx + 30 + ar, ayc = ry + ar;
+    const cc = b.clipCircle(ax, ayc, ar); b.add(`<circle cx="${ax}" cy="${ayc}" r="${ar}" fill="#0d1326"/>`); b.img(av, ax - ar, ayc - ar, ar * 2, ar * 2, { clip: cc, par: 'xMidYMid slice' });
+    b.add(`<circle cx="${ax}" cy="${ayc}" r="${ar}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>`);
+    b.txt(ax + ar + 18, ayc - 2, nm, { size: 24, w: 700, fill: C.text });
+    b.txt(ax + ar + 18, ayc + 24, hd + '  ·  ' + fol, { size: 18, w: 500, fill: C.muted });
+    b.rrect(rx + dColW - 150, ayc - 26, 124, 52, 26, b.linGrad([[0, C.cyan], [1, C.blue]], 0, 0, 1, 0));
+    b.txt(rx + dColW - 88, ayc + 8, 'Follow', { size: 21, w: 800, fill: '#06131f', anchor: 'middle' });
+  });
+  tabBarIpad(b, 3);
+}
+
+async function buildIpad(idx) {
+  const theme = THEMES[idx], copy = COPY[idx];
+  const b = screenBuilder();
+  globalDefs(b);
+  background(b, theme, idx * 131 + 11, IW, IH);
+  headlineIpad(b, theme, copy);
+  const sb = screenBuilder();
+  statusBarIpad(sb);
+  const screens = { 1: ipadScreen1, 2: ipadScreen2, 3: ipadScreen3, 4: ipadScreen4, 5: ipadScreen5, 6: ipadScreen6 };
+  await screens[idx](sb, theme);
+  b.def(sb.defs);
+  deviceFrameIpad(b, theme, sb.body);
+  floatersIpad(b, idx);
+  return `<svg width="${IW}" height="${IH}" viewBox="0 0 ${IW} ${IH}" xmlns="http://www.w3.org/2000/svg"><defs>${b.defs}</defs>${b.body}</svg>`;
+}
+
+// ───────────────────────────────────────────────────────── main
+const LABELS = { 1: 'live-your-life', 2: 'choose-your-origin', 3: 'build-an-empire', 4: 'find-love', 5: 'leave-a-dynasty', 6: 'go-viral' };
+
+async function renderSet(builder, dir, ow, oh) {
+  await mkdir(dir, { recursive: true });
+  const files = [];
+  for (let i = 1; i <= 6; i++) {
+    const svg = await builder(i);
+    const file = join(dir, `${String(i).padStart(2, '0')}-${LABELS[i]}.png`);
+    await sharp(Buffer.from(svg)).png({ quality: 100 }).toFile(file);
+    files.push(file);
+    console.log('✓', file, `(${ow}×${oh})`);
+  }
+  // contact sheet
+  const tw = 360, th = Math.round(tw * oh / ow);
+  const thumbs = [];
+  for (let i = 0; i < files.length; i++) {
+    const t = await sharp(files[i]).resize(tw, th, { fit: 'inside' }).png().toBuffer();
+    thumbs.push({ input: t, left: (i % 3) * (tw + 20) + 14, top: Math.floor(i / 3) * (th + 20) + 14 });
+  }
+  await sharp({ create: { width: (tw + 20) * 3 + 14, height: (th + 20) * 2 + 14, channels: 3, background: { r: 10, g: 11, b: 20 } } })
+    .composite(thumbs).png().toFile(join(dir, '_contact-sheet.png'));
+  console.log('✓ contact sheet →', dir);
 }
 
 async function main() {
-  await mkdir(OUT, { recursive: true });
-  const labels = { 1: 'live-your-life', 2: 'choose-your-origin', 3: 'build-an-empire', 4: 'find-love', 5: 'leave-a-dynasty', 6: 'go-viral' };
-  const files = [];
-  for (let i = 1; i <= 6; i++) {
-    const svg = await buildScreen(i);
-    const file = join(OUT, `${String(i).padStart(2, '0')}-${labels[i]}.png`);
-    await sharp(Buffer.from(svg)).png({ quality: 100 }).toFile(file);
-    files.push(file);
-    console.log('✓', file);
-  }
-  const thumbs = [];
-  for (let i = 0; i < files.length; i++) {
-    const t = await sharp(files[i]).resize(360, 780, { fit: 'inside' }).png().toBuffer();
-    thumbs.push({ input: t, left: (i % 3) * 380 + 14, top: Math.floor(i / 3) * 800 + 14 });
-  }
-  await sharp({ create: { width: 380 * 3 + 14, height: 800 * 2 + 14, channels: 3, background: { r: 10, g: 11, b: 20 } } })
-    .composite(thumbs).png().toFile(join(OUT, '_contact-sheet.png'));
-  console.log('✓ contact sheet');
+  await renderSet(buildPhone, join(OUT, 'iphone-6.9'), IPH_W, IPH_H);
+  await renderSet(buildIpad, join(OUT, 'ipad-13'), IW, IH);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+const isMain = import.meta.url === `file://${process.argv[1]}`;
+if (isMain) main().catch(e => { console.error(e); process.exit(1); });
+
+export { buildPhone, buildIpad };

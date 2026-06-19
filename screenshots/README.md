@@ -1,32 +1,35 @@
 # App Store Screenshots — DeepLife Simulator
 
-Immersive, ready-to-upload marketing screenshots for the App Store (and Google Play).
+Immersive, ready-to-upload marketing screenshots for the App Store, designed for
+the life-sim genre and built from the app's real theme tokens + real in-game art
+(character portraits, supercars, mansions, scenario icons).
 
-## Files
+## Folders & sizes (verified against Apple's spec)
 
-| File | Headline | Showcases |
-|------|----------|-----------|
-| `01-live-your-life.png` | Live a Life. Any Life. | Identity, stats, goals, achievements (core life-sim loop) |
-| `02-choose-your-origin.png` | Your Story Starts Here. | 13 starting scenarios / replayability |
-| `03-build-an-empire.png` | Build an Empire. | Net worth, crypto, stocks, luxury assets, passive income |
-| `04-find-love.png` | Find Love. Or Lose It. | Dating & relationships |
-| `05-leave-a-dynasty.png` | Leave a Dynasty. | Multi-generation family tree & inheritance |
-| `06-go-viral.png` | Go Viral. Get Famous. | Social media, followers, fame |
-| `_contact-sheet.png` | — | Preview grid of all six (not for upload) |
+| Folder | Device class | Resolution | Notes |
+|--------|--------------|------------|-------|
+| `iphone-6.9/` | iPhone 6.9" (16/15 Pro Max …) | **1320 × 2868** | Apple's current required iPhone base size. Auto-scales to all smaller iPhones. |
+| `ipad-13/` | iPad 13" (Pro M4 / 12.9") | **2064 × 2752** | Required for iPad apps (this app has `supportsTablet: true`). Auto-scales to 12.9" (2048×2732) and smaller iPads. |
 
-## Specs
+Both sets: portrait PNG, 6 screenshots each, plus a `_contact-sheet.png` preview
+(the contact sheet is **not** for upload).
 
-- **Resolution:** 1290 × 2796 px (portrait) — Apple's **6.9"/6.7"** iPhone size class
-  (iPhone 16/15 Pro Max etc.). This size is accepted across the modern iPhone classes;
-  App Store Connect will down-scale it for smaller devices.
-- **Format:** PNG, sRGB, no alpha. Each well under the 30 MB limit.
-- **Design:** dark/premium theme using the app's real design tokens, real in-game art
-  (character portraits, supercars, mansions, scenario icons) embedded into faithful
-  recreations of the actual app screens, with bold gradient headlines + floating accents.
+> 1290 × 2796 (6.7") is also an accepted iPhone size; 1320 × 2868 is the current
+> primary and is what's generated here so there's zero ambiguity at upload.
 
-## Upload order (recommended)
+## The six screens (same story on both devices)
 
-1 → 2 → 3 → 4 → 5 → 6. The first screenshot is the primary/hero shot.
+| # | Headline | Showcases |
+|---|----------|-----------|
+| 01 | Live a Life. Any Life. | Identity, stats, goals, achievements (core loop) |
+| 02 | Your Story Starts Here. | Starting scenarios / replayability |
+| 03 | Build an Empire. | Net worth, crypto, stocks, luxury assets, passive income |
+| 04 | Find Love. Or Lose It. | Dating & relationships |
+| 05 | Leave a Dynasty. | Multi-generation family tree & inheritance |
+| 06 | Go Viral. Get Famous. | Social media, followers, fame |
+
+Upload order: 01 → 06 (01 is the primary/hero shot). The iPhone set uses tall
+single-column app screens; the iPad set uses native wide two-column tablet layouts.
 
 ## Regenerating
 
@@ -35,10 +38,8 @@ node scripts/generate-app-store-screenshots.mjs
 ```
 
 Requirements: `sharp` (SVG→PNG) and the **Inter** font available to fontconfig.
-Edit copy, colors, layout, and which art is featured directly in
-`scripts/generate-app-store-screenshots.mjs` (everything is data-driven at the top:
-`THEMES`, `COPY`, and the per-screen builders). Re-run to re-export all six + the
-contact sheet.
+Everything is data-driven at the top of the script (`THEMES`, `COPY`) and in the
+per-screen builders (`screen1…6` for iPhone, `ipadScreen1…6` for iPad). Re-run to
+re-export all 12 PNGs + both contact sheets.
 
-> Tip: For an Android/Google Play set you can add a 1080×1920 (or 1080×2400) export
-> target in the script's `main()` render loop.
+> For a Google Play set, add a 1080×1920 (or 1080×2400) target to `main()`.
