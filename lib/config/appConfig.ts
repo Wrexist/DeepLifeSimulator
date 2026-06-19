@@ -7,7 +7,7 @@
 
 // ── Contact ───────────────────────────────────────────────
 export const SUPPORT_EMAIL = 'deeplifesimulator@gmail.com';
-export const DISCORD_URL = 'https://discord.gg/Y6pJxeU5SU';
+export const DISCORD_URL = 'https://discord.gg/rzktazdX8v';
 export const PRIVACY_POLICY_URL = 'https://deeplifesimulator.github.io/privacy-policy/';
 
 // ── Store Links ───────────────────────────────────────────
