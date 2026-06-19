@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { X, Crown, Check } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { accent, colors } from '@/lib/config/theme';
@@ -30,6 +31,7 @@ interface Props {
 
 export default function SubscriptionModal({ visible, onClose }: Props) {
   const { theme } = useTheme();
+  const reducedMotion = useReducedMotion();
   const setGameState = useSetGameState();
   const [selected, setSelected] = useState<DeepLifePlusPlan>(DEEP_LIFE_PLUS_PLANS[0]);
   const [busy, setBusy] = useState(false);
@@ -82,7 +84,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'fade' : 'slide'} onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.border }]}>
           {/* Header */}

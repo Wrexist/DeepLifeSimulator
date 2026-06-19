@@ -16,6 +16,7 @@ import {
   addLegacyPassXp,
   claimLegacyPassTier,
   ensureCurrentSeason,
+  getClaimableTiers,
   getCurrentSeasonId,
   getDefaultLegacyPass,
   getUnclaimedEarnedRewards,
@@ -175,6 +176,35 @@ export function claimLegacyPassReward(
   const withClaim: GameState = { ...state, legacyPass: result.pass };
   const withReward = applyLegacyPassReward(withClaim, result.reward);
   return { state: withReward, result };
+}
+
+/**
+ * Claim every claimable tier (free + premium-if-owned) in one step and apply all
+ * rewards. Returns the new state plus a summary. Pure + immutable. Iterating the
+ * up-front claimable lists is safe — claiming never unlocks new tiers.
+ */
+export function claimAllLegacyPassRewards(
+  state: GameState,
+  nowMs: number = Date.now(),
+): { state: GameState; claimedCount: number; gemsGained: number } {
+  const seasonId = getCurrentSeasonId(nowMs);
+  let next: GameState = { ...state, legacyPass: ensureCurrentSeason(state.legacyPass, seasonId) };
+  let claimedCount = 0;
+  let gemsGained = 0;
+
+  const tracks: LegacyPassTrack[] = ['free', 'premium'];
+  for (const track of tracks) {
+    const pass = next.legacyPass!;
+    for (const tier of getClaimableTiers(pass, track)) {
+      const res = claimLegacyPassReward(next, track, tier, nowMs);
+      if (res.result.ok) {
+        next = res.state;
+        claimedCount += 1;
+        if (res.result.reward.kind === 'gems') gemsGained += res.result.reward.amount ?? 0;
+      }
+    }
+  }
+  return { state: next, claimedCount, gemsGained };
 }
 
 /** Mark the premium track as owned (called after a verified IAP). Pure. */

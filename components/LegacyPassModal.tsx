@@ -10,6 +10,7 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'rea
 import { X, Lock, Check, Crown, Gift } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useTheme } from '@/hooks/useTheme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { accent, colors } from '@/lib/config/theme';
 import {
@@ -20,10 +21,16 @@ import {
   XP_PER_TIER,
   MAX_TIER,
   getLegacyPassReward,
+  getClaimableCount,
+  getUnclaimedEarnedRewards,
   claimLegacyPassTier,
   type LegacyPassTrack,
 } from '@/lib/legacyPass/legacyPass';
-import { claimLegacyPassReward, reconcileLegacyPassSeason } from '@/contexts/game/actions/LegacyPassActions';
+import {
+  claimLegacyPassReward,
+  claimAllLegacyPassRewards,
+  reconcileLegacyPassSeason,
+} from '@/contexts/game/actions/LegacyPassActions';
 import { subscriptionService } from '@/services/SubscriptionService';
 
 interface Props {
@@ -44,6 +51,7 @@ const reasonMessage = (reason: string): string => {
 
 export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props) {
   const { theme } = useTheme();
+  const reducedMotion = useReducedMotion();
   const legacyPassRaw = useGameSelector((s) => s.legacyPass);
   const setGameState = useSetGameState();
   const [toast, setToast] = useState<string | null>(null);
@@ -54,6 +62,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const currentTier = getTierForXp(pass.xp);
   const intoTier = xpIntoCurrentTier(pass.xp);
   const toNext = xpToNextTier(pass.xp);
+  const claimableCount = useMemo(() => getClaimableCount(pass), [pass]);
 
   const claimedFree = useMemo(() => new Set(pass.claimedFreeTiers), [pass.claimedFreeTiers]);
   const claimedPremium = useMemo(() => new Set(pass.claimedPremiumTiers), [pass.claimedPremiumTiers]);
@@ -87,6 +96,21 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
     }
     setToast(`Claimed: ${preview.reward.label}`);
     setGameState((prev) => claimLegacyPassReward(prev, track, tier).state);
+  };
+
+  const handleClaimAll = () => {
+    if (claimableCount === 0) {
+      setToast('Nothing to claim');
+      return;
+    }
+    // Preview the message from the local pass (claiming never unlocks new tiers),
+    // then apply against full state.
+    const rewards = getUnclaimedEarnedRewards(pass);
+    const gems = rewards
+      .filter((r) => r.kind === 'gems')
+      .reduce((sum, r) => sum + (r.amount ?? 0), 0);
+    setToast(`Claimed ${rewards.length} reward${rewards.length === 1 ? '' : 's'}${gems > 0 ? ` (+${gems} gems)` : ''}`);
+    setGameState((prev) => claimAllLegacyPassRewards(prev).state);
   };
 
   const renderCell = (track: LegacyPassTrack, tier: number) => {
@@ -127,7 +151,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'fade' : 'slide'} onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.border }]}>
           {/* Header */}
@@ -184,6 +208,19 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
             >
               <Crown size={scale(16)} color={accent.warning} />
               <Text style={[styles.premiumText, { color: theme.text }]}>Subscribe to unlock the premium track</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Claim all */}
+          {claimableCount > 0 && (
+            <TouchableOpacity
+              style={[styles.claimAll, { backgroundColor: accent.success }]}
+              onPress={handleClaimAll}
+              accessibilityRole="button"
+              accessibilityLabel={`Claim all ${claimableCount} rewards`}
+            >
+              <Gift size={scale(16)} color={colors.palette.white} />
+              <Text style={styles.claimAllText}>Claim all ({claimableCount})</Text>
             </TouchableOpacity>
           )}
 
@@ -252,6 +289,11 @@ const styles = StyleSheet.create({
     padding: scale(10), marginBottom: scale(12),
   },
   premiumText: { fontSize: fontScale(13), fontWeight: '600', flex: 1 },
+  claimAll: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(8),
+    borderRadius: responsiveBorderRadius.md, paddingVertical: scale(10), marginBottom: scale(12),
+  },
+  claimAllText: { color: '#FFFFFF', fontSize: fontScale(14), fontWeight: '800' },
   trackHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: scale(6) },
   trackHeaderTier: { width: scale(36), fontSize: fontScale(11), fontWeight: '600' },
   trackHeader: { flex: 1, textAlign: 'center', fontSize: fontScale(12), fontWeight: '700' },

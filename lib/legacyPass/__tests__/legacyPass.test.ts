@@ -16,6 +16,7 @@ import {
   FREE_REWARDS,
   PREMIUM_REWARDS,
   getUnclaimedEarnedRewards,
+  getClaimableCount,
 } from '../legacyPass';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -191,6 +192,17 @@ describe('Legacy Pass engine', () => {
     it('returns nothing when no tiers are earned', () => {
       const pass = { seasonId: 's', xp: 0, premiumOwned: true, claimedFreeTiers: [], claimedPremiumTiers: [], ownedCosmetics: [] };
       expect(getUnclaimedEarnedRewards(pass)).toEqual([]);
+    });
+  });
+
+  describe('getClaimableCount', () => {
+    it('counts unclaimed earned tiers across tracks', () => {
+      const pass = { seasonId: 's', xp: XP_PER_TIER * 3, premiumOwned: true, claimedFreeTiers: [1], claimedPremiumTiers: [], ownedCosmetics: [] };
+      expect(getClaimableCount(pass)).toBe(5); // free 2,3 + premium 1,2,3
+    });
+    it('is 0 for undefined or empty', () => {
+      expect(getClaimableCount(undefined)).toBe(0);
+      expect(getClaimableCount({ seasonId: 's', xp: 0, premiumOwned: false, claimedFreeTiers: [], claimedPremiumTiers: [], ownedCosmetics: [] })).toBe(0);
     });
   });
 

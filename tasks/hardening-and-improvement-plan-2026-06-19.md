@@ -79,13 +79,18 @@ cross a 6-week boundary), so no clock-threading change was made.
 - [ ] Validate queued-event schema on `loadQueue` (drop malformed cached events).
 - [ ] Stand up the receiving endpoint + D1/D7/D30 cohort dashboards (ops).
 
-### P3 — Legacy Pass UX polish
-- [ ] **"Claim all"** button + a **claimable-count badge** on the Progression entry
-      and tab when rewards are waiting (loss-aversion nudge).
-- [ ] XP-gain toast/animation; reward-claim celebration.
-- [ ] Surface owned **cosmetics** (themes/frames) — currently granted but not yet
-      rendered anywhere (wire `legacyPass.ownedCosmetics` into profile/apartment).
-- [ ] Reduced-motion handling for the new modals (respect `useReducedMotion`).
+### P3 — Legacy Pass UX polish — ✅ CORE DONE (2026-06-19)
+- [x] **"Claim all"** button in the pass (`claimAllLegacyPassRewards` action +
+      engine `getClaimableCount`/`getUnclaimedEarnedRewards`) — claims every earned
+      tier across both tracks in one tap, with a totals toast.
+- [x] **Claimable-count badge** on the Progression "Legacy Pass" entry (red badge,
+      99+ cap) — loss-aversion nudge to return.
+- [x] **Reduced-motion** on both new modals (`useReducedMotion` → fade instead of
+      slide).
+- [x] Reward-claim toast feedback (per-claim + claim-all totals).
+- [ ] *Follow-up:* XP-gain animation/celebration; surface owned **cosmetics**
+      (themes/frames) in a profile/apartment surface (`legacyPass.ownedCosmetics`
+      is populated + carried across seasons, just not rendered yet).
 
 ### P4 — DeepLife+ depth
 - [ ] **Recurring monthly gem stipend** (needs a monthly tick keyed to renewal),

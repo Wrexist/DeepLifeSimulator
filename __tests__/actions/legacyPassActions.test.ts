@@ -3,6 +3,7 @@ import {
   applyLegacyPassReward,
   awardLegacyPassXp,
   claimLegacyPassReward,
+  claimAllLegacyPassRewards,
   unlockLegacyPassPremium,
   reconcileLegacyPassSeason,
 } from '@/contexts/game/actions/LegacyPassActions';
@@ -165,6 +166,34 @@ describe('LegacyPassActions', () => {
       // 3 free + 3 premium earned-unclaimed; premium tier 3 is a youth pill.
       expect(next.legacyPassSeasonSummary?.collectedCount).toBe(6);
       expect(next.youthPills).toBeGreaterThan(0);
+    });
+  });
+
+  describe('claimAllLegacyPassRewards', () => {
+    it('claims every earned free tier in one call and reports the totals', () => {
+      const s = awardLegacyPassXp(createTestGameState({ stats: { gems: 0 } as any }), XP_PER_TIER * 3, NOW);
+      const { state, claimedCount, gemsGained } = claimAllLegacyPassRewards(s, NOW);
+      expect(claimedCount).toBe(3); // tiers 1-3 free
+      const expectedGems =
+        (getLegacyPassReward('free', 1)!.amount ?? 0) +
+        (getLegacyPassReward('free', 2)!.amount ?? 0) +
+        (getLegacyPassReward('free', 3)!.amount ?? 0);
+      expect(gemsGained).toBe(expectedGems);
+      expect(state.stats.gems).toBe(expectedGems);
+      expect(state.legacyPass?.claimedFreeTiers).toEqual([1, 2, 3]);
+    });
+
+    it('includes premium tiers when premium is owned', () => {
+      let s = unlockLegacyPassPremium(createTestGameState({ stats: { gems: 0 } as any }), NOW);
+      s = awardLegacyPassXp(s, XP_PER_TIER * 2, NOW);
+      const { claimedCount } = claimAllLegacyPassRewards(s, NOW);
+      expect(claimedCount).toBe(4); // free 1,2 + premium 1,2
+    });
+
+    it('is a no-op when nothing is claimable', () => {
+      const s = createTestGameState();
+      const { claimedCount } = claimAllLegacyPassRewards(s, NOW);
+      expect(claimedCount).toBe(0);
     });
   });
 

@@ -202,6 +202,12 @@ export function getUnclaimedEarnedRewards(pass: LegacyPassState): LegacyPassRewa
   return out;
 }
 
+/** Count of claimable (earned-but-unclaimed) tiers across both tracks. */
+export function getClaimableCount(pass: LegacyPassState | undefined): number {
+  if (!pass) return 0;
+  return getClaimableTiers(pass, 'free').length + getClaimableTiers(pass, 'premium').length;
+}
+
 export type ClaimResult =
   | { ok: true; pass: LegacyPassState; reward: LegacyPassReward }
   | { ok: false; reason: 'locked' | 'already-claimed' | 'premium-required' | 'no-reward' };
