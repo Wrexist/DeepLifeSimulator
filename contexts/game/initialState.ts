@@ -3,7 +3,7 @@ import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 
-export const STATE_VERSION = 19;
+export const STATE_VERSION = 20;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';
@@ -98,6 +98,13 @@ export const initialGameState: GameState = {
   ancestors: [],
   activeTraits: [],
   memories: [],
+  legacyPass: {
+    seasonId: '',
+    xp: 0,
+    premiumOwned: false,
+    claimedFreeTiers: [],
+    claimedPremiumTiers: [],
+  },
   previousLives: [],
   legacyBonuses: {
     incomeMultiplier: 1,

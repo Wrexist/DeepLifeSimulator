@@ -1886,6 +1886,26 @@ export interface Vehicle {
 }
 
 /**
+ * Legacy Pass (seasonal battle pass) progress — added in STATE_VERSION 20.
+ * A dual-track (free + premium) reward pass keyed to the prestige/Legacy theme.
+ * XP is earned from existing engagement signals (challenges, milestones, prestige).
+ * Rewards are cosmetics / youth pills / gems / heritable traits — never raw power
+ * (respects the 2.0× income soft-cap; no pay-to-win).
+ */
+export interface LegacyPassState {
+  /** Season this progress belongs to. Progress resets when the season changes. */
+  seasonId: string;
+  /** Total XP earned in the current season. */
+  xp: number;
+  /** Whether the player has unlocked the premium reward track (IAP). */
+  premiumOwned: boolean;
+  /** Free-track tier indices already claimed. */
+  claimedFreeTiers: number[];
+  /** Premium-track tier indices already claimed. */
+  claimedPremiumTiers: number[];
+}
+
+/**
  * Main GameState interface
  * Contains all game state data
  */
@@ -1948,6 +1968,8 @@ export interface GameState {
   ancestors: FamilyMemberNode[];
   activeTraits: string[];
   memories: Memory[];
+  /** Seasonal Legacy Pass progress (STATE_VERSION 20). Optional for old saves. */
+  legacyPass?: LegacyPassState;
   familyTreeData?: {
     members: Record<string, FamilyMemberNode>;
     lineageId: string;

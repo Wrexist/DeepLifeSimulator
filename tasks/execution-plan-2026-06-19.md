@@ -336,6 +336,21 @@ signed manifest** the app fetches — ship events with **no app-store update**.
 
 ## 2.4 The Legacy Pass (battle pass) `L` 💰🔁
 
+> **PROGRESS (2026-06-19): engine + state + migration shipped & tested.**
+> - [x] `LegacyPassState` added to `types.ts`; default in `initialState.ts`;
+>       `STATE_VERSION` bumped 19→20 with registered, idempotent migration `[20]`
+>       in `saveMigrations.ts`.
+> - [x] Pure engine `lib/legacyPass/legacyPass.ts`: 6-week season clock, 25-tier
+>       ladder, free+premium reward tables (gems/youth pills/cosmetics/heritable
+>       trait — **no pay-to-win**), XP source constants, claim logic with typed
+>       failure reasons. All pure/immutable.
+> - [x] 38 unit tests green; migration-registry completeness + 49 save/stress
+>       tests (incl. 500× real `nextWeek`) still pass.
+> - [ ] **Remaining:** wire XP from challenges/milestones/prestige; premium IAP
+>       product; reward-application action (grant gems/pills/cosmetics to state);
+>       the dual-track UI screen. *(next PR — engine is ready to consume.)*
+
+
 **Goal:** Free + premium reward track keyed to prestige progress + challenge streaks. **No pay-to-win** — rewards are cosmetics, youth pills, gems, heritable traits.
 
 **Phases**
