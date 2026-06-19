@@ -374,8 +374,12 @@ signed manifest** the app fetches — ship events with **no app-store update**.
 >       home layout should be reviewed in the running app. One-liner to integrate:
 >       `const [pass,setPass]=useState(false); <LegacyPassModal visible={pass}
 >       onClose={()=>setPass(false)} onSubscribe={openPaywall} />` + a trigger.
-> - [ ] **Remaining:** more XP sources (weekly/milestone/achievement); the premium
->       subscription product itself (DeepLife+ work); entry-point placement.
+> - [x] **Achievement XP** wired (+15) in `claimProgressAchievement` — composes
+>       `awardLegacyPassXp` around the claim result. 3 confirmed XP sources now:
+>       prestige, daily reward, achievements.
+> - [ ] **Remaining:** weekly-challenge + milestone XP (their reward-grant sites
+>       are indirect — needs investigation, deferred rather than forced); the
+>       premium subscription product itself (DeepLife+ work); entry-point placement.
 
 
 **Goal:** Free + premium reward track keyed to prestige progress + challenge streaks. **No pay-to-win** — rewards are cosmetics, youth pills, gems, heritable traits.

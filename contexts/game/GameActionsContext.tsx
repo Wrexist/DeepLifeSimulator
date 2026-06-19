@@ -2261,7 +2261,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const newClaimed = [...(prevState.claimedProgressAchievements || []), achievementId];
  const newGems = (prevState.stats.gems || 0) + goldReward;
 
- return {
+ // Achievements are a Legacy Pass XP source (LEGACY_PASS_XP.achievement).
+ return awardLegacyPassXp({
 ...prevState,
  claimedProgressAchievements: newClaimed,
  achievementUnlocks: {
@@ -2286,7 +2287,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  totalAchievementsUnlocked: (prevState.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
  }
 : prevState.lifetimeStatistics,
- };
+ }, LEGACY_PASS_XP.achievement);
  });
 
  // If the same-batch guard rejected this claim, skip the global storage
