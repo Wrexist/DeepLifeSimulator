@@ -15,6 +15,7 @@
 import { Platform } from 'react-native';
 import { logger } from '@/utils/logger';
 import { isTrackingAllowed } from '@/utils/trackingTransparency';
+import { track } from '@/lib/analytics';
 
 const log = logger.scope('AdMob');
 
@@ -283,6 +284,7 @@ class AdMobServiceImpl {
 
     try {
       await this.interstitial.show();
+      track('ad_shown', { kind: 'interstitial' });
       this.setState({ isInterstitialLoaded: false });
       recordSuccess();
       // Pre-load next one
@@ -361,6 +363,7 @@ class AdMobServiceImpl {
       if (rewardEvent) {
         unsubReward = ad.addAdEventListener(rewardEvent, () => {
           rewarded = true;
+          track('ad_rewarded', { kind: 'rewarded' });
         });
       }
 
@@ -376,6 +379,7 @@ class AdMobServiceImpl {
       });
 
       await ad.show();
+      track('ad_shown', { kind: 'rewarded' });
       await closed;
 
       this.setState({ isRewardedLoaded: false });

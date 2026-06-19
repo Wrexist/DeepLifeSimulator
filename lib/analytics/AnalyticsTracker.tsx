@@ -11,6 +11,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
+import { usePathname } from 'expo-router';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { track, analytics } from '@/lib/analytics';
 
@@ -20,18 +21,29 @@ export function AnalyticsTracker(): null {
   const showDeathPopup = useGameSelector((s) => !!s.showDeathPopup);
   const deathReason = useGameSelector((s) => s.deathReason ?? '');
   const age = useGameSelector((s) => s.date?.age ?? 0);
+  const pathname = usePathname();
 
   const prevWeeks = useRef(weeksLived);
   const prevGeneration = useRef(generation);
   const prevDeath = useRef(showDeathPopup);
+  const firstWeekFired = useRef(weeksLived >= 1); // already past week 1 on load → don't fire
 
-  // week_advanced — fire once per actual week increment.
+  // week_advanced — fire once per actual week increment; first_week_completed once.
   useEffect(() => {
     if (weeksLived > prevWeeks.current) {
       track('week_advanced', { weeksLived, age });
     }
+    if (!firstWeekFired.current && weeksLived >= 1) {
+      track('first_week_completed', { age });
+      firstWeekFired.current = true;
+    }
     prevWeeks.current = weeksLived;
   }, [weeksLived, age]);
+
+  // screen_view — fire on route change (no-op unless telemetry is enabled).
+  useEffect(() => {
+    if (pathname) track('screen_view', { path: pathname });
+  }, [pathname]);
 
   // death — fire on the false→true edge of the death popup.
   useEffect(() => {

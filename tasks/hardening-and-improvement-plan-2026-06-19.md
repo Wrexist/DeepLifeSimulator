@@ -72,12 +72,17 @@ cross a 6-week boundary), so no clock-threading change was made.
 - [ ] *Follow-up:* a global "new season" toast/indicator outside the modal (today
       the summary surfaces when the pass is opened).
 
-### P2 — Finish the analytics funnel & insight
-- [ ] Wire remaining defined events: `onboarding_step`, `tutorial_step`,
-      `first_week_completed`, `screen_view` (expo-router listener), `ad_shown`/
-      `ad_rewarded` (AdMobService).
-- [ ] Validate queued-event schema on `loadQueue` (drop malformed cached events).
-- [ ] Stand up the receiving endpoint + D1/D7/D30 cohort dashboards (ops).
+### P2 — Finish the analytics funnel & insight — ✅ CORE DONE (2026-06-19)
+- [x] Wired the remaining events: **`tutorial_step`** (TutorialContext),
+      **`first_week_completed`** + **`screen_view`** (AnalyticsTracker via
+      expo-router `usePathname`), **`ad_shown`/`ad_rewarded`** (AdMobService),
+      **`achievement_unlocked`** + **`paywall_viewed`** (done in the hardening pass).
+      13 funnel events now live.
+- [x] **Queue-schema validation** on `loadQueue` — drops malformed cached events
+      (shape + known-name guard).
+- [ ] *Remaining (ops):* `onboarding_step` (pre-game flow), the receiving endpoint
+      + D1/D7/D30 dashboards. Set `EXPO_PUBLIC_ENABLE_ANALYTICS=true` +
+      `EXPO_PUBLIC_ANALYTICS_URL` to collect.
 
 ### P3 — Legacy Pass UX polish — ✅ CORE DONE (2026-06-19)
 - [x] **"Claim all"** button in the pass (`claimAllLegacyPassRewards` action +

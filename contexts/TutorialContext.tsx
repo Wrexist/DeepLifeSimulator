@@ -3,6 +3,7 @@ import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { Dimensions } from 'react-native';
 import InteractiveTutorial, { TutorialStep } from '@/components/InteractiveTutorial';
 import { scale, verticalScale } from '@/utils/scaling';
+import { track } from '@/lib/analytics';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -147,10 +148,12 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       const nextStep = TUTORIAL_STEPS[currentStepIndex + 1];
       setCurrentTutorial(nextStep);
       setCurrentStepIndex(currentStepIndex + 1);
+      track('tutorial_step', { step: currentStepIndex + 1, id: nextStep?.id ?? '' });
     } else {
       // End of tutorial
       if (currentTutorial) {
         completeTutorial(currentTutorial.id);
+        track('tutorial_step', { step: currentStepIndex + 1, id: currentTutorial.id, completed: true });
       }
     }
   }, [currentStepIndex, currentTutorial, completeTutorial]);

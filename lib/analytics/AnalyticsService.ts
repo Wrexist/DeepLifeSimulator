@@ -85,6 +85,20 @@ function sanitizeProps(props?: AnalyticsProps): AnalyticsProps | undefined {
 const randomId = (): string =>
   Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12);
 
+/** Shape guard for a cached event — drops anything malformed on load. */
+function isValidQueuedEvent(e: unknown): e is AnalyticsEvent {
+  if (!e || typeof e !== 'object') return false;
+  const ev = e as Record<string, unknown>;
+  return (
+    typeof ev.id === 'string' &&
+    typeof ev.name === 'string' &&
+    isKnownAnalyticsEvent(ev.name) &&
+    typeof ev.ts === 'string' &&
+    typeof ev.installId === 'string' &&
+    typeof ev.sessionId === 'string'
+  );
+}
+
 // ── Tunables ────────────────────────────────────────────────────────────────
 const QUEUE_KEY = 'analytics_queue_v1';
 const INSTALL_ID_KEY = 'analytics_install_id_v1';
@@ -244,7 +258,8 @@ class AnalyticsService {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        this.queue = parsed.slice(-MAX_QUEUE);
+        // Validate element shape so a corrupt cache can't inject malformed events.
+        this.queue = parsed.filter(isValidQueuedEvent).slice(-MAX_QUEUE);
       }
     } catch {
       /* corrupt cache — ignore */

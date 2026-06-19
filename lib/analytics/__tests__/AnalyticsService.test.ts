@@ -104,6 +104,18 @@ describe('AnalyticsService', () => {
     });
   });
 
+  describe('schema guard (isKnownAnalyticsEvent)', () => {
+    it('rejects malformed/unknown names so a corrupt cache cannot inject events', () => {
+      // The loadQueue filter reuses isKnownAnalyticsEvent; verify the guard.
+      expect(isKnownAnalyticsEvent('screen_view')).toBe(true);
+      expect(isKnownAnalyticsEvent('first_week_completed')).toBe(true);
+      expect(isKnownAnalyticsEvent('ad_shown')).toBe(true);
+      expect(isKnownAnalyticsEvent('ad_rewarded')).toBe(true);
+      expect(isKnownAnalyticsEvent('')).toBe(false);
+      expect(isKnownAnalyticsEvent('garbage_event')).toBe(false);
+    });
+  });
+
   describe('privacy', () => {
     it('redacts sensitive prop keys before transport', async () => {
       const fetchMock = OK_FETCH();
