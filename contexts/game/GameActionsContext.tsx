@@ -53,7 +53,7 @@ import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
 import { MILESTONE_MONEY_THRESHOLDS, MILESTONE_PROXIMITY_PERCENT } from '@/lib/config/gameConstants';
 import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
-import { getOrRotateWeeklyChallenge, evaluateChallengeProgress } from '@/lib/challenges/weeklyChallenges';
+import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
 import { checkForChainedEvent } from '@/lib/events/lifeEvents';
 import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
@@ -1153,6 +1153,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // ── WEEKLY CHALLENGE: Update progress ──
  let updatedWeeklyChallenge = prevState.weeklyChallenge;
+ // Legacy Pass XP to award if a weekly challenge reward is granted below. Folded
+ // into the single final returned state object (we never call setGameState again).
+ let weeklyChallengeXpToAward = 0;
  try {
  // R3-A: `getOrRotateWeeklyChallenge`/`evaluateChallengeProgress` are ES imports.
  // Build a temporary state snapshot for evaluation
@@ -1170,6 +1173,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  })),
  completed: progress.every((p: any) => p.completed ?? p.met),
  };
+ }
+ // ── WEEKLY CHALLENGE: Grant reward on first completion (idempotent) ──
+ // Fires exactly once: only when the challenge is now completed AND the reward
+ // has not yet been claimed. `rewardClaimed` is persisted, so repeat ticks (and
+ // future weeks before rotation) never double-grant. Grants the gem reward to
+ // stats.gems and awards Legacy Pass XP via the final returned state.
+ if (
+ updatedWeeklyChallenge &&
+ updatedWeeklyChallenge.completed &&
+!updatedWeeklyChallenge.rewardClaimed
+ ) {
+ const def = getWeeklyChallengeDefinition(updatedWeeklyChallenge.challengeId);
+ const gemReward = typeof def?.reward === 'number' && def.reward > 0 ? Math.floor(def.reward): 0;
+ if (gemReward > 0) {
+ newStats.gems = (typeof newStats.gems === 'number' && isFinite(newStats.gems) ? newStats.gems: 0) + gemReward;
+ }
+ weeklyChallengeXpToAward = LEGACY_PASS_XP.weeklyChallenge;
+ updatedWeeklyChallenge = {...updatedWeeklyChallenge, rewardClaimed: true };
+ logger.info(`[WEEKLY_CHALLENGE] Reward granted: +${gemReward} gems, +${weeklyChallengeXpToAward} Legacy Pass XP (${updatedWeeklyChallenge.challengeId})`);
  }
  } catch (wcErr) {
  logger.error('[WEEKLY_CHALLENGE] Progress update failed:', wcErr);
@@ -1581,6 +1603,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  pendingCliffhanger: newPendingCliffhanger,
  // Weekly themed challenge progress
  weeklyChallenge: updatedWeeklyChallenge,
+ // Legacy Pass XP from a weekly-challenge completion this tick (0 = no-op).
+ // awardLegacyPassXp returns a fresh GameState; we fold only its legacyPass in.
+ legacyPass: weeklyChallengeXpToAward > 0
+ ? awardLegacyPassXp(prevState, weeklyChallengeXpToAward, now).legacyPass
+: prevState.legacyPass,
  // R7 Phase 2 step 2.8-C: auto checkpoint extracted into
  // ./actions/weekly/applyAutoCheckpoint.ts. Same year-boundary gate
  // (with `Age <N>` label), same pre-death snapshot using prevState

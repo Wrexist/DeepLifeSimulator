@@ -376,9 +376,20 @@ signed manifest** the app fetches — ship events with **no app-store update**.
 > - [x] **Achievement XP** wired (+15) in `claimProgressAchievement` — composes
 >       `awardLegacyPassXp` around the claim result. 3 confirmed XP sources now:
 >       prestige, daily reward, achievements.
-> - [ ] **Remaining:** weekly-challenge + milestone XP (their reward-grant sites
->       are indirect — needs investigation, deferred rather than forced); the
->       premium subscription product itself (DeepLife+ work); entry-point placement.
+> - [x] **Weekly-challenge XP (+50) + reward pipeline finished.** The weekly
+>       challenge reward was never actually granted (`rewardClaimed` was read but
+>       never set). Now, on first completion in the weekly tick, it grants the
+>       challenge's gem reward, sets `rewardClaimed` (idempotent — no double-grant
+>       across ticks/weeks), and awards Legacy Pass XP. Folded into the single
+>       final returned state (no second setGameState). Verified via a real-`nextWeek`
+>       test + the 500-tick soak.
+> - [x] **Milestone XP — deliberately NOT implemented.** No idempotent
+>       "milestone-crossed" edge exists (the thresholds drive only a repeating
+>       proximity *hint*; `lifeMilestones` is an event log, not threshold-keyed).
+>       Cleanly supporting it needs a new persisted "rewarded thresholds" set (a
+>       STATE_VERSION schema change) — out of scope; not forced to avoid double-grants.
+> - [ ] **Remaining (decision-gated, not code):** the DeepLife+ subscription product
+>       the premium gate reads (store config + IAP-verify backend = ops work).
 
 
 **Goal:** Free + premium reward track keyed to prestige progress + challenge streaks. **No pay-to-win** — rewards are cosmetics, youth pills, gems, heritable traits.
