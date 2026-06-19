@@ -13,6 +13,7 @@ import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LifeStoryModal from '@/components/LifeStoryModal';
 import SkillTreeModal from '@/components/SkillTreeModal';
+import LegacyPassModal from '@/components/LegacyPassModal';
 import EmptyState from '@/components/ui/EmptyState';
 
 function ProgressionScreen() {
@@ -35,6 +36,7 @@ function ProgressionScreenContent() {
   const [showCommitments, setShowCommitments] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
+  const [showLegacyPass, setShowLegacyPass] = useState(false);
 
   // P2-7: depend on PRIMITIVES, not object/array references. Under the current
   // provider, `gameState.stats`/`relationships`/`items` get a fresh identity on
@@ -131,6 +133,14 @@ function ProgressionScreenContent() {
             >
               <Brain size={24} color="#10B981" />
               <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Life Skills</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
+              onPress={() => setShowLegacyPass(true)}
+            >
+              <Crown size={24} color="#F59E0B" />
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Legacy Pass</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -248,6 +258,7 @@ function ProgressionScreenContent() {
         <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
         <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
         <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
+        <LegacyPassModal visible={showLegacyPass} onClose={() => setShowLegacyPass(false)} />
         <PrestigeHistoryModal visible={showPrestigeHistory} onClose={() => setShowPrestigeHistory(false)} />
         <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
     </View>

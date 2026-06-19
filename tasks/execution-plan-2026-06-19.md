@@ -369,11 +369,10 @@ signed manifest** the app fetches — ship events with **no app-store update**.
 >       subscription decision) and synced into the pass on open.
 > - [x] Type-check + lint clean; 94 tests across legacy/prestige/analytics/save/
 >       IAP/render suites green (prestige stress incl.).
-> - [ ] **Entry point:** mount the modal behind a button. Deferred on purpose —
->       even the existing `LeaderboardModal` is unwired, and placing UI in the live
->       home layout should be reviewed in the running app. One-liner to integrate:
->       `const [pass,setPass]=useState(false); <LegacyPassModal visible={pass}
->       onClose={()=>setPass(false)} onSubscribe={openPaywall} />` + a trigger.
+> - [x] **Entry point wired:** added a "Legacy Pass" feature button (Crown icon) to
+>       the Progression tab's Enhanced Features grid — the thematically correct hub
+>       (prestige/legacy live there) — plus the modal mount. Matches the existing
+>       feature-button pattern exactly. Feature is now reachable end-to-end.
 > - [x] **Achievement XP** wired (+15) in `claimProgressAchievement` — composes
 >       `awardLegacyPassXp` around the claim result. 3 confirmed XP sources now:
 >       prestige, daily reward, achievements.
