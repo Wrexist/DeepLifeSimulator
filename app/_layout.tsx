@@ -62,6 +62,7 @@ import { isFeatureEnabled, logFeatureFlags } from '@/lib/config/featureFlags';
 import { startupOrchestrator, createSafeServiceTask } from '@/lib/utils/startupOrchestrator';
 import { analytics, track } from '@/lib/analytics';
 import { AnalyticsTracker } from '@/lib/analytics/AnalyticsTracker';
+import { SubscriptionReconciler } from '@/components/SubscriptionReconciler';
 import { startupCircuitBreaker } from '@/lib/utils/startupCircuitBreaker';
 
 // Type alias for compatibility
@@ -1212,6 +1213,7 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
       <AppProviders>
         <NotificationHandler />
         <AnalyticsTracker />
+        <SubscriptionReconciler />
         <TutorialManager>
           <StatusBarWrapper showStatsBar={showStatsBar} insets={insets} />
         </TutorialManager>

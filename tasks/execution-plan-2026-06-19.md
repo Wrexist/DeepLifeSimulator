@@ -397,9 +397,13 @@ signed manifest** the app fetches — ship events with **no app-store update**.
 >       subscribe/restore/manage). Wired into the Progression tab + as the Legacy
 >       Pass premium `onSubscribe`. 7 unit tests; type-check + lint clean; migration/
 >       IAP/render suites green.
+> - [x] **Ad-free lapse-revert wired.** `reconcileSubscriptionBenefits` (pure,
+>       tested) re-applies benefits while active and reverts DeepLife+ ad-free on
+>       lapse — but NEVER strips ad-free owned via the permanent Remove Ads IAP.
+>       Driven by `components/SubscriptionReconciler.tsx` (runs at startup + on
+>       foreground), mounted in `_layout`. 13 DeepLife+ tests total.
 > - [ ] **Remaining (ops, not code):** real store subscription products + the
->       IAP-verify backend must be configured before purchases actually transact;
->       lapse-revert of ad-free on a session-startup subscription re-check (follow-up).
+>       IAP-verify backend must be configured before purchases actually transact.
 
 
 **Goal:** Free + premium reward track keyed to prestige progress + challenge streaks. **No pay-to-win** — rewards are cosmetics, youth pills, gems, heritable traits.

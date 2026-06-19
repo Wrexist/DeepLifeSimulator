@@ -1,5 +1,8 @@
 import { createTestGameState } from '../helpers/createTestGameState';
-import { applyDeepLifePlusBenefits } from '@/contexts/game/actions/SubscriptionActions';
+import {
+  applyDeepLifePlusBenefits,
+  reconcileSubscriptionBenefits,
+} from '@/contexts/game/actions/SubscriptionActions';
 import {
   DEEP_LIFE_PLUS_PLANS,
   DEEP_LIFE_PLUS_BENEFITS,
@@ -64,5 +67,45 @@ describe('applyDeepLifePlusBenefits', () => {
     applyDeepLifePlusBenefits(s);
     expect(s.stats.gems).toBe(5);
     expect(s.settings.deepLifePlusActivated).toBeUndefined();
+  });
+});
+
+describe('reconcileSubscriptionBenefits', () => {
+  it('applies benefits while the subscription is active', () => {
+    const s = createTestGameState({ stats: { gems: 0 } as any });
+    const next = reconcileSubscriptionBenefits(s, /*plusActive*/ true, /*ownsRemoveAds*/ false);
+    expect(next.settings.adsRemoved).toBe(true);
+    expect(next.settings.deepLifePlusActivated).toBe(true);
+    expect(next.stats.gems).toBe(500);
+  });
+
+  it('reverts DeepLife+ ad-free when the subscription lapses', () => {
+    // Simulate a previously-active subscriber.
+    const active = applyDeepLifePlusBenefits(createTestGameState());
+    expect(active.settings.adsRemoved).toBe(true);
+
+    const lapsed = reconcileSubscriptionBenefits(active, /*plusActive*/ false, /*ownsRemoveAds*/ false);
+    expect(lapsed.settings.adsRemoved).toBe(false);
+    expect(lapsed.settings.deepLifePlusActivated).toBe(false);
+  });
+
+  it('KEEPS ad-free on lapse if the permanent Remove Ads IAP is owned', () => {
+    const active = applyDeepLifePlusBenefits(createTestGameState());
+    const lapsed = reconcileSubscriptionBenefits(active, /*plusActive*/ false, /*ownsRemoveAds*/ true);
+    expect(lapsed.settings.adsRemoved).toBe(true); // protected by the permanent IAP
+    expect(lapsed.settings.deepLifePlusActivated).toBe(false);
+  });
+
+  it('is a no-op for a free user who never had DeepLife+', () => {
+    const s = createTestGameState();
+    const next = reconcileSubscriptionBenefits(s, false, false);
+    expect(next).toBe(s);
+  });
+
+  it('does not re-grant welcome gems on repeated active reconciles', () => {
+    const s = createTestGameState({ stats: { gems: 0 } as any });
+    const once = reconcileSubscriptionBenefits(s, true, false);
+    const twice = reconcileSubscriptionBenefits(once, true, false);
+    expect(twice.stats.gems).toBe(500); // not 1000
   });
 });
