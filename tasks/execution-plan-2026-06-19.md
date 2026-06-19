@@ -72,12 +72,19 @@ re-introducing that).
 - [x] Booted via `startupOrchestrator` telemetry task in `app/_layout.tsx`
       (flag-gated, 3s timeout, non-critical) + fires `session_start`.
 
-**Phase 0.1.3 — Instrument the funnel — ⏳ NEXT (foundation ready)**
-- [x] `session_start` wired at boot.
-- [ ] Fire events at: onboarding steps, first `nextWeek()`, first challenge claim,
-      paywall view, purchase outcome, prestige, death. *(call sites — next PR)*
+**Phase 0.1.3 — Instrument the funnel — ✅ DONE (2026-06-19)**
+- [x] `session_start` wired at boot (`app/_layout.tsx` telemetry task).
+- [x] `week_advanced`, `death`, `prestige` wired via a centralized, render-free
+      `<AnalyticsTracker/>` (`lib/analytics/AnalyticsTracker.tsx`) that emits on
+      state *transitions* — no edits to the hot `nextWeek()` updater.
+- [x] `daily_reward_claimed` wired at the daily-login grant (`app/(tabs)/home.tsx`).
+- [x] `purchase_started` / `purchase_succeeded` / `purchase_failed` wired via a thin
+      wrapper around the IAP flow (`services/IAPService.ts`) — fires each outcome
+      exactly once without touching the flow's 6 internal return points.
+- [ ] Remaining call sites (optional, lower value): onboarding steps, first
+      challenge claim, paywall view, screen_view. *(follow-up)*
 - [ ] Set up the receiving endpoint + dashboard / saved queries for D1/D7/D30
-      cohorts and "last screen before quit." *(ops)*
+      cohorts and "last screen before quit." *(ops — set `EXPO_PUBLIC_ANALYTICS_URL`)*
 
 **Files:** new `lib/analytics/*`, hooks into `GameActionsContext.tsx` (week/death/prestige), `services/IAPService.ts` (purchase events), `app/_layout.tsx` (session lifecycle), `lib/config/featureFlags.ts`.
 **Dependencies:** none — start immediately.

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Animated, Easing, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { track } from '@/lib/analytics';
 import { Briefcase, ChevronRight } from 'lucide-react-native';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
@@ -203,6 +204,7 @@ function HomeScreenContent() {
           gems: (prev.stats?.gems || 0) + gemReward,
         },
       }));
+      track('daily_reward_claimed', { streak: newStreak, gems: gemReward });
     }, 800);
 
     return () => clearTimeout(timer);
