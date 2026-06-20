@@ -5,8 +5,8 @@
  * (`lib/legacyPass`) + actions (`LegacyPassActions`). Premium is gated on an
  * active subscription (synced into the pass on open).
  */
-import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
 import { X, Lock, Check, Crown, Gift } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useTheme } from '@/hooks/useTheme';
@@ -73,6 +73,42 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const ownedCosmetics = useMemo(() => resolveOwnedCosmetics(pass.ownedCosmetics), [pass.ownedCosmetics]);
   const equippedFrame = equipped?.frame ? getCosmetic(equipped.frame) : undefined;
   const equippedTheme = equipped?.theme ? getCosmetic(equipped.theme) : undefined;
+
+  // Animations (reduced-motion aware): progress-bar fill + toast entrance.
+  const fillRatio = currentTier >= MAX_TIER ? 1 : intoTier / XP_PER_TIER;
+  const fillAnim = useRef(new Animated.Value(fillRatio)).current;
+  const toastAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reducedMotion) {
+      fillAnim.setValue(fillRatio);
+      return;
+    }
+    Animated.timing(fillAnim, { toValue: fillRatio, duration: 500, useNativeDriver: false }).start();
+  }, [fillRatio, reducedMotion, fillAnim]);
+
+  useEffect(() => {
+    if (!toast) return;
+    if (reducedMotion) {
+      toastAnim.setValue(1);
+      return;
+    }
+    toastAnim.setValue(0);
+    Animated.spring(toastAnim, { toValue: 1, useNativeDriver: true, friction: 7, tension: 80 }).start();
+  }, [toast, reducedMotion, toastAnim]);
+
+  // New-season banner entrance — a celebratory pop when a rollover summary appears.
+  const hasSeasonSummary = !!(seasonSummary && seasonSummary.collectedCount > 0);
+  const bannerAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!hasSeasonSummary) return;
+    if (reducedMotion) {
+      bannerAnim.setValue(1);
+      return;
+    }
+    bannerAnim.setValue(0);
+    Animated.spring(bannerAnim, { toValue: 1, useNativeDriver: true, friction: 6, tension: 70 }).start();
+  }, [hasSeasonSummary, reducedMotion, bannerAnim]);
 
   // Reconcile the season on open: rolls over (auto-collecting unclaimed rewards,
   // no silent loss) and re-derives the premium flag from the live subscription.
@@ -180,10 +216,13 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
           <View style={[styles.progressBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.tierText, { color: theme.text }]}>Tier {currentTier} / {MAX_TIER}</Text>
             <View style={[styles.progressTrack, { backgroundColor: theme.surfaceElevated }]}>
-              <View
+              <Animated.View
                 style={[
                   styles.progressFill,
-                  { width: `${Math.round((intoTier / XP_PER_TIER) * 100)}%`, backgroundColor: colors.palette.primary },
+                  {
+                    width: fillAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                    backgroundColor: colors.palette.primary,
+                  },
                 ]}
               />
             </View>
@@ -193,8 +232,14 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
           </View>
 
           {/* New-season summary — shown once after a rollover auto-collected rewards */}
-          {seasonSummary && seasonSummary.collectedCount > 0 && (
-            <View style={[styles.seasonBanner, { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: accent.success }]}>
+          {hasSeasonSummary && seasonSummary && (
+            <Animated.View
+              style={[
+                styles.seasonBanner,
+                { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: accent.success },
+                { opacity: bannerAnim, transform: [{ scale: bannerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] },
+              ]}
+            >
               <View style={styles.seasonBannerText}>
                 <Text style={[styles.seasonBannerTitle, { color: theme.text }]}>New season started!</Text>
                 <Text style={[styles.seasonBannerDesc, { color: theme.textSecondary }]}>
@@ -206,7 +251,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
               <TouchableOpacity onPress={dismissSeasonSummary} accessibilityRole="button" accessibilityLabel="Dismiss season summary">
                 <Check size={scale(18)} color={accent.success} />
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
 
           {/* Premium banner */}
@@ -303,9 +348,18 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
 
           {/* Toast */}
           {toast && (
-            <View style={[styles.toast, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+            <Animated.View
+              style={[
+                styles.toast,
+                { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                {
+                  opacity: toastAnim,
+                  transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [scale(12), 0] }) }],
+                },
+              ]}
+            >
               <Text style={[styles.toastText, { color: theme.text }]}>{toast}</Text>
-            </View>
+            </Animated.View>
           )}
         </View>
       </View>

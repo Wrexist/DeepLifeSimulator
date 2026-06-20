@@ -15,6 +15,7 @@ import LifeStoryModal from '@/components/LifeStoryModal';
 import SkillTreeModal from '@/components/SkillTreeModal';
 import LegacyPassModal from '@/components/LegacyPassModal';
 import SubscriptionModal from '@/components/SubscriptionModal';
+import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getClaimableCount } from '@/lib/legacyPass/legacyPass';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -145,11 +146,7 @@ function ProgressionScreenContent() {
             >
               <Crown size={24} color="#F59E0B" />
               <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Legacy Pass</Text>
-              {legacyClaimable > 0 && (
-                <View style={styles.claimBadge}>
-                  <Text style={styles.claimBadgeText}>{legacyClaimable > 99 ? '99+' : legacyClaimable}</Text>
-                </View>
-              )}
+              <ClaimableBadge count={legacyClaimable} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -573,23 +570,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     gap: 8,
-  },
-  claimBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 5,
-    borderRadius: 10,
-    backgroundColor: '#EF4444',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  claimBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
   },
   featureButtonText: {
     fontSize: 14,

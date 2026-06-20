@@ -103,7 +103,10 @@ cross a 6-week boundary), so no clock-threading change was made.
 - [x] **Equipped cosmetics applied on the home avatar** — `IdentityCard` now reads
       `equippedCosmetics`: the frame recolors the avatar ring, the theme tints the
       avatar glow. Cosmetics are visible during normal play, not just in the pass.
-- [ ] *Follow-up:* XP-gain animation/celebration on claim.
+- [x] **Immersive animations (reduced-motion aware):** animated progress-bar fill
+      (eases to the new XP), spring-in reward toast, pulsing claimable badge
+      (`ClaimableBadge`), and a celebratory spring entrance on the new-season
+      banner. All honor `useReducedMotion` (static fallback).
 
 ### P4 — DeepLife+ depth
 - [x] **Reconcile after save-load** — the reconciler now also re-runs when
