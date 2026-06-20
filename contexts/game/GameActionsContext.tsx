@@ -757,12 +757,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Health tracking
  if (newStats.health <= 0) {
  newHealthZeroWeeks = (newHealthZeroWeeks || 0) + 1;
- // Only show popup on first week and final warning (week 3) — less annoying
- if (newHealthZeroWeeks === 1 || newHealthZeroWeeks === 3) {
- newShowZeroStatPopup = true;
- newZeroStatType = 'health';
- haptic.warning();
- }
+ // No zero-stat popup on week advance anymore — the health warning is
+ // surfaced passively in the player card (IdentityCard "Health Issues")
+ // instead of interrupting the Next Week flow. Death tracking continues.
 
  // Death after 4 weeks at zero
  if (newHealthZeroWeeks >= 4) {
@@ -790,12 +787,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Happiness tracking
  if (newStats.happiness <= 0) {
  newHappinessZeroWeeks = (newHappinessZeroWeeks || 0) + 1;
- // Only show popup on first week and final warning (week 3) — less annoying
- if (newHappinessZeroWeeks === 1 || newHappinessZeroWeeks === 3) {
- newShowZeroStatPopup = true;
- newZeroStatType = 'happiness';
- haptic.warning();
- }
+ // No zero-stat popup on week advance anymore — surfaced passively in the
+ // player card (IdentityCard "Health Issues") instead. Death tracking continues.
 
  // Death after 4 weeks at zero
  if (newHappinessZeroWeeks >= 4) {

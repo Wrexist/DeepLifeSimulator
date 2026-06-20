@@ -113,7 +113,10 @@ export function applyDiseasesForWeek(
   if (newDisease) {
     if (newDisease.id && newDisease.name && newDisease.severity) {
       updatedDiseases.push(newDisease);
-      showSicknessModal = true;
+      // Do NOT auto-open the sickness modal on week advance — it interrupted
+      // the Next Week flow. The disease is still tracked and is surfaced
+      // passively via the player card "Health Issues" section and the
+      // TopStatsBar disease badge (tapping the badge still opens this modal).
       lastDiseaseWeek = nextWeeksLived;
 
       // ANTI-BLOAT: keep only the most recent MAX_DISEASE_HISTORY

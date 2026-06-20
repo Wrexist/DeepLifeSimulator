@@ -6,7 +6,7 @@ import { View,
   Modal,
   ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
 import YouthPillModal from './YouthPillModal';
@@ -321,6 +321,77 @@ function IdentityCard() {
     return modifiers;
   }, [stats.health, dietPlans]);
 
+  // Health issues surfaced passively on the player card. This replaces the
+  // interruptive week-advance popups (sickness modal + zero-stat warning):
+  // every active problem is listed here alongside how to fix it.
+  const healthIssues = useMemo(() => {
+    const issues: { id: string; title: string; fix: string; level: 'critical' | 'warning' | 'info' }[] = [];
+
+    (gameState.diseases || []).forEach((d, i) => {
+      if (!d || !d.name) return;
+      const hasDeathCountdown = 'weeksUntilDeath' in d && typeof (d as { weeksUntilDeath?: unknown }).weeksUntilDeath === 'number';
+      const level: 'critical' | 'warning' | 'info' =
+        hasDeathCountdown || d.severity === 'critical'
+          ? 'critical'
+          : d.severity === 'serious'
+            ? 'warning'
+            : 'info';
+      const sevLabel = d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Mild';
+      const fix = (d.treatmentRequired || hasDeathCountdown)
+        ? 'See a doctor or hospital in the Health tab to treat it.'
+        : 'Rest and eat well — it should pass, or treat it in the Health tab.';
+      issues.push({ id: `disease-${d.id}-${i}`, title: `${d.name} · ${sevLabel}`, fix, level });
+    });
+
+    const health = stats?.health ?? 100;
+    if (health <= 0) {
+      const weeksLeft = Math.max(1, 4 - (gameState.healthZeroWeeks || 0));
+      issues.push({
+        id: 'health-zero',
+        title: `Health critical — ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
+        fix: "Eat, rest and start a diet plan in the Health tab before it's too late.",
+        level: 'critical',
+      });
+    } else if (health <= 30) {
+      issues.push({
+        id: 'health-low',
+        title: 'Low health',
+        fix: 'Improve your diet, rest, and exercise in the Health tab.',
+        level: 'warning',
+      });
+    }
+
+    const happiness = stats?.happiness ?? 100;
+    if (happiness <= 0) {
+      const weeksLeft = Math.max(1, 4 - (gameState.happinessZeroWeeks || 0));
+      issues.push({
+        id: 'happiness-zero',
+        title: `Happiness critical — ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
+        fix: 'Do something fun or spend time with people you care about.',
+        level: 'critical',
+      });
+    } else if (happiness <= 30) {
+      issues.push({
+        id: 'happiness-low',
+        title: 'Low happiness',
+        fix: 'Spend on hobbies, socialize, or take a break to recover.',
+        level: 'warning',
+      });
+    }
+
+    const energy = stats?.energy ?? 100;
+    if (energy <= 20) {
+      issues.push({
+        id: 'energy-low',
+        title: 'Low energy',
+        fix: 'Rest or sleep to recover energy before working.',
+        level: 'info',
+      });
+    }
+
+    return issues;
+  }, [gameState.diseases, gameState.healthZeroWeeks, gameState.happinessZeroWeeks, stats?.health, stats?.happiness, stats?.energy]);
+
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
@@ -516,7 +587,88 @@ function IdentityCard() {
           <ChevronRight size={20} color="#9CA3AF" />
         </TouchableOpacity>
       </LinearGradient>
-      
+
+      {/* Health Issues — passive replacement for the week-advance health popups.
+          Lists every active health problem and how to fix it. */}
+      <View
+        style={{
+          marginTop: responsiveSpacing.sm,
+          borderRadius: scale(16),
+          padding: scale(14),
+          backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+          borderWidth: 1,
+          borderColor: healthIssues.length > 0
+            ? 'rgba(239,68,68,0.35)'
+            : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(8) }}>
+          {healthIssues.length > 0 ? (
+            <AlertTriangle size={scale(18)} color="#EF4444" />
+          ) : (
+            <Activity size={scale(18)} color="#10B981" />
+          )}
+          <Text
+            style={{
+              marginLeft: scale(8),
+              fontSize: fontScale(15),
+              fontWeight: '700',
+              color: isDarkMode ? '#F9FAFB' : '#111827',
+            }}
+          >
+            {`Health Issues${healthIssues.length > 0 ? ` (${healthIssues.length})` : ''}`}
+          </Text>
+        </View>
+
+        {healthIssues.length === 0 ? (
+          <Text style={{ fontSize: fontScale(13), color: isDarkMode ? '#9CA3AF' : '#6B7280' }}>
+            You&apos;re in good shape — no health issues right now.
+          </Text>
+        ) : (
+          healthIssues.map(issue => {
+            const color =
+              issue.level === 'critical' ? '#EF4444' : issue.level === 'warning' ? '#F59E0B' : '#3B82F6';
+            return (
+              <View
+                key={issue.id}
+                style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: scale(8) }}
+              >
+                <View
+                  style={{
+                    width: scale(8),
+                    height: scale(8),
+                    borderRadius: scale(4),
+                    backgroundColor: color,
+                    marginTop: scale(5),
+                    marginRight: scale(8),
+                  }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: fontScale(13.5),
+                      fontWeight: '600',
+                      color: isDarkMode ? '#F3F4F6' : '#1F2937',
+                    }}
+                  >
+                    {issue.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: fontScale(12),
+                      color: isDarkMode ? '#9CA3AF' : '#6B7280',
+                      marginTop: scale(1),
+                    }}
+                  >
+                    {issue.fix}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </View>
+
       <AutoSaveIndicator position="relative" />
 
       <LegacyTimeline

@@ -1,5 +1,20 @@
 # Task Tracker
 
+## 🩺 Reduce week-advance popups + health issues on player card (2026-06-20)
+
+User: game freezes on "Next Week" (too much happening). Remove health status
+popups → show issues + fixes on the player card. Make life-moment / "heads up"
+weekly-event popups far rarer.
+
+- [x] 1. Stop auto Zero-Stat (health/happiness) popup on week advance — keep death counters.
+- [x] 2. Stop auto Sickness modal on new disease (still viewable via TopStatsBar badge). Update snapshot.
+- [x] 3. Remove unused ZeroStatPopup render from `app/_layout.tsx`.
+- [x] 4. Add "Health Issues" section to player card (`IdentityCard.tsx`).
+- [x] 5. Make life moments rare (`lifeMomentGenerator.ts`).
+- [x] 6. Make weekly "Heads Up" events rarer (`gameConstants.ts`).
+- [x] 7. Keep tests green (`engine.test.ts` → pity-based generation test).
+
+
 ## 🔵 Community (Discord) money-reward popup (2026-06-19)
 
 Goal: a sleek, subtle in-game popup offering a one-time **$5,000** money reward for joining the

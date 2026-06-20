@@ -1711,7 +1711,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek admits a new mild disease
       },
     ],
     "lastDiseaseWeek": 100,
-    "showSicknessModal": true,
+    "showSicknessModal": false,
   },
 }
 `;
