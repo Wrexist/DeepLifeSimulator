@@ -15,6 +15,21 @@ interface StatChangeContextType {
     clearAllChanges: () => void;
 }
 
+/**
+ * Minimum absolute change required before a stat surfaces a floating pill.
+ * Higher floors on the stats that drift every week (energy especially) keep the
+ * top-of-screen feedback quiet during routine "Next Week" progression while
+ * still flagging genuinely impactful swings.
+ */
+const STAT_CHANGE_THRESHOLDS: Record<StatChange['stat'], number> = {
+    energy: 10, // regenerates/depletes a little every single tick — only flag big swings
+    health: 5,
+    happiness: 5,
+    fitness: 5,
+    money: 50,
+    gems: 1, // rare and meaningful — always worth showing
+};
+
 const StatChangeContext = createContext<StatChangeContextType | undefined>(undefined);
 
 export function useStatChanges() {
@@ -122,8 +137,12 @@ export function useStatChangeTracker(gameState: {
 
             if (prev !== undefined && current !== prev) {
                 const diff = current - prev;
-                // Show changes of at least 1 (or $10 for money)
-                const threshold = stat === 'money' ? 10 : 1;
+                // SMOOTHNESS: routine weekly upkeep nudges energy/health/etc. by a
+                // point or two every single tick, which spawned a floating pill at
+                // the top of the screen on every "Next Week". Only surface changes
+                // large enough to be meaningful so progression feels calm. Gems are
+                // rare and always worth showing (threshold 1).
+                const threshold = STAT_CHANGE_THRESHOLDS[stat] ?? 1;
                 if (Math.abs(diff) >= threshold) {
                     addChange(stat, Math.round(diff));
                 }

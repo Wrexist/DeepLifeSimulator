@@ -1,5 +1,9 @@
 import type { GameState } from '@/contexts/game/types';
 import type { EventTemplate } from './engine';
+import {
+  ECONOMY_EVENT_WEEKLY_CHANCE,
+  ECONOMY_EVENT_MIN_CALM_WEEKS,
+} from '@/lib/config/gameConstants';
 
 /**
  * Economic event states that affect all players globally
@@ -31,35 +35,37 @@ export function getCurrentEconomicState(state: GameState): EconomyEventData | nu
 export function shouldTriggerEconomicEvent(state: GameState): boolean {
   const currentState: EconomyEventData | null = getCurrentEconomicState(state);
   const weeksLived = state.weeksLived || 0;
-  
-  // If already in an economic event, check if it should end
-  if (currentState) {
-    const weeksInState = weeksLived - currentState.stateStartWeek;
-    if (weeksInState >= currentState.stateDuration) {
-      // Event should end, transition back to normal
-      return true;
-    }
-    return false; // Still in an active economic event
-  }
-  
-  // No active event - check if a new one should start
-  // Economic events are rare: ~2% chance per week when in normal state
-  const baseChance = 0.02; // Was 5% — reduced to make economy calmer
-  // Since currentState is null here, we use weeksLived as weeks since last event
-  const weeksSinceLastEvent = weeksLived;
 
-  // Higher chance if it's been a very long time since last event (at least 30 weeks)
-  const timeModifier = weeksSinceLastEvent >= 30 ? 1.5 : 1.0;
-  const chance = baseChance * timeModifier;
-  
+  // An ACTIVE (non-normal) event ends when its duration elapses — at that point
+  // we transition the economy back to a calm "normal" state.
+  if (currentState && currentState.currentState !== 'normal') {
+    const weeksInState = weeksLived - currentState.stateStartWeek;
+    return weeksInState >= currentState.stateDuration;
+  }
+
+  // Otherwise we're either pre-init (no economy state yet) or in a calm period.
+  // SMOOTHNESS FIX: previously the "normal" stretch was a timed state that, on
+  // expiry, GUARANTEED a brand-new event — so the economy cycled perpetually and
+  // the macro banner was on screen 30-45% of the time. Now a calm period simply
+  // persists, and a new event starts only via a rare random roll, with an
+  // enforced quiet stretch after the most recent event so the banner doesn't
+  // reappear back-to-back.
+  // `stateStartWeek` of a normal state marks when the last event ended.
+  if (currentState) {
+    const weeksSinceEventEnded = weeksLived - currentState.stateStartWeek;
+    if (weeksSinceEventEnded < ECONOMY_EVENT_MIN_CALM_WEEKS) {
+      return false; // enforce a quiet stretch right after an event
+    }
+  }
+
   // Use deterministic random based on week for consistency
   const seededRandom = (seed: number) => {
     const x = Math.sin(seed) * 10000;
     return x - Math.floor(x);
   };
   const weekSeed = weeksLived * 1000 + (state.date?.year || 2025) * 100;
-  
-  return seededRandom(weekSeed + 5000) < chance;
+
+  return seededRandom(weekSeed + 5000) < ECONOMY_EVENT_WEEKLY_CHANCE;
 }
 
 /**

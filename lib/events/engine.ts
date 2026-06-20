@@ -12,6 +12,14 @@ import { fameEventTemplates } from './fameEvents';
 import { secretEventTemplates } from './secretEvents';
 import { POLICIES } from '@/lib/politics/policies';
 import { getEventFrequencyModifier } from '@/lib/prestige/applyQOLBonuses';
+import {
+  EVENT_MIN_GAP_EARLY,
+  EVENT_MIN_GAP_MID,
+  EVENT_MIN_GAP_LATE,
+  EARLY_GAME_THRESHOLD_WEEKS,
+  EARLY_GAME_PITY_THRESHOLD,
+  EARLY_GAME_EVENT_CHANCE,
+} from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 
@@ -2989,6 +2997,21 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   const currentState = getCurrentEconomicState(state);
   const weeksLived = state.weeksLived || 0;
 
+  // SMOOTHNESS: shared cooldown across the discretionary event sources below
+  // (seasonal, chain starts, random). Each source rolls independently every
+  // tick; without a floor they stack and a "Heads Up" popup appears almost
+  // every "Next Week". This enforces a minimum number of quiet weeks between
+  // popups. The pity system further down can still force an event after a long
+  // drought, and economic events / active chain continuations bypass this.
+  const lastEventWeeksLivedForGap = state.lastEventWeeksLived !== undefined
+    ? state.lastEventWeeksLived
+    : (state.lastEventWeek !== undefined ? state.lastEventWeek : 0);
+  const weeksSinceLastEventForGap = weeksLived - lastEventWeeksLivedForGap;
+  const minEventGap = weeksLived < EARLY_GAME_THRESHOLD_WEEKS
+    ? EVENT_MIN_GAP_EARLY
+    : (weeksLived < 50 ? EVENT_MIN_GAP_MID : EVENT_MIN_GAP_LATE);
+  const inEventCooldown = weeksSinceLastEventForGap < minEventGap;
+
   if (shouldTriggerEconomicEvent(state)) {
     const newEconomicState = generateEconomicEvent(state);
     // Note: The actual state update should be handled in the week progression
@@ -3037,8 +3060,10 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     }
   }
 
-  // Check for seasonal events (they have priority after economic events)
-  const seasonalEvents = getSeasonalEvents(state);
+  // Check for seasonal events (they have priority after economic events).
+  // Suppressed during the smoothness cooldown so seasonal flavor doesn't fire
+  // back-to-back with other popups.
+  const seasonalEvents = inEventCooldown ? [] : getSeasonalEvents(state);
   if (seasonalEvents.length > 0 && events.length < MAX_EVENTS_PER_WEEK) {
     const remainingSlots = MAX_EVENTS_PER_WEEK - events.length;
     events.push(...seasonalEvents.slice(0, remainingSlots));
@@ -3078,8 +3103,10 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     }
   }
 
-  // ENGAGEMENT: Roll for starting a new event chain (if none active)
-  if (!state.activeEventChain && events.length < MAX_EVENTS_PER_WEEK) {
+  // ENGAGEMENT: Roll for starting a new event chain (if none active).
+  // Gated by the smoothness cooldown — a brand-new multi-week chain shouldn't
+  // kick off the same week another popup just fired.
+  if (!state.activeEventChain && !inEventCooldown && events.length < MAX_EVENTS_PER_WEEK) {
     const chainStarter = rollEventChain(state);
     if (chainStarter) {
       events.push(chainStarter);
@@ -3119,7 +3146,6 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     : (state.lastEventWeek !== undefined ? state.lastEventWeek : 0); // Fallback for old saves
   const weeksSinceLastEvent = currentWeeksLived - lastEventWeeksLived;
   // ENGAGEMENT: Shorter pity timer during early/mid-game to prevent long event droughts
-  const { EARLY_GAME_THRESHOLD_WEEKS, EARLY_GAME_PITY_THRESHOLD } = require('@/lib/config/gameConstants');
   const pityThreshold = currentWeeksLived < EARLY_GAME_THRESHOLD_WEEKS
     ? EARLY_GAME_PITY_THRESHOLD
     : (currentWeeksLived < 50 ? 8 : PITY_THRESHOLD_WEEKLY_EVENTS);
@@ -3137,7 +3163,6 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
 
   // ENGAGEMENT: Phase-based event frequency scaling
   // Early game: high (hook the player with narrative). Mid-game: frequent (content variety). Late game: moderate.
-  const { EARLY_GAME_EVENT_CHANCE } = require('@/lib/config/gameConstants');
   let baseEventChance: number;
   if (currentWeeksLived < EARLY_GAME_THRESHOLD_WEEKS) {
     baseEventChance = EARLY_GAME_EVENT_CHANCE; // 45% — hook player with events early
@@ -3155,7 +3180,9 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
 
   // Force event if pity threshold reached
   // TESTFLIGHT FIX: Use deterministic random for consistency
-  if (guaranteedEvent || seededRandom(weekSeed + 1) < baseEventChance) {
+  // SMOOTHNESS: during the cooldown window only a pity-guaranteed event may
+  // fire — routine random rolls are suppressed so popups don't appear every week.
+  if (guaranteedEvent || (!inEventCooldown && seededRandom(weekSeed + 1) < baseEventChance)) {
     // Event will occur - continue to event selection
   } else {
     return events; // Return seasonal events if any, otherwise empty
