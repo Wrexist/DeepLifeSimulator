@@ -2915,7 +2915,7 @@ describe('pre-tick equivalence — computeWeeklyIncome', () => {
     expect(result).toMatchSnapshot();
   });
 
-  it('spouse + partner both contribute (sums across relationships)', () => {
+  it('spouse + partner: only the HIGHEST earner contributes (no stacking)', () => {
     const result = computeWeeklyIncome({
       prevState: {
         ...fixtures.midGame,
@@ -2930,6 +2930,8 @@ describe('pre-tick equivalence — computeWeeklyIncome', () => {
       weeksLivedNow: 250,
       unlockedBonuses: [],
     });
+    // EXPLOIT FIX: 25% of the top earner only (2000 → 500), not 500 + 125.
+    expect(result.partnerIncome).toBe(500);
     expect(result).toMatchSnapshot();
   });
 
@@ -3387,9 +3389,10 @@ describe('pre-tick equivalence — applyVehiclesForWeek', () => {
 
 // R7 Phase 2 step 2.6-iii-A — NPC depth tick. Calls processWeeklyNPCDepth
 // from @/lib/social/npcDepth (mocked above for determinism), replaces the
-// relationships array in place, and pushes up to 2 'npc-life-event'
-// notifications to ctx.notifications. Try/catch swallows module-load
-// failures so tests without the module can still run — preserved verbatim.
+// relationships array in place, and pushes at most ONE uniquely-id'd
+// 'npc-life-event' notification — and only on even weeks (SMOOTHNESS cadence
+// gate). Try/catch swallows module-load failures so tests without the module
+// can still run.
 describe('pre-tick equivalence — applyNPCDepthTick', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const npcDepth = require('@/lib/social/npcDepth') as {
@@ -3446,7 +3449,7 @@ describe('pre-tick equivalence — applyNPCDepthTick', () => {
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
-  it('1 notification (under cap): pushed to ctx.notifications', () => {
+  it('1 notification on an even week: pushed with a unique id', () => {
     const inputRels = [{ id: 'r1', name: 'Bob', type: 'friend', relationshipScore: 50 } as any];
     npcDepth.processWeeklyNPCDepth.mockReturnValue({
       relationships: inputRels,
@@ -3454,10 +3457,12 @@ describe('pre-tick equivalence — applyNPCDepthTick', () => {
     });
     const ctx = depthStubCtx(depthStubStats());
     const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    expect(ctx.notifications).toHaveLength(1);
+    expect(ctx.notifications[0].id).toBe('npc-life-event-100-0');
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
-  it('2 notifications (at cap): both pushed', () => {
+  it('2 notifications offered: only the first is pushed (cap 1)', () => {
     const inputRels = [{ id: 'r1', name: 'Carol', type: 'friend', relationshipScore: 50 } as any];
     npcDepth.processWeeklyNPCDepth.mockReturnValue({
       relationships: inputRels,
@@ -3465,10 +3470,11 @@ describe('pre-tick equivalence — applyNPCDepthTick', () => {
     });
     const ctx = depthStubCtx(depthStubStats());
     const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    expect(ctx.notifications).toHaveLength(1);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
-  it('5 notifications (over cap): only first 2 pushed', () => {
+  it('5 notifications offered: only the first is pushed (cap 1)', () => {
     const inputRels = [{ id: 'r1', name: 'Dave', type: 'friend', relationshipScore: 50 } as any];
     npcDepth.processWeeklyNPCDepth.mockReturnValue({
       relationships: inputRels,
@@ -3476,7 +3482,19 @@ describe('pre-tick equivalence — applyNPCDepthTick', () => {
     });
     const ctx = depthStubCtx(depthStubStats());
     const result = applyNPCDepthTick({ relationships: inputRels, weeksLived: 100 }, ctx);
+    expect(ctx.notifications).toHaveLength(1);
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
+  });
+
+  it('odd week: NPC life-event notifications are suppressed (cadence gate)', () => {
+    const inputRels = [{ id: 'r1', name: 'Grace', type: 'friend', relationshipScore: 50 } as any];
+    npcDepth.processWeeklyNPCDepth.mockReturnValue({
+      relationships: inputRels,
+      notifications: ['Grace got a dog!'],
+    });
+    const ctx = depthStubCtx(depthStubStats());
+    applyNPCDepthTick({ relationships: inputRels, weeksLived: 101 }, ctx);
+    expect(ctx.notifications).toHaveLength(0);
   });
 
   it('processWeeklyNPCDepth throws: returns input unchanged, no notif push, ctx.newStats untouched', () => {

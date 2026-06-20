@@ -647,7 +647,25 @@ class SaveQueue {
         pruned.sparkApp = {
           ...pruned.sparkApp,
           jealousyHistory: tail(pruned.sparkApp.jealousyHistory, cap(50)),
+          // swipes is a ring buffer (doc cap 200) but nothing trimmed it on the
+          // save path — a daily swiper accumulated thousands over a long life.
+          swipes: tail(pruned.sparkApp.swipes, cap(200)),
         };
+      }
+      // Banking history arrays grow every week on a long-lived save; cap the
+      // credit-score timeline, inquiry log, and weekly budget buckets so they
+      // can't march the save toward MAX_SAVE_SIZE (after which saving fails).
+      if (pruned.banking && typeof pruned.banking === 'object') {
+        const bank = { ...pruned.banking };
+        if (bank.creditScore && typeof bank.creditScore === 'object') {
+          bank.creditScore = {
+            ...bank.creditScore,
+            history: tail(bank.creditScore.history, cap(104)),
+            inquiries: tail(bank.creditScore.inquiries, cap(104)),
+          };
+        }
+        bank.budgetSpend = tail(bank.budgetSpend, cap(104));
+        pruned.banking = bank;
       }
       pruned.travelHistory = tail(pruned.travelHistory, cap(100));
       if (pruned.socialMedia && typeof pruned.socialMedia === 'object') {

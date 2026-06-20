@@ -216,33 +216,39 @@ export function applyDiseasesForWeek(
         const complicationChance = Math.min(0.15, weeksWithDisease * 0.05); // Up to 15% chance.
         if (complicationRoll < complicationChance) {
           // Disease worsens — could progress to more severe.
-          if (disease.severity === 'mild' && progressionRoll < 0.3) {
-            // 30% chance to progress to serious.
+          // FLOOR CAP: mirror the chronic path — never let an effect compound
+          // worse than 3x its original magnitude, otherwise an ignored curable
+          // disease accumulates astronomically negative values in the save over
+          // many untreated weeks (corrupting net-worth/threshold math).
+          const baseEffects = (disease as { baseEffects?: typeof disease.effects }).baseEffects ?? disease.effects;
+          const worsenWithFloor = (mult: number) => {
             const worsenedEffects = { ...disease.effects };
             Object.keys(worsenedEffects).forEach((stat) => {
               const statKey = stat as keyof typeof worsenedEffects;
               if (typeof worsenedEffects[statKey] === 'number' && worsenedEffects[statKey]! < 0) {
-                (worsenedEffects[statKey] as number) = (worsenedEffects[statKey] as number) * 1.5; // 50% worse.
+                const baseVal = (baseEffects as Record<string, number>)[stat as string];
+                const floor = typeof baseVal === 'number' ? baseVal * 3 : -100;
+                const candidate = (worsenedEffects[statKey] as number) * mult;
+                (worsenedEffects[statKey] as number) = Math.max(floor, candidate);
               }
             });
+            return worsenedEffects;
+          };
+          if (disease.severity === 'mild' && progressionRoll < 0.3) {
+            // 30% chance to progress to serious.
             updatedDiseases[index] = {
               ...disease,
               severity: 'serious',
-              effects: worsenedEffects,
-            };
+              baseEffects,
+              effects: worsenWithFloor(1.5), // 50% worse.
+            } as typeof disease;
           } else {
             // Just increase effects.
-            const worsenedEffects = { ...disease.effects };
-            Object.keys(worsenedEffects).forEach((stat) => {
-              const statKey = stat as keyof typeof worsenedEffects;
-              if (typeof worsenedEffects[statKey] === 'number' && worsenedEffects[statKey]! < 0) {
-                (worsenedEffects[statKey] as number) = (worsenedEffects[statKey] as number) * 1.2; // 20% worse.
-              }
-            });
             updatedDiseases[index] = {
               ...disease,
-              effects: worsenedEffects,
-            };
+              baseEffects,
+              effects: worsenWithFloor(1.2), // 20% worse.
+            } as typeof disease;
           }
         }
       }

@@ -24,8 +24,7 @@
 
 import type { GameState } from '@/contexts/game/types';
 import { MINER_REPAIR_COSTS } from './applyMiningWarehouse';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { calculateMiningEarnings } = require('@/contexts/game/actions/MiningActions');
+import { calculateMiningEarnings } from '@/contexts/game/actions/MiningActions';
 
 type Crypto = NonNullable<GameState['cryptos']>[number];
 type Warehouse = GameState['warehouse'];

@@ -1827,6 +1827,9 @@ exports[`pre-tick equivalence — applyDiseasesForWeek curable disease (mild) pr
     },
     "diseases": [
       {
+        "baseEffects": {
+          "health": -5,
+        },
         "contractedWeek": 90,
         "curable": true,
         "effects": {
@@ -3692,7 +3695,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse warehouse with no miners:
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick 1 notification (under cap): pushed to ctx.notifications 1`] = `
+exports[`pre-tick equivalence — applyNPCDepthTick 1 notification on an even week: pushed with a unique id 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3705,7 +3708,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick 1 notification (under cap): 
   },
   "notifications": [
     {
-      "id": "npc-life-event",
+      "id": "npc-life-event-100-0",
       "message": "Bob got a promotion!",
       "title": "💬 Life Update",
     },
@@ -3723,7 +3726,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick 1 notification (under cap): 
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick 2 notifications (at cap): both pushed 1`] = `
+exports[`pre-tick equivalence — applyNPCDepthTick 2 notifications offered: only the first is pushed (cap 1) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3736,13 +3739,8 @@ exports[`pre-tick equivalence — applyNPCDepthTick 2 notifications (at cap): bo
   },
   "notifications": [
     {
-      "id": "npc-life-event",
+      "id": "npc-life-event-100-0",
       "message": "Carol moved to NYC.",
-      "title": "💬 Life Update",
-    },
-    {
-      "id": "npc-life-event",
-      "message": "Carol started yoga.",
       "title": "💬 Life Update",
     },
   ],
@@ -3759,7 +3757,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick 2 notifications (at cap): bo
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick 5 notifications (over cap): only first 2 pushed 1`] = `
+exports[`pre-tick equivalence — applyNPCDepthTick 5 notifications offered: only the first is pushed (cap 1) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3772,13 +3770,8 @@ exports[`pre-tick equivalence — applyNPCDepthTick 5 notifications (over cap): 
   },
   "notifications": [
     {
-      "id": "npc-life-event",
+      "id": "npc-life-event-100-0",
       "message": "msg1",
-      "title": "💬 Life Update",
-    },
-    {
-      "id": "npc-life-event",
-      "message": "msg2",
       "title": "💬 Life Update",
     },
   ],
@@ -5240,11 +5233,11 @@ exports[`pre-tick equivalence — computeWeeklyIncome partner with relationshipS
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome spouse + partner both contribute (sums across relationships) 1`] = `
+exports[`pre-tick equivalence — computeWeeklyIncome spouse + partner: only the HIGHEST earner contributes (no stacking) 1`] = `
 {
-  "baseTotalIncome": 775,
-  "partnerIncome": 625,
-  "totalIncome": 775,
+  "baseTotalIncome": 650,
+  "partnerIncome": 500,
+  "totalIncome": 650,
 }
 `;
 
