@@ -9,7 +9,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Moon, Sun, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, Shield, Code } from 'lucide-react-native';
+import { X, Moon, Sun, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, Shield, Code, DollarSign } from 'lucide-react-native';
 import BackupRecoveryModal from './BackupRecoveryModal';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
@@ -26,7 +26,8 @@ import { iapService } from '@/services/IAPService';
 import { logger } from '@/utils/logger';
 import { styles } from '@/components/SettingsModalStyles';
 import { DISCORD_URL, PRIVACY_POLICY_URL } from '@/lib/config/appConfig';
-import { DISCORD_JOIN_REWARD_GEMS } from '@/lib/config/gameConstants';
+import { DISCORD_JOIN_REWARD_MONEY } from '@/lib/config/gameConstants';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 const LinearGradient = LinearGradientFallback;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
@@ -321,14 +322,11 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         return;
       }
 
-      // Give reward
-      setGameState(prev => ({
-        ...prev,
-        stats: {
-          ...prev.stats,
-          gems: prev.stats.gems + DISCORD_JOIN_REWARD_GEMS,
-        },
-      }));
+      // Give reward — cash, granted via updateMoney so it respects the money
+      // ceiling and is logged like any other transaction. Shares the
+      // `discord_reward_claimed` flag with the in-game CommunityRewardPopup so
+      // the reward can be claimed exactly once across both entry points.
+      updateMoney(setGameState, DISCORD_JOIN_REWARD_MONEY, 'Discord community reward');
 
       // Mark as claimed
       const saved = await safeSetItem('discord_reward_claimed', 'true');
@@ -349,8 +347,8 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       // Show liquid glass reward popup
       showRewardAnimation(
         canOpen
-          ? `You received ${DISCORD_JOIN_REWARD_GEMS} gems for joining our Discord!\nWelcome to the community!`
-          : `You received ${DISCORD_JOIN_REWARD_GEMS} gems!\nVisit ${DISCORD_URL} to join our Discord.`
+          ? `You received $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()} for joining our Discord!\nWelcome to the community!`
+          : `You received $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}!\nVisit ${DISCORD_URL} to join our Discord.`
       );
     } catch (error) {
       logger.error('Error joining Discord:', error);
@@ -590,7 +588,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                           {discordRewardClaimed ? 'Join Our Discord' : 'Join Our Discord'}
                         </Text>
                         {!discordRewardClaimed && (
-                          <Text style={styles.discordButtonRewardText}>{`Reward: ${DISCORD_JOIN_REWARD_GEMS} Gems`}</Text>
+                          <Text style={styles.discordButtonRewardText}>{`Reward: $${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}`}</Text>
                         )}
                       </View>
                       {!discordRewardClaimed && (
@@ -696,11 +694,11 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 {/* Title */}
                 <Text style={styles.rewardTitle}>Reward Claimed!</Text>
 
-                {/* Gem amount */}
+                {/* Cash amount */}
                 <View style={styles.rewardAmountRow}>
-                  <Text style={styles.rewardAmountText}>+{DISCORD_JOIN_REWARD_GEMS}</Text>
-                  <Sparkles size={scale(16)} color="#A5B4FC" />
-                  <Text style={styles.rewardAmountLabel}>Gems</Text>
+                  <Text style={styles.rewardAmountText}>+${DISCORD_JOIN_REWARD_MONEY.toLocaleString()}</Text>
+                  <DollarSign size={scale(16)} color="#6EE7B7" />
+                  <Text style={styles.rewardAmountLabel}>Cash</Text>
                 </View>
 
                 {/* Message */}
