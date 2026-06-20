@@ -28,6 +28,7 @@ import {
   BEGINNER_LUCK_RANDOM_MAX,
 } from '@/lib/config/gameConstants';
 import { getIncomeMultiplier } from '@/lib/prestige/applyBonuses';
+import { perks as perksCatalog } from '@/src/features/onboarding/perksData';
 
 /**
  * Upper bound on the combined onboarding-perk income multiplier. Individual
@@ -61,14 +62,18 @@ export interface IncomeTickResult {
 }
 
 export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
-  // 1. Partner/spouse income (25% nerf).
-  let partnerIncome = 0;
+  // 1. Partner/spouse income (25% of the HIGHEST-earning qualifying partner).
+  // EXPLOIT FIX: previously this summed 25% of EVERY partner/spouse with score
+  // >= 50, so juggling several concurrent partners stacked unbounded passive
+  // income. Only one household partner contributes — take the top earner.
+  let topPartnerIncome = 0;
   (input.prevState.relationships || []).forEach((rel) => {
     if (rel && rel.income && (rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 50) {
       const safeIncome = typeof rel.income === 'number' && isFinite(rel.income) && rel.income >= 0 ? rel.income : 0;
-      partnerIncome += Math.round(safeIncome * 0.25);
+      if (safeIncome > topPartnerIncome) topPartnerIncome = safeIncome;
     }
   });
+  const partnerIncome = Math.round(topPartnerIncome * 0.25);
 
   // 2. Prestige income multiplier.
   const incomeMultiplier = getIncomeMultiplier(input.unlockedBonuses);
@@ -92,16 +97,14 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
   const moneyMultiplierBonus = input.prevState.goldUpgrades?.multiplier ? 1.5 : 1;
 
   // 6. Onboarding perk income multipliers (stacked product).
-  // The `require()` is preserved verbatim from the legacy inline code. The
-  // perks catalog has no side effects on load, but ES-importing it would
-  // be a separate refactor — out of scope for this byte-faithful extraction.
+  // Perks catalog is a static ES import (no side effects on load) — keeps the
+  // weekly tick from depending on a runtime require() that could throw mid-
+  // updater and silently abort the whole week's income.
   let perkIncomeBonus = 1;
   if (input.prevState.perks) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { perks: perksCatalog } = require('@/src/features/onboarding/perksData');
     for (const [perkId, isActive] of Object.entries(input.prevState.perks)) {
       if (!isActive) continue;
-      const perk = perksCatalog.find((p: { id: string; effects?: { incomeMultiplier?: number } }) => p.id === perkId);
+      const perk = perksCatalog.find((p) => p.id === perkId);
       const mult = perk?.effects?.incomeMultiplier;
       if (typeof mult === 'number' && mult > 0 && mult !== 1) {
         perkIncomeBonus *= mult;

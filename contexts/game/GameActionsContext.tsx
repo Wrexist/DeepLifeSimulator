@@ -1671,11 +1671,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // ENGAGEMENT: Milestone proximity hints — "just one more week" pull
- // Shows a motivational notification when player is close to a milestone
+ // Shows a motivational notification when player is close to a milestone.
+ // SMOOTHNESS: gate to at most once per in-game month. Previously this fired
+ // EVERY week the player sat inside a threshold's proximity band, nagging
+ // "Almost There!" repeatedly while they saved up.
  try {
  // R3-A: milestone constants are ES imports.
  const currentState = gameStateRef.current;
- if (currentState) {
+ if (currentState && (currentState.weeksLived || 0) % 4 === 0) {
  const currentMoney = currentState.stats?.money || 0;
  for (const threshold of MILESTONE_MONEY_THRESHOLDS) {
  if (currentMoney < threshold && currentMoney >= threshold * (1 - MILESTONE_PROXIMITY_PERCENT)) {
@@ -1683,8 +1686,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const formatted = remaining >= 1000 ? `$${(remaining / 1000).toFixed(1)}k`: `$${remaining}`;
  setTimeout(() => {
  showInfo('milestone-hint', `${formatted} away from $${threshold >= 1000 ? (threshold / 1000).toLocaleString() + 'k': threshold}!`, 'Almost There');
- }, 2000); // Delay so it shows after other notifications
- break; // Only show one hint per week
+ }, 800); // Brief delay so it trails the week's primary notifications
+ break; // Only show one hint
  }
  }
  }
@@ -1942,7 +1945,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // Handle special effects
- let updatedDiseases = prevState.diseases || [];
+ // IMMUTABILITY: copy the array — we `.push()` below, and aliasing
+ // prevState.diseases would mutate the previous snapshot (StrictMode double-
+ // invoke then sees the disease already present and silently skips it).
+ let updatedDiseases = [...(prevState.diseases || [])];
  let showSicknessModal = prevState.showSicknessModal;
  let updatedDiseaseHistory = prevState.diseaseHistory || {
  diseases: [],
@@ -1971,7 +1977,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  updatedDiseases.push(eventDisease);
  showSicknessModal = true;
 
- // Update disease history
+ // Update disease history (ANTI-BLOAT: cap to the most recent 50,
+ // matching applyDiseasesForWeek so the event path can't grow unbounded).
  updatedDiseaseHistory = {
 ...updatedDiseaseHistory,
  diseases: [
@@ -1982,7 +1989,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  contractedWeek: prevState.weeksLived || 0,
  severity: eventDisease.severity,
  },
- ],
+ ].slice(-50),
  totalDiseases: updatedDiseaseHistory.totalDiseases + 1,
  };
  }
@@ -2522,18 +2529,34 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  onPress: async () => {
  try {
  if (conflict.remoteState) {
+ // A-4 parity with loadGame: run version migrations BEFORE repair. A
+ // cloud save from an OLDER app version (synced from a device that
+ // hasn't updated) must be migrated, not just shape-repaired, or
+ // current code crashes on the stale schema. Refuse a FUTURE-version save.
+ let remote = conflict.remoteState;
+ try {
+ const { runMigrations } = await import('@/utils/saveMigrations');
+ const migrationResult = runMigrations(remote);
+ if (migrationResult.versionFromFuture) {
+ logger.error('[CloudSync] Cloud save is from a newer app version — refusing to apply.');
+ return;
+ }
+ remote = migrationResult.state;
+ } catch (migErr) {
+ logger.error('[CloudSync] Migration of cloud state failed (continuing with repair):', migErr);
+ }
  // Validate and repair remote state before applying
- const repaired = repairGameState(conflict.remoteState);
+ const repaired = repairGameState(remote);
  if (repaired.repaired) {
  logger.warn('[CloudSync] Remote state required repair:', repaired.repairs);
  }
- const validation = validateGameState(conflict.remoteState, true);
+ const validation = validateGameState(remote, true);
  if (!validation.valid) {
  logger.error('[CloudSync] Remote state failed validation after repair:', validation.errors);
  return;
  }
- setGameState(conflict.remoteState);
- logger.info('[CloudSync] User chose cloud version — state replaced (validated)');
+ setGameState(remote);
+ logger.info('[CloudSync] User chose cloud version — migrated + state replaced (validated)');
  }
  } catch (err) {
  logger.error('[CloudSync] Failed to apply cloud state:', err);

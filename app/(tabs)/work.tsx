@@ -106,7 +106,7 @@ function WorkScreenContent() {
     // P3-2: dead state — `_showJailReleaseMessage` and `_previousJailWeeks`
     // were never referenced after being renamed by an unused-var lint sweep.
     const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
-    const { showSuccess, showError, showWarning, showInfo } = useToast();
+    const { showSuccess, showError, showWarning } = useToast();
 
     const {
         gameState,
@@ -203,11 +203,12 @@ function WorkScreenContent() {
                 logger.warn('Failed to update system usage:', error as any);
             }
 
-            // Show toast notification
+            // Show toast notification. SMOOTHNESS: fold the optional mindset
+            // feedback into the SAME toast instead of firing a second one right
+            // after — two stacked toasts per job felt spammy.
             if (result.success) {
-                showSuccess(result.message ?? '');
-
-                // Show mindset feedback if applicable
+                let message = result.message ?? '';
+                let mindsetPenalty = false;
                 if (job && gameState.mindset?.activeTraitId) {
                     const mindsetFeedback = getMindsetFeedback(
                         gameState,
@@ -216,14 +217,16 @@ function WorkScreenContent() {
                         0
                     );
                     if (mindsetFeedback?.message) {
-                        if (mindsetFeedback.type === 'bonus') {
-                            showSuccess(mindsetFeedback.message);
-                        } else if (mindsetFeedback.type === 'penalty') {
-                            showWarning(mindsetFeedback.message);
-                        } else {
-                            showInfo(mindsetFeedback.message);
-                        }
+                        message = message
+                            ? `${message} · ${mindsetFeedback.message}`
+                            : mindsetFeedback.message;
+                        mindsetPenalty = mindsetFeedback.type === 'penalty';
                     }
+                }
+                if (mindsetPenalty) {
+                    showWarning(message);
+                } else {
+                    showSuccess(message);
                 }
             } else if ('inJail' in result && result.inJail) {
                 showError(result.message || 'You were caught!');

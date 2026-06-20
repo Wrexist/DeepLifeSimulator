@@ -32,7 +32,8 @@ import { useStatChangeTracker } from '@/contexts/StatChangeContext';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { DISCORD_URL } from '@/lib/config/appConfig';
-import { DISCORD_JOIN_REWARD_MONEY } from '@/lib/config/gameConstants';
+import { DISCORD_JOIN_REWARD_MONEY, MS_PER_DAY } from '@/lib/config/gameConstants';
+import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
 
 // Lazy load heavy modals and popups
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
@@ -236,7 +237,10 @@ function HomeScreenContent() {
       const lastLogin = gameState.lastLogin || Date.now();
       const hoursAway = (Date.now() - lastLogin) / (1000 * 60 * 60);
 
-      if (hoursAway > 6 && !gameState.showDailyRewardPopup && !showWelcomeBack && hasCompletedTutorial) {
+      // Only after a genuine day-plus away. `lastLogin` is reset to now on
+      // close, so this naturally fires at most once per ~24h absence — which
+      // also gates the cash bonus granted on close (no grindable faucet).
+      if (hoursAway > 24 && !gameState.showDailyRewardPopup && !showWelcomeBack && hasCompletedTutorial) {
         const timer = setTimeout(() => {
           setShowWelcomeBack(true);
         }, 1500);
@@ -456,7 +460,20 @@ function HomeScreenContent() {
           visible={showWelcomeBack}
           onClose={() => {
             setShowWelcomeBack(false);
-            setGameState(prev => ({ ...prev, lastLogin: Date.now() }));
+            // Actually GRANT the welcome-back bonus the popup advertised (it was
+            // previously only displayed, never credited). Atomic single updater:
+            // compute from the OLD lastLogin, then stamp lastLogin=now so the
+            // popup (and bonus) can't re-fire until another ~24h away.
+            setGameState(prev => {
+              const last = prev.lastLogin || Date.now();
+              const daysAway = Math.floor((Date.now() - last) / MS_PER_DAY);
+              const bonus = computeWelcomeBackBonus(prev, daysAway);
+              return {
+                ...prev,
+                lastLogin: Date.now(),
+                stats: { ...prev.stats, money: (prev.stats?.money || 0) + bonus },
+              };
+            });
           }}
         />
       </Suspense>

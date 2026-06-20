@@ -71,11 +71,17 @@ export function applyCareerSalaryAndPenalty(
         logger.warn(`[WEEK PROGRESSION] Career ${prevState.currentJob} level ${safeLevel} has invalid salary: ${levelData?.salary}`);
       }
 
-      // Apply career job stat penalties (careers have lighter penalties than street jobs).
-      // Careers: -3 happiness, -2 health per week.
-      careerHappinessPenalty = -3;
-      careerHealthPenalty = -2;
-      logger.info(`[WEEK PROGRESSION] Career penalties: ${careerHappinessPenalty} happiness, ${careerHealthPenalty} health`);
+      // Apply career job stat penalties. BALANCE: scale the weekly toll DOWN by
+      // seniority — an entry role grinds (-3 happiness / -2 health) but a top-of-
+      // ladder role is far lighter (down to -1/-1). This rewards career
+      // progression and makes holding a career more attractive than perpetually
+      // grinding street jobs (which pay an unemployed bonus).
+      const levelCount = currentCareer.levels.length;
+      const levelProgress = levelCount > 1 ? Math.min(1, Math.max(0, safeLevel / (levelCount - 1))) : 0;
+      const penaltyFactor = 1 - 0.7 * levelProgress; // 1.0 at entry → 0.3 at the top
+      careerHappinessPenalty = -Math.max(1, Math.round(3 * penaltyFactor));
+      careerHealthPenalty = -Math.max(1, Math.round(2 * penaltyFactor));
+      logger.info(`[WEEK PROGRESSION] Career penalties (level ${safeLevel + 1}/${levelCount}): ${careerHappinessPenalty} happiness, ${careerHealthPenalty} health`);
     } else {
       if (!currentCareer) {
         logger.warn(`[WEEK PROGRESSION] Career ${prevState.currentJob} not found in careers list`);

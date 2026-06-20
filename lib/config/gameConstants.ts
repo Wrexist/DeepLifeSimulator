@@ -71,6 +71,25 @@ export const EARLY_GAME_EVENT_CHANCE = 0.45; // 45% base event chance weeks 1-8 
 export const EARLY_GAME_THRESHOLD_WEEKS = 8;
 export const EARLY_GAME_PITY_THRESHOLD = 3; // Force event after 3 dry weeks (was 8)
 
+// ── Event Pacing (smoothness) ────────────────────────────
+// Minimum quiet weeks between discretionary weekly-event popups ("Heads Up"
+// cards). Independent event sources (random, chain starts, seasonal) each roll
+// every tick; without a shared floor they stack and a popup can appear almost
+// every "Next Week". The pity system can still force an event after a long
+// drought, so progression never goes fully silent.
+export const EVENT_MIN_GAP_EARLY = 0; // weeks 1-8: no cooldown — hook the player
+export const EVENT_MIN_GAP_MID = 2; // weeks 9-49: at most ~1 popup / 2 weeks
+export const EVENT_MIN_GAP_LATE = 4; // week 50+: calmer — at most ~1 popup / 4 weeks
+
+// ── Economic Events (global macro banner) ────────────────
+// Economic events drive the recession/boom/crash banner AND an "Economic Event"
+// popup. Previously the post-event "normal" stretch was a timed state that
+// GUARANTEED a fresh event when it expired, so the economy cycled perpetually
+// and the banner was visible 30-45% of the time. These make events genuinely
+// rare with a guaranteed calm stretch afterwards.
+export const ECONOMY_EVENT_WEEKLY_CHANCE = 0.01; // 1% per eligible week (was 2-3% + perpetual cycle)
+export const ECONOMY_EVENT_MIN_CALM_WEEKS = 20; // enforced quiet weeks after an event ends
+
 // ── Beginner Luck ───────────────────────────────────────
 export const BEGINNER_LUCK_WEEKS = 20;
 export const BEGINNER_LUCK_BASE_BONUS = 15; // Guaranteed weekly cash bonus

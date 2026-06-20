@@ -42,16 +42,22 @@ export interface NPCDepthTickResult {
   relationships: Relationship[];
 }
 
-const MAX_NPC_NOTIFICATIONS_PER_WEEK = 2;
+// SMOOTHNESS: surface at most ONE NPC "Life Update" toast, and only on
+// alternating weeks. Previously up to 2 were pushed but they all shared the id
+// 'npc-life-event', so the tick's dedupe-by-id silently dropped the second —
+// and one still fired nearly every week. Capping to one and gating to every
+// other week keeps relationship flavor without a top-of-screen toast each tick.
+const MAX_NPC_NOTIFICATIONS_PER_WEEK = 1;
 
 export function applyNPCDepthTick(input: NPCDepthTickInput, ctx: WeekContext): NPCDepthTickResult {
   try {
     const npcResult = npcDepth.processWeeklyNPCDepth(input.relationships, input.weeksLived);
-    if (npcResult.notifications.length > 0) {
+    const npcToastsAllowedThisWeek = input.weeksLived % 2 === 0;
+    if (npcResult.notifications.length > 0 && npcToastsAllowedThisWeek) {
       const toShow = npcResult.notifications.slice(0, MAX_NPC_NOTIFICATIONS_PER_WEEK);
-      toShow.forEach((msg: string) => {
+      toShow.forEach((msg: string, i: number) => {
         ctx.notifications.push({
-          id: 'npc-life-event',
+          id: `npc-life-event-${input.weeksLived}-${i}`,
           message: msg,
           title: '💬 Life Update',
         });

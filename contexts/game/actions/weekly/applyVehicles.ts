@@ -90,8 +90,12 @@ export function applyVehiclesForWeek(
   });
 
   // Vehicle reputation: best owned vehicle gives a gentle rep nudge.
-  // Math.max(0, ...empty) returns 0, so a missing/empty array is safe.
-  const vehicleRepBonus = Math.max(0, ...updatedVehicles.filter((v) => v?.owned).map((v) => v?.reputationBonus || 0));
+  // Use reduce (not spread into Math.max) so a corrupted save with thousands
+  // of vehicles can't blow the JS argument limit and throw a RangeError.
+  const vehicleRepBonus = updatedVehicles.reduce(
+    (max, v) => (v?.owned ? Math.max(max, v?.reputationBonus || 0) : max),
+    0,
+  );
   if (vehicleRepBonus > 0 && ctx.newStats.reputation < vehicleRepBonus * 3) {
     ctx.newStats.reputation = Math.min(100, ctx.newStats.reputation + 1);
   }

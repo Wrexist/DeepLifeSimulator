@@ -69,9 +69,12 @@ export function applyLoanAutopay(input: LoanAutopayInput): LoanAutopayResult {
       : 0;
     if (remaining <= 0) return null;
 
+    // Prefer interestRate (preserves existing behavior, incl. legit 0% loans);
+    // fall back to the canonical rateAPR only when interestRate is missing/NaN
+    // so a loan created with only rateAPR set doesn't silently autopay at 0%.
     const aprRaw = typeof loan.interestRate === 'number' && isFinite(loan.interestRate)
       ? loan.interestRate
-      : 0;
+      : (typeof loan.rateAPR === 'number' && isFinite(loan.rateAPR) ? loan.rateAPR : 0);
     const aprDecimal = aprRaw > 1 ? aprRaw / 100 : Math.max(0, aprRaw);
     const weeklyRate = aprDecimal / WEEKS_PER_YEAR;
     const remainingWithInterest = Math.max(0, remaining * (1 + weeklyRate));
@@ -103,10 +106,18 @@ export function applyLoanAutopay(input: LoanAutopayInput): LoanAutopayResult {
       };
     }
 
-    // Missed payment — apply compounding penalty.
-    const penalizedRemaining = Math.max(
-      0,
-      remainingWithInterest * (1 + LOAN_MISSED_PAYMENT_PENALTY),
+    // Missed payment — apply compounding penalty, but BOUND it. Without a cap,
+    // a player stuck just above the bankruptcy floor (so payments are skipped to
+    // protect the floor) sees the balance compound every week forever and never
+    // triggers bankruptcy — an unresolvable runaway-debt soft-lock (and eventual
+    // float blow-up). Cap the compounded total at 3× the original principal (or
+    // the current balance, if already higher) so it can't run away.
+    const penaltyCap = typeof loan.principal === 'number' && isFinite(loan.principal) && loan.principal > 0
+      ? Math.max(remainingWithInterest, loan.principal * 3)
+      : remainingWithInterest;
+    const penalizedRemaining = Math.min(
+      penaltyCap,
+      Math.max(0, remainingWithInterest * (1 + LOAN_MISSED_PAYMENT_PENALTY)),
     );
     totalLoanPenalty += (penalizedRemaining - remainingWithInterest);
     return {

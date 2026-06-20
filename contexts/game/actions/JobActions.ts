@@ -190,11 +190,13 @@ export const performStreetJob = (
   const basePay = job.basePayment;
   const levelBonus = (gameState.criminalLevel - 1) * 0.1;
   
-  // STABILITY FIX: Increase street job income by 50% for unemployed players
-  // Street jobs are balanced for side income, but unemployed players need them as primary income
-  // This prevents poverty trap where street jobs don't provide enough to survive
+  // STABILITY FIX: modest income boost for unemployed players so street jobs
+  // remain viable as primary income (prevents a poverty trap). BALANCE: trimmed
+  // from 1.5× to 1.25× so that grinding street jobs while jobless is no longer
+  // strictly better than holding a career — the scaled-down career penalties
+  // (applyCareerSalaryAndPenalty) close the rest of the gap.
   const hasCareerJob = !!gameState.currentJob && gameState.currentJob.length > 0;
-  const unemployedBonus = hasCareerJob ? 1.0 : 1.5; // 50% boost if no career job
+  const unemployedBonus = hasCareerJob ? 1.0 : 1.25;
   
   const moneyGained = success ? Math.round(basePay * (1 + levelBonus) * unemployedBonus) : 0;
   

@@ -29,6 +29,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { getCharacterImage } from '@/utils/characterImages';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { getUpgradeTier } from '@/lib/realEstate/housing';
 import type { Loan } from '@/contexts/game/types';
 const LinearGradient = LinearGradientFallback;
 
@@ -213,10 +214,15 @@ function IdentityCard() {
   // undefined and crashing the home tab with `.salary of undefined`.
   const jobIncome = currentCareer?.levels?.[currentCareer.level]?.salary ?? 0;
 
-  // Partner / spouse weekly income (counts even after marriage) - nerfed to 25%
-  const partnerIncome = useMemo(() => (relationships || [])
-    .filter(rel => (rel.type === 'partner' || rel.type === 'spouse') && rel.income && rel.relationshipScore >= 50)
-    .reduce((sum, rel) => sum + Math.round((rel.income || 0) * 0.25), 0), [relationships]);
+  // Partner / spouse weekly income (counts even after marriage) — 25% of the
+  // HIGHEST-earning qualifying partner. Mirrors computeWeeklyIncome (which caps
+  // to the top earner, not a sum) so the displayed cash flow matches reality.
+  const partnerIncome = useMemo(() => {
+    const top = (relationships || [])
+      .filter(rel => (rel.type === 'partner' || rel.type === 'spouse') && rel.income && rel.relationshipScore >= 50)
+      .reduce((max, rel) => Math.max(max, rel.income || 0), 0);
+    return Math.round(top * 0.25);
+  }, [relationships]);
 
   const expenses = expenseInfo.total;
   const cashFlow = jobIncome + passive + partnerIncome - expenses;
@@ -658,8 +664,7 @@ function IdentityCard() {
               {(() => {
                 const propertyExpenses: { name: string; cost: number }[] = [];
                 const realEstate = gameState.realEstate || [];
-                const { getUpgradeTier } = require('@/lib/realEstate/housing');
-                
+
                 realEstate.forEach(property => {
                   if (!property || !property.owned) return;
                   const upgradeLevel = typeof property.upgradeLevel === 'number' && isFinite(property.upgradeLevel) && property.upgradeLevel >= 0 ? property.upgradeLevel : 0;

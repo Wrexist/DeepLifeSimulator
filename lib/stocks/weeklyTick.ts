@@ -65,7 +65,13 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     ? input.sectorSnapshots
     : initialSectorSnapshots();
   const ticked = tickSectors(snapshots, input.rollFor);
-  if (ticked.changed.length > 0) {
+  // SMOOTHNESS: sectors rotate nearly every week regardless of the player. For
+  // someone who doesn't trade stocks that's a top-of-screen toast every "Next
+  // Week" with no actionable value. Only notify players who hold a position or
+  // have a resting order; sectors still rotate silently for everyone else.
+  const playerEngagedWithStocks =
+    input.holdings.some((h) => safe(h.shares) > 0) || input.openOrders.length > 0;
+  if (ticked.changed.length > 0 && playerEngagedWithStocks) {
     notifications.push({
       id: `stk-sector-${input.currentWeek}`,
       title: '📊 Sector Rotation',

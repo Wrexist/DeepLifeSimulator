@@ -24,6 +24,7 @@ import { useGameState } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
 const LinearGradient = LinearGradientFallback;
 
 const { width: _screenWidth } = Dimensions.get('window');
@@ -285,11 +286,10 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 just a stats snapshot ("here's what you had"). */}
             <View style={styles.infoContainer}>
               {(() => {
-                // Calculate welcome bonus based on player income level
-                const currentCareer = gameState.careers?.find((c: any) => c?.id === gameState.currentJob && c?.accepted);
-                const weeklySalary = currentCareer?.levels?.[currentCareer?.level || 0]?.salary || 0;
-                const rewardWeeks = Math.min(Math.max(daysAway, 1), 7);
-                const welcomeBonus = Math.max(100, Math.round(weeklySalary * rewardWeeks * 0.5));
+                // Calculate welcome bonus based on player income level. Uses the
+                // shared helper so the displayed amount is exactly what the
+                // caller grants on close.
+                const welcomeBonus = computeWelcomeBackBonus(gameState, daysAway);
                 const streakCount = gameState.playStreak?.count || 0;
                 const pendingEventsCount = (gameState.pendingEvents || []).length;
                 const hasCliffhanger = !!gameState.pendingCliffhanger;
