@@ -21,6 +21,7 @@ import { createRequire } from 'module';
 import { mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { Buffer } from 'node:buffer';
 
 const require = createRequire(import.meta.url);
 let sharp;
@@ -651,7 +652,6 @@ async function screen6(b, theme) { // VIRAL / social feed
     items.forEach(([ic, val, col]) => { b.icon(ic, ex, ey, 22, col, { fill: ic === 'heart' ? col : undefined, sw: 2 }); b.txt(ex + 18, ey + 7, val, { size: 18, w: 600, fill: col }); ex += 56 + val.length * 11; });
   };
   let y = appTop + 158, gap = 16;
-  const region = appBottom - y - 18;
   post(y, 300, null, 'Maya Quartz', '@mayaq', true, '2h', ['Just quit my 9–5 to go all-in on my', 'startup. Terrified — but let’s build.'], ['1.2K', '3.4K', '15.2K', '1.2M'], { flame: true, viral: true });
   y += 300 + gap;
   post(y, 236, female, 'FitQueen', '@fitqueen', false, '4h', ['Morning 10K done in 44 min — new PB!', 'Who else is chasing goals today?'], ['89', '234', '2.1K', '88K']);
