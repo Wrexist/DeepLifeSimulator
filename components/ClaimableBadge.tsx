@@ -6,6 +6,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { scale, fontScale } from '@/utils/scaling';
+import { accent, colors } from '@/lib/config/theme';
 
 export function ClaimableBadge({ count }: { count: number }): React.ReactElement | null {
   const reduced = useReducedMotion();
@@ -38,15 +40,15 @@ export function ClaimableBadge({ count }: { count: number }): React.ReactElement
 const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 5,
-    borderRadius: 10,
-    backgroundColor: '#EF4444',
+    top: scale(6),
+    right: scale(6),
+    minWidth: scale(20),
+    height: scale(20),
+    paddingHorizontal: scale(5),
+    borderRadius: scale(10),
+    backgroundColor: accent.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  text: { color: colors.palette.white, fontSize: fontScale(11), fontWeight: '800' },
 });

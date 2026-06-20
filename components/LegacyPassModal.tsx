@@ -9,6 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
 import { X, Lock, Check, Crown, Gift } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
@@ -56,6 +57,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const reducedMotion = useReducedMotion();
   const legacyPassRaw = useGameSelector((s) => s.legacyPass);
   const setGameState = useSetGameState();
+  const { saveGame } = useGameActions();
   const [toast, setToast] = useState<string | null>(null);
 
   const seasonSummary = useGameSelector((s) => s.legacyPassSeasonSummary);
@@ -120,6 +122,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
 
   const dismissSeasonSummary = () => {
     setGameState((prev) => ({ ...prev, legacyPassSeasonSummary: undefined }));
+    void saveGame?.(false);
   };
 
   // Auto-dismiss the toast.
@@ -139,6 +142,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
     }
     setToast(`Claimed: ${preview.reward.label}`);
     setGameState((prev) => claimLegacyPassReward(prev, track, tier).state);
+    void saveGame?.(false); // persist the claim immediately
   };
 
   const handleClaimAll = () => {
@@ -154,10 +158,12 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
       .reduce((sum, r) => sum + (r.amount ?? 0), 0);
     setToast(`Claimed ${rewards.length} reward${rewards.length === 1 ? '' : 's'}${gems > 0 ? ` (+${gems} gems)` : ''}`);
     setGameState((prev) => claimAllLegacyPassRewards(prev).state);
+    void saveGame?.(false); // persist the bulk claim immediately
   };
 
   const handleToggleCosmetic = (id: string) => {
     setGameState((prev) => toggleCosmetic(prev, id));
+    void saveGame?.(false); // persist the equip change immediately
   };
 
   const renderCell = (track: LegacyPassTrack, tier: number) => {

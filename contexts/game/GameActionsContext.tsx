@@ -32,7 +32,7 @@ import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
 import { awardLegacyPassXp } from './actions/LegacyPassActions';
-import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
+import { LEGACY_PASS_XP, getCurrentSeasonId, getClaimableCount } from '@/lib/legacyPass/legacyPass';
 import { track } from '@/lib/analytics';
 import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from './actions/MoneyActions';
 import { updateStats as updateStatsAction } from './actions/StatsActions';
@@ -1605,8 +1605,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Weekly themed challenge progress
  weeklyChallenge: updatedWeeklyChallenge,
  // Legacy Pass XP from a weekly-challenge completion this tick (0 = no-op).
- // awardLegacyPassXp returns a fresh GameState; we fold only its legacyPass in.
- legacyPass: weeklyChallengeXpToAward > 0
+ // awardLegacyPassXp touches ONLY legacyPass UNLESS it triggers a season
+ // rollover that auto-collects unclaimed rewards (those land on stats/youthPills/
+ // traits, which this fold would drop). So: only defer when a rollover would
+ // actually LOSE earned-but-unclaimed rewards — then leave the pass for the
+ // season reconciler to roll over with full collection. A fresh/empty pass (or
+ // same-season pass) has nothing to lose, so we fold inline as normal.
+ legacyPass: (
+   weeklyChallengeXpToAward > 0 &&
+   !(prevState.legacyPass &&
+     prevState.legacyPass.seasonId !== getCurrentSeasonId(now) &&
+     getClaimableCount(prevState.legacyPass) > 0)
+ )
  ? awardLegacyPassXp(prevState, weeklyChallengeXpToAward, now).legacyPass
 : prevState.legacyPass,
  // R7 Phase 2 step 2.8-C: auto checkpoint extracted into
@@ -3208,11 +3218,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  try {
  haptic.heavy(); // Prestige — major life event
- // Prestige is the marquee Legacy Pass XP source (LEGACY_PASS_XP.prestige).
- const newGameState = awardLegacyPassXp(
-   executePrestigeFunction(currentState, chosenPath, childId),
-   LEGACY_PASS_XP.prestige,
- );
+ // executePrestige returns the ORIGINAL state when the attempt is rejected
+ // (e.g. net worth below threshold). Only award the marquee Legacy Pass XP
+ // (LEGACY_PASS_XP.prestige) when the prestige actually happened.
+ const prestigedState = executePrestigeFunction(currentState, chosenPath, childId);
+ if (prestigedState === currentState) {
+ logger.warn('[executePrestige] Prestige rejected; skipping Legacy Pass XP grant');
+ return;
+ }
+ const newGameState = awardLegacyPassXp(prestigedState, LEGACY_PASS_XP.prestige);
  setGameState(newGameState);
  logger.info(`[executePrestige] Prestige executed: path=${chosenPath}, childId=${childId || 'none'}`);
 

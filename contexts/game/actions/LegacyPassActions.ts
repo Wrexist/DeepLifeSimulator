@@ -148,8 +148,14 @@ export function reconcileLegacyPassSeason(
   const current = state.legacyPass;
   if (current && current.seasonId === seasonId) {
     const normalized = ensureCurrentSeason(current, seasonId);
+    // Re-derive premium from the live subscription: upgrade when it becomes
+    // active, and downgrade when it lapses mid-season (otherwise a lapsed
+    // subscriber could keep claiming premium rewards until the next rollover).
     if (premiumActiveNow && !normalized.premiumOwned) {
       return { ...state, legacyPass: { ...normalized, premiumOwned: true } };
+    }
+    if (!premiumActiveNow && normalized.premiumOwned) {
+      return { ...state, legacyPass: { ...normalized, premiumOwned: false } };
     }
     return normalized === current ? state : { ...state, legacyPass: normalized };
   }

@@ -13,6 +13,7 @@ import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { useGameUI } from '@/contexts/game/GameUIContext';
 import { track, analytics } from '@/lib/analytics';
 
 export function AnalyticsTracker(): null {
@@ -22,6 +23,11 @@ export function AnalyticsTracker(): null {
   const deathReason = useGameSelector((s) => s.deathReason ?? '');
   const age = useGameSelector((s) => s.date?.age ?? 0);
   const pathname = usePathname();
+  // Gate transition events until the save has hydrated: while `isLoading` is true,
+  // the loaded values arrive AFTER mount, which would otherwise be mis-read as
+  // in-session week/prestige/death transitions for returning players.
+  const { isLoading } = useGameUI();
+  const ready = !isLoading;
 
   const prevWeeks = useRef(weeksLived);
   const prevGeneration = useRef(generation);
@@ -30,6 +36,12 @@ export function AnalyticsTracker(): null {
 
   // week_advanced — fire once per actual week increment; first_week_completed once.
   useEffect(() => {
+    if (!ready) {
+      // Keep refs armed from the (hydrating) values; do not emit.
+      prevWeeks.current = weeksLived;
+      firstWeekFired.current = weeksLived >= 1;
+      return;
+    }
     if (weeksLived > prevWeeks.current) {
       track('week_advanced', { weeksLived, age });
     }
@@ -38,7 +50,7 @@ export function AnalyticsTracker(): null {
       firstWeekFired.current = true;
     }
     prevWeeks.current = weeksLived;
-  }, [weeksLived, age]);
+  }, [weeksLived, age, ready]);
 
   // screen_view — fire on route change (no-op unless telemetry is enabled).
   useEffect(() => {
@@ -47,19 +59,27 @@ export function AnalyticsTracker(): null {
 
   // death — fire on the false→true edge of the death popup.
   useEffect(() => {
+    if (!ready) {
+      prevDeath.current = showDeathPopup;
+      return;
+    }
     if (showDeathPopup && !prevDeath.current) {
       track('death', { weeksLived, age, reason: deathReason });
     }
     prevDeath.current = showDeathPopup;
-  }, [showDeathPopup, weeksLived, age, deathReason]);
+  }, [showDeathPopup, weeksLived, age, deathReason, ready]);
 
   // prestige — fire when the generation counter advances.
   useEffect(() => {
+    if (!ready) {
+      prevGeneration.current = generation;
+      return;
+    }
     if (generation > prevGeneration.current) {
       track('prestige', { generation, weeksLived });
     }
     prevGeneration.current = generation;
-  }, [generation, weeksLived]);
+  }, [generation, weeksLived, ready]);
 
   // Flush queued events when the app backgrounds so a kill doesn't drop them
   // (the interval flush alone can lose the tail of a session).

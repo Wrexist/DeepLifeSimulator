@@ -4,10 +4,15 @@ import { isKnownAnalyticsEvent } from '../events';
 const OK_FETCH = () =>
   jest.fn().mockResolvedValue({ ok: true } as Partial<Response>);
 
+/** Type-safe global fetch stub (avoids `as any` per the project rule). */
+function setGlobalFetch(fn: jest.Mock): void {
+  globalThis.fetch = fn as unknown as typeof fetch;
+}
+
 /** Drain any queued events so each test starts from zero. */
 async function drain(): Promise<void> {
   analytics.configure({ enabled: true, consent: true, endpoint: 'https://drain.test', installId: 'drain' });
-  (global as any).fetch = OK_FETCH();
+  setGlobalFetch(OK_FETCH());
   let guard = 0;
   while (analytics.getPendingCount() > 0 && guard < 10) {
     await analytics.flush();
@@ -66,7 +71,7 @@ describe('AnalyticsService', () => {
   describe('flush / transport', () => {
     it('POSTs a batch and clears the queue on success', async () => {
       const fetchMock = OK_FETCH();
-      (global as any).fetch = fetchMock;
+      setGlobalFetch(fetchMock);
       analytics.configure({ enabled: true, consent: true, endpoint: 'https://send.test', installId: 'abc' });
 
       analytics.track('session_start', {});
@@ -84,7 +89,7 @@ describe('AnalyticsService', () => {
 
     it('keeps the queue and never throws when fetch rejects', async () => {
       const fetchMock = jest.fn().mockRejectedValue(new Error('network down'));
-      (global as any).fetch = fetchMock;
+      setGlobalFetch(fetchMock);
       analytics.configure({ enabled: true, consent: true, endpoint: 'https://fail.test' });
 
       analytics.track('challenge_completed', { tier: 'hard' });
@@ -94,7 +99,7 @@ describe('AnalyticsService', () => {
 
     it('does not call fetch when there is no endpoint', async () => {
       const fetchMock = OK_FETCH();
-      (global as any).fetch = fetchMock;
+      setGlobalFetch(fetchMock);
       analytics.configure({ enabled: true, consent: true, endpoint: null });
 
       analytics.track('paywall_viewed', {});
@@ -119,7 +124,7 @@ describe('AnalyticsService', () => {
   describe('privacy', () => {
     it('redacts sensitive prop keys before transport', async () => {
       const fetchMock = OK_FETCH();
-      (global as any).fetch = fetchMock;
+      setGlobalFetch(fetchMock);
       analytics.configure({ enabled: true, consent: true, endpoint: 'https://priv.test' });
 
       analytics.track('purchase_succeeded', {

@@ -183,7 +183,12 @@ function createResetGameState(
   // Legacy Pass is SEASONAL (account-level), not per-life — preserve it across
   // prestige so a reset doesn't wipe the player's battle-pass progress.
   if (oldState.legacyPass) {
-    newState.legacyPass = { ...oldState.legacyPass };
+    newState.legacyPass = {
+      ...oldState.legacyPass,
+      claimedFreeTiers: [...(oldState.legacyPass.claimedFreeTiers || [])],
+      claimedPremiumTiers: [...(oldState.legacyPass.claimedPremiumTiers || [])],
+      ownedCosmetics: [...(oldState.legacyPass.ownedCosmetics || [])],
+    };
   }
   
   // BUG FIX: Properly preserve family tree data to prevent reverting to default
@@ -366,7 +371,12 @@ function createChildGameState(
 
   // Legacy Pass is SEASONAL (account-level) — carry it to the heir too.
   if (oldState.legacyPass) {
-    newState.legacyPass = { ...oldState.legacyPass };
+    newState.legacyPass = {
+      ...oldState.legacyPass,
+      claimedFreeTiers: [...(oldState.legacyPass.claimedFreeTiers || [])],
+      claimedPremiumTiers: [...(oldState.legacyPass.claimedPremiumTiers || [])],
+      ownedCosmetics: [...(oldState.legacyPass.ownedCosmetics || [])],
+    };
   }
 
   // BUG FIX: Preserve scenarioId to prevent "unknown" scenario title

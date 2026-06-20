@@ -145,10 +145,11 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
 
   const handleNext = useCallback(() => {
     if (currentStepIndex < TUTORIAL_STEPS.length - 1) {
-      const nextStep = TUTORIAL_STEPS[currentStepIndex + 1];
+      const nextStepIndex = currentStepIndex + 1;
+      const nextStep = TUTORIAL_STEPS[nextStepIndex];
       setCurrentTutorial(nextStep);
-      setCurrentStepIndex(currentStepIndex + 1);
-      track('tutorial_step', { step: currentStepIndex + 1, id: nextStep?.id ?? '' });
+      setCurrentStepIndex(nextStepIndex);
+      track('tutorial_step', { step: nextStepIndex + 1, id: nextStep?.id ?? '' });
     } else {
       // End of tutorial
       if (currentTutorial) {

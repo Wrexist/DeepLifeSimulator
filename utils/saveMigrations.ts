@@ -526,7 +526,9 @@ const migrations: Record<number, (state: any) => any> = {
   // Idempotent — only initializes when missing. The season id is left empty and
   // is reconciled to the current season on first use (ensureCurrentSeason).
   20: (state) => {
-    if (state.legacyPass === undefined) {
+    if (!state.legacyPass || typeof state.legacyPass !== 'object') {
+      // Covers undefined AND a corrupted/hand-edited `legacyPass: null` that would
+      // otherwise throw on the property access below and halt migration.
       state.legacyPass = {
         seasonId: '',
         xp: 0,
@@ -535,7 +537,7 @@ const migrations: Record<number, (state: any) => any> = {
         claimedPremiumTiers: [],
         ownedCosmetics: [],
       };
-    } else if (state.legacyPass.ownedCosmetics === undefined) {
+    } else if (!Array.isArray(state.legacyPass.ownedCosmetics)) {
       // Defensive: a partially-shaped legacyPass from an in-dev build.
       state.legacyPass.ownedCosmetics = [];
     }

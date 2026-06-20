@@ -39,19 +39,22 @@ export function getTierForXp(xp: number): number {
 
 /** Total XP required to have reached a given tier. */
 export function getXpForTier(tier: number): number {
-  return Math.max(0, Math.min(MAX_TIER, tier)) * XP_PER_TIER;
+  const safeTier = Number.isFinite(tier) ? Math.floor(tier) : 0;
+  return Math.max(0, Math.min(MAX_TIER, safeTier)) * XP_PER_TIER;
 }
 
 /** XP earned into the current (not-yet-complete) tier, 0..XP_PER_TIER. */
 export function xpIntoCurrentTier(xp: number): number {
-  if (getTierForXp(xp) >= MAX_TIER) return XP_PER_TIER;
-  return Math.max(0, Math.floor(xp)) % XP_PER_TIER;
+  const safeXp = Number.isFinite(xp) ? Math.max(0, Math.floor(xp)) : 0;
+  if (getTierForXp(safeXp) >= MAX_TIER) return XP_PER_TIER;
+  return safeXp % XP_PER_TIER;
 }
 
 /** XP remaining to the next tier (0 if maxed). */
 export function xpToNextTier(xp: number): number {
-  if (getTierForXp(xp) >= MAX_TIER) return 0;
-  return XP_PER_TIER - xpIntoCurrentTier(xp);
+  const safeXp = Number.isFinite(xp) ? xp : 0;
+  if (getTierForXp(safeXp) >= MAX_TIER) return 0;
+  return XP_PER_TIER - xpIntoCurrentTier(safeXp);
 }
 
 // ── XP sources (for later wiring into the game loop) ─────────────────────────
@@ -168,7 +171,9 @@ export function addLegacyPassXp(
 ): LegacyPassState {
   const current = ensureCurrentSeason(pass, seasonId);
   const add = isFinite(amount) && amount > 0 ? Math.floor(amount) : 0;
-  return { ...current, xp: current.xp + add };
+  // Sanitize a malformed persisted xp so NaN can't propagate.
+  const baseXp = Number.isFinite(current.xp) && current.xp > 0 ? Math.floor(current.xp) : 0;
+  return { ...current, xp: baseXp + add };
 }
 
 /** 1-based tiers that are unlocked but not yet claimed on a track. */

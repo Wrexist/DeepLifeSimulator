@@ -21,7 +21,7 @@ const SEASON = getCurrentSeasonId(NOW);
 describe('LegacyPassActions', () => {
   describe('applyLegacyPassReward', () => {
     it('grants gems to stats.gems', () => {
-      const s = createTestGameState({ stats: { gems: 10 } as any });
+      const s = createTestGameState({ stats: { gems: 10 } });
       const next = applyLegacyPassReward(s, { kind: 'gems', amount: 50, label: '50 Gems' });
       expect(next.stats.gems).toBe(60);
     });
@@ -46,7 +46,7 @@ describe('LegacyPassActions', () => {
     });
 
     it('ignores invalid amounts (no negative grants)', () => {
-      const s = createTestGameState({ stats: { gems: 5 } as any });
+      const s = createTestGameState({ stats: { gems: 5 } });
       const next = applyLegacyPassReward(s, { kind: 'gems', amount: -100, label: 'x' });
       expect(next.stats.gems).toBe(5);
     });
@@ -76,7 +76,7 @@ describe('LegacyPassActions', () => {
   describe('claimLegacyPassReward', () => {
     it('claims an unlocked free tier and grants its reward', () => {
       // Tier 1 reward is gems; give enough XP to unlock tier 1.
-      const base = createTestGameState({ stats: { gems: 0 } as any });
+      const base = createTestGameState({ stats: { gems: 0 } });
       const withXp = awardLegacyPassXp(base, XP_PER_TIER, NOW);
       const { state, result } = claimLegacyPassReward(withXp, 'free', 1, NOW);
       expect(result.ok).toBe(true);
@@ -87,7 +87,7 @@ describe('LegacyPassActions', () => {
     });
 
     it('refuses a locked tier and leaves rewards untouched', () => {
-      const base = createTestGameState({ stats: { gems: 0 } as any });
+      const base = createTestGameState({ stats: { gems: 0 } });
       const { state, result } = claimLegacyPassReward(base, 'free', 5, NOW);
       expect(result).toMatchObject({ ok: false, reason: 'locked' });
       expect(state.stats.gems).toBe(0);
@@ -128,7 +128,7 @@ describe('LegacyPassActions', () => {
   // award XP / reconcile with the NOW clock.
   const oldSeasonPass = (over: Record<string, unknown> = {}) =>
     createTestGameState({
-      stats: { gems: 0 } as any,
+      stats: { gems: 0 },
       youthPills: 0,
       legacyPass: {
         seasonId: 'old-season',
@@ -171,7 +171,7 @@ describe('LegacyPassActions', () => {
 
   describe('claimAllLegacyPassRewards', () => {
     it('claims every earned free tier in one call and reports the totals', () => {
-      const s = awardLegacyPassXp(createTestGameState({ stats: { gems: 0 } as any }), XP_PER_TIER * 3, NOW);
+      const s = awardLegacyPassXp(createTestGameState({ stats: { gems: 0 } }), XP_PER_TIER * 3, NOW);
       const { state, claimedCount, gemsGained } = claimAllLegacyPassRewards(s, NOW);
       expect(claimedCount).toBe(3); // tiers 1-3 free
       const expectedGems =
@@ -184,7 +184,7 @@ describe('LegacyPassActions', () => {
     });
 
     it('includes premium tiers when premium is owned', () => {
-      let s = unlockLegacyPassPremium(createTestGameState({ stats: { gems: 0 } as any }), NOW);
+      let s = unlockLegacyPassPremium(createTestGameState({ stats: { gems: 0 } }), NOW);
       s = awardLegacyPassXp(s, XP_PER_TIER * 2, NOW);
       const { claimedCount } = claimAllLegacyPassRewards(s, NOW);
       expect(claimedCount).toBe(4); // free 1,2 + premium 1,2
@@ -206,11 +206,21 @@ describe('LegacyPassActions', () => {
     });
 
     it('within the same season: re-derives premium without resetting progress', () => {
-      const s = awardLegacyPassXp(createTestGameState({ stats: { gems: 0 } as any }), XP_PER_TIER * 2, NOW);
+      const s = awardLegacyPassXp(createTestGameState({ stats: { gems: 0 } }), XP_PER_TIER * 2, NOW);
       expect(s.legacyPass?.premiumOwned).toBe(false);
       const next = reconcileLegacyPassSeason(s, true, NOW);
       expect(next.legacyPass?.premiumOwned).toBe(true);
       expect(next.legacyPass?.xp).toBe(XP_PER_TIER * 2); // progress intact
+    });
+
+    it('downgrades premium when the subscription lapses mid-season', () => {
+      // A premium subscriber this season, then the subscription lapses.
+      let s = awardLegacyPassXp(createTestGameState(), XP_PER_TIER * 2, NOW);
+      s = reconcileLegacyPassSeason(s, true, NOW); // premium granted
+      expect(s.legacyPass?.premiumOwned).toBe(true);
+      const lapsed = reconcileLegacyPassSeason(s, false, NOW);
+      expect(lapsed.legacyPass?.premiumOwned).toBe(false); // revoked, not held until rollover
+      expect(lapsed.legacyPass?.xp).toBe(XP_PER_TIER * 2); // free progress intact
     });
 
     it('is idempotent within a season (no spurious rollover/summary)', () => {
