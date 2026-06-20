@@ -114,3 +114,50 @@ describe('runCryptoWeeklyTick — regime evolution', () => {
     expect(r.market.coinMarkets.btc.regime).toBe('bear');
   });
 });
+
+describe('runCryptoWeeklyTick — regime-flip notification gating (smoothness)', () => {
+  it('does NOT toast a regime flip when the player holds no crypto', () => {
+    // economyState 'crash' forces a regime change, so regimeChangeCount > 0.
+    const r = runCryptoWeeklyTick({
+      market: emptyMarket(),
+      cryptos: [{ ...btc, owned: 0 }],
+      cashIn: 0,
+      currentWeek: 1,
+      economyState: 'crash',
+      rollFor: fixedRoll,
+    });
+    expect(r.notifications.find((n) => n.id === 'crypto-regime-flip')).toBeUndefined();
+  });
+
+  it('DOES toast a regime flip when the player holds a position', () => {
+    const r = runCryptoWeeklyTick({
+      market: emptyMarket(),
+      cryptos: [{ ...btc, owned: 0.5 }],
+      cashIn: 0,
+      currentWeek: 1,
+      economyState: 'crash',
+      rollFor: fixedRoll,
+    });
+    expect(r.notifications.find((n) => n.id === 'crypto-regime-flip')).toBeDefined();
+  });
+
+  it('DOES toast a regime flip when the player has an active DCA rule (no holdings yet)', () => {
+    const market: CryptoMarketState = {
+      ...emptyMarket(),
+      dcaRules: [{
+        id: 'dca1', cryptoId: 'btc', amount: 50, fromAccountId: 'acc1',
+        cadence: 'weekly', nextExecutionWeek: 999, enabled: true,
+        totalInvested: 0, totalCoinsBought: 0,
+      }],
+    };
+    const r = runCryptoWeeklyTick({
+      market,
+      cryptos: [{ ...btc, owned: 0 }],
+      cashIn: 0,
+      currentWeek: 1,
+      economyState: 'crash',
+      rollFor: fixedRoll,
+    });
+    expect(r.notifications.find((n) => n.id === 'crypto-regime-flip')).toBeDefined();
+  });
+});

@@ -141,7 +141,16 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
     market = recordPriceTick(market, coin.id, input.currentWeek, newPrice, regime, spread, weeksRemaining);
   }
 
-  if (regimeChangeCount > 0) {
+  // SMOOTHNESS: the market evolves for every coin each week, so a regime flip
+  // happens almost weekly. That's pure ambient flavor for someone who doesn't
+  // trade crypto — surfacing it as a top-of-screen toast every "Next Week" is
+  // noise. Only notify players who actually hold a position (or have automation
+  // riding on prices); for everyone else the market still moves silently.
+  const playerEngagedWithCrypto =
+    cryptos.some((c) => safe(c.owned) > 0) ||
+    (input.market.openOrders?.length ?? 0) > 0 ||
+    (input.market.dcaRules?.some((r) => r.enabled) ?? false);
+  if (regimeChangeCount > 0 && playerEngagedWithCrypto) {
     notifications.push({
       id: 'crypto-regime-flip',
       title: '📊 Crypto Regimes Shifted',
