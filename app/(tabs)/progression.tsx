@@ -13,6 +13,10 @@ import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LifeStoryModal from '@/components/LifeStoryModal';
 import SkillTreeModal from '@/components/SkillTreeModal';
+import LegacyPassModal from '@/components/LegacyPassModal';
+import SubscriptionModal from '@/components/SubscriptionModal';
+import { ClaimableBadge } from '@/components/ClaimableBadge';
+import { getClaimableCount } from '@/lib/legacyPass/legacyPass';
 import EmptyState from '@/components/ui/EmptyState';
 
 function ProgressionScreen() {
@@ -26,6 +30,7 @@ function ProgressionScreen() {
 function ProgressionScreenContent() {
   const { gameState, checkAchievements } = useGame();
   const { settings } = gameState;
+  const legacyClaimable = getClaimableCount(gameState.legacyPass);
   // Screen defaults to dark unless darkMode is explicitly false.
   const isDark = settings?.darkMode !== false;
   const [showDataVisualization, setShowDataVisualization] = useState(false);
@@ -35,6 +40,8 @@ function ProgressionScreenContent() {
   const [showCommitments, setShowCommitments] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
+  const [showLegacyPass, setShowLegacyPass] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
 
   // P2-7: depend on PRIMITIVES, not object/array references. Under the current
   // provider, `gameState.stats`/`relationships`/`items` get a fresh identity on
@@ -131,6 +138,23 @@ function ProgressionScreenContent() {
             >
               <Brain size={24} color="#10B981" />
               <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Life Skills</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
+              onPress={() => setShowLegacyPass(true)}
+            >
+              <Crown size={24} color="#F59E0B" />
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Legacy Pass</Text>
+              <ClaimableBadge count={legacyClaimable} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
+              onPress={() => setShowSubscription(true)}
+            >
+              <Star size={24} color="#F59E0B" />
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>DeepLife+</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -248,6 +272,15 @@ function ProgressionScreenContent() {
         <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
         <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
         <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
+        <LegacyPassModal
+          visible={showLegacyPass}
+          onClose={() => setShowLegacyPass(false)}
+          onSubscribe={() => {
+            setShowLegacyPass(false);
+            setShowSubscription(true);
+          }}
+        />
+        <SubscriptionModal visible={showSubscription} onClose={() => setShowSubscription(false)} />
         <PrestigeHistoryModal visible={showPrestigeHistory} onClose={() => setShowPrestigeHistory(false)} />
         <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
     </View>

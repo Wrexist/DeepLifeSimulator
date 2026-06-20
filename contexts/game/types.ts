@@ -1410,6 +1410,8 @@ export interface GameSettings {
   autoProgression?: boolean; // Auto-progression for progressive disclosure
   adsRemoved?: boolean; // IAP: Remove Ads purchased
   adsRemovedDate?: string; // When ads were removed
+  deepLifePlusActivated?: boolean; // DeepLife+ ad-free benefit currently active (cleared on lapse)
+  deepLifePlusWelcomeClaimed?: boolean; // Sticky: welcome gems granted once ever (never cleared on lapse)
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle
@@ -1886,6 +1888,42 @@ export interface Vehicle {
 }
 
 /**
+ * Legacy Pass (seasonal battle pass) progress — added in STATE_VERSION 20.
+ * A dual-track (free + premium) reward pass keyed to the prestige/Legacy theme.
+ * XP is earned from existing engagement signals (challenges, milestones, prestige).
+ * Rewards are cosmetics / youth pills / gems / heritable traits — never raw power
+ * (respects the 2.0× income soft-cap; no pay-to-win).
+ */
+export interface LegacyPassState {
+  /** Season this progress belongs to. Progress resets when the season changes. */
+  seasonId: string;
+  /** Total XP earned in the current season. */
+  xp: number;
+  /** Whether the player has unlocked the premium reward track (IAP). */
+  premiumOwned: boolean;
+  /** Free-track tier indices already claimed. */
+  claimedFreeTiers: number[];
+  /** Premium-track tier indices already claimed. */
+  claimedPremiumTiers: number[];
+  /** Cosmetic ids earned from the pass (purely visual; no gameplay effect). */
+  ownedCosmetics: string[];
+}
+
+/**
+ * One-shot summary of a Legacy Pass season rollover, stamped when the season
+ * changes so the UI can show a "new season" moment + what was auto-collected.
+ * Cleared by the UI once shown. Optional (no migration needed).
+ */
+export interface LegacyPassSeasonSummary {
+  endedSeasonId: string;
+  newSeasonId: string;
+  /** How many earned-but-unclaimed rewards were auto-collected at rollover. */
+  collectedCount: number;
+  /** Total gems auto-collected at rollover. */
+  collectedGems: number;
+}
+
+/**
  * Main GameState interface
  * Contains all game state data
  */
@@ -1948,6 +1986,12 @@ export interface GameState {
   ancestors: FamilyMemberNode[];
   activeTraits: string[];
   memories: Memory[];
+  /** Seasonal Legacy Pass progress (STATE_VERSION 20). Optional for old saves. */
+  legacyPass?: LegacyPassState;
+  /** One-shot Legacy Pass season-rollover summary for the UI (optional). */
+  legacyPassSeasonSummary?: LegacyPassSeasonSummary;
+  /** Equipped cosmetics by slot (ids from legacyPass.ownedCosmetics). Optional. */
+  equippedCosmetics?: { frame?: string; theme?: string };
   familyTreeData?: {
     members: Record<string, FamilyMemberNode>;
     lineageId: string;

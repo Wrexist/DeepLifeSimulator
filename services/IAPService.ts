@@ -7,6 +7,7 @@ import {
   isConsumableProduct,
 } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
+import { track } from '@/lib/analytics';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { clampHobbySkillLevel } from '@/utils/stateValidation';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
@@ -671,8 +672,24 @@ export class IAPService {
     }
   }
 
-  // Purchase a product
+  // Purchase a product — thin instrumentation wrapper around the purchase flow.
+  // Fires the monetisation funnel events (started → succeeded/failed) exactly once
+  // each, without touching the flow's many internal return points. `track()` is a
+  // hard no-op unless telemetry is enabled + consented.
   async purchaseProduct(productId: string): Promise<PurchaseResult> {
+    track('purchase_started', { productId });
+    try {
+      const result = await this.runPurchaseFlow(productId);
+      track(result.success ? 'purchase_succeeded' : 'purchase_failed', { productId });
+      return result;
+    } catch (error) {
+      track('purchase_failed', { productId, error: 'exception' });
+      throw error;
+    }
+  }
+
+  // Internal purchase flow (formerly the body of purchaseProduct).
+  private async runPurchaseFlow(productId: string): Promise<PurchaseResult> {
     try {
       this.setState({ isLoading: true, error: null });
 

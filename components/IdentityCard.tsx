@@ -8,6 +8,7 @@ import { View,
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
+import { getCosmetic } from '@/lib/cosmetics/cosmetics';
 import YouthPillModal from './YouthPillModal';
 import LegacyTimeline from './LegacyTimeline';
 import NetWorthBreakdownModal from './NetWorthBreakdownModal';
@@ -320,6 +321,14 @@ function IdentityCard() {
   const avatar = getCharacterImage(date?.age ?? 0, sex);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
+  // Equipped Legacy Pass cosmetics: frame → avatar ring color, theme → glow tint.
+  const equippedFrame = gameState.equippedCosmetics?.frame
+    ? getCosmetic(gameState.equippedCosmetics.frame)
+    : undefined;
+  const equippedTheme = gameState.equippedCosmetics?.theme
+    ? getCosmetic(gameState.equippedCosmetics.theme)
+    : undefined;
+
   return (
     <View style={styles.cardContainer}>
       <LinearGradient
@@ -329,8 +338,13 @@ function IdentityCard() {
         style={styles.card}
       >
         <View style={styles.avatarContainer}>
-          <Image source={avatar} style={styles.avatar} />
-          <View style={styles.avatarGlow} />
+          <Image
+            source={avatar}
+            style={[styles.avatar, equippedFrame ? { borderColor: equippedFrame.color } : null]}
+          />
+          <View
+            style={[styles.avatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
+          />
           {gameState?.prestige?.prestigeLevel !== undefined && (gameState?.prestige?.prestigeLevel ?? 0) > 0 && (
             <TouchableOpacity
               style={styles.prestigeBadge}

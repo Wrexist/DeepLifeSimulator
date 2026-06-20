@@ -20,9 +20,14 @@ export const FEATURE_FLAGS = {
   // In-App Purchases
   iap: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_IAP !== 'false',
 
-  // Analytics (Sentry, etc.) - DISABLED for iOS 26 compatibility
+  // Analytics (Sentry, etc.) - DISABLED for iOS 26 compatibility (native TurboModule crash)
   analytics: false, // !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ANALYTICS !== 'false',
-  
+
+  // Telemetry (Wave 0.1): pure-JS, fetch-based event pipeline — NO native SDK,
+  // so it is safe to enable independently of the disabled Sentry `analytics`
+  // flag above. Opt-in only (=== 'true') to avoid accidental release init.
+  telemetry: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true',
+
   // App Tracking Transparency (iOS)
   att: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ATT !== 'false',
   

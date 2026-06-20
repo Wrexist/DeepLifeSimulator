@@ -179,6 +179,12 @@ function createResetGameState(
   newState.generationNumber = oldState.generationNumber || 1; // Keep same generation on prestige reset
   newState.lineageId = oldState.lineageId || 'initial-lineage';
   newState.ancestors = [...(oldState.ancestors || [])];
+
+  // Legacy Pass is SEASONAL (account-level), not per-life — preserve it across
+  // prestige so a reset doesn't wipe the player's battle-pass progress.
+  if (oldState.legacyPass) {
+    newState.legacyPass = { ...oldState.legacyPass };
+  }
   
   // BUG FIX: Properly preserve family tree data to prevent reverting to default
   if (oldState.familyTreeData) {
@@ -357,7 +363,12 @@ function createChildGameState(
   newState.generationNumber = (oldState.generationNumber || 1) + 1; // Increment generation for child
   newState.lineageId = oldState.lineageId || 'initial-lineage';
   newState.ancestors = [...(oldState.ancestors || [])];
-  
+
+  // Legacy Pass is SEASONAL (account-level) — carry it to the heir too.
+  if (oldState.legacyPass) {
+    newState.legacyPass = { ...oldState.legacyPass };
+  }
+
   // BUG FIX: Preserve scenarioId to prevent "unknown" scenario title
   if (oldState.scenarioId) {
     newState.scenarioId = oldState.scenarioId;

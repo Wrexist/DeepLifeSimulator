@@ -521,6 +521,27 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 19;
     return state;
   },
+
+  // Version 20: Legacy Pass (seasonal battle pass). Adds the `legacyPass` slice.
+  // Idempotent — only initializes when missing. The season id is left empty and
+  // is reconciled to the current season on first use (ensureCurrentSeason).
+  20: (state) => {
+    if (state.legacyPass === undefined) {
+      state.legacyPass = {
+        seasonId: '',
+        xp: 0,
+        premiumOwned: false,
+        claimedFreeTiers: [],
+        claimedPremiumTiers: [],
+        ownedCosmetics: [],
+      };
+    } else if (state.legacyPass.ownedCosmetics === undefined) {
+      // Defensive: a partially-shaped legacyPass from an in-dev build.
+      state.legacyPass.ownedCosmetics = [];
+    }
+    state.version = 20;
+    return state;
+  },
 };
 
 /**
