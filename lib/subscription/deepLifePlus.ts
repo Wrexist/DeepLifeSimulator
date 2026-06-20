@@ -60,6 +60,7 @@ export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
 /** One-time gem grant applied when DeepLife+ benefits are first activated. */
 export const DEEP_LIFE_PLUS_WELCOME_GEMS = 500;
 
+/** Look up a DeepLife+ plan by billing period; `undefined` if none matches. */
 export function getDeepLifePlusPlan(period: BillingPeriod): DeepLifePlusPlan | undefined {
   return DEEP_LIFE_PLUS_PLANS.find((p) => p.period === period);
 }

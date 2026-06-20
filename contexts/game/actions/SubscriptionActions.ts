@@ -83,8 +83,9 @@ export function reconcileSubscriptionBenefits(
     settings: {
       ...state.settings,
       deepLifePlusActivated: false,
-      // Keep ad-free only if the permanent Remove Ads IAP justifies it.
-      adsRemoved: ownsRemoveAds ? state.settings.adsRemoved : false,
+      // Ad-free is derived directly from the (authoritative) entitlement so a
+      // stale `false` can't wrongly revoke a permanent Remove Ads purchase.
+      adsRemoved: ownsRemoveAds,
     },
   };
 }

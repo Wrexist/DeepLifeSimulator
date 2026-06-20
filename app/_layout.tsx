@@ -53,7 +53,7 @@ import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
 // expo-tracking-transparency is in package.json AND wired via the config plugin
 // in app.config.js (see P0-13). The runtime helper below is loaded lazily.
-import { requestTrackingPermission } from '@/utils/trackingTransparency';
+import { requestTrackingPermission, isTrackingAllowed } from '@/utils/trackingTransparency';
 import { logger } from '@/utils/logger';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { AppProviders } from '@/contexts/AppProviders';
@@ -1102,15 +1102,20 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     }
 
     // Add Telemetry task (Wave 0.1): pure-JS analytics, no native SDK. Only runs
-    // when the opt-in `telemetry` flag is set. Consent is granted here because the
-    // pipeline uses an anonymous install id (never a device/advertising id).
+    // when the opt-in `telemetry` flag is set, AND consent is derived from the
+    // user's tracking choice (ATT) rather than force-enabled — telemetry stays a
+    // no-op until tracking is allowed. The pipeline still uses only an anonymous
+    // install id (never a device/advertising id).
     if (enableTelemetry) {
       const telemetryTask = createSafeServiceTask(
         'Telemetry Service',
         async () => {
           await analytics.init();
-          analytics.setConsent(true);
-          track('session_start', { platform: Platform.OS });
+          const trackingAllowed = await isTrackingAllowed();
+          analytics.setConsent(trackingAllowed);
+          if (trackingAllowed) {
+            track('session_start', { platform: Platform.OS });
+          }
         },
         { timeout: 3000, critical: false, enabled: enableTelemetry }
       );

@@ -16,6 +16,7 @@
  */
 
 import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
+import { logger } from '@/utils/logger';
 import {
   AnalyticsEvent,
   AnalyticsEventName,
@@ -148,8 +149,9 @@ class AnalyticsService {
       // Enable LAST, after id + queue are ready.
       this.enabled = FEATURE_FLAGS.telemetry === true;
       if (this.enabled) this.startFlushTimer();
-    } catch {
+    } catch (error) {
       // Never let analytics init break startup.
+      logger.debug('[analytics] init failed (non-fatal)', { error });
       this.enabled = false;
     }
   }
@@ -199,8 +201,9 @@ class AnalyticsService {
       }
       // Throttle persistence (every 10 events) like RemoteLoggingService.
       if (this.queue.length % 10 === 0) void this.persistQueue();
-    } catch {
+    } catch (error) {
       /* analytics must never throw */
+      logger.debug('[analytics] track failed (non-fatal)', { error });
     }
   }
 
@@ -231,8 +234,9 @@ class AnalyticsService {
         this.queue = this.queue.filter(e => !sent.has(e.id));
         void this.persistQueue();
       }
-    } catch {
+    } catch (error) {
       // Network failure or abort — keep the queue, try again next interval.
+      logger.debug('[analytics] flush failed (will retry)', { error });
     } finally {
       clearTimeout(abortTimer);
       this.isFlushing = false;
@@ -261,16 +265,18 @@ class AnalyticsService {
         // Validate element shape so a corrupt cache can't inject malformed events.
         this.queue = parsed.filter(isValidQueuedEvent).slice(-MAX_QUEUE);
       }
-    } catch {
+    } catch (error) {
       /* corrupt cache — ignore */
+      logger.debug('[analytics] loadQueue failed (ignored)', { error });
     }
   }
 
   private async persistQueue(): Promise<void> {
     try {
       await storage.setItem(QUEUE_KEY, JSON.stringify(this.queue.slice(-MAX_QUEUE)));
-    } catch {
+    } catch (error) {
       /* best-effort */
+      logger.debug('[analytics] persistQueue failed (ignored)', { error });
     }
   }
 }

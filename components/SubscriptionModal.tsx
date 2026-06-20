@@ -12,10 +12,12 @@ import { X, Crown, Check } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
+import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { accent, colors } from '@/lib/config/theme';
 import { subscriptionService } from '@/services/SubscriptionService';
 import { track } from '@/lib/analytics';
+import { logger } from '@/utils/logger';
 import { applyDeepLifePlusBenefits } from '@/contexts/game/actions/SubscriptionActions';
 import {
   DEEP_LIFE_PLUS_PLANS,
@@ -33,6 +35,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const { theme } = useTheme();
   const reducedMotion = useReducedMotion();
   const setGameState = useSetGameState();
+  const { saveGame } = useGameActions();
   const [selected, setSelected] = useState<DeepLifePlusPlan>(DEEP_LIFE_PLUS_PLANS[0]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -51,11 +54,13 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       const res = await subscriptionService.purchaseSubscription(selected.productId);
       if (res.success) {
         setGameState((prev) => applyDeepLifePlusBenefits(prev));
+        void saveGame?.(false); // persist entitlement + welcome gems immediately
         setMessage('DeepLife+ activated — enjoy ad-free play!');
       } else {
         setMessage(res.message || 'Purchase could not be completed.');
       }
-    } catch {
+    } catch (error) {
+      logger.error('[SubscriptionModal] purchase failed', { productId: selected.productId, error });
       setMessage('Something went wrong. Please try again.');
     } finally {
       setBusy(false);
@@ -70,10 +75,14 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       await subscriptionService.restoreSubscriptions();
       if (isDeepLifePlusActive()) {
         setGameState((prev) => applyDeepLifePlusBenefits(prev));
+        void saveGame?.(false); // persist restored entitlement immediately
         setMessage('Subscription restored.');
       } else {
         setMessage('No active subscription found to restore.');
       }
+    } catch (error) {
+      logger.error('[SubscriptionModal] restore failed', { error });
+      setMessage('Could not restore purchases. Please try again.');
     } finally {
       setBusy(false);
     }
