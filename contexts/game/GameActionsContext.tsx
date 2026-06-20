@@ -2529,18 +2529,34 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  onPress: async () => {
  try {
  if (conflict.remoteState) {
+ // A-4 parity with loadGame: run version migrations BEFORE repair. A
+ // cloud save from an OLDER app version (synced from a device that
+ // hasn't updated) must be migrated, not just shape-repaired, or
+ // current code crashes on the stale schema. Refuse a FUTURE-version save.
+ let remote = conflict.remoteState;
+ try {
+ const { runMigrations } = await import('@/utils/saveMigrations');
+ const migrationResult = runMigrations(remote);
+ if (migrationResult.versionFromFuture) {
+ logger.error('[CloudSync] Cloud save is from a newer app version — refusing to apply.');
+ return;
+ }
+ remote = migrationResult.state;
+ } catch (migErr) {
+ logger.error('[CloudSync] Migration of cloud state failed (continuing with repair):', migErr);
+ }
  // Validate and repair remote state before applying
- const repaired = repairGameState(conflict.remoteState);
+ const repaired = repairGameState(remote);
  if (repaired.repaired) {
  logger.warn('[CloudSync] Remote state required repair:', repaired.repairs);
  }
- const validation = validateGameState(conflict.remoteState, true);
+ const validation = validateGameState(remote, true);
  if (!validation.valid) {
  logger.error('[CloudSync] Remote state failed validation after repair:', validation.errors);
  return;
  }
- setGameState(conflict.remoteState);
- logger.info('[CloudSync] User chose cloud version — state replaced (validated)');
+ setGameState(remote);
+ logger.info('[CloudSync] User chose cloud version — migrated + state replaced (validated)');
  }
  } catch (err) {
  logger.error('[CloudSync] Failed to apply cloud state:', err);

@@ -141,6 +141,18 @@ export function calculateNetWorth(gameState: GameState): number {
       });
     }
 
+    // Subtract outstanding debt — net worth is ASSETS minus LIABILITIES. Without
+    // this, the full property/asset price counted while the mortgage/loan behind
+    // it didn't, so a player could leverage borrowed money to vault the prestige
+    // net-worth threshold without actually being wealthy. Only equity counts.
+    if (gameState.loans && Array.isArray(gameState.loans)) {
+      gameState.loans.forEach((loan) => {
+        if (loan && typeof loan.remaining === 'number' && isFinite(loan.remaining) && loan.remaining > 0) {
+          netWorth -= loan.remaining;
+        }
+      });
+    }
+
     // Final validation - ensure result is finite and non-negative
     const finalNetWorth = isFinite(netWorth) ? Math.max(0, netWorth) : 0;
 

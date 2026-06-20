@@ -106,10 +106,18 @@ export function applyLoanAutopay(input: LoanAutopayInput): LoanAutopayResult {
       };
     }
 
-    // Missed payment — apply compounding penalty.
-    const penalizedRemaining = Math.max(
-      0,
-      remainingWithInterest * (1 + LOAN_MISSED_PAYMENT_PENALTY),
+    // Missed payment — apply compounding penalty, but BOUND it. Without a cap,
+    // a player stuck just above the bankruptcy floor (so payments are skipped to
+    // protect the floor) sees the balance compound every week forever and never
+    // triggers bankruptcy — an unresolvable runaway-debt soft-lock (and eventual
+    // float blow-up). Cap the compounded total at 3× the original principal (or
+    // the current balance, if already higher) so it can't run away.
+    const penaltyCap = typeof loan.principal === 'number' && isFinite(loan.principal) && loan.principal > 0
+      ? Math.max(remainingWithInterest, loan.principal * 3)
+      : remainingWithInterest;
+    const penalizedRemaining = Math.min(
+      penaltyCap,
+      Math.max(0, remainingWithInterest * (1 + LOAN_MISSED_PAYMENT_PENALTY)),
     );
     totalLoanPenalty += (penalizedRemaining - remainingWithInterest);
     return {
