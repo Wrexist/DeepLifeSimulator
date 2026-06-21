@@ -36,6 +36,7 @@ function DeathPopup() {
     (gameState.mindset?.activeTraitId as MindsetId | null) || null
   );
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'summary' | 'legacy'>('summary');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -365,15 +366,8 @@ function DeathPopup() {
               colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F8FAFC', '#FFFFFF', '#F1F5F9']}
               style={styles.card}
             >
-              <View style={styles.scrollContainer}>
-                <ScrollView 
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollContent}
-                  showsVerticalScrollIndicator={true}
-                  nestedScrollEnabled={true}
-                  bounces={true}
-                >
-                {/* Header */}
+              {/* Fixed header — identity of the screen, shown on both tabs */}
+              <View style={styles.fixedHeader}>
                 <View style={styles.header}>
                   <View style={[styles.iconContainer, settings.darkMode && styles.iconContainerDark]}>
                     <Skull size={40} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
@@ -396,7 +390,13 @@ function DeathPopup() {
 
                 {/* Life Ribbon */}
                 {lifeRibbon && (
-                  <View style={[styles.ribbonBanner, { borderColor: lifeRibbon.color }]}>
+                  <View
+                    style={[
+                      styles.ribbonBanner,
+                      settings.darkMode && styles.ribbonBannerDark,
+                      { borderColor: lifeRibbon.color },
+                    ]}
+                  >
                     <View style={styles.ribbonTextContainer}>
                       <Text style={[styles.ribbonName, { color: lifeRibbon.color }]}>
                         {lifeRibbon.hidden && !gameState.ribbonCollection?.discoveredIds?.includes(lifeRibbon.id)
@@ -409,7 +409,75 @@ function DeathPopup() {
                     </View>
                   </View>
                 )}
+              </View>
 
+              {/* Tab bar */}
+              <View style={[styles.tabRow, settings.darkMode && styles.tabRowDark]}>
+                <TouchableOpacity
+                  style={styles.tabBtn}
+                  onPress={() => setActiveTab('summary')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.tabContent}>
+                    <Sparkles
+                      size={15}
+                      color={
+                        activeTab === 'summary'
+                          ? (settings.darkMode ? '#F8FAFC' : '#111827')
+                          : (settings.darkMode ? 'rgba(226, 232, 240, 0.55)' : 'rgba(107, 114, 128, 0.7)')
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.tabLabel,
+                        settings.darkMode && styles.tabLabelDark,
+                        activeTab === 'summary' && (settings.darkMode ? styles.tabLabelActiveDark : styles.tabLabelActive),
+                      ]}
+                    >
+                      Summary
+                    </Text>
+                  </View>
+                  {activeTab === 'summary' && <View style={[styles.tabUnderline, { backgroundColor: '#8B5CF6' }]} />}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.tabBtn}
+                  onPress={() => setActiveTab('legacy')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.tabContent}>
+                    <Crown
+                      size={15}
+                      color={
+                        activeTab === 'legacy'
+                          ? (settings.darkMode ? '#F8FAFC' : '#111827')
+                          : (settings.darkMode ? 'rgba(226, 232, 240, 0.55)' : 'rgba(107, 114, 128, 0.7)')
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.tabLabel,
+                        settings.darkMode && styles.tabLabelDark,
+                        activeTab === 'legacy' && (settings.darkMode ? styles.tabLabelActiveDark : styles.tabLabelActive),
+                      ]}
+                    >
+                      Legacy
+                    </Text>
+                  </View>
+                  {activeTab === 'legacy' && <View style={[styles.tabUnderline, { backgroundColor: '#6366F1' }]} />}
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.scrollContainer}>
+                <ScrollView
+                  style={styles.scrollView}
+                  contentContainerStyle={styles.scrollContent}
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                  bounces={true}
+                >
+                {activeTab === 'summary' && (
+                <>
                 {/* Life Summary Section */}
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
@@ -563,56 +631,6 @@ function DeathPopup() {
                   </View>
                 </View>
 
-                {/* Inheritance Breakdown */}
-                <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
-                    Inheritance Breakdown
-                  </Text>
-                  
-                  <View style={[styles.breakdownCard, settings.darkMode && styles.breakdownCardDark]}>
-                    <View style={styles.breakdownRow}>
-                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Cash</Text>
-                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
-                        {formatMoney(inheritanceSummary.cash)}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.breakdownRow}>
-                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Savings</Text>
-                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
-                        {formatMoney(inheritanceSummary.bankSavings)}
-                      </Text>
-                    </View>
-                    
-                    {inheritanceSummary.realEstateIds.length > 0 && (
-                      <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Properties</Text>
-                        <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
-                          {inheritanceSummary.realEstateIds.length}
-                        </Text>
-                      </View>
-                    )}
-                    
-                    {inheritanceSummary.companyIds.length > 0 && (
-                      <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Companies</Text>
-                        <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
-                          {inheritanceSummary.companyIds.length}
-                        </Text>
-                      </View>
-                    )}
-                    
-                    {inheritanceSummary.debts > 0 && (
-                      <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, { color: '#EF4444' }]}>Debts</Text>
-                        <Text style={[styles.breakdownValue, { color: '#EF4444' }]}>
-                          -{formatMoney(inheritanceSummary.debts)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-
                 {/* Life Statistics */}
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
@@ -710,6 +728,60 @@ function DeathPopup() {
                     </View>
                   ) : null;
                 })()}
+                </>
+                )}
+
+                {activeTab === 'legacy' && (
+                <>
+                {/* Inheritance Breakdown */}
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                    Inheritance Breakdown
+                  </Text>
+
+                  <View style={[styles.breakdownCard, settings.darkMode && styles.breakdownCardDark]}>
+                    <View style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Cash</Text>
+                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        {formatMoney(inheritanceSummary.cash)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Savings</Text>
+                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        {formatMoney(inheritanceSummary.bankSavings)}
+                      </Text>
+                    </View>
+
+                    {inheritanceSummary.realEstateIds.length > 0 && (
+                      <View style={styles.breakdownRow}>
+                        <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Properties</Text>
+                        <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                          {inheritanceSummary.realEstateIds.length}
+                        </Text>
+                      </View>
+                    )}
+
+                    {inheritanceSummary.companyIds.length > 0 && (
+                      <View style={styles.breakdownRow}>
+                        <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Companies</Text>
+                        <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                          {inheritanceSummary.companyIds.length}
+                        </Text>
+                      </View>
+                    )}
+
+                    {inheritanceSummary.debts > 0 && (
+                      <View style={styles.breakdownRow}>
+                        <Text style={[styles.breakdownLabel, { color: '#EF4444' }]}>Debts</Text>
+                        <Text style={[styles.breakdownValue, { color: '#EF4444' }]}>
+                          -{formatMoney(inheritanceSummary.debts)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
 
                 {/* Legacy Bonuses */}
                 <View style={styles.section}>
@@ -862,11 +934,13 @@ function DeathPopup() {
                     </View>
                   )}
                 </View>
+                </>
+                )}
                 </ScrollView>
               </View>
 
               {/* Actions */}
-              <View style={styles.actions}>
+              <View style={[styles.actions, settings.darkMode && styles.actionsDark]}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.reviveButton, safeStats(gameState).gems < REVIVE_GEM_COST && styles.disabledButton]}
                   onPress={handleRevive}
@@ -935,27 +1009,30 @@ function DeathPopup() {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionButton]}
-                  onPress={() => setShowLifeStory(true)}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient colors={['#6366F1', '#818CF8']} style={styles.buttonGradient}>
-                    <BookOpen size={18} color="#FFF" />
-                    <Text style={styles.buttonText}>Read Your Story</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                {/* Secondary actions — compact row */}
+                <View style={styles.secondaryRow}>
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, settings.darkMode && styles.secondaryButtonDark]}
+                    onPress={() => setShowLifeStory(true)}
+                    activeOpacity={0.8}
+                  >
+                    <BookOpen size={16} color={settings.darkMode ? '#E2E8F0' : '#374151'} />
+                    <Text style={[styles.secondaryButtonText, settings.darkMode && styles.secondaryButtonTextDark]}>
+                      Read Story
+                    </Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionButton]}
-                  onPress={handleShareObituary}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient colors={['#EC4899', '#F472B6']} style={styles.buttonGradient}>
-                    <Share2 size={18} color="#FFF" />
-                    <Text style={styles.buttonText}>Share Obituary</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, settings.darkMode && styles.secondaryButtonDark]}
+                    onPress={handleShareObituary}
+                    activeOpacity={0.8}
+                  >
+                    <Share2 size={16} color={settings.darkMode ? '#E2E8F0' : '#374151'} />
+                    <Text style={[styles.secondaryButtonText, settings.darkMode && styles.secondaryButtonTextDark]}>
+                      Share
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </LinearGradient>
           )}

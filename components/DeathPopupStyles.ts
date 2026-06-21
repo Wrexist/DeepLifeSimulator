@@ -47,8 +47,51 @@ export const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   scrollContainer: {
-    maxHeight: height * 0.55,
-    minHeight: scale(300),
+    maxHeight: height * 0.5,
+    minHeight: scale(260),
+  },
+  // Tab bar (modeled on GemShopModal pattern)
+  tabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: scale(16),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  tabRowDark: {
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: scale(12),
+    alignItems: 'center',
+  },
+  tabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+  },
+  tabLabel: {
+    fontSize: fontScale(14),
+    fontWeight: '600',
+    color: 'rgba(107, 114, 128, 0.7)',
+  },
+  tabLabelDark: {
+    color: 'rgba(226, 232, 240, 0.55)',
+  },
+  tabLabelActive: {
+    color: '#111827',
+    fontWeight: '700',
+  },
+  tabLabelActiveDark: {
+    color: '#F8FAFC',
+  },
+  tabUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    left: '22%',
+    right: '22%',
+    height: scale(2),
+    borderRadius: scale(1),
   },
   scrollView: {
     flex: 1,
@@ -57,10 +100,15 @@ export const styles = StyleSheet.create({
     padding: scale(24),
     paddingBottom: scale(20),
   },
+  fixedHeader: {
+    paddingHorizontal: scale(24),
+    paddingTop: scale(24),
+    paddingBottom: scale(16),
+    gap: scale(14),
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: scale(24),
   },
   iconContainer: {
     width: scale(64),
@@ -386,6 +434,9 @@ export const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(0, 0, 0, 0.08)',
   },
+  actionsDark: {
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
   actionButton: {
     borderRadius: scale(14),
     overflow: 'hidden',
@@ -408,6 +459,36 @@ export const styles = StyleSheet.create({
   newLifeButton: {},
   disabledButton: {
     opacity: 0.5,
+  },
+  // Streamlined secondary actions (Read Story + Share)
+  secondaryRow: {
+    flexDirection: 'row',
+    gap: scale(10),
+    marginTop: scale(2),
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
+    paddingVertical: scale(11),
+    borderRadius: scale(12),
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  secondaryButtonDark: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  secondaryButtonText: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: '#374151',
+  },
+  secondaryButtonTextDark: {
+    color: '#E2E8F0',
   },
   // Children Selection Styles
   childrenNote: {
@@ -880,11 +961,13 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: scale(14),
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
     borderRadius: scale(12),
-    borderWidth: 2,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderWidth: 1,
+    borderLeftWidth: scale(4),
+    backgroundColor: 'rgba(241, 245, 249, 0.9)',
+  },
+  ribbonBannerDark: {
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
   },
   ribbonEmoji: {
     fontSize: fontScale(36),
