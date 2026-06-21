@@ -27,25 +27,29 @@
   test that exercises an index PAST the buffer. The same latent shape still exists for >20
   relationships/diseases and >10 vehicles — apply the same wrap if those collections can grow.
 
-### 2026-06-21 - The weekly-audit routine's harness is missing — adapt, don't abort
+### 2026-06-21 - "Missing" tooling already existed on main — fetch + check open PRs before building it
 
-- What went wrong: the scheduled "weekly audit" routine prompt says to run `npm run audit:weekly`
-  (and `:full`), read `tasks/weekly-audit-<date>.md`, and follow `.agents/skills/weekly-audit/SKILL.md`.
-  NONE of these exist in the repo: there is no `audit:weekly` script in package.json, no `weekly-audit`
-  skill (only `eas-build`/`preflight`/`test-suite` live under `.agents/skills/`), and the fresh container
-  had no `node_modules`, so even `npm run type-check` / `jest` silently "passed" (exit 0) while actually
-  failing with `jest: not found` and missing type defs.
-- Why it hid: a piped `| tail` swallows the real exit code (`${PIPESTATUS[0]}` ≠ `$?`), so a missing
-  binary looks like a clean run. Always check `node_modules` exists and capture `PIPESTATUS[0]` before
-  trusting a green static check on a cold container.
-- How it was handled: ran `npm ci` (registry reachable under this network policy), then the REAL
-  `type-check` (0 errors) + full suite (2560 pass) + perf/money-conservation stress suites, and performed
-  the 5-domain qualitative pass via two source-verifying subagents instead of the missing script.
-- Rule: when a routine's prescribed tooling is absent, do not declare the routine un-runnable — reconstruct
-  its intent from the existing equivalents (real npm scripts + the 5 audit domains) and notify the user that
-  the harness needs restoring (add the skill + scripts + a SessionStart `npm ci` hook) so the NEXT scheduled
-  run isn't starting from scratch. Verify every subagent severity grade against source before reporting
-  (see 2026-06-18 lesson) — this run's three "new" P2s were each confirmed at the actual line before listing.
+- What went wrong: the scheduled "weekly audit" routine prompt referenced `npm run audit:weekly`,
+  `tasks/weekly-audit-<date>.md`, and `.agents/skills/weekly-audit/SKILL.md` — none of which were on
+  the freshly-cut branch (only `eas-build`/`preflight`/`test-suite` skills existed), and the cold
+  container had no `node_modules` so `type-check`/`jest` silently "passed" (`jest: not found`). I
+  concluded the harness was missing and BUILT a parallel one (`scripts/weekly-audit.js`, a skill, npm
+  scripts, a SessionStart hook). At PR time the merge was `dirty`: PR #23 had merged the real weekly-audit
+  suite (`scripts/audit/*.cjs` + the same skill + `audit:weekly` scripts) into `main` ~10 minutes AFTER
+  this branch was cut. My harness was a straight duplicate and had to be discarded in the merge.
+- Why it hid: the branch base (`dc6ff19`) predated the #23 merge, and the local `origin/main` ref was
+  stale from clone time, so `git rev-list origin/main...HEAD` showed main as fully behind. The duplication
+  only surfaced when CodeRabbit/`mergeable_state: dirty` forced a `git fetch origin main`.
+- Also true (still-valid sub-lessons): a piped `| tail` swallows the real exit code (`${PIPESTATUS[0]}`
+  ≠ `$?`) — verify `node_modules` exists before trusting a green check on a cold container; and verify
+  every subagent severity grade against source (this run's three real P2 fixes were each confirmed at the
+  line — they survived the reconciliation because they were genuine code fixes, not tooling).
+- Rule: before building tooling that looks "missing", `git fetch origin main` and scan open + recently
+  merged PRs (`list_pull_requests`, recent `git log origin/main`) for an in-flight implementation. A
+  routine branch cut minutes before a related PR merges will look like the tooling doesn't exist. Adapt
+  to run the audit (reconstruct intent from equivalents) — but don't commit a parallel harness without
+  first confirming `main` doesn't already have one. Keep the genuine deliverable (the code fixes) separate
+  from the scaffolding so it survives if the scaffolding turns out to be redundant.
 
 ### 2026-06-18 - A "find bugs" subagent over-graded 9 findings as P0; source verification found 0 real P0s
 

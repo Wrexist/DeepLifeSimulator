@@ -1,66 +1,85 @@
 ---
 name: weekly-audit
-description: Run the weekly routine audit — static checks plus the deep 5-domain qualitative pass — and act on blocking findings
+description: Run the five-domain weekly routine audit (Economy, Crash/Stability, Save/State, Game Logic, Week-Loop Performance) — automated static checks plus a deep qualitative pass
+args: "[domain]"
 ---
 
-# Weekly Audit
+# Weekly Routine Audit
 
-The repeatable health check for DeepLife Simulator. The static suite is the
-**floor**; the value is the qualitative pass that hunts for what the suite
-can't catch. Treat every candidate finding as an UNVERIFIED LEAD until you have
-read the actual source line (see `tasks/lessons.md` — a prior run over-graded 9
-"P0s" that were all non-bugs).
+The standing weekly health check for DeepLife Simulator. It has two layers:
 
-## 1. Run the static checks
+1. **Automated layer** — deterministic static analyzers in `scripts/audit/` that read the
+   real constants/source and enforce documented invariants (`npm run audit:weekly`). Fast.
+2. **Qualitative layer** — a guided deep pass (you, optionally with the project subagents)
+   that catches what static analysis can't: new exploits, balance regressions, subtle
+   correctness bugs.
 
+This skill is the prompt for the weekly **Claude Routine** (Code → Routines → Schedule).
+
+`args` (optional): a single domain to focus on — `economy`, `stability`, `save`, `logic`,
+or `perf`. With no argument, run all five.
+
+## Step 1 — Run the automated suite (always)
+
+```bash
+npm run audit:weekly        # static, fast — writes tasks/weekly-audit-<date>.md
+# or, with the dynamic perf/conservation jest backstop:
+npm run audit:weekly:full
 ```
-npm run audit:weekly          # type-check + lint errors + full Jest suite
-npm run audit:weekly:full     # also runs perf + money-conservation stress suites
-```
 
-This writes `tasks/weekly-audit-<YYYY-MM-DD>.md`. Read it. A red row means a
-real regression — fix it before going further. (On a fresh web/cloud container
-`node_modules` may be absent; run `npm ci` first — the SessionStart hook in
-`.claude/settings.json` does this automatically.)
+Read the generated `tasks/weekly-audit-<date>.md`. Any 🔴/🟠 finding is a blocker — fix it
+or, if it's a false positive, tighten the analyzer (don't just suppress it). 🟡/⚪ are
+review items: trace each to root cause and decide fix-now vs. backlog.
 
-## 2. Deep qualitative pass — the five domains
+Per-domain scripts: `npm run audit:economy | audit:stability | audit:save | audit:logic | audit:perf`.
 
-Go beyond the static checks. Use the project subagents where useful and run the
-domains in parallel. For each candidate, open the file and confirm the bug at
-the line before recording it.
+## Step 2 — Deep qualitative pass (per domain)
 
-1. **Economy & Balance** — new money printers / positive-EV repeatable events;
-   every `money` write routed through `applyMoneyDelta` / `updateMoney`;
-   re-entrancy (trailing dispatches that read stale outer `gameState`);
-   real-estate / rental / crypto / loan math.
-2. **Crash & Stability** — unguarded array/object access in the weekly tick
-   (`contexts/game/actions/weekly/**`); `Modal`s without `onRequestClose`;
-   `JSON.parse` into Maps/iterables; divide-by-zero / NaN in visualizations.
-3. **Save & State Integrity** — `STATE_VERSION` (canonical in
-   `contexts/game/initialState.ts`); every unbounded array covered by the
-   `utils/saveQueue.ts` prune pass; migration-chain integrity; schema drift
-   (fields written but absent from `types.ts` or the prune).
-4. **Game Logic Correctness** — `week` (1–4, UI only) vs `weeksLived` (absolute,
-   use for ALL time comparisons); event-chain stage counts; income-vs-death
-   ordering in the weekly updater; cadence drift across pauses.
-5. **Week-Loop Performance** — full-state `useGame()` subscriptions defeating
-   selectors/memos; redundant per-tick `setGameState` commits; per-tick passes
-   that grow with playtime.
+For each domain in scope, go beyond the static checks:
 
-Project subagents to launch (per `CLAUDE.md`):
-- **Game State Reviewer** — mutation bugs, signature mismatches, `week` vs `weeksLived`.
-- **Save System Auditor** — schema drift, corruption vectors, prune gaps.
+### 1. Economy & Balance
+- Re-run the real long-game loop expectation (`__tests__/stress/economy*.stress.test.ts`,
+  `moneyConservation.stress.test.ts`). Confirm money is conserved and the default loop is
+  not trivially exploitable.
+- Hunt new exploits with `.claude/prompts/exploit-audit.md` framing: any new income source
+  added this week — is it capped, taxed, and not a per-week % refund printer (see H-3)?
+- Verify every new cost/price sits on the correct ladder and respects `BANKRUPTCY_FLOOR`.
 
-## 3. Act on findings
+### 2. Crash & Stability
+- Run `.claude/prompts/crash-audit.md`. Focus on native-module load paths, union access
+  without `'prop' in obj` guards (Hard Rule #2), and `app.config.js` ↔ `package.json`
+  plugin alignment (Hard Rule #4).
+- Confirm `npm run preflight:quick` (type-check) is green.
 
-- **Critical / High (P0/P1) — blocking:** fix directly. Develop on a new branch
-  (NEVER push to `main`), prove the fix (`npm run audit:weekly` + targeted
-  tests), and open a PR. Summarize the medium/low (P2) findings in the PR body.
-- **Nothing blocking:** summarize the verdict + the top 3 actions. Do not open a
-  PR. Append any lessons to `tasks/lessons.md`.
+### 3. Save & State Integrity
+- Launch the **Save System Auditor** subagent (`.claude/agents/save-system-auditor.md`).
+- Did any field get added to `initialState.ts` this week? Confirm: a migration is
+  registered, `repairGameState` backfills it, and `createTestGameState` includes it.
+- Run `__tests__/stress/saveMigrationAudit.stress.test.ts` and `longRunSaveLoad`.
 
-## 4. Always
+### 4. Game Logic Correctness
+- Launch the **Game State Reviewer** subagent (`.claude/agents/game-state-reviewer.md`).
+- Audit any new time comparison: must use `weeksLived`, never `week` (1–4 display cycle).
+- Verify `DatingActions` money calls use `updateMoney(setGameState, …)` (Hard Rule #5).
 
-- Source-verify before reporting or fixing — no severity inflation.
-- Record the dated report and update `tasks/lessons.md` after any correction.
-- Run `npm run audit:weekly` once more after a fix to prove green.
+### 5. Week-Loop Performance
+- `npm run audit:perf` then `npm run test:performance`.
+- Inspect the nested-loop hotspots the static audit lists; confirm none became O(n²) over
+  a player-growable array (NPCs, holdings, diseases). Re-baseline the ceiling only with a
+  perf-suite run that proves timing is still within budget.
+
+## Step 3 — Report & act
+
+- The Markdown report is the deliverable. Summarize the verdict and the top 3 actions.
+- Fix blockers immediately (Correctness > everything). File 🟡/⚪ items into the backlog.
+- After any correction, append the lesson to `tasks/lessons.md`.
+
+## Invariants enforced by the automated layer (reference)
+
+| # | Domain | Key invariants |
+|---|--------|----------------|
+| 1 | Economy | savings APR < loan APR · progressive/marginal tax · monotone miner ladder · soft-cap sane · 15%-APR regression guard |
+| 2 | Stability | native requires lazy + try/catch · config-plugin alignment · `as any` budget · ErrorBoundary present |
+| 3 | Save | STATE_VERSION consistent across code+docs · full migration coverage [2..N] · no `as GameState` in tests |
+| 4 | Logic | no `.week` in time math · DatingActions signature · no in-place state mutation |
+| 5 | Perf | no JSON deep-clone in tick · subsystems try/catch-wrapped · nested-loop regression ceiling · perf test present |

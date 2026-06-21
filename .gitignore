@@ -48,10 +48,7 @@ google-play-service-account.json
 
 # IDE & tool state
 .cursor/
-# Ignore local Claude state but keep the shared project settings (SessionStart
-# hook for the weekly-audit routine) under version control.
-.claude/*
-!.claude/settings.json
+.claude/
 .Claude/
 .codex/
 .bolt/
@@ -62,6 +59,10 @@ google-play-service-account.json
 
 # Windows device-name artifact (invalid as a real tracked path on Windows)
 /nul
+
+# Auto-generated weekly audit reports (reproducible via `npm run audit:weekly`;
+# CI distributes them as build artifacts). The setup plan/playbook stays tracked.
+tasks/weekly-audit-20*.md
 
 # temp files
 YOOO
