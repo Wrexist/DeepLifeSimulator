@@ -185,6 +185,22 @@ export const performStreetJob = (
   }
   const success = guaranteedSuccess ? true : ((successRoll || 0) * 100 < successChance);
 
+  // Celebratory feedback for crime-skill / criminal level-ups, which were
+  // previously silent. Computed from the snapshot, mirroring applyStreetJobXp's
+  // leveling math (+15 XP on success / +5 on fail for the skill; +10 criminal XP
+  // per illegal job; level up at level*100). Best-effort UI text only.
+  let levelUpText = '';
+  if (job.skill && gameState.crimeSkills[job.skill]) {
+    const sk = gameState.crimeSkills[job.skill];
+    if (sk.xp + (success ? 15 : 5) >= sk.level * 100) {
+      const label = job.skill.charAt(0).toUpperCase() + job.skill.slice(1);
+      levelUpText += ` 🔓 ${label} skill is now level ${sk.level + 1}!`;
+    }
+  }
+  if (job.illegal && (gameState.criminalXp || 0) + 10 >= (gameState.criminalLevel || 1) * 100) {
+    levelUpText += ` ⬆️ Criminal Level ${(gameState.criminalLevel || 1) + 1} reached!`;
+  }
+
   // Calculate money - store original money BEFORE any changes
   const moneyBeforeJob = gameState.stats.money;
   const basePay = job.basePayment;
@@ -446,13 +462,13 @@ export const performStreetJob = (
       const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
       const rankUpText = rankIncreased ? ` Rank increased to ${job.rank + 1}!` : '';
       message = job.illegal
-        ? `Crime succeeded! Gained $${moneyGained}.${rankUpText} ${penaltyText}`
-        : `Earned $${moneyGained}!${rankUpText} ${penaltyText}`;
+        ? `Crime succeeded! Gained $${moneyGained}.${rankUpText}${levelUpText} ${penaltyText}`
+        : `Earned $${moneyGained}!${rankUpText}${levelUpText} ${penaltyText}`;
     } else {
       const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
       message = job.illegal
-        ? `Crime failed. Wanted level increased. ${penaltyText}`
-        : `No luck this time. ${penaltyText}`;
+        ? `Crime failed. Wanted level increased.${levelUpText} ${penaltyText}`
+        : `No luck this time.${levelUpText} ${penaltyText}`;
     }
     
     // Handle combined cases (only if not caught)
