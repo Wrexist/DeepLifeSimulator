@@ -145,6 +145,7 @@ Custom slash commands for this project. **Use these proactively:**
 | `/preflight` | Before any release or TestFlight build — runs type-check, lint, and tests |
 | `/test-suite [filter]` | When running tests — supports `unit`, `integration`, `e2e`, `coverage`, or any Jest pattern |
 | `/eas-build [platform]` | When the user asks to build — triggers EAS cloud builds for iOS/Android |
+| `/weekly-audit [domain]` | The standing weekly health check — Economy, Crash/Stability, Save/State, Game Logic, Week-Loop Performance. Automated layer: `npm run audit:weekly` (static, also runs in CI Mondays via `.github/workflows/weekly-audit.yml`); deep layer: guided qualitative pass + project subagents |
 
 **Also use these installed plugin skills:**
 | Command | When to Use |

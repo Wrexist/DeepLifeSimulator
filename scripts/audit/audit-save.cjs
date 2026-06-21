@@ -1,0 +1,133 @@
+/**
+ * AUDIT 3 — Save & State Integrity
+ *
+ * Guards the save schema against the two failure modes that lock players out of their
+ * progress: version drift (docs/migrations out of sync with STATE_VERSION) and test
+ * GameState drift (manual construction that hides real schema gaps).
+ *
+ * Invariants:
+ *   V1  STATE_VERSION is parseable from the canonical source (initialState.ts).
+ *   V2  CLAUDE.md and AGENTS.md document the same STATE_VERSION (no doc drift — lessons.md).
+ *   V3  Every version in [2..STATE_VERSION] is migration-covered (registry or no-op set).
+ *   V4  CURRENT_STATE_VERSION tracks STATE_VERSION (no hardcoded fork).
+ *   V5  Checksum + tamper verification primitives exist in saveValidation.ts.
+ *   V6  Tests don't construct GameState manually (`as GameState`) — must use the factory.
+ *   V7  createTestGameState factory exists.
+ */
+'use strict';
+
+const L = require('./_lib.cjs');
+
+// Tests legitimately allowed to touch raw GameState shape (the factory + its own tests).
+const FACTORY_ALLOWLIST = [
+  '__tests__/helpers/createTestGameState.ts',
+];
+
+function build() {
+  const a = new L.Audit(3, 'Save & State Integrity');
+
+  const initial = L.read('contexts/game/initialState.ts');
+  const stateVersion = initial ? L.extractNumber(initial, 'STATE_VERSION') : null;
+
+  // --- V1 ------------------------------------------------------------------
+  if (stateVersion == null) {
+    a.high('STATE_VERSION not parseable', 'Cannot anchor save-integrity checks.', 'contexts/game/initialState.ts:6');
+    return a;
+  }
+  a.pass(`STATE_VERSION = ${stateVersion} (canonical)`, '', 'contexts/game/initialState.ts:6');
+
+  // --- V2: doc drift -------------------------------------------------------
+  for (const doc of ['CLAUDE.md', 'AGENTS.md']) {
+    const src = L.read(doc);
+    if (src == null) { a.low(`${doc} not found`, 'Skipping doc-version check.', doc); continue; }
+    const m = src.match(/STATE_VERSION\s*=\s*(\d+)/);
+    if (!m) {
+      a.medium(`${doc} does not state STATE_VERSION`, 'Add the canonical version so drift is visible.', doc);
+    } else {
+      a.assert(Number(m[1]) === stateVersion, 'medium',
+        `${doc} STATE_VERSION matches code (${stateVersion})`,
+        `${doc} STATE_VERSION drift: doc says ${m[1]}, code is ${stateVersion}`,
+        'Documented save-version drift has bitten this repo before (lessons.md).', doc);
+    }
+  }
+
+  // --- V3/V4: migration coverage ------------------------------------------
+  const mig = L.read('utils/saveMigrations.ts');
+  if (mig == null) {
+    a.high('utils/saveMigrations.ts missing', 'Cannot verify migration coverage.', 'utils/saveMigrations.ts');
+  } else {
+    const current = L.extractNumber(mig, 'CURRENT_STATE_VERSION');
+    // CURRENT_STATE_VERSION = STATE_VERSION (alias) — extractNumber returns null for a
+    // non-numeric RHS, which is the *correct* wiring, so only flag a numeric fork.
+    if (current != null && current !== stateVersion) {
+      a.high('CURRENT_STATE_VERSION forked from STATE_VERSION',
+        `saveMigrations hardcodes ${current}, initialState is ${stateVersion}.`, 'utils/saveMigrations.ts:15');
+    } else {
+      a.pass('CURRENT_STATE_VERSION aliases STATE_VERSION (no fork)', '', 'utils/saveMigrations.ts:15');
+    }
+
+    const registered = parseMigrationKeys(mig);
+    const noop = parseNoOpVersions(mig);
+    const covered = new Set([...registered, ...noop]);
+    const gaps = [];
+    for (let v = 2; v <= stateVersion; v++) if (!covered.has(v)) gaps.push(v);
+
+    a.assert(gaps.length === 0, 'critical',
+      `All versions [2..${stateVersion}] migration-covered (${registered.length} migrations, ${noop.length} no-ops)`,
+      `Migration gap: version(s) ${gaps.join(', ')} have no migration or no-op entry`,
+      'runMigrations halts at the first uncovered version — saves built before then will not load.',
+      'utils/saveMigrations.ts:32');
+  }
+
+  // --- V5: integrity primitives -------------------------------------------
+  const sv = L.read('utils/saveValidation.ts');
+  if (sv == null) {
+    a.high('utils/saveValidation.ts missing', 'Cannot verify save integrity primitives.', 'utils/saveValidation.ts');
+  } else {
+    a.assert(/calculateChecksum|0xedb88320/.test(sv), 'medium',
+      'CRC32 checksum primitive present', 'CRC32 checksum primitive missing',
+      'Corruption detection on load relies on it.', 'utils/saveValidation.ts');
+    a.assert(/hmac|HMAC|sha256|SHA-?256/i.test(sv), 'low',
+      'Tamper-detection (HMAC/SHA-256) primitive present', 'No HMAC/SHA-256 tamper primitive found',
+      'Checksums catch corruption, not tampering.', 'utils/saveValidation.ts');
+    a.assert(/repairGameState/.test(sv), 'medium',
+      'repairGameState present (backfills missing defaults)', 'repairGameState not found',
+      'Partial/cloud-synced saves need default backfill on load.', 'utils/saveValidation.ts');
+  }
+
+  // --- V6/V7: test GameState drift ----------------------------------------
+  const factory = '__tests__/helpers/createTestGameState.ts';
+  a.assert(L.exists(factory), 'high', 'createTestGameState factory present',
+    'createTestGameState factory missing', 'All suites must build state through one factory (Hard Rule #3).', factory);
+
+  const testFiles = L.walk('__tests__', L.isTest)
+    .filter((f) => !FACTORY_ALLOWLIST.includes(f));
+  const drift = L.grep(testFiles, /\bas GameState\b/, { skipComments: true });
+  a.assert(drift.length === 0, 'medium',
+    'No manual `as GameState` construction in tests',
+    `${drift.length} \`as GameState\` assertion(s) in tests bypass the factory`,
+    drift.slice(0, 5).map((d) => `${d.file}:${d.line}`).join(', ') + (drift.length > 5 ? ' …' : ''),
+    'No GameState Drift (Hard Rule #3)');
+
+  return a;
+}
+
+// --- helpers ---------------------------------------------------------------
+function parseMigrationKeys(src) {
+  const block = src.match(/const\s+migrations\s*:\s*Record<[^>]*>\s*=\s*\{([\s\S]*)/);
+  const body = block ? block[1] : src;
+  const keys = new Set();
+  const re = /^\s*(\d+)\s*:/gm;
+  let m;
+  while ((m = re.exec(body))) keys.add(Number(m[1]));
+  return [...keys];
+}
+
+function parseNoOpVersions(src) {
+  const m = src.match(/NO_OP_MIGRATION_VERSIONS\s*=\s*new Set<number>\(\s*\[([0-9,\s]*)\]/);
+  if (!m) return [];
+  return m[1].split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
+}
+
+module.exports = { build };
+if (require.main === module) L.runStandalone(build);
