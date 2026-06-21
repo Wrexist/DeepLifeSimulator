@@ -84,7 +84,7 @@ function build() {
     let progressive = true;
     let inRange = true;
     for (let i = 0; i < brackets.length; i++) {
-      const { threshold, rate } = brackets[i];
+      const { rate } = brackets[i];
       if (rate < 0 || rate > 1) inRange = false;
       if (i > 0) {
         if (brackets[i].threshold <= brackets[i - 1].threshold) ascending = false;
