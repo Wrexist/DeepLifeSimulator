@@ -33,6 +33,7 @@ import ProfileCard from '../components/ProfileCard';
 import EmptyState from '../components/EmptyState';
 import { SPARK_ACTION, SPARK_GRADIENT, SPARK_COLORS, SPARK_MOTION } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
+import { useTimerManager } from '@/hooks/useTimerManager';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -49,6 +50,8 @@ interface SwipeScreenProps {
 export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: SwipeScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
+  // Auto-cleaned timers so the post-match callback can't fire after unmount.
+  const timers = useTimerManager();
 
   // Filter out already-swiped, reported, or promoted profiles.
   const queue: DatingProfile[] = useMemo(() => {
@@ -91,7 +94,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           // instead of guessing the last entry from stale closure state.
           const matchId = result.matchId;
           if (matchId) {
-            setTimeout(() => onMatch(matchId, profile), 200);
+            timers.setTimeout(() => onMatch(matchId, profile), 200);
           }
         }
         saveGame?.();

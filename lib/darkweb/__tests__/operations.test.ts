@@ -147,6 +147,16 @@ describe('jobs', () => {
     expect(r.ok).toBe(false);
   });
 
+  it('startJob refuses a duplicate active job for the same template (double-tap guard)', () => {
+    const first = startJob(emptyDw(), 'phish-pack', 1);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    // Simulate a second rapid tap before the first commit re-rendered the UI.
+    const second = startJob(first.dw, 'phish-pack', 1);
+    expect(second.ok).toBe(false);
+    expect(first.dw.activeJobs).toHaveLength(1);
+  });
+
   it('a successful stage advances currentStage', () => {
     let r1 = startJob(emptyDw(), 'phish-pack', 1);
     if (!r1.ok) throw new Error('start failed');

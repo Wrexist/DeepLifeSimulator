@@ -36,6 +36,7 @@ import {
   PawPrint,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useTimerManager } from '@/hooks/useTimerManager';
 import {
   PET_BREEDS,
   PET_FOODS,
@@ -75,6 +76,8 @@ interface PetAppProps {
 
 export default function PetApp({ onBack }: PetAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
+  // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
+  const timers = useTimerManager();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
@@ -92,8 +95,8 @@ export default function PetApp({ onBack }: PetAppProps) {
 
   const flash = useCallback((message: string) => {
     setFeedback(message);
-    setTimeout(() => setFeedback(null), 2500);
-  }, []);
+    timers.setTimeout(() => setFeedback(null), 2500);
+  }, [timers]);
 
   const handleBuy = useCallback(
     (breedId: string, name: string) => {

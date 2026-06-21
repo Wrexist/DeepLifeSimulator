@@ -49,16 +49,43 @@ lowest-risk findings — all in the "won't crash / won't flood / won't leak" fam
   double money/stat bonuses). Re-check + no-op inside the updater on fresh `prev`.
   `contexts/game/actions/PoliticalActions.ts`.
 
-Deferred (documented, lower priority / higher-risk — not done this pass):
-- Subsystem ticks use live `Math.random()` inside the updater (determinism/save-scum
-  concern, not a crash) — would need a seeded PRNG threaded through 4 systems.
-- StartJobModal (dark-web) duplicate-job on double-tap; Pet sleep/play double-buff —
-  state bloat / minor, no economic loss.
-- Assorted uncleaned `setTimeout` setState in mobile mini-apps (DMSystem, ChatScreen,
-  health/market tabs) — setState-after-unmount warnings, not crashes.
-
 Verification: `type-check` clean; full non-stress suite 1786 passed; realProviderLoop
 stress 7/7 (drives 500 real `nextWeek` ticks); static `audit:weekly` green.
+
+## 🧹 Stability hardening — round 2 (deferred items, 2026-06-21)
+
+Cleared every deferred item from round 1:
+
+- [x] **Determinism (HIGH):** subsystem weekly ticks (crypto/dark-web/politics/stocks)
+  used live `Math.random()` inside the `setGameState` updater → React 19's double
+  invocation drew different numbers (committed outcome was whichever render it kept)
+  and outcomes weren't reproducible from the save. New seeded helper
+  `utils/seededRoll.ts` (`makeWeeklyRoll(weeksLived)` → keyed [0,1) roll); all four
+  call sites now share one `weeklyRoll`. The ticks were already written to be
+  deterministic with a seeded `rollFor`. Test `__tests__/utils/seededRoll.test.ts`.
+- [x] **Dark-web duplicate-job double-tap (MED):** `startJob` now rejects a second
+  active job for the same template (`lib/darkweb/operations.ts`). Test added to
+  `operations.test.ts`.
+- [x] **Pet sleep/play double-buff (LOW):** the once-per-week / energy gates now
+  re-check inside the `updatePet` updater on fresh `p` (`PetActions.ts`).
+- [x] **setTimeout setState-after-unmount leaks:** routed through the auto-cleaning
+  `useTimerManager` hook — `DMSystem`, Spark `ChatScreen`/`SwipeScreen`, `PetApp`,
+  `ContactsApp`, `GamingApp`, `GamingStreamingApp`, health tab; market-tab tutorial
+  scroll uses a local `clearTimeout` in its effect.
+- [x] **More partial-migration crash guards (MED):** `discoverySystem` (date/stats),
+  `applyEducationProgression` (educations `|| []`), mining tick call sites
+  (`cryptos || []`), `PrestigeStatsCard` (prestige sub-fields).
+- [x] **Death-week phantom income (LOW):** `weekResult` income/expenses/net zeroed
+  when death voids the week's money (`GameActionsContext.tsx`).
+- [x] **Dead code removed:** unused, unbounded `contexts/game/social.ts`.
+
+Intentionally NOT changed: the relationship breakup/disappointed roll's `relIdx >= 20`
+quirk is documented "PRESERVED VERBATIM" for legacy parity (equivalence snapshot
+test) — only affects a player with >20 relationships; left as-is by design.
+
+Verification: `type-check` clean; non-stress suite 1791 passed (4 pre-existing
+empty-helper-file artifacts, not real failures); realProviderLoop + legacyPulse­Politics
+stress 51/51; static `audit:weekly` green.
 
 ## 🩺 Reduce week-advance popups + health issues on player card (2026-06-20)
 

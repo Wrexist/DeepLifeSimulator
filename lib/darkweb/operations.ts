@@ -223,11 +223,18 @@ export function startJob(
 ): { ok: true; dw: DarkWebState; job: DarkWebActiveJob } | { ok: false; reason: string } {
   const tpl = jobTemplateById(templateId);
   if (!tpl) return { ok: false, reason: 'Unknown job template' };
+  // Reject a duplicate active job for the same template. The "Start job" button
+  // has no in-flight guard, so a rapid double-tap would otherwise append two
+  // identical active jobs (each with a fresh random id) from one intent.
+  const activeJobs = dw.activeJobs || [];
+  if (activeJobs.some((j) => j.templateId === templateId)) {
+    return { ok: false, reason: 'This job is already active' };
+  }
   const result = buildJob(tpl, dw.skills, currentWeek);
   if (!result.ok) return { ok: false, reason: result.reason };
   return {
     ok: true,
-    dw: { ...dw, activeJobs: [...dw.activeJobs, result.job as DarkWebActiveJob] },
+    dw: { ...dw, activeJobs: [...activeJobs, result.job as DarkWebActiveJob] },
     job: result.job as DarkWebActiveJob,
   };
 }

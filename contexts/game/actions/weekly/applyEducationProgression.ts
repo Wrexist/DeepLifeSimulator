@@ -72,7 +72,9 @@ export function applyEducationProgression(
 
   let pendingCampusEvent: string | undefined;
 
-  const updatedEducations = input.prevEducations.map((edu) => {
+  // Defensive `|| []` like every sibling weekly helper — a stale save could
+  // omit `educations`, and an unguarded .map() throws inside the weekly tick.
+  const updatedEducations = (input.prevEducations || []).map((edu) => {
     if (edu && !edu.completed && !edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0) {
       const newWeeksRemaining = Math.max(0, edu.weeksRemaining - educationDecrement);
       const isCompleted = newWeeksRemaining === 0;

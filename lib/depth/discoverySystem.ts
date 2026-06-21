@@ -391,18 +391,19 @@ export function checkSystemUnlocked(systemId: string, gameState: GameState): boo
     return true; // Core systems are always unlocked
   }
 
-  // Check age requirement
-  if ('minAge' in unlockReq && unlockReq.minAge && gameState.date.age < unlockReq.minAge) {
+  // Check age requirement. Optional-chain date/stats: this runs on the home tab
+  // (DiscoveryIndicator) where a degraded/migrating save could leave them unset.
+  if ('minAge' in unlockReq && unlockReq.minAge && (gameState.date?.age ?? 0) < unlockReq.minAge) {
     return false;
   }
 
   // Check money requirement
-  if ('minMoney' in unlockReq && unlockReq.minMoney && gameState.stats.money < unlockReq.minMoney) {
+  if ('minMoney' in unlockReq && unlockReq.minMoney && (gameState.stats?.money ?? 0) < unlockReq.minMoney) {
     return false;
   }
 
   // Check reputation requirement
-  if ('minReputation' in unlockReq && unlockReq.minReputation && (gameState.stats.reputation || 0) < unlockReq.minReputation) {
+  if ('minReputation' in unlockReq && unlockReq.minReputation && (gameState.stats?.reputation || 0) < unlockReq.minReputation) {
     return false;
   }
 

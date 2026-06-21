@@ -189,11 +189,16 @@ export function playWithPet(
     .map(findToy)
     .filter((t): t is NonNullable<ReturnType<typeof findToy>> => !!t)
     .reduce<number>((max, t) => Math.max(max, t.fun), 25);
-  updatePet(setGameState, petId, (p) => ({
-    ...p,
-    happiness: clamp01(safe(p.happiness, 0) + Math.round(bestToy / 2)),
-    energy: clamp01(safe(p.energy, 0) - 20),
-  }));
+  updatePet(setGameState, petId, (p) => {
+    // Re-check the energy gate on fresh `p`: the precondition above reads the
+    // stale snapshot, so a rapid double-tap would otherwise apply the buff twice.
+    if (safe(p.energy, 0) < 20) return p;
+    return {
+      ...p,
+      happiness: clamp01(safe(p.happiness, 0) + Math.round(bestToy / 2)),
+      energy: clamp01(safe(p.energy, 0) - 20),
+    };
+  });
   return { success: true, message: `Had a great time with ${pet.name}.` };
 }
 
@@ -215,12 +220,18 @@ export function petSleep(
       message: `${pet.name} has already slept this week — let them play with their toys instead.`,
     };
   }
-  updatePet(setGameState, petId, (p) => ({
-    ...p,
-    energy: clamp01(safe(p.energy, 0) + 50),
-    health: clamp01(safe(p.health, 0) + 5),
-    lastSleepWeek: currentWeek,
-  }));
+  updatePet(setGameState, petId, (p) => {
+    // Re-check the once-per-week gate on fresh `p`: the precondition above reads
+    // the stale snapshot, so a rapid double-tap would otherwise apply the +50
+    // energy / +5 health buff twice before `lastSleepWeek` was committed.
+    if (p.lastSleepWeek === currentWeek) return p;
+    return {
+      ...p,
+      energy: clamp01(safe(p.energy, 0) + 50),
+      health: clamp01(safe(p.health, 0) + 5),
+      lastSleepWeek: currentWeek,
+    };
+  });
   return { success: true, message: `${pet.name} is resting peacefully.` };
 }
 

@@ -58,7 +58,7 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
                 Prestige Level {prestigeData.prestigeLevel}
               </Text>
               <Text style={[styles.subtitle, darkMode && styles.subtitleDark]} numberOfLines={1} ellipsizeMode="tail">
-                {prestigeData.totalPrestiges} Prestige{prestigeData.totalPrestiges !== 1 ? 's' : ''} Completed
+                {prestigeData.totalPrestiges ?? 0} Prestige{(prestigeData.totalPrestiges ?? 0) !== 1 ? 's' : ''} Completed
               </Text>
             </View>
           </View>
@@ -108,7 +108,7 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
           <View style={styles.statItem}>
             <Crown size={16} color="#F59E0B" />
             <Text style={[styles.statValue, darkMode && styles.statValueDark]}>
-              {prestigeData.prestigePoints.toLocaleString()}
+              {(prestigeData.prestigePoints ?? 0).toLocaleString()}
             </Text>
             <Text style={[styles.statLabel, darkMode && styles.statLabelDark]}>
               Points
@@ -117,7 +117,7 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
           <View style={styles.statItem}>
             <Award size={16} color="#3B82F6" />
             <Text style={[styles.statValue, darkMode && styles.statValueDark]}>
-              {prestigeData.unlockedBonuses.length}
+              {prestigeData.unlockedBonuses?.length ?? 0}
             </Text>
             <Text style={[styles.statLabel, darkMode && styles.statLabelDark]}>
               Bonuses
@@ -126,7 +126,7 @@ function PrestigeStatsCard({ onPress, onShopPress, onInfoPress }: PrestigeStatsC
           <View style={styles.statItem}>
             <DollarSign size={16} color="#10B981" />
             <Text style={[styles.statValue, darkMode && styles.statValueDark]}>
-              {formatMoney(prestigeData.lifetimeStats.maxNetWorth)}
+              {formatMoney(prestigeData.lifetimeStats?.maxNetWorth ?? 0)}
             </Text>
             <Text style={[styles.statLabel, darkMode && styles.statLabelDark]}>
               Max Net Worth
