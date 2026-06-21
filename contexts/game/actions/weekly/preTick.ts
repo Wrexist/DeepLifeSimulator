@@ -280,7 +280,8 @@ export interface PreRolls {
   /** Per-disease rolls (up to 20 active diseases). */
   diseaseComplication: number[];
   diseaseProgression: number[];
-  /** Per-pet sickness rolls (up to 10 pets). */
+  /** Per-pet sickness rolls (sized to 20; consumer wraps the index modulo
+   * the array length, so any pet count is covered). */
   petSickness: number[];
   petSicknessType: number[];
   /** Per-vehicle accident rolls (up to 10 vehicles). */
@@ -314,9 +315,11 @@ export function buildPreRolls(): PreRolls {
     // Disease complications (one set per disease, max 20)
     diseaseComplication: Array.from({ length: 20 }, () => Math.random()),
     diseaseProgression: Array.from({ length: 20 }, () => Math.random()),
-    // Pet sickness (one pair per pet, max 10)
-    petSickness: Array.from({ length: 10 }, () => Math.random()),
-    petSicknessType: Array.from({ length: 10 }, () => Math.random()),
+    // Pet sickness (one pair per pet). Sized to 20; the consumer wraps the
+    // index (modulo) so larger pet collections still get a valid roll instead
+    // of an out-of-range `undefined` that reads as sickness-immune.
+    petSickness: Array.from({ length: 20 }, () => Math.random()),
+    petSicknessType: Array.from({ length: 20 }, () => Math.random()),
     // Vehicle accidents (one pair per vehicle, max 10)
     vehicleAccident: Array.from({ length: 10 }, () => Math.random()),
     vehicleAccidentSeverity: Array.from({ length: 10 }, () => Math.random()),

@@ -5333,8 +5333,8 @@ describe('pre-tick — buildPreRolls', () => {
     expect(rolls.relDisappointed).toHaveLength(20);
     expect(rolls.diseaseComplication).toHaveLength(20);
     expect(rolls.diseaseProgression).toHaveLength(20);
-    expect(rolls.petSickness).toHaveLength(10);
-    expect(rolls.petSicknessType).toHaveLength(10);
+    expect(rolls.petSickness).toHaveLength(20);
+    expect(rolls.petSicknessType).toHaveLength(20);
     expect(rolls.vehicleAccident).toHaveLength(10);
     expect(rolls.vehicleAccidentSeverity).toHaveLength(10);
     expect(rolls.minerDegradation).toBeGreaterThanOrEqual(2);
