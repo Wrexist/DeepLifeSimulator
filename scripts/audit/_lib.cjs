@@ -139,6 +139,51 @@ function grep(files, regex, { skipComments = false } = {}) {
   return hits;
 }
 
+/**
+ * Strip comments and string/template literals from source so brace-matching and
+ * keyword scans don't trip over `{`/`try`/`require` that live inside them.
+ */
+function stripNoise(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/`(?:\\.|[^`\\])*`/g, (m) => '`' + ' '.repeat(Math.max(0, m.length - 2)) + '`')
+    .replace(/'(?:\\.|[^'\\])*'/g, (m) => "'" + ' '.repeat(Math.max(0, m.length - 2)) + "'")
+    .replace(/"(?:\\.|[^"\\])*"/g, (m) => '"' + ' '.repeat(Math.max(0, m.length - 2)) + '"');
+}
+
+/**
+ * Return the [start, end) character ranges of every `try { … }` block body in
+ * `src` (brace-matched, comment/string-aware). Lets callers verify that a given
+ * match index is *actually* guarded, not merely that a try exists in the file.
+ */
+function tryRanges(src) {
+  const clean = stripNoise(src);
+  const ranges = [];
+  const re = /\btry\s*\{/g;
+  let m;
+  while ((m = re.exec(clean))) {
+    const open = m.index + m[0].length - 1; // index of the `{`
+    let depth = 0;
+    let i = open;
+    for (; i < clean.length; i++) {
+      if (clean[i] === '{') depth++;
+      else if (clean[i] === '}') {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    ranges.push([open, i]);
+    re.lastIndex = open + 1;
+  }
+  return ranges;
+}
+
+/** True if `index` falls within any of the given [start, end) ranges. */
+function inAnyRange(ranges, index) {
+  return ranges.some(([s, e]) => index > s && index < e);
+}
+
 // ---------------------------------------------------------------------------
 // Constant extraction (parse `export const NAME = <number>` from TS sources)
 // ---------------------------------------------------------------------------
@@ -270,6 +315,9 @@ module.exports = {
   isSource,
   isTest,
   isProductionSource,
+  stripNoise,
+  tryRanges,
+  inAnyRange,
   extractNumber,
   Audit,
   printConsole,

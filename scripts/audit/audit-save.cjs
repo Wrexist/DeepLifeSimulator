@@ -57,9 +57,14 @@ function build() {
     a.high('utils/saveMigrations.ts missing', 'Cannot verify migration coverage.', 'utils/saveMigrations.ts');
   } else {
     const current = L.extractNumber(mig, 'CURRENT_STATE_VERSION');
+    const hasCurrent = /\bCURRENT_STATE_VERSION\s*=/.test(mig);
     // CURRENT_STATE_VERSION = STATE_VERSION (alias) — extractNumber returns null for a
     // non-numeric RHS, which is the *correct* wiring, so only flag a numeric fork.
-    if (current != null && current !== stateVersion) {
+    // But null also means the symbol is entirely absent — that must NOT pass silently.
+    if (!hasCurrent) {
+      a.high('CURRENT_STATE_VERSION not defined in saveMigrations',
+        'The migration loop has no version ceiling to drive from.', 'utils/saveMigrations.ts:15');
+    } else if (current != null && current !== stateVersion) {
       a.high('CURRENT_STATE_VERSION forked from STATE_VERSION',
         `saveMigrations hardcodes ${current}, initialState is ${stateVersion}.`, 'utils/saveMigrations.ts:15');
     } else {
@@ -114,9 +119,28 @@ function build() {
 
 // --- helpers ---------------------------------------------------------------
 function parseMigrationKeys(src) {
-  const block = src.match(/const\s+migrations\s*:\s*Record<[^>]*>\s*=\s*\{([\s\S]*)/);
-  const body = block ? block[1] : src;
+  // Isolate ONLY the `migrations = { … }` object body via brace matching, so numeric
+  // keys in unrelated objects later in the file aren't miscounted as covered versions
+  // (which would hide a real migration gap).
+  // Non-greedy to the first `= {`; this skips over the generic type annotation
+  // `Record<number, (state: any) => any>` whose `=>` arrow would defeat a `[^>]*` match.
+  const start = src.match(/const\s+migrations\b[\s\S]*?=\s*\{/);
+  if (!start) return [];
+  const open = start.index + start[0].length - 1; // index of the opening `{`
+  let depth = 0;
+  let end = src.length;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  const body = src.slice(open + 1, end);
   const keys = new Set();
+  // Top-level keys only: `<digits>:` at the object's first indentation level. Matching
+  // line-start keys within the object body is sufficient since nested handler bodies
+  // don't define bare numeric keys.
   const re = /^\s*(\d+)\s*:/gm;
   let m;
   while ((m = re.exec(body))) keys.add(Number(m[1]));

@@ -43,15 +43,27 @@ function build({ runTests = false } = {}) {
     weeklyDir);
 
   // --- P2: subsystem resilience wrapping ----------------------------------
-  // Count apply*/run*/process* weekly subsystem invocations in the orchestrator and
-  // confirm they're inside try/catch regions. Heuristic: ratio of guarded call lines.
+  // Verify each apply*/run*/process* weekly subsystem invocation in the orchestrator
+  // is *actually positioned inside* a try/catch block (brace-matched), not merely that
+  // some try exists in the file. A single throwing subsystem must not abort the week.
   const ctx = L.read(tickEntry) || '';
-  const tryRegions = countTryRegions(ctx);
-  const subsystemCalls = (ctx.match(/\b(apply|run|process|tick|compute)[A-Z]\w*\s*\(/g) || []).length;
-  a.assert(tryRegions >= 4, 'low',
-    `Weekly tick wraps subsystems in try/catch (${tryRegions} guarded region(s), ${subsystemCalls} subsystem calls)`,
-    'Weekly tick has few/no try/catch guards around subsystems',
-    'A single throwing subsystem should not abort the whole week.', tickEntry);
+  const ranges = L.tryRanges(ctx);
+  const cleanCtx = L.stripNoise(ctx);
+  const callRe = /\b(?:apply|run|process|tick|compute)[A-Z]\w*\s*\(/g;
+  let totalCalls = 0;
+  let guardedCalls = 0;
+  let cm;
+  while ((cm = callRe.exec(cleanCtx))) {
+    totalCalls++;
+    if (L.inAnyRange(ranges, cm.index)) guardedCalls++;
+  }
+  const guardRatio = totalCalls ? guardedCalls / totalCalls : 1;
+  // Not every subsystem call must be guarded (pure calculators are safe), but the bulk
+  // of the tick's subsystem dispatch should be. Flag a low-coverage tick as a smell.
+  a.assert(totalCalls === 0 || guardRatio >= 0.6, 'low',
+    `Weekly tick subsystems mostly guarded (${guardedCalls}/${totalCalls} inside try/catch, ${ranges.length} blocks)`,
+    `Most weekly subsystem calls are unguarded (${guardedCalls}/${totalCalls} inside try/catch)`,
+    'A throwing subsystem can abort the whole week. Wrap dispatch in try/catch.', tickEntry);
 
   // --- P3: nested-loop density --------------------------------------------
   let nested = 0;
@@ -95,10 +107,6 @@ function build({ runTests = false } = {}) {
 }
 
 // --- helpers ---------------------------------------------------------------
-function countTryRegions(src) {
-  return (src.match(/\btry\s*\{/g) || []).length;
-}
-
 /**
  * Count genuinely *nested* loops via brace-depth tracking: a loop counts only when
  * another loop opens at a strictly deeper brace level before the outer loop's block
@@ -123,7 +131,10 @@ function countNestedLoops(src) {
     if (ch === '{') depth++;
     else if (ch === '}') {
       depth--;
-      while (loopDepths.length && loopDepths[loopDepths.length - 1] > depth) loopDepths.pop();
+      // Use >= so a loop is retired when *its own* body closes (depth returns to the
+      // loop's record depth); > would keep it open until the enclosing block closed,
+      // miscounting later sequential loops at the same depth as nested.
+      while (loopDepths.length && loopDepths[loopDepths.length - 1] >= depth) loopDepths.pop();
     } else {
       loopRe.lastIndex = i;
       const m = loopRe.exec(clean);

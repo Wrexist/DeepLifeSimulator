@@ -40,20 +40,30 @@ function build() {
 
   // --- S1: native requires must be guarded by a try/catch in the same file ---
   const serviceFiles = L.walk(['services', 'utils'], L.isProductionSource);
-  const reRequire = new RegExp(`require\\(\\s*['"\`](${NATIVE_MODULES.map(esc).join('|')})`);
+  const reRequire = new RegExp(`require\\(\\s*['"\`](${NATIVE_MODULES.map(esc).join('|')})`, 'g');
   let guardedOk = true;
+  let checkedAny = false;
   for (const file of serviceFiles) {
     const src = L.read(file);
     if (src == null) continue;
-    if (reRequire.test(src)) {
-      const hasTry = /\btry\b/.test(src) && /\bcatch\b/.test(src);
-      if (!hasTry) {
+    const clean = L.stripNoise(src);
+    const ranges = L.tryRanges(src);
+    reRequire.lastIndex = 0;
+    let rm;
+    while ((rm = reRequire.exec(clean))) {
+      checkedAny = true;
+      // Verify THIS require call sits inside a brace-matched try block — not merely
+      // that the file contains some unrelated try/catch elsewhere.
+      if (!L.inAnyRange(ranges, rm.index)) {
         guardedOk = false;
-        a.high('Native require without try/catch', `${file} requires a native module but has no try/catch — native init crash risk.`, file);
+        const line = clean.slice(0, rm.index).split('\n').length;
+        a.high('Native require outside try/catch',
+          `${file}:${line} requires a native module but the call is not inside a try/catch — native init crash risk.`,
+          `${file}:${line}`);
       }
     }
   }
-  if (guardedOk) a.pass('All native requires in services/utils are wrapped in try/catch');
+  if (guardedOk && checkedAny) a.pass('Every native require in services/utils sits inside a try/catch');
 
   // --- S5: native requires must be lazy (inside a function), never module-scope ---
   const lazyHits = L.grep(serviceFiles, reRequire, { skipComments: true });
