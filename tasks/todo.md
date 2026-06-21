@@ -1,5 +1,20 @@
 # Task Tracker
 
+## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
+
+User spammed the green "Next Week" button → screen covered in overlapping blue
+info banners (+ warnings). Root cause: weekly notifications route through
+`UIUXContext.showError` (severity `info`), rendered by `UIUXOverlay` as
+`ErrorMessage` banners staggered `stackIndex * 96px`. Notification ids embed the
+week number (e.g. `spark-tick-${nextWeeksLived}-${i}`) so each week produces NEW
+ids — the dedup-by-id only collapses within one flush. Unlike the Toast system
+(capped at 3), `errorStates` was UNBOUNDED, so a burst of advances piled up
+banners across the whole UI before the ~5s auto-dismiss could clear them.
+
+- [x] 1. Cap simultaneously-visible banners in `UIUXContext.showError` (the single funnel) via exported pure `capErrorBanners`, preserving real error/critical over transient info/warning advisories.
+- [x] 2. Verify type-check (clean) + unit test `__tests__/components/uiuxBannerCap.test.ts` (4/4) + `realProviderLoop.stress` (7/7, drives 500 real nextWeek ticks).
+  - Caught + fixed a `slice(-0)===slice(0)` edge case during testing (would have kept the whole advisory list when real errors filled the cap).
+
 ## 🩺 Reduce week-advance popups + health issues on player card (2026-06-20)
 
 User: game freezes on "Next Week" (too much happening). Remove health status

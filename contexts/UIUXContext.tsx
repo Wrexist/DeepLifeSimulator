@@ -53,6 +53,36 @@ const UIUXContext = createContext<UIUXContextType | undefined>(undefined);
 
 const TUTORIAL_COMPLETED_KEY = 'tutorial_completed';
 
+/**
+ * Cap on simultaneously-visible banners (mirrors the Toast system's limit of 3).
+ * Without it, a burst of week-advance notifications — each with a unique,
+ * week-numbered id, so they don't collapse by id — stacked unbounded and flooded
+ * the screen (every banner is offset `stackIndex * 96px`) before the ~5s
+ * auto-dismiss could clear them. Spamming "Next Week" reproduced this reliably.
+ */
+const MAX_VISIBLE_BANNERS = 3;
+
+function isRealError(error: ErrorState): boolean {
+  return error.severity === 'error' || error.severity === 'critical';
+}
+
+/**
+ * Bound the banner stack so a burst of notifications can't flood the screen.
+ * Never drops a real error/critical; once those are kept, the remaining slots
+ * go to the most recent info/warning advisories (arrival order preserved).
+ * Exported for unit testing.
+ */
+export function capErrorBanners(errorStates: ErrorState[], max: number = MAX_VISIBLE_BANNERS): ErrorState[] {
+  if (errorStates.length <= max) return errorStates;
+  const realErrors = errorStates.filter(isRealError);
+  const advisorySlots = Math.max(0, max - realErrors.length);
+  // NB: slice(-0) === slice(0) returns the WHOLE array, so guard the zero case.
+  const advisories = errorStates.filter(error => !isRealError(error));
+  const keptAdvisories = advisorySlots > 0 ? advisories.slice(-advisorySlots) : [];
+  const keep = new Set<ErrorState>([...realErrors, ...keptAdvisories]);
+  return errorStates.filter(error => keep.has(error));
+}
+
 export function UIUXProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<UIUXState>({
     loadingStates: [],
@@ -108,17 +138,21 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     title?: string,
     onRetry?: () => void
   ) => {
-    setState(prev => ({
-      ...prev,
-      errorStates: [...prev.errorStates.filter(error => error.id !== id), {
+    setState(prev => {
+      const next: ErrorState = {
         id,
         message,
         severity,
         title,
         onRetry,
         autoDismiss: severity === 'info',
-      }],
-    }));
+      };
+      // Replace any existing banner with the same id, then append the new one,
+      // and bound the stack so a burst of advisories (e.g. spamming "Next Week")
+      // can't flood the screen.
+      const deduped = [...prev.errorStates.filter(error => error.id !== id), next];
+      return { ...prev, errorStates: capErrorBanners(deduped) };
+    });
   }, []);
 
   const hideError = useCallback((id: string) => {
