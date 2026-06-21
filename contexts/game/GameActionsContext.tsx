@@ -53,7 +53,6 @@ import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
-import { MILESTONE_MONEY_THRESHOLDS, MILESTONE_PROXIMITY_PERCENT } from '@/lib/config/gameConstants';
 import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
@@ -1744,30 +1743,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }, 100);
  }
 
- // ENGAGEMENT: Milestone proximity hints — "just one more week" pull
- // Shows a motivational notification when player is close to a milestone.
- // SMOOTHNESS: gate to at most once per in-game month. Previously this fired
- // EVERY week the player sat inside a threshold's proximity band, nagging
- // "Almost There!" repeatedly while they saved up.
- try {
- // R3-A: milestone constants are ES imports.
- const currentState = gameStateRef.current;
- if (currentState && (currentState.weeksLived || 0) % 4 === 0) {
- const currentMoney = currentState.stats?.money || 0;
- for (const threshold of MILESTONE_MONEY_THRESHOLDS) {
- if (currentMoney < threshold && currentMoney >= threshold * (1 - MILESTONE_PROXIMITY_PERCENT)) {
- const remaining = threshold - currentMoney;
- const formatted = remaining >= 1000 ? `$${(remaining / 1000).toFixed(1)}k`: `$${remaining}`;
- setTimeout(() => {
- showInfo('milestone-hint', `${formatted} away from $${threshold >= 1000 ? (threshold / 1000).toLocaleString() + 'k': threshold}!`, 'Almost There');
- }, 800); // Brief delay so it trails the week's primary notifications
- break; // Only show one hint
- }
- }
- }
- } catch (e) {
- // Non-critical — don't break week progression for milestone hints
- }
+ // (Removed) "Almost There!" milestone proximity hints — these fired a toast
+ // every few weeks while the player saved toward a money threshold, which read
+ // as nagging. Progress toward goals is already visible passively on the
+ // dashboard (Active Goals card + the Last Week recap), so the nudge is gone.
 
  // Validate state after update to ensure no corruption. PERF: yield ONE
  // macrotask so React has processed the updater (which populates postTickState),

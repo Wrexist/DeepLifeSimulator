@@ -56,6 +56,7 @@ const MoneyBreakdownModal = React.lazy(() => import('./MoneyBreakdownModal'));
 const BankBreakdownModal = React.lazy(() => import('./BankBreakdownModal'));
 const GemsBreakdownModal = React.lazy(() => import('./GemsBreakdownModal'));
 // SicknessModal is rendered once at the root in app/_layout.tsx — no second mount here.
+import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import SeasonalIndicator from './SeasonalIndicator';
 import usePressableScale from '@/hooks/usePressableScale';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -377,14 +378,11 @@ function TopStatsBarComponent() {
  // Energy net change
  let energyChange = 30; // Base regen
  const unlockedBonuses = prestige?.unlockedBonuses || [];
- try {
- // eslint-disable-next-line @typescript-eslint/no-require-imports
- const { getEnergyRegenMultiplier } = require('@/lib/prestige/applyBonuses');
+ {
+ // Top-level ES import (was an inline require() that ran every render).
  const energyRegenMultiplier = getEnergyRegenMultiplier(unlockedBonuses);
  const safeEnergyRegenMultiplier = typeof energyRegenMultiplier ==='number'&& isFinite(energyRegenMultiplier) && energyRegenMultiplier > 0 ? energyRegenMultiplier: 1.0;
  energyChange = Math.round(30 * safeEnergyRegenMultiplier);
- } catch {
- // Ignore if module not found
  }
  // Career energy cost is fixed at -5 per week (no energyCost in level definitions)
  if (currentJob) {

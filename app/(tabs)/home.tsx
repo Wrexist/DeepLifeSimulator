@@ -15,6 +15,7 @@ import type { GameState } from '@/contexts/game/types';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsProgress from '@/components/AchievementsProgress';
 import IdentityCard from '@/components/IdentityCard';
+import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import PrestigePreviewCard from '@/components/PrestigePreviewCard';
@@ -380,6 +381,12 @@ function HomeScreenContent() {
 
         <FadeInUp delay={0}>
           <IdentityCard />
+        </FadeInUp>
+
+        {/* Non-blocking weekly recap — restores the sense of progress that the
+            (removed) weekly event pop-ups used to provide, without interrupting. */}
+        <FadeInUp delay={20}>
+          <LastWeekRecap />
         </FadeInUp>
 
         {/* Contextual Tips - shown when player is stuck */}
