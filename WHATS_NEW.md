@@ -14,37 +14,35 @@ five-domain audit (crashes, economy/balance, game logic, and save reliability).
 ## 📱 Store "What's New" (copy-paste ready)
 
 ```
-v1.3.1: Smoothness & Stability
+v1.3.1: Smoothness and Stability
 
 We squashed the "Next Week" freeze and a whole audit's worth of bugs. Smoother, calmer, fairer.
 
-⚡ No More Freeze
-• Fixed the Next Week hang several of you reported. Advancing a week is smooth now
-• Big performance pass: the dashboard no longer re-renders everything every week
-• Rarely-used screens now load on demand
+NO MORE FREEZE
+- Fixed the Next Week hang several of you reported. Advancing a week is smooth now.
+- Big performance pass: the dashboard no longer re-renders everything every week.
+- Rarely-used screens now load on demand.
 
-🔔 Fewer Interruptions
-• Health problems no longer interrupt you with popups on week advance. Your status now lives
-  on your player card with clear how-to-fix tips (sickness details are still one tap away)
-• Life moments and weekly "Heads Up" events are now much rarer
+FEWER INTERRUPTIONS
+- Health problems no longer interrupt you with popups on week advance. Your status now lives on your player card with clear how-to-fix tips (sickness details are still one tap away).
+- Life moments and weekly "Heads Up" events are now much rarer.
 
-🛡️ Crash Fixes
-• Weekly auto-reinvest crash, an Android purchase loop, an un-dismissable popup, and several
-  chart / saved-data edge cases are all fixed
+CRASH FIXES
+- Weekly auto-reinvest crash, an Android purchase loop, an un-dismissable popup, and several chart and saved-data edge cases are all fixed.
 
-⚖️ Fairer, More Realistic Economy
-• Real-estate sales now have realistic closing costs & capital-gains tax; rental income nets upkeep
-• Fixed a maintenance-cost bug (was 50x too high)
-• IPO double-credit, crypto fees, loan prepayment, an inflation cap, and mining tradeoffs: corrected
-• "Investment tip" is now a true double-or-nothing (it was quietly tilted in your favor)
+FAIRER, MORE REALISTIC ECONOMY
+- Real-estate sales now have realistic closing costs and capital-gains tax; rental income nets upkeep.
+- Fixed a maintenance-cost bug (was 50x too high).
+- IPO double-credit, crypto fees, loan prepayment, an inflation cap, and mining tradeoffs are corrected.
+- "Investment tip" is now a true double-or-nothing (it was quietly tilted in your favor).
 
-🧩 Logic Fixes
-• Multi-stage opportunities now pay out their real final stage
-• A deceased character no longer collects a final paycheck
-• Follow-up event chains actually fire now; exam/campus timing no longer drifts when you pause
+LOGIC FIXES
+- Multi-stage opportunities now pay out their real final stage.
+- A deceased character no longer collects a final paycheck.
+- Follow-up event chains actually fire now; exam and campus timing no longer drifts when you pause.
 
-💾 Leaner Saves
-• Capped comment threads, notifications, and casual friends in long games (family is always kept)
+LEANER SAVES
+- Capped comment threads, notifications, and casual friends in long games (family is always kept).
 
 Thank you for the reports. Keep them coming.
 Join the community: https://discord.gg/rzktazdX8v
