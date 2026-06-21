@@ -40,6 +40,7 @@ import {
  Eye,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useTimerManager } from '@/hooks/useTimerManager';
 import { scale, fontScale } from '@/utils/scaling';
 const LinearGradient = LinearGradientFallback;
 
@@ -281,6 +282,8 @@ interface DMSystemProps {
 
 export default function DMSystem({ onBack }: DMSystemProps) {
  const { gameState, setGameState, saveGame } = useGame();
+ // Auto-cleaned timers so the delayed NPC reply can't setState after the DM closes.
+ const timers = useTimerManager();
  const [selectedConversation, setSelectedConversation] = useState<DMConversation | null>(null);
  const [conversations, setConversations] = useState<DMConversation[]>([]);
  const [messages, setMessages] = useState<DMMessage[]>([]);
@@ -435,7 +438,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  setMessageInput('');
 
  // Generate a response after a short delay
- setTimeout(() => {
+ timers.setTimeout(() => {
  const responses = [
  "Interesting...",
  "I see you understand. Good luck!",

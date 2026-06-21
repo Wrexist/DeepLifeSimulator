@@ -117,7 +117,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
 
   // --- 1) Per-coin price evolution + regime updates -----------------------
   for (const coin of cryptos) {
-    const cm = market.coinMarkets[coin.id];
+    const cm = market.coinMarkets?.[coin.id];
     if (!cm) continue;
     const { regime, weeksRemaining, spread, changed } = evolveRegime(
       cm,
@@ -222,10 +222,13 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
 
   // --- 3) DCA execution (debits from checking account in banking slice) ---
   let dcaFillCount = 0;
-  for (const rule of market.dcaRules) {
+  // Guard optional slices: a partially-migrated save can carry `cryptoMarket`
+  // without `dcaRules`, or `banking` without `accounts`. An unguarded read here
+  // throws inside the weekly-tick updater and silently bricks "Next Week".
+  for (const rule of market.dcaRules || []) {
     if (!rule.enabled || rule.nextExecutionWeek > input.currentWeek) continue;
     const coin = cryptos.find((c) => c.id === rule.cryptoId);
-    if (!coin || !banking) continue;
+    if (!coin || !banking || !banking.accounts) continue;
     const acctIdx = banking.accounts.findIndex((a) => a.id === rule.fromAccountId);
     if (acctIdx === -1) continue;
     const account = banking.accounts[acctIdx];
@@ -297,7 +300,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
   }
 
   // Update spread on each coin to reflect new regime (cosmetic; UI reads this).
-  for (const coinId of Object.keys(market.coinMarkets)) {
+  for (const coinId of Object.keys(market.coinMarkets || {})) {
     const cm = market.coinMarkets[coinId];
     const newSpread = bidAskSpreadForRegime(cm.regime);
     if (Math.abs(newSpread - cm.bidAskSpread) > 1e-9) {

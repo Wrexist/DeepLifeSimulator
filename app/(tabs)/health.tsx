@@ -10,6 +10,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
+import { useTimerManager } from '@/hooks/useTimerManager';
 
 function HealthScreen() {
   return (
@@ -26,6 +27,8 @@ function HealthScreenContent() {
   const { gameState, performHealthActivity, toggleDietPlan, setGameState } = useGame();
   const { settings } = gameState;
   const [healthFeedback, setHealthFeedback] = useState<{ [key: string]: string }>({});
+  // Auto-cleaned timers so the feedback-clear timeout can't setState after unmount.
+  const timers = useTimerManager();
 
   // Merge health activities with initialState so saved games pick up the latest values.
   const { mergedHealthActivities, needsStateSync } = useMemo(() => {
@@ -104,7 +107,7 @@ function HealthScreenContent() {
     const result = performHealthActivity(activity.id);
     if (result) {
       setHealthFeedback({ [activity.id]: result.message });
-      setTimeout(() => {
+      timers.setTimeout(() => {
         setHealthFeedback(prev => {
           const next = { ...prev };
           delete next[activity.id];

@@ -42,6 +42,7 @@ import {
   X as XIcon,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useTimerManager } from '@/hooks/useTimerManager';
 import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger } from '@/lib/contacts/favors';
@@ -76,6 +77,8 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     fileDivorce,
     saveGame,
   } = useGame();
+  // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
+  const timers = useTimerManager();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
@@ -113,8 +116,8 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   const flash = useCallback((message: string, id?: string) => {
     setFeedback({ id, message });
-    setTimeout(() => setFeedback(null), 2800);
-  }, []);
+    timers.setTimeout(() => setFeedback(null), 2800);
+  }, [timers]);
 
   const updateMoneyDep = useCallback(
     (_set: any, amount: number, reason: string) => updateMoney(amount, reason),

@@ -1,5 +1,92 @@
 # Task Tracker
 
+## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
+
+User spammed the green "Next Week" button → screen covered in overlapping blue
+info banners (+ warnings). Root cause: weekly notifications route through
+`UIUXContext.showError` (severity `info`), rendered by `UIUXOverlay` as
+`ErrorMessage` banners staggered `stackIndex * 96px`. Notification ids embed the
+week number (e.g. `spark-tick-${nextWeeksLived}-${i}`) so each week produces NEW
+ids — the dedup-by-id only collapses within one flush. Unlike the Toast system
+(capped at 3), `errorStates` was UNBOUNDED, so a burst of advances piled up
+banners across the whole UI before the ~5s auto-dismiss could clear them.
+
+- [x] 1. Cap simultaneously-visible banners in `UIUXContext.showError` (the single funnel) via exported pure `capErrorBanners`, preserving real error/critical over transient info/warning advisories.
+- [x] 2. Verify type-check (clean) + unit test `__tests__/components/uiuxBannerCap.test.ts` (4/4) + `realProviderLoop.stress` (7/7, drives 500 real nextWeek ticks).
+  - Caught + fixed a `slice(-0)===slice(0)` edge case during testing (would have kept the whole advisory list when real errors filled the cap).
+
+## 🧹 Stability hardening audit pass (2026-06-21)
+
+Ran static `audit:weekly` (green, 1 minor warn) + 3 parallel review agents (spam/
+unbounded-queue, crash/stability, week-loop/game-state). Fixed the highest-value,
+lowest-risk findings — all in the "won't crash / won't flood / won't leak" family:
+
+- [x] **Week-loop brick vectors (HIGH):** crypto/banking/dark-web weekly ticks ran
+  inside the `setGameState` updater with no inner guard; on a partially-migrated
+  save (slice present but an optional array missing) an unguarded `.map()`/`.length`/
+  spread threw → outer catch returns prevState → "Next Week" silently soft-locks.
+  Guarded the optional arrays at the root: `lib/crypto/weeklyTick.ts` (coinMarkets×2,
+  dcaRules, banking.accounts), `lib/banking/weeklyTick.ts` (accounts),
+  `lib/darkweb/weeklyTick.ts` (activeJobs/recentEvents normalized at entry).
+  Regression test `__tests__/refactor/partialMigrationTickResilience.test.ts` —
+  which CAUGHT a 2nd crypto crash vector the audit missed (weeklyTick.ts:303).
+- [x] **Death haptic double-fire (HIGH, same class as banner bug):** `haptic.error()`
+  fired INSIDE the death branch of the tick updater (runs 2× under React 19
+  StrictMode / speculative renders). Moved to the single post-updater `deathTriggered`
+  block. `GameActionsContext.tsx`.
+- [x] **MotiStub animation-loop leak (HIGH):** the shared `MotiView` primitive
+  (LoadingSpinner, AnimatedProgressBar) started `Animated.parallel`/`loop` with no
+  cleanup → loops never stopped on unmount (same leak class as the fixed TopStatsBar
+  one). Now captures + stops the composite on cleanup. `components/anim/MotiStub.tsx`.
+- [x] **IdentityCard white-screen guards (HIGH):** unguarded `stats.money`,
+  `stats.{happiness,health,energy}`, `date.age` on a card that renders
+  unconditionally on home — optional-chained (file already guarded the same fields
+  elsewhere). `components/IdentityCard.tsx`.
+- [x] **WeeklyEventModal crash guard (MED):** `gameState.pets.find` → `pets?.find`;
+  this modal mounts outside the home ErrorBoundary on any weekly event.
+- [x] **Enact-policy double-enact exploit (HIGH):** preconditions read the stale
+  snapshot arg, so a rapid double-tap enacted the policy twice (duplicate entry +
+  double money/stat bonuses). Re-check + no-op inside the updater on fresh `prev`.
+  `contexts/game/actions/PoliticalActions.ts`.
+
+Verification: `type-check` clean; full non-stress suite 1786 passed; realProviderLoop
+stress 7/7 (drives 500 real `nextWeek` ticks); static `audit:weekly` green.
+
+## 🧹 Stability hardening — round 2 (deferred items, 2026-06-21)
+
+Cleared every deferred item from round 1:
+
+- [x] **Determinism (HIGH):** subsystem weekly ticks (crypto/dark-web/politics/stocks)
+  used live `Math.random()` inside the `setGameState` updater → React 19's double
+  invocation drew different numbers (committed outcome was whichever render it kept)
+  and outcomes weren't reproducible from the save. New seeded helper
+  `utils/seededRoll.ts` (`makeWeeklyRoll(weeksLived)` → keyed [0,1) roll); all four
+  call sites now share one `weeklyRoll`. The ticks were already written to be
+  deterministic with a seeded `rollFor`. Test `__tests__/utils/seededRoll.test.ts`.
+- [x] **Dark-web duplicate-job double-tap (MED):** `startJob` now rejects a second
+  active job for the same template (`lib/darkweb/operations.ts`). Test added to
+  `operations.test.ts`.
+- [x] **Pet sleep/play double-buff (LOW):** the once-per-week / energy gates now
+  re-check inside the `updatePet` updater on fresh `p` (`PetActions.ts`).
+- [x] **setTimeout setState-after-unmount leaks:** routed through the auto-cleaning
+  `useTimerManager` hook — `DMSystem`, Spark `ChatScreen`/`SwipeScreen`, `PetApp`,
+  `ContactsApp`, `GamingApp`, `GamingStreamingApp`, health tab; market-tab tutorial
+  scroll uses a local `clearTimeout` in its effect.
+- [x] **More partial-migration crash guards (MED):** `discoverySystem` (date/stats),
+  `applyEducationProgression` (educations `|| []`), mining tick call sites
+  (`cryptos || []`), `PrestigeStatsCard` (prestige sub-fields).
+- [x] **Death-week phantom income (LOW):** `weekResult` income/expenses/net zeroed
+  when death voids the week's money (`GameActionsContext.tsx`).
+- [x] **Dead code removed:** unused, unbounded `contexts/game/social.ts`.
+
+Intentionally NOT changed: the relationship breakup/disappointed roll's `relIdx >= 20`
+quirk is documented "PRESERVED VERBATIM" for legacy parity (equivalence snapshot
+test) — only affects a player with >20 relationships; left as-is by design.
+
+Verification: `type-check` clean; non-stress suite 1791 passed (4 pre-existing
+empty-helper-file artifacts, not real failures); realProviderLoop + legacyPulse­Politics
+stress 51/51; static `audit:weekly` green.
+
 ## 🩺 Reduce week-advance popups + health issues on player card (2026-06-20)
 
 User: game freezes on "Next Week" (too much happening). Remove health status

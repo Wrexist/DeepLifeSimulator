@@ -174,8 +174,9 @@ function MarketScreenContent() {
   React.useEffect(() => {
     if (highlightedItem && highlightedItem !== 'stock-app') {
       setActiveTab('items');
-      // Scroll to highlighted item after a delay
-      setTimeout(() => {
+      // Scroll to highlighted item after a delay. Capture + clear the timer so it
+      // can't fire setState/scroll after unmount or after deps change.
+      const id = setTimeout(() => {
         if (flatListRef.current && highlightedItem) {
           const itemIndex = sortedItems.findIndex(item => item.id === highlightedItem);
           if (itemIndex !== -1) {
@@ -186,7 +187,9 @@ function MarketScreenContent() {
           }
         }
       }, 300);
+      return () => clearTimeout(id);
     }
+    return undefined;
   }, [highlightedItem, sortedItems]);
 
   // Memoized render functions with proper dependencies

@@ -205,7 +205,7 @@ function IdentityCard() {
 
   const netWorth = useMemo(() => {
     const assets: Asset[] = [
-      { id: 'cash', type: 'cash', baseValue: stats.money },
+      { id: 'cash', type: 'cash', baseValue: stats?.money ?? 0 },
       { id: 'savings', type: 'cash', baseValue: bankSavings || 0 },
     ];
     (items || [])
@@ -292,14 +292,21 @@ function IdentityCard() {
   
   const derivedTraits = useMemo(() => {
     const dt: string[] = [];
-    if (stats.happiness >= 70) dt.push('happy');
-    else if (stats.happiness <= 30) dt.push('sad');
-    if (stats.health >= 70) dt.push('healthy');
-    else if (stats.health <= 30) dt.push('sick');
-    if (stats.energy >= 70) dt.push('energetic');
-    else if (stats.energy <= 30) dt.push('tired');
+    // Optional-chain stats: it comes from a nullable selector and is guarded as
+    // `stats?.health` elsewhere in this file. IdentityCard renders unconditionally
+    // on the home tab, so a degraded/migrating save with missing stats would
+    // otherwise white-screen the whole dashboard.
+    const happiness = stats?.happiness ?? 0;
+    const health = stats?.health ?? 0;
+    const energy = stats?.energy ?? 0;
+    if (happiness >= 70) dt.push('happy');
+    else if (happiness <= 30) dt.push('sad');
+    if (health >= 70) dt.push('healthy');
+    else if (health <= 30) dt.push('sick');
+    if (energy >= 70) dt.push('energetic');
+    else if (energy <= 30) dt.push('tired');
     return dt;
-  }, [stats.happiness, stats.health, stats.energy]);
+  }, [stats?.happiness, stats?.health, stats?.energy]);
 
   const traits = useMemo(() => [...(scenario?.start.traits || []), ...derivedTraits], [scenario, derivedTraits]);
 
@@ -519,7 +526,7 @@ function IdentityCard() {
               {t('game.age')}
             </Text>
             <Text style={[styles.statValue, styles.statValueDark]} numberOfLines={1}>
-              {Math.floor(date.age)}
+              {Math.floor(date?.age ?? 18)}
             </Text>
             {youthPills > 0 && (
               <TouchableOpacity

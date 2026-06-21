@@ -28,6 +28,7 @@ import { initialGameState, STATE_VERSION } from './initialState';
 import { fileDivorce } from './actions/DatingActions';
 import { queueSave, forceSave } from '@/utils/saveQueue';
 import { haptic } from '@/utils/haptics';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 import { createBackupFromState } from '@/utils/saveBackup';
 import { saveLoadMutex } from '@/utils/saveLoadMutex';
 import { executePrestige as executePrestigeFunction } from '@/lib/prestige/prestigeExecution';
@@ -776,7 +777,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowZeroStatPopup = false;
  newZeroStatType = undefined;
  deathTriggered = true; // Mark that death was triggered
- haptic.error(); // Death — heavy error buzz
+ // NB: haptic fires once post-updater (see deathTriggered block) — calling it
+ // here would double-buzz under React 19 StrictMode / discarded renders.
  logger.warn(`[DEATH] Character died from health reaching 0 for ${newHealthZeroWeeks} weeks`);
  }
  } else {
@@ -805,7 +807,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowZeroStatPopup = false;
  newZeroStatType = undefined;
  deathTriggered = true; // Mark that death was triggered
- haptic.error(); // Death — heavy error buzz
+ // haptic fires once post-updater (see deathTriggered block) to avoid double-buzz.
  logger.warn(`[DEATH] Character died from happiness reaching 0 for ${newHappinessZeroWeeks} weeks`);
  }
  } else {
@@ -840,7 +842,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowZeroStatPopup = false;
  newZeroStatType = undefined;
  deathTriggered = true;
- haptic.error();
+ // haptic fires once post-updater (see deathTriggered block) to avoid double-buzz.
  logger.warn(`[DEATH] Character died of old age at ${Math.floor(nextAge)}`);
  }
  }
@@ -945,7 +947,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // deduction (both earning-path and zero-earning-path).
  const updatedCryptos = applyMiningCryptos({
    prevWarehouse: prevState.warehouse,
-   prevCryptos: prevState.cryptos,
+   prevCryptos: prevState.cryptos || [],
    halvingCount: prevState.cryptoMarket?.halvingCount ?? 0,
    // Charge auto-repair on POST-degradation durability (same roll the warehouse
    // pass uses) so a miner crossing below 50% this tick isn't repaired for $0.
@@ -958,7 +960,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // migration is preserved verbatim.
  const updatedWarehouse = applyMiningWarehouse({
    prevWarehouse: prevState.warehouse,
-   prevCryptos: prevState.cryptos,
+   prevCryptos: prevState.cryptos || [],
    weeksLived: prevState.weeksLived || 0,
    minerDegradationRoll: preRolls.minerDegradation,
  }).updatedWarehouse;
@@ -1292,17 +1294,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // price evolution and order execution on top.
  tickProfiler.mark('disease_pets_vehicles');
 
-      const cryptoTick = runCryptoWeeklyTick({
+      // One seeded roll source for all subsystem ticks this week. Namespaced keys
+ // (crypto.* / darkweb.* / politics.* / stock.*) keep the draws independent.
+ const weeklyRoll = makeWeeklyRoll(nextWeeksLived);
+ const cryptoTick = runCryptoWeeklyTick({
  market: prevState.cryptoMarket ?? initialGameState.cryptoMarket!,
  cryptos: updatedCryptos,
  banking: prevState.banking ?? initialGameState.banking!,
  cashIn: newStats.money,
  currentWeek: nextWeeksLived,
  economyState: prevState.economy?.economyEvents?.currentState,
- // Use Math.random for non-deterministic price walks. preRolls handles
- // mining-side determinism elsewhere; crypto is a new system so allowing
- // fresh randomness here is fine and avoids reseeding the existing buffer.
- rollFor: () => Math.random(),
+ // Seeded by the absolute week so price walks / order fills are deterministic:
+ // React 19 runs this updater twice (StrictMode / speculative renders), and a
+ // live Math.random() made the two invocations disagree — React keeps whichever
+ // it commits, so the outcome was effectively random per render. Seeding also
+ // makes outcomes reproducible from the save (no save-scum drift).
+ rollFor: weeklyRoll,
  });
  const finalCryptos = cryptoTick.cryptos;
  const finalCryptoMarket = cryptoTick.market;
@@ -1345,7 +1352,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  darkWeb: prevState.darkWeb ?? initialGameState.darkWeb!,
  currentWeek: nextWeeksLived,
  relationships: processedRelationships,
- rollFor: () => Math.random(),
+ rollFor: weeklyRoll,
  inJail: (prevState.jailWeeks ?? 0) > 0,
  });
 
@@ -1381,7 +1388,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  yields,
  prices,
  currentWeek: nextWeeksLived,
- rollFor: () => Math.random(),
+ rollFor: weeklyRoll,
  });
  if (stocksTickResult.cashDelta!== 0) {
  newStats.money = Math.max(0, newStats.money + stocksTickResult.cashDelta);
@@ -1413,7 +1420,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  karma: prevState.karma?.score ?? 0,
  contentiousPolicies: (prevState.politics?.policiesEnacted ?? []).length,
  currentWeek: nextWeeksLived,
- rollFor: () => Math.random(),
+ rollFor: weeklyRoll,
  });
  for (const note of politicsTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
@@ -1672,6 +1679,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 ...nextState.stats,
  money: typeof prevState.stats?.money === 'number' ? prevState.stats.money: nextState.stats.money,
  };
+ // The week's money was reverted (no final paycheck on death), so the result
+ // sheet must not advertise income/expenses it never actually applied. Mutating
+ // the same `weekResult` object the return uses keeps the sheet honest.
+ weekResult.incomeEarned = 0;
+ weekResult.expensesPaid = 0;
+ weekResult.netChange = 0;
+ weekResult.luckyBonus = undefined;
+ weekResult.streakBonus = undefined;
  }
 
  // PERF (freeze fix): expose the computed state to the post-update code below.
@@ -1796,6 +1811,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // If death was triggered, stop loading immediately so death popup can show
  // CRITICAL: Stop loading synchronously to prevent blocking the death popup
  if (deathTriggered) {
+ // Fire the death buzz exactly once here — NOT inside the setGameState updater,
+ // which React 19 runs twice in StrictMode and may run speculatively under
+ // concurrent rendering (same double-fire class as the pendingNotifications dedup).
+ haptic.error();
  setIsLoading(false);
  setLoadingMessage('');
  logger.warn('[DEATH] Death triggered - stopped loading immediately to show death popup');

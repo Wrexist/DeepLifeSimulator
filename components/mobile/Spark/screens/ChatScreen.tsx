@@ -25,6 +25,7 @@ import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfi
 import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
+import { useTimerManager } from '@/hooks/useTimerManager';
 import type { SparkMessage } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
@@ -41,6 +42,8 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<FlatList<SparkMessage>>(null);
+  // Auto-cleaned timers so the delayed NPC reply can't run after the chat closes.
+  const timers = useTimerManager();
 
   const sp = gameState.sparkApp;
   const match = sp?.matches.find((m: any) => m.id === matchId);
@@ -64,7 +67,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
       setError(null);
       saveGame?.();
       // NPC writes back after a brief pause to feel natural.
-      setTimeout(() => generateNpcReply(setGameState, gameState, matchId), 1800);
+      timers.setTimeout(() => generateNpcReply(setGameState, gameState, matchId), 1800);
     } else {
       sparkHaptics.error();
       setError(result.message);

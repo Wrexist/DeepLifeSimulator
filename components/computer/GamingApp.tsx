@@ -30,6 +30,7 @@ import {
   Star,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useTimerManager } from '@/hooks/useTimerManager';
 import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
 import {
@@ -86,6 +87,8 @@ interface Props {
 
 export default function GamingApp({ onBack }: Props) {
   const { gameState, setGameState, saveGame } = useGame();
+  // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
+  const timers = useTimerManager();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
@@ -111,8 +114,8 @@ export default function GamingApp({ onBack }: Props) {
 
   const flash = useCallback((message: string) => {
     setFeedback(message);
-    setTimeout(() => setFeedback(null), 2800);
-  }, []);
+    timers.setTimeout(() => setFeedback(null), 2800);
+  }, [timers]);
 
   const handlePublish = useCallback(() => {
     if (!title.trim()) {

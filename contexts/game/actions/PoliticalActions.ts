@@ -420,49 +420,57 @@ export const enactPolicy = (
     };
   }
 
-  // Apply approval impact
-  const newApproval = Math.max(0, Math.min(100, politics.approvalRating + policy.approvalImpact));
+  // Atomic: merge cost + stats effects + politics update into single update.
+  // All derived values are recomputed from `prev` INSIDE the updater so a rapid
+  // double-tap can't double-enact: the precondition checks above read the stale
+  // snapshot arg, so two taps both pass before either commits. The guards here
+  // re-check against fresh `prev` and no-op, preventing a duplicate policy entry
+  // and double-applied money/stat effects.
+  setGameState(prev => {
+    const prevPolitics = prev.politics;
+    if (prevPolitics?.policiesEnacted?.includes(policyId)) return prev;
+    if ((prev.stats?.money || 0) < (policy.implementationCost || 0)) return prev;
 
-  // Calculate active policy effects
-  const updatedPoliciesEnacted = [...(politics.policiesEnacted || []), policyId];
-  const activePolicyEffects = calculateActivePolicyEffects(updatedPoliciesEnacted);
+    const updatedPoliciesEnacted = [...(prevPolitics?.policiesEnacted || []), policyId];
+    const activePolicyEffects = calculateActivePolicyEffects(updatedPoliciesEnacted);
+    const newApproval = Math.max(0, Math.min(100, (prevPolitics?.approvalRating ?? 50) + policy.approvalImpact));
 
-  // Atomic: merge cost + stats effects + politics update into single update
-  setGameState(prev => ({
-    ...prev,
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, prev.stats.money - (policy.implementationCost || 0) + (policy.effects.money || 0)),
-      happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + (policy.effects.happiness || 0))),
-      health: Math.max(0, Math.min(100, (prev.stats.health || 0) + (policy.effects.health || 0))),
-      reputation: Math.max(0, Math.min(100, (prev.stats.reputation || 0) + (policy.effects.reputation || 0))),
-    },
-    politics: {
-      ...prev.politics || {
-        careerLevel: 0,
-        approvalRating: 50,
-        policyInfluence: 0,
-        electionsWon: 0,
-        policiesEnacted: [],
-        activePolicies: [],
-        lobbyists: [],
-        alliances: [],
-        campaignFunds: 0,
+    return {
+      ...prev,
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, prev.stats.money - (policy.implementationCost || 0) + (policy.effects.money || 0)),
+        happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + (policy.effects.happiness || 0))),
+        health: Math.max(0, Math.min(100, (prev.stats.health || 0) + (policy.effects.health || 0))),
+        reputation: Math.max(0, Math.min(100, (prev.stats.reputation || 0) + (policy.effects.reputation || 0))),
       },
-      approvalRating: newApproval,
-      policiesEnacted: updatedPoliciesEnacted,
-      activePolicies: [
-        ...(prev.politics?.activePolicies || []),
-        {
-          policyId,
-          enactedWeek: prev.weeksLived || 0,
-          expiresWeek: policy.duration ? (prev.weeksLived || 0) + policy.duration : undefined,
+      politics: {
+        ...prevPolitics || {
+          careerLevel: 0,
+          approvalRating: 50,
+          policyInfluence: 0,
+          electionsWon: 0,
+          policiesEnacted: [],
+          activePolicies: [],
+          lobbyists: [],
+          alliances: [],
+          campaignFunds: 0,
         },
-      ],
-      policyInfluence: Math.min(100, (prev.politics?.policyInfluence || 0) + 5),
-      activePolicyEffects,
-    },
-  }));
+        approvalRating: newApproval,
+        policiesEnacted: updatedPoliciesEnacted,
+        activePolicies: [
+          ...(prevPolitics?.activePolicies || []),
+          {
+            policyId,
+            enactedWeek: prev.weeksLived || 0,
+            expiresWeek: policy.duration ? (prev.weeksLived || 0) + policy.duration : undefined,
+          },
+        ],
+        policyInfluence: Math.min(100, (prevPolitics?.policyInfluence || 0) + 5),
+        activePolicyEffects,
+      },
+    };
+  });
 
   log.info(`Enacted policy: ${policy.name}`);
   return { success: true, message: `Policy "${policy.name}" has been enacted!` };

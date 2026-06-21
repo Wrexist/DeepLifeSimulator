@@ -109,7 +109,10 @@ function mirrorAccountsFromLegacy(
   newBankSavings: number,
   newMoney: number
 ): BankingState {
-  const accounts = banking.accounts.map((acct) => {
+  // Guard against a partially-migrated save where `banking` exists but
+  // `accounts` doesn't — an unguarded .map() here throws inside the weekly-tick
+  // updater and silently bricks "Next Week".
+  const accounts = (banking.accounts || []).map((acct) => {
     if (acct.id === 'checking-default') {
       return { ...acct, balance: Math.max(0, safe(newMoney)) };
     }
