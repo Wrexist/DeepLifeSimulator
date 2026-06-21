@@ -36,7 +36,7 @@ function levelRank(level) {
 // Colors (no dependency; respects NO_COLOR / non-TTY)
 // ---------------------------------------------------------------------------
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
-const paint = (code, s) => (useColor ? `[${code}m${s}[0m` : s);
+const paint = (code, s) => (useColor ? `\x1b[${code}m${s}\x1b[0m` : s);
 const c = {
   red: (s) => paint('31', s),
   green: (s) => paint('32', s),
