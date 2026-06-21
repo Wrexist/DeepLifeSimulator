@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  /* DeathPopup new-layout preview — dark mode, tokens from lib/config/theme.ts */
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  :root{
+    --bg:#0F172A; --surface:#1E293B; --elev:#334155;
+    --text:#FFFFFF; --text2:#64748B;
+    --border:rgba(255,255,255,0.1); --glassBorder:rgba(255,255,255,0.15);
+    --primary:#6366F1; --primaryDark:#4F46E5;
+    --success:#10B981; --warning:#F59E0B; --info:#3B82F6; --danger:#EF4444;
+    --fitness:#8B5CF6; --reputation:#EC4899; --purple:#A855F7; --gold:#FACC15;
+  }
+  body{ font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; background:#0b0f1a; display:flex; gap:40px; padding:40px; }
+  .phone{
+    width:390px; height:844px; background:#000; border-radius:44px; padding:12px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6); position:relative; overflow:hidden;
+  }
+  .screen{ width:100%; height:100%; border-radius:34px; overflow:hidden; background:rgba(0,0,0,.85);
+    display:flex; align-items:center; justify-content:center; padding:18px; }
+  .statusbar{ position:absolute; top:18px; left:0; right:0; display:flex; justify-content:space-between;
+    padding:0 34px; color:#fff; font-size:13px; font-weight:600; z-index:5; }
+
+  .card{
+    width:100%; max-height:96%; border-radius:24px; overflow:hidden;
+    background:linear-gradient(180deg,var(--bg) 0%,var(--surface) 55%,var(--elev) 100%);
+    display:flex; flex-direction:column; box-shadow:0 24px 48px rgba(0,0,0,.4);
+    border:1px solid rgba(255,255,255,.04);
+  }
+
+  /* identity strip */
+  .identity{ display:flex; align-items:center; padding:20px 20px 14px; }
+  .identity .icon{ width:48px;height:48px;border-radius:24px; background:rgba(30,41,59,.5);
+    border:2px solid rgba(255,255,255,.2); display:flex;align-items:center;justify-content:center; margin-right:14px; }
+  .identity .t1{ font-size:22px; font-weight:800; color:var(--text); letter-spacing:-.5px; }
+  .identity .t2{ font-size:15px; font-weight:700; color:var(--text); margin-top:2px; }
+  .identity .t3{ font-size:12px; color:var(--text2); margin-top:1px; }
+
+  /* top menu bar */
+  .topbar{ padding:0 16px 12px; }
+  .segmented{ display:flex; background:rgba(15,23,42,.5); border:1.5px solid var(--glassBorder);
+    border-radius:12px; padding:4px; }
+  .segment{ flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:10px 0; border-radius:9px; font-size:14px; font-weight:600; color:var(--text2); }
+  .segment.active{ background:var(--primary); color:#fff; font-weight:700; }
+
+  /* scroll body */
+  .body{ flex:1; overflow:auto; padding:20px; }
+  .body::-webkit-scrollbar{ width:3px; } .body::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.15); border-radius:2px; }
+
+  .cause{ background:rgba(15,23,42,.5); border:1.5px solid var(--glassBorder); border-radius:14px; padding:14px; margin-bottom:16px; }
+  .cause .a{ font-size:15px; font-weight:600; font-style:italic; color:var(--text); }
+  .cause .b{ font-size:13px; color:var(--text2); margin-top:4px; }
+
+  .ribbon{ display:flex; background:rgba(15,23,42,.3); border:1.5px solid var(--glassBorder);
+    border-left:4px solid #9CA3AF; border-radius:12px; padding:14px; margin-bottom:16px; }
+  .ribbon .name{ font-size:18px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#9CA3AF; }
+  .ribbon .desc{ font-size:12px; color:var(--text2); margin-top:2px; }
+
+  .section{ margin-bottom:24px; }
+  .secHead{ display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .secTitle{ font-size:20px; font-weight:700; color:var(--text); }
+  .secTitle.solo{ margin-bottom:12px; }
+
+  .glassCard{ background:rgba(15,23,42,.4); border:1.5px solid var(--glassBorder); border-radius:16px; padding:16px; }
+  .row{ display:flex; align-items:center; padding:4px 0; }
+  .row .ric{ width:36px;height:36px;border-radius:18px; display:flex;align-items:center;justify-content:center; margin-right:12px; font-size:16px; }
+  .row .lab{ font-size:12px; color:var(--text2); font-weight:500; }
+  .row .val{ font-size:14px; font-weight:600; color:var(--text); margin-top:2px; }
+
+  .stats{ display:flex; gap:12px; margin-bottom:24px; }
+  .statCard{ flex:1; display:flex; align-items:center; background:rgba(15,23,42,.4);
+    border:1.5px solid var(--glassBorder); border-radius:16px; padding:16px; }
+  .statCard .sic{ width:40px;height:40px;border-radius:20px; display:flex;align-items:center;justify-content:center; margin-right:12px; font-size:18px;}
+  .statCard .l{ font-size:12px; color:var(--text2); }
+  .statCard .v{ font-size:18px; font-weight:700; color:var(--text); margin-top:2px;}
+
+  .grid{ display:flex; flex-wrap:wrap; gap:12px; }
+  .box{ flex:1; min-width:100px; background:rgba(15,23,42,.4); border:1.5px solid var(--glassBorder);
+    border-radius:12px; padding:12px; text-align:center; }
+  .box .l{ font-size:11px; color:var(--text2); font-weight:500; }
+  .box .v{ font-size:16px; font-weight:700; color:var(--text); margin-top:4px; }
+
+  .prestige{ background:rgba(245,158,11,.12); border:1.5px solid var(--glassBorder); border-radius:12px; padding:16px; text-align:center; }
+  .prestige .pts{ font-size:28px; font-weight:800; color:var(--warning); }
+  .prestige .hint{ font-size:12px; color:var(--text2); margin:4px 0 12px; }
+  .buy{ display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px; color:var(--text); }
+
+  .breakRow{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); }
+  .breakRow:last-child{ border-bottom:0; }
+  .breakRow .l{ font-size:14px; color:var(--text2); font-weight:500; }
+  .breakRow .v{ font-size:14px; color:var(--text); font-weight:600; }
+
+  .bonus{ display:flex; align-items:center; padding:0; }
+  .bonus + .bonus{ margin-top:12px; }
+  .bonus .bic{ width:32px;height:32px;border-radius:16px; display:flex;align-items:center;justify-content:center; margin-right:12px; font-size:14px; }
+  .bonus .l{ font-size:12px; color:var(--text2); }
+  .bonus .v{ font-size:16px; font-weight:700; color:var(--success); margin-top:2px; }
+
+  .noKids{ background:rgba(15,23,42,.3); border:1.5px dashed var(--glassBorder); border-radius:16px; padding:24px; text-align:center; }
+  .noKids .em{ font-size:30px; opacity:.6; }
+  .noKids .tx{ font-size:14px; color:var(--text2); font-style:italic; margin-top:12px; }
+  .note{ font-size:12px; color:var(--text2); font-style:italic; margin-bottom:12px; line-height:16px; }
+
+  /* footer */
+  .footer{ padding:16px; padding-top:14px; border-top:1px solid var(--border);
+    background:rgba(0,0,0,.2); display:flex; flex-direction:column; gap:10px; }
+  .btn{ border-radius:14px; padding:16px; display:flex; align-items:center; justify-content:center; gap:8px;
+    color:#fff; font-size:16px; font-weight:700; }
+  .btn.revive{ background:linear-gradient(90deg,var(--success),#059669); }
+  .btn.gray{ background:linear-gradient(90deg,#9CA3AF,#6B7280); opacity:.5; }
+  .btn.legacy{ background:linear-gradient(90deg,var(--primary),var(--primaryDark)); }
+  .btn.newlife{ background:linear-gradient(90deg,#8B5CF6,#7C3AED); }
+  .rewind{ background:rgba(245,158,11,.12); border-radius:10px; padding:12px; }
+  .rewind .rt{ font-size:13px; font-weight:700; color:var(--warning); text-align:center; margin-bottom:8px; }
+  .chip{ display:flex; align-items:center; gap:6px; background:rgba(245,158,11,.12); border-radius:8px; padding:8px 12px; }
+  .chip .ct{ font-size:13px; font-weight:600; color:var(--warning); }
+  .secRow{ display:flex; gap:10px; }
+  .secBtn{ flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    background:rgba(15,23,42,.3); border:1.5px solid var(--glassBorder); border-radius:12px; padding:11px;
+    font-size:13px; font-weight:600; color:var(--text); }
+
+  /* tiny inline icons */
+  svg{ display:block; }
+</style>
+</head>
+<body>
+
+<!-- ============================= SUMMARY PAGE ============================= -->
+<div class="phone" id="summary">
+  <div class="statusbar"><span>19:33</span><span>◀ TestFlight&nbsp;&nbsp;&nbsp;📶 🔋21</span></div>
+  <div class="screen">
+    <div class="card">
+      <div class="identity">
+        <div class="icon">💀</div>
+        <div>
+          <div class="t1">You Died</div>
+          <div class="t2">Player</div>
+          <div class="t3">Age 21 • 3 yrs lived</div>
+        </div>
+      </div>
+      <div class="topbar">
+        <div class="segmented">
+          <div class="segment active">✦ Summary</div>
+          <div class="segment">♛ Legacy</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="cause">
+          <div class="a">The weight of life became too much</div>
+          <div class="b">You lost the will to go on.</div>
+        </div>
+        <div class="ribbon">
+          <div>
+            <div class="name">Ordinary</div>
+            <div class="desc">Lived an ordinary life.</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="secHead"><span style="color:var(--gold)">✦</span><span class="secTitle">Life Summary</span></div>
+          <div class="glassCard">
+            <div class="row">
+              <div class="ric" style="background:rgba(236,72,153,.1)">👥</div>
+              <div><div class="lab">Family</div><div class="val">Single • 0 children</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="statCard"><div class="sic" style="background:rgba(16,185,129,.1)">💲</div><div><div class="l">Net Worth</div><div class="v">$0</div></div></div>
+          <div class="statCard"><div class="sic" style="background:rgba(139,92,246,.1)">♛</div><div><div class="l">Generation</div><div class="v">1</div></div></div>
+        </div>
+
+        <div class="section">
+          <div class="secHead"><span style="color:var(--fitness)">📅</span><span class="secTitle">Life Statistics</span></div>
+          <div class="grid">
+            <div class="box"><div class="l">Weeks Lived</div><div class="v">156</div></div>
+            <div class="box"><div class="l">Relationships</div><div class="v">0</div></div>
+            <div class="box"><div class="l">Peak Net Worth</div><div class="v">$49.65K</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="secHead"><span style="color:var(--warning)">♛</span><span class="secTitle">Prestige Points Earned</span></div>
+          <div class="prestige">
+            <div class="pts">39 pts</div>
+            <div class="hint">Use prestige points to start your next life stronger</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="btn revive">❤ Revive (15,000 Gems)</div>
+        <div class="rewind">
+          <div class="rt">Rewind Time (500 Gems)</div>
+          <div class="chip">↺ <span class="ct">Before Death (Age 21)</span></div>
+        </div>
+        <div class="btn newlife">✦ Start New Life</div>
+        <div class="secRow">
+          <div class="secBtn">📖 Read Story</div>
+          <div class="secBtn">⤴ Share</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= LEGACY PAGE ============================= -->
+<div class="phone" id="legacy">
+  <div class="statusbar"><span>19:33</span><span>◀ TestFlight&nbsp;&nbsp;&nbsp;📶 🔋21</span></div>
+  <div class="screen">
+    <div class="card">
+      <div class="identity">
+        <div class="icon">💀</div>
+        <div>
+          <div class="t1">You Died</div>
+          <div class="t2">Player</div>
+          <div class="t3">Age 21 • 3 yrs lived</div>
+        </div>
+      </div>
+      <div class="topbar">
+        <div class="segmented">
+          <div class="segment">✦ Summary</div>
+          <div class="segment active">♛ Legacy</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="section">
+          <div class="secTitle solo">Inheritance Breakdown</div>
+          <div class="glassCard">
+            <div class="breakRow"><div class="l">Cash</div><div class="v">$0</div></div>
+            <div class="breakRow"><div class="l">Savings</div><div class="v">$0</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="secTitle solo">Legacy Bonuses</div>
+          <div class="glassCard">
+            <div class="bonus"><div class="bic" style="background:rgba(16,185,129,.1)">📈</div><div><div class="l">Income</div><div class="v">+0.0%</div></div></div>
+            <div class="bonus"><div class="bic" style="background:rgba(139,92,246,.1)">🧠</div><div><div class="l">Learning</div><div class="v">+0.0%</div></div></div>
+            <div class="bonus"><div class="bic" style="background:rgba(59,130,246,.1)">🏅</div><div><div class="l">Reputation</div><div class="v">+0</div></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="secHead"><span style="color:var(--reputation)">👥</span><span class="secTitle">Continue Legacy</span></div>
+          <div class="noKids">
+            <div class="em">👥</div>
+            <div class="tx">You have no children to continue your legacy.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="btn gray">♛ No Children Available</div>
+        <div class="btn newlife">✦ Start New Life</div>
+        <div class="secRow">
+          <div class="secBtn">📖 Read Story</div>
+          <div class="secBtn">⤴ Share</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
