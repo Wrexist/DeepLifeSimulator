@@ -46,14 +46,20 @@ export function createStyles(darkMode: boolean) {
     content: {
       width: width * 0.9,
       maxWidth: 420,
-      maxHeight: height * 0.9,
+      // A DEFINITE height (not just maxHeight) is required: the card lays out as
+      // a flex column with a flex:1 "page" containing a flex:1 ScrollView. A
+      // ScrollView has no intrinsic height, so without a bounded parent height
+      // the flex:1 page collapses to 0 and the tab content + footer vanish
+      // (card ends right after the tab bar). Pinning the height resolves the
+      // flex chain so the scroll area fills and the footer pins to the bottom.
+      height: height * 0.9,
     },
     card: {
       width: '100%',
+      flex: 1,
       borderRadius: scale(24),
       overflow: 'hidden',
       ...getPlatformShadows(12, 0.3, 8, 24),
-      maxHeight: height * 0.9,
       flexDirection: 'column',
     },
     // Each tab renders a full "page": a flex-filling scroll area above a pinned
