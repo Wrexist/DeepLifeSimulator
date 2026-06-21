@@ -1,10 +1,11 @@
 {
   "cli": {
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "production": {
       "environment": "production",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_ENABLE_ADMOB": "true",
         "EXPO_PUBLIC_ENABLE_IAP": "true",
