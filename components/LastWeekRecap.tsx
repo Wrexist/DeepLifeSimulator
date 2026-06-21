@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { TrendingUp, TrendingDown, Sparkles, Flame } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useTheme } from '@/hooks/useTheme';
+import { useFeedback } from '@/utils/feedbackSystem';
 import { scale, fontScale } from '@/utils/scaling';
 
 /**
@@ -30,13 +31,35 @@ function LastWeekRecap() {
   };
 
   const wr = data?.weekResult;
+  const weeksLived = data?.weeksLived ?? 0;
+  const lucky = wr?.luckyBonus ?? 0;
+
+  // Juice: a quick pop each new week, plus a celebratory haptic when a Lucky
+  // bonus lands. Hooks must run unconditionally, so this sits above the early
+  // returns and keys off weeksLived so it only fires once per advanced week.
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const fb = useFeedback();
+  const lastWeekRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!wr || weeksLived < 1 || lastWeekRef.current === weeksLived) return;
+    lastWeekRef.current = weeksLived;
+    scaleAnim.setValue(0.96);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 6,
+      tension: 120,
+      useNativeDriver: true,
+    }).start();
+    if (lucky > 0) fb.haptic('success');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weeksLived]);
+
   // Nothing to show until the player has actually advanced a week with a result.
-  if (!wr || (data?.weeksLived ?? 0) < 1) return null;
+  if (!wr || weeksLived < 1) return null;
 
   const net = wr.netChange ?? 0;
   const income = wr.incomeEarned ?? 0;
   const expenses = wr.expensesPaid ?? 0;
-  const lucky = wr.luckyBonus ?? 0;
   const streakBonus = wr.streakBonus ?? 0;
   const streakCount = data?.playStreak?.count ?? 0;
 
@@ -50,7 +73,13 @@ function LastWeekRecap() {
   const subColor = isDark ? 'rgba(226, 232, 240, 0.6)' : 'rgba(15, 23, 42, 0.55)';
 
   return (
-    <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
+    <Animated.View
+      style={[
+        styles.card,
+        isDark ? styles.cardDark : styles.cardLight,
+        { transform: [{ scale: scaleAnim }] },
+      ]}
+    >
       <View style={styles.topRow}>
         <Text style={[styles.label, { color: subColor }]}>LAST WEEK</Text>
         <View style={styles.netCluster}>
@@ -92,7 +121,7 @@ function LastWeekRecap() {
           </View>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

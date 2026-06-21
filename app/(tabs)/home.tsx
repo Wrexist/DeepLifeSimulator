@@ -440,9 +440,12 @@ function HomeScreenContent() {
           />
         )}
 
-        {/* Prestige Preview Card - hidden in the first 5 weeks. */}
+        {/* Prestige Preview Card — held back until the player is actually
+            established (week 20+ AND some net worth), so early game isn't
+            upsold a system it can't use yet. */}
         {(!gameState.prestige || gameState.prestige.prestigeLevel === 0) &&
-          (gameState.weeksLived || 0) > 5 && (
+          (gameState.weeksLived || 0) > 20 &&
+          (((gameState.stats?.money ?? 0) + (gameState.bankSavings ?? 0)) > 25000) && (
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
 
