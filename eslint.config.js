@@ -120,7 +120,10 @@ module.exports = [
     },
   },
   {
-    files: ["scripts/**/*.js"],
+    // Node CommonJS tooling scripts (.js and .cjs). The base config's global blocks
+    // target {js,jsx,ts,tsx} only, so .cjs files miss Node globals (__dirname, Buffer,
+    // …) and trip no-undef. Declare them here so audit/preflight scripts lint cleanly.
+    files: ["scripts/**/*.{js,cjs}"],
     languageOptions: {
       globals: {
         __dirname: "readonly",
@@ -129,6 +132,11 @@ module.exports = [
         require: "readonly",
         module: "readonly",
         exports: "readonly",
+        Buffer: "readonly",
+        console: "readonly",
+        global: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
   },
