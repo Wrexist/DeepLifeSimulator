@@ -609,7 +609,9 @@ const SicknessModal = lazy(() => import('@/components/SicknessModal'));
 const CureSuccessModal = lazy(() => import('@/components/CureSuccessModal'));
 const DeathPopup = lazy(() => import('@/components/DeathPopup'));
 const WeddingPopup = lazy(() => import('@/components/WeddingPopup'));
-const ZeroStatPopup = lazy(() => import('@/components/ZeroStatPopup'));
+// ZeroStatPopup removed from the week-advance flow — low health/happiness is now
+// surfaced passively in the player card "Health Issues" section instead of as a
+// popup, so it is no longer rendered here.
 
 // R8 diagnostic: a REAL error boundary around the route tree. The functional
 // ExpoRouterErrorBoundary below only surfaces the JS stack (no component names);
@@ -1307,18 +1309,13 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
       <AchievementToast />
       {/* Only show game-related popups when in an active game session (not in main menu/onboarding) */}
       {/* Lazy load conditional modals to reduce bundler memory pressure */}
-      {/* Modal priority: DeathPopup > ZeroStatPopup/WeddingPopup > SicknessModal/CureSuccessModal */}
+      {/* Modal priority: DeathPopup > WeddingPopup > SicknessModal/CureSuccessModal.
+          The SicknessModal no longer auto-opens on week advance — it only shows
+          when the player taps the TopStatsBar disease badge. */}
       {showStatsBar && gameState?.showDeathPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showDeathPopup')}>
           <Suspense fallback={null}>
             <DeathPopup />
-          </Suspense>
-        </ErrorBoundary>
-      )}
-      {showStatsBar && !gameState?.showDeathPopup && gameState?.showZeroStatPopup && !gameState?.dailySummary && (
-        <ErrorBoundary fallback={null} onError={dismissPopupOnError('showZeroStatPopup')}>
-          <Suspense fallback={null}>
-            <ZeroStatPopup key={`zero-stat-${gameState?.showZeroStatPopup}-${gameState?.zeroStatType}`} />
           </Suspense>
         </ErrorBoundary>
       )}

@@ -70,10 +70,29 @@ export default function LifeMomentModal() {
     [gameState, setGameState, updateStats, updateMoney, saveGame]
   );
 
+  // Dismiss without applying a choice. Clears pendingMoment the same way the
+  // choice handler does so an empty/malformed moment can't soft-lock the UI
+  // and Android back works.
+  const handleDismiss = useCallback(() => {
+    if (!gameState.lifeMoments?.pendingMoment) return;
+    setGameState(prev => ({
+      ...prev,
+      lifeMoments: {
+        lastMomentWeek: prev.lifeMoments?.lastMomentWeek ?? prev.weeksLived,
+        momentsThisWeek: prev.lifeMoments?.momentsThisWeek ?? 0,
+        totalMoments: prev.lifeMoments?.totalMoments ?? 0,
+        pendingMoment: undefined,
+      },
+    }));
+    saveGame();
+  }, [gameState, setGameState, saveGame]);
+
   if (!moment) return null;
 
+  const hasChoices = Array.isArray(moment.choices) && moment.choices.length > 0;
+
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal visible transparent animationType="fade" onRequestClose={handleDismiss}>
       <View style={styles.overlay}>
         <LinearGradient
           colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#F8FAFC', '#FFFFFF']}
@@ -87,7 +106,21 @@ export default function LifeMomentModal() {
           </Text>
           
           <View style={styles.choicesContainer}>
-            {moment.choices.map((choice, index) => (
+            {!hasChoices && (
+              <TouchableOpacity
+                style={[
+                  styles.choiceButton,
+                  settings.darkMode && styles.choiceButtonDark
+                ]}
+                onPress={handleDismiss}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
+                  Dismiss
+                </Text>
+              </TouchableOpacity>
+            )}
+            {hasChoices && moment.choices.map((choice, index) => (
               <TouchableOpacity
                 key={choice.id}
                 style={[

@@ -672,6 +672,24 @@ class SaveQueue {
         const sm = { ...pruned.socialMedia };
         sm.scandalHistory = tail(sm.scandalHistory, cap(50));
         sm.recentPosts = tail(sm.recentPosts, cap(100));
+        // commentThreads grows unbounded across a life. Drop threads whose post
+        // is no longer in the (already-capped) recentPosts, and tail each
+        // retained thread to its last 50 comments. Mirrors the runtime cap.
+        if (sm.commentThreads && typeof sm.commentThreads === 'object') {
+          const livePostIds = new Set(
+            (Array.isArray(sm.recentPosts) ? sm.recentPosts : []).map((p: any) => p?.id),
+          );
+          const prunedThreads: Record<string, any[]> = {};
+          for (const [postId, thread] of Object.entries<any>(sm.commentThreads)) {
+            if (livePostIds.has(postId) && Array.isArray(thread)) {
+              prunedThreads[postId] = tail(thread, cap(50));
+            }
+          }
+          sm.commentThreads = prunedThreads;
+        }
+        // notifications is a runtime ring buffer (cap 100) but was never pruned
+        // on the save path — add a defensive cap here too.
+        sm.notifications = tail(sm.notifications, cap(100));
         pruned.socialMedia = sm;
       }
       if (pruned.gamingStreaming && typeof pruned.gamingStreaming === 'object') {
@@ -690,6 +708,24 @@ class SaveQueue {
       }
       pruned.socialPosts = tail(pruned.socialPosts, cap(100));
       pruned.previousLives = tail(pruned.previousLives, cap(50));
+
+      // Relationships accumulate over a long life with no in-game cap, growing the
+      // save and the per-tick relationship passes. Trim ONLY casual `friend`
+      // entries (keeping the highest-scored) — never a parent/partner/spouse/child,
+      // so no meaningful relationship is ever dropped.
+      if (Array.isArray(pruned.relationships) && pruned.relationships.length > cap(150)) {
+        const keep: any[] = [];
+        const friends: any[] = [];
+        for (const r of pruned.relationships) {
+          if (r && r.type === 'friend') friends.push(r);
+          else keep.push(r); // parent/partner/spouse/child are always retained
+        }
+        const friendBudget = Math.max(0, cap(150) - keep.length);
+        if (friends.length > friendBudget) {
+          friends.sort((a, b) => (b?.relationshipScore ?? 0) - (a?.relationshipScore ?? 0));
+          pruned.relationships = [...keep, ...friends.slice(0, friendBudget)];
+        }
+      }
 
       // PERFORMANCE FIX: Enforce event log limit (keep only last 500 events)
       if (pruned.eventLog && Array.isArray(pruned.eventLog) && pruned.eventLog.length > 500) {

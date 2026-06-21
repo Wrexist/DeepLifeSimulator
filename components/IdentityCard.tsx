@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, lazy, Suspense } from 'react';
 import { View,
   Text,
   Image,
@@ -6,12 +6,14 @@ import { View,
   Modal,
   ScrollView } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
-import YouthPillModal from './YouthPillModal';
-import LegacyTimeline from './LegacyTimeline';
-import NetWorthBreakdownModal from './NetWorthBreakdownModal';
+// Rarely-opened modals — lazy-loaded and only mounted when open, so their
+// code + element tree isn't built on every home-tab render.
+const YouthPillModal = lazy(() => import('./YouthPillModal'));
+const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
+const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 import {
   responsiveSpacing,
   scale,
@@ -19,7 +21,8 @@ import {
 } from '@/utils/scaling';
 import { styles } from '@/components/IdentityCardStyles';
 import { MINER_PRICES , PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import type { GameState } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
@@ -111,7 +114,54 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
 }
 
 function IdentityCard() {
-  const { gameState } = useGame();
+  // Sprint 2 perf: subscribe only to the slices this card reads (directly,
+  // through the destructure below, in the cash-flow modal JSX, and via the
+  // economy helpers) instead of the whole gameState. One shallow-equal
+  // composite means the card re-renders only when one of these top-level
+  // slices changes identity — not on every stat-decay tick.
+  const gameState = useGameSelector(
+    (s) => ({
+      stats: s?.stats,
+      bankSavings: s?.bankSavings,
+      items: s?.items,
+      companies: s?.companies,
+      realEstate: s?.realEstate,
+      userProfile: s?.userProfile,
+      relationships: s?.relationships,
+      careers: s?.careers,
+      currentJob: s?.currentJob,
+      perks: s?.perks,
+      scenarioId: s?.scenarioId,
+      dietPlans: s?.dietPlans,
+      date: s?.date,
+      youthPills: s?.youthPills,
+      settings: s?.settings,
+      vehicles: s?.vehicles,
+      loans: s?.loans,
+      warehouse: s?.warehouse,
+      activeVehicleId: s?.activeVehicleId,
+      diseases: s?.diseases,
+      healthZeroWeeks: s?.healthZeroWeeks,
+      happinessZeroWeeks: s?.happinessZeroWeeks,
+      equippedCosmetics: s?.equippedCosmetics,
+      loginStreak: s?.loginStreak,
+      mindset: s?.mindset,
+      previousLives: s?.previousLives,
+      prestige: s?.prestige,
+      // Needed by calcWeeklyPassiveIncome (read via gameState below):
+      stocks: s?.stocks,
+      stocksOwned: s?.stocksOwned,
+      socialMedia: s?.socialMedia,
+      politics: s?.politics,
+      travel: s?.travel,
+      gamingStreaming: s?.gamingStreaming,
+      economy: s?.economy,
+      week: s?.week,
+      weeksLived: s?.weeksLived,
+      version: s?.version,
+    }),
+    shallowEqual
+  ) as unknown as GameState;
   const isDarkMode = gameState.settings?.darkMode ?? false;
   const { t } = useTranslation();
   const [showYouthPillModal, setShowYouthPillModal] = useState(false);
@@ -200,8 +250,11 @@ function IdentityCard() {
   // mutation (otherwise the home tab recomputes on every stat decay tick).
   const passiveInfo = useMemo(
     () => calcWeeklyPassiveIncome(gameState),
+    // Key on the actual asset arrays that drive passive income, NOT stats.money
+    // (which changes every decay tick and is not an input to passive income) —
+    // otherwise this walk re-runs every tick on the home tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [gameState.realEstate, gameState.companies, gameState.stats?.money]
+    [gameState.realEstate, gameState.companies, gameState.stocks, gameState.socialMedia]
   );
   const expenseInfo = useMemo(
     () => calcWeeklyExpenses(gameState),
@@ -320,6 +373,77 @@ function IdentityCard() {
 
     return modifiers;
   }, [stats.health, dietPlans]);
+
+  // Health issues surfaced passively on the player card. This replaces the
+  // interruptive week-advance popups (sickness modal + zero-stat warning):
+  // every active problem is listed here alongside how to fix it.
+  const healthIssues = useMemo(() => {
+    const issues: { id: string; title: string; fix: string; level: 'critical' | 'warning' | 'info' }[] = [];
+
+    (gameState.diseases || []).forEach((d, i) => {
+      if (!d || !d.name) return;
+      const hasDeathCountdown = 'weeksUntilDeath' in d && typeof (d as { weeksUntilDeath?: unknown }).weeksUntilDeath === 'number';
+      const level: 'critical' | 'warning' | 'info' =
+        hasDeathCountdown || d.severity === 'critical'
+          ? 'critical'
+          : d.severity === 'serious'
+            ? 'warning'
+            : 'info';
+      const sevLabel = d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Mild';
+      const fix = (d.treatmentRequired || hasDeathCountdown)
+        ? 'See a doctor or hospital in the Health tab to treat it.'
+        : 'Rest and eat well — it should pass, or treat it in the Health tab.';
+      issues.push({ id: `disease-${d.id}-${i}`, title: `${d.name} · ${sevLabel}`, fix, level });
+    });
+
+    const health = stats?.health ?? 100;
+    if (health <= 0) {
+      const weeksLeft = Math.max(1, 4 - (gameState.healthZeroWeeks || 0));
+      issues.push({
+        id: 'health-zero',
+        title: `Health critical — ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
+        fix: "Eat, rest and start a diet plan in the Health tab before it's too late.",
+        level: 'critical',
+      });
+    } else if (health <= 30) {
+      issues.push({
+        id: 'health-low',
+        title: 'Low health',
+        fix: 'Improve your diet, rest, and exercise in the Health tab.',
+        level: 'warning',
+      });
+    }
+
+    const happiness = stats?.happiness ?? 100;
+    if (happiness <= 0) {
+      const weeksLeft = Math.max(1, 4 - (gameState.happinessZeroWeeks || 0));
+      issues.push({
+        id: 'happiness-zero',
+        title: `Happiness critical — ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
+        fix: 'Do something fun or spend time with people you care about.',
+        level: 'critical',
+      });
+    } else if (happiness <= 30) {
+      issues.push({
+        id: 'happiness-low',
+        title: 'Low happiness',
+        fix: 'Spend on hobbies, socialize, or take a break to recover.',
+        level: 'warning',
+      });
+    }
+
+    const energy = stats?.energy ?? 100;
+    if (energy <= 20) {
+      issues.push({
+        id: 'energy-low',
+        title: 'Low energy',
+        fix: 'Rest or sleep to recover energy before working.',
+        level: 'info',
+      });
+    }
+
+    return issues;
+  }, [gameState.diseases, gameState.healthZeroWeeks, gameState.happinessZeroWeeks, stats?.health, stats?.happiness, stats?.energy]);
 
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
@@ -516,18 +640,107 @@ function IdentityCard() {
           <ChevronRight size={20} color="#9CA3AF" />
         </TouchableOpacity>
       </LinearGradient>
-      
+
+      {/* Health Issues — passive replacement for the week-advance health popups.
+          Lists every active health problem and how to fix it. */}
+      <View
+        style={{
+          marginTop: responsiveSpacing.sm,
+          borderRadius: scale(16),
+          padding: scale(14),
+          backgroundColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+          borderWidth: 1,
+          borderColor: healthIssues.length > 0
+            ? 'rgba(239,68,68,0.35)'
+            : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(8) }}>
+          {healthIssues.length > 0 ? (
+            <AlertTriangle size={scale(18)} color="#EF4444" />
+          ) : (
+            <Activity size={scale(18)} color="#10B981" />
+          )}
+          <Text
+            style={{
+              marginLeft: scale(8),
+              fontSize: fontScale(15),
+              fontWeight: '700',
+              color: isDarkMode ? '#F9FAFB' : '#111827',
+            }}
+          >
+            {`Health Issues${healthIssues.length > 0 ? ` (${healthIssues.length})` : ''}`}
+          </Text>
+        </View>
+
+        {healthIssues.length === 0 ? (
+          <Text style={{ fontSize: fontScale(13), color: isDarkMode ? '#9CA3AF' : '#6B7280' }}>
+            You&apos;re in good shape — no health issues right now.
+          </Text>
+        ) : (
+          healthIssues.map(issue => {
+            const color =
+              issue.level === 'critical' ? '#EF4444' : issue.level === 'warning' ? '#F59E0B' : '#3B82F6';
+            return (
+              <View
+                key={issue.id}
+                style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: scale(8) }}
+              >
+                <View
+                  style={{
+                    width: scale(8),
+                    height: scale(8),
+                    borderRadius: scale(4),
+                    backgroundColor: color,
+                    marginTop: scale(5),
+                    marginRight: scale(8),
+                  }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: fontScale(13.5),
+                      fontWeight: '600',
+                      color: isDarkMode ? '#F3F4F6' : '#1F2937',
+                    }}
+                  >
+                    {issue.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: fontScale(12),
+                      color: isDarkMode ? '#9CA3AF' : '#6B7280',
+                      marginTop: scale(1),
+                    }}
+                  >
+                    {issue.fix}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </View>
+
       <AutoSaveIndicator position="relative" />
 
-      <LegacyTimeline
-        visible={showLegacyTimeline}
-        onClose={() => setShowLegacyTimeline(false)}
-      />
+      {showLegacyTimeline && (
+        <Suspense fallback={null}>
+          <LegacyTimeline
+            visible={showLegacyTimeline}
+            onClose={() => setShowLegacyTimeline(false)}
+          />
+        </Suspense>
+      )}
 
-      <NetWorthBreakdownModal
-        visible={showNetWorth}
-        onClose={() => setShowNetWorth(false)}
-      />
+      {showNetWorth && (
+        <Suspense fallback={null}>
+          <NetWorthBreakdownModal
+            visible={showNetWorth}
+            onClose={() => setShowNetWorth(false)}
+          />
+        </Suspense>
+      )}
 
       <InfoModal
         visible={showCash}
@@ -536,6 +749,11 @@ function IdentityCard() {
         darkMode={isDarkMode}
         t={t}
       >
+        {/* Only BUILD the heavy cash-flow breakdown (these IIFEs walk every
+            property/loan/vehicle/miner) when the modal is actually open —
+            otherwise this whole subtree was computed on every home-tab render. */}
+        {showCash && (
+        <>
         <View style={styles.modalSection}>
           <Text style={[styles.modalSectionTitle, isDarkMode && styles.modalSectionTitleDark]}>
             Income Sources
@@ -1068,6 +1286,8 @@ function IdentityCard() {
             </>
           )}
         </View>
+        </>
+        )}
       </InfoModal>
       <InfoModal
         visible={showPerks}
@@ -1276,10 +1496,14 @@ function IdentityCard() {
       </InfoModal>
 
       {/* Youth Pill Modal */}
-      <YouthPillModal 
-        visible={showYouthPillModal}
-        onClose={() => setShowYouthPillModal(false)}
-      />
+      {showYouthPillModal && (
+        <Suspense fallback={null}>
+          <YouthPillModal
+            visible={showYouthPillModal}
+            onClose={() => setShowYouthPillModal(false)}
+          />
+        </Suspense>
+      )}
     </View>
   );
 }

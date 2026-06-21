@@ -1,5 +1,5 @@
 // components/TopStatsBar.tsx
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { View,
  Text,
  StyleSheet,
@@ -42,16 +42,19 @@ import {
  ArrowDown,
  AlertTriangle,
 } from 'lucide-react-native';
-import SettingsModal from './SettingsModal';
-import GemShopModal from './GemShopModal';
-import HelpModal from './HelpModal';
-import PrestigeModal from './PrestigeModal';
-import EnergyBreakdownModal from './EnergyBreakdownModal';
-import HappinessBreakdownModal from './HappinessBreakdownModal';
-import HealthBreakdownModal from './HealthBreakdownModal';
-import MoneyBreakdownModal from './MoneyBreakdownModal';
-import BankBreakdownModal from './BankBreakdownModal';
-import GemsBreakdownModal from './GemsBreakdownModal';
+// Rarely-opened modals — lazy-loaded and only mounted when open, so they no
+// longer sit permanently mounted with visible={false} (which kept their trees
+// built on every TopStatsBar render).
+const SettingsModal = React.lazy(() => import('./SettingsModal'));
+const GemShopModal = React.lazy(() => import('./GemShopModal'));
+const HelpModal = React.lazy(() => import('./HelpModal'));
+const PrestigeModal = React.lazy(() => import('./PrestigeModal'));
+const EnergyBreakdownModal = React.lazy(() => import('./EnergyBreakdownModal'));
+const HappinessBreakdownModal = React.lazy(() => import('./HappinessBreakdownModal'));
+const HealthBreakdownModal = React.lazy(() => import('./HealthBreakdownModal'));
+const MoneyBreakdownModal = React.lazy(() => import('./MoneyBreakdownModal'));
+const BankBreakdownModal = React.lazy(() => import('./BankBreakdownModal'));
+const GemsBreakdownModal = React.lazy(() => import('./GemsBreakdownModal'));
 // SicknessModal is rendered once at the root in app/_layout.tsx — no second mount here.
 import SeasonalIndicator from './SeasonalIndicator';
 import usePressableScale from '@/hooks/usePressableScale';
@@ -458,7 +461,10 @@ function TopStatsBarComponent() {
  },
  ];
  },
- [stats, statColors, handleQuickAction, statNetChanges]
+ // P2: depend on the primitive stat VALUES (and the already-memoized derived
+ // objects) rather than the whole `stats` object, whose identity changes every
+ // tick — this list rebuild only matters when a displayed value changes.
+ [stats?.health, stats?.happiness, stats?.energy, statColors, handleQuickAction, statNetChanges]
  );
 
  useEffect(() => {
@@ -922,20 +928,22 @@ function TopStatsBarComponent() {
 
  {/* Right: date + next week */}
  <RightSide date={date} />
- {/* Modals — single openModal state controls visibility */}
- <SettingsModal visible={openModal ==='settings'} onClose={closeModal} />
- <GemShopModal visible={openModal === 'gemShop'} onClose={closeModal} />
- <HelpModal visible={openModal === 'help'} onClose={closeModal} />
- <EnergyBreakdownModal visible={openModal === 'energyBreakdown'} onClose={closeModal} />
- <HappinessBreakdownModal visible={openModal === 'happinessBreakdown'} onClose={closeModal} />
- <HealthBreakdownModal visible={openModal === 'healthBreakdown'} onClose={closeModal} />
- <MoneyBreakdownModal visible={openModal === 'moneyBreakdown'} onClose={closeModal} />
- <BankBreakdownModal visible={openModal === 'bankBreakdown'} onClose={closeModal} />
- <GemsBreakdownModal visible={openModal === 'gemsBreakdown'} onClose={closeModal} />
- <PrestigeModal
- visible={openModal === 'prestige'}
- onClose={closeModal}
- />
+ {/* Modals — single openModal state controls visibility. Each is lazy and
+     only mounted while open, then wrapped in Suspense so the chunk can load. */}
+ {openModal && (
+ <Suspense fallback={null}>
+ {openModal === 'settings' && <SettingsModal visible onClose={closeModal} />}
+ {openModal === 'gemShop' && <GemShopModal visible onClose={closeModal} />}
+ {openModal === 'help' && <HelpModal visible onClose={closeModal} />}
+ {openModal === 'energyBreakdown' && <EnergyBreakdownModal visible onClose={closeModal} />}
+ {openModal === 'happinessBreakdown' && <HappinessBreakdownModal visible onClose={closeModal} />}
+ {openModal === 'healthBreakdown' && <HealthBreakdownModal visible onClose={closeModal} />}
+ {openModal === 'moneyBreakdown' && <MoneyBreakdownModal visible onClose={closeModal} />}
+ {openModal === 'bankBreakdown' && <BankBreakdownModal visible onClose={closeModal} />}
+ {openModal === 'gemsBreakdown' && <GemsBreakdownModal visible onClose={closeModal} />}
+ {openModal === 'prestige' && <PrestigeModal visible onClose={closeModal} />}
+ </Suspense>
+ )}
  </View>
  );
 }

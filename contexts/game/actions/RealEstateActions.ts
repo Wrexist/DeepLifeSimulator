@@ -17,6 +17,7 @@ import {
 } from '@/lib/realEstate/mortgage';
 import {
   endRental,
+  findOwnedById,
   kickTenant,
   maintenanceCost,
   performMaintenance,
@@ -266,7 +267,15 @@ export const setPropertyRentMode = (
   weeklyRent: number
 ) => {
   setGameState((prev) => {
-    const properties = setRentModePure(prev.realEstate ?? [], propertyId, mode, weeklyRent);
+    const list = prev.realEstate ?? [];
+    // Only the player's OWNED properties can be rented out (setRentModePure matched
+    // any id), and rent can't be negative (would credit nothing / corrupt math).
+    if (!findOwnedById(list, propertyId)) {
+      log.warn(`Set rent mode rejected: ${propertyId} is not an owned property`);
+      return prev;
+    }
+    const safeRent = Math.max(0, typeof weeklyRent === 'number' && isFinite(weeklyRent) ? weeklyRent : 0);
+    const properties = setRentModePure(list, propertyId, mode, safeRent);
     return { ...prev, realEstate: properties };
   });
 };

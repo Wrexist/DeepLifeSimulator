@@ -228,6 +228,7 @@ export class IAPService {
   private processingTransactions: Set<string> = new Set();
   private isInitializing: boolean = false;
   private hasInitialized: boolean = false;
+  private listenerRegistered: boolean = false;
 
   private static sanitizePermanentPerkList(perks: unknown): string[] {
     if (!Array.isArray(perks)) return [];
@@ -1042,6 +1043,11 @@ export class IAPService {
   private setupPurchaseListener(): void {
     if (!loadInAppPurchasesModule() || !InAppPurchases) return;
 
+    // Guard against stacking listeners across re-inits (each call replaces the
+    // single native listener, but the flag keeps intent explicit and lets
+    // destroy() know whether teardown is needed).
+    if (this.listenerRegistered) return;
+
     InAppPurchases.setPurchaseListener(
       ({ responseCode, results, errorCode }: any) => {
         if (responseCode === InAppPurchases.IAPResponseCode.OK) {
@@ -1067,7 +1073,14 @@ export class IAPService {
                   return;
                 }
                 // Android: also respect acknowledged flag (don't re-grant).
+                // Still finish the transaction so the platform stops
+                // re-delivering it (otherwise Android loops on redelivery).
                 if (purchase.acknowledged === true) {
+                  try {
+                    await InAppPurchases.finishTransactionAsync(purchase, true);
+                  } catch (err) {
+                    logger.warn('finishTransactionAsync failed on acknowledged', { err });
+                  }
                   return;
                 }
 
@@ -1101,6 +1114,8 @@ export class IAPService {
         }
       },
     );
+
+    this.listenerRegistered = true;
   }
 
   // Apply purchase benefits (Disk Fallback)
@@ -1556,6 +1571,15 @@ export class IAPService {
 
   // Cleanup
   destroy(): void {
+    // Tear down the native purchase listener so re-init doesn't stack handlers.
+    try {
+      if (loadInAppPurchasesModule()) {
+        InAppPurchases?.setPurchaseListener?.(null);
+      }
+    } catch (err) {
+      logger.warn('Failed to clear purchase listener on destroy', { err });
+    }
+    this.listenerRegistered = false;
     this.listeners = [];
     this.hasInitialized = false;
     this.isInitializing = false;

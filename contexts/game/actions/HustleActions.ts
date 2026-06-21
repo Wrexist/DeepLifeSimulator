@@ -24,8 +24,7 @@ import type {
   HustleActiveScandal,
 } from '../types';
 import { logger } from '@/utils/logger';
-import { updateMoney, applyMoneyDelta } from './MoneyActions';
-import { updateStats } from './StatsActions';
+import { applyMoneyDelta } from './MoneyActions';
 import { clampStatByKey } from '@/utils/statUtils';
 import {
   generateCandidates,
@@ -155,11 +154,14 @@ function withOverlay(
   prev: GameState,
   companyId: string,
   weeksLived: number,
-  mutator: (o: HustleCompanyOverlay) => HustleCompanyOverlay,
+  // R-fix: the mutator receives the SAME `ha` clone that withOverlay persists, so
+  // `ha.lifetimeStats.totalX += 1` writes land on the object we keep (previously the
+  // mutator re-cloned via ensureHustle(prev), and that clone was discarded → lost write).
+  mutator: (o: HustleCompanyOverlay, ha: ReturnType<typeof ensureHustle>) => HustleCompanyOverlay,
 ): GameState {
   const ha = ensureHustle(prev);
   const current = ensureOverlay(ha, companyId, weeksLived);
-  const next = mutator(current);
+  const next = mutator(current, ha);
   return {
     ...prev,
     hustleApp: {
@@ -231,7 +233,7 @@ export const hireCandidate = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    const next = withOverlay(prev, companyId, weeksLived, (o) => {
+    const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       if (!accepted) {
         // Remove the candidate from the pipeline regardless — they took
         // another offer (or stayed at their current job).
@@ -252,7 +254,6 @@ export const hireCandidate = (
         morale: Math.min(100, 60 + Math.floor(score / 5)),
         performance: candidate.skill,
       };
-      const ha = ensureHustle(prev);
       ha.lifetimeStats.totalNamedHires += 1;
       return pushNotif(
         {
@@ -307,8 +308,7 @@ export const fireNamedHire = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    const next = withOverlay(prev, companyId, weeksLived, (o) => {
-      const ha = ensureHustle(prev);
+    const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalFires += 1;
       return pushNotif(
         {
@@ -361,8 +361,7 @@ export const launchCampaign = (
   const projectedROI = projectCampaignROI(kind, spendPerWeek, company.weeklyIncome ?? 0);
 
   setGameState((prev) => {
-    const next = withOverlay(prev, companyId, weeksLived, (o) => {
-      const ha = ensureHustle(prev);
+    const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalCampaignsRun += 1;
       const campaign: HustleCampaign = {
         id: genId('camp'),
@@ -489,10 +488,9 @@ export const resolveScandal = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    const next = withOverlay(prev, companyId, weeksLived, (o) => {
+    const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       if (!o.activeScandal) return o;
       const newSeverity = Math.max(0, o.activeScandal.severity - severityDrop);
-      const ha = ensureHustle(prev);
 
       if (newSeverity <= 0) {
         ha.lifetimeStats.totalScandalsSurvived += 1;
@@ -586,8 +584,12 @@ export const launchIPO = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    return withOverlay(prev, companyId, weeksLived, (o) => {
-      const ha = ensureHustle(prev);
+    // P1-7: re-check status against FRESH prev (the outer guard reads stale gameState,
+    // so a double-tap could pass twice). Bail atomically if already public.
+    const freshOverlay = prev.hustleApp?.companies?.[companyId];
+    if (freshOverlay?.ipo.status === 'public') return prev;
+
+    const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalIPOsLaunched += 1;
       ha.lifetimeStats.peakSharePrice = Math.max(ha.lifetimeStats.peakSharePrice, sharePrice);
       return pushNotif(
@@ -608,10 +610,13 @@ export const launchIPO = (
         weeksLived,
       );
     });
+    // P1-7: credit cashRaised + reputation IN THE SAME updater (was a trailing
+    // updateMoney/updateStats → a double-tap double-credited the float proceeds).
+    const credit = applyMoneyDelta(next, cashRaised, `IPO float (${floatPercent}%) of ${company.name}`);
+    if (!credit) return next;
+    return withReputationDelta({ ...next, ...credit }, 8);
   });
 
-  updateMoney(setGameState, cashRaised, `IPO float (${floatPercent}%) of ${company.name}`);
-  updateStats(setGameState, { reputation: 8 });
   log.info(`IPO ${company.name}: raised $${cashRaised} at $${sharePrice}`);
 
   return { success: true, message: 'IPO successful', cashRaised, ownershipKept, sharePrice };
@@ -636,8 +641,7 @@ export const acceptAcquisition = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    const next = withOverlay(prev, companyId, weeksLived, (o) => {
-      const ha = ensureHustle(prev);
+    const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalAcquisitionsCompleted += 1;
       return pushNotif(
         {

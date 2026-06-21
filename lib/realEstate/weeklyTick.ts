@@ -65,7 +65,17 @@ export function runRealEstateWeeklyTick(input: RealEstateWeeklyTickInput): RealE
       rollFor: input.rollFor,
     });
     properties = properties.map((p, idx) => (idx === i ? tick.property : p));
-    rentalIncome += tick.rentReceived;
+    // Net recurring carrying costs (property tax + maintenance reserve) against the
+    // gross rent for rented units that are ACTUALLY earning rent. Previously
+    // rentalIncome credited gross rent with no offset, so a tenanted property was
+    // pure profit. ~1.2%/yr tax + ~1%/yr maintenance ≈ 2.2%/yr of value, charged
+    // weekly (WEEKS_PER_YEAR ≈ 52). A vacant/owner-occupied unit (no rent received)
+    // is left at 0 so owners aren't charged phantom rent on their own home.
+    const carryingCost =
+      tick.property.status === 'rented' && tick.rentReceived > 0
+        ? (safe(tick.property.currentValue, tick.property.price) * 0.022) / 52
+        : 0;
+    rentalIncome += tick.rentReceived - carryingCost;
     notifications.push(...tick.notifications);
   }
 

@@ -83,10 +83,11 @@ describe('markOwned', () => {
 });
 
 describe('sellProperty', () => {
-  it('returns proceeds minus mortgage', () => {
+  it('returns proceeds minus mortgage, closing cost, and capital-gains tax', () => {
     const props = [owned({ currentValue: 300_000, mortgageId: 'm1' })];
     const r = sellProperty(props, 'p1', 100_000);
-    expect(r.saleProceeds).toBe(200_000);
+    // value 300k − debt 100k − closing (6% = 18k) − cap-gains tax (15% of 100k gain = 15k)
+    expect(r.saleProceeds).toBe(167_000);
     expect(r.mortgagePayoff).toBe(100_000);
     expect(r.releasedMortgageId).toBe('m1');
     expect(r.properties[0].owned).toBe(false);

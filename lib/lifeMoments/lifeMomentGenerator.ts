@@ -144,20 +144,24 @@ const LIFE_MOMENT_TEMPLATES: Omit<LifeMoment, 'id' | 'createdAt'>[] = [
 ];
 
 /**
- * Generate a life moment based on current state
- * 10% chance per week, guaranteed after 8 weeks without one
+ * Generate a life moment based on current state.
+ *
+ * Intentionally rare: these are interruptive popups, so they fire at ~1.5%
+ * per week with a long pity window. Players asked for far fewer of these,
+ * so the cadence is dialled right down from the old 10%/8-week pace.
  */
 export function generateLifeMoment(state: GameState): LifeMoment | null {
   // Don't generate if already have one pending
   if (state.lifeMoments?.pendingMoment) {
     return null;
   }
-  
+
   const lastMomentWeek = state.lifeMoments?.lastMomentWeek || 0;
   const weeksSinceLastMoment = (state.weeksLived || 0) - lastMomentWeek;
-  
-  // Guaranteed moment after 8 weeks without one (pity system)
-  const shouldGenerate = weeksSinceLastMoment >= 8 || Math.random() < 0.10;
+
+  // Guaranteed moment only after a very long drought (pity system), otherwise
+  // a small per-week chance. Keeps them special instead of constant.
+  const shouldGenerate = weeksSinceLastMoment >= 52 || Math.random() < 0.015;
   
   if (!shouldGenerate) {
     return null;

@@ -117,8 +117,13 @@ export function sellProperty(
   const p = properties[idx];
   const value = safe(p.currentValue ?? p.price);
   const debt = safe(mortgageRemaining);
-  const proceeds = Math.max(0, value - debt);
   const gain = value - safe(p.purchasePrice, p.price);
+  // Selling isn't frictionless: a realtor/closing cost on the sale price plus a
+  // capital-gains tax on any positive gain come out of the proceeds. Without these
+  // a buy-then-immediate-sell round trip was nearly free.
+  const closingCost = value * 0.06; // 6% realtor + closing
+  const capitalGainsTax = gain > 0 ? gain * 0.15 : 0; // 15% on realized gain
+  const proceeds = Math.max(0, value - debt - closingCost - capitalGainsTax);
   const next = [...properties];
   next[idx] = {
     ...p,
@@ -326,5 +331,5 @@ export function maintenanceCost(property: RealEstate): number {
   const condition = safe(property.condition, 70);
   const damage = Math.max(0, 100 - condition);
   // 0.1% of value per condition point lost. A $500k home from 50→100 = $250.
-  return Math.round((damage / 100) * value * 0.05);
+  return Math.round((damage / 100) * value * 0.001);
 }

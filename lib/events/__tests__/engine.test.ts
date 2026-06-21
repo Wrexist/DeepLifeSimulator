@@ -16,19 +16,21 @@ describe('events engine', () => {
   });
 
   it('generates events based on state risk', () => {
-    // Mock Math.random to return 0.1 (low enough to pass base event chance)
-    const spy = jest.spyOn(Math, 'random').mockReturnValue(0.1);
-    const events = rollWeeklyEvents(createState({}));
-    spy.mockRestore();
+    // Routine event frequency is intentionally rare now, so force the pity
+    // system (drought beyond the late-game pity threshold) to deterministically
+    // guarantee an event and verify the generation path still works.
+    const events = rollWeeklyEvents(
+      createState({ weeksLived: 60, lastEventWeeksLived: 30 })
+    );
     expect(events.length).toBeGreaterThan(0);
     expect(events[0].choices.length).toBeGreaterThan(0);
   });
 
   it('limits events to at most two per week', () => {
-    // Mock Math.random to return 0.1 (low enough to pass base event chance)
-    const spy = jest.spyOn(Math, 'random').mockReturnValue(0.1);
-    const events = rollWeeklyEvents(createState({}));
-    spy.mockRestore();
+    // Force a guaranteed event via pity, then assert the per-week cap holds.
+    const events = rollWeeklyEvents(
+      createState({ weeksLived: 60, lastEventWeeksLived: 30 })
+    );
     expect(events.length).toBeLessThanOrEqual(2);
   });
 
