@@ -1,9 +1,11 @@
 name: EAS Build
 
 on:
+  # Manual-only: native builds consume EAS build credits and should not run on
+  # every merge to main (that exhausted the Expo Free-plan quota and turned the
+  # pipeline red). Trigger a release build by hand from the Actions tab instead.
+  # OTA JS updates still ship automatically via eas-update.yml on push to main.
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   build:
