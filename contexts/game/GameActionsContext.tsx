@@ -116,6 +116,7 @@ import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealt
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
 import { applyCliffhangerResolution } from './actions/weekly/applyCliffhangerResolution';
+import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { applyLifeMoment } from './actions/weekly/applyLifeMoment';
 import { applyConsequenceProgression } from './actions/weekly/applyConsequenceProgression';
 import { applyDeathRibbon } from './actions/weekly/applyDeathRibbon';
@@ -1024,6 +1025,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  // Safety cap so a malformed queue can never grow without bound.
  updatedPendingChainedEvents = stillPending.length > 100 ? stillPending.slice(-100): stillPending;
+ }
+
+ // Weekly event "Heads Up" pop-ups are disabled by default (player feedback:
+ // they interrupted the Next Week flow on nearly every tick). Drop everything
+ // queued this tick AND any backlog carried in old saves so the
+ // WeeklyEventModal never appears. The economy simulation itself is unaffected
+ // — only the interrupting notification is suppressed. Re-enable with
+ // EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS=true.
+ if (!FEATURE_FLAGS.weeklyEvents) {
+ updatedPendingEvents = [];
+ updatedPendingChainedEvents = [];
  }
 
  // R7 Phase 2 step 2.7-D: life moment generation extracted into
@@ -2017,7 +2029,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // prevState.diseases would mutate the previous snapshot (StrictMode double-
  // invoke then sees the disease already present and silently skips it).
  let updatedDiseases = [...(prevState.diseases || [])];
- let showSicknessModal = prevState.showSicknessModal;
+ // Preserved as-is (never force-opened) — the health popup is opt-in only.
+ const showSicknessModal = prevState.showSicknessModal;
  let updatedDiseaseHistory = prevState.diseaseHistory || {
  diseases: [],
  totalDiseases: 0,
@@ -2043,7 +2056,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const diseaseExists = updatedDiseases.some(d => d.id === eventDisease.id);
  if (!diseaseExists) {
  updatedDiseases.push(eventDisease);
- showSicknessModal = true;
+ // Do NOT auto-open the health popup — health is surfaced passively on the
+ // player card. (Kept the disease addition; only the interruption is gone.)
 
  // Update disease history (ANTI-BLOAT: cap to the most recent 50,
  // matching applyDiseasesForWeek so the event path can't grow unbounded).

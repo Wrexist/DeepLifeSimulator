@@ -36,6 +36,15 @@ export const FEATURE_FLAGS = {
   
   // Boot breadcrumbs (always enabled for crash diagnosis)
   bootBreadcrumbs: true,
+
+  // Weekly event "Heads Up" pop-ups — DISABLED by default. Players reported they
+  // interrupted the Next Week flow on nearly every tick. Disabling stops the
+  // WeeklyEventModal from ever appearing (random events, story chains, seasonal,
+  // and economic-event notifications) and clears any backlog from old saves.
+  // Note: the underlying economy simulation (recession/boom effects) is unaffected
+  // — only the interrupting notification pop-up is suppressed.
+  // Opt back in with EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS=true.
+  weeklyEvents: process.env.EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS === 'true',
 } as const;
 
 /**
