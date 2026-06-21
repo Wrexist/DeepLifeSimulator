@@ -4,6 +4,26 @@
 
 ## Patterns to Watch For
 
+### 2026-06-21 - The weekly-audit routine's harness is missing — adapt, don't abort
+
+- What went wrong: the scheduled "weekly audit" routine prompt says to run `npm run audit:weekly`
+  (and `:full`), read `tasks/weekly-audit-<date>.md`, and follow `.agents/skills/weekly-audit/SKILL.md`.
+  NONE of these exist in the repo: there is no `audit:weekly` script in package.json, no `weekly-audit`
+  skill (only `eas-build`/`preflight`/`test-suite` live under `.agents/skills/`), and the fresh container
+  had no `node_modules`, so even `npm run type-check` / `jest` silently "passed" (exit 0) while actually
+  failing with `jest: not found` and missing type defs.
+- Why it hid: a piped `| tail` swallows the real exit code (`${PIPESTATUS[0]}` ≠ `$?`), so a missing
+  binary looks like a clean run. Always check `node_modules` exists and capture `PIPESTATUS[0]` before
+  trusting a green static check on a cold container.
+- How it was handled: ran `npm ci` (registry reachable under this network policy), then the REAL
+  `type-check` (0 errors) + full suite (2560 pass) + perf/money-conservation stress suites, and performed
+  the 5-domain qualitative pass via two source-verifying subagents instead of the missing script.
+- Rule: when a routine's prescribed tooling is absent, do not declare the routine un-runnable — reconstruct
+  its intent from the existing equivalents (real npm scripts + the 5 audit domains) and notify the user that
+  the harness needs restoring (add the skill + scripts + a SessionStart `npm ci` hook) so the NEXT scheduled
+  run isn't starting from scratch. Verify every subagent severity grade against source before reporting
+  (see 2026-06-18 lesson) — this run's three "new" P2s were each confirmed at the actual line before listing.
+
 ### 2026-06-18 - A "find bugs" subagent over-graded 9 findings as P0; source verification found 0 real P0s
 
 - What went wrong: three deep audit subagents (run as background agents, salvaged after a session suspend)
