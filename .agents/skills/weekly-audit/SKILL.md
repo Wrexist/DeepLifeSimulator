@@ -9,10 +9,12 @@ args: "[domain]"
 The standing weekly health check for DeepLife Simulator. It has two layers:
 
 1. **Automated layer** — deterministic static analyzers in `scripts/audit/` that read the
-   real constants/source and enforce documented invariants. Fast, runs in CI every Monday.
+   real constants/source and enforce documented invariants (`npm run audit:weekly`). Fast.
 2. **Qualitative layer** — a guided deep pass (you, optionally with the project subagents)
    that catches what static analysis can't: new exploits, balance regressions, subtle
    correctness bugs.
+
+This skill is the prompt for the weekly **Claude Routine** (Code → Routines → Schedule).
 
 `args` (optional): a single domain to focus on — `economy`, `stability`, `save`, `logic`,
 or `perf`. With no argument, run all five.

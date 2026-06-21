@@ -15,7 +15,8 @@ and contributes a section to a single timestamped Markdown report.
 - [x] `scripts/audit/audit-perf.cjs` — 5. Week-Loop Performance (brace-depth nesting, all green)
 - [x] `scripts/audit/run-weekly-audit.cjs` — orchestrator → `tasks/weekly-audit-<date>.md`
 - [x] `package.json` — `audit:*` + `audit:weekly` + `audit:weekly:full` scripts
-- [x] `.github/workflows/weekly-audit.yml` — cron (Mon) + artifact + issue on failure
+- [x] ~~`.github/workflows/weekly-audit.yml`~~ — removed; the suite now runs as a **Claude
+      Routine** (Code → Routines → Schedule, prompt `/weekly-audit`), not GitHub Actions
 - [x] `.agents/skills/weekly-audit/SKILL.md` — Claude playbook tying scripts + deep audit
 - [x] CLAUDE.md row + .gitignore for generated reports
 - [x] Run the suite — exit 0, surfaces 1 honest non-blocking finding (20× `as GameState`

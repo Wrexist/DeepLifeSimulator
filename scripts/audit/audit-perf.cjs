@@ -100,7 +100,7 @@ function build({ runTests = false } = {}) {
       a.high('Performance jest suite failed', out || 'See CI logs.', '__tests__/performance/');
     }
   } else if (hasPerfTest) {
-    a.info('Performance jest suite not executed (static run)', 'Pass --run-tests (or use the weekly CI workflow) for dynamic timing.', '__tests__/performance/');
+    a.info('Performance jest suite not executed (static run)', 'Pass --run-tests (or run `npm run audit:weekly:full`) for dynamic timing.', '__tests__/performance/');
   }
 
   return a;
