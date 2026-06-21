@@ -79,7 +79,8 @@ export default function LifeMomentModal() {
       ...prev,
       lifeMoments: {
         lastMomentWeek: prev.lifeMoments?.lastMomentWeek ?? prev.weeksLived,
-        ...(prev.lifeMoments || {}),
+        momentsThisWeek: prev.lifeMoments?.momentsThisWeek ?? 0,
+        totalMoments: prev.lifeMoments?.totalMoments ?? 0,
         pendingMoment: undefined,
       },
     }));
