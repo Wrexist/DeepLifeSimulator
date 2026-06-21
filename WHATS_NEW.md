@@ -1,53 +1,52 @@
 # What's New — DeepLife Simulator
 
-## v2.5.0 — Stability, Speed & Fair-Play Update
+## v2.5.1 — Smoothness & Stability Update
 
-**Covers:** everything new since **v2.3.1 (build 93)** — the last public release.
+**Covers:** the user-reported *Next Week* freeze, a calmer/less-interruptive UI, and the bulk of a
+five-domain audit (crashes, economy/balance, game logic, and save reliability).
 **Compatibility:** all existing saves load with no breaking changes.
 
-> Versioning note: this is labeled **v2.5.0** to match the current app version in
-> `package.json`/`app.config.js`. If the store build should carry a different number, change
-> only the heading above.
+> Versioning note: labeled **v2.5.1** (a fixes-and-polish release on top of v2.5.0). Bump
+> `package.json`/`app.config.js` to `2.5.1` when this ships so the store build matches the heading.
 
 ---
 
 ## 📱 Store "What's New" (copy-paste ready)
 
 ```
-v2.5.0 — Smoother, Faster, Fairer
+v2.5.1 — Smoothness & Stability
 
-We kept going after the big stability update. This release is all about polish, speed, and
-making sure every purchase and every choice works exactly the way it should.
+We squashed the "Next Week" freeze and a whole audit's worth of bugs. Smoother, calmer, fairer.
 
-⚡ Faster Than Ever
-• Tapping "Next Week" is now instant — the screen responds immediately
-• Money and stats update the moment you act (no more waiting modal)
-• The new-life / perk / scenario menus open instantly
+⚡ No More Freeze
+• Fixed the Next Week hang several of you reported — advancing a week is smooth now
+• Big performance pass: the dashboard no longer re-renders everything every week
+• Rarely-used screens now load on demand
 
-🛒 Purchases That Just Work
-• Fixed the Premium Pack money boost that wasn't applying — paid perks now work
-• Every perk reliably applies and sticks after reinstalls
-• "Remove Ads" is respected instantly — no more ad flash for supporters
+🔔 Fewer Interruptions
+• Health problems no longer interrupt you with popups on week advance — your status now lives
+  on your player card with clear how-to-fix tips (sickness details are still one tap away)
+• Life moments and weekly "Heads Up" events are now much rarer
 
-🛡️ Rock-Solid Stability
-• Fixed rare duplicate deaths, duplicate notifications, and hidden errors in the weekly update
-• Fixed "NaN" stats that could appear with lots of vehicles or diseases
-• Fixed a jail freeze and cleaned up the jail screen
-• Smoother, friendlier loading screen and better bug reporting
+🛡️ Crash Fixes
+• Weekly auto-reinvest crash, an Android purchase loop, an un-dismissable popup, and several
+  chart / saved-data edge cases — all fixed
 
-⚖️ Fair Play
-• Crime XP is now counted correctly — getting caught no longer rewards you
-• Closed money exploits and added a live "money can't appear from nowhere" safety net
-• Weekly bonuses respect the money cap and count toward your real lifetime total
+⚖️ Fairer, More Realistic Economy
+• Real-estate sales now have realistic closing costs & capital-gains tax; rental income nets upkeep
+• Fixed a maintenance-cost bug (was 50× too high)
+• IPO double-credit, crypto fees, loan prepayment, an inflation cap, and mining tradeoffs — corrected
+• "Investment tip" is now a true double-or-nothing (it was quietly tilted in your favor)
 
-♿ Polish
-• More readable text in light mode (WCAG-AA contrast)
-• Reduced-motion support for a calmer experience
+🧩 Logic Fixes
+• Multi-stage opportunities now pay out their real final stage
+• A deceased character no longer collects a final paycheck
+• Follow-up event chains actually fire now; exam/campus timing no longer drifts when you pause
 
-Plus everything from the big v2.3.x stability update: 70+ fixes, the fairness system
-(guaranteed kids/marriage/jobs), real relationship consequences, and major performance gains.
+💾 Leaner Saves
+• Capped comment threads, notifications, and casual friends in long games — family is always kept
 
-Thank you for playing and sharing feedback.
+Thank you for the reports — keep them coming.
 Join the community: https://discord.gg/rzktazdX8v
 ```
 
@@ -55,113 +54,89 @@ Join the community: https://discord.gg/rzktazdX8v
 
 ## 📋 Full Release Notes
 
-Everything below is **new since v2.3.1 (build 93)**.
+### ⚡ Performance — the "Next Week" freeze is gone
 
-### ⚡ Performance — the game feels instant now
+- **Fixed the Next Week freeze.** Advancing a week no longer waits on a hard 50 ms delay on every
+  tap — the weekly update now captures the computed result and hands control back in a single step,
+  so the button responds immediately.
+- **No more full-dashboard re-render every week.** The home screen, player card (IdentityCard), and
+  finance overview now subscribe only to the specific values they show (plus memoization), instead
+  of re-rendering on every change to the whole game state.
+- The player card's cash-flow breakdown is now computed only when you open it.
+- Rarely-opened screens load on demand, and a stats-bar memo bug was fixed — all adding up to
+  noticeably smoother play, especially in long lifetimes.
 
-- **Instant week-advance** — tapping *Next Week* now updates the UI immediately and defers the
-  heavy weekly calculation, so there's no perceptible lag.
-- **Instant money & stat display** — your balance and stats change the moment you take an action,
-  and the intrusive blue action modal that interrupted play has been removed.
-- **Instant pre-game menus** — the life-path, perk, and scenario selection screens open and toggle
-  instantly (deferred loading, memoized cards, press feedback, narrowed theme subscriptions).
-- Memoized the heavy filters on the Work screen to cut re-render churn.
+### 🔔 Calmer, less-interruptive UI
 
-### 🛒 In-App Purchases & Perks
+- **Health no longer hijacks your week.** The auto popups on week advance (the zero-stat warning and
+  the sickness modal) are gone. Health issues now surface **passively on your player card**, with
+  clear guidance on how to fix them. You can still open full sickness details anytime from the
+  disease badge in the top stats bar.
+- **Far fewer interruptions.** Life moments and the weekly "Heads Up" events are now much rarer, for
+  better pacing and fewer popups between you and the game.
 
-- **Premium Pack money multiplier now works** — it was writing to the wrong field, so the paid
-  income boost did nothing in-game. It now correctly applies your multiplier.
-- **One unified purchase-apply path** — three separate code paths used to apply entitlements, which
-  is how perks drifted out of sync. They're now consolidated into a single helper, so every perk
-  applies and persists consistently (and survives reinstalls).
-- **No more ad flash for supporters** — if you've purchased *Remove Ads*, the banner now honors that
-  entitlement immediately on launch instead of briefly flashing an ad.
+### 🛡️ Crash & Soft-Lock Fixes
 
-### 🛡️ Stability & Crash Fixes
+- Fixed a **weekly crash** caused by malformed stock holdings during auto-reinvest.
+- Fixed an **Android purchase redelivery loop** — the purchase listener is now cleaned up properly
+  and acknowledged transactions are finished, so purchases don't get stuck re-firing.
+- Fixed a **soft-lock** where the life-moment popup couldn't be dismissed (added a proper close +
+  fallback dismiss).
+- Hardened the charts (divide-by-zero / NaN guards), added validation for parsed saved data, and
+  fixed the back button on the ancestor profile screen.
 
-- **Fixed duplicate weekly outcomes** — a deep fix to the weekly update means events, deaths,
-  notifications, and errors are computed once and atomically. This resolves rare **double deaths,
-  duplicate toast notifications, and silently swallowed errors**.
-- **Fixed "NaN" stats** — owning many vehicles or catching multiple diseases in a week could index
-  out of bounds and permanently poison your health/stats with `NaN`. Indexing is now bounds-safe.
-- **Null-relationship guard** — a missing or malformed relationship can no longer crash the weekly
-  update.
-- **Purchase init no longer hangs** — the in-app-purchase service used to spin forever if it failed
-  to initialize; it now times out gracefully (15s) and continues.
-- **Jail fixes** — resolved a jail soft-lock freeze, fixed the jail screen layout/safe-area/labels,
-  and improved its performance.
-- **Friendlier loading screen** — revamped visuals, removed the alarming warning-triangle banners,
-  and improved the in-app bug-report flow.
+### ⚖️ Economy & Balance (fairer + more realistic)
 
-### ⚖️ Economy & Fair Play (anti-exploit)
+- **Real estate:** selling now includes realistic **closing costs and capital-gains tax**; rental
+  income is now **net of upkeep**; and a maintenance-cost bug that overcharged by **50×** is fixed.
+- **Business:** an IPO **double-tap could double-credit** your raise — it's now a single atomic
+  update. Your business app's lifetime stats now persist correctly.
+- **Events:** the "investment tip" event is now a genuine **double-or-nothing** (it was secretly
+  +25% expected value in your favor).
+- **Banking & crypto:** crypto limit-buys now **reserve their fees**, bank/loan credits respect the
+  money ceiling, and paying down a card now debits exactly the amount applied.
+- **Long-game balance:** the inflation index is now **capped**, mining pools are a real tradeoff,
+  rent-mode edge cases are guarded, and **prepaying a loan now shortens the term** instead of just
+  lowering the payment.
 
-- **Crime XP counted correctly** — criminal and crime-skill XP is now granted atomically and only
-  when you succeed. Getting **caught no longer rewards you**, and rapid double-taps can't double-grant.
-- **Energy re-checked on action** — a fast double-tap can no longer run two jobs on a single point of
-  energy; the second tap correctly no-ops.
-- **Money ceiling enforced everywhere** — weekly lucky/streak bonuses now respect the money cap and
-  count properly toward your lifetime earnings (previously they could bypass both).
-- **Honest earnings tracking** — batch transactions are now classified per-item, so only genuine
-  income counts toward "earn $X" goals.
-- **Death guards on finances** — a deceased player can no longer trade stocks/crypto or move money
-  through banking and the dark web.
-- **Credit-score integrity** — tampered/out-of-range credit scores are clamped back to the real
-  FICO range (300–850) when a save is repaired.
-- **Money-conservation safety net** — added a live invariant test that fails the build if money can
-  appear from or vanish into nowhere, catching economy bugs before they ship.
-- Additional balance fixes: perk income cap, dark-web jail guard, and corrected terminal-disease text.
+### 🧩 Game-Logic Fixes
 
-### ♿ Polish & Accessibility
+- **Multi-stage opportunities pay out fully.** Chains like `business_opportunity` now use their real
+  stage count, so the final payout stage actually fires (a 4-stage chain was capped at 3).
+- A **deceased character no longer banks** the final week's income.
+- **Follow-up event chains now work** — 8 chains were effectively dead code; they fire now, and the
+  event queue no longer grows unbounded.
+- **Education** exam/campus cadence no longer drifts across pauses.
+- **Mining** auto-repair is now charged against post-degradation durability (no more free repairs).
+- Fixed a **disease bug** that could wipe out the death countdown on certain dual-symptom diseases.
 
-- **Light-mode contrast** now meets **WCAG-AA**, making text far more readable in light theme.
-- **Reduced-motion support** — a shared hook honors the system "reduce motion" setting across
-  animated components for a calmer experience.
-- Removed dead/unused components for a leaner app.
+### 💾 Save Reliability
 
-### 🔧 Under the Hood (quality & safety)
-
-- **Crash-on-launch safety net** — a new automated UI test suite mounts all **7 in-game tabs** plus
-  the onboarding flow and key components, catching the class of startup crashes that used to only
-  appear in TestFlight.
-- **Save-durability stress tests** for very long lifetimes.
-- **Type-safety hardening** — eliminated all unsafe `as any` casts in gameplay/state code, closing a
-  class of silent bugs.
-- **Production ad-config hardened** — the app will never fall back to placeholder/test ad IDs in a
-  production build.
-- Centralized time constants and extracted large stylesheets for maintainability.
+- Capped `socialMedia` comment threads (both when writing and pruning) and notifications during
+  pruning, so saves stay lean.
+- Capped casual-friend relationships in long games — **parents, partner/spouse, and children are
+  always kept**.
 
 ---
 
-## 🧱 Also includes — the v2.3.x Stability Update (cumulative recap)
+## 🛠️ Developer Notes
 
-For players coming from an older version, this build also contains the major stability update:
+Full technical breakdown — every finding with `file:line`, root cause, and fix — lives in
+`tasks/audit-2026-06-21.md`. Work was partitioned by file ownership and run with parallel review
+agents plus manual core-loop edits.
 
-**Major Fixes**
-- 70+ bug fixes across the game
-- Save system improved to prevent data corruption
-- Purchase system fixed so all perks apply correctly
-- Startup crashes and rare edge cases resolved
-
-**Fairness Improvements**
-- Children guaranteed after 15 attempts
-- Marriage proposals succeed at 95%+ relationship
-- Job applications succeed with perfect qualifications
-- Weekly events guaranteed after 6 weeks without events
-- Disease frequency reduced (max 1 every 4 weeks)
-
-**Relationships Matter**
-- Partners may leave after long neglect
-- Divorce can happen after extended neglect
-- Financial outcomes are now more realistic
-
-**Performance Boost**
-- Income calculations up to 90% faster
-- Family expenses 50% faster
-- Save files reduced by up to 80%
-- Much smoother gameplay in very long lifetimes
+**Intentionally left unchanged (with rationale):**
+- **Freebie reward events** (luckyCoin, mysteryPackage, scratchTicket, …) and **political
+  money/reputation tradeoff events** — these are deliberate engagement design (the code comments
+  call out "variable-ratio reinforcement") and are already low-frequency after the pacing change.
+  Altering them would fight the intended design.
+- **Impure `genId()` / `Date.now()` inside updaters** — cosmetic only (IDs/timestamps on fresh
+  objects, no state corruption); rewriting the call sites risked regressions for no behavior change.
+- **Fully coalescing the conditional post-tick commits** — the common Next Week path is already a
+  single commit after the freeze fix; the remaining commits are rare/conditional.
 
 ---
 
-Thank you for playing and sharing feedback.
+Thank you for playing and for the bug reports — they directly shaped this update.
 
 **Join the community:** https://discord.gg/rzktazdX8v
