@@ -10,7 +10,7 @@
 import { Dimensions, StyleSheet } from 'react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import {
   getGlassCard,
   getGlassContainer,
@@ -46,108 +46,111 @@ export function createStyles(darkMode: boolean) {
     content: {
       width: width * 0.9,
       maxWidth: 420,
-      maxHeight: height * 0.85,
+      maxHeight: height * 0.9,
     },
     card: {
       width: '100%',
       borderRadius: scale(24),
       overflow: 'hidden',
       ...getPlatformShadows(12, 0.3, 8, 24),
-      maxHeight: height * 0.85,
+      maxHeight: height * 0.9,
       flexDirection: 'column',
     },
-    scrollContainer: {
-      maxHeight: height * 0.5,
-      minHeight: scale(260),
+    // Each tab renders a full "page": a flex-filling scroll area above a pinned
+    // footer. flex:1 lets the page consume all space between the top menu bar
+    // and the bottom of the card so nothing overflows or gets clipped.
+    page: {
+      flex: 1,
+      minHeight: 0,
     },
     scrollView: {
       flex: 1,
     },
     scrollContent: {
-      padding: scale(24),
-      paddingBottom: scale(20),
+      padding: scale(20),
+      paddingBottom: scale(16),
     },
-    // Tab bar (modeled on GemShopModal pattern)
-    tabRow: {
+    // Compact identity strip — persistent across both pages.
+    identityHeader: {
       flexDirection: 'row',
-      paddingHorizontal: scale(16),
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: c.border,
+      alignItems: 'center',
+      paddingHorizontal: scale(20),
+      paddingTop: scale(20),
+      paddingBottom: scale(14),
     },
-    tabBtn: {
+    identityIcon: {
+      ...getGlassIconContainer(darkMode, 48),
+      marginRight: scale(14),
+    },
+    identityText: {
       flex: 1,
-      paddingVertical: scale(12),
-      alignItems: 'center',
     },
-    tabContent: {
+    identityTitle: {
+      fontSize: fontScale(22),
+      fontWeight: '800',
+      color: c.text,
+      letterSpacing: -0.5,
+    },
+    identityName: {
+      fontSize: fontScale(15),
+      fontWeight: '700',
+      color: c.text,
+      marginTop: scale(2),
+    },
+    identityDetails: {
+      fontSize: fontScale(12),
+      color: c.textSecondary,
+      marginTop: scale(1),
+    },
+    // TOP MENU BAR — segmented control switching between pages.
+    topBar: {
+      paddingHorizontal: scale(16),
+      paddingBottom: scale(12),
+    },
+    segmented: {
+      flexDirection: 'row',
+      ...getGlassContainer(darkMode, darkMode ? 0.4 : 0.6),
+      borderRadius: scale(12),
+      padding: scale(4),
+    },
+    segment: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: scale(6),
+      paddingVertical: scale(10),
+      borderRadius: scale(9),
     },
-    tabLabel: {
+    segmentActive: {
+      backgroundColor: theme.palette.primary,
+    },
+    segmentText: {
       fontSize: fontScale(14),
       fontWeight: '600',
       color: c.textSecondary,
     },
-    tabLabelActive: {
-      color: c.text,
+    segmentTextActive: {
+      color: '#FFFFFF',
       fontWeight: '700',
     },
-    tabUnderline: {
-      position: 'absolute',
-      bottom: 0,
-      left: '22%',
-      right: '22%',
-      height: scale(2),
-      borderRadius: scale(1),
+    // Cause-of-death banner at the top of the Summary page.
+    causeCard: {
+      ...getGlassContainer(darkMode, darkMode ? 0.3 : 0.5),
+      borderRadius: scale(14),
+      padding: scale(14),
+      marginBottom: scale(16),
     },
-    fixedHeader: {
-      paddingHorizontal: scale(24),
-      paddingTop: scale(24),
-      paddingBottom: scale(16),
-      gap: scale(14),
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    iconContainer: {
-      ...getGlassIconContainer(darkMode, 64),
-      marginRight: scale(16),
-    },
-    headerText: {
-      flex: 1,
-    },
-    mainTitle: {
-      fontSize: fontScale(36),
-      fontWeight: '800',
+    causeSubtitle: {
+      fontSize: fontScale(15),
+      fontWeight: '600',
       color: c.text,
-      marginBottom: scale(6),
-      letterSpacing: -0.5,
-    },
-    title: {
-      fontSize: fontScale(32),
-      fontWeight: '700',
-      color: c.text,
-      marginBottom: scale(4),
-      letterSpacing: -0.5,
-    },
-    subtitle: {
-      fontSize: fontScale(16),
-      fontWeight: '500',
-      color: c.textSecondary,
-      marginBottom: scale(8),
       fontStyle: 'italic',
     },
-    nameText: {
-      fontSize: fontScale(22),
-      fontWeight: '700',
-      color: c.text,
-      marginBottom: scale(4),
-    },
-    details: {
-      fontSize: fontScale(14),
+    causeMessage: {
+      fontSize: fontScale(13),
       color: c.textSecondary,
+      marginTop: scale(4),
     },
     sectionHeader: {
       flexDirection: 'row',
@@ -337,12 +340,14 @@ export function createStyles(darkMode: boolean) {
       fontWeight: '700',
       color: accent.success,
     },
-    actions: {
-      padding: scale(20),
-      paddingTop: scale(16),
+    // Pinned action footer at the bottom of each page.
+    footer: {
+      padding: scale(16),
+      paddingTop: scale(14),
       gap: scale(10),
       borderTopWidth: 1,
       borderTopColor: c.border,
+      backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.3)',
     },
     actionButton: {
       borderRadius: scale(14),
@@ -360,9 +365,6 @@ export function createStyles(darkMode: boolean) {
       fontSize: fontScale(16),
       fontWeight: '700',
     },
-    reviveButton: {},
-    iapButton: {},
-    continueButton: {},
     newLifeButton: {},
     disabledButton: {
       opacity: 0.5,
