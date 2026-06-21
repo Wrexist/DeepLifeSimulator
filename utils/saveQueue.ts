@@ -709,6 +709,24 @@ class SaveQueue {
       pruned.socialPosts = tail(pruned.socialPosts, cap(100));
       pruned.previousLives = tail(pruned.previousLives, cap(50));
 
+      // Relationships accumulate over a long life with no in-game cap, growing the
+      // save and the per-tick relationship passes. Trim ONLY casual `friend`
+      // entries (keeping the highest-scored) — never a parent/partner/spouse/child,
+      // so no meaningful relationship is ever dropped.
+      if (Array.isArray(pruned.relationships) && pruned.relationships.length > cap(150)) {
+        const keep: any[] = [];
+        const friends: any[] = [];
+        for (const r of pruned.relationships) {
+          if (r && r.type === 'friend') friends.push(r);
+          else keep.push(r); // parent/partner/spouse/child are always retained
+        }
+        const friendBudget = Math.max(0, cap(150) - keep.length);
+        if (friends.length > friendBudget) {
+          friends.sort((a, b) => (b?.relationshipScore ?? 0) - (a?.relationshipScore ?? 0));
+          pruned.relationships = [...keep, ...friends.slice(0, friendBudget)];
+        }
+      }
+
       // PERFORMANCE FIX: Enforce event log limit (keep only last 500 events)
       if (pruned.eventLog && Array.isArray(pruned.eventLog) && pruned.eventLog.length > 500) {
         pruned.eventLog = pruned.eventLog.slice(-500);
