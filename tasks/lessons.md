@@ -4,6 +4,29 @@
 
 ## Patterns to Watch For
 
+### 2026-06-21 - Fixed-size pre-roll arrays indexed by an uncapped collection silently grant immunity
+
+- What went wrong: the weekly tick pre-rolls per-entity RNG into fixed-length arrays
+  (`preTick.ts`: `petSickness`/`petSicknessType` length 10, `relBreakup`/`diseaseProgression`
+  length 20, `vehicleAccident` length 10) to stay StrictMode-pure. Consumers index them by the
+  entity's position in the FULL array (`applyPets.ts:76` `rolls.petSickness[petIdx]`). `petIdx`
+  runs over alive + dead pets and there is no pet-count cap, so a player who has owned more pets
+  than the buffer length reads `undefined`. The bug is silent because the comparison is
+  `undefined < 0.06` → `false`: those pets become permanently immune to sickness (no crash, no
+  error, just a balance/correctness drift that only shows up on a long, pet-heavy save).
+- Why it hid: every test used ≤ a handful of pets (well under the buffer), and the refactor
+  snapshot suite asserted byte-identical output for small inputs — none exercised an index past
+  the buffer end. A length assertion (`toHaveLength(10)`) "passed", reinforcing the wrong size.
+- How it was found: the weekly-audit Crash/Save/Logic subagent traced `petIdx` to the full-array
+  map index and cross-checked the buffer length. Fixed by wrapping the index modulo the array
+  length in the consumer (`petIdx % rolls.petSickness.length`, deterministic, no impure
+  Math.random) + a regression test that drives index 11 to a guaranteed-sick draw.
+- Rule: when a fixed-size pre-roll/lookup array is indexed by a collection whose size isn't
+  capped to that length, the overflow entries silently get the default-branch behaviour. Either
+  cap the collection to the buffer length, or wrap the index (modulo) in the consumer, and add a
+  test that exercises an index PAST the buffer. The same latent shape still exists for >20
+  relationships/diseases and >10 vehicles — apply the same wrap if those collections can grow.
+
 ### 2026-06-21 - The weekly-audit routine's harness is missing — adapt, don't abort
 
 - What went wrong: the scheduled "weekly audit" routine prompt says to run `npm run audit:weekly`

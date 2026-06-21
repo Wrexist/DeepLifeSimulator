@@ -48,7 +48,10 @@ google-play-service-account.json
 
 # IDE & tool state
 .cursor/
-.claude/
+# Ignore local Claude state but keep the shared project settings (SessionStart
+# hook for the weekly-audit routine) under version control.
+.claude/*
+!.claude/settings.json
 .Claude/
 .codex/
 .bolt/

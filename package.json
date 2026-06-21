@@ -26,6 +26,8 @@
     "preflight:baseline": "node scripts/preflight-check.js --baseline",
     "preflight:baseline:quick": "node scripts/preflight-check.js --baseline --quick-baseline",
     "preflight:quick": "npm run check:routes && npm run type-check",
+    "audit:weekly": "node scripts/weekly-audit.js",
+    "audit:weekly:full": "node scripts/weekly-audit.js --full",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps",
     "postinstall": "node scripts/fix-podspec.js",
