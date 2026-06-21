@@ -37,14 +37,20 @@ type Warehouse = GameState['warehouse'];
  * count, converted to the repair crypto via its price. Capped at what's owned and
  * floored at the configured flat cost so the deduction is never tiny.
  */
-function autoRepairCostInCrypto(warehouse: Warehouse, cryptos: Crypto[]): number {
+function autoRepairCostInCrypto(warehouse: Warehouse, cryptos: Crypto[], minerDegradationRoll = 0): number {
   if (!warehouse?.autoRepairEnabled || !warehouse.autoRepairCryptoId) return 0;
   const repairCrypto = cryptos.find((c) => c.id === warehouse.autoRepairCryptoId);
   const price = repairCrypto && Number.isFinite(repairCrypto.price) && repairCrypto.price > 0 ? repairCrypto.price : 0;
 
   let totalUsd = 0;
   for (const minerId of Object.keys(warehouse.miners || {})) {
-    const durability = warehouse.minerDurability?.[minerId] ?? 100;
+    // BUG FIX: charge from the POST-degradation durability — the same value the
+    // warehouse pass (applyMiningWarehouse) uses to perform the repair. Reading
+    // the PRE-degradation value let a miner that crossed below 50% THIS tick be
+    // repaired for $0 (cost pass saw it still >= 50). Apply the same per-week
+    // degradation here so the threshold + healthToRestore match the repair.
+    const preDurability = warehouse.minerDurability?.[minerId] ?? 100;
+    const durability = Math.max(0, preDurability - minerDegradationRoll);
     if (durability < 50) {
       const baseCost = MINER_REPAIR_COSTS[minerId] || 0;
       const healthToRestore = 100 - durability;
@@ -63,6 +69,13 @@ export interface MiningCryptosInput {
   prevCryptos: Crypto[];
   /** `prevState.cryptoMarket?.halvingCount ?? 0`. */
   halvingCount: number;
+  /**
+   * `preRolls.minerDegradation` — the SAME per-week degradation roll passed to
+   * `applyMiningWarehouse`. Used so the auto-repair cost is computed from the
+   * post-degradation durability the warehouse pass actually repairs from.
+   * Defaults to 0 (pre-degradation durability) when omitted.
+   */
+  minerDegradationRoll?: number;
 }
 
 export interface MiningCryptosResult {
@@ -130,7 +143,7 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
     });
 
     // Deduct the REAL auto-repair cost (M-6) if enabled.
-    const repairCost = autoRepairCostInCrypto(input.prevWarehouse, input.prevCryptos);
+    const repairCost = autoRepairCostInCrypto(input.prevWarehouse, input.prevCryptos, input.minerDegradationRoll ?? 0);
     if (repairCost > 0 && input.prevWarehouse.autoRepairCryptoId) {
       updatedCryptos = updatedCryptos.map((crypto) => {
         if (crypto.id === input.prevWarehouse?.autoRepairCryptoId) {
@@ -145,7 +158,7 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
   }
 
   // Still deduct auto-repair even if no mining earnings.
-  const repairCost = autoRepairCostInCrypto(input.prevWarehouse, input.prevCryptos);
+  const repairCost = autoRepairCostInCrypto(input.prevWarehouse, input.prevCryptos, input.minerDegradationRoll ?? 0);
   if (repairCost > 0 && input.prevWarehouse.autoRepairCryptoId) {
     const updatedCryptos = input.prevCryptos.map((crypto) => {
       if (input.prevWarehouse && crypto.id === input.prevWarehouse.autoRepairCryptoId) {

@@ -56,7 +56,9 @@ import { MILESTONE_MONEY_THRESHOLDS, MILESTONE_PROXIMITY_PERCENT } from '@/lib/c
 import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
-import { checkForChainedEvent } from '@/lib/events/lifeEvents';
+import { checkForChainedEvent, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents';
+import { getEventChainStageCount } from '@/lib/events/engine';
+import type { WeeklyEvent } from '@/lib/events/engine';
 import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import {
  MINER_PRICES,
@@ -352,6 +354,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Track if death was triggered during state update
  let deathTriggered = false;
  let stateUpdateError: Error | null = null;
+ // PERF (freeze fix): capture the exact post-tick state the updater computes so
+ // the post-update validation/automation/save can use it WITHOUT waiting on the
+ // gameStateRef (which only updates via a post-commit useEffect — the reason the
+ // old code stalled a hard 50ms every Next Week).
+ let postTickState: GameState | null = null;
 
  // PERF FIX: Collect notifications during week progression and flush them in a single
  // setTimeout afterward. Previously, each notification was its own setTimeout inside
@@ -940,6 +947,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    prevWarehouse: prevState.warehouse,
    prevCryptos: prevState.cryptos,
    halvingCount: prevState.cryptoMarket?.halvingCount ?? 0,
+   // Charge auto-repair on POST-degradation durability (same roll the warehouse
+   // pass uses) so a miner crossing below 50% this tick isn't repaired for $0.
+   minerDegradationRoll: preRolls.minerDegradation,
  }).updatedCryptos;
 
  // R7 Phase 2 step 2.6-ii-B: warehouse update extracted into
@@ -985,6 +995,34 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    pendingEventsAfterWeekly: updatedPendingEvents,
    nextWeeksLived,
  }).updatedPendingEvents;
+
+ // #16: surface any DUE follow-up chained events (queued by resolveEvent into
+ // pendingChainedEvents) into pendingEvents, and dequeue them. Previously the
+ // consumer was never wired up, so all 8 follow-up chains never fired and the
+ // queue grew unbounded. weeksLived (absolute) is the correct clock here.
+ let updatedPendingChainedEvents = prevState.pendingChainedEvents;
+ if (Array.isArray(prevState.pendingChainedEvents) && prevState.pendingChainedEvents.length > 0) {
+ const dueFollowUps: WeeklyEvent[] = [];
+ const stillPending: NonNullable<typeof prevState.pendingChainedEvents> = [];
+ for (const pending of prevState.pendingChainedEvents) {
+ const followUp = pending && pending.triggerWeek <= nextWeeksLived
+ ? FOLLOW_UP_EVENTS[pending.eventId as keyof typeof FOLLOW_UP_EVENTS]
+: undefined;
+ if (followUp) {
+ // FOLLOW_UP_EVENTS entries are WeeklyEvent-shaped (id/description/choices).
+ dueFollowUps.push({...(followUp as WeeklyEvent), generatedAtWeeksLived: nextWeeksLived });
+ } else if (pending && pending.triggerWeek > nextWeeksLived) {
+ stillPending.push(pending);
+ }
+ // (a due entry with no matching FOLLOW_UP_EVENTS def is dropped — dequeued.)
+ }
+ if (dueFollowUps.length > 0) {
+ // Reuse the same MAX_PENDING_EVENTS=100 anti-bloat cap applyWeeklyEvents uses.
+ updatedPendingEvents = [...updatedPendingEvents,...dueFollowUps].slice(-100);
+ }
+ // Safety cap so a malformed queue can never grow without bound.
+ updatedPendingChainedEvents = stillPending.length > 100 ? stillPending.slice(-100): stillPending;
+ }
 
  // R7 Phase 2 step 2.7-D: life moment generation extracted into
  // ./actions/weekly/applyLifeMoment.ts. Same generator call, same merge
@@ -1411,7 +1449,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
- return {
+ const nextState: GameState = {
 ...prevState,
  careers: updatedCareers,
  currentJob: newCurrentJob,
@@ -1569,6 +1607,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  warehouse: updatedWarehouse,
  // Add new weekly events to pendingEvents
  pendingEvents: updatedPendingEvents,
+ // #16: persist the dequeued follow-up chain queue (due ones surfaced above).
+ pendingChainedEvents: updatedPendingChainedEvents,
  // Update economy state
  economy: updatedEconomy,
  // Update last event week for pity system
@@ -1623,6 +1663,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    newShowDeathPopup,
  }).partial,
  };
+
+ // #6: a character who dies this week must not pocket the week's income.
+ // Revert money to the pre-tick value so the persisted/displayed final state
+ // (and the death popup's net worth) doesn't include a free final paycheck.
+ if (newShowDeathPopup) {
+ nextState.stats = {
+...nextState.stats,
+ money: typeof prevState.stats?.money === 'number' ? prevState.stats.money: nextState.stats.money,
+ };
+ }
+
+ // PERF (freeze fix): expose the computed state to the post-update code below.
+ postTickState = nextState;
+ return nextState;
  } catch (error) {
  // CRITICAL: If state update fails, log error and return previous state
  stateUpdateError = error instanceof Error ? error: new Error(String(error));
@@ -1688,10 +1742,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Non-critical — don't break week progression for milestone hints
  }
 
- // CRITICAL: Validate state after update to ensure no corruption
- // Use a small delay to ensure state has updated
- await new Promise(resolve => setTimeout(resolve, 50));
- const updatedState = gameStateRef.current;
+ // Validate state after update to ensure no corruption. PERF: yield ONE
+ // macrotask so React has processed the updater (which populates postTickState),
+ // then use that captured state directly — no arbitrary 50ms stall every week.
+ await new Promise(resolve => setTimeout(resolve, 0));
+ const updatedState = postTickState ?? gameStateRef.current;
  if (updatedState) {
  // R2-F: pass autoFix=false. The previous `true` triggered an internal
  // `repairGameState` (which deep-clones ~200KB of GameState) on every
@@ -1751,8 +1806,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Normal completion - stop loading
  setIsLoading(false);
 
- // Process automation rules (if enabled)
- const currentState = gameStateRef.current;
+ // Process automation rules (if enabled). Prefer the captured post-tick state
+ // (the ref may not have committed yet after dropping the 50ms wait).
+ const currentState = postTickState ?? gameStateRef.current;
  if (currentState) {
  try {
  
@@ -2177,7 +2233,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  chainId: event.chainId,
  eventId: eventId,
  currentStage: 0,
- totalStages: 3, // Default; chains determine this via their stages array
+ // Use the chain's real stage count so the final payout stage isn't dropped
+ // (a hardcoded 3 force-completed the 4-stage business_opportunity chain).
+ totalStages: getEventChainStageCount(event.chainId) ?? 3,
  };
  }
  }

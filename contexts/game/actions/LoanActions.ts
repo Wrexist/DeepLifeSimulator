@@ -10,6 +10,7 @@ import { GameState, Loan } from '../types';
 import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
 import { isPlayerBlocked } from './_guards';
+import { applyMoneyDelta } from './MoneyActions';
 import {
   applyLoanPayment,
   quoteLoan,
@@ -195,12 +196,15 @@ export const acceptLoan = (
     // `stats.money` on every advance — without this, the loan principal would
     // vanish on the next weekly tick and the player would be left with the
     // repayment obligation and no cash.
-    const newMoney = (state.stats?.money ?? 0) + spec.principal;
+    // Route the principal credit through applyMoneyDelta so it respects MONEY_CEILING
+    // and the isFinite guard (a raw `money + principal` write could overflow to Infinity).
+    const credit = applyMoneyDelta(state, spec.principal, `Loan principal: ${spec.name}`);
+    if (!credit) return prev;
     return {
       ...state,
       loans: [...(state.loans ?? []), newLoan],
       banking,
-      stats: { ...state.stats, money: newMoney },
+      ...credit,
     };
   });
 };
@@ -270,9 +274,11 @@ export const prepayLoan = (
       loans.splice(loanIdx, 1);
       log.info(`Loan ${loan.name} paid off via prepayment`);
     } else {
-      // Recalculate weekly payment for the new principal over remaining weeks.
-      const newWeekly = calculatePeriodicPayment(remaining, loan.rateAPR, loan.weeksRemaining);
-      loans[loanIdx] = { ...loan, remaining, weeklyPayment: newWeekly };
+      // M-fix: do NOT re-amortize over the same term. Re-amortizing lowered the
+      // weekly payment after each tiny prepay, which let players game DTI to stack
+      // more loans. Keep the ORIGINAL weekly payment so the prepayment simply ends
+      // the loan sooner (the extra principal is retired ahead of schedule).
+      loans[loanIdx] = { ...loan, remaining };
     }
 
     // EXPLOIT FIX (H-1): when prepaying from the mirrored checking account, the

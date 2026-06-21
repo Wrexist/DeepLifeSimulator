@@ -94,6 +94,8 @@ export default function EnhancedDataVisualization({
       if (data.length < 2) return 0;
       const first = data[0].value;
       const last = data[data.length - 1].value;
+      // Guard against divide-by-zero (NaN/Infinity) when the baseline is 0.
+      if (!first || !isFinite(first)) return 0;
       return ((last - first) / first) * 100;
     };
 
@@ -463,7 +465,7 @@ export default function EnhancedDataVisualization({
             {socialData.map((item, index) => {
               const percentage = total > 0 ? (item.value / total) * 100 : 0;
               const angle = (percentage / 100) * 360;
-              const startAngle = socialData.slice(0, index).reduce((sum, prev) => sum + (prev.value / total) * 360, 0);
+              const startAngle = socialData.slice(0, index).reduce((sum, prev) => sum + (total > 0 ? (prev.value / total) * 360 : 0), 0);
               
               return (
                 <Animated.View

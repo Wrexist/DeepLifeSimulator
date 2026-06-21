@@ -9,7 +9,9 @@ import { Briefcase, ChevronRight } from 'lucide-react-native';
 const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useGame } from '@/contexts/GameContext';
+import { useGameActions, useItemActions } from '@/contexts/GameContext';
+import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
+import type { GameState } from '@/contexts/game/types';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsProgress from '@/components/AchievementsProgress';
 import IdentityCard from '@/components/IdentityCard';
@@ -95,7 +97,38 @@ function HeroStrip({ month, week, age }: { month: string; week: number; age: num
 
 function HomeScreenContent() {
   const insets = useSafeAreaInsets();
-  const { gameState, dismissWelcomePopup, setGameState, saveGame } = useGame();
+  // Sprint 2 perf: subscribe only to the slices this screen (and its goal /
+  // tip / discovery / stat-change consumers) read — not the whole gameState —
+  // so the dashboard subtree stops re-rendering on every decay tick. Actions
+  // come from the action contexts, whose values are stable (no state sub).
+  const gameState = useGameSelector(
+    (s) => ({
+      stats: s?.stats,
+      careers: s?.careers,
+      currentJob: s?.currentJob,
+      bankSavings: s?.bankSavings,
+      completedGoals: s?.completedGoals,
+      weeksLived: s?.weeksLived,
+      week: s?.week,
+      jailWeeks: s?.jailWeeks,
+      date: s?.date,
+      showWelcomePopup: s?.showWelcomePopup,
+      showDailyRewardPopup: s?.showDailyRewardPopup,
+      dailyRewardAmount: s?.dailyRewardAmount,
+      lastLoginRewardDate: s?.lastLoginRewardDate,
+      loginStreak: s?.loginStreak,
+      lastLoginDate: s?.lastLoginDate,
+      lastLogin: s?.lastLogin,
+      streetJobsCompleted: s?.streetJobsCompleted,
+      prestigeAvailable: s?.prestigeAvailable,
+      prestige: s?.prestige,
+      discoveredSystems: s?.discoveredSystems,
+    }),
+    shallowEqual
+  ) as unknown as GameState;
+  const setGameState = useSetGameState();
+  const { saveGame } = useGameActions();
+  const { dismissWelcomePopup } = useItemActions();
   const { theme, isDark } = useTheme();
   const { hasCompletedTutorial, startTutorial } = useTutorial();
   // ENGAGEMENT: Track stat changes for floating indicators on week advance

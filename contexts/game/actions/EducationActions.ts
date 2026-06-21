@@ -196,7 +196,24 @@ export const togglePauseProgram = (
   setGameState((prev) => {
     const ed = (prev.educations ?? []).find((e) => e.id === educationId);
     if (!ed) return prev;
-    return { ...prev, educations: pausePure(prev.educations ?? [], educationId, !ed.paused) };
+    const willPause = !ed.paused;
+    let educations = pausePure(prev.educations ?? [], educationId, willPause);
+    // BUG FIX: exam/campus cadence (educationSystem.isExamWeek /
+    // shouldTriggerCampusEvent) gates on absolute `weeksLived`, but the cadence
+    // anchors (lastExamWeek/lastCampusEventWeek) only advance on non-paused
+    // ticks. Across a pause the delta keeps growing while `weeksLived` advances,
+    // so on resume the delta is already >= the interval and an exam fires
+    // immediately and stays perpetually due. Re-anchor the cadence to the
+    // current week on resume so it restarts cleanly from when study resumes.
+    if (!willPause) {
+      const now = prev.weeksLived ?? 0;
+      educations = educations.map((e) =>
+        e.id === educationId
+          ? { ...e, lastExamWeek: now, lastCampusEventWeek: now }
+          : e,
+      );
+    }
+    return { ...prev, educations };
   });
 };
 

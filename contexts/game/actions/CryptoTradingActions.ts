@@ -20,6 +20,12 @@ import { CryptoOrderSide, CryptoOrderType } from '../types';
 
 const log = logger.scope('CryptoTradingActions');
 
+// Crypto fills charge a bid/ask spread + size-driven slippage (lib/crypto/orderBook.ts);
+// the worst-case regime spread is ~1% (volatile). Reserve a buffer on limit BUYs so the
+// weekly tick can't fill an order the player can't actually afford once fees are applied.
+// Mirrors StockActions' (1 + STOCK_FEE) notional reservation.
+const CRYPTO_FEE_BUFFER = 0.01;
+
 function ensureMarket(state: GameState): GameState {
   if (state.cryptoMarket) return state;
   return { ...state, cryptoMarket: initialGameState.cryptoMarket };
@@ -147,11 +153,14 @@ function canPlaceCryptoOrder(
   const openOrders = state.cryptoMarket?.openOrders ?? [];
   if (side === 'buy') {
     const cash = state.stats?.money ?? 0;
+    // Reserve the full notional incl. fee/spread against existing open BUYs so a
+    // player can't stack buys that each pass alone but together exceed cash once filled.
     const reserved = openOrders
       .filter((o) => o.side === 'buy' && o.status === 'open')
-      .reduce((sum, o) => sum + (o.amount ?? 0), 0);
-    if (amount + reserved > cash) {
-      log.warn(`Buy order rejected: amount=${amount} reserved=${reserved} cash=${cash}`);
+      .reduce((sum, o) => sum + (o.amount ?? 0) * (1 + CRYPTO_FEE_BUFFER), 0);
+    const grossCost = amount * (1 + CRYPTO_FEE_BUFFER);
+    if (grossCost + reserved > cash) {
+      log.warn(`Buy order rejected: grossCost=${grossCost} reserved=${reserved} cash=${cash}`);
       return false;
     }
     return true;

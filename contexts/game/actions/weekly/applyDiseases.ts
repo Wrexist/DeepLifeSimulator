@@ -269,9 +269,12 @@ export function applyDiseasesForWeek(
           deathsFromDisease: updatedDiseaseHistory.deathsFromDisease + 1,
         };
       } else {
-        // Update countdown.
+        // Update countdown. Spread the just-written object (if any) instead of
+        // the original closure `disease`, so a disease with BOTH weeksUntilDeath
+        // and naturalRecoveryWeeks doesn't clobber the other block's write.
+        const base = updatedDiseases[index] ?? disease;
         updatedDiseases[index] = {
-          ...disease,
+          ...base,
           weeksUntilDeath: updatedWeeksUntilDeath,
         };
       }
@@ -302,8 +305,11 @@ export function applyDiseasesForWeek(
           ),
         };
       } else {
+        // Spread the just-written object (if the death-countdown block already
+        // wrote this index) so we don't clobber its weeksUntilDeath update.
+        const base = updatedDiseases[index] ?? disease;
         updatedDiseases[index] = {
-          ...disease,
+          ...base,
           naturalRecoveryWeeks: Math.max(0, Math.ceil(recoveryWeeks)),
         };
       }

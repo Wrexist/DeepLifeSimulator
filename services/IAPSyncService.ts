@@ -206,7 +206,19 @@ class IAPSyncService {
     try {
       const data = await AsyncStorage.getItem('iap_sync_queue');
       if (data) {
-        this.syncQueue = JSON.parse(data);
+        const parsed = JSON.parse(data);
+        // Validate shape — storage drift could otherwise feed malformed actions
+        // (later code asserts action.productId!) into the sync pipeline.
+        this.syncQueue = Array.isArray(parsed)
+          ? parsed.filter(
+              (action) =>
+                action &&
+                typeof action === 'object' &&
+                typeof action.id === 'string' &&
+                typeof action.type === 'string' &&
+                typeof action.timestamp === 'number',
+            )
+          : [];
         // Trigger sync for any pending actions
         if (this.syncQueue.length > 0) {
           this.triggerSync();

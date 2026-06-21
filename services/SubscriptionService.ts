@@ -73,7 +73,16 @@ class SubscriptionService {
       const data = await safeGetItem('subscriptions');
       if (data) {
         const parsed = JSON.parse(data);
-        this.subscriptions = new Map(parsed);
+        // Validate the shape before constructing the Map — storage drift to a
+        // non-entry shape would otherwise throw and break init.
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((entry) => Array.isArray(entry) && entry.length === 2)
+        ) {
+          this.subscriptions = new Map(parsed);
+        } else {
+          this.subscriptions = new Map();
+        }
       }
     } catch (error) {
       if (__DEV__) {

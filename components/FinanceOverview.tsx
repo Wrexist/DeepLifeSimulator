@@ -23,8 +23,9 @@ import {
  CheckCircle,
  Building2,
 } from 'lucide-react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
+import type { GameState } from '@/contexts/game/types';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { getWeeklyInflationRate } from '@/lib/economy/inflation';
@@ -44,10 +45,41 @@ interface FinanceOverviewProps {
  onExpand?: () => void;
 }
 
-export default function FinanceOverview({ compact = false, onExpand }: FinanceOverviewProps) {
- const { gameState } = useGame();
+function FinanceOverview({ compact = false, onExpand }: FinanceOverviewProps) {
+ // Sprint 2 perf: subscribe only to the slices this view reads (directly or via
+ // the economy helpers below) instead of the whole gameState. Selecting one
+ // shallow-equal composite means this component re-renders only when one of
+ // these top-level slices changes identity — not on every stat-decay tick.
+ const gameState = useGameSelector(
+ (s) => ({
+ stats: s?.stats,
+ bankSavings: s?.bankSavings,
+ realEstate: s?.realEstate,
+ vehicles: s?.vehicles,
+ loans: s?.loans,
+ companies: s?.companies,
+ careers: s?.careers,
+ currentJob: s?.currentJob,
+ settings: s?.settings,
+ economy: s?.economy,
+ warehouse: s?.warehouse,
+ activeVehicleId: s?.activeVehicleId,
+ dietPlans: s?.dietPlans,
+ prestige: s?.prestige,
+ stocks: s?.stocks,
+ stocksOwned: s?.stocksOwned,
+ socialMedia: s?.socialMedia,
+ politics: s?.politics,
+ travel: s?.travel,
+ gamingStreaming: s?.gamingStreaming,
+ week: s?.week,
+ weeksLived: s?.weeksLived,
+ version: s?.version,
+ }),
+ shallowEqual
+ ) as unknown as GameState & { loans?: LoanSummary[] };
  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
- 
+
  // calcWeeklyPassiveIncome walks owned properties + companies. Only re-run
  // when those arrays actually change — not on every gameState mutation
  // (otherwise the wallet/finance view recomputes during every stat tick and
@@ -445,6 +477,8 @@ export default function FinanceOverview({ compact = false, onExpand }: FinanceOv
  </View>
  );
 }
+
+export default React.memo(FinanceOverview);
 
 const styles = StyleSheet.create({
  container: {

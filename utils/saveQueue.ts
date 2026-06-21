@@ -672,6 +672,24 @@ class SaveQueue {
         const sm = { ...pruned.socialMedia };
         sm.scandalHistory = tail(sm.scandalHistory, cap(50));
         sm.recentPosts = tail(sm.recentPosts, cap(100));
+        // commentThreads grows unbounded across a life. Drop threads whose post
+        // is no longer in the (already-capped) recentPosts, and tail each
+        // retained thread to its last 50 comments. Mirrors the runtime cap.
+        if (sm.commentThreads && typeof sm.commentThreads === 'object') {
+          const livePostIds = new Set(
+            (Array.isArray(sm.recentPosts) ? sm.recentPosts : []).map((p: any) => p?.id),
+          );
+          const prunedThreads: Record<string, any[]> = {};
+          for (const [postId, thread] of Object.entries<any>(sm.commentThreads)) {
+            if (livePostIds.has(postId) && Array.isArray(thread)) {
+              prunedThreads[postId] = tail(thread, cap(50));
+            }
+          }
+          sm.commentThreads = prunedThreads;
+        }
+        // notifications is a runtime ring buffer (cap 100) but was never pruned
+        // on the save path — add a defensive cap here too.
+        sm.notifications = tail(sm.notifications, cap(100));
         pruned.socialMedia = sm;
       }
       if (pruned.gamingStreaming && typeof pruned.gamingStreaming === 'object') {

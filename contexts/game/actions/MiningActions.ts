@@ -39,12 +39,15 @@ export const MINER_UPGRADE_DEFINITIONS: Record<string, {
 
 // Mining pool definitions
 export const MINING_POOLS: MiningPool[] = [
-  { id: 'pool_btc_1', cryptoId: 'btc', name: 'Bitcoin Elite Pool', bonusMultiplier: 1.20, fee: 0.05 },
-  { id: 'pool_btc_2', cryptoId: 'btc', name: 'BTC Mining Collective', bonusMultiplier: 1.15, fee: 0.03 },
-  { id: 'pool_eth_1', cryptoId: 'eth', name: 'Ethereum Power Pool', bonusMultiplier: 1.18, fee: 0.04 },
-  { id: 'pool_eth_2', cryptoId: 'eth', name: 'ETH Mining Network', bonusMultiplier: 1.12, fee: 0.02 },
-  { id: 'pool_sol_1', cryptoId: 'sol', name: 'Solana Fast Pool', bonusMultiplier: 1.15, fee: 0.03 },
-  { id: 'pool_general_1', cryptoId: 'link', name: 'Multi-Crypto Pool', bonusMultiplier: 1.10, fee: 0.02 },
+  // Fees are a genuine tradeoff against the bonus: net = bonus*(1-fee). High-bonus
+  // pools charge enough that net can dip below solo (1.0), so chasing the biggest
+  // headline multiplier is no longer free upside. (Previously every net was >1.0.)
+  { id: 'pool_btc_1', cryptoId: 'btc', name: 'Bitcoin Elite Pool', bonusMultiplier: 1.20, fee: 0.18 }, // net 0.984 (< solo)
+  { id: 'pool_btc_2', cryptoId: 'btc', name: 'BTC Mining Collective', bonusMultiplier: 1.15, fee: 0.10 }, // net 1.035
+  { id: 'pool_eth_1', cryptoId: 'eth', name: 'Ethereum Power Pool', bonusMultiplier: 1.18, fee: 0.14 }, // net 1.015
+  { id: 'pool_eth_2', cryptoId: 'eth', name: 'ETH Mining Network', bonusMultiplier: 1.12, fee: 0.08 }, // net 1.030
+  { id: 'pool_sol_1', cryptoId: 'sol', name: 'Solana Fast Pool', bonusMultiplier: 1.15, fee: 0.12 }, // net 1.012
+  { id: 'pool_general_1', cryptoId: 'link', name: 'Multi-Crypto Pool', bonusMultiplier: 1.10, fee: 0.06 }, // net 1.034
 ];
 
 // Energy types and their efficiency

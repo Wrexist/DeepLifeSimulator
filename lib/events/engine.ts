@@ -1504,10 +1504,13 @@ const investmentTip: EventTemplate = {
 
     return {
       id: 'investment_tip',
-      description: 'A successful investor shares a tip about an undervalued stock. It could double or lose 50%.',
+      // BALANCE: was +25% EV (win +amount / lose only half) — a repeatable money
+      // printer. Now a fair double-or-nothing: win doubles the stake, loss forfeits
+      // it (50/50, EV ≈ 0). Description updated to match the real stakes.
+      description: 'A successful investor shares a tip about an undervalued stock. You could double your money — or lose your whole stake.',
       choices: [
-        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, effects: { money: Math.random() > 0.5 ? bigAmount : -Math.floor(bigAmount * 0.5) } },
-        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, effects: { money: Math.random() > 0.5 ? smallAmount : -Math.floor(smallAmount * 0.5) } },
+        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, effects: { money: Math.random() > 0.5 ? bigAmount : -bigAmount } },
+        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, effects: { money: Math.random() > 0.5 ? smallAmount : -smallAmount } },
         { id: 'pass', text: 'Pass on the opportunity', effects: {} },
       ],
     };
@@ -2894,6 +2897,18 @@ function getNextChainEvent(state: GameState): WeeklyEvent | null {
   if (nextStage >= chain.stages.length) return null;
 
   return chain.stages[nextStage](state, nextStage);
+}
+
+/**
+ * Authoritative stage count for an event chain. The week loop must use this
+ * when starting a chain instead of a hardcoded default — a wrong total
+ * force-completes the chain early and silently drops its final payout stage
+ * (the `business_opportunity` chain, 4 stages, lost its results stage to a
+ * hardcoded `3`). Returns `undefined` for unknown chains so callers can fall
+ * back deliberately.
+ */
+export function getEventChainStageCount(chainId: string): number | undefined {
+  return eventChainDefinitions.find((c) => c.chainId === chainId)?.stages.length;
 }
 
 // ── ENGAGEMENT: Guaranteed starter events for new players ──

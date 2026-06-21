@@ -342,7 +342,9 @@ export const commentOnPost = (
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
     const threads = { ...(sm.commentThreads ?? {}) };
-    threads[postId] = [...(threads[postId] ?? []), comment];
+    // Cap each thread to the last 50 comments so commentThreads can't grow
+    // unbounded on a heavy commenter and bloat the save.
+    threads[postId] = [...(threads[postId] ?? []), comment].slice(-50);
     sm.commentThreads = threads;
     // Bump parent post comment count if it's the player's own
     sm.recentPosts = (sm.recentPosts ?? []).map((p) =>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, lazy, Suspense } from 'react';
 import { View,
   Text,
   Image,
@@ -9,9 +9,11 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
-import YouthPillModal from './YouthPillModal';
-import LegacyTimeline from './LegacyTimeline';
-import NetWorthBreakdownModal from './NetWorthBreakdownModal';
+// Rarely-opened modals — lazy-loaded and only mounted when open, so their
+// code + element tree isn't built on every home-tab render.
+const YouthPillModal = lazy(() => import('./YouthPillModal'));
+const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
+const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 import {
   responsiveSpacing,
   scale,
@@ -19,7 +21,8 @@ import {
 } from '@/utils/scaling';
 import { styles } from '@/components/IdentityCardStyles';
 import { MINER_PRICES , PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
-import { useGame } from '@/contexts/GameContext';
+import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import type { GameState } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
@@ -111,7 +114,54 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
 }
 
 function IdentityCard() {
-  const { gameState } = useGame();
+  // Sprint 2 perf: subscribe only to the slices this card reads (directly,
+  // through the destructure below, in the cash-flow modal JSX, and via the
+  // economy helpers) instead of the whole gameState. One shallow-equal
+  // composite means the card re-renders only when one of these top-level
+  // slices changes identity — not on every stat-decay tick.
+  const gameState = useGameSelector(
+    (s) => ({
+      stats: s?.stats,
+      bankSavings: s?.bankSavings,
+      items: s?.items,
+      companies: s?.companies,
+      realEstate: s?.realEstate,
+      userProfile: s?.userProfile,
+      relationships: s?.relationships,
+      careers: s?.careers,
+      currentJob: s?.currentJob,
+      perks: s?.perks,
+      scenarioId: s?.scenarioId,
+      dietPlans: s?.dietPlans,
+      date: s?.date,
+      youthPills: s?.youthPills,
+      settings: s?.settings,
+      vehicles: s?.vehicles,
+      loans: s?.loans,
+      warehouse: s?.warehouse,
+      activeVehicleId: s?.activeVehicleId,
+      diseases: s?.diseases,
+      healthZeroWeeks: s?.healthZeroWeeks,
+      happinessZeroWeeks: s?.happinessZeroWeeks,
+      equippedCosmetics: s?.equippedCosmetics,
+      loginStreak: s?.loginStreak,
+      mindset: s?.mindset,
+      previousLives: s?.previousLives,
+      prestige: s?.prestige,
+      // Needed by calcWeeklyPassiveIncome (read via gameState below):
+      stocks: s?.stocks,
+      stocksOwned: s?.stocksOwned,
+      socialMedia: s?.socialMedia,
+      politics: s?.politics,
+      travel: s?.travel,
+      gamingStreaming: s?.gamingStreaming,
+      economy: s?.economy,
+      week: s?.week,
+      weeksLived: s?.weeksLived,
+      version: s?.version,
+    }),
+    shallowEqual
+  ) as unknown as GameState;
   const isDarkMode = gameState.settings?.darkMode ?? false;
   const { t } = useTranslation();
   const [showYouthPillModal, setShowYouthPillModal] = useState(false);
@@ -200,8 +250,11 @@ function IdentityCard() {
   // mutation (otherwise the home tab recomputes on every stat decay tick).
   const passiveInfo = useMemo(
     () => calcWeeklyPassiveIncome(gameState),
+    // Key on the actual asset arrays that drive passive income, NOT stats.money
+    // (which changes every decay tick and is not an input to passive income) —
+    // otherwise this walk re-runs every tick on the home tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [gameState.realEstate, gameState.companies, gameState.stats?.money]
+    [gameState.realEstate, gameState.companies, gameState.stocks, gameState.socialMedia]
   );
   const expenseInfo = useMemo(
     () => calcWeeklyExpenses(gameState),
@@ -671,15 +724,23 @@ function IdentityCard() {
 
       <AutoSaveIndicator position="relative" />
 
-      <LegacyTimeline
-        visible={showLegacyTimeline}
-        onClose={() => setShowLegacyTimeline(false)}
-      />
+      {showLegacyTimeline && (
+        <Suspense fallback={null}>
+          <LegacyTimeline
+            visible={showLegacyTimeline}
+            onClose={() => setShowLegacyTimeline(false)}
+          />
+        </Suspense>
+      )}
 
-      <NetWorthBreakdownModal
-        visible={showNetWorth}
-        onClose={() => setShowNetWorth(false)}
-      />
+      {showNetWorth && (
+        <Suspense fallback={null}>
+          <NetWorthBreakdownModal
+            visible={showNetWorth}
+            onClose={() => setShowNetWorth(false)}
+          />
+        </Suspense>
+      )}
 
       <InfoModal
         visible={showCash}
@@ -688,6 +749,11 @@ function IdentityCard() {
         darkMode={isDarkMode}
         t={t}
       >
+        {/* Only BUILD the heavy cash-flow breakdown (these IIFEs walk every
+            property/loan/vehicle/miner) when the modal is actually open —
+            otherwise this whole subtree was computed on every home-tab render. */}
+        {showCash && (
+        <>
         <View style={styles.modalSection}>
           <Text style={[styles.modalSectionTitle, isDarkMode && styles.modalSectionTitleDark]}>
             Income Sources
@@ -1220,6 +1286,8 @@ function IdentityCard() {
             </>
           )}
         </View>
+        </>
+        )}
       </InfoModal>
       <InfoModal
         visible={showPerks}
@@ -1428,10 +1496,14 @@ function IdentityCard() {
       </InfoModal>
 
       {/* Youth Pill Modal */}
-      <YouthPillModal 
-        visible={showYouthPillModal}
-        onClose={() => setShowYouthPillModal(false)}
-      />
+      {showYouthPillModal && (
+        <Suspense fallback={null}>
+          <YouthPillModal
+            visible={showYouthPillModal}
+            onClose={() => setShowYouthPillModal(false)}
+          />
+        </Suspense>
+      )}
     </View>
   );
 }

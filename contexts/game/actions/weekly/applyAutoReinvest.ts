@@ -92,8 +92,8 @@ export function applyAutoReinvest(input: AutoReinvestInput): AutoReinvestResult 
   if (targetStock && targetStock.price > 0) {
     const sharesToBuy = Math.floor(input.reinvestedAmount / targetStock.price);
     if (sharesToBuy > 0) {
-      const existingHolding = holdings.find(
-        (h) => h.symbol.toUpperCase() === targetStock!.symbol.toUpperCase(),
+      const existingHolding = validHoldings.find(
+        (h) => h?.symbol && h.symbol.toUpperCase() === targetStock!.symbol.toUpperCase(),
       );
       if (existingHolding) {
         const totalShares = existingHolding.shares + sharesToBuy;
@@ -102,7 +102,7 @@ export function applyAutoReinvest(input: AutoReinvestInput): AutoReinvestResult 
         const newAveragePrice = totalShares > 0 && isFinite(totalCost) ? totalCost / totalShares : targetStock.price;
         const safeAveragePrice = isFinite(newAveragePrice) && newAveragePrice > 0 ? newAveragePrice : targetStock.price;
         reinvestedStocks = holdings.map((h) =>
-          h.symbol.toUpperCase() === targetStock!.symbol.toUpperCase()
+          h?.symbol && h.symbol.toUpperCase() === targetStock!.symbol.toUpperCase()
             ? { ...h, shares: totalShares, averagePrice: safeAveragePrice, currentPrice: targetStock!.price }
             : h,
         );

@@ -10,6 +10,7 @@ import React from 'react';
 import { GameState, BankAccountType, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '../types';
 import { logger } from '@/utils/logger';
 import { initialGameState } from '../initialState';
+import { applyMoneyDelta } from './MoneyActions';
 import {
   depositToAccount,
   withdrawFromAccount,
@@ -96,10 +97,13 @@ export const withdrawCashFromAccount = (
       log.warn(`Withdraw failed: ${result.reason}`);
       return prev;
     }
-    const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
+    // Route the cash credit through applyMoneyDelta so it respects MONEY_CEILING and
+    // the isFinite guard (a raw `money + amount` write could overflow to Infinity).
+    const credit = applyMoneyDelta(state, amount, `Withdraw from account ${accountId}`);
+    if (!credit) return prev;
     return {
       ...state,
-      stats: { ...state.stats, money: currentMoney + amount },
+      ...credit,
       banking: result.banking,
     };
   });
@@ -218,13 +222,18 @@ export const payDownCard = (
     // debit authoritative stats.money so the payment really costs the player.
     const fundedFromCash = MIRRORED_ACCOUNT_IDS.has(fromAccountId);
     const card = state.banking.creditCards.find((c) => c.id === cardId);
-    const cardBalance = typeof card?.balance === 'number' && isFinite(card.balance) ? card.balance : 0;
-    const paid = Math.min(cardBalance, Math.max(0, amount));
+    const cardBalanceBefore = typeof card?.balance === 'number' && isFinite(card.balance) ? card.balance : 0;
     const result = payCreditCard(state.banking, cardId, fromAccountId, amount, state.weeksLived);
     if (!result.ok) {
       log.warn(`Card pay failed: ${result.reason}`);
       return prev;
     }
+    // Derive the cash debit from what payCreditCard ACTUALLY applied (card balance
+    // before − after), not an independently re-computed estimate that could drift
+    // from the helper's own clamping.
+    const cardAfter = result.banking.creditCards.find((c) => c.id === cardId);
+    const cardBalanceAfter = typeof cardAfter?.balance === 'number' && isFinite(cardAfter.balance) ? cardAfter.balance : cardBalanceBefore;
+    const paid = Math.max(0, cardBalanceBefore - cardBalanceAfter);
     if (fundedFromCash) {
       const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
       return {
@@ -256,10 +265,14 @@ export const redeemRewards = (
       log.warn(`Card redeem failed: ${result.reason ?? 'no rewards'}`);
       return prev;
     }
+    // Route the cash credit through applyMoneyDelta so it respects MONEY_CEILING and
+    // the isFinite guard (a raw `money + redeemed` write could overflow to Infinity).
+    const credit = applyMoneyDelta(state, result.redeemed, `Card rewards redeem ${cardId}`);
+    if (!credit) return prev;
     return {
       ...state,
+      ...credit,
       banking: result.banking,
-      stats: { ...state.stats, money: (state.stats?.money ?? 0) + result.redeemed },
     };
   });
 };
