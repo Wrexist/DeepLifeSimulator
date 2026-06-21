@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Modal, View, Text, TouchableOpacity, Animated, ScrollView, Image, Alert, Share } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
@@ -13,11 +13,11 @@ import { computeInheritance } from '@/lib/legacy/inheritance';
 import { simulateChildrenToAdulthood } from '@/lib/legacy/childSimulation';
 import { MindsetId } from '@/lib/mindset/config';
 import { logger } from '@/utils/logger';
-import { scale } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { REVIVE_GEM_COST, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import LifeStoryModal from './LifeStoryModal';
-import { styles } from '@/components/DeathPopupStyles';
+import { createStyles } from '@/components/DeathPopupStyles';
 const LinearGradient = LinearGradientFallback;
 
 function DeathPopup() {
@@ -28,15 +28,19 @@ function DeathPopup() {
   const settings = safeSettings(gameState);
   const date = safeDate(gameState);
   const { deathReason } = gameState;
-  const showDeathPopup = gameState.showDeathPopup;
-  
+
   const [showLifeStory, setShowLifeStory] = useState(false);
   const [selectedHeirId, setSelectedHeirId] = useState<string | null>(null);
-  const [selectedMindset, setSelectedMindset] = useState<MindsetId | null>(
+  const [selectedMindset] = useState<MindsetId | null>(
     (gameState.mindset?.activeTraitId as MindsetId | null) || null
   );
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'summary' | 'legacy'>('summary');
+
+  // Theme-aware styles + color tokens (lib/config/theme.ts). Rebuilt only when
+  // the player toggles dark mode so colors stay centrally managed.
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
+  const c = getThemeColors(settings.darkMode);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -57,9 +61,9 @@ function DeathPopup() {
 
   const heirs = useMemo(() => {
     if (!gameState.family?.children || gameState.family.children.length === 0) return [];
-    
+
     const simulatedChildren = simulateChildrenToAdulthood(gameState.family.children, gameState);
-    
+
     return simulatedChildren.map((child: any) => {
       const result = HeirGenerator.generateHeir(
         child,
@@ -70,28 +74,28 @@ function DeathPopup() {
         gameState.family?.spouse?.id,
         []
       );
-      
+
       const childInheritance = (() => {
         const totalNetWorth = inheritanceSummary.totalNetWorth;
         const baseInheritance = Math.floor(totalNetWorth * 0.1);
-        
+
         let educationMultiplier = 1.0;
         if (child.educationLevel === 'university') {
           educationMultiplier = 1.2;
         } else if (child.educationLevel === 'specialized') {
           educationMultiplier = 1.3;
         }
-        
+
         if (child.careerPath === 'professional' || child.careerPath === 'entrepreneur') {
           educationMultiplier += 0.1;
         }
-        
+
         const inheritance = Math.floor(baseInheritance * educationMultiplier);
-        return totalNetWorth < 100_000 
+        return totalNetWorth < 100_000
           ? Math.min(1_000_000, inheritance)
           : inheritance;
       })();
-      
+
       return {
         id: child.id,
         name: child.name || 'Unknown',
@@ -147,7 +151,7 @@ function DeathPopup() {
     }
   }, [gameState]);
 
-  const handleContinueLegacy = async () => {
+  const handleContinueLegacy = useCallback(async () => {
     if (!selectedHeirId) {
       Alert.alert('No Heir Selected', 'Please select a child to continue your legacy.');
       return;
@@ -155,7 +159,7 @@ function DeathPopup() {
 
     try {
       startNewLifeFromLegacy(selectedHeirId);
-      
+
       if (selectedMindset) {
         setGameState(prev => ({
           ...prev,
@@ -165,14 +169,14 @@ function DeathPopup() {
           },
         }));
       }
-      
+
       setGameState(prev => ({
         ...prev,
         showDeathPopup: false,
         deathReason: undefined,
       }));
       setSelectedHeirId(null);
-      
+
       await saveGame();
     } catch (error) {
       logger.error('Failed to start new life from legacy:', error);
@@ -182,16 +186,16 @@ function DeathPopup() {
         showDeathPopup: true,
       }));
     }
-  };
+  }, [selectedHeirId, selectedMindset, startNewLifeFromLegacy, setGameState, saveGame]);
 
-  const handleRevive = () => {
+  const handleRevive = useCallback(() => {
     const reviveCost = REVIVE_GEM_COST;
     if (safeStats(gameState).gems >= reviveCost) {
       reviveCharacter();
     }
-  };
+  }, [gameState, reviveCharacter]);
 
-  const handleRewind = (checkpointId: string) => {
+  const handleRewind = useCallback((checkpointId: string) => {
     try {
       const { rewindToCheckpoint, getRewindCost } = require('@/lib/timeMachine/checkpointSystem');
       const cost = getRewindCost(gameState.timeMachineUsesThisLife ?? 0, !!gameState.goldUpgrades?.time_machine);
@@ -222,23 +226,23 @@ function DeathPopup() {
     } catch (err) {
       logger.error('[TIME_MACHINE] Rewind failed:', err);
     }
-  };
+  }, [gameState, setGameState, saveGame]);
 
-  const handleStartNewGame = async () => {
+  const handleStartNewGame = useCallback(async () => {
     try {
       setGameState(prev => ({
         ...prev,
         showDeathPopup: false,
         deathReason: undefined,
       }));
-      
+
       if (currentSlot) {
         // CRASH FIX (A-1): Delete all double-buffer keys for this slot
         const { deleteSaveSlot } = await import('@/utils/saveValidation');
         await deleteSaveSlot(currentSlot);
         await AsyncStorage.removeItem('lastSlot');
       }
-      
+
       router.replace('/(onboarding)/Scenarios');
     } catch (error) {
       if (__DEV__) {
@@ -249,9 +253,9 @@ function DeathPopup() {
         showDeathPopup: true,
       }));
     }
-  };
+  }, [setGameState, currentSlot, router]);
 
-  const handleShareObituary = async () => {
+  const handleShareObituary = useCallback(async () => {
     try {
       const { generateObituary } = require('@/lib/legacy/obituaryGenerator');
       const obituary = generateObituary(gameState);
@@ -262,14 +266,21 @@ function DeathPopup() {
     } catch (err) {
       logger.error('Failed to share obituary:', err);
     }
-  };
+  }, [gameState]);
+
+  // Memoized handlers for the tab bar + secondary actions (passed to children).
+  const handleSelectSummaryTab = useCallback(() => setActiveTab('summary'), []);
+  const handleSelectLegacyTab = useCallback(() => setActiveTab('legacy'), []);
+  const handleShowLifeStory = useCallback(() => setShowLifeStory(true), []);
+  const handleHideLifeStory = useCallback(() => setShowLifeStory(false), []);
+  const handleHidePrestige = useCallback(() => setShowPrestigeModal(false), []);
 
   if (!gameState.showDeathPopup) return null;
 
   const age = Math.floor(date.age);
   const weeksLived = gameState.weeksLived || 0;
   const yearsLived = Math.floor(weeksLived / WEEKS_PER_YEAR);
-  
+
   // Enhanced death messages
   const deathTitleMessages = {
     health: ['You Died', 'Your body could no longer carry on'],
@@ -307,31 +318,29 @@ function DeathPopup() {
   const completedAchievements = (gameState.achievements || []).filter(a => a.completed);
   const totalAchievements = completedAchievements.length;
   const topAchievements = completedAchievements.slice(0, 5);
-  
+
   const completedEducation = (gameState.educations || []).filter(e => e.completed);
-  const highestEducation = completedEducation.length > 0 
+  const highestEducation = completedEducation.length > 0
     ? completedEducation[completedEducation.length - 1]
     : null;
-  
-  const currentJob = gameState.currentJob 
-    ? gameState.careers?.find(c => c.id === gameState.currentJob) || gameState.streetJobs?.find(j => j.id === gameState.currentJob)
+
+  const currentJob = gameState.currentJob
+    ? gameState.careers?.find(job => job.id === gameState.currentJob) || gameState.streetJobs?.find(j => j.id === gameState.currentJob)
     : null;
-  
+
   const ownedProperties = (gameState.realEstate || []).filter(p => p.owned);
   const ownedCompanies = gameState.companies || [];
-  
+
   const spouse = gameState.family?.spouse;
   const children = gameState.family?.children || [];
-  
+
   const totalNetWorth = inheritanceSummary.totalNetWorth;
-  
+
   // Additional life statistics
   const lifetimeStats = gameState.prestige?.lifetimeStats;
   const totalRelationships = (gameState.relationships || []).length;
-  const totalWeeksWorked = lifetimeStats?.totalWeeksLived || weeksLived;
-  const totalMoneyEarned = lifetimeStats?.totalMoneyEarned || safeStats(gameState).money || 0;
   const maxNetWorth = lifetimeStats?.maxNetWorth || totalNetWorth;
-  
+
   // Calculate career level if available
   const careerLevel = currentJob && 'level' in currentJob && typeof currentJob.level === 'number'
     ? currentJob.level + 1
@@ -341,9 +350,9 @@ function DeathPopup() {
 
   return (
     <>
-    <Modal 
-      visible={true} 
-      transparent 
+    <Modal
+      visible={true}
+      transparent
       animationType="fade"
       statusBarTranslucent={true}
       presentationStyle="overFullScreen"
@@ -363,26 +372,26 @@ function DeathPopup() {
         >
           {(
             <LinearGradient
-              colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F8FAFC', '#FFFFFF', '#F1F5F9']}
+              colors={[c.background, c.surface, c.surfaceElevated]}
               style={styles.card}
             >
               {/* Fixed header — identity of the screen, shown on both tabs */}
               <View style={styles.fixedHeader}>
                 <View style={styles.header}>
-                  <View style={[styles.iconContainer, settings.darkMode && styles.iconContainerDark]}>
-                    <Skull size={40} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
+                  <View style={styles.iconContainer}>
+                    <Skull size={40} color={c.text} />
                   </View>
                   <View style={styles.headerText}>
-                    <Text style={[styles.mainTitle, settings.darkMode && styles.mainTitleDark]}>
+                    <Text style={styles.mainTitle}>
                       {deathTitle}
                     </Text>
-                    <Text style={[styles.subtitle, settings.darkMode && styles.subtitleDark]}>
+                    <Text style={styles.subtitle}>
                       {deathSubtitle}
                     </Text>
-                    <Text style={[styles.nameText, settings.darkMode && styles.nameTextDark]}>
+                    <Text style={styles.nameText}>
                       {safeUserProfile(gameState).name || 'Unknown Soul'}
                     </Text>
-                    <Text style={[styles.details, settings.darkMode && styles.detailsDark]}>
+                    <Text style={styles.details}>
                       Age {age} • {yearsLived > 0 ? `${yearsLived} years lived` : `${weeksLived} weeks lived`} • {deathMessage}
                     </Text>
                   </View>
@@ -390,20 +399,14 @@ function DeathPopup() {
 
                 {/* Life Ribbon */}
                 {lifeRibbon && (
-                  <View
-                    style={[
-                      styles.ribbonBanner,
-                      settings.darkMode && styles.ribbonBannerDark,
-                      { borderColor: lifeRibbon.color },
-                    ]}
-                  >
+                  <View style={[styles.ribbonBanner, { borderColor: lifeRibbon.color }]}>
                     <View style={styles.ribbonTextContainer}>
                       <Text style={[styles.ribbonName, { color: lifeRibbon.color }]}>
                         {lifeRibbon.hidden && !gameState.ribbonCollection?.discoveredIds?.includes(lifeRibbon.id)
                           ? 'NEW RIBBON DISCOVERED!'
                           : lifeRibbon.name}
                       </Text>
-                      <Text style={[styles.ribbonDesc, settings.darkMode && styles.summaryLabelDark]}>
+                      <Text style={styles.ribbonDesc}>
                         {lifeRibbon.description}
                       </Text>
                     </View>
@@ -412,59 +415,33 @@ function DeathPopup() {
               </View>
 
               {/* Tab bar */}
-              <View style={[styles.tabRow, settings.darkMode && styles.tabRowDark]}>
+              <View style={styles.tabRow}>
                 <TouchableOpacity
                   style={styles.tabBtn}
-                  onPress={() => setActiveTab('summary')}
+                  onPress={handleSelectSummaryTab}
                   activeOpacity={0.7}
                 >
                   <View style={styles.tabContent}>
-                    <Sparkles
-                      size={15}
-                      color={
-                        activeTab === 'summary'
-                          ? (settings.darkMode ? '#F8FAFC' : '#111827')
-                          : (settings.darkMode ? 'rgba(226, 232, 240, 0.55)' : 'rgba(107, 114, 128, 0.7)')
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.tabLabel,
-                        settings.darkMode && styles.tabLabelDark,
-                        activeTab === 'summary' && (settings.darkMode ? styles.tabLabelActiveDark : styles.tabLabelActive),
-                      ]}
-                    >
+                    <Sparkles size={15} color={activeTab === 'summary' ? c.text : c.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'summary' && styles.tabLabelActive]}>
                       Summary
                     </Text>
                   </View>
-                  {activeTab === 'summary' && <View style={[styles.tabUnderline, { backgroundColor: '#8B5CF6' }]} />}
+                  {activeTab === 'summary' && <View style={[styles.tabUnderline, { backgroundColor: theme.palette.fitness }]} />}
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.tabBtn}
-                  onPress={() => setActiveTab('legacy')}
+                  onPress={handleSelectLegacyTab}
                   activeOpacity={0.7}
                 >
                   <View style={styles.tabContent}>
-                    <Crown
-                      size={15}
-                      color={
-                        activeTab === 'legacy'
-                          ? (settings.darkMode ? '#F8FAFC' : '#111827')
-                          : (settings.darkMode ? 'rgba(226, 232, 240, 0.55)' : 'rgba(107, 114, 128, 0.7)')
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.tabLabel,
-                        settings.darkMode && styles.tabLabelDark,
-                        activeTab === 'legacy' && (settings.darkMode ? styles.tabLabelActiveDark : styles.tabLabelActive),
-                      ]}
-                    >
+                    <Crown size={15} color={activeTab === 'legacy' ? c.text : c.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'legacy' && styles.tabLabelActive]}>
                       Legacy
                     </Text>
                   </View>
-                  {activeTab === 'legacy' && <View style={[styles.tabUnderline, { backgroundColor: '#6366F1' }]} />}
+                  {activeTab === 'legacy' && <View style={[styles.tabUnderline, { backgroundColor: theme.palette.primary }]} />}
                 </TouchableOpacity>
               </View>
 
@@ -481,24 +458,24 @@ function DeathPopup() {
                 {/* Life Summary Section */}
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Sparkles size={20} color={settings.darkMode ? '#FCD34D' : '#F59E0B'} />
-                    <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                    <Sparkles size={20} color={settings.darkMode ? accent.gold : accent.warning} />
+                    <Text style={styles.sectionTitle}>
                       Life Summary
                     </Text>
                   </View>
-                  
-                  <View style={[styles.summaryCard, settings.darkMode && styles.summaryCardDark]}>
+
+                  <View style={styles.summaryCard}>
                     {/* Career */}
                     {currentJob && (
                       <View style={styles.summaryRow}>
                         <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                          <Briefcase size={18} color="#3B82F6" />
+                          <Briefcase size={18} color={accent.info} />
                         </View>
                         <View style={styles.summaryContent}>
-                          <Text style={[styles.summaryLabel, settings.darkMode && styles.summaryLabelDark]}>
+                          <Text style={styles.summaryLabel}>
                             Final Career
                           </Text>
-                          <Text style={[styles.summaryValue, settings.darkMode && styles.summaryValueDark]}>
+                          <Text style={styles.summaryValue}>
                             {('name' in currentJob ? currentJob.name : currentJob.levels?.[currentJob.level]?.name) || 'Unknown'}
                           </Text>
                         </View>
@@ -509,13 +486,13 @@ function DeathPopup() {
                     {highestEducation && (
                       <View style={styles.summaryRow}>
                         <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                          <GraduationCap size={18} color="#8B5CF6" />
+                          <GraduationCap size={18} color={theme.palette.fitness} />
                         </View>
                         <View style={styles.summaryContent}>
-                          <Text style={[styles.summaryLabel, settings.darkMode && styles.summaryLabelDark]}>
+                          <Text style={styles.summaryLabel}>
                             Education
                           </Text>
-                          <Text style={[styles.summaryValue, settings.darkMode && styles.summaryValueDark]}>
+                          <Text style={styles.summaryValue}>
                             {highestEducation.name || 'None'}
                           </Text>
                         </View>
@@ -525,13 +502,13 @@ function DeathPopup() {
                     {/* Family */}
                     <View style={styles.summaryRow}>
                       <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(236, 72, 153, 0.1)' }]}>
-                        <Users size={18} color="#EC4899" />
+                        <Users size={18} color={theme.palette.reputation} />
                       </View>
                       <View style={styles.summaryContent}>
-                        <Text style={[styles.summaryLabel, settings.darkMode && styles.summaryLabelDark]}>
+                        <Text style={styles.summaryLabel}>
                           Family
                         </Text>
-                        <Text style={[styles.summaryValue, settings.darkMode && styles.summaryValueDark]}>
+                        <Text style={styles.summaryValue}>
                           {spouse ? `Married to ${spouse.name}` : 'Single'} • {children.length} {children.length === 1 ? 'child' : 'children'}
                         </Text>
                       </View>
@@ -541,13 +518,13 @@ function DeathPopup() {
                     {ownedProperties.length > 0 && (
                       <View style={styles.summaryRow}>
                         <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                          <Home size={18} color="#10B981" />
+                          <Home size={18} color={accent.success} />
                         </View>
                         <View style={styles.summaryContent}>
-                          <Text style={[styles.summaryLabel, settings.darkMode && styles.summaryLabelDark]}>
+                          <Text style={styles.summaryLabel}>
                             Properties Owned
                           </Text>
-                          <Text style={[styles.summaryValue, settings.darkMode && styles.summaryValueDark]}>
+                          <Text style={styles.summaryValue}>
                             {ownedProperties.length} {ownedProperties.length === 1 ? 'property' : 'properties'}
                           </Text>
                         </View>
@@ -558,13 +535,13 @@ function DeathPopup() {
                     {ownedCompanies.length > 0 && (
                       <View style={styles.summaryRow}>
                         <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
-                          <Building2 size={18} color="#F59E0B" />
+                          <Building2 size={18} color={accent.warning} />
                         </View>
                         <View style={styles.summaryContent}>
-                          <Text style={[styles.summaryLabel, settings.darkMode && styles.summaryLabelDark]}>
+                          <Text style={styles.summaryLabel}>
                             Companies Owned
                           </Text>
-                          <Text style={[styles.summaryValue, settings.darkMode && styles.summaryValueDark]}>
+                          <Text style={styles.summaryValue}>
                             {ownedCompanies.length} {ownedCompanies.length === 1 ? 'company' : 'companies'}
                           </Text>
                         </View>
@@ -575,13 +552,13 @@ function DeathPopup() {
                     {totalAchievements > 0 && (
                       <View style={styles.summaryRow}>
                         <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
-                          <Trophy size={18} color="#A855F7" />
+                          <Trophy size={18} color={accent.purple} />
                         </View>
                         <View style={styles.summaryContent}>
-                          <Text style={[styles.summaryLabel, settings.darkMode && styles.summaryLabelDark]}>
+                          <Text style={styles.summaryLabel}>
                             Achievements
                           </Text>
-                          <Text style={[styles.summaryValue, settings.darkMode && styles.summaryValueDark]}>
+                          <Text style={styles.summaryValue}>
                             {totalAchievements} {totalAchievements === 1 ? 'achievement' : 'achievements'} unlocked
                           </Text>
                         </View>
@@ -592,9 +569,9 @@ function DeathPopup() {
                     {topAchievements.length > 0 && (
                       <View style={styles.achievementsList}>
                         {topAchievements.map((ach, idx) => (
-                          <View key={ach.id || idx} style={[styles.achievementBadge, settings.darkMode && styles.achievementBadgeDark]}>
-                            <Trophy size={12} color="#F59E0B" />
-                            <Text style={[styles.achievementText, settings.darkMode && styles.achievementTextDark]}>
+                          <View key={ach.id || idx} style={styles.achievementBadge}>
+                            <Trophy size={12} color={accent.warning} />
+                            <Text style={styles.achievementText}>
                               {ach.name}
                             </Text>
                           </View>
@@ -606,25 +583,25 @@ function DeathPopup() {
 
                 {/* Stats Cards */}
                 <View style={styles.statsContainer}>
-                  <View style={[styles.statCard, settings.darkMode && styles.statCardDark]}>
+                  <View style={styles.statCard}>
                     <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                      <DollarSign size={20} color="#10B981" />
+                      <DollarSign size={20} color={accent.success} />
                     </View>
                     <View style={styles.statContent}>
-                      <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>Net Worth</Text>
-                      <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
+                      <Text style={styles.statLabel}>Net Worth</Text>
+                      <Text style={styles.statValue}>
                         {formatMoney(inheritanceSummary.totalNetWorth)}
                       </Text>
                     </View>
                   </View>
 
-                  <View style={[styles.statCard, settings.darkMode && styles.statCardDark]}>
+                  <View style={styles.statCard}>
                     <View style={[styles.statIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                      <Crown size={20} color="#8B5CF6" />
+                      <Crown size={20} color={theme.palette.fitness} />
                     </View>
                     <View style={styles.statContent}>
-                      <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>Generation</Text>
-                      <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
+                      <Text style={styles.statLabel}>Generation</Text>
+                      <Text style={styles.statValue}>
                         {gameState.generationNumber || 1}
                       </Text>
                     </View>
@@ -634,39 +611,39 @@ function DeathPopup() {
                 {/* Life Statistics */}
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Calendar size={20} color={settings.darkMode ? '#8B5CF6' : '#6366F1'} />
-                    <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                    <Calendar size={20} color={settings.darkMode ? theme.palette.fitness : theme.palette.primary} />
+                    <Text style={styles.sectionTitle}>
                       Life Statistics
                     </Text>
                   </View>
-                  
-                  <View style={[styles.statsGrid, settings.darkMode && styles.statsGridDark]}>
-                    <View style={[styles.statBox, settings.darkMode && styles.statBoxDark]}>
-                      <Text style={[styles.statBoxLabel, settings.darkMode && styles.statBoxLabelDark]}>Weeks Lived</Text>
-                      <Text style={[styles.statBoxValue, settings.darkMode && styles.statBoxValueDark]}>
+
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statBoxLabel}>Weeks Lived</Text>
+                      <Text style={styles.statBoxValue}>
                         {weeksLived}
                       </Text>
                     </View>
-                    
-                    <View style={[styles.statBox, settings.darkMode && styles.statBoxDark]}>
-                      <Text style={[styles.statBoxLabel, settings.darkMode && styles.statBoxLabelDark]}>Relationships</Text>
-                      <Text style={[styles.statBoxValue, settings.darkMode && styles.statBoxValueDark]}>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statBoxLabel}>Relationships</Text>
+                      <Text style={styles.statBoxValue}>
                         {totalRelationships}
                       </Text>
                     </View>
-                    
+
                     {careerLevel && (
-                      <View style={[styles.statBox, settings.darkMode && styles.statBoxDark]}>
-                        <Text style={[styles.statBoxLabel, settings.darkMode && styles.statBoxLabelDark]}>Career Level</Text>
-                        <Text style={[styles.statBoxValue, settings.darkMode && styles.statBoxValueDark]}>
+                      <View style={styles.statBox}>
+                        <Text style={styles.statBoxLabel}>Career Level</Text>
+                        <Text style={styles.statBoxValue}>
                           {careerLevel}
                         </Text>
                       </View>
                     )}
-                    
-                    <View style={[styles.statBox, settings.darkMode && styles.statBoxDark]}>
-                      <Text style={[styles.statBoxLabel, settings.darkMode && styles.statBoxLabelDark]}>Peak Net Worth</Text>
-                      <Text style={[styles.statBoxValue, settings.darkMode && styles.statBoxValueDark]}>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statBoxLabel}>Peak Net Worth</Text>
+                      <Text style={styles.statBoxValue}>
                         {formatMoney(maxNetWorth)}
                       </Text>
                     </View>
@@ -686,39 +663,39 @@ function DeathPopup() {
                   return earnedPoints > 0 ? (
                     <View style={styles.section}>
                       <View style={styles.sectionHeader}>
-                        <Crown size={20} color="#F59E0B" />
-                        <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                        <Crown size={20} color={accent.warning} />
+                        <Text style={styles.sectionTitle}>
                           Prestige Points Earned
                         </Text>
                       </View>
-                      <View style={[styles.prestigePreviewCard, settings.darkMode && styles.prestigePreviewCardDark]}>
+                      <View style={styles.prestigePreviewCard}>
                         <Text style={styles.prestigePointsValue}>
                           {earnedPoints.toLocaleString()} pts
                         </Text>
-                        <Text style={[styles.prestigeHint, settings.darkMode && styles.prestigeHintDark]}>
+                        <Text style={styles.prestigeHint}>
                           Use prestige points to start your next life stronger
                         </Text>
                         <View style={styles.prestigeBuyList}>
                           {canBuySmallInheritance && (
                             <View style={styles.prestigeBuyItem}>
-                              <DollarSign size={14} color="#10B981" />
-                              <Text style={[styles.prestigeBuyText, settings.darkMode && styles.prestigeBuyTextDark]}>
+                              <DollarSign size={14} color={accent.success} />
+                              <Text style={styles.prestigeBuyText}>
                                 +$10,000 starting money (500 pts)
                               </Text>
                             </View>
                           )}
                           {canBuyStatBoost && (
                             <View style={styles.prestigeBuyItem}>
-                              <TrendingUp size={14} color="#3B82F6" />
-                              <Text style={[styles.prestigeBuyText, settings.darkMode && styles.prestigeBuyTextDark]}>
+                              <TrendingUp size={14} color={accent.info} />
+                              <Text style={styles.prestigeBuyText}>
                                 +5 to all starting stats (1,000 pts)
                               </Text>
                             </View>
                           )}
                           {canBuyModestInheritance && (
                             <View style={styles.prestigeBuyItem}>
-                              <Sparkles size={14} color="#F59E0B" />
-                              <Text style={[styles.prestigeBuyText, settings.darkMode && styles.prestigeBuyTextDark]}>
+                              <Sparkles size={14} color={accent.warning} />
+                              <Text style={styles.prestigeBuyText}>
                                 +$50,000 starting money (2,000 pts)
                               </Text>
                             </View>
@@ -735,29 +712,29 @@ function DeathPopup() {
                 <>
                 {/* Inheritance Breakdown */}
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                  <Text style={styles.sectionTitle}>
                     Inheritance Breakdown
                   </Text>
 
-                  <View style={[styles.breakdownCard, settings.darkMode && styles.breakdownCardDark]}>
+                  <View style={styles.breakdownCard}>
                     <View style={styles.breakdownRow}>
-                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Cash</Text>
-                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                      <Text style={styles.breakdownLabel}>Cash</Text>
+                      <Text style={styles.breakdownValue}>
                         {formatMoney(inheritanceSummary.cash)}
                       </Text>
                     </View>
 
                     <View style={styles.breakdownRow}>
-                      <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Savings</Text>
-                      <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                      <Text style={styles.breakdownLabel}>Savings</Text>
+                      <Text style={styles.breakdownValue}>
                         {formatMoney(inheritanceSummary.bankSavings)}
                       </Text>
                     </View>
 
                     {inheritanceSummary.realEstateIds.length > 0 && (
                       <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Properties</Text>
-                        <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        <Text style={styles.breakdownLabel}>Properties</Text>
+                        <Text style={styles.breakdownValue}>
                           {inheritanceSummary.realEstateIds.length}
                         </Text>
                       </View>
@@ -765,8 +742,8 @@ function DeathPopup() {
 
                     {inheritanceSummary.companyIds.length > 0 && (
                       <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, settings.darkMode && styles.breakdownLabelDark]}>Companies</Text>
-                        <Text style={[styles.breakdownValue, settings.darkMode && styles.breakdownValueDark]}>
+                        <Text style={styles.breakdownLabel}>Companies</Text>
+                        <Text style={styles.breakdownValue}>
                           {inheritanceSummary.companyIds.length}
                         </Text>
                       </View>
@@ -774,8 +751,8 @@ function DeathPopup() {
 
                     {inheritanceSummary.debts > 0 && (
                       <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, { color: '#EF4444' }]}>Debts</Text>
-                        <Text style={[styles.breakdownValue, { color: '#EF4444' }]}>
+                        <Text style={[styles.breakdownLabel, { color: accent.danger }]}>Debts</Text>
+                        <Text style={[styles.breakdownValue, { color: accent.danger }]}>
                           -{formatMoney(inheritanceSummary.debts)}
                         </Text>
                       </View>
@@ -785,17 +762,17 @@ function DeathPopup() {
 
                 {/* Legacy Bonuses */}
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                  <Text style={styles.sectionTitle}>
                     Legacy Bonuses
                   </Text>
-                  
-                  <View style={[styles.bonusesCard, settings.darkMode && styles.bonusesCardDark]}>
+
+                  <View style={styles.bonusesCard}>
                     <View style={styles.bonusItem}>
                       <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                        <TrendingUp size={16} color="#10B981" />
+                        <TrendingUp size={16} color={accent.success} />
                       </View>
                       <View style={styles.bonusContent}>
-                        <Text style={[styles.bonusLabel, settings.darkMode && styles.bonusLabelDark]}>Income</Text>
+                        <Text style={styles.bonusLabel}>Income</Text>
                         <Text style={styles.bonusValue}>
                           +{((inheritanceSummary.legacyBonuses.incomeMultiplier - 1) * 100).toFixed(1)}%
                         </Text>
@@ -804,10 +781,10 @@ function DeathPopup() {
 
                     <View style={styles.bonusItem}>
                       <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                        <Brain size={16} color="#8B5CF6" />
+                        <Brain size={16} color={theme.palette.fitness} />
                       </View>
                       <View style={styles.bonusContent}>
-                        <Text style={[styles.bonusLabel, settings.darkMode && styles.bonusLabelDark]}>Learning</Text>
+                        <Text style={styles.bonusLabel}>Learning</Text>
                         <Text style={styles.bonusValue}>
                           +{((inheritanceSummary.legacyBonuses.learningMultiplier - 1) * 100).toFixed(1)}%
                         </Text>
@@ -816,10 +793,10 @@ function DeathPopup() {
 
                     <View style={styles.bonusItem}>
                       <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                        <Award size={16} color="#3B82F6" />
+                        <Award size={16} color={accent.info} />
                       </View>
                       <View style={styles.bonusContent}>
-                        <Text style={[styles.bonusLabel, settings.darkMode && styles.bonusLabelDark]}>Reputation</Text>
+                        <Text style={styles.bonusLabel}>Reputation</Text>
                         <Text style={styles.bonusValue}>
                           +{inheritanceSummary.legacyBonuses.reputationBonus}
                         </Text>
@@ -831,28 +808,27 @@ function DeathPopup() {
                 {/* Children Selection */}
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Users size={20} color={settings.darkMode ? '#EC4899' : '#F43F5E'} />
-                    <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>
+                    <Users size={20} color={theme.palette.reputation} />
+                    <Text style={styles.sectionTitle}>
                       Continue Legacy
                     </Text>
                   </View>
-                  
+
                   {heirs.length > 0 ? (
                     <>
-                      <Text style={[styles.childrenNote, settings.darkMode && styles.childrenNoteDark]}>
+                      <Text style={styles.childrenNote}>
                         Select a child to continue your legacy. Children under 18 will be simulated to age 18.
                       </Text>
                       <View style={styles.childrenList}>
-                        {heirs.map(({ child, stats, traits, inheritance, educationLevel, careerPath, savings, age }) => {
+                        {heirs.map(({ child, inheritance, educationLevel, careerPath, savings, age }) => {
                           const isSelected = selectedHeirId === child.id;
-                          const totalNetWorth = inheritance + savings;
-                          
+                          const childTotalNetWorth = inheritance + savings;
+
                           return (
                             <TouchableOpacity
                               key={child.id}
                               style={[
                                 styles.childCard,
-                                settings.darkMode && styles.childCardDark,
                                 isSelected && styles.childCardSelected
                               ]}
                               onPress={() => setSelectedHeirId(child.id)}
@@ -864,17 +840,17 @@ function DeathPopup() {
                                   style={styles.childImage}
                                 />
                                 <View style={styles.childInfo}>
-                                  <Text style={[styles.childName, settings.darkMode && styles.childNameDark]}>
+                                  <Text style={styles.childName}>
                                     {child.name}
                                   </Text>
-                                  <Text style={[styles.childDetails, settings.darkMode && styles.childDetailsDark]}>
+                                  <Text style={styles.childDetails}>
                                     Age {age} • {child.gender === 'male' ? 'Son' : 'Daughter'}
                                   </Text>
                                   {educationLevel && educationLevel !== 'none' && (
                                     <View style={styles.badgeContainer}>
                                       <View style={[styles.badge, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                                        <Text style={[styles.badgeText, { color: '#3B82F6' }]}>
-                                          {educationLevel === 'university' ? 'University' : 
+                                        <Text style={[styles.badgeText, { color: accent.info }]}>
+                                          {educationLevel === 'university' ? 'University' :
                                            educationLevel === 'specialized' ? 'Specialized' : 'High School'}
                                         </Text>
                                       </View>
@@ -883,7 +859,7 @@ function DeathPopup() {
                                   {careerPath && (
                                     <View style={styles.badgeContainer}>
                                       <View style={[styles.badge, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                                        <Text style={[styles.badgeText, { color: '#8B5CF6' }]}>
+                                        <Text style={[styles.badgeText, { color: theme.palette.fitness }]}>
                                           {careerPath === 'entrepreneur' ? 'Entrepreneur' :
                                            careerPath === 'professional' ? 'Professional' :
                                            careerPath === 'whiteCollar' ? 'White Collar' : 'Blue Collar'}
@@ -894,28 +870,28 @@ function DeathPopup() {
                                 </View>
                                 {isSelected && (
                                   <View style={styles.selectedBadge}>
-                                    <Check size={20} color="#10B981" />
+                                    <Check size={20} color={accent.success} />
                                   </View>
                                 )}
                               </View>
 
-                              <View style={[styles.childNetWorthCard, settings.darkMode && styles.childNetWorthCardDark]}>
+                              <View style={styles.childNetWorthCard}>
                                 <View style={styles.childNetWorthRow}>
-                                  <DollarSign size={16} color="#10B981" />
-                                  <Text style={[styles.childNetWorthLabel, settings.darkMode && styles.childNetWorthLabelDark]}>
+                                  <DollarSign size={16} color={accent.success} />
+                                  <Text style={styles.childNetWorthLabel}>
                                     Net Worth
                                   </Text>
                                   <Text style={styles.childNetWorthValue}>
-                                    {formatMoney(totalNetWorth)}
+                                    {formatMoney(childTotalNetWorth)}
                                   </Text>
                                 </View>
                                 {inheritance > 0 && (
-                                  <Text style={[styles.childInheritanceText, settings.darkMode && styles.childInheritanceTextDark]}>
+                                  <Text style={styles.childInheritanceText}>
                                     Inheritance: {formatMoney(inheritance)}
                                   </Text>
                                 )}
                                 {savings > 0 && (
-                                  <Text style={[styles.childInheritanceText, settings.darkMode && styles.childInheritanceTextDark]}>
+                                  <Text style={styles.childInheritanceText}>
                                     Savings: {formatMoney(savings)}
                                   </Text>
                                 )}
@@ -926,9 +902,9 @@ function DeathPopup() {
                       </View>
                     </>
                   ) : (
-                    <View style={[styles.noChildrenCard, settings.darkMode && styles.noChildrenCardDark]}>
-                      <Users size={32} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
-                      <Text style={[styles.noChildrenText, settings.darkMode && styles.noChildrenTextDark]}>
+                    <View style={styles.noChildrenCard}>
+                      <Users size={32} color={c.textSecondary} />
+                      <Text style={styles.noChildrenText}>
                         You have no children to continue your legacy.
                       </Text>
                     </View>
@@ -940,7 +916,7 @@ function DeathPopup() {
               </View>
 
               {/* Actions */}
-              <View style={[styles.actions, settings.darkMode && styles.actionsDark]}>
+              <View style={styles.actions}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.reviveButton, safeStats(gameState).gems < REVIVE_GEM_COST && styles.disabledButton]}
                   onPress={handleRevive}
@@ -948,7 +924,7 @@ function DeathPopup() {
                   activeOpacity={0.8}
                 >
                   <LinearGradient
-                    colors={safeStats(gameState).gems >= REVIVE_GEM_COST ? ['#10B981', '#059669'] : ['#9CA3AF', '#6B7280']}
+                    colors={safeStats(gameState).gems >= REVIVE_GEM_COST ? [accent.success, '#059669'] : ['#9CA3AF', '#6B7280']}
                     style={styles.buttonGradient}
                   >
                     <Heart size={18} color="#FFF" />
@@ -961,7 +937,7 @@ function DeathPopup() {
                 {/* Time Machine — Rewind to checkpoint (cheaper than revive) */}
                 {checkpoints.length > 0 && (
                   <View style={styles.rewindSection}>
-                    <Text style={[styles.rewindTitle, settings.darkMode && { color: '#F9FAFB' }]}>
+                    <Text style={styles.rewindTitle}>
                       Rewind Time ({rewindCost.toLocaleString()} Gems)
                     </Text>
                     {checkpoints.slice().reverse().map((cp: any) => (
@@ -972,8 +948,8 @@ function DeathPopup() {
                         disabled={!canAffordRewind}
                         activeOpacity={0.7}
                       >
-                        <RotateCcw size={14} color={canAffordRewind ? '#F59E0B' : '#9CA3AF'} />
-                        <Text style={[styles.rewindChipText, !canAffordRewind && { color: '#9CA3AF' }]}>
+                        <RotateCcw size={14} color={canAffordRewind ? accent.warning : c.textSecondary} />
+                        <Text style={[styles.rewindChipText, !canAffordRewind && { color: c.textSecondary }]}>
                           {cp.label} (Age {cp.age})
                         </Text>
                       </TouchableOpacity>
@@ -982,13 +958,13 @@ function DeathPopup() {
                 )}
 
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.continueButton, (heirs.length === 0 || !selectedHeirId) && styles.disabledButton]} 
+                  style={[styles.actionButton, styles.continueButton, (heirs.length === 0 || !selectedHeirId) && styles.disabledButton]}
                   onPress={handleContinueLegacy}
                   disabled={heirs.length === 0 || !selectedHeirId}
                   activeOpacity={0.8}
                 >
-                  <LinearGradient 
-                    colors={(heirs.length === 0 || !selectedHeirId) ? ['#9CA3AF', '#6B7280'] : ['#6366F1', '#4F46E5']} 
+                  <LinearGradient
+                    colors={(heirs.length === 0 || !selectedHeirId) ? ['#9CA3AF', '#6B7280'] : [theme.palette.primary, theme.palette.primaryDark]}
                     style={styles.buttonGradient}
                   >
                     <Crown size={18} color="#FFF" />
@@ -1012,23 +988,23 @@ function DeathPopup() {
                 {/* Secondary actions — compact row */}
                 <View style={styles.secondaryRow}>
                   <TouchableOpacity
-                    style={[styles.secondaryButton, settings.darkMode && styles.secondaryButtonDark]}
-                    onPress={() => setShowLifeStory(true)}
+                    style={styles.secondaryButton}
+                    onPress={handleShowLifeStory}
                     activeOpacity={0.8}
                   >
-                    <BookOpen size={16} color={settings.darkMode ? '#E2E8F0' : '#374151'} />
-                    <Text style={[styles.secondaryButtonText, settings.darkMode && styles.secondaryButtonTextDark]}>
+                    <BookOpen size={16} color={c.text} />
+                    <Text style={styles.secondaryButtonText}>
                       Read Story
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.secondaryButton, settings.darkMode && styles.secondaryButtonDark]}
+                    style={styles.secondaryButton}
                     onPress={handleShareObituary}
                     activeOpacity={0.8}
                   >
-                    <Share2 size={16} color={settings.darkMode ? '#E2E8F0' : '#374151'} />
-                    <Text style={[styles.secondaryButtonText, settings.darkMode && styles.secondaryButtonTextDark]}>
+                    <Share2 size={16} color={c.text} />
+                    <Text style={styles.secondaryButtonText}>
                       Share
                     </Text>
                   </TouchableOpacity>
@@ -1039,10 +1015,10 @@ function DeathPopup() {
         </Animated.View>
       </View>
     </Modal>
-    <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
+    <LifeStoryModal visible={showLifeStory} onClose={handleHideLifeStory} />
     <PrestigeModal
       visible={showPrestigeModal}
-      onClose={() => setShowPrestigeModal(false)}
+      onClose={handleHidePrestige}
     />
     </>
   );
