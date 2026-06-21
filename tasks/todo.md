@@ -15,6 +15,51 @@ banners across the whole UI before the ~5s auto-dismiss could clear them.
 - [x] 2. Verify type-check (clean) + unit test `__tests__/components/uiuxBannerCap.test.ts` (4/4) + `realProviderLoop.stress` (7/7, drives 500 real nextWeek ticks).
   - Caught + fixed a `slice(-0)===slice(0)` edge case during testing (would have kept the whole advisory list when real errors filled the cap).
 
+## 🧹 Stability hardening audit pass (2026-06-21)
+
+Ran static `audit:weekly` (green, 1 minor warn) + 3 parallel review agents (spam/
+unbounded-queue, crash/stability, week-loop/game-state). Fixed the highest-value,
+lowest-risk findings — all in the "won't crash / won't flood / won't leak" family:
+
+- [x] **Week-loop brick vectors (HIGH):** crypto/banking/dark-web weekly ticks ran
+  inside the `setGameState` updater with no inner guard; on a partially-migrated
+  save (slice present but an optional array missing) an unguarded `.map()`/`.length`/
+  spread threw → outer catch returns prevState → "Next Week" silently soft-locks.
+  Guarded the optional arrays at the root: `lib/crypto/weeklyTick.ts` (coinMarkets×2,
+  dcaRules, banking.accounts), `lib/banking/weeklyTick.ts` (accounts),
+  `lib/darkweb/weeklyTick.ts` (activeJobs/recentEvents normalized at entry).
+  Regression test `__tests__/refactor/partialMigrationTickResilience.test.ts` —
+  which CAUGHT a 2nd crypto crash vector the audit missed (weeklyTick.ts:303).
+- [x] **Death haptic double-fire (HIGH, same class as banner bug):** `haptic.error()`
+  fired INSIDE the death branch of the tick updater (runs 2× under React 19
+  StrictMode / speculative renders). Moved to the single post-updater `deathTriggered`
+  block. `GameActionsContext.tsx`.
+- [x] **MotiStub animation-loop leak (HIGH):** the shared `MotiView` primitive
+  (LoadingSpinner, AnimatedProgressBar) started `Animated.parallel`/`loop` with no
+  cleanup → loops never stopped on unmount (same leak class as the fixed TopStatsBar
+  one). Now captures + stops the composite on cleanup. `components/anim/MotiStub.tsx`.
+- [x] **IdentityCard white-screen guards (HIGH):** unguarded `stats.money`,
+  `stats.{happiness,health,energy}`, `date.age` on a card that renders
+  unconditionally on home — optional-chained (file already guarded the same fields
+  elsewhere). `components/IdentityCard.tsx`.
+- [x] **WeeklyEventModal crash guard (MED):** `gameState.pets.find` → `pets?.find`;
+  this modal mounts outside the home ErrorBoundary on any weekly event.
+- [x] **Enact-policy double-enact exploit (HIGH):** preconditions read the stale
+  snapshot arg, so a rapid double-tap enacted the policy twice (duplicate entry +
+  double money/stat bonuses). Re-check + no-op inside the updater on fresh `prev`.
+  `contexts/game/actions/PoliticalActions.ts`.
+
+Deferred (documented, lower priority / higher-risk — not done this pass):
+- Subsystem ticks use live `Math.random()` inside the updater (determinism/save-scum
+  concern, not a crash) — would need a seeded PRNG threaded through 4 systems.
+- StartJobModal (dark-web) duplicate-job on double-tap; Pet sleep/play double-buff —
+  state bloat / minor, no economic loss.
+- Assorted uncleaned `setTimeout` setState in mobile mini-apps (DMSystem, ChatScreen,
+  health/market tabs) — setState-after-unmount warnings, not crashes.
+
+Verification: `type-check` clean; full non-stress suite 1786 passed; realProviderLoop
+stress 7/7 (drives 500 real `nextWeek` ticks); static `audit:weekly` green.
+
 ## 🩺 Reduce week-advance popups + health issues on player card (2026-06-20)
 
 User: game freezes on "Next Week" (too much happening). Remove health status

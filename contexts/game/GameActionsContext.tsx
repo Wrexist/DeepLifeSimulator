@@ -776,7 +776,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowZeroStatPopup = false;
  newZeroStatType = undefined;
  deathTriggered = true; // Mark that death was triggered
- haptic.error(); // Death — heavy error buzz
+ // NB: haptic fires once post-updater (see deathTriggered block) — calling it
+ // here would double-buzz under React 19 StrictMode / discarded renders.
  logger.warn(`[DEATH] Character died from health reaching 0 for ${newHealthZeroWeeks} weeks`);
  }
  } else {
@@ -805,7 +806,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowZeroStatPopup = false;
  newZeroStatType = undefined;
  deathTriggered = true; // Mark that death was triggered
- haptic.error(); // Death — heavy error buzz
+ // haptic fires once post-updater (see deathTriggered block) to avoid double-buzz.
  logger.warn(`[DEATH] Character died from happiness reaching 0 for ${newHappinessZeroWeeks} weeks`);
  }
  } else {
@@ -840,7 +841,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newShowZeroStatPopup = false;
  newZeroStatType = undefined;
  deathTriggered = true;
- haptic.error();
+ // haptic fires once post-updater (see deathTriggered block) to avoid double-buzz.
  logger.warn(`[DEATH] Character died of old age at ${Math.floor(nextAge)}`);
  }
  }
@@ -1796,6 +1797,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // If death was triggered, stop loading immediately so death popup can show
  // CRITICAL: Stop loading synchronously to prevent blocking the death popup
  if (deathTriggered) {
+ // Fire the death buzz exactly once here — NOT inside the setGameState updater,
+ // which React 19 runs twice in StrictMode and may run speculatively under
+ // concurrent rendering (same double-fire class as the pendingNotifications dedup).
+ haptic.error();
  setIsLoading(false);
  setLoadingMessage('');
  logger.warn('[DEATH] Death triggered - stopped loading immediately to show death popup');

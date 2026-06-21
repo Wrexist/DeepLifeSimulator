@@ -124,9 +124,15 @@ function useAnimatedValues(
       animations = animations.map((anim) => Animated.loop(anim));
     }
 
-    if (animations.length > 0) {
-      Animated.parallel(animations).start();
-    }
+    if (animations.length === 0) return;
+
+    // Capture the composite so it can be stopped on unmount / re-run. Without
+    // this, looping animations (LoadingSpinner, AnimatedProgressBar — both
+    // mount/unmount constantly) kept running on the UI thread forever, the same
+    // leak class fixed in TopStatsBar.
+    const composite = Animated.parallel(animations);
+    composite.start();
+    return () => composite.stop();
   }, [animate]); // Re-run if animate object identity changes
 
   // Build transform array and flat style

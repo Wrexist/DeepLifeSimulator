@@ -22,7 +22,9 @@ export default function WeeklyEventModal() {
 : null;
 
  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
- const pet = event ? gameState.pets.find(p => p.id === event.relationId): undefined;
+ // Optional-chain `pets`: a save predating the field leaves it undefined, and
+ // this modal mounts outside the home ErrorBoundary on any weekly event.
+ const pet = event ? gameState.pets?.find(p => p.id === event.relationId): undefined;
 
  // Emergency dismiss function - clears the current event if something is wrong
  const handleEmergencyDismiss = useCallback(() => {

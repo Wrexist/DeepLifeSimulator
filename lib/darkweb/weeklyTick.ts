@@ -50,7 +50,15 @@ export interface DarkWebWeeklyTickResult {
 }
 
 export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeeklyTickResult {
-  let dw = input.darkWeb;
+  // Normalize optional array slices up front: a partially-migrated save can carry
+  // `darkWeb` without `activeJobs`/`recentEvents`, and an unguarded read
+  // (.length / spread) throws inside the weekly-tick updater, silently bricking
+  // "Next Week". Spread into a fresh object so we never mutate the input.
+  let dw: DarkWebState = {
+    ...input.darkWeb,
+    activeJobs: input.darkWeb.activeJobs || [],
+    recentEvents: input.darkWeb.recentEvents || [],
+  };
   const notifications: DarkWebWeeklyTickResult['notifications'] = [];
   const relationshipDeltas: DarkWebWeeklyTickResult['relationshipDeltas'] = [];
 
