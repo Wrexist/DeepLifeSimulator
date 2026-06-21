@@ -73,10 +73,22 @@ export function tickPetsForWeek(prevPets: Pet[] | undefined | null, rolls: PetTi
     // BUGFIX: previously `newPet.health || 50` accidentally healed a
     // pet at exactly 0 health to 40 (0 || 50 → 50; then -10 = 40),
     // breaking the death progression and silently rescuing dying pets.
-    if (!newPet.isSick && rolls.petSickness[petIdx] < (newPet.health < 40 ? 0.06 : 0.02)) {
+    // Index into the pre-rolled arrays with a wrap so pets BEYOND the
+    // pre-roll length still get a valid roll. petIdx runs over the full pets
+    // array (alive + dead), so a player who has owned more pets than the
+    // pre-roll size would otherwise read `undefined` here — and `undefined <
+    // 0.06` is false, silently making those pets immune to sickness. Modulo
+    // keeps the draw deterministic (no impure Math.random in the updater).
+    const sicknessRoll = rolls.petSickness.length
+      ? rolls.petSickness[petIdx % rolls.petSickness.length]
+      : 1;
+    const sicknessTypeRoll = rolls.petSicknessType.length
+      ? rolls.petSicknessType[petIdx % rolls.petSicknessType.length]
+      : 0;
+    if (!newPet.isSick && sicknessRoll < (newPet.health < 40 ? 0.06 : 0.02)) {
       const sicknesses = ['cold', 'infection', 'parasite', 'injury'];
       newPet.isSick = true;
-      newPet.sickness = sicknesses[Math.floor(rolls.petSicknessType[petIdx] * sicknesses.length)];
+      newPet.sickness = sicknesses[Math.floor(sicknessTypeRoll * sicknesses.length)];
       newPet.health = Math.max(0, (newPet.health ?? 50) - 10);
     }
 

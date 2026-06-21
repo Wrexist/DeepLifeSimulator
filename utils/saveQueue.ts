@@ -690,6 +690,19 @@ class SaveQueue {
         // notifications is a runtime ring buffer (cap 100) but was never pruned
         // on the save path — add a defensive cap here too.
         sm.notifications = tail(sm.notifications, cap(100));
+        // pendingBoosts is append-only (one entry per gem-boosted post) and was
+        // never drained or capped anywhere — cap it so it can't march the save
+        // toward MAX_SAVE_SIZE on a heavy-boost life.
+        sm.pendingBoosts = tail(sm.pendingBoosts, cap(100));
+        // brandInbox.history / .declined accumulate one entry per resolved brand
+        // deal for the whole life with no cap (activeBrandDeals itself IS bounded).
+        if (sm.brandInbox && typeof sm.brandInbox === 'object') {
+          sm.brandInbox = {
+            ...sm.brandInbox,
+            history: tail(sm.brandInbox.history, cap(100)),
+            declined: tail(sm.brandInbox.declined, cap(100)),
+          };
+        }
         pruned.socialMedia = sm;
       }
       if (pruned.gamingStreaming && typeof pruned.gamingStreaming === 'object') {
