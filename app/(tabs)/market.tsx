@@ -86,7 +86,9 @@ function MarketScreenContent() {
       const item = gameState.items.find(i => i.id === itemId);
       const itemPrice = item ? getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) : 0;
       if (!item || gameState.stats.money < itemPrice) {
-        showError("Can't afford this item");
+        // Not an error — just a normal "you need more money" state. Use the
+        // calmer info toast instead of the alarming red error toast.
+        showInfo("Not enough money for this yet");
         setLoading(itemId, false);
         return;
       }
@@ -278,7 +280,7 @@ function MarketScreenContent() {
 
               // Check if can afford before doing anything
               if (gameState.stats.money < itemPrice) {
-                showError("Can't afford this item");
+                showInfo("Not enough money for this yet");
                 return;
               }
 
@@ -326,7 +328,7 @@ function MarketScreenContent() {
               buyFood(food.id);
               showSuccess(`Ate ${food.name}! +${food.healthRestore} health, +${happinessRestore} happiness, +${food.energyRestore} energy`);
             } else {
-              showError("Can't afford this food");
+              showInfo("Not enough money for this yet");
             }
           }}
           title={t('market.buy')}

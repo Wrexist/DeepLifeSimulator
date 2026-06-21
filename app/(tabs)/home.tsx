@@ -15,6 +15,7 @@ import type { GameState } from '@/contexts/game/types';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsProgress from '@/components/AchievementsProgress';
 import IdentityCard from '@/components/IdentityCard';
+import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import PrestigePreviewCard from '@/components/PrestigePreviewCard';
@@ -382,6 +383,12 @@ function HomeScreenContent() {
           <IdentityCard />
         </FadeInUp>
 
+        {/* Non-blocking weekly recap — restores the sense of progress that the
+            (removed) weekly event pop-ups used to provide, without interrupting. */}
+        <FadeInUp delay={20}>
+          <LastWeekRecap />
+        </FadeInUp>
+
         {/* Contextual Tips - shown when player is stuck */}
         {activeTip && (
           <ContextualTip
@@ -433,9 +440,12 @@ function HomeScreenContent() {
           />
         )}
 
-        {/* Prestige Preview Card - hidden in the first 5 weeks. */}
+        {/* Prestige Preview Card — held back until the player is actually
+            established (week 20+ AND some net worth), so early game isn't
+            upsold a system it can't use yet. */}
         {(!gameState.prestige || gameState.prestige.prestigeLevel === 0) &&
-          (gameState.weeksLived || 0) > 5 && (
+          (gameState.weeksLived || 0) > 20 &&
+          (((gameState.stats?.money ?? 0) + (gameState.bankSavings ?? 0)) > 25000) && (
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
 

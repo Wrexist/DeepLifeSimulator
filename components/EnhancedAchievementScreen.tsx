@@ -37,6 +37,7 @@ import { useGame } from '@/contexts/GameContext';
 import { EnhancedAchievement, ACHIEVEMENT_CATEGORIES, ENHANCED_ACHIEVEMENTS, AchievementProgress } from '@/utils/enhancedAchievements';
 import EnhancedAchievementCard from './EnhancedAchievementCard';
 import { useFeedback } from '@/utils/feedbackSystem';
+import { showAchievementToast } from '@/utils/achievementToast';
 
 interface EnhancedAchievementScreenProps {
   visible: boolean;
@@ -191,7 +192,8 @@ export default function EnhancedAchievementScreen({
     });
     saveGame();
     haptic('success');
-    Alert.alert('Reward Claimed', `+${gemReward} gems for ${achievement.title}!`);
+    // Celebratory non-blocking toast instead of a blocking "Reward Claimed" alert.
+    showAchievementToast(achievement.title, 'success', gemReward);
   }, [buttonPress, haptic, gameState, setGameState, saveGame]);
 
   const handleGetHint = useCallback((achievementId: string) => {

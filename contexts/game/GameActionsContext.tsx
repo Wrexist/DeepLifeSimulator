@@ -53,7 +53,6 @@ import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
-import { MILESTONE_MONEY_THRESHOLDS, MILESTONE_PROXIMITY_PERCENT } from '@/lib/config/gameConstants';
 import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/diseaseGenerator';
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
@@ -116,6 +115,7 @@ import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealt
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
 import { applyCliffhangerResolution } from './actions/weekly/applyCliffhangerResolution';
+import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { applyLifeMoment } from './actions/weekly/applyLifeMoment';
 import { applyConsequenceProgression } from './actions/weekly/applyConsequenceProgression';
 import { applyDeathRibbon } from './actions/weekly/applyDeathRibbon';
@@ -1026,6 +1026,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  updatedPendingChainedEvents = stillPending.length > 100 ? stillPending.slice(-100): stillPending;
  }
 
+ // Weekly event "Heads Up" pop-ups are disabled by default (player feedback:
+ // they interrupted the Next Week flow on nearly every tick). Drop everything
+ // queued this tick AND any backlog carried in old saves so the
+ // WeeklyEventModal never appears. The economy simulation itself is unaffected
+ // — only the interrupting notification is suppressed. Re-enable with
+ // EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS=true.
+ if (!FEATURE_FLAGS.weeklyEvents) {
+ updatedPendingEvents = [];
+ updatedPendingChainedEvents = [];
+ }
+
  // R7 Phase 2 step 2.7-D: life moment generation extracted into
  // ./actions/weekly/applyLifeMoment.ts. Same generator call, same merge
  // semantics (preserve existing slice OR initialize when none), same
@@ -1732,30 +1743,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }, 100);
  }
 
- // ENGAGEMENT: Milestone proximity hints — "just one more week" pull
- // Shows a motivational notification when player is close to a milestone.
- // SMOOTHNESS: gate to at most once per in-game month. Previously this fired
- // EVERY week the player sat inside a threshold's proximity band, nagging
- // "Almost There!" repeatedly while they saved up.
- try {
- // R3-A: milestone constants are ES imports.
- const currentState = gameStateRef.current;
- if (currentState && (currentState.weeksLived || 0) % 4 === 0) {
- const currentMoney = currentState.stats?.money || 0;
- for (const threshold of MILESTONE_MONEY_THRESHOLDS) {
- if (currentMoney < threshold && currentMoney >= threshold * (1 - MILESTONE_PROXIMITY_PERCENT)) {
- const remaining = threshold - currentMoney;
- const formatted = remaining >= 1000 ? `$${(remaining / 1000).toFixed(1)}k`: `$${remaining}`;
- setTimeout(() => {
- showInfo('milestone-hint', `${formatted} away from $${threshold >= 1000 ? (threshold / 1000).toLocaleString() + 'k': threshold}!`, 'Almost There');
- }, 800); // Brief delay so it trails the week's primary notifications
- break; // Only show one hint
- }
- }
- }
- } catch (e) {
- // Non-critical — don't break week progression for milestone hints
- }
+ // (Removed) "Almost There!" milestone proximity hints — these fired a toast
+ // every few weeks while the player saved toward a money threshold, which read
+ // as nagging. Progress toward goals is already visible passively on the
+ // dashboard (Active Goals card + the Last Week recap), so the nudge is gone.
 
  // Validate state after update to ensure no corruption. PERF: yield ONE
  // macrotask so React has processed the updater (which populates postTickState),
@@ -2017,7 +2008,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // prevState.diseases would mutate the previous snapshot (StrictMode double-
  // invoke then sees the disease already present and silently skips it).
  let updatedDiseases = [...(prevState.diseases || [])];
- let showSicknessModal = prevState.showSicknessModal;
+ // Preserved as-is (never force-opened) — the health popup is opt-in only.
+ const showSicknessModal = prevState.showSicknessModal;
  let updatedDiseaseHistory = prevState.diseaseHistory || {
  diseases: [],
  totalDiseases: 0,
@@ -2043,7 +2035,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const diseaseExists = updatedDiseases.some(d => d.id === eventDisease.id);
  if (!diseaseExists) {
  updatedDiseases.push(eventDisease);
- showSicknessModal = true;
+ // Do NOT auto-open the health popup — health is surfaced passively on the
+ // player card. (Kept the disease addition; only the interruption is gone.)
 
  // Update disease history (ANTI-BLOAT: cap to the most recent 50,
  // matching applyDiseasesForWeek so the event path can't grow unbounded).

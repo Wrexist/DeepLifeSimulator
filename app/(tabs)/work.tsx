@@ -858,6 +858,19 @@ function WorkScreenContent() {
                                             });
                                             const isApplied = gameState.careers.some(c => c.id === career.id && c.applied);
                                             const isAccepted = gameState.careers.some(c => c.id === career.id && c.accepted);
+                                            // Only an un-applied, unlocked card does anything on tap. Applied /
+                                            // working / locked states are shown inline (badge + requirements)
+                                            // instead of firing a blocking Alert on every tap.
+                                            const actionable = !isLocked && !isApplied && !isAccepted;
+
+                                            const lockReqs: string[] = [];
+                                            if (isLocked) {
+                                                const req = career.unlockRequirements || career.requirements;
+                                                if ('education' in req && req.education) lockReqs.push(`Education: ${req.education.join(', ')}`);
+                                                if ('experience' in req && req.experience) lockReqs.push(`Experience: ${req.experience} weeks`);
+                                                if ('reputation' in req && req.reputation) lockReqs.push(`Reputation: ${req.reputation}+`);
+                                                if ('netWorth' in req && req.netWorth) lockReqs.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
+                                            }
 
                                             return (
                                                 <TouchableOpacity
@@ -867,33 +880,19 @@ function WorkScreenContent() {
                                                         settings.darkMode && styles.careerCardDark,
                                                         isAccepted && styles.careerCardActive,
                                                     ]}
-                                                    onPress={() => {
-                                                        if (isLocked) {
-                                                            const req = career.unlockRequirements || career.requirements;
-                                                            const requirements = [];
-                                                            if ('education' in req && req.education) requirements.push(`Education: ${req.education.join(', ')}`);
-                                                            if ('experience' in req && req.experience) requirements.push(`Experience: ${req.experience} weeks`);
-                                                            if ('reputation' in req && req.reputation) requirements.push(`Reputation: ${req.reputation}+`);
-                                                            if ('netWorth' in req && req.netWorth) requirements.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
-                                                            Alert.alert('Career Locked', `Requirements:\n${requirements.join('\n')}`);
-                                                        } else if (!isApplied) {
-                                                            // Apply for career
-                                                            setGameState(prev => ({
-                                                                ...prev,
-                                                                careers: [...prev.careers, { ...career, applied: true }],
-                                                            }));
-                                                            saveGame();
-                                                            Alert.alert('Application Submitted', `You've applied for ${displayName}!`);
-                                                        } else if (isAccepted) {
-                                                            Alert.alert('Career Active', `You're currently working as ${career.levels?.[career.level]?.name ?? displayName}.`);
-                                                        } else {
-                                                            Alert.alert('Application Pending', 'Your application is being reviewed.');
-                                                        }
-                                                    }}
-                                                    disabled={isLocked}
+                                                    onPress={actionable ? () => {
+                                                        setGameState(prev => ({
+                                                            ...prev,
+                                                            careers: [...prev.careers, { ...career, applied: true }],
+                                                        }));
+                                                        saveGame();
+                                                        showSuccess(`Applied for ${displayName} — your application is under review.`);
+                                                    } : undefined}
+                                                    disabled={!actionable}
+                                                    activeOpacity={actionable ? 0.7 : 1}
                                                 >
                                                     <View style={styles.careerCardHeader}>
-                                                        <View>
+                                                        <View style={{ flex: 1, paddingRight: scale(8) }}>
                                                             <Text style={[styles.careerName, settings.darkMode && styles.careerNameDark]}>
                                                                 {displayName}
                                                             </Text>
@@ -901,9 +900,27 @@ function WorkScreenContent() {
                                                                 {career.description}
                                                             </Text>
                                                         </View>
-                                                        {isLocked && <Lock size={scale(20)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />}
-                                                        {isAccepted && <Check size={scale(20)} color="#22C55E" />}
+                                                        {/* Inline status — replaces the Active/Pending/Locked alerts. */}
+                                                        {isAccepted ? (
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: scale(8), paddingVertical: scale(3), borderRadius: scale(8), backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
+                                                                <Check size={scale(13)} color="#22C55E" />
+                                                                <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#22C55E' }}>Working</Text>
+                                                            </View>
+                                                        ) : isApplied ? (
+                                                            <View style={{ paddingHorizontal: scale(8), paddingVertical: scale(3), borderRadius: scale(8), backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
+                                                                <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#F59E0B' }}>Applied</Text>
+                                                            </View>
+                                                        ) : isLocked ? (
+                                                            <Lock size={scale(20)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
+                                                        ) : null}
                                                     </View>
+
+                                                    {isLocked && lockReqs.length > 0 && (
+                                                        <Text style={[styles.careerDescription, settings.darkMode && styles.careerDescriptionDark, { marginTop: scale(4), fontStyle: 'italic' }]}>
+                                                            Requires — {lockReqs.join(' · ')}
+                                                        </Text>
+                                                    )}
+
                                                     <Text style={[styles.careerSalary, settings.darkMode && styles.careerSalaryDark]}>
                                                         ${(career.levels?.[0]?.salary ?? 0).toLocaleString()}/year
                                                     </Text>

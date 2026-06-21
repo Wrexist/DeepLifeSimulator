@@ -103,7 +103,12 @@ export function applyDiseasesForWeek(
 
   let updatedDiseases: Disease[] = [...(input.prevDiseases || [])];
   let updatedDiseaseHistory: DiseaseHistory = input.prevDiseaseHistory || DEFAULT_DISEASE_HISTORY;
-  let showSicknessModal = input.prevShowSicknessModal;
+  // The health popup must NEVER auto-open or persist across a week advance — it
+  // interrupted the Next Week flow. Health is surfaced passively on the player
+  // card ("Health Issues") and on demand via the TopStatsBar disease badge.
+  // Forcing this false every tick also self-heals any save where the flag got
+  // stuck `true`, which would otherwise re-show the popup on every Next Week.
+  const showSicknessModal = false;
   let lastDiseaseWeek = input.prevLastDiseaseWeek;
   let diseaseDeathTriggered = false;
   let diseaseDeathReason: 'health' | undefined = undefined;
