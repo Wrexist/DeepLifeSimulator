@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import FooterScrim from '@/components/onboarding/FooterScrim';
 import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { useOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { responsivePadding } from '@/utils/scaling';
@@ -66,11 +67,16 @@ export default function OnboardingScreenShellV2({
         {children}
       </Animated.View>
 
-      {/* Floating button */}
+      {/* Floating button + scrim: a transparent→base fade sits behind the pill so
+          list content dissolves into the background instead of showing through
+          the gap around a floating button. */}
       {floatingButton ? (
-        <View style={[styles.floatingButtonWrap, { bottom: 20 + insets.bottom }]}>
-          {floatingButton}
-        </View>
+        <>
+          <FooterScrim color={theme.base} height={150 + insets.bottom} />
+          <View style={[styles.floatingButtonWrap, { bottom: 20 + insets.bottom }]}>
+            {floatingButton}
+          </View>
+        </>
       ) : null}
 
       {/* Optional floating particles */}

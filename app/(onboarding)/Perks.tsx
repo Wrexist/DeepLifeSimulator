@@ -38,6 +38,7 @@ import {
 } from 'lucide-react-native';
 
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
+import FooterScrim from '@/components/onboarding/FooterScrim';
 import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
 import usePressableScale from '@/hooks/usePressableScale';
@@ -756,6 +757,9 @@ export default function Perks() {
             />
           </View>
         </ScrollView>
+
+        {/* Footer scrim: list content dissolves into the base behind the CTA. */}
+        <FooterScrim color="#0B0A08" height={150 + insets.bottom} />
 
         {/* Floating Start Button */}
         <View
