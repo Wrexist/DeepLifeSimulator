@@ -451,7 +451,7 @@ export default function Scenarios() {
 
       <Text style={styles.guidanceText}>
         {activeTab === 'life_paths'
-          ? 'Pick how your life begins. New here? Tap the green "Recommended" path at the top.'
+          ? 'Pick how your life begins. New here? Tap the highlighted "Recommended" path at the top.'
           : 'Challenges add tougher goals and gem rewards — best once you know the game.'}
       </Text>
 

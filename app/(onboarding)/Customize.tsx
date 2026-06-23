@@ -212,7 +212,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+              colors={['rgba(24, 20, 16, 0.85)', 'rgba(16, 13, 10, 0.85)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -224,7 +224,7 @@ export default function Customize() {
                   onPress={handleShuffle}
                   style={styles.shuffleButton}
                 >
-                  <Shuffle size={scale(16)} color="#60A5FA" />
+                  <Shuffle size={scale(16)} color="#FBBF24" />
                   <Text style={styles.shuffleLabel}>Shuffle</Text>
                 </TouchableOpacity>
               </View>
@@ -264,7 +264,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+              colors={['rgba(24, 20, 16, 0.85)', 'rgba(16, 13, 10, 0.85)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -297,7 +297,7 @@ export default function Customize() {
         <View style={styles.sectionContainer}>
           <BlurView intensity={20} style={styles.sectionBlur}>
             <LinearGradient
-              colors={['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']}
+              colors={['rgba(24, 20, 16, 0.85)', 'rgba(16, 13, 10, 0.85)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sectionCard}
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   shuffleLabel: {
     fontSize: fontScale(11),
     fontWeight: '700',
-    color: '#60A5FA',
+    color: '#FBBF24',
   },
   nameRow: {
     gap: responsiveSpacing.sm,
@@ -455,9 +455,9 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(12),
   },
   sexCardSelected: {
-    borderColor: 'rgba(255, 255, 255, 0.6)',
+    borderColor: 'rgba(245, 158, 11, 0.55)',
     borderWidth: 2,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
   },
   sexIcon: {
     borderRadius: responsiveBorderRadius.md,

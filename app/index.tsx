@@ -229,7 +229,7 @@ export default function Index() {
 }
 
 const loadingStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
+  container: { flex: 1, backgroundColor: '#0B0A08' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
   titleWrap: { alignItems: 'center', justifyContent: 'center' },
   titleGlow: {
@@ -237,12 +237,12 @@ const loadingStyles = StyleSheet.create({
     width: 240,
     height: 120,
     borderRadius: 120,
-    backgroundColor: 'rgba(59, 130, 246, 0.35)',
+    backgroundColor: 'rgba(245, 158, 11, 0.30)',
   },
   title: { color: '#FFFFFF', fontSize: 30, fontWeight: '800', letterSpacing: 0.5, textAlign: 'center' },
   tagline: { color: '#94A3B8', fontSize: 15, fontWeight: '500', marginTop: 8, textAlign: 'center' },
   dots: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 36 },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#3B82F6' },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#F59E0B' },
   track: {
     width: '70%',
     height: 6,
@@ -251,6 +251,6 @@ const loadingStyles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 28,
   },
-  bar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
+  bar: { height: '100%', backgroundColor: '#F59E0B', borderRadius: 3 },
   message: { color: '#64748B', fontSize: 13, marginTop: 16, textAlign: 'center' },
 });

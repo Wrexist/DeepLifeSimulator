@@ -334,8 +334,8 @@ export default function SaveSlots() {
                     <LinearGradient
                       colors={
                         isSelected
-                          ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
-                          : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                          ? ['rgba(245, 158, 11, 0.18)', 'rgba(249, 115, 22, 0.16)']
+                          : ['rgba(24, 20, 16, 0.85)', 'rgba(16, 13, 10, 0.85)']
                       }
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -378,7 +378,7 @@ export default function SaveSlots() {
                             onPress={() => setShowBackupManager(slot.id)}
                             style={styles.smallAction}
                           >
-                            <Archive size={scale(14)} color="#60A5FA" />
+                            <Archive size={scale(14)} color="#FBBF24" />
                             <Text style={styles.smallActionText}>
                               Backups ({backupCounts[slot.id] || 0})
                             </Text>
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   cardSelected: {
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(245, 158, 11, 0.55)',
     borderWidth: 2,
   },
   slotHeader: {
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   smallActionText: {
     fontSize: fontScale(11),
     fontWeight: '700',
-    color: '#60A5FA',
+    color: '#FBBF24',
   },
   deleteAction: {
     borderColor: 'rgba(255, 255, 255, 0.3)',
