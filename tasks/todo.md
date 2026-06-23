@@ -1,5 +1,73 @@
 # Task Tracker
 
+## 🗺️ ROADMAP — "NOW" phase: Instrument & stop the leaks (2026-06-23)
+
+> Source: indie-game growth roadmap. Priority order enforced: **Retention → Revenue → Growth**,
+> stability as a constant gate. This phase makes the live, revenue-generating game *measurable*
+> and plugs the biggest retention/monetization leaks. **Do NOT start new gameplay systems or the
+> AI-narrative wedge until this phase ships** — every later decision depends on the funnel existing.
+> Effort: **S** ≤2 days · **M** ~1 week · **L** multi-week. Grounded against the real code at `STATE_VERSION = 20`.
+
+### NOW-1 — Make analytics actually report  · Effort M · Impact CRITICAL · the single highest-leverage action
+The telemetry pipeline (`lib/analytics/AnalyticsService.ts`) is fully built and `app/_layout.tsx:1115-1119`
+already calls `analytics.init()` + `setConsent()`. The schema (`lib/analytics/events.ts`) already defines the
+full funnel. **But there is no ingestion endpoint, the flag is off in prod, and two key funnel events never
+fire** — so every event is generated, queued to a 200-cap buffer, and silently dropped.
+- [ ] Stand up an analytics **ingestion endpoint** — `POST { events: [...] }` per `AnalyticsEvent` (`events.ts:46`); de-dupe on `event.id`. (Same backend later serves leaderboards / cloud save / AI proxy — see Dependencies.)
+- [ ] Set `EXPO_PUBLIC_ANALYTICS_URL` in the **prod EAS profile** → without it `AnalyticsService.flush()` (`:220`) returns early forever.
+- [ ] Set `EXPO_PUBLIC_ENABLE_ANALYTICS=true` in the prod EAS profile; confirm `FEATURE_FLAGS.telemetry` resolves `true` in a release build (it is force-off under `BORING_BUILD_MODE`, which is `true` in `__DEV__` — `featureFlags.ts:11-13,29`).
+- [ ] Verify the consent path: `_layout.tsx:1117` gates ALL sends on `trackingAllowed` via the `active` getter (`AnalyticsService.ts:175`). Decide + document: ATT-decline = no analytics, or send anonymous.
+- [ ] **Funnel hole #1 — fire `purchase_succeeded`.** `IAPService.ts:681` fires `purchase_started`, `:687` fires `purchase_failed`, but there is NO `purchase_succeeded` at the entitlement-grant call site. Add `{ productId, priceUsd?, kind }`. Conversion rate is uncomputable without it.
+- [ ] **Funnel hole #2 — fire `streak_changed`** (defined in schema, never emitted) wherever `playStreak`/`loginStreak` updates (see NOW-3): `{ count, longest, broke }`.
+- [ ] Verify in a release build that the already-wired events land: `session_start` (`_layout.tsx:1119`), `week_advanced`/`first_week_completed`/`death`/`prestige` (`AnalyticsTracker.tsx`), `daily_reward_claimed` (`home.tsx:250`), `achievement_unlocked` (`GameActionsContext.tsx:2408`), `ad_shown`/`ad_rewarded` (`AdMobService.ts`), `paywall_viewed` (`SubscriptionModal.tsx:46`). Add `session_end` on background if missing.
+- **Acceptance:** a dashboard returns D1/D7/D30 (from `session_start`+`installId`+`ts`) and the `paywall_viewed → purchase_started → purchase_succeeded` funnel from real prod traffic.
+
+### NOW-2 — Confirm ads are live + baseline ARPDAU  · Effort S · Impact High · depends on NOW-1
+AdMob is opt-in (`featureFlags.ts:18`). For this genre ad revenue ≈ IAP revenue — if it's off in prod that's the single largest pool of money left on the table.
+- [ ] Confirm `EXPO_PUBLIC_ENABLE_ADMOB=true` in the **production** EAS profile (not just local).
+- [ ] Confirm real (non-test) AdMob unit IDs ship in prod; circuit breaker + lazy-load intact (`AdMobService.ts`).
+- [ ] With NOW-1 live, compute **ARPDAU** + impressions/DAU from `ad_shown`+`ad_rewarded`; record a 7-day baseline. **Do NOT change ad frequency yet** — measure first.
+- **Acceptance:** baseline ARPDAU + impressions/DAU recorded over ≥7 days of prod data.
+
+### NOW-3 — Complete the daily-login streak + reward calendar  · Effort M · Impact High · depends on NOW-1 (measurement)
+Partially built: `daily_reward_claimed` already fires (`home.tsx:250`) with a streak value; state has `playStreak` (`initialState.ts:1700`) and `loginStreak`/`lastLoginDate`/`lastLoginRewardDate` (`types.ts:2127-2129`). Missing: a visible escalating reward calendar + `streak_changed` emission. Biggest missing retention primitive.
+- [ ] Audit current daily-reward logic in `home.tsx` (~`:250`) + streak fields; verify increment/reset across calendar days + a grace window.
+- [ ] Define an **escalating 7-day reward calendar** (gems — existing currency, no new economy); resets on a missed day past grace.
+- [ ] Build the reward-calendar UI (claimed / today / upcoming / streak counter). Reuse existing modal/toast patterns; **do NOT add a 9th context provider.**
+- [ ] Fire `streak_changed` (NOW-1) on every increment/reset.
+- [ ] If new persisted fields are added → `STATE_VERSION` 21 bump + migration + repair test. Prefer reusing existing fields to avoid a migration.
+- [ ] Tests via `createTestGameState()` (Hard Rule #3): increment, grace-window, reset.
+- **Acceptance:** returning player sees an escalating reward; streak persists across sessions; `streak_changed` + `daily_reward_claimed` appear in analytics.
+
+### NOW-4 — Re-introduce notifications crash-safely (local first)  · Effort M–L · Impact High · RISK: native-crash regression
+`utils/notifications.ts` is a **STUB** ("expo-notifications removed to fix TurboModule crash" — same iOS-26 native-crash class that disabled Sentry). `smartNotifications.ts` (675 LOC) computes scheduling/copy but has no OS delivery path.
+- [ ] Choose **local scheduled notifications first** (no push backend): streak-at-risk, pending-event, "your character is waiting." Remote push = Later.
+- [ ] Re-introduce the native module behind the **crash-safe lazy-`require()`** pattern used by `AnalyticsService` (`getLazyAsyncStorage`) — never import at module load.
+- [ ] **Hard Rule #4:** if re-adding the package to `package.json`, align the config plugin in `app.config.js`. Native init runs before JS; no try/catch saves a missing plugin. Verify on a **real iOS 26 build**, not simulator.
+- [ ] Cap at **3 notification types**; gate behind `FEATURE_FLAGS.notifications` (`featureFlags.ts:35`), ship **disabled by default** until the iOS-26 build is verified non-crashing.
+- [ ] Wire `smartNotifications.ts` output to the real delivery path; replace the stub in `utils/notifications.ts`.
+- [ ] `npm run preflight` + a TestFlight build before enabling in prod (Hard Rule #6).
+- **Acceptance:** a streak-at-risk local notification fires on a real iOS 26 build with **zero** startup crashes across cold starts.
+
+### NOW-5 — Save-integrity hardening  · Effort M · Impact High (defensive) · no dependency, parallelizable
+Long-lived saves are a latent liability: 20 sequential migrations, O(relationships²) validation, unbounded `unlockedBonuses[]`, AsyncStorage 1–5MB quota, silent repair. Surfaces later as the most lethal review type in this genre ("lost my save").
+- [ ] **Save-size telemetry:** add a `save_size` event to the schema whitelist (`events.ts` — `track()` rejects unknown names) and emit serialized save bytes; alert near quota. (`saveDurability.stress` already measures ~849KB @250 weeks vs 4096KB cap — make it *observable in prod*, not just in tests.)
+- [ ] **Bound growth:** cap/dedupe `prestige.unlockedBonuses[]`; audit per-NPC weekly depth accumulation (O(weeksLived × relationships)).
+- [ ] **Make destructive repair loud:** in `utils/saveValidation.ts` relationship repair, warn/log + analytics event before dropping a corrupt NPC (prefer quarantine over delete) — currently a multi-year relationship can vanish silently.
+- [ ] Regression test via `createTestGameState()`: oversized-save detection, `unlockedBonuses` dedupe, repair-warns-before-drop.
+- **Acceptance:** save size observable in analytics; no silent relationship deletion; bounded growth on prestige/NPC fields.
+
+### Cross-cutting dependencies & open threads
+- [ ] **Backend** — NOW-1 needs an ingestion endpoint; build it as the foundation that also serves Next-phase leaderboards, cloud save, and the AI-narrative proxy (one service, four consumers). Never ship API keys in the RN bundle.
+- [ ] **Save migration** — any new persisted field in NOW-3/NOW-5 = `STATE_VERSION` 21 + migration + repair test; prefer reusing existing fields.
+- [ ] **EAS env profile** — NOW-1/NOW-2 hinge on prod env vars (`EXPO_PUBLIC_ANALYTICS_URL`, `EXPO_PUBLIC_ENABLE_ANALYTICS`, `EXPO_PUBLIC_ENABLE_ADMOB`); confirm `BORING_BUILD_MODE` is not accidentally on in release.
+- [ ] **Do NOT do in NOW** — the AI-narrative wedge + real leaderboards depend on the backend + content moderation + cost gating (deferred to Next).
+- [ ] **Trap to avoid** — adding any new gameplay system (guilds/planets/etc.) or new leaderboard *features* before this phase's funnel exists: high effort, ~zero measurable return at current scale.
+
+**Sequencing:** NOW-1 first (unblocks all measurement) → NOW-2 once NOW-1 lands → NOW-3 + NOW-5 in parallel → NOW-4 last (highest risk, behind a flag, verified on iOS 26).
+
+---
+
 ## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
 
 User spammed the green "Next Week" button → screen covered in overlapping blue
