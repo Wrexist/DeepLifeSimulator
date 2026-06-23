@@ -3,7 +3,7 @@ import { Platform, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity,
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
-import { Check, Gem, Play, Sparkles, Star, Target } from 'lucide-react-native';
+import { Check, ChevronRight, Gem, Play, Sparkles, Star, Target } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
@@ -30,7 +30,6 @@ import { haptic } from '@/utils/haptics';
 import { formatMoney } from '@/utils/moneyFormatting';
 import {
   fontScale,
-  responsiveBorderRadius,
   responsiveFontSize,
   responsivePadding,
   responsiveSpacing,
@@ -106,30 +105,6 @@ const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['diffic
   }
 };
 
-const getScenarioItemIcon = (itemId: string): string => {
-  switch (itemId) {
-    case 'smartphone':
-      return 'PHONE';
-    case 'driver_license':
-      return 'CAR';
-    case 'business_suit':
-    case 'suit':
-      return 'SUIT';
-    case 'gym_membership':
-      return 'FIT';
-    case 'computer':
-      return 'PC';
-    case 'bike':
-      return 'BIKE';
-    default:
-      return 'ITEM';
-  }
-};
-
-const formatTokenLabel = (token: string): string => {
-  return token.replace(/_/g, ' ').replace(/\b\w/g, (value) => value.toUpperCase());
-};
-
 const safeGetDifficultyLabel = (difficulty: ChallengeScenarioDefinition['difficulty']): string => {
   try {
     if (typeof getDifficultyLabel === 'function') {
@@ -168,21 +143,23 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
   const isChallenge = 'isChallenge' in scenario && scenario.isChallenge;
   const isRecommended = !isChallenge && scenario.id === RECOMMENDED_SCENARIO_ID;
   const rewardGems = isChallenge ? scenario.rewardGems : 0;
-  const difficultyBadgeColor = isChallenge
+  const difficultyColor = isChallenge
     ? safeGetDifficultyColor(scenario.difficultyKey)
-    : '#6B7280';
-  const difficultyColor =
-    scenario.difficulty === 'Easy'
+    : scenario.difficulty === 'Easy'
       ? '#22C55E'
       : scenario.difficulty === 'Moderate'
         ? '#F59E0B'
         : scenario.difficulty === 'Hard'
           ? '#EF4444'
-          : '#6B7280';
+          : '#9CA3AF';
+  const educationLabel =
+    scenario.start.education && scenario.start.education !== 'None'
+      ? scenario.start.education
+      : 'No school';
 
   return (
     <TouchableOpacity
-      activeOpacity={0.92}
+      activeOpacity={0.9}
       style={styles.cardContainer}
       onPress={() => onSelect(scenario)}
     >
@@ -190,96 +167,65 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
         <LinearGradient
           colors={
             isSelected
-              ? ['rgba(245, 158, 11, 0.18)', 'rgba(249, 115, 22, 0.16)']
-              : ['rgba(24, 20, 16, 0.85)', 'rgba(16, 13, 10, 0.85)']
+              ? ['rgba(245, 158, 11, 0.16)', 'rgba(249, 115, 22, 0.12)']
+              : ['rgba(24, 20, 16, 0.92)', 'rgba(16, 13, 10, 0.92)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.card, isSelected && styles.cardSelected]}
+          style={[
+            styles.card,
+            isRecommended && !isSelected && styles.cardRecommended,
+            isSelected && styles.cardSelected,
+          ]}
         >
-          {isRecommended ? (
-            <View style={styles.recommendedBanner}>
-              <Star size={12} color="#FFFFFF" />
-              <Text style={styles.recommendedBannerText}>RECOMMENDED FOR BEGINNERS</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.cardHeader}>
-            <Image source={scenario.icon} style={styles.cardImage} />
-            <View style={styles.cardTextWrap}>
-              <View style={styles.cardTitleRow}>
-                <Text style={styles.cardTitle}>{scenario.title}</Text>
-                {isChallenge ? (
-                  <View style={[styles.difficultyChip, { backgroundColor: difficultyBadgeColor }]}>
-                    <Text style={styles.difficultyText}>
-                      {scenario.difficulty.toUpperCase()}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={[styles.difficultyChip, { backgroundColor: difficultyColor }]}>
-                    <Text style={styles.difficultyText}>
-                      {scenario.difficulty.toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.cardDescription}>{scenario.description}</Text>
-              <Text style={styles.goalText}>Goal: {scenario.lifeGoal}</Text>
-            </View>
-            {isSelected ? (
-              <View style={styles.selectedDot}>
-                <Check size={scale(14)} color="#FBBF24" />
+          <View style={styles.iconWrap}>
+            <Image source={scenario.icon} style={styles.iconImage} resizeMode="cover" />
+            {isRecommended ? (
+              <View style={styles.recBadge}>
+                <Star size={scale(11)} color="#1A1205" fill="#1A1205" />
               </View>
             ) : null}
           </View>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statCell}>
-              <Text style={styles.statLabel}>Age</Text>
-              <Text style={styles.statValue}>{scenario.start.age}</Text>
+          <View style={styles.cardBody}>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {scenario.title}
+              </Text>
+              <View style={styles.difficultyPill}>
+                <View style={[styles.difficultyDot, { backgroundColor: difficultyColor }]} />
+                <Text style={[styles.difficultyLabel, { color: difficultyColor }]}>
+                  {scenario.difficulty}
+                </Text>
+              </View>
             </View>
-            <View style={styles.statCell}>
-              <Text style={styles.statLabel}>Cash</Text>
-              <Text style={styles.statValue}>{formatMoney(scenario.start.cash)}</Text>
-            </View>
-            <View style={styles.statCell}>
-              <Text style={styles.statLabel}>Study</Text>
-              <Text style={styles.statValue}>{scenario.start.education || 'None'}</Text>
-            </View>
-            {isChallenge ? (
-              <View style={styles.statCell}>
-                <Text style={styles.statLabel}>Reward</Text>
+
+            <Text style={styles.cardDescription} numberOfLines={1}>
+              {scenario.description}
+            </Text>
+
+            <View style={styles.statLine}>
+              <Text style={styles.statText} numberOfLines={1}>
+                Age {scenario.start.age}   ·   {formatMoney(scenario.start.cash)}   ·   {educationLabel}
+              </Text>
+              {isChallenge ? (
                 <View style={styles.rewardRow}>
-                  <Gem size={scale(13)} color="#FBBF24" />
+                  <Gem size={scale(12)} color="#FBBF24" />
                   <Text style={styles.rewardValue}>{rewardGems}</Text>
                 </View>
-              </View>
-            ) : null}
+              ) : null}
+            </View>
           </View>
 
-          {scenario.start.items?.length ||
-          scenario.start.traits?.length ||
-          (isChallenge && scenario.iconEmoji) ? (
-            <View style={styles.tagsWrap}>
-              {isChallenge && scenario.iconEmoji ? (
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>{scenario.iconEmoji} Challenge</Text>
-                </View>
-              ) : null}
-              {scenario.start.items?.map((item) => (
-                <View key={`${scenario.id}-item-${item}`} style={styles.tag}>
-                  <Text style={styles.tagText}>
-                    {getScenarioItemIcon(item)} {formatTokenLabel(item)}
-                  </Text>
-                </View>
-              ))}
-              {scenario.start.traits?.map((trait) => (
-                <View key={`${scenario.id}-trait-${trait}`} style={styles.tag}>
-                  <Text style={styles.tagText}>TRAIT {formatTokenLabel(trait)}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+          <View style={styles.cardRight}>
+            {isSelected ? (
+              <View style={styles.selectedCheck}>
+                <Check size={scale(15)} color="#1A1205" />
+              </View>
+            ) : (
+              <ChevronRight size={scale(20)} color="#5B554C" />
+            )}
+          </View>
         </LinearGradient>
       </BlurView>
     </TouchableOpacity>
@@ -580,21 +526,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding.large,
     paddingBottom: responsiveSpacing.xs,
   },
-  recommendedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.22)',
-    paddingVertical: 6,
-    marginBottom: 4,
-  },
-  recommendedBannerText: {
-    fontSize: fontScale(10),
-    fontWeight: '800',
-    color: '#FBBF24',
-    letterSpacing: 0.8,
-  },
   scrollContainer: {
     flex: 1,
   },
@@ -623,138 +554,112 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   card: {
-    padding: 20,
-    // Match the parent's rounded clip so the white border doesn't get sliced
-    // off at the corners (square border inside an overflow:hidden rounded box).
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: scale(13),
+    // Match the parent's rounded clip so the border doesn't get sliced off at
+    // the corners (square border inside an overflow:hidden rounded box). Border
+    // width is kept constant across states so every row is the same height.
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    gap: responsiveSpacing.sm,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: scale(12),
+  },
+  cardRecommended: {
+    borderColor: 'rgba(245, 158, 11, 0.45)',
   },
   cardSelected: {
-    borderColor: 'rgba(245, 158, 11, 0.55)',
+    borderColor: '#F59E0B',
+  },
+  iconWrap: {
+    width: scale(52),
+    height: scale(52),
+  },
+  iconImage: {
+    width: scale(52),
+    height: scale(52),
+    borderRadius: 13,
+  },
+  recBadge: {
+    position: 'absolute',
+    top: scale(-6),
+    right: scale(-6),
+    width: scale(20),
+    height: scale(20),
+    borderRadius: scale(10),
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
+    borderColor: '#0B0A08',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    gap: responsiveSpacing.sm,
-  },
-  cardImage: {
-    borderRadius: 16,
-    height: scale(74),
-    width: scale(74),
-    ...Platform.select({
-      web: { boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.4)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-      },
-    }),
-    elevation: 6,
-  },
-  cardTextWrap: {
+  cardBody: {
     flex: 1,
+    gap: verticalScale(4),
   },
   cardTitleRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: responsiveSpacing.xs,
-    marginBottom: verticalScale(4),
+    gap: scale(8),
   },
   cardTitle: {
     flex: 1,
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '800',
+    fontSize: fontScale(16),
+    fontWeight: '700',
     color: '#FFFFFF',
   },
-  difficultyChip: {
-    borderRadius: responsiveBorderRadius.full,
-    overflow: 'hidden',
-    paddingHorizontal: responsiveSpacing.xs,
-    paddingVertical: verticalScale(4),
+  difficultyPill: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: scale(5),
   },
-  difficultyText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(9),
-    fontWeight: '800',
+  difficultyDot: {
+    width: scale(7),
+    height: scale(7),
+    borderRadius: scale(4),
   },
-  cardDescription: {
-    fontSize: responsiveFontSize.base,
-    fontWeight: '500',
-    color: '#D1D5DB',
-    lineHeight: fontScale(16),
-    marginBottom: verticalScale(3),
-  },
-  goalText: {
+  difficultyLabel: {
     fontSize: fontScale(11),
     fontWeight: '700',
-    color: '#FBBF24',
-    lineHeight: fontScale(15),
   },
-  selectedDot: {
+  cardDescription: {
+    fontSize: fontScale(12.5),
+    fontWeight: '500',
+    color: '#9C948A',
+    lineHeight: fontScale(16),
+  },
+  statLine: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(245, 158, 11, 0.45)',
-    height: scale(28),
-    justifyContent: 'center',
-    width: scale(28),
-  },
-  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: responsiveSpacing.xs,
+    gap: scale(8),
   },
-  statCell: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    flex: 1,
-    minWidth: scale(70),
-    paddingHorizontal: responsiveSpacing.xs,
-    paddingVertical: verticalScale(8),
-  },
-  statLabel: {
-    fontSize: fontScale(10),
+  statText: {
+    flexShrink: 1,
+    fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#9CA3AF',
-    marginBottom: verticalScale(2),
-  },
-  statValue: {
-    fontSize: fontScale(11),
-    fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#C9C0B4',
   },
   rewardRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: responsiveSpacing.xs,
+    gap: scale(4),
   },
   rewardValue: {
-    fontSize: fontScale(11),
+    fontSize: fontScale(12),
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#FBBF24',
   },
-  tagsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: responsiveSpacing.xs,
+  cardRight: {
+    width: scale(28),
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
-  tag: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: verticalScale(5),
-  },
-  tagText: {
-    fontSize: fontScale(10),
-    fontWeight: '700',
-    color: '#60A5FA',
+  selectedCheck: {
+    alignItems: 'center',
+    backgroundColor: '#F59E0B',
+    borderRadius: scale(13),
+    height: scale(26),
+    justifyContent: 'center',
+    width: scale(26),
   },
 });

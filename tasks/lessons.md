@@ -4,6 +4,12 @@
 
 ## Patterns to Watch For
 
+### 2026-06-23 - Onboarding cards: density and overlap read as "confusing", not the colors
+
+- What went wrong: after the amber re-skin, the user rejected the Scenarios "Choose Your Origin" screen as "unorganized and confusing." The problem was never the palette — it was information density and layout: each card stacked ~8 competing elements (difficulty pill + art + title + 2-line description + "Goal:" line + three *nested* stat boxes + item tags), and the floating Continue CTA sat on top of the last card.
+- Pattern: a screen can pass type-check and render smoke tests and still be a bad design. Boxes-inside-boxes, multiple accent colors per card, and per-item tags destroy scannability; a floating button with no clearing spacer overlaps content. Tests prove "doesn't crash," not "is usable."
+- Rule: for selection lists prefer one uniform icon tile + a single scannable stat line + a quiet difficulty signal (colored dot, not a loud pill) + ONE accent color reserved for the selected/recommended state. Keep every row the same height (constant border width across states; put the "recommended" marker as an absolute badge on the tile so it doesn't change row height) so the list reads as symmetrical. Push full detail (goal, starting items) to a later confirm step. When a design is in question, mock it in HTML and screenshot it for sign-off BEFORE editing RN — far cheaper than rebuilding the app per iteration.
+
 ### 2026-06-21 - Fixed-size pre-roll arrays indexed by an uncapped collection silently grant immunity
 
 - What went wrong: the weekly tick pre-rolls per-entity RNG into fixed-length arrays
