@@ -105,6 +105,10 @@ const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['diffic
   }
 };
 
+const formatTokenLabel = (token: string): string => {
+  return token.replace(/_/g, ' ').replace(/\b\w/g, (value) => value.toUpperCase());
+};
+
 const safeGetDifficultyLabel = (difficulty: ChallengeScenarioDefinition['difficulty']): string => {
   try {
     if (typeof getDifficultyLabel === 'function') {
@@ -156,6 +160,9 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
     scenario.start.education && scenario.start.education !== 'None'
       ? scenario.start.education
       : 'No school';
+  const startItems = scenario.start.items ?? [];
+  const startTraits = scenario.start.traits ?? [];
+  const hasStartingKit = startItems.length > 0 || startTraits.length > 0;
 
   return (
     <TouchableOpacity
@@ -178,54 +185,79 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
             isSelected && styles.cardSelected,
           ]}
         >
-          <View style={styles.iconWrap}>
-            <Image source={scenario.icon} style={styles.iconImage} resizeMode="cover" />
-            {isRecommended ? (
-              <View style={styles.recBadge}>
-                <Star size={scale(11)} color="#1A1205" fill="#1A1205" />
-              </View>
-            ) : null}
-          </View>
-
-          <View style={styles.cardBody}>
-            <View style={styles.cardTitleRow}>
-              <Text style={styles.cardTitle} numberOfLines={1}>
-                {scenario.title}
-              </Text>
-              <View style={styles.difficultyPill}>
-                <View style={[styles.difficultyDot, { backgroundColor: difficultyColor }]} />
-                <Text style={[styles.difficultyLabel, { color: difficultyColor }]}>
-                  {scenario.difficulty}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.cardDescription} numberOfLines={1}>
-              {scenario.description}
-            </Text>
-
-            <View style={styles.statLine}>
-              <Text style={styles.statText} numberOfLines={1}>
-                Age {scenario.start.age}   ·   {formatMoney(scenario.start.cash)}   ·   {educationLabel}
-              </Text>
-              {isChallenge ? (
-                <View style={styles.rewardRow}>
-                  <Gem size={scale(12)} color="#FBBF24" />
-                  <Text style={styles.rewardValue}>{rewardGems}</Text>
+          <View style={styles.cardRow}>
+            <View style={styles.iconWrap}>
+              <Image source={scenario.icon} style={styles.iconImage} resizeMode="cover" />
+              {isRecommended ? (
+                <View style={styles.recBadge}>
+                  <Star size={scale(11)} color="#1A1205" fill="#1A1205" />
                 </View>
               ) : null}
             </View>
+
+            <View style={styles.cardBody}>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {scenario.title}
+                </Text>
+                <View style={styles.difficultyPill}>
+                  <View style={[styles.difficultyDot, { backgroundColor: difficultyColor }]} />
+                  <Text style={[styles.difficultyLabel, { color: difficultyColor }]}>
+                    {scenario.difficulty}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.cardDescription} numberOfLines={isSelected ? undefined : 1}>
+                {scenario.description}
+              </Text>
+
+              <View style={styles.statLine}>
+                <Text style={styles.statText} numberOfLines={1}>
+                  Age {scenario.start.age}   ·   {formatMoney(scenario.start.cash)}   ·   {educationLabel}
+                </Text>
+                {isChallenge ? (
+                  <View style={styles.rewardRow}>
+                    <Gem size={scale(12)} color="#FBBF24" />
+                    <Text style={styles.rewardValue}>{rewardGems}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            <View style={styles.cardRight}>
+              {isSelected ? (
+                <View style={styles.selectedCheck}>
+                  <Check size={scale(15)} color="#1A1205" />
+                </View>
+              ) : (
+                <ChevronRight size={scale(20)} color="#5B554C" />
+              )}
+            </View>
           </View>
 
-          <View style={styles.cardRight}>
-            {isSelected ? (
-              <View style={styles.selectedCheck}>
-                <Check size={scale(15)} color="#1A1205" />
-              </View>
-            ) : (
-              <ChevronRight size={scale(20)} color="#5B554C" />
-            )}
-          </View>
+          {isSelected ? (
+            <View style={styles.detail}>
+              <Text style={styles.detailGoal}>Goal: {scenario.lifeGoal}</Text>
+              {hasStartingKit ? (
+                <View>
+                  <Text style={styles.detailLabel}>Starts with</Text>
+                  <View style={styles.detailChips}>
+                    {startItems.map((item) => (
+                      <View key={`${scenario.id}-item-${item}`} style={styles.chip}>
+                        <Text style={styles.chipText}>{formatTokenLabel(item)}</Text>
+                      </View>
+                    ))}
+                    {startTraits.map((trait) => (
+                      <View key={`${scenario.id}-trait-${trait}`} style={styles.traitChip}>
+                        <Text style={styles.traitChipText}>{formatTokenLabel(trait)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </LinearGradient>
       </BlurView>
     </TouchableOpacity>
@@ -554,15 +586,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: scale(13),
     // Match the parent's rounded clip so the border doesn't get sliced off at
     // the corners (square border inside an overflow:hidden rounded box). Border
-    // width is kept constant across states so every row is the same height.
+    // width is kept constant across states so collapsed rows stay the same
+    // height; only the selected card grows (to reveal goal + starting items).
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: verticalScale(11),
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: scale(12),
   },
   cardRecommended: {
@@ -661,5 +697,56 @@ const styles = StyleSheet.create({
     height: scale(26),
     justifyContent: 'center',
     width: scale(26),
+  },
+  detail: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    paddingTop: verticalScale(11),
+    gap: verticalScale(10),
+  },
+  detailGoal: {
+    fontSize: fontScale(12.5),
+    fontWeight: '700',
+    color: '#FBBF24',
+    lineHeight: fontScale(17),
+  },
+  detailLabel: {
+    fontSize: fontScale(10.5),
+    fontWeight: '700',
+    color: '#8E8578',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: verticalScale(6),
+  },
+  detailChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: scale(7),
+  },
+  chip: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderWidth: 1,
+    borderRadius: 9,
+    paddingHorizontal: scale(9),
+    paddingVertical: verticalScale(5),
+  },
+  chipText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#FBBF24',
+  },
+  traitChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderRadius: 9,
+    paddingHorizontal: scale(9),
+    paddingVertical: verticalScale(5),
+  },
+  traitChipText: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: '#C9C0B4',
   },
 });
