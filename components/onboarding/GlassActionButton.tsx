@@ -3,8 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { ChevronRight } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import usePressableScale from '@/hooks/usePressableScale';
-import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
+import { useOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { getGlassButton } from '@/utils/glassmorphismStyles';
 import {
   fontScale,
@@ -36,10 +35,10 @@ export default function GlassActionButton({
   loading = false,
   loadingText,
 }: GlassActionButtonProps) {
-  const isDarkMode = useGameSelector((s) => Boolean(s?.settings?.darkMode));
-  const theme = getOnboardingTheme(isDarkMode);
-  const blurTint = isDarkMode ? 'dark' : 'light';
-  const glassStyle = getGlassButton(isDarkMode, highlighted);
+  // Menu is always dark amber — no darkMode subscription (no re-render on toggle).
+  const theme = useOnboardingTheme();
+  const blurTint = 'dark';
+  const glassStyle = getGlassButton(true, highlighted);
 
   const isDisabled = disabled || loading;
   // Native-driver press scale for instant tactile feedback.

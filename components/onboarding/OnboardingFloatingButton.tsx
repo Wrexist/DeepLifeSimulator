@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View }
 import { ArrowRight } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import usePressableScale from '@/hooks/usePressableScale';
+import { useOnboardingTheme } from '@/lib/config/onboardingTheme';
 
 const LinearGradient = LinearGradientFallback;
 
@@ -21,6 +22,7 @@ export default function OnboardingFloatingButton({
   loading = false,
   icon,
 }: OnboardingFloatingButtonProps) {
+  const theme = useOnboardingTheme();
   // Native-driver press scale for instant tactile feedback. Handlers own the
   // action haptic, so disable the hook's press-in haptic to avoid doubling.
   const { AnimatedView, animatedStyle, onPressIn, onPressOut } = usePressableScale({ haptic: false });
@@ -34,21 +36,21 @@ export default function OnboardingFloatingButton({
         onPressOut={onPressOut}
         disabled={isDisabled}
         style={[styles.floatingButton, isDisabled ? styles.disabled : undefined]}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         <LinearGradient
-          colors={['#10B981', '#059669', '#047857']}
+          colors={[...theme.ctaGradient]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
         >
           <View style={styles.content}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={[styles.title, { color: theme.ctaText }]}>{title}</Text>
             <View style={styles.iconContainer}>
               {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.ctaText} />
               ) : (
-                icon || <ArrowRight size={24} color="#FFFFFF" />
+                icon || <ArrowRight size={24} color={theme.ctaText} />
               )}
             </View>
           </View>
@@ -60,16 +62,16 @@ export default function OnboardingFloatingButton({
 
 const styles = StyleSheet.create({
   floatingButton: {
-    borderRadius: 16,
+    borderRadius: 999,
     overflow: 'hidden',
     elevation: 16,
     ...Platform.select({
-      web: { boxShadow: '0px 8px 20px rgba(16, 185, 129, 0.6)' } as any,
+      web: { boxShadow: '0px 8px 24px rgba(245, 158, 11, 0.45)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#F59E0B',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.6,
-        shadowRadius: 20,
+        shadowOpacity: 0.5,
+        shadowRadius: 22,
       },
     }),
   },
@@ -78,22 +80,12 @@ const styles = StyleSheet.create({
   },
   gradient: {
     width: '100%',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     overflow: 'hidden',
-    minHeight: 64,
+    minHeight: 60,
     justifyContent: 'center',
-    elevation: 8,
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 12px rgba(16, 185, 129, 0.5)' } as any,
-      default: {
-        shadowColor: '#10B981',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 12,
-      },
-    }),
   },
   content: {
     flexDirection: 'row',
@@ -106,36 +98,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FFFFFF',
     flex: 1,
     textAlign: 'center',
-    ...Platform.select({
-      web: { textShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
-        textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 4,
-      },
-    }),
+    letterSpacing: 0.3,
   },
   iconContainer: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(0, 0, 0, 0.14)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    elevation: 3,
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 4px rgba(255, 255, 255, 0.1)' } as any,
-      default: {
-        shadowColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-    }),
+    borderColor: 'rgba(0, 0, 0, 0.18)',
   },
 });

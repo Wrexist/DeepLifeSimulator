@@ -41,12 +41,12 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
   },
   segmentEmpty: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   segmentFilled: {
-    backgroundColor: 'rgba(16, 185, 129, 0.6)',
+    backgroundColor: 'rgba(245, 158, 11, 0.55)',
   },
   segmentCurrent: {
-    backgroundColor: 'rgba(16, 185, 129, 0.85)',
+    backgroundColor: 'rgba(245, 158, 11, 0.95)',
   },
 });

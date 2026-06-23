@@ -1,8 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import { useGameState } from '@/contexts/game/GameStateContext';
-import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
+import { useOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
 
 interface GlassPanelProps {
@@ -12,19 +11,19 @@ interface GlassPanelProps {
 }
 
 export default function GlassPanel({ children, style, strong = false }: GlassPanelProps) {
-  const { gameState } = useGameState();
-  const isDarkMode = Boolean(gameState?.settings?.darkMode);
-  const theme = getOnboardingTheme(isDarkMode);
+  // Menu is always dark amber — no darkMode subscription needed (avoids a
+  // re-render on theme toggle and keeps the card style constant).
+  const theme = useOnboardingTheme();
 
   return (
     <BlurViewFallback
       intensity={strong ? 30 : 22}
-      tint={isDarkMode ? 'dark' : 'light'}
+      tint="dark"
       style={[
         styles.base,
         {
-          borderColor: theme.glassBorder,
-          backgroundColor: strong ? 'rgba(15, 23, 42, 0.4)' : 'rgba(15, 23, 42, 0.3)',
+          borderColor: theme.cardBorder,
+          backgroundColor: strong ? 'rgba(20, 17, 13, 0.92)' : theme.card,
         },
         style,
       ]}

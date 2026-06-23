@@ -31,11 +31,14 @@
 - [x] Verified: type-check clean; onboarding + screens render suites **12/12** (shell wraps every screen).
 - **Checkpoint shipped.** Next: Phase 3 (shared components: eyebrow pill, gradient CTA, glass cards) → Phase 4 per-screen.
 
-### Phase 3 — Shared components re-skin (re-skin once, all screens benefit)
-- [ ] `OnboardingGlassHeader` / `OnboardingTopBar` — **eyebrow pill** ("CHOOSE YOUR PATH" style), title with an **amber highlight word**, muted subtitle.
-- [ ] `OnboardingStepBar` — amber progress/step indicator.
-- [ ] `GlassActionButton` / `OnboardingFloatingButton` — **gradient amber pill CTA** (`expo-linear-gradient`, orange→amber) with leading icon (e.g. Play for "Start Your Life"); preserve `usePressableScale` + the `loading` spinner prop.
-- [ ] `GlassPanel` — dark glassy card (token `card`/`cardBorder`, rounded, hairline border, optional faint top highlight).
+### Phase 3 — Shared components re-skin (re-skin once, all screens benefit) ✅ DONE (2026-06-23)
+- [x] **`OnboardingFloatingButton` → amber gradient pill CTA.** Was a **green** gradient (`#10B981…`); now `theme.ctaGradient` (amber→orange) with dark `theme.ctaText`, pill radius (999), amber shadow. Preserved `usePressableScale` + `loading` spinner. This is the mockup's "Start Your Life" button (used by Scenarios/Perks/SaveSlots).
+- [x] **`OnboardingStepBar` → amber** filled/current segments (was green).
+- [x] **`GlassPanel` → warm dark card** (`theme.card`/`cardBorder`, forced dark tint); dropped the `darkMode` subscription (constant theme → no re-render on toggle).
+- [x] **`GlassActionButton` → force dark + amber accents**; dropped the `useGameSelector(darkMode)` subscription (theme is constant now). Chevron/spinner already use `theme.accentText` (amber).
+- [x] **New `OnboardingEyebrow`** pill component ("CHOOSE YOUR PATH" badge) for the Phase-4 hero.
+- [x] Verified: type-check clean; full render suite **23/23**.
+- Note: `OnboardingGlassHeader` title (white-on-dark) reads fine as-is; its amber-highlight treatment folds into Phase 4 per-screen where the hero/title lands.
 
 ### Phase 4 — Per-screen re-skin (reuse Phase 3 components; copy/layout unchanged)
 - [ ] **MainMenu** (`app/(onboarding)/MainMenu.tsx`) — hero "Your Story Starts Here." with amber highlight; Continue / New Life as amber pills; optional memoized decorative side-chips (star/plus/crown/heart) as pure accents. Keep the existing `continueInFlightRef` guard + rAF defer.
