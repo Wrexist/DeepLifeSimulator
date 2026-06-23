@@ -1,17 +1,16 @@
 import React from 'react';
 import {
   Animated,
-  Dimensions,
   StyleProp,
   StyleSheet,
   View,
   ViewStyle,
 } from 'react-native';
+import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboardingScreenAnimation } from '@/hooks/useOnboardingScreenAnimation';
+import { useOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { responsivePadding } from '@/utils/scaling';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 interface OnboardingScreenShellV2Props {
   children: React.ReactNode;
@@ -27,6 +26,7 @@ export default function OnboardingScreenShellV2({
   showParticles = false,
 }: OnboardingScreenShellV2Props) {
   const insets = useSafeAreaInsets();
+  const theme = useOnboardingTheme();
   const { opacity, translateY, rotate } = useOnboardingScreenAnimation({
     duration: 1000,
     offsetY: 50,
@@ -34,20 +34,19 @@ export default function OnboardingScreenShellV2({
   });
 
   return (
-    <View style={styles.container}>
-      {/* Animated background circles */}
-      <Animated.View
-        style={[
-          styles.backgroundGradient1,
-          { transform: [{ rotate }] },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.backgroundGradient2,
-          { transform: [{ rotate }] },
-        ]}
-      />
+    <View style={[styles.container, { backgroundColor: theme.base }]}>
+      {/* Signature amber radial glow: brightest top-center, fading to the near-black
+          base. Static SVG — no per-frame JS, so it never costs frames. */}
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <RadialGradient id="onboardingGlow" cx="50%" cy="18%" r="80%">
+            <Stop offset="0%" stopColor={theme.glowColor} stopOpacity={0.42} />
+            <Stop offset="45%" stopColor={theme.glowColor} stopOpacity={0.12} />
+            <Stop offset="100%" stopColor={theme.glowColor} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#onboardingGlow)" />
+      </Svg>
 
       {/* Main content */}
       <Animated.View
@@ -99,26 +98,7 @@ export default function OnboardingScreenShellV2({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
     overflow: 'hidden',
-  },
-  backgroundGradient1: {
-    position: 'absolute',
-    width: screenWidth * 2,
-    height: screenWidth * 2,
-    borderRadius: screenWidth,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    top: -screenWidth / 2,
-    left: -screenWidth / 2,
-  },
-  backgroundGradient2: {
-    position: 'absolute',
-    width: screenWidth * 1.5,
-    height: screenWidth * 1.5,
-    borderRadius: screenWidth,
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
-    bottom: -screenWidth / 3,
-    right: -screenWidth / 3,
   },
   content: {
     flex: 1,
@@ -139,7 +119,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 4,
     height: 4,
-    backgroundColor: 'rgba(59,130,246,0.3)',
+    backgroundColor: 'rgba(245, 158, 11, 0.32)',
     borderRadius: 2,
   },
 });

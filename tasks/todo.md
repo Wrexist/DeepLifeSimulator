@@ -21,15 +21,15 @@
 > - Keep `useGameSelector` narrow subscriptions (menu already migrated); don't widen them.
 > - Prefer layered translucent views / SVG gradient over heavy `BlurView` where blur would jank on low-end devices.
 
-### Phase 1 — Theme foundation (everything depends on this)
-- [ ] Repurpose `lib/config/onboardingTheme.ts` into a fixed **amber-dark** token set (keep `getOnboardingTheme()` signature so callers don't break; ignore/deprecate the `darkMode` arg → always amber-dark). Add tokens: `base` (near-black ~`#0A0A0F`), `glowInner`/`glowOuter` (amber radial stops), `card`/`cardBorder`/`cardSelected`, `eyebrowPill` (border+text), `title`, `accent` (amber highlight word), `subtitle` (muted), difficulty `{ easy, medium, hard }`, `ctaGradient` (orange→amber stops), `chipBg`/`chipText`, `floatingChip`.
-- [ ] Add a tiny `useOnboardingTheme()` hook (returns the constant set) so screens stop threading `darkMode` for menu styling.
-- [ ] Unit-ish guard: snapshot the token object so accidental drift is caught.
+### Phase 1 — Theme foundation (everything depends on this) ✅ DONE (2026-06-23)
+- [x] Repurposed `lib/config/onboardingTheme.ts` into a frozen **amber-dark** token set (`ONBOARDING_THEME`). Kept `getOnboardingTheme(darkMode?)` signature (arg now ignored → always amber-dark) so existing callers (MainMenu, GlassActionButton) keep compiling. Added tokens: `base`, `glowColor`, `card`/`cardBorder`/`cardSelected`/`cardSelectedBorder`, `eyebrow`/`eyebrowBorder`, `accentText`, `difficulty{easy,medium,hard}`, `ctaGradient`, `ctaText`, `chipBg`/`chipText`, `floatingChip*`; kept legacy `backdrop`/`topGlow`/`bottomShade`/`glass*` so no screen breaks mid-migration.
+- [x] Added `useOnboardingTheme()` hook (returns the constant) so screens stop threading `darkMode` for menu styling.
 
-### Phase 2 — Signature backdrop (the radial glow) in `OnboardingScreenShellV2`
-- [ ] Replace the cool `#0F172A` base + blue rotating circles with: near-black base + a **`react-native-svg` `RadialGradient`** amber glow (brightest top-center, fading to transparent) — matches the mockup exactly and is static (no per-frame JS).
-- [ ] Keep the subtle entrance animation (opacity/translateY) on native driver; drop or re-tint the rotating circles to faint amber. Memoize particle positions if `showParticles`.
-- [ ] Verify on the render harness that the shell still mounts (it wraps every screen).
+### Phase 2 — Signature backdrop (the radial glow) in `OnboardingScreenShellV2` ✅ DONE (2026-06-23)
+- [x] Replaced the cool `#0F172A` base + blue rotating circles with: `theme.base` near-black + a **`react-native-svg` `RadialGradient`** amber glow (cx 50% / cy 18% / r 80%, 0.42→0.12→0 opacity) — matches the mockup and is static (no per-frame JS). Removed the dead circle styles + unused `Dimensions`/`screenWidth`.
+- [x] Kept the native-driven entrance (opacity/translateY); re-tinted particles to amber (positions already deterministic, not random).
+- [x] Verified: type-check clean; onboarding + screens render suites **12/12** (shell wraps every screen).
+- **Checkpoint shipped.** Next: Phase 3 (shared components: eyebrow pill, gradient CTA, glass cards) → Phase 4 per-screen.
 
 ### Phase 3 — Shared components re-skin (re-skin once, all screens benefit)
 - [ ] `OnboardingGlassHeader` / `OnboardingTopBar` — **eyebrow pill** ("CHOOSE YOUR PATH" style), title with an **amber highlight word**, muted subtitle.
