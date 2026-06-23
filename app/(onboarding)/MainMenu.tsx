@@ -12,29 +12,22 @@ import { Play, Plus, Save, Settings } from 'lucide-react-native';
 // when the user actually opens Settings.
 const SettingsModal = lazy(() => import('@/components/SettingsModal'));
 import GlassActionButton from '@/components/onboarding/GlassActionButton';
-import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
+import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShellV2';
+import OnboardingEyebrow from '@/components/onboarding/OnboardingEyebrow';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
 // this screen's module init — a require cycle that left this screen's default
 // export `undefined` in the production Hermes bundle ("Element type is invalid").
-import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
+import { useOnboardingTheme } from '@/lib/config/onboardingTheme';
 import { hasSaveStateShape, hasMeaningfulSaveData, findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const MAIN_MENU_BACKGROUNDS = [
-  require('@/assets/images/Main_Menu.png'),
-  require('@/assets/images/Main_Menu_2.png'),
-  require('@/assets/images/Main_Menu_3.png'),
-];
+import { fontScale, responsivePadding, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
 export default function MainMenu() {
   const log = logger.scope('MainMenu');
@@ -46,17 +39,12 @@ export default function MainMenu() {
   const [showSettings, setShowSettings] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const continueInFlightRef = useRef(false);
-  const [selectedBackground] = useState(
-    () => MAIN_MENU_BACKGROUNDS[Math.floor(Math.random() * MAIN_MENU_BACKGROUNDS.length)]
-  );
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     logOnboardingStepView('MainMenu');
   }, []);
 
-  const isDarkMode = useGameSelector((s) => Boolean(s?.settings?.darkMode));
-  const onboardingTheme = getOnboardingTheme(isDarkMode);
+  const onboardingTheme = useOnboardingTheme();
 
   const refreshHasSaveState = useCallback(async () => {
     try {
@@ -260,16 +248,18 @@ export default function MainMenu() {
 
   return (
     <>
-      <OnboardingScreenShell
-        backgroundSource={selectedBackground}
-        footer={
-          <View style={[styles.footerPill, { borderColor: onboardingTheme.glassBorder }]}>
-            <Text style={[styles.footerText, { color: onboardingTheme.subtitle }]}>
-              {hasSave ? 'Saved progress detected' : 'Create your first life story'}
-            </Text>
-          </View>
-        }
-      >
+      <OnboardingScreenShellV2 contentContainerStyle={styles.shellContent}>
+        <View style={styles.hero}>
+          <OnboardingEyebrow label="Choose Your Path" />
+          <Text style={[styles.heroTitle, { color: onboardingTheme.title }]}>Your Story</Text>
+          <Text style={[styles.heroTitle, { color: onboardingTheme.title }]}>
+            Starts <Text style={{ color: onboardingTheme.accentText }}>Here.</Text>
+          </Text>
+          <Text style={[styles.heroSubtitle, { color: onboardingTheme.subtitle }]}>
+            {hasSave ? 'Welcome back — your story continues.' : 'Every choice writes a life. Begin yours.'}
+          </Text>
+        </View>
+
         <View style={styles.menuSection}>
           {hasSave ? (
             <GlassActionButton
@@ -304,7 +294,7 @@ export default function MainMenu() {
             onPress={() => setShowSettings(true)}
           />
         </View>
-      </OnboardingScreenShell>
+      </OnboardingScreenShellV2>
 
       {showSettings && (
         <Suspense fallback={null}>
@@ -316,19 +306,29 @@ export default function MainMenu() {
 }
 
 const styles = StyleSheet.create({
+  shellContent: {
+    paddingHorizontal: responsivePadding.horizontal,
+    justifyContent: 'center',
+  },
+  hero: {
+    alignItems: 'center',
+    marginBottom: responsiveSpacing.xl,
+  },
+  heroTitle: {
+    fontSize: fontScale(34),
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: fontScale(40),
+  },
+  heroSubtitle: {
+    fontSize: fontScale(13),
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: verticalScale(10),
+    paddingHorizontal: responsiveSpacing.lg,
+  },
   menuSection: {
     width: '100%',
     paddingBottom: responsiveSpacing.md,
-  },
-  footerPill: {
-    borderWidth: 1,
-    borderRadius: responsiveBorderRadius.full,
-    backgroundColor: 'rgba(15, 23, 42, 0.3)',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: verticalScale(6),
-  },
-  footerText: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
   },
 });

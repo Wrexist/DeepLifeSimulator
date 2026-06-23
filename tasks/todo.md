@@ -41,7 +41,7 @@
 - Note: `OnboardingGlassHeader` title (white-on-dark) reads fine as-is; its amber-highlight treatment folds into Phase 4 per-screen where the hero/title lands.
 
 ### Phase 4 — Per-screen re-skin (reuse Phase 3 components; copy/layout unchanged)
-- [ ] **MainMenu** (`app/(onboarding)/MainMenu.tsx`) — hero "Your Story Starts Here." with amber highlight; Continue / New Life as amber pills; optional memoized decorative side-chips (star/plus/crown/heart) as pure accents. Keep the existing `continueInFlightRef` guard + rAF defer.
+- [x] **MainMenu** (`app/(onboarding)/MainMenu.tsx`) — DONE (2026-06-23). Switched from the V1 photo-background shell to the **V2 amber-glow shell**; added the hero (`OnboardingEyebrow` "Choose Your Path" + "Your Story / Starts **Here.**" with amber highlight + subtitle). Kept the `continueInFlightRef` guard + rAF defer. Dropped the photo backgrounds (match the mockup) + the now-dead `darkMode` subscription / `insets` / `useSafeAreaInsets`. Decision: chrome-free hero (no decorative side-chips for now). Type-check clean; onboarding render 5/5.
 - [ ] **Scenarios** (`Scenarios.tsx`) — the origin cards exactly like the mockup: thumbnail chip + title + **difficulty pill** (easy=green / medium=amber / hard=red) + description + stat chips + selected check; amber "Start Your Life" CTA. Keep the memoized `ScenarioCardView` + single stable `onSelectScenario`.
 - [ ] **SaveSlots** (`SaveSlots.tsx`) — slot cards as dark glass with state chips; keep `isBusy`/`loading` yields.
 - [ ] **Customize** (`Customize.tsx`) — inputs / segmented controls re-skinned amber-dark; keep inline validation.
