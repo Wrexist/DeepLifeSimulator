@@ -77,7 +77,12 @@ Long-lived saves are a latent liability: 20 sequential migrations, O(relationshi
 
 ### NEXT-0 — Build the unified backend (THE critical path for the whole roadmap) · Effort L · Impact CRITICAL
 One authenticated service serves **four** client contracts that already exist: analytics ingest (NOW-1), cloud save, leaderboards, receipt verification. Build NOW-1's endpoint as the first route of *this* service, not a throwaway.
-- [ ] **Auth model decision (OPEN THREAD — blocks everything):** `cloud.ts` requires `EXPO_PUBLIC_CLOUD_AUTH_TOKEN` (Bearer) and a stable `userId` (≥3 chars, not reserved, `cloudWritesAllowed()` requires auth in prod). Decide identity: anonymous `installId` (works now, but **no cross-device restore**) vs real accounts (Sign in with Apple/Google — needed for true cloud save + abuse control). This decision shapes NEXT-1/2/3. See AskUserQuestion-worthy below.
+- [ ] **Auth model — DECIDED 2026-06-23: real accounts (Sign in with Apple / Google).** Enables cross-device cloud save, real leaderboard identity, and abuse control. Implications now in scope:
+  - [ ] **Account system / identity provider** — Sign in with Apple + Google sign-in; mint the backend session that produces the `EXPO_PUBLIC_CLOUD_AUTH_TOKEN` Bearer token and a stable server-issued `userId` (must satisfy `cloud.ts` rules: ≥3 chars, not in `RESERVED_USER_IDS`). The token is no longer a single static env value — it becomes a per-user session token.
+  - [ ] **Account UI** — sign-in / sign-out, "linked to Apple/Google" state, and a **mandatory in-app account-deletion** flow (App Store Guideline 5.1.1(v) — required for any app offering account creation). Deletion must purge cloud saves + leaderboard entries server-side.
+  - [ ] **Privacy** — update the privacy policy + App Store data-collection disclosure for account data; gate behind the existing ATT/consent flow.
+  - [ ] **Migration** — existing players are local-only today; on first sign-in, adopt the local save into the account (claim the `slot_[1-3]` saves under the new `userId`).
+  - Note: this makes NEXT-0 larger and is a hard prerequisite for NEXT-1/2/3 — do it first within NEXT-0.
 - [ ] **`POST /save`** — body `{ state, updatedAt, userId, slotId, revision, hash, signature }` (`cloud.ts:177-185`). Server MUST mirror client validation: `slotId` matches `^slot_[1-3]$`, `revision >= 1`, `hash` ≥8 chars, `signature` ≥16 chars; reject stale revisions (last-write-wins by `revision`/`updatedAt`).
 - [ ] **`GET /save?userId=&slotId=`** → `CloudSave { state, updatedAt, slotId, userId, revision, hash, signature }` (`cloud.ts:341-376`).
 - [ ] **`POST /leaderboard/:category`** — body `{ name, score, userId, runSignature, revision }` (`cloud.ts:268-278`).
@@ -98,7 +103,7 @@ Client is done (`CloudSyncService` + `cloud.ts`). Work is backend routes + turni
 Today leaderboards are local-only vanity (`lib/progress/leaderboard.ts`, 123 LOC); the cloud submit/fetch exists but no server.
 - [ ] Wire the existing local leaderboard categories to `uploadLeaderboardScore`/`fetchLeaderboard`.
 - [ ] **OPEN THREAD — anti-cheat:** `runSignature` is generated client-side and is therefore forgeable. The server MUST sanity-bound scores (max plausible net worth / age / etc. per `revision`) and ideally validate the run, or the boards fill with `9e99` net-worth garbage on day one. Do not ship public boards without this.
-- [ ] Decide board scope tied to the auth decision (anonymous = display-name only, spoofable; accounts = real identity).
+- [ ] Boards use the real account identity (auth decided: Apple/Google) — display name tied to a verified `userId`, not a spoofable free-text name.
 - **Acceptance:** scores submit + display from the backend; obviously-impossible scores are rejected server-side.
 
 ### NEXT-3 — Server-side receipt verification (revenue integrity) · Effort M · Impact High · depends on NEXT-0
@@ -130,11 +135,11 @@ The one thing BitLife structurally can't ship at 1M DAU. Start narrow.
 
 ### NEXT — dependencies & open threads
 - [ ] **NEXT-0 backend gates NEXT-1/2/3/5.** It is the single highest-leverage infra item across both phases. Build NOW-1's analytics route as route #1 of this service.
-- [ ] **Auth/identity decision gates cloud save + leaderboard integrity** (anonymous installId vs real accounts). Needs a product call before NEXT-1/2 — recommend deciding it alongside NEXT-0.
+- [ ] **Auth/identity — RESOLVED: real accounts (Apple/Google).** Now part of NEXT-0 and a hard prerequisite for NEXT-1/2/3. Adds account UI + mandatory account-deletion (App Store 5.1.1(v)) + privacy-policy updates to scope. The static `EXPO_PUBLIC_CLOUD_AUTH_TOKEN` becomes a per-user session token minted on sign-in.
 - [ ] **Leaderboard anti-cheat and AI moderation are non-optional** for their respective tickets — both are "ship-blocking" sub-items, not nice-to-haves.
 - [ ] **Save-schema:** AI recaps that persist (e.g. a "memories" log) = `STATE_VERSION` bump + migration; prefer ephemeral/server-stored to avoid bloating the save (ties to NOW-5).
 
-**Sequencing:** NEXT-0 (+ auth decision) first → NEXT-3 (protect revenue) + NEXT-4 (merchandising, no backend dep beyond measurement) in parallel → NEXT-1 + NEXT-2 → NEXT-5 (the wedge) → NEXT-6 (tune). Do not start NEXT before the NOW funnel is reporting.
+**Sequencing:** NEXT-0 first, and **within NEXT-0 build the account system (Apple/Google sign-in + deletion) before the data routes**, since cloud save / leaderboard identity / receipt-verify all hang off it. Then NEXT-3 (protect revenue) + NEXT-4 (merchandising, no backend dep beyond measurement) in parallel → NEXT-1 + NEXT-2 → NEXT-5 (the wedge) → NEXT-6 (tune). Do not start NEXT before the NOW funnel is reporting.
 
 ---
 
