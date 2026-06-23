@@ -1,5 +1,67 @@
 # Task Tracker
 
+## 🎨 PLAN — Amber-dark menu & onboarding re-theme (2026-06-23)
+
+> Goal: re-skin the **pre-game menu + onboarding** to match the supplied mockup — deep near-black base with a
+> warm amber/gold radial glow, dark glassy cards, pill badges, difficulty chips, and a gradient "Start Your Life"
+> CTA. **Polished, high-quality, and fast/instant UX.**
+>
+> **Decisions (confirmed with user 2026-06-23):**
+> - Scope = **all pre-game screens** (MainMenu, SaveSlots, Scenarios, Customize, Perks, + loading). In-game UI untouched.
+> - **Menu-only theme** — do NOT touch `lib/config/theme.ts` or any in-game styling.
+> - **Always dark amber** — the menu ignores the light/dark toggle (renders the amber-dark look regardless).
+> - **Re-skin with existing assets** — no new illustrations; reuse current icons/emoji/lucide. Card thumbnails stay icon-based but the design accepts a per-origin image later (forward-compatible).
+>
+> **Capabilities confirmed present:** `expo-linear-gradient`, `expo-blur`, `react-native-svg` (true `RadialGradient`), `usePressableScale`, and LinearGradient already used in onboarding. Existing shared shell: `OnboardingScreenShellV2`, `OnboardingGlassHeader`, `OnboardingTopBar`, `OnboardingStepBar`, `OnboardingFloatingButton`, `GlassActionButton`, `GlassPanel`. Existing token map: `lib/config/onboardingTheme.ts` (currently cool slate — to be repurposed).
+>
+> **Performance principles (the "instant" requirement) — enforced on every step:**
+> - Native-driven animations only (`useNativeDriver:true`); NO JS-driven color/shadow/opacity loops.
+> - `usePressableScale` on every button so the press paints before any work; rAF-defer heavy nav work (existing pattern).
+> - Static decorative elements (glow, side-chips, particles) memoized — never re-roll `Math.random()` per render.
+> - Keep `useGameSelector` narrow subscriptions (menu already migrated); don't widen them.
+> - Prefer layered translucent views / SVG gradient over heavy `BlurView` where blur would jank on low-end devices.
+
+### Phase 1 — Theme foundation (everything depends on this)
+- [ ] Repurpose `lib/config/onboardingTheme.ts` into a fixed **amber-dark** token set (keep `getOnboardingTheme()` signature so callers don't break; ignore/deprecate the `darkMode` arg → always amber-dark). Add tokens: `base` (near-black ~`#0A0A0F`), `glowInner`/`glowOuter` (amber radial stops), `card`/`cardBorder`/`cardSelected`, `eyebrowPill` (border+text), `title`, `accent` (amber highlight word), `subtitle` (muted), difficulty `{ easy, medium, hard }`, `ctaGradient` (orange→amber stops), `chipBg`/`chipText`, `floatingChip`.
+- [ ] Add a tiny `useOnboardingTheme()` hook (returns the constant set) so screens stop threading `darkMode` for menu styling.
+- [ ] Unit-ish guard: snapshot the token object so accidental drift is caught.
+
+### Phase 2 — Signature backdrop (the radial glow) in `OnboardingScreenShellV2`
+- [ ] Replace the cool `#0F172A` base + blue rotating circles with: near-black base + a **`react-native-svg` `RadialGradient`** amber glow (brightest top-center, fading to transparent) — matches the mockup exactly and is static (no per-frame JS).
+- [ ] Keep the subtle entrance animation (opacity/translateY) on native driver; drop or re-tint the rotating circles to faint amber. Memoize particle positions if `showParticles`.
+- [ ] Verify on the render harness that the shell still mounts (it wraps every screen).
+
+### Phase 3 — Shared components re-skin (re-skin once, all screens benefit)
+- [ ] `OnboardingGlassHeader` / `OnboardingTopBar` — **eyebrow pill** ("CHOOSE YOUR PATH" style), title with an **amber highlight word**, muted subtitle.
+- [ ] `OnboardingStepBar` — amber progress/step indicator.
+- [ ] `GlassActionButton` / `OnboardingFloatingButton` — **gradient amber pill CTA** (`expo-linear-gradient`, orange→amber) with leading icon (e.g. Play for "Start Your Life"); preserve `usePressableScale` + the `loading` spinner prop.
+- [ ] `GlassPanel` — dark glassy card (token `card`/`cardBorder`, rounded, hairline border, optional faint top highlight).
+
+### Phase 4 — Per-screen re-skin (reuse Phase 3 components; copy/layout unchanged)
+- [ ] **MainMenu** (`app/(onboarding)/MainMenu.tsx`) — hero "Your Story Starts Here." with amber highlight; Continue / New Life as amber pills; optional memoized decorative side-chips (star/plus/crown/heart) as pure accents. Keep the existing `continueInFlightRef` guard + rAF defer.
+- [ ] **Scenarios** (`Scenarios.tsx`) — the origin cards exactly like the mockup: thumbnail chip + title + **difficulty pill** (easy=green / medium=amber / hard=red) + description + stat chips + selected check; amber "Start Your Life" CTA. Keep the memoized `ScenarioCardView` + single stable `onSelectScenario`.
+- [ ] **SaveSlots** (`SaveSlots.tsx`) — slot cards as dark glass with state chips; keep `isBusy`/`loading` yields.
+- [ ] **Customize** (`Customize.tsx`) — inputs / segmented controls re-skinned amber-dark; keep inline validation.
+- [ ] **Perks** (`Perks.tsx`) — perk + mindset cards amber-dark; keep memoized `PerkCard`/`MindsetCard` + stable callbacks + rAF-deferred `start`.
+- [ ] **Loading screen** (`app/index.tsx`) — amber radial glow + amber title glow to match (RN-core/native-driven only, crash-proof).
+
+### Phase 5 — Verify (prove polish + instant + no regressions)
+- [ ] `npm run type-check` clean.
+- [ ] Full render suite green; extend onboarding render tests to assert the new eyebrow/CTA/difficulty elements per screen.
+- [ ] Confirm no JS-driven animation loops introduced (grep for `useNativeDriver: false` / JS color interpolations in touched files).
+- [ ] `npm run preflight:quick`. Visual check via `/preview` at a couple of device widths if available.
+- [ ] Run the Game State Reviewer? — N/A (pure presentational; no state/save changes). Save Auditor — N/A.
+
+### Decisions/risks flagged
+- [ ] **Always-dark means menu screens must stop styling from `darkMode`** — route all menu styling through `useOnboardingTheme()`; leave the global `useTheme()`/in-game untouched.
+- [ ] **Decorative side-chips**: the mockup's floating star/plus/crown/heart frame a marketing hero (the phone is a device frame; in-app there's no frame). I'll add them as *optional, memoized decorative accents* on MainMenu only — confirm if you want them or a cleaner chrome-free hero.
+- [ ] **Blur cost**: prefer SVG gradient + translucent layers over full-screen `BlurView` to protect low-end FPS; use blur sparingly on cards only if it stays smooth.
+- [ ] **Forward-compat for custom art**: Scenario card thumbnail will accept an optional image source so you can drop in 3D illustrations later without a rework.
+
+**Sequencing:** Phase 1 → 2 (foundation + the signature glow) make the look land immediately; 3 (shared components) propagates it; 4 per-screen; 5 verify. Recommend shipping Phase 1+2 first as a visible checkpoint, then iterating screen-by-screen.
+
+---
+
 ## 🗺️ ROADMAP — "NOW" phase: Instrument & stop the leaks (2026-06-23)
 
 > Source: indie-game growth roadmap. Priority order enforced: **Retention → Revenue → Growth**,
