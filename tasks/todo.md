@@ -68,6 +68,76 @@ Long-lived saves are a latent liability: 20 sequential migrations, O(relationshi
 
 ---
 
+## 🗺️ ROADMAP — "NEXT" phase: Consolidate monetization + plant the differentiator (2026-06-23)
+
+> Goal: **Revenue + the defensible niche.** Begins once the NOW funnel is live (you need measurement to tune any of this).
+>
+> **Headline discovery from grounding this in code:** the client side of almost all of Next is **already built and waiting on a backend URL**.
+> `lib/progress/cloud.ts` is a complete HTTP client for **cloud save AND leaderboards**, gated on `EXPO_PUBLIC_CLOUD_SAVE_URL` (every fn no-ops when unset). `CloudSyncService.ts` is a full sync engine (queue, conflict resolution local/remote/merge, 30s periodic, HMAC signing). `verifyReceiptWithServer` is already the gate before entitlement grants. The **DeepLife+ anchor subscription already exists** (`lib/subscription/deepLifePlus.ts`, `services/SubscriptionService.ts`, `applyDeepLifePlusBenefits` in `SubscriptionActions.ts`, full `SubscriptionModal.tsx` paywall). So most of Next is **"build one authenticated backend"** + merchandising + the genuinely-new AI feature — NOT building these systems from scratch.
+
+### NEXT-0 — Build the unified backend (THE critical path for the whole roadmap) · Effort L · Impact CRITICAL
+One authenticated service serves **four** client contracts that already exist: analytics ingest (NOW-1), cloud save, leaderboards, receipt verification. Build NOW-1's endpoint as the first route of *this* service, not a throwaway.
+- [ ] **Auth model decision (OPEN THREAD — blocks everything):** `cloud.ts` requires `EXPO_PUBLIC_CLOUD_AUTH_TOKEN` (Bearer) and a stable `userId` (≥3 chars, not reserved, `cloudWritesAllowed()` requires auth in prod). Decide identity: anonymous `installId` (works now, but **no cross-device restore**) vs real accounts (Sign in with Apple/Google — needed for true cloud save + abuse control). This decision shapes NEXT-1/2/3. See AskUserQuestion-worthy below.
+- [ ] **`POST /save`** — body `{ state, updatedAt, userId, slotId, revision, hash, signature }` (`cloud.ts:177-185`). Server MUST mirror client validation: `slotId` matches `^slot_[1-3]$`, `revision >= 1`, `hash` ≥8 chars, `signature` ≥16 chars; reject stale revisions (last-write-wins by `revision`/`updatedAt`).
+- [ ] **`GET /save?userId=&slotId=`** → `CloudSave { state, updatedAt, slotId, userId, revision, hash, signature }` (`cloud.ts:341-376`).
+- [ ] **`POST /leaderboard/:category`** — body `{ name, score, userId, runSignature, revision }` (`cloud.ts:268-278`).
+- [ ] **`GET /leaderboard/:category`** → `LeaderboardEntry[]` (`cloud.ts:306-318`).
+- [ ] **`POST /analytics`** (NOW-1) — `{ events: [...] }`, de-dupe on `event.id`.
+- [ ] **Receipt-verify endpoint** for NEXT-3 (Apple App Store Server API + Google Play Developer API).
+- [ ] Verify `Authorization: Bearer` on every route; rate-limit server-side (client already rate-limits via `rateLimited()`).
+- **Acceptance:** all five client modules talk to the real backend in a release build; auth enforced; analytics dashboard + a cloud round-trip both work.
+
+### NEXT-1 — Cloud save go-live · Effort M (mostly backend + verify) · Impact High · depends on NEXT-0 + auth decision
+Client is done (`CloudSyncService` + `cloud.ts`). Work is backend routes + turning it on + end-to-end verification.
+- [ ] Set `EXPO_PUBLIC_CLOUD_SAVE_URL` + `EXPO_PUBLIC_CLOUD_AUTH_TOKEN` in the prod EAS profile.
+- [ ] Verify the conflict path end-to-end: `CloudSyncService` `SyncConflict` → `ConflictCallback` UI (local/remote/merge). Confirm a `CloudSyncConflictModal` is wired (the audit log notes it was once removed — re-verify it exists and mounts).
+- [ ] Test: two devices, same account, divergent saves → conflict surfaces and resolves without data loss. Integrity (`hash`/`signature`) validated server-side.
+- **Acceptance:** a save survives reinstall / new device for an authenticated user; conflicts resolve without silent loss. (Also fixes the lost-consumables support burden from the NOW-5/monetization notes.)
+
+### NEXT-2 — Real leaderboards + server-side anti-cheat · Effort M · Impact High · depends on NEXT-0
+Today leaderboards are local-only vanity (`lib/progress/leaderboard.ts`, 123 LOC); the cloud submit/fetch exists but no server.
+- [ ] Wire the existing local leaderboard categories to `uploadLeaderboardScore`/`fetchLeaderboard`.
+- [ ] **OPEN THREAD — anti-cheat:** `runSignature` is generated client-side and is therefore forgeable. The server MUST sanity-bound scores (max plausible net worth / age / etc. per `revision`) and ideally validate the run, or the boards fill with `9e99` net-worth garbage on day one. Do not ship public boards without this.
+- [ ] Decide board scope tied to the auth decision (anonymous = display-name only, spoofable; accounts = real identity).
+- **Acceptance:** scores submit + display from the backend; obviously-impossible scores are rejected server-side.
+
+### NEXT-3 — Server-side receipt verification (revenue integrity) · Effort M · Impact High · depends on NEXT-0
+`IAPService.validateReceipt` is client-side only and historically returned `true` unconditionally (`IAPService.ts:~422`); `verifyReceiptWithServer` is the intended gate (`:830-837`) but needs the server.
+- [ ] Implement the receipt-verify endpoint (Apple App Store Server API + Google Play Developer API); return a signed verdict.
+- [ ] Ensure `verifyReceiptWithServer` is awaited and **must pass** before any `applyProductBenefitsToState` (the consolidated entitlement path from the H6 work). Fire `purchase_succeeded` (NOW-1) only after a verified grant.
+- **Acceptance:** an unverified/forged receipt grants nothing; legit purchases grant exactly once.
+
+### NEXT-4 — Collapse IAP to the DeepLife+ anchor (merchandising, not build) · Effort M · Impact High · depends on NOW-1 (to measure conversion)
+The anchor exists (`lib/subscription/deepLifePlus.ts`, `SubscriptionModal.tsx`). The problem is 24 SKUs with no clear primary upsell + reframed "dead" gold-upgrade products.
+- [ ] Audit `utils/iapConfig.ts` SKU list; **retire or honestly re-describe** the reframed dead gold-upgrade products (refund-bait / review-poison per the codebase's own gold-upgrade notes).
+- [ ] Make DeepLife+ the **primary** upsell surface (ad-removal + boost allotment + cosmetic + the NEXT-5 AI feature). Confirm `DEEP_LIFE_PLUS_BENEFITS` reflects the bundle; price ~$3.99/mo, ~$19.99/yr; keep a one-time Remove-Ads (~$9.99) for non-subscribers.
+- [ ] Reduce gem-pack choice paralysis (3-4 tiers, not 9). Keep gems as the reward currency for streaks/ads.
+- [ ] A/B or before/after measure conversion via the NOW-1 funnel (`paywall_viewed → purchase_succeeded`).
+- **Acceptance:** one clear anchor upsell; dead SKUs gone; subscription conversion measurable and trending.
+
+### NEXT-5 — AI-narrative MVP (the defensible wedge) · Effort L · Impact Highest (long-term) · depends on NEXT-0
+The one thing BitLife structurally can't ship at 1M DAU. Start narrow.
+- [ ] **Backend proxy only** — LLM calls go through NEXT-0 (never ship API keys in the RN bundle). Rate-limit + cost-cap per user.
+- [ ] **Cost gating:** expose the feature as a **DeepLife+ perk** (bounds inference cost to paying users and reinforces NEXT-4).
+- [ ] **Content moderation (HARD dependency):** user-influenced life stories WILL generate unsafe output → App Store / Play rejection risk. Add a moderation pass before display. Do not ship without it.
+- [ ] **Narrow MVP:** one AI-generated "life-story recap" per in-game decade, seeded from the player's real stats/history. Prove it moves D7 before expanding to per-event narration.
+- **Acceptance:** a DeepLife+ subscriber gets a personalized, moderated AI recap; per-user cost is bounded; D7 impact measured.
+
+### NEXT-6 — Rewarded-ad expansion at natural friction points · Effort S · Impact Medium · depends on NOW-2 baseline
+- [ ] Add rewarded-ad offers at revival, boost, and gem top-up moments (placements + circuit breaker already exist in `AdMobService.ts`).
+- [ ] Tune frequency **against the measured ARPDAU/retention curve** from NOW-2 — never blind.
+- **Acceptance:** incremental ad revenue without a retention regression in the NOW-1 cohorts.
+
+### NEXT — dependencies & open threads
+- [ ] **NEXT-0 backend gates NEXT-1/2/3/5.** It is the single highest-leverage infra item across both phases. Build NOW-1's analytics route as route #1 of this service.
+- [ ] **Auth/identity decision gates cloud save + leaderboard integrity** (anonymous installId vs real accounts). Needs a product call before NEXT-1/2 — recommend deciding it alongside NEXT-0.
+- [ ] **Leaderboard anti-cheat and AI moderation are non-optional** for their respective tickets — both are "ship-blocking" sub-items, not nice-to-haves.
+- [ ] **Save-schema:** AI recaps that persist (e.g. a "memories" log) = `STATE_VERSION` bump + migration; prefer ephemeral/server-stored to avoid bloating the save (ties to NOW-5).
+
+**Sequencing:** NEXT-0 (+ auth decision) first → NEXT-3 (protect revenue) + NEXT-4 (merchandising, no backend dep beyond measurement) in parallel → NEXT-1 + NEXT-2 → NEXT-5 (the wedge) → NEXT-6 (tune). Do not start NEXT before the NOW funnel is reporting.
+
+---
+
 ## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
 
 User spammed the green "Next Week" button → screen covered in overlapping blue
