@@ -2,10 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import {
  Gift,
- DollarSign,
  Gem,
- Calendar,
- Zap,
+ Check,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/game';
 import { safeSettings } from "@/utils/safeGameState";
@@ -13,6 +11,7 @@ import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, r
 
 interface DailyRewardPopupProps {
  visible: boolean;
+ /** The number of GEMS granted for today's claim (not money). */
  rewardAmount: number;
  onClose: () => void;
 }
@@ -25,7 +24,11 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  const safeRewardAmount = typeof rewardAmount === 'number' && isFinite(rewardAmount) && rewardAmount >= 0 ? rewardAmount: 0;
  // eslint-disable-next-line @typescript-eslint/no-require-imports
  const { DAILY_LOGIN_REWARDS } = require('@/lib/config/gameConstants');
- const nextDayReward = DAILY_LOGIN_REWARDS[loginStreak % DAILY_LOGIN_REWARDS.length] || 50;
+ const cycleLength: number = Array.isArray(DAILY_LOGIN_REWARDS) && DAILY_LOGIN_REWARDS.length > 0 ? DAILY_LOGIN_REWARDS.length : 7;
+ // Which cell in the 7-day cycle today's claim lands on (mirrors the home.tsx
+ // grant logic: rewardIndex = (streak - 1) % DAILY_LOGIN_REWARDS.length).
+ const todayIndex = ((loginStreak || 1) - 1) % cycleLength;
+ const atCycleEnd = todayIndex === cycleLength - 1;
 
  const isMountedRef = useRef(true);
  const claimInProgressRef = useRef(false);
@@ -73,6 +76,10 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  subtitle: '#9CA3AF',
  infoBg: 'rgba(255,255,255,0.04)',
  infoText: '#D1D5DB',
+ cellBg: 'rgba(255,255,255,0.04)',
+ cellBorder: 'rgba(255,255,255,0.08)',
+ cellClaimedBg: 'rgba(139, 92, 246, 0.16)',
+ cellUpcomingText: '#6B7280',
  }
 : {
  backdrop: 'rgba(15, 23, 42, 0.55)',
@@ -82,6 +89,10 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  subtitle: '#64748B',
  infoBg: '#F1F5F9',
  infoText: '#475569',
+ cellBg: '#F8FAFC',
+ cellBorder: 'rgba(15,23,42,0.08)',
+ cellClaimedBg: 'rgba(139, 92, 246, 0.12)',
+ cellUpcomingText: '#94A3B8',
  };
 
  return (
@@ -109,41 +120,60 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  Day {loginStreak} streak — keep it going!
  </Text>
 
- <View style={styles.rewards}>
+ {/* 7-day reward calendar: claimed (✓) · today (filled) · upcoming (dimmed). */}
+ <View style={styles.calendar} accessibilityRole="summary" accessibilityLabel={`Day ${todayIndex + 1} of ${cycleLength}, earned ${safeRewardAmount} gems`}>
+ {DAILY_LOGIN_REWARDS.map((amount: number, i: number) => {
+ const status = i < todayIndex ? 'claimed': i === todayIndex ? 'today': 'upcoming';
+ const isToday = status === 'today';
+ const isClaimed = status === 'claimed';
+ return (
+ <View
+ key={i}
+ style={[
+ styles.cell,
+ {
+ backgroundColor: isToday ? '#8B5CF6': isClaimed ? palette.cellClaimedBg: palette.cellBg,
+ borderColor: isToday ? '#8B5CF6': palette.cellBorder,
+ },
+ ]}
+ >
+ <Text
+ style={[
+ styles.cellDay,
+ { color: isToday ? 'rgba(255,255,255,0.85)': isClaimed ? '#8B5CF6': palette.cellUpcomingText },
+ ]}
+ >
+ {`D${i + 1}`}
+ </Text>
+ {isClaimed ? (
+ <Check size={scale(13)} color="#8B5CF6" strokeWidth={3} />
+ ): (
+ <Gem size={scale(12)} color={isToday ? '#FFFFFF': palette.cellUpcomingText} strokeWidth={2.4} />
+ )}
+ <Text
+ style={[
+ styles.cellAmount,
+ { color: isToday ? '#FFFFFF': isClaimed ? palette.title: palette.cellUpcomingText },
+ ]}
+ >
+ {amount}
+ </Text>
+ </View>
+ );
+ })}
+ </View>
+
+ {/* Today's actual grant — gems, not money (was previously mislabeled). */}
  <View style={[styles.rewardRow, { borderColor: palette.border, backgroundColor: palette.infoBg }]}>
  <View style={[styles.rewardIcon, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
  <Gem size={scale(20)} color="#8B5CF6" strokeWidth={2.4} />
  </View>
- <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Gem</Text>
- <Text style={[styles.rewardAmount, { color: palette.title }]}>+1</Text>
- </View>
-
- {safeRewardAmount > 0 && (
- <View style={[styles.rewardRow, { borderColor: palette.border, backgroundColor: palette.infoBg }]}>
- <View style={[styles.rewardIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
- <DollarSign size={scale(20)} color="#10B981" strokeWidth={2.4} />
- </View>
- <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Money bonus</Text>
+ <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>
+ {atCycleEnd ? 'Streak bonus — gems': "Today's reward — gems"}
+ </Text>
  <Text style={[styles.rewardAmount, { color: palette.title }]}>
- ${safeRewardAmount.toLocaleString()}
+ +{safeRewardAmount.toLocaleString()}
  </Text>
- </View>
- )}
- </View>
-
- <View style={[styles.infoBlock, { backgroundColor: palette.infoBg, borderColor: palette.border }]}>
- <View style={styles.infoRow}>
- <Calendar size={scale(14)} color={palette.subtitle} />
- <Text style={[styles.infoText, { color: palette.infoText }]}>
- Tomorrow: +{nextDayReward} gems (Day {loginStreak + 1})
- </Text>
- </View>
- <View style={styles.infoRow}>
- <Zap size={scale(14)} color={palette.subtitle} />
- <Text style={[styles.infoText, { color: palette.infoText }]}>
- {loginStreak >= 7 ? 'Max streak reached!': `${7 - loginStreak} days to max streak bonus`}
- </Text>
- </View>
  </View>
 
  <TouchableOpacity
@@ -151,7 +181,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
  onPress={handleClaim}
  activeOpacity={0.88}
  accessibilityRole="button"
- accessibilityLabel="Claim daily reward"
+ accessibilityLabel={`Claim ${safeRewardAmount} gems`}
  >
  <Text style={styles.claimButtonText}>Claim Reward</Text>
  </TouchableOpacity>
@@ -201,9 +231,28 @@ const styles = StyleSheet.create({
  marginTop: scale(2),
  marginBottom: responsiveSpacing.md,
  },
- rewards: {
- gap: responsiveSpacing.xs,
+ calendar: {
+ flexDirection: 'row',
+ gap: scale(4),
  marginBottom: responsiveSpacing.md,
+ },
+ cell: {
+ flex: 1,
+ borderRadius: responsiveBorderRadius.md,
+ borderWidth: 1,
+ paddingVertical: responsiveSpacing.xs,
+ alignItems: 'center',
+ justifyContent: 'center',
+ gap: scale(2),
+ minHeight: scale(54),
+ },
+ cellDay: {
+ fontSize: responsiveFontSize.xs,
+ fontWeight: '700',
+ },
+ cellAmount: {
+ fontSize: responsiveFontSize.xs,
+ fontWeight: '800',
  },
  rewardRow: {
  flexDirection: 'row',
@@ -213,6 +262,7 @@ const styles = StyleSheet.create({
  borderRadius: responsiveBorderRadius.lg,
  borderWidth: 1,
  gap: responsiveSpacing.sm,
+ marginBottom: responsiveSpacing.md,
  },
  rewardIcon: {
  width: scale(34),
@@ -230,24 +280,6 @@ const styles = StyleSheet.create({
  fontSize: responsiveFontSize.lg,
  fontWeight: '800',
  letterSpacing: 0.2,
- },
- infoBlock: {
- borderRadius: responsiveBorderRadius.lg,
- borderWidth: 1,
- paddingHorizontal: responsiveSpacing.md,
- paddingVertical: responsiveSpacing.sm,
- gap: scale(6),
- marginBottom: responsiveSpacing.md,
- },
- infoRow: {
- flexDirection: 'row',
- alignItems: 'center',
- gap: responsiveSpacing.xs,
- },
- infoText: {
- flex: 1,
- fontSize: responsiveFontSize.xs,
- fontWeight: '500',
  },
  claimButton: {
  backgroundColor: '#8B5CF6',

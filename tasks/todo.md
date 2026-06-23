@@ -31,13 +31,15 @@ AdMob is opt-in (`featureFlags.ts:18`). For this genre ad revenue ≈ IAP revenu
 
 ### NOW-3 — Complete the daily-login streak + reward calendar  · Effort M · Impact High · depends on NOW-1 (measurement)
 Partially built: `daily_reward_claimed` already fires (`home.tsx:250`) with a streak value; state has `playStreak` (`initialState.ts:1700`) and `loginStreak`/`lastLoginDate`/`lastLoginRewardDate` (`types.ts:2127-2129`). Missing: a visible escalating reward calendar + `streak_changed` emission. Biggest missing retention primitive.
-- [ ] Audit current daily-reward logic in `home.tsx` (~`:250`) + streak fields; verify increment/reset across calendar days + a grace window.
-- [ ] Define an **escalating 7-day reward calendar** (gems — existing currency, no new economy); resets on a missed day past grace.
-- [ ] Build the reward-calendar UI (claimed / today / upcoming / streak counter). Reuse existing modal/toast patterns; **do NOT add a 9th context provider.**
-- [ ] Fire `streak_changed` (NOW-1) on every increment/reset.
-- [ ] If new persisted fields are added → `STATE_VERSION` 21 bump + migration + repair test. Prefer reusing existing fields to avoid a migration.
-- [ ] Tests via `createTestGameState()` (Hard Rule #3): increment, grace-window, reset.
-- **Acceptance:** returning player sees an escalating reward; streak persists across sessions; `streak_changed` + `daily_reward_claimed` appear in analytics.
+- [x] **Audited the daily-reward logic — DONE (2026-06-23).** `home.tsx` effect (~`:213`) increments within a 48h grace (`LOGIN_STREAK_GRACE_HOURS`), resets past it, and indexes `DAILY_LOGIN_REWARDS = [25,50,75,100,150,200,500]` by `(streak-1) % 7`. Logic is sound; reused as-is (no behavior change).
+- [x] **Escalating 7-day reward calendar — already existed** (`DAILY_LOGIN_REWARDS`, gems — no new economy/currency).
+- [x] **Built the reward-calendar UI — DONE (2026-06-23).** Rebuilt `components/DailyRewardPopup.tsx` with a 7-day calendar strip: **claimed (✓) · today (filled purple) · upcoming (dimmed)**, each cell showing its gem amount, plus the streak header. Reuses the existing modal/animation/a11y/double-tap patterns; **no new context provider.**
+  - **Fixed a real display bug along the way:** the popup received the gem reward as `rewardAmount` but rendered it as a **"Money bonus $50"** plus a hardcoded fake **"+1 Gem"** row — i.e. a player earning 50 gems saw "+1 Gem / $50". Now correctly shows "Today's reward — gems +50" (and "Streak bonus — gems" on day 7). Props interface unchanged → no `home.tsx` change needed.
+- [x] **Fire `streak_changed`** — DONE in the NOW-1 commit (home.tsx, with `broke`).
+- [x] **No migration needed** — reused existing `loginStreak`/`lastLoginDate`/`lastLoginRewardDate` fields; `STATE_VERSION` unchanged.
+- [x] **Render test — DONE.** `__tests__/render/DailyRewardPopup.render.test.tsx` (2/2): calendar renders D1–D7 + all cycle amounts, reward labelled as gems (not money), no "Money bonus" string. Added `Gem`/`Check` to the `jest.setup.js` lucide allowlist. Type-check clean; full render suite 23/23.
+  - Follow-up (deferred, low-risk): the streak increment/grace/reset math is inline in the `home.tsx` effect (unchanged behavior). A dedicated unit test would mean extracting it to a pure helper — deferred to avoid refactoring a working retention-critical path; the render test + the audit cover the shipped change.
+- **Acceptance:** ✅ returning player sees an escalating 7-day calendar with today highlighted; ✅ reward correctly labelled as gems; ✅ `streak_changed` + `daily_reward_claimed` fire. Streak already persists across sessions via existing fields.
 
 ### NOW-4 — Re-introduce notifications crash-safely (local first)  · Effort M–L · Impact High · RISK: native-crash regression
 `utils/notifications.ts` is a **STUB** ("expo-notifications removed to fix TurboModule crash" — same iOS-26 native-crash class that disabled Sentry). `smartNotifications.ts` (675 LOC) computes scheduling/copy but has no OS delivery path.

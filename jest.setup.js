@@ -414,6 +414,8 @@ jest.mock('lucide-react-native', () => ({
   MessageCircle: 'MessageCircle',
   DollarSign: 'DollarSign',
   Gift: 'Gift',
+  Gem: 'Gem',
+  Check: 'Check',
   // Add other icons as needed
 }));
 
