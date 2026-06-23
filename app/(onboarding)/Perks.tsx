@@ -160,28 +160,27 @@ const PerkCard = React.memo(function PerkCard({
             </View>
           )}
           <View style={styles.perkHeader}>
-            <View style={styles.iconSection}>
+            <View style={styles.iconWrap}>
               <View style={styles.iconContainer}>
                 <Image source={perk.icon} style={styles.perkIcon} />
               </View>
               {isLocked ? (
-                <View style={styles.statusIconContainer}>
-                  <Lock size={32} color="#6B7280" />
+                <View style={[styles.statusBadge, styles.statusBadgeLocked]}>
+                  <Lock size={12} color="#D1D5DB" />
                 </View>
-              ) : isPermanent ? (
-                <View style={styles.statusIconContainer}>
-                  <Check size={32} color="#F59E0B" />
-                </View>
-              ) : isSelected ? (
-                <View style={styles.statusIconContainer}>
-                  <Check size={32} color="#FBBF24" />
+              ) : isPermanent || isSelected ? (
+                <View style={styles.statusBadge}>
+                  <Check size={13} color="#1A1205" />
                 </View>
               ) : null}
             </View>
 
             <View style={styles.perkInfo}>
               <View style={styles.perkTitleRow}>
-                <Text style={[styles.perkTitle, isLocked && styles.lockedPerkTitle]}>
+                <Text
+                  style={[styles.perkTitle, isLocked && styles.lockedPerkTitle]}
+                  numberOfLines={1}
+                >
                   {perk.title}
                 </Text>
                 <View style={styles.glassRarityBadge}>
@@ -211,12 +210,13 @@ const PerkCard = React.memo(function PerkCard({
                   styles.perkDescription,
                   isLocked && styles.lockedPerkDescription,
                 ]}
+                numberOfLines={2}
               >
                 {perk.description}
               </Text>
               {perk.unlock && isLocked && (
-                <Text style={styles.requirementText}>
-                  Requires achievement: {perk.unlock.achievementId}
+                <Text style={styles.requirementText} numberOfLines={1}>
+                  Requires: {perk.unlock.achievementId}
                 </Text>
               )}
             </View>
@@ -297,7 +297,7 @@ const MindsetCard = React.memo(function MindsetCard({
             </View>
           ) : null}
           <View style={styles.perkHeader}>
-            <View style={styles.iconSection}>
+            <View style={styles.iconWrap}>
               <View
                 style={[
                   styles.mindsetIconContainer,
@@ -311,8 +311,8 @@ const MindsetCard = React.memo(function MindsetCard({
                 />
               </View>
               {isSelected && (
-                <View style={styles.statusIconContainer}>
-                  <Check size={24} color="#8B5CF6" />
+                <View style={[styles.statusBadge, styles.statusBadgeMindset]}>
+                  <Check size={13} color="#FFFFFF" />
                 </View>
               )}
             </View>
@@ -954,38 +954,38 @@ const styles = StyleSheet.create({
 
   perkHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  iconSection: {
     alignItems: 'center',
-    marginRight: 16,
+    gap: 12,
+    marginBottom: 14,
+  },
+  iconWrap: {
+    width: 56,
+    height: 56,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.4)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-      },
-    }),
-    elevation: 6,
   },
-  statusIconContainer: {
-    marginTop: 8,
-    padding: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 20,
+  statusBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FBBF24',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: '#0B0A08',
   },
-  perkIcon: { width: 80, height: 80, borderRadius: 16, resizeMode: 'cover' },
+  statusBadgeLocked: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  perkIcon: { width: 56, height: 56, borderRadius: 14, resizeMode: 'cover' },
   perkInfo: { flex: 1 },
   perkTitleRow: {
     flexDirection: 'row',
@@ -994,7 +994,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   perkTitle: {
-    fontSize: responsiveFontSize.xl,
+    fontSize: responsiveFontSize.lg,
     fontWeight: 'bold',
     color: '#FFFFFF',
     flex: 1,
@@ -1125,9 +1125,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   mindsetIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1136,8 +1136,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   mindsetIconImage: {
-    width: scale(80),
-    height: scale(80),
+    width: scale(56),
+    height: scale(56),
+  },
+  statusBadgeMindset: {
+    backgroundColor: '#8B5CF6',
   },
   mindsetNameSelected: {
     color: '#A78BFA',
