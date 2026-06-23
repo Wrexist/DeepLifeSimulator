@@ -471,22 +471,22 @@ const styles = StyleSheet.create({
   },
   sexualityRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: responsiveSpacing.sm,
   },
   sexualityChip: {
+    flex: 1,
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    minWidth: scale(92),
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: verticalScale(10),
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: verticalScale(11),
   },
   sexualityChipSelected: {
-    borderColor: 'rgba(255, 255, 255, 0.6)',
+    borderColor: 'rgba(245, 158, 11, 0.55)',
     borderWidth: 2,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
   },
   sexualityLabel: {
     fontSize: fontScale(12),
@@ -495,6 +495,6 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
   sexualityLabelSelected: {
-    color: '#FFFFFF',
+    color: '#FBBF24',
   },
 });

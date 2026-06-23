@@ -820,7 +820,7 @@ export default function Perks() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0B0A08',
     overflow: 'hidden',
   },
   backgroundGradient1: {
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
     width: screenWidth * 2,
     height: screenWidth * 2,
     borderRadius: screenWidth,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(245, 158, 11, 0.10)',
     top: -screenWidth / 2,
     left: -screenWidth / 2,
   },
@@ -837,7 +837,7 @@ const styles = StyleSheet.create({
     width: screenWidth * 1.5,
     height: screenWidth * 1.5,
     borderRadius: screenWidth,
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    backgroundColor: 'rgba(249, 115, 22, 0.05)',
     bottom: -screenWidth / 3,
     right: -screenWidth / 3,
   },
@@ -1205,7 +1205,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 4,
     height: 4,
-    backgroundColor: 'rgba(59,130,246,0.3)',
+    backgroundColor: 'rgba(251,191,36,0.35)',
     borderRadius: 2,
   },
   glassButton: {
