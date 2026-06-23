@@ -224,10 +224,14 @@ function HomeScreenContent() {
     const lastLogin = gameState.lastLoginDate;
 
     let newStreak = 1;
+    let streakBroke = false;
     if (lastLogin) {
       const hoursSinceLast = (Date.now() - new Date(lastLogin).getTime()) / (1000 * 60 * 60);
       if (hoursSinceLast <= LOGIN_STREAK_GRACE_HOURS) {
         newStreak = currentStreak + 1;
+      } else if (currentStreak > 0) {
+        // Had an active streak but returned past the grace window → it resets.
+        streakBroke = true;
       }
     }
 
@@ -248,6 +252,10 @@ function HomeScreenContent() {
         },
       }, LEGACY_PASS_XP.dailyChallenge));
       track('daily_reward_claimed', { streak: newStreak, gems: gemReward });
+      // Retention funnel: capture the streak transition itself — `broke` is the
+      // signal `daily_reward_claimed` can't express (streak:1 after a miss looks
+      // identical to a brand-new streak otherwise).
+      track('streak_changed', { count: newStreak, previous: currentStreak, broke: streakBroke });
       // Persist immediately so a kill before the next autosave can't let the
       // player re-earn the daily gems/XP on relaunch (lastLoginRewardDate guard).
       void saveGame?.(false);
