@@ -43,17 +43,22 @@
 ### Phase 4 — Per-screen re-skin (reuse Phase 3 components; copy/layout unchanged)
 - [x] **MainMenu** (`app/(onboarding)/MainMenu.tsx`) — DONE (2026-06-23). Switched from the V1 photo-background shell to the **V2 amber-glow shell**; added the hero (`OnboardingEyebrow` "Choose Your Path" + "Your Story / Starts **Here.**" with amber highlight + subtitle). Kept the `continueInFlightRef` guard + rAF defer. Dropped the photo backgrounds (match the mockup) + the now-dead `darkMode` subscription / `insets` / `useSafeAreaInsets`. Decision: chrome-free hero (no decorative side-chips for now). Type-check clean; onboarding render 5/5.
 - [x] **Scenarios** (`Scenarios.tsx`) — DONE (2026-06-23). Re-skinned origin cards to amber: selected card amber gradient + amber border + amber check (was green); unselected cards warm-dark (was slate); **difficulty pills now easy=green / medium=amber / hard=red** (both life-path + challenge color maps); "Life Paths" active tab amber (was green); recommended banner + goal text amber (was green/blue). Kept the memoized `ScenarioCardView` + stable `onSelectScenario`. Type-check clean; render 5/5.
-- [ ] **SaveSlots** (`SaveSlots.tsx`) — slot cards as dark glass with state chips; keep `isBusy`/`loading` yields.
-- [ ] **Customize** (`Customize.tsx`) — inputs / segmented controls re-skinned amber-dark; keep inline validation.
-- [ ] **Perks** (`Perks.tsx`) — perk + mindset cards amber-dark; keep memoized `PerkCard`/`MindsetCard` + stable callbacks + rAF-deferred `start`.
-- [ ] **Loading screen** (`app/index.tsx`) — amber radial glow + amber title glow to match (RN-core/native-driven only, crash-proof).
+- [x] **SaveSlots** (`SaveSlots.tsx`) — DONE (2026-06-23). Slot cards re-skinned to warm-dark glass + amber selection (was slate/green); blue Archive/action accents → amber; kept the semantic status dots (orange recovery / green playable / gray empty) + `isBusy`/`loading` yields. Verified rendered: three uniform, symmetrical slot cards + amber CTA — no further layout change needed.
+- [x] **Customize** (`Customize.tsx`) — DONE (2026-06-23). Card gradients + shuffle accent + selected-sex card → amber; **selected sexuality chip was blue (`rgba(59,130,246)`) → amber** + amber label; sexuality options rebuilt as an **equal-width symmetrical row** (Straight/Gay/Bisexual) mirroring the Sex cards. Sex icons confirmed real PNG assets (Male/Female/Dice), not emoji. Kept inline validation.
+- [x] **Perks** (`Perks.tsx`) — DONE (2026-06-23). Perk/mindset gradients, selected check, active tab, count badge, start CTA, recommended badge + shadows → amber; kept memoized cards + rAF-deferred `start`. **Also fixed the navy base** — Perks rolls its own background (not the shell), so it showed `#0F172A` + blue ambient circles/particles; re-skinned to `#0B0A08` + amber glow/particles. Rarity colors (Legendary/Epic/Rare/Common) left intact (semantic).
+- [x] **Loading screen** (`app/index.tsx`) — DONE (2026-06-23). Slate base + blue title-glow/dots/bar → warm-dark base + amber glow/dots/progress-bar (RN-core only, no JS-driven loops).
 
-### Phase 5 — Verify (prove polish + instant + no regressions)
-- [ ] `npm run type-check` clean.
-- [ ] Full render suite green; extend onboarding render tests to assert the new eyebrow/CTA/difficulty elements per screen.
-- [ ] Confirm no JS-driven animation loops introduced (grep for `useNativeDriver: false` / JS color interpolations in touched files).
-- [ ] `npm run preflight:quick`. Visual check via `/preview` at a couple of device widths if available.
-- [ ] Run the Game State Reviewer? — N/A (pure presentational; no state/save changes). Save Auditor — N/A.
+#### Phase 4b — Redesign + polish from user feedback (2026-06-23)
+- [x] **Scenarios full redesign** — the dense card (difficulty pill + art + title + 2-line desc + "Goal:" + three *nested* stat boxes + item tags, CTA overlapping the last card) read as "unorganized and confusing." Rebuilt `ScenarioCardView` as a **uniform, symmetrical row**: real image tile + title + quiet difficulty dot (green/amber/red) + a single "Age · $ · school" line; recommended = amber star badge on the tile (constant row height); selected = amber check. **Selected card expands** to reveal full description + Goal + a "Starts with" chip row (items amber, traits neutral). Verified via HTML mockups (user picked "Option A + real assets + symmetrical") then live.
+- [x] **Footer scrim (CTA overlap fix)** — new `components/onboarding/FooterScrim.tsx`: transparent→base fade behind the floating CTA so content dissolves instead of showing through the gap. Wired into `OnboardingScreenShellV2` (Scenarios/Customize/SaveSlots) + Perks' own footer. **Discovery:** the app's `LinearGradientFallback` only paints its *first* color (no real multi-stop gradient), so the fade is built from stacked opacity bands.
+
+### Phase 5 — Verify (prove polish + instant + no regressions) ✅ DONE (2026-06-23)
+- [x] `npm run type-check` clean.
+- [x] Full render suite green — **23/23** (7 suites). Existing onboarding render smoke tests cover every screen mounting after the re-skin/redesign.
+- [x] Confirmed no JS-driven animation loops introduced (grep for `useNativeDriver: false` in touched files → none).
+- [x] `npm run preflight:quick` clean (type-check + 14 routes, no conflicts). Visual check done by rendering the live Expo web build and screenshotting every screen (MainMenu, Scenarios incl. selected/expanded + difficulty colors, Customize, Perks, SaveSlots, footer scrim).
+- [x] Game State Reviewer / Save Auditor — N/A (pure presentational; no state/save changes).
+- Note: the footer-scrim commit (`7817ea4`) went up **unsigned** — the commit-signing server was returning 503 at the time; remote accepted it. Re-sign on request once signing recovers.
 
 ### Decisions/risks flagged
 - [ ] **Always-dark means menu screens must stop styling from `darkMode`** — route all menu styling through `useOnboardingTheme()`; leave the global `useTheme()`/in-game untouched.
