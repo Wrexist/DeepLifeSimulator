@@ -10,11 +10,36 @@
  * Mount once inside the GameProvider tree (see app/_layout.tsx).
  */
 import { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameUI } from '@/contexts/game/GameUIContext';
 import { track, analytics } from '@/lib/analytics';
+
+/**
+ * Pure decision for a foreground/background transition, given whether a session
+ * is currently considered active. Tracking `sessionActive` (rather than the raw
+ * previous AppState) is what makes this correct across iOS's transient
+ * `inactive` hop: resume is background → inactive → active, so by the time we
+ * see `active` the previous state is `inactive`, not `background`. The transient
+ * `inactive` state just flushes and never opens/closes a session.
+ * Extracted so the boundary rules are unit-testable without mounting.
+ */
+export function nextSessionAction(
+  sessionActive: boolean,
+  next: AppStateStatus
+): { emit: 'session_start' | 'session_end' | null; flush: boolean } {
+  if (next === 'background' && sessionActive) {
+    return { emit: 'session_end', flush: true };
+  }
+  if (next === 'active' && !sessionActive) {
+    return { emit: 'session_start', flush: false };
+  }
+  if (next === 'inactive') {
+    return { emit: null, flush: true };
+  }
+  return { emit: null, flush: false };
+}
 
 export function AnalyticsTracker(): null {
   const weeksLived = useGameSelector((s) => s.weeksLived ?? 0);
@@ -81,11 +106,29 @@ export function AnalyticsTracker(): null {
     prevGeneration.current = generation;
   }, [generation, weeksLived, ready]);
 
-  // Flush queued events when the app backgrounds so a kill doesn't drop them
-  // (the interval flush alone can lose the tail of a session).
+  // Session boundaries + flush on background. The initial `session_start` fires
+  // once at app init (app/_layout.tsx); here we pair it: emit `session_end` when
+  // the app backgrounds (with the session's duration) and a fresh `session_start`
+  // when it returns to the foreground — so a reopened app still counts as an
+  // active session for DAU/retention instead of one start lasting forever.
+  // Only the clean active↔background edges are session boundaries; the
+  // transient 'inactive' state (app switcher, notification shade) just flushes.
+  // Mounted during the init session (app/_layout.tsx already fired its
+  // `session_start`), so we start in the active state.
+  const sessionActiveRef = useRef(true);
+  const sessionStartTsRef = useRef<number>(Date.now());
   useEffect(() => {
     const onChange = (next: AppStateStatus) => {
-      if (next === 'background' || next === 'inactive') void analytics.flush();
+      const { emit, flush } = nextSessionAction(sessionActiveRef.current, next);
+      if (emit === 'session_end') {
+        track('session_end', { durationMs: Date.now() - sessionStartTsRef.current });
+        sessionActiveRef.current = false;
+      } else if (emit === 'session_start') {
+        sessionStartTsRef.current = Date.now();
+        track('session_start', { platform: Platform.OS, resumed: true });
+        sessionActiveRef.current = true;
+      }
+      if (flush) void analytics.flush();
     };
     const sub = AppState.addEventListener('change', onChange);
     return () => sub.remove();
