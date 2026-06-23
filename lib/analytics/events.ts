@@ -37,7 +37,10 @@ export type AnalyticsEventName =
   | 'ad_shown'
   | 'ad_rewarded'
   // ── Navigation ──
-  | 'screen_view';
+  | 'screen_view'
+  // ── Save health ──
+  | 'save_size'
+  | 'save_repaired';
 
 /** Property bags are intentionally loose (string/number/boolean) for transport safety. */
 export type AnalyticsProps = Record<string, string | number | boolean | null | undefined>;
@@ -79,6 +82,8 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'ad_shown',
   'ad_rewarded',
   'screen_view',
+  'save_size',
+  'save_repaired',
 ]);
 
 export function isKnownAnalyticsEvent(name: string): name is AnalyticsEventName {

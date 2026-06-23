@@ -1,6 +1,7 @@
 import { GameState } from '@/contexts/game/types';
 import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { logger } from '@/utils/logger';
+import { track } from '@/lib/analytics';
 import {
   resolveSaveSigningRuntimeConfig,
   resolveActiveSaveHmacKey,
@@ -928,6 +929,18 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     for (const key of Object.keys(s)) {
       original[key] = s[key];
     }
+  }
+
+  // NOW-5: surface repairs to prod analytics so save corruption is observable in
+  // aggregate. Callers already logger.warn the detailed repair list; this adds a
+  // structured signal (incl. whether any relationship was dropped — the lossy
+  // repair the roadmap flagged). `track()` is a hard no-op unless telemetry is
+  // enabled + consented, and never throws.
+  if (repaired) {
+    track('save_repaired', {
+      count: repairs.length,
+      relationshipsDropped: repairs.some(r => r.includes('invalid relationships')),
+    });
   }
 
   return { repaired, repairs };

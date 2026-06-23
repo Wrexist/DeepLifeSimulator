@@ -3,6 +3,7 @@ import { listBackups } from '@/utils/saveBackup';
 import { safeSetItem, safeMultiRemove, safeGetAllKeys, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
 import { isSaveSigningConfigError, SAVE_SIGNING_CONFIG_ERROR_CODE } from '@/utils/saveValidation';
 import { MAX_SAVE_SIZE } from '@/lib/config/gameConstants';
+import { track } from '@/lib/analytics';
 
 interface SaveOperation {
   id: string;
@@ -227,6 +228,15 @@ class SaveQueue {
       const saveDurationMs = Date.now() - saveStartTime;
       const saveSizeKb = Math.round(serializedData.length / 1024);
       this.log.info(`[SAVE_TELEMETRY] slot=${operation.slot} duration=${saveDurationMs}ms size=${saveSizeKb}KB`);
+      // NOW-5: make save bloat observable in prod analytics (not just local logs).
+      // `track()` is a hard no-op unless telemetry is enabled + consented.
+      // pctOfCap surfaces saves creeping toward the quota before they hit it.
+      track('save_size', {
+        slot: operation.slot ?? null,
+        kb: saveSizeKb,
+        durationMs: saveDurationMs,
+        pctOfCap: Math.round((serializedData.length / MAX_SAVE_SIZE) * 100),
+      });
     } catch (error: any) {
       if (isSaveSigningConfigError(error)) {
         this.log.error(`[SAVE_SECURITY] ${SAVE_SIGNING_CONFIG_ERROR_CODE}`, {
