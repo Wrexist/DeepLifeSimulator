@@ -94,11 +94,11 @@ const fallbackDifficultyLabel = (difficulty: ChallengeScenarioDefinition['diffic
 const fallbackDifficultyColor = (difficulty: ChallengeScenarioDefinition['difficulty']): string => {
   switch (difficulty) {
     case 'easy':
-      return '#10B981';
+      return '#22C55E';
     case 'medium':
-      return '#3B82F6';
-    case 'hard':
       return '#F59E0B';
+    case 'hard':
+      return '#EF4444';
     case 'expert':
       return '#EF4444';
     default:
@@ -173,11 +173,11 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
     : '#6B7280';
   const difficultyColor =
     scenario.difficulty === 'Easy'
-      ? '#10B981'
+      ? '#22C55E'
       : scenario.difficulty === 'Moderate'
-        ? '#3B82F6'
+        ? '#F59E0B'
         : scenario.difficulty === 'Hard'
-          ? '#F59E0B'
+          ? '#EF4444'
           : '#6B7280';
 
   return (
@@ -190,8 +190,8 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
         <LinearGradient
           colors={
             isSelected
-              ? ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.2)']
-              : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+              ? ['rgba(245, 158, 11, 0.18)', 'rgba(249, 115, 22, 0.16)']
+              : ['rgba(24, 20, 16, 0.85)', 'rgba(16, 13, 10, 0.85)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -228,7 +228,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
             </View>
             {isSelected ? (
               <View style={styles.selectedDot}>
-                <Check size={scale(14)} color="#10B981" />
+                <Check size={scale(14)} color="#FBBF24" />
               </View>
             ) : null}
           </View>
@@ -464,8 +464,8 @@ export default function Scenarios() {
           <LinearGradient
             colors={
               activeTab === 'life_paths'
-                ? ['#10B981', '#059669']
-                : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                ? ['#FBBF24', '#F97316']
+                : ['rgba(24, 20, 16, 0.85)', 'rgba(16, 13, 10, 0.85)']
             }
             style={styles.tabGradient}
           >
@@ -484,7 +484,7 @@ export default function Scenarios() {
             colors={
               activeTab === 'challenges'
                 ? ['#EF4444', '#DC2626']
-                : ['rgba(31, 41, 55, 0.8)', 'rgba(17, 24, 39, 0.8)']
+                : ['rgba(24, 20, 16, 0.85)', 'rgba(16, 13, 10, 0.85)']
             }
             style={styles.tabGradient}
           >
@@ -531,9 +531,9 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(16, 185, 129, 0.3)' } as any,
+      web: { boxShadow: '0px 4px 8px rgba(245, 158, 11, 0.3)' } as any,
       default: {
-        shadowColor: '#10B981',
+        shadowColor: '#F59E0B',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -585,14 +585,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
     paddingVertical: 6,
     marginBottom: 4,
   },
   recommendedBannerText: {
     fontSize: fontScale(10),
     fontWeight: '800',
-    color: '#34D399',
+    color: '#FBBF24',
     letterSpacing: 0.8,
   },
   scrollContainer: {
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   cardSelected: {
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(245, 158, 11, 0.55)',
     borderWidth: 2,
   },
   cardHeader: {
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   goalText: {
     fontSize: fontScale(11),
     fontWeight: '700',
-    color: '#60A5FA',
+    color: '#FBBF24',
     lineHeight: fontScale(15),
   },
   selectedDot: {
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(245, 158, 11, 0.45)',
     height: scale(28),
     justifyContent: 'center',
     width: scale(28),
