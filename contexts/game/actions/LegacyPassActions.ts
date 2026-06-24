@@ -76,7 +76,7 @@ function rolloverLegacyPass(
   state: GameState,
   newSeasonId: string,
   premiumActiveNow: boolean,
-): GameState {
+): GameState & { legacyPass: LegacyPassState } {
   const old = state.legacyPass;
   // Normalise against its OWN season id so we read it as-is (no reset here).
   const oldNormalized = old ? ensureCurrentSeason(old, old.seasonId) : undefined;
@@ -143,7 +143,10 @@ export function awardLegacyPassXp(
  * re-derived from the live subscription by the reconciler; collection of the old
  * season's premium rewards is unaffected (it reads the old pass's `premiumOwned`).
  */
-function withLiveSeason(state: GameState, seasonId: string): GameState {
+function withLiveSeason(
+  state: GameState,
+  seasonId: string,
+): GameState & { legacyPass: LegacyPassState } {
   const current = state.legacyPass;
   if (current && current.seasonId === seasonId) {
     return { ...state, legacyPass: ensureCurrentSeason(current, seasonId) };
@@ -193,7 +196,7 @@ export function claimLegacyPassReward(
   // Roll over (auto-collecting unclaimed rewards) if the season changed since the
   // pass was last reconciled — never reset to an empty pass and drop them.
   const base = withLiveSeason(state, getCurrentSeasonId(nowMs));
-  const pass = base.legacyPass!;
+  const pass = base.legacyPass;
   const result = claimLegacyPassTier(pass, track, tier);
   if (!result.ok) {
     // Still persist any season reconciliation/collection so the UI reflects the
@@ -224,7 +227,8 @@ export function claimAllLegacyPassRewards(
 
   const tracks: LegacyPassTrack[] = ['free', 'premium'];
   for (const track of tracks) {
-    const pass = next.legacyPass!;
+    const pass = next.legacyPass;
+    if (!pass) break; // withLiveSeason guarantees a pass; guard for the union type
     for (const tier of getClaimableTiers(pass, track)) {
       const res = claimLegacyPassReward(next, track, tier, nowMs);
       if (res.result.ok) {
