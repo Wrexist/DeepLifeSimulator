@@ -1,5 +1,33 @@
 # DeepLife Simulator — Backend API Spec (NEXT-0)
 
+## ✅ DEPLOYED — Analytics ingest is LIVE (2026-06-24)
+Route 1 (analytics) is built and verified on Supabase (free tier, $0/mo):
+- **Project:** `deeplife-backend` (ref `gyxmoqanjdvvllwjfsst`), region `eu-north-1`, org `Wrexist's Org`.
+- **Endpoint (set this as `EXPO_PUBLIC_ANALYTICS_URL`):**
+  `https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1/analytics`
+- **Edge function** `analytics` (public / `verify_jwt=false`, matching the client's no-auth flush):
+  validates the event-name allowlist, caps batches at 500, inserts to `analytics_events` with
+  `on conflict (id) do nothing` (idempotent de-dupe for client retries).
+- **Tables created:** `analytics_events` (live), plus `cloud_saves` + `leaderboard_entries`
+  (schema ready for NEXT-1/2; RLS enabled, written only via the service role).
+- **Verified:** DB-level idempotency test passed (duplicate `event.id` → single row); table cleaned.
+  Live HTTP smoke test could not run from the build agent (its egress proxy policy-denies
+  `supabase.co`) — it will serve as soon as a client posts, or you can `curl` it from anywhere.
+
+**To turn the funnel on (you, in the prod EAS profile), then rebuild:**
+```
+EXPO_PUBLIC_ANALYTICS_URL=https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1/analytics
+EXPO_PUBLIC_ENABLE_ANALYTICS=true
+# and confirm BORING_BUILD_MODE is not on in release
+```
+Then watch rows land: `select name, count(*) from analytics_events group by 1 order by 2 desc;`
+
+> Routes 2–4 (cloud save, leaderboards, receipt verify) still need the auth/accounts layer
+> (Apple/Google) before they can go live — see sections 2–5 below.
+
+---
+
+
 > **Status:** turnkey spec derived directly from the existing RN client code. Every
 > route, payload, header, and validation rule below is what the app **already sends/expects** —
 > the client is built and waiting on these endpoints. Build the server to match this exactly.
