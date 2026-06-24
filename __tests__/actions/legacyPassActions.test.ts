@@ -195,6 +195,39 @@ describe('LegacyPassActions', () => {
       const { claimedCount } = claimAllLegacyPassRewards(s, NOW);
       expect(claimedCount).toBe(0);
     });
+
+    it('auto-collects (never drops) unclaimed rewards when the season rolled over mid-open', () => {
+      // The modal reconciles on open, but the season boundary can be crossed while
+      // it sits open; the claim must roll over + collect, not reset to an empty pass.
+      const { state, claimedCount } = claimAllLegacyPassRewards(oldSeasonPass(), NOW);
+      const expectedGems =
+        (getLegacyPassReward('free', 1)!.amount ?? 0) +
+        (getLegacyPassReward('free', 2)!.amount ?? 0) +
+        (getLegacyPassReward('free', 3)!.amount ?? 0);
+      // Rewards land on the account via rollover collection (not as new-season claims).
+      expect(state.stats.gems).toBe(expectedGems);
+      expect(state.legacyPass?.seasonId).toBe(SEASON);
+      expect(state.legacyPassSeasonSummary?.collectedCount).toBe(3);
+      expect(state.legacyPassSeasonSummary?.collectedGems).toBe(expectedGems);
+      // The fresh season has no claimable tiers, so the claim loop itself adds none.
+      expect(claimedCount).toBe(0);
+    });
+  });
+
+  describe('claimLegacyPassReward across a season rollover (no silent loss)', () => {
+    it('auto-collects the old season instead of resetting to an empty pass', () => {
+      const { state, result } = claimLegacyPassReward(oldSeasonPass(), 'free', 1, NOW);
+      // The requested tier is locked in the fresh season, but the old season's
+      // earned rewards are collected to the account rather than discarded.
+      expect(result.ok).toBe(false);
+      const expectedGems =
+        (getLegacyPassReward('free', 1)!.amount ?? 0) +
+        (getLegacyPassReward('free', 2)!.amount ?? 0) +
+        (getLegacyPassReward('free', 3)!.amount ?? 0);
+      expect(state.stats.gems).toBe(expectedGems);
+      expect(state.legacyPass?.seasonId).toBe(SEASON);
+      expect(state.legacyPassSeasonSummary?.collectedCount).toBe(3);
+    });
   });
 
   describe('reconcileLegacyPassSeason', () => {
