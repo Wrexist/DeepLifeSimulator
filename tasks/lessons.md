@@ -4,6 +4,52 @@
 
 ## Patterns to Watch For
 
+### 2026-06-24 - "Normalize to current season" helper RESET unclaimed Legacy Pass rewards instead of rolling over
+
+- What went wrong: the Legacy Pass module has two ways to bring a stale pass up to the live
+  season. `ensureCurrentSeason(pass, liveSeasonId)` (`lib/legacyPass/legacyPass.ts:143`) RESETS
+  to a fresh empty pass when `pass.seasonId !== liveSeasonId` — it's a normalizer, not a
+  collector. `rolloverLegacyPass` / `reconcileLegacyPassSeason` / `awardLegacyPassXp`
+  AUTO-COLLECT earned-but-unclaimed rewards before resetting (no silent loss). The two claim
+  entry points (`claimLegacyPassReward`, `claimAllLegacyPassRewards`) used the RESET variant.
+  So if the real-time 6-week season boundary was crossed while the pass modal sat open (the
+  modal reconciles on open, but not continuously), tapping Claim ran against a freshly-reset
+  empty pass: it claimed nothing, discarded the old season's earned gems/youth-pills/traits,
+  and the modal's optimistic toast still said "Claimed N rewards (+X gems)" (computed from the
+  pre-reset local `pass`). Reward loss + a lying toast.
+- Why it hid: every claim test operated WITHIN the current season (the happy path). The
+  rollover/collection tests covered only the XP and reconcile paths — none drove a claim across
+  a rolled-over season. The asymmetry (same helper name family, two different behaviors) made
+  the wrong call site look correct.
+- How it was found: the weekly-audit economy subagent flagged it; source-verified at
+  `LegacyPassActions.ts:176,197` against `ensureCurrentSeason`'s reset semantics. Fixed by
+  adding a `withLiveSeason` helper that rolls over (auto-collects) when the season changed and
+  only normalizes within-season, then routing both claim functions through it. Added 2
+  regression tests that claim against an `oldSeasonPass()` and assert the rewards land on the
+  account + a season summary is stamped.
+- Rule: when two helpers in the same module both "bring state to the current period" but one
+  RESETS and one MIGRATES/COLLECTS, every state-mutating entry point must use the collecting
+  one unless loss is intended. Audit each call site of a `reset`-style normalizer for whether
+  earned/pending data would be silently dropped. And test the boundary-crossing path, not just
+  the in-period happy path — a rollover that's only exercised by one subsystem will rot in the
+  others.
+
+### 2026-06-24 - Cold-container false positive: perf jest "FAIL" was just missing node_modules (again)
+
+- What went wrong: `npm run audit:weekly:full` reported a 🟠 HIGH "Performance jest suite
+  failed" that looked like a real blocking week-loop regression. The container had an EMPTY
+  `node_modules` (fresh clone, no install), so `jest` died with "Preset ts-jest not found" —
+  the audit script graded a can't-even-start as a failure. After `npm ci`, the perf suite and
+  money-conservation stress both passed clean.
+- Why it hid: the static `npm run audit:weekly` (no jest) is green, so only the `:full` dynamic
+  layer surfaces it, and the failure message ("See CI logs") reads like a genuine perf miss.
+  This is the inverse of the 2026-06-21 cold-container lesson (there jest was silently absent →
+  false green; here jest can't load its preset → false red).
+- Rule: on a routine run, before trusting ANY jest-backed audit result (pass OR fail), confirm
+  deps are installed (`ls node_modules/.bin/jest`). If empty, `npm ci` first, then re-run.
+  Treat a jest config/preset error as an environment problem, not a code finding.
+
+
 ### 2026-06-21 - Fixed-size pre-roll arrays indexed by an uncapped collection silently grant immunity
 
 - What went wrong: the weekly tick pre-rolls per-entity RNG into fixed-length arrays
