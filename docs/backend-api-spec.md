@@ -25,6 +25,16 @@ Then watch rows land: `select name, count(*) from analytics_events group by 1 or
 > Routes 2–4 (cloud save, leaderboards, receipt verify) still need the auth/accounts layer
 > (Apple/Google) before they can go live — see sections 2–5 below.
 
+### Repo-side gaps found while scoping (2026-06-24)
+- **NEXT-1 blocker:** there is **no `CloudSyncConflictModal`** in the codebase. The conflict
+  plumbing exists (`SyncConflict` / `ConflictCallback` in `services/CloudSyncService.ts` +
+  `contexts/game/GameActionsContext.tsx`), but **nothing renders a conflict-resolution UI** —
+  so a two-device divergence has no local/remote/merge surface. Must be (re)built before cloud
+  save goes live, or conflicts resolve silently/with data loss.
+- **NEXT-4:** `utils/iapConfig.ts` defines **27 SKUs**. The roadmap target is ~3–4 gem tiers +
+  the DeepLife+ anchor + a one-time Remove-Ads — a merchandising trim (product decision), not a
+  code blocker. No explicit "dead gold-upgrade" markers remain in the file.
+
 ---
 
 
