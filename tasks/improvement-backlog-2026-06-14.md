@@ -196,6 +196,24 @@
 
 ---
 
+## 10. Weekly routine audit — 2026-06-25 (Legacy Pass / DeepLife+ cycle)
+
+> Source: `npm run audit:weekly:full` (static all-green, 1 pre-existing 🟡) + deep
+> qualitative pass (economy/exploit, save-schema, game-logic review agents +
+> manual verification). **No blocking (P0/P1) findings.** All 830 save/stress/
+> prestige/legacy-pass tests pass; perf 46ms/tick; money conserved.
+
+| # | Sev | Item |
+|---|-----|------|
+| 41 | P2 | **`equippedCosmetics` wiped on prestige (data loss).** Both prestige blocks preserve `legacyPass.ownedCosmetics` but not the equip selection, so the player's frame/theme resets to default every prestige (cosmetic still owned). Fix: add `if (oldState.equippedCosmetics) newState.equippedCosmetics = { ...oldState.equippedCosmetics };` to both blocks in `lib/prestige/prestigeExecution.ts:185-192` & `:373-378`; extend `legacyPassPreservation.test.ts` to assert it. |
+| 42 | P2 | **Weekly-challenge Legacy Pass XP dropped on a coincident season rollover.** When a weekly challenge completes on the same `nextWeek` tick that a pending season rollover holds unclaimed rewards, the deferral branch keeps `prevState.legacyPass` and discards `weeklyChallengeXpToAward`; the challenge is already `rewardClaimed:true`, so it never retries. Rewards are safe (reconciler collects them); only that tick's XP is lost. Player-unfavorable, no economy impact. Fix: carry the deferred XP into `reconcileLegacyPassSeason`. `contexts/game/GameActionsContext.tsx:1665-1672` (flag at `:1238`). |
+| 43 | P3 | **No save-repair test for the `legacyPass` slice.** banking/darkWeb/cryptoMarket are tested; `legacyPass` uses the same shallow-merge path (works) but is unguarded against regression. Add a repair test feeding `legacyPass: { seasonId, xp }` (missing arrays) and `legacyPass: null`. `utils/saveValidation.ts:448`. |
+| 44 | P3 | **No pre-v20 → v20 migration integration test** ("load a v19 save → assert legacyPass appears"); covered only by registry-completeness. `utils/saveMigrations.ts:524-545`. |
+| 45 | P3 | **Stale claim-toast preview at a season boundary.** `LegacyPassModal.tsx:138` previews the toast against the stale local `pass`, so a claim made exactly at a rollover can show "Claimed: X" while the real claim returns `ok:false`. Reward is still auto-collected; only the toast text is briefly wrong. |
+| 46 | P3 | **Doc drift:** CLAUDE.md + `weekly-audit/SKILL.md` reference project subagents at `.claude/agents/game-state-reviewer.md` and `.claude/agents/save-system-auditor.md`, but `.claude/agents/` does not exist. Either add the agent files or update the docs to the ad-hoc-agent approach. |
+
+---
+
 ## Recently FIXED (verified in code — no longer backlog)
 
 - **Economy:** banking money printer (C-1/H-1), mining/staking printers (H-2/H-3), dark-web grinding (H-4), prestige farming (H-5), M-1/M-2/M-3/M-4/M-6/M-7, finite guards (L2/L3/L5/L8), crypto round-trip spread (L-1), quarterly dividends (L-3), $10k cashback cap (M-5).
