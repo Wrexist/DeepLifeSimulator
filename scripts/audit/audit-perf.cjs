@@ -104,7 +104,11 @@ function build({ runTests = false } = {}) {
       });
       a.pass(`Performance jest suite passed (${((Date.now() - t0) / 1000).toFixed(1)}s wall)`, '', '__tests__/performance/');
     } catch (e) {
-      const out = (e.stdout || e.stderr || Buffer.from('')).toString();
+      // Jest's default reporter writes its summary AND its failure/harness errors to
+      // stderr, not stdout. `(e.stdout || e.stderr)` is wrong: an empty stdout Buffer is
+      // truthy in Node, so it short-circuits and we'd parse "" — ignoring the stderr that
+      // actually carries "Tests:"/"preset not found". Concatenate both streams.
+      const out = `${e.stdout ? e.stdout.toString() : ''}${e.stderr ? e.stderr.toString() : ''}`;
       // Distinguish a genuine timing/assertion failure from a harness error (jest couldn't
       // run at all: missing preset/module, no tests collected). Only the former is a real
       // perf regression worth a 🟠 high; the latter is an environment problem → info.
