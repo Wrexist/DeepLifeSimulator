@@ -88,7 +88,15 @@ function build({ runTests = false } = {}) {
     'Performance regression test present', 'No __tests__/performance/performance.test.ts found',
     'A timing budget test is the dynamic backstop to these static checks.', '__tests__/performance/');
 
-  if (runTests && hasPerfTest) {
+  if (runTests && hasPerfTest && !depsInstalled()) {
+    // A fresh routine container clones the repo but may not have run `npm ci` yet.
+    // Without node_modules, jest can't even load (e.g. "preset ts-jest not found") — that
+    // is a harness-setup gap, NOT a perf regression. Reporting it as a 🟠 high produces a
+    // false blocker on every cold run. Surface it as info so the static checks still pass.
+    a.info('Performance jest suite skipped (dependencies not installed)',
+      'node_modules is absent — run `npm ci` before `audit:weekly:full` for the dynamic timing backstop.',
+      '__tests__/performance/');
+  } else if (runTests && hasPerfTest) {
     try {
       const t0 = Date.now();
       execSync('npx jest __tests__/performance --ci --silent --runInBand', {
@@ -96,8 +104,21 @@ function build({ runTests = false } = {}) {
       });
       a.pass(`Performance jest suite passed (${((Date.now() - t0) / 1000).toFixed(1)}s wall)`, '', '__tests__/performance/');
     } catch (e) {
-      const out = (e.stdout || e.stderr || Buffer.from('')).toString().split('\n').filter((l) => /✕|FAIL|Error|exceeded/.test(l)).slice(0, 4).join(' | ');
-      a.high('Performance jest suite failed', out || 'See CI logs.', '__tests__/performance/');
+      const out = (e.stdout || e.stderr || Buffer.from('')).toString();
+      // Distinguish a genuine timing/assertion failure from a harness error (jest couldn't
+      // run at all: missing preset/module, no tests collected). Only the former is a real
+      // perf regression worth a 🟠 high; the latter is an environment problem → info.
+      const ranTests = /Tests:\s+\d+/.test(out);
+      const harnessError = !ranTests &&
+        /(preset .* not found|Cannot find module|No tests found|command not found|Validation Error)/i.test(out);
+      const summary = out.split('\n').filter((l) => /✕|FAIL|Error|exceeded/.test(l)).slice(0, 4).join(' | ');
+      if (harnessError) {
+        a.info('Performance jest suite did not run (harness error)',
+          (summary || 'jest failed to start; check the test environment.') + ' Not treated as a perf regression.',
+          '__tests__/performance/');
+      } else {
+        a.high('Performance jest suite failed', summary || 'See CI logs.', '__tests__/performance/');
+      }
     }
   } else if (hasPerfTest) {
     a.info('Performance jest suite not executed (static run)', 'Pass --run-tests (or run `npm run audit:weekly:full`) for dynamic timing.', '__tests__/performance/');
@@ -107,6 +128,15 @@ function build({ runTests = false } = {}) {
 }
 
 // --- helpers ---------------------------------------------------------------
+/**
+ * True only when the toolchain needed to actually run the perf jest suite is present.
+ * A fresh routine container may clone the repo without `npm ci`; jest + ts-jest must both
+ * resolve or the suite fails to load for reasons unrelated to performance.
+ */
+function depsInstalled() {
+  return L.exists('node_modules/.bin/jest') && L.exists('node_modules/ts-jest');
+}
+
 /**
  * Count genuinely *nested* loops via brace-depth tracking: a loop counts only when
  * another loop opens at a strictly deeper brace level before the outer loop's block
