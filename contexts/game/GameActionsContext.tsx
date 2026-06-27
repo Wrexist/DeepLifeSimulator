@@ -2572,63 +2572,60 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const { cloudSyncService } = require('@/services/CloudSyncService');
  cloudSyncService.resumeSync();
 
- // A-6: Register conflict callback to show native alert on sync conflict
- const { Alert } = require('react-native');
- cloudSyncService.setConflictCallback((conflict: any) => {
- Alert.alert(
- 'Cloud Sync Conflict',
- 'Both this device and the cloud have changes. Which version would you like to keep?',
- [
- {
- text: 'Keep This Device',
- onPress: () => {
- // Local wins — next save will overwrite cloud
- logger.info('[CloudSync] User chose to keep local version');
- },
- },
- {
- text: 'Keep Cloud Version',
- style: 'destructive',
- onPress: async () => {
+ // A-6: Surface sync conflicts via CloudSyncConflictModal (was a native Alert).
+ // The modal (mounted in app/_layout.tsx) reads the conflict from the bridge and
+ // reports the user's choice; the apply pipeline below stays here because it owns
+ // setGameState + the migrate/repair/validate logic.
+ cloudSyncService.setConflictCallback(async (conflict: any) => {
  try {
- if (conflict.remoteState) {
- // A-4 parity with loadGame: run version migrations BEFORE repair. A
- // cloud save from an OLDER app version (synced from a device that
- // hasn't updated) must be migrated, not just shape-repaired, or
- // current code crashes on the stale schema. Refuse a FUTURE-version save.
- let remote = conflict.remoteState;
+ const { requestConflictResolution } = require('@/lib/cloudSync/conflictBridge');
+ const choice = await requestConflictResolution(conflict);
+ if (!choice || choice === 'local') {
+ // Local wins — next save will overwrite cloud. Safe, non-destructive default.
+ logger.info('[CloudSync] User chose to keep local version');
+ return;
+ }
+
+ // The state to apply: the cloud save, or a local+remote merge.
+ let resolved = conflict.remoteState;
+ if (choice === 'merge') {
+ resolved = await cloudSyncService.resolveConflict(
+ conflict.localState,
+ conflict.remoteState,
+ 'merge'
+ );
+ }
+ if (!resolved) return;
+
+ // A-4 parity with loadGame: run version migrations BEFORE repair. A save from
+ // an OLDER app version must be migrated, not just shape-repaired, or current
+ // code crashes on the stale schema. Refuse a FUTURE-version save.
  try {
  const { runMigrations } = await import('@/utils/saveMigrations');
- const migrationResult = runMigrations(remote);
+ const migrationResult = runMigrations(resolved);
  if (migrationResult.versionFromFuture) {
  logger.error('[CloudSync] Cloud save is from a newer app version — refusing to apply.');
  return;
  }
- remote = migrationResult.state;
+ resolved = migrationResult.state;
  } catch (migErr) {
- logger.error('[CloudSync] Migration of cloud state failed (continuing with repair):', migErr);
+ logger.error('[CloudSync] Migration of resolved state failed (continuing with repair):', migErr);
  }
- // Validate and repair remote state before applying
- const repaired = repairGameState(remote);
+ // Validate and repair before applying.
+ const repaired = repairGameState(resolved);
  if (repaired.repaired) {
- logger.warn('[CloudSync] Remote state required repair:', repaired.repairs);
+ logger.warn('[CloudSync] Resolved state required repair:', repaired.repairs);
  }
- const validation = validateGameState(remote, true);
+ const validation = validateGameState(resolved, true);
  if (!validation.valid) {
- logger.error('[CloudSync] Remote state failed validation after repair:', validation.errors);
+ logger.error('[CloudSync] Resolved state failed validation after repair:', validation.errors);
  return;
  }
- setGameState(remote);
- logger.info('[CloudSync] User chose cloud version — migrated + state replaced (validated)');
- }
+ setGameState(resolved);
+ logger.info(`[CloudSync] User chose ${choice} resolution — migrated + state replaced (validated)`);
  } catch (err) {
- logger.error('[CloudSync] Failed to apply cloud state:', err);
+ logger.error('[CloudSync] Failed to resolve sync conflict:', err);
  }
- },
- },
- ],
- { cancelable: false }
- );
  });
  } catch (e) {
  // Non-critical

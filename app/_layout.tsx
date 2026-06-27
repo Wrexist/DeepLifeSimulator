@@ -609,6 +609,7 @@ const SicknessModal = lazy(() => import('@/components/SicknessModal'));
 const CureSuccessModal = lazy(() => import('@/components/CureSuccessModal'));
 const DeathPopup = lazy(() => import('@/components/DeathPopup'));
 const WeddingPopup = lazy(() => import('@/components/WeddingPopup'));
+const CloudSyncConflictModal = lazy(() => import('@/components/CloudSyncConflictModal'));
 // ZeroStatPopup removed from the week-advance flow — low health/happiness is now
 // surfaced passively in the player card "Health Issues" section instead of as a
 // popup, so it is no longer rendered here.
@@ -1342,6 +1343,13 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
           </Suspense>
         </ErrorBoundary>
       )}
+      {/* Cloud-sync conflict prompt — self-gates to null unless a conflict is
+          pending (via the conflict bridge), so it mounts regardless of session. */}
+      <ErrorBoundary fallback={null} onError={(error) => logger.error('[CloudSyncConflictModal] failed:', { error: error?.message })}>
+        <Suspense fallback={null}>
+          <CloudSyncConflictModal />
+        </Suspense>
+      </ErrorBoundary>
       <UIUXOverlay />
       {/* StatusBar is always StatusBarFallback (safe no-op component) */}
       <StatusBar style="light" />
