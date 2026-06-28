@@ -10,6 +10,7 @@ the life-sim genre and built from the app's real theme tokens + real in-game art
 |--------|--------------|------------|-------|
 | `iphone-6.9/` | iPhone 6.9" (16/15 Pro Max …) | **1320 × 2868** | Apple's current required iPhone base size. Auto-scales to all smaller iPhones. |
 | `iphone-hero/` | iPhone 6.5" (hero set) | **1284 × 2778** | Premium "hero" presentation — a 3D-tilted titanium phone, ambient accent glow, and floating glass "live" chips. 5 frames. |
+| `iphone-gameplay/` | iPhone 6.5" (gameplay set) | **1284 × 2778** | Clean, full-bleed captures of the actual game UI (no marketing chrome) — what a real device screenshot looks like. 6 frames. |
 | `ipad-13/` | iPad 13" (Pro M4 / 12.9") | **2064 × 2752** | Required for iPad apps (this app has `supportsTablet: true`). Auto-scales to 12.9" (2048×2732) and smaller iPads. |
 
 Both sets: portrait PNG, 6 screenshots each, plus a `_contact-sheet.png` preview
@@ -48,11 +49,33 @@ own real screens (reused from the base generator), so it never drifts from the U
 | 04 | Go **viral.** | cyan | Social feed, followers, fame |
 | 05 | Leave a **dynasty.** | gold | Multi-generation family tree & inheritance |
 
+## The gameplay set (`iphone-gameplay/`)
+
+Six clean, full-bleed captures of the **actual game UI** — no headline, no tilt,
+no floating chips — exactly what a real on-device screenshot looks like. The same
+real `screen1…6` builders feed all three sets, so these match the hero/base art
+1:1. On-screen values are tuned to be aspirational (impressive net worth,
+followers and stats) to maximise install appeal while staying believable for a
+rags-to-riches life sim.
+
+| # | Screen | Highlights |
+|---|--------|------------|
+| 01 | Your life | Identity, stats (96–98%), goals, achievements (47/60) |
+| 02 | Choose your origin | 13 starting scenarios / replayability |
+| 03 | Build wealth | $8.42M net worth, +$72,400/mo passive, crypto, stocks, assets |
+| 04 | Dating | 97% match profile card, swipe deck |
+| 05 | Family dynasty | 4-generation tree, $48.6M total wealth, inheritance |
+| 06 | Go viral | 842.6K followers, viral feed, #1 trending |
+
+> The same aspirational values flow through the hero and base sets too, so the
+> story stays consistent everywhere a player sees a number.
+
 ## Regenerating
 
 ```bash
 node scripts/generate-app-store-screenshots.mjs   # iphone-6.9/ + ipad-13/ (12 PNGs)
 node scripts/generate-hero-screenshots.mjs        # iphone-hero/ (5 hero PNGs)
+node scripts/generate-gameplay-screenshots.mjs    # iphone-gameplay/ (6 gameplay PNGs)
 ```
 
 Requirements: `sharp` (SVG→PNG) and the **Inter** font available to fontconfig.

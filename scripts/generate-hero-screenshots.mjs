@@ -47,17 +47,17 @@ const FRAMES = [
     pre: 'Live any', word: 'life.', sub: 'Be born, make choices, and write a story that is yours.',
     chips: [
       { ic: 'star', label: 'Age', val: '28', col: 'amber', side: 'L', y: 980 },
-      { ic: 'trend', label: 'Net worth', val: '$1.28M', col: 'emerald', side: 'R', y: 1300 },
-      { ic: 'smiley', label: 'Happiness', val: '92%', col: 'purple', side: 'L', y: 1720 },
+      { ic: 'trend', label: 'Net worth', val: '$2.84M', col: 'emerald', side: 'R', y: 1300 },
+      { ic: 'smiley', label: 'Happiness', val: '98%', col: 'purple', side: 'L', y: 1720 },
     ],
   },
   {
     screen: 3, file: '02-build-the-empire', tilt: 1,
     pre: 'Build the', word: 'empire.', sub: 'Invest, hustle, and stack your first million.',
     chips: [
-      { ic: 'banknote', label: 'Passive income', val: '+$8,400/mo', col: 'emerald', side: 'L', y: 1150 },
+      { ic: 'banknote', label: 'Passive income', val: '+$72,400/mo', col: 'emerald', side: 'L', y: 1150 },
       { ic: 'trend', label: 'Bitcoin', val: '▲ 12%', col: 'gold', side: 'R', y: 1480 },
-      { ic: 'gem', label: 'Portfolio', val: '$2.4M', col: 'emerald', side: 'L', y: 1770 },
+      { ic: 'gem', label: 'Net worth', val: '$8.42M', col: 'emerald', side: 'L', y: 1770 },
     ],
   },
   {
@@ -65,7 +65,7 @@ const FRAMES = [
     pre: 'Find your', word: 'person.', sub: 'Swipe, date, marry — every romance is yours to write.',
     chips: [
       { ic: 'heart', label: 'New matches', val: '3', col: 'pink', side: 'L', y: 980 },
-      { ic: 'ring', label: 'Charm', val: '88%', col: 'rose', side: 'R', y: 1300 },
+      { ic: 'ring', label: 'Charm', val: '94%', col: 'rose', side: 'R', y: 1300 },
       { ic: 'msg', label: 'Unread', val: '5 chats', col: 'blue', side: 'L', y: 1720 },
     ],
   },
@@ -73,7 +73,7 @@ const FRAMES = [
     screen: 6, file: '04-go-viral', tilt: 1,
     pre: 'Go', word: 'viral.', sub: 'Post, blow up, and turn your clout into a fortune.',
     chips: [
-      { ic: 'users', label: 'Followers', val: '128.4K', col: 'cyan', side: 'L', y: 980 },
+      { ic: 'users', label: 'Followers', val: '842.6K', col: 'cyan', side: 'L', y: 980 },
       { ic: 'eye', label: 'Views today', val: '1.2M', col: 'sky', side: 'R', y: 1300 },
       { ic: 'flame', label: 'Trending', val: '#1', col: 'orange', side: 'L', y: 1720 },
     ],
@@ -83,7 +83,7 @@ const FRAMES = [
     pre: 'Leave a', word: 'dynasty.', sub: 'Your heirs inherit your fortune, your name, your legacy.',
     chips: [
       { ic: 'crown', label: 'Generation', val: '4th', col: 'gold', side: 'L', y: 980 },
-      { ic: 'banknote', label: 'Inheritance', val: '$24M', col: 'sky', side: 'R', y: 1300 },
+      { ic: 'banknote', label: 'Inheritance', val: '$48.6M', col: 'sky', side: 'R', y: 1300 },
       { ic: 'users', label: 'Bloodline', val: 'Family of 9', col: 'violet', side: 'L', y: 1720 },
     ],
   },
