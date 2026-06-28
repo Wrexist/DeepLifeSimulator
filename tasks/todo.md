@@ -1,5 +1,42 @@
 # Task Tracker
 
+## 🎨 Redesign Main Menu to match new visual mockup (2026-06-28)
+
+Goal: space-themed Main Menu — player profile header, gradient hero title with
+pulse divider, color-coded glass cards, gold "first life story" CTA, bottom
+live-stats bar.
+
+Design decisions:
+- Full redesign of `app/(onboarding)/MainMenu.tsx`.
+- Header profile + stats bar show REAL data from the last save; both hidden on a
+  fresh install (no save) so we never show fake numbers.
+- Data mappings (read from already-loaded save GameState — no schema changes):
+  Level=`date.age`, XP=`weeksLived%52 / 52`, Gems=`stats.gems`,
+  Name=current career level name (else "Player"), Day=`weeksLived*7`,
+  Happiness=`stats.happiness`, Skills=`unlockedLifeSkills.length`, Cash=`stats.money`.
+- Gold CTA only on fresh install; Continue card only when a save exists.
+
+- [x] 1. `GlassActionButton`: add backward-compatible `accentColor` (colored icon orb + chevron circle). Only consumer is MainMenu (SettingsModal has its own button), so scope is clean.
+- [x] 2. `OnboardingScreenShell`: add optional `header` + `scrollable` props (backward compatible — other screens unchanged).
+- [x] 3. New `components/onboarding/MainMenuHeader.tsx`.
+- [x] 4. New `components/onboarding/MainMenuTitle.tsx` (gradient title + SVG pulse divider).
+- [x] 5. New `components/onboarding/MainMenuStatsBar.tsx`.
+- [x] 6. Rewrite `MainMenu.tsx` to capture save summary + compose layout.
+- [x] 7. Add i18n keys to `utils/locales/en.ts`.
+- [x] 8. Type-check clean; tests green (onboarding render 5/5 incl. "MainMenu mounts", screenImports, saveSlotHelpers 25/25 incl. 4 new `summarizeSaveForMenu` cases).
+
+### Review
+- Visual redesign matches the mockup: profile header (avatar/level/XP/gems/gear),
+  gradient hero wordmark + SVG heartbeat divider + tagline, color-coded glass
+  cards (blue/purple/teal + green Continue), gold first-run CTA, bottom stats bar.
+- No GameState schema changes, no save-format changes — header/stats read the
+  already-parsed last-save snapshot via the new pure `summarizeSaveForMenu`.
+- Honest data: profile + stats render only when a meaningful save exists; fresh
+  installs show the hero + cards + gold CTA only (never fake numbers).
+- Shell/button changes are additive and backward compatible.
+
+---
+
 ## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
 
 User spammed the green "Next Week" button → screen covered in overlapping blue

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
-import { Play, Plus, Save, Settings } from 'lucide-react-native';
+import { Play, Rocket, Save, Settings, Star } from 'lucide-react-native';
 // SettingsModal eagerly pulls in DevToolsModal + several heavy modals. Nothing
 // imports MainMenu (so this isn't a require cycle) — but a failed module-eval of
 // that heavy graph in the production Hermes bytecode left MainMenu's own default
@@ -13,22 +13,29 @@ import { Play, Plus, Save, Settings } from 'lucide-react-native';
 const SettingsModal = lazy(() => import('@/components/SettingsModal'));
 import GlassActionButton from '@/components/onboarding/GlassActionButton';
 import OnboardingScreenShell from '@/components/onboarding/OnboardingScreenShell';
+import MainMenuHeader from '@/components/onboarding/MainMenuHeader';
+import MainMenuTitle from '@/components/onboarding/MainMenuTitle';
+import MainMenuStatsBar from '@/components/onboarding/MainMenuStatsBar';
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
 // this screen's module init — a require cycle that left this screen's default
 // export `undefined` in the production Hermes bundle ("Element type is invalid").
-import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getOnboardingTheme } from '@/lib/config/onboardingTheme';
-import { hasSaveStateShape, hasMeaningfulSaveData, findFirstEmptySlot } from '@/src/features/onboarding/saveSlotHelpers';
+import { accent } from '@/lib/config/theme';
+import {
+  hasSaveStateShape,
+  hasMeaningfulSaveData,
+  findFirstEmptySlot,
+  summarizeSaveForMenu,
+  type MainMenuSaveSummary,
+} from '@/src/features/onboarding/saveSlotHelpers';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { responsiveSpacing, scale } from '@/utils/scaling';
 
 const MAIN_MENU_BACKGROUNDS = [
   require('@/assets/images/Main_Menu.png'),
@@ -43,32 +50,33 @@ export default function MainMenu() {
   const { setState: setOnboardingState } = useOnboarding();
   const { t } = useTranslation();
   const [hasSave, setHasSave] = useState(false);
+  const [saveSummary, setSaveSummary] = useState<MainMenuSaveSummary | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const continueInFlightRef = useRef(false);
   const [selectedBackground] = useState(
     () => MAIN_MENU_BACKGROUNDS[Math.floor(Math.random() * MAIN_MENU_BACKGROUNDS.length)]
   );
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     logOnboardingStepView('MainMenu');
   }, []);
 
-  const isDarkMode = useGameSelector((s) => Boolean(s?.settings?.darkMode));
-  const onboardingTheme = getOnboardingTheme(isDarkMode);
-
   const refreshHasSaveState = useCallback(async () => {
+    const clear = () => {
+      setHasSave(false);
+      setSaveSummary(null);
+    };
     try {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (!lastSlot) {
-        setHasSave(false);
+        clear();
         return;
       }
 
       const slotNumber = parseInt(lastSlot, 10);
       if (isNaN(slotNumber) || slotNumber < 1 || slotNumber > 3) {
-        setHasSave(false);
+        clear();
         return;
       }
 
@@ -78,26 +86,28 @@ export default function MainMenu() {
       const allowLegacy = shouldAllowUnsignedLegacySaves();
       const saveData = await readSaveSlot(slotNumber, undefined, { allowLegacy });
       if (!saveData) {
-        setHasSave(false);
+        clear();
         return;
       }
 
       const decoded = decodePersistedSaveEnvelope(saveData, { allowLegacy });
       if (!decoded.valid || typeof decoded.data !== 'string') {
-        setHasSave(false);
+        clear();
         return;
       }
 
       const parsedGameState = JSON.parse(decoded.data);
       if (!hasSaveStateShape(parsedGameState)) {
-        setHasSave(false);
+        clear();
         return;
       }
 
-      setHasSave(hasMeaningfulSaveData(parsedGameState));
+      const meaningful = hasMeaningfulSaveData(parsedGameState);
+      setHasSave(meaningful);
+      setSaveSummary(meaningful ? summarizeSaveForMenu(parsedGameState) : null);
     } catch (error) {
       log.error('Error checking save state', error);
-      setHasSave(false);
+      clear();
     }
   }, [log]);
 
@@ -262,19 +272,30 @@ export default function MainMenu() {
     <>
       <OnboardingScreenShell
         backgroundSource={selectedBackground}
-        footer={
-          <View style={[styles.footerPill, { borderColor: onboardingTheme.glassBorder }]}>
-            <Text style={[styles.footerText, { color: onboardingTheme.subtitle }]}>
-              {hasSave ? 'Saved progress detected' : 'Create your first life story'}
-            </Text>
-          </View>
+        scrollable
+        header={
+          hasSave && saveSummary ? (
+            <MainMenuHeader
+              greeting={t('mainMenu.greeting')}
+              name={saveSummary.name}
+              level={saveSummary.level}
+              xpProgress={saveSummary.xpProgress}
+              xpCurrent={saveSummary.xpCurrent}
+              xpMax={saveSummary.xpMax}
+              gems={saveSummary.gems}
+              onSettings={() => setShowSettings(true)}
+            />
+          ) : undefined
         }
       >
+        <MainMenuTitle primary="DEEP" secondary="LIFE SIMULATOR" tagline={t('mainMenu.tagline')} />
+
         <View style={styles.menuSection}>
           {hasSave ? (
             <GlassActionButton
               highlighted
-              icon={<Play color={onboardingTheme.title} size={scale(24)} />}
+              accentColor={CARD_ACCENTS.continue}
+              icon={<Play color={CARD_ACCENTS.continue} size={scale(24)} />}
               title={t('mainMenu.continue')}
               subtitle={t('mainMenu.continueSubtitle')}
               onPress={continueGame}
@@ -284,26 +305,55 @@ export default function MainMenu() {
 
           <GlassActionButton
             highlighted={!hasSave}
-            icon={<Plus color={onboardingTheme.title} size={scale(24)} />}
+            accentColor={CARD_ACCENTS.newGame}
+            icon={<Rocket color={CARD_ACCENTS.newGame} size={scale(24)} />}
             title={t('mainMenu.newGame')}
             subtitle={t('mainMenu.newGameSubtitle')}
             onPress={startNew}
           />
 
           <GlassActionButton
-            icon={<Save color={onboardingTheme.title} size={scale(24)} />}
+            accentColor={CARD_ACCENTS.saveSlots}
+            icon={<Save color={CARD_ACCENTS.saveSlots} size={scale(24)} />}
             title={t('mainMenu.saveSlots')}
             subtitle={t('mainMenu.saveSlotsSubtitle')}
             onPress={() => router.push('/(onboarding)/SaveSlots')}
           />
 
           <GlassActionButton
-            icon={<Settings color={onboardingTheme.title} size={scale(24)} />}
+            accentColor={CARD_ACCENTS.settings}
+            icon={<Settings color={CARD_ACCENTS.settings} size={scale(24)} />}
             title={t('mainMenu.settings')}
             subtitle={t('mainMenu.settingsSubtitle')}
             onPress={() => setShowSettings(true)}
           />
         </View>
+
+        {!hasSave ? (
+          <GlassActionButton
+            highlighted
+            accentColor={accent.gold}
+            icon={<Star color={accent.gold} size={scale(24)} />}
+            title={t('mainMenu.ctaTitle')}
+            subtitle={t('mainMenu.ctaSubtitle')}
+            onPress={startNew}
+          />
+        ) : null}
+
+        {hasSave && saveSummary ? (
+          <MainMenuStatsBar
+            day={saveSummary.day}
+            happiness={saveSummary.happiness}
+            skills={saveSummary.skills}
+            cash={saveSummary.cash}
+            labels={{
+              day: t('mainMenu.statDay'),
+              happiness: t('mainMenu.statHappiness'),
+              skills: t('mainMenu.statSkills'),
+              cash: t('mainMenu.statCash'),
+            }}
+          />
+        ) : null}
       </OnboardingScreenShell>
 
       {showSettings && (
@@ -315,20 +365,17 @@ export default function MainMenu() {
   );
 }
 
+/** Color-coded accents for each main-menu card (matches the mockup). */
+const CARD_ACCENTS = {
+  continue: '#34D399', // green
+  newGame: '#60A5FA', // blue
+  saveSlots: '#A855F7', // purple
+  settings: '#2DD4BF', // teal
+} as const;
+
 const styles = StyleSheet.create({
   menuSection: {
     width: '100%',
     paddingBottom: responsiveSpacing.md,
-  },
-  footerPill: {
-    borderWidth: 1,
-    borderRadius: responsiveBorderRadius.full,
-    backgroundColor: 'rgba(15, 23, 42, 0.3)',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: verticalScale(6),
-  },
-  footerText: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
   },
 });

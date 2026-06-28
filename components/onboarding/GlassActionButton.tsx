@@ -24,6 +24,28 @@ interface GlassActionButtonProps {
   disabled?: boolean;
   loading?: boolean;
   loadingText?: string;
+  /**
+   * Optional hex accent (e.g. '#60A5FA'). When provided the icon orb and the
+   * trailing chevron are tinted with it (matching the color-coded main-menu
+   * cards). Omit for the original neutral-glass look.
+   */
+  accentColor?: string;
+}
+
+/** Expand a #RGB / #RRGGBB hex into an rgba() string at the given alpha. */
+function hexToRgba(hex: string, alpha: number): string {
+  let h = hex.replace('#', '');
+  if (h.length === 3) {
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('');
+  }
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return hex;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 export default function GlassActionButton({
@@ -35,11 +57,26 @@ export default function GlassActionButton({
   disabled = false,
   loading = false,
   loadingText,
+  accentColor,
 }: GlassActionButtonProps) {
   const isDarkMode = useGameSelector((s) => Boolean(s?.settings?.darkMode));
   const theme = getOnboardingTheme(isDarkMode);
   const blurTint = isDarkMode ? 'dark' : 'light';
   const glassStyle = getGlassButton(isDarkMode, highlighted);
+
+  // Accent-tinted surfaces for the icon orb + chevron circle (color-coded cards).
+  const accentOrbStyle = accentColor
+    ? {
+        backgroundColor: hexToRgba(accentColor, 0.16),
+        borderColor: hexToRgba(accentColor, 0.55),
+        shadowColor: accentColor,
+        shadowOpacity: 0.6,
+        shadowRadius: scale(12),
+        shadowOffset: { width: 0, height: 0 },
+        elevation: 6,
+      }
+    : undefined;
+  const chevronColor = accentColor ?? theme.accentText;
 
   const isDisabled = disabled || loading;
   // Native-driver press scale for instant tactile feedback.
@@ -64,13 +101,18 @@ export default function GlassActionButton({
         style={[
           styles.card,
           glassStyle,
-          { borderColor: theme.glassBorder },
+          { borderColor: accentColor ? hexToRgba(accentColor, 0.4) : theme.glassBorder },
           highlighted ? styles.highlightedCard : undefined,
         ]}
       >
-        <View style={[styles.topHighlight, { backgroundColor: theme.glassHighlight }]} />
+        <View
+          style={[
+            styles.topHighlight,
+            { backgroundColor: accentColor ? hexToRgba(accentColor, 0.5) : theme.glassHighlight },
+          ]}
+        />
         <View style={styles.content}>
-          <View style={styles.iconWrap}>{loading ? null : icon}</View>
+          <View style={[styles.iconWrap, accentOrbStyle]}>{loading ? null : icon}</View>
           <View style={styles.textWrap}>
             <Text numberOfLines={1} style={[styles.title, { color: theme.title }]}>
               {loading ? (loadingText ?? 'Loading...') : title}
@@ -80,9 +122,11 @@ export default function GlassActionButton({
             </Text>
           </View>
           {loading ? (
-            <ActivityIndicator color={theme.accentText} size="small" />
+            <ActivityIndicator color={chevronColor} size="small" />
           ) : (
-            <ChevronRight size={responsiveIconSize.md} color={theme.accentText} />
+            <View style={[styles.chevronCircle, { borderColor: hexToRgba(chevronColor, 0.5) }]}>
+              <ChevronRight size={responsiveIconSize.md} color={chevronColor} />
+            </View>
           )}
         </View>
       </BlurViewFallback>
@@ -130,6 +174,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  chevronCircle: {
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textWrap: {
     flex: 1,

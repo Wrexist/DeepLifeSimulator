@@ -7,12 +7,67 @@
 
 export type SaveSlotSnapshot = {
   weeksLived?: number;
-  stats?: { money?: number };
+  stats?: { money?: number; happiness?: number; gems?: number };
   date?: { age?: number; month?: string };
   userProfile?: { firstName?: string; lastName?: string };
   achievements?: { completed?: boolean }[];
   relationships?: unknown[];
   items?: { owned?: boolean }[];
+  unlockedLifeSkills?: unknown[];
+  career?: { levels?: { name?: string }[]; level?: number } | null;
+};
+
+/** Display fields the redesigned Main Menu shows for the most recent save. */
+export interface MainMenuSaveSummary {
+  name: string;
+  level: number;
+  xpProgress: number;
+  xpCurrent: number;
+  xpMax: number;
+  gems: number;
+  day: number;
+  happiness: number;
+  skills: number;
+  cash: number;
+}
+
+const WEEKS_PER_YEAR = 52;
+
+/**
+ * Derive the Main Menu's profile-header + stats-bar values from a parsed save.
+ *
+ * Everything here reads existing GameState fields — no new schema. The "level"
+ * is the player's current age and the XP bar is their progress through the
+ * current life-year (weeks since their last birthday), which keeps the
+ * gamified header honest rather than inventing a meta-progression number.
+ */
+export const summarizeSaveForMenu = (state: SaveSlotSnapshot): MainMenuSaveSummary => {
+  const weeksLived = typeof state.weeksLived === 'number' && state.weeksLived >= 0 ? state.weeksLived : 0;
+  const age = typeof state.date?.age === 'number' ? state.date.age : 18;
+  const weeksThisYear = weeksLived % WEEKS_PER_YEAR;
+
+  const firstName = state.userProfile?.firstName?.trim();
+  const lastName = state.userProfile?.lastName?.trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(' ');
+  const careerLevels = state.career?.levels;
+  const careerIndex = typeof state.career?.level === 'number' ? state.career.level : -1;
+  const careerTitle =
+    Array.isArray(careerLevels) && careerIndex >= 0 && careerIndex < careerLevels.length
+      ? careerLevels[careerIndex]?.name
+      : undefined;
+
+  return {
+    name: fullName || careerTitle || 'Player',
+    level: age,
+    xpProgress: weeksThisYear / WEEKS_PER_YEAR,
+    xpCurrent: weeksThisYear,
+    xpMax: WEEKS_PER_YEAR,
+    gems: typeof state.stats?.gems === 'number' ? state.stats.gems : 0,
+    day: weeksLived * 7,
+    happiness: typeof state.stats?.happiness === 'number' ? state.stats.happiness : 0,
+    skills: Array.isArray(state.unlockedLifeSkills) ? state.unlockedLifeSkills.length : 0,
+    cash: typeof state.stats?.money === 'number' ? state.stats.money : 0,
+  };
 };
 
 export interface SaveSlotData extends SaveSlotSnapshot {
