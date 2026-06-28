@@ -83,8 +83,8 @@ const FRAMES = [
     pre: 'Leave a', word: 'dynasty.', sub: 'Your heirs inherit your fortune, your name, your legacy.',
     chips: [
       { ic: 'crown', label: 'Generation', val: '4th', col: 'gold', side: 'L', y: 980 },
-      { ic: 'banknote', label: 'Inheritance', val: '$48.6M', col: 'sky', side: 'R', y: 1300 },
-      { ic: 'users', label: 'Bloodline', val: 'Family of 9', col: 'violet', side: 'L', y: 1720 },
+      { ic: 'banknote', label: 'Total wealth', val: '$48.6M', col: 'sky', side: 'R', y: 1300 },
+      { ic: 'users', label: 'Bloodline', val: 'Family of 7', col: 'violet', side: 'L', y: 1720 },
     ],
   },
 ];

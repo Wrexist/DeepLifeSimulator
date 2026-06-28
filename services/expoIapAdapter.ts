@@ -19,17 +19,6 @@
  * it kicks off `requestPurchase` and resolves when the matching purchase (or an
  * error) is delivered to the global listeners.
  */
-import {
-  initConnection,
-  endConnection,
-  fetchProducts,
-  getAvailablePurchases,
-  requestPurchase,
-  finishTransaction,
-  purchaseUpdatedListener,
-  purchaseErrorListener,
-  ErrorCode,
-} from 'expo-iap';
 
 // Mirror the old expo-in-app-purchases response codes the service compares against.
 export const IAPResponseCode = {
@@ -39,6 +28,34 @@ export const IAPResponseCode = {
   DEFERRED: 3,
 } as const;
 
+// expo-iap ErrorCode wire values we care about (avoid importing the enum so the
+// native module stays fully lazy — see getIap()).
+const ERR_USER_CANCELLED = 'user-cancelled';
+const ERR_DEFERRED_PAYMENT = 'deferred-payment';
+
+// Lazy, cached native-module load (project convention: native modules are
+// require()'d inside try/catch, never imported at module scope, so a missing
+// native module can't throw during import on web / Expo Go / unsupported builds).
+let iap: any = null;
+let iapLoadFailed = false;
+function getIap(): any {
+  if (iap) return iap;
+  if (iapLoadFailed) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    iap = require('expo-iap');
+    return iap;
+  } catch {
+    iapLoadFailed = true;
+    return null;
+  }
+}
+function requireIap(): any {
+  const m = getIap();
+  if (!m) throw new Error('expo-iap native module unavailable');
+  return m;
+}
+
 type LegacyResult = { responseCode: number; results: any[]; errorCode?: string };
 type LegacyCallback = (event: LegacyResult) => void;
 
@@ -46,17 +63,29 @@ type LegacyCallback = (event: LegacyResult) => void;
 // queued / restored transactions that did NOT originate from purchaseItemAsync.
 const legacyCallbacks = new Set<LegacyCallback>();
 
-// In-flight interactive purchases, matched back to their resolver by SKU.
-type Pending = { sku: string; timer: ReturnType<typeof setTimeout>; resolve: (v: LegacyResult) => void };
+// In-flight interactive purchases. Each request gets a unique id so the right
+// resolver is settled even though the store only echoes a product id.
+type Pending = {
+  id: number;
+  sku: string;
+  timer: ReturnType<typeof setTimeout>;
+  resolve: (v: LegacyResult) => void;
+};
+let pendingSeq = 0;
 const pending: Pending[] = [];
 function removePending(entry: Pending): void {
   const i = pending.indexOf(entry);
   if (i >= 0) pending.splice(i, 1);
 }
+function settlePending(entry: Pending, value: LegacyResult): void {
+  removePending(entry);
+  clearTimeout(entry.timer);
+  entry.resolve(value);
+}
 
 function mapErrorCode(code?: string): number {
-  if (code === ErrorCode.UserCancelled) return IAPResponseCode.USER_CANCELED;
-  if (code === ErrorCode.DeferredPayment) return IAPResponseCode.DEFERRED;
+  if (code === ERR_USER_CANCELLED) return IAPResponseCode.USER_CANCELED;
+  if (code === ERR_DEFERRED_PAYMENT) return IAPResponseCode.DEFERRED;
   return IAPResponseCode.ERROR;
 }
 
@@ -99,20 +128,41 @@ function normalizePurchase(pu: any): any {
   };
 }
 
+// Store the listener subscriptions so they can be removed on disconnect —
+// otherwise a connect→disconnect→connect cycle stacks duplicate callbacks.
+let updatedSub: { remove?: () => void } | null = null;
+let errorSub: { remove?: () => void } | null = null;
 let listenersAttached = false;
+
+function detachListeners(): void {
+  try {
+    updatedSub?.remove?.();
+  } catch {
+    /* ignore */
+  }
+  try {
+    errorSub?.remove?.();
+  } catch {
+    /* ignore */
+  }
+  updatedSub = null;
+  errorSub = null;
+  listenersAttached = false;
+}
+
 function attachListeners(): void {
   if (listenersAttached) return;
+  const m = getIap();
+  if (!m) return;
   listenersAttached = true;
 
-  purchaseUpdatedListener((purchase: any) => {
+  updatedSub = m.purchaseUpdatedListener((purchase: any) => {
     const norm = normalizePurchase(purchase);
     // An interactive purchaseItemAsync() waiting on this SKU? resolve it and let
     // the foreground flow handle validation + finishTransaction.
     const entry = pending.find((p) => p.sku === norm.productId);
     if (entry) {
-      removePending(entry);
-      clearTimeout(entry.timer);
-      entry.resolve({ responseCode: IAPResponseCode.OK, results: [norm] });
+      settlePending(entry, { responseCode: IAPResponseCode.OK, results: [norm] });
       return;
     }
     // Otherwise it's a background/restored transaction → legacy listener.
@@ -121,15 +171,16 @@ function attachListeners(): void {
     );
   });
 
-  purchaseErrorListener((err: any) => {
+  errorSub = m.purchaseErrorListener((err: any) => {
     const code = mapErrorCode(err?.code);
     const sku: string | undefined = err?.productId ?? err?.productIds?.[0];
+    // Match by SKU; only fall back to "the single in-flight purchase" when the
+    // error carries no product id AND exactly one is pending (no misrouting).
     const entry =
-      (sku && pending.find((p) => p.sku === sku)) || pending[0] || undefined;
+      (sku && pending.find((p) => p.sku === sku)) ||
+      (!sku && pending.length === 1 ? pending[0] : undefined);
     if (entry) {
-      removePending(entry);
-      clearTimeout(entry.timer);
-      entry.resolve({ responseCode: code, results: [], errorCode: err?.code });
+      settlePending(entry, { responseCode: code, results: [], errorCode: err?.code });
       return;
     }
     legacyCallbacks.forEach((cb) =>
@@ -143,34 +194,46 @@ function attachListeners(): void {
 }
 
 export async function connectAsync(): Promise<void> {
+  // Dispose any stale subscriptions before (re)registering, then connect.
+  detachListeners();
   attachListeners();
-  await initConnection();
+  await requireIap().initConnection();
 }
 
 export async function disconnectAsync(): Promise<void> {
   try {
-    await endConnection();
+    await requireIap().endConnection();
   } finally {
-    listenersAttached = false;
+    detachListeners();
   }
 }
 
 export async function getProductsAsync(skus: string[]): Promise<LegacyResult> {
-  const products = await fetchProducts({ skus, type: 'in-app' });
+  const products = await requireIap().fetchProducts({ skus, type: 'in-app' });
   const list = Array.isArray(products) ? products : [];
   return { responseCode: IAPResponseCode.OK, results: list.map(normalizeProduct) };
 }
 
 export async function getPurchaseHistoryAsync(): Promise<LegacyResult> {
-  const purchases = await getAvailablePurchases();
+  const purchases = await requireIap().getAvailablePurchases();
   const list = Array.isArray(purchases) ? purchases : [];
   return { responseCode: IAPResponseCode.OK, results: list.map(normalizePurchase) };
 }
 
 export function purchaseItemAsync(sku: string): Promise<LegacyResult> {
   attachListeners();
+  // The store only echoes a product id, so two concurrent purchases of the same
+  // SKU can't be told apart — reject the duplicate rather than misroute events.
+  if (pending.some((entry) => entry.sku === sku)) {
+    return Promise.resolve({
+      responseCode: IAPResponseCode.ERROR,
+      results: [],
+      errorCode: 'purchase-already-pending',
+    });
+  }
   return new Promise<LegacyResult>((resolve) => {
     const entry: Pending = {
+      id: ++pendingSeq,
       sku,
       resolve,
       // Guard against an event that never arrives so the UI can't hang forever.
@@ -182,7 +245,7 @@ export function purchaseItemAsync(sku: string): Promise<LegacyResult> {
     pending.push(entry);
 
     Promise.resolve(
-      requestPurchase({
+      requireIap().requestPurchase({
         request: {
           ios: { sku },
           apple: { sku },
@@ -193,9 +256,11 @@ export function purchaseItemAsync(sku: string): Promise<LegacyResult> {
       }),
     ).catch((e: any) => {
       // requestPurchase rejected before any listener fired.
-      removePending(entry);
-      clearTimeout(entry.timer);
-      resolve({ responseCode: mapErrorCode(e?.code), results: [], errorCode: e?.code });
+      settlePending(entry, {
+        responseCode: mapErrorCode(e?.code),
+        results: [],
+        errorCode: e?.code,
+      });
     });
   });
 }
@@ -205,7 +270,7 @@ export async function finishTransactionAsync(
   isConsumable = true,
 ): Promise<void> {
   const raw = purchase?._raw ?? purchase;
-  await finishTransaction({ purchase: raw, isConsumable });
+  await requireIap().finishTransaction({ purchase: raw, isConsumable });
 }
 
 export function setPurchaseListener(cb: LegacyCallback | null): void {

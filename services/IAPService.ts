@@ -664,10 +664,11 @@ export class IAPService {
           await new Promise((r) => setTimeout(r, attempt * 1500));
           continue;
         }
-        // Final attempt still empty: keep any previously-loaded products, don't
-        // raise a scary error — this is most often a store-config / propagation
-        // issue, which the purchase flow now reports in friendly, actionable terms.
-        this.setState({ products: this.state.products });
+        // Final attempt still empty: keep any previously-loaded products, and
+        // clear any stale error from an earlier failed attempt — don't raise a
+        // scary error. This is most often a store-config / propagation issue,
+        // which the purchase flow now reports in friendly, actionable terms.
+        this.setState({ products: this.state.products, error: null });
         return;
       } catch (error) {
         logger.error('Failed to load products:', { error, attempt });

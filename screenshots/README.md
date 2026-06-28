@@ -13,8 +13,9 @@ the life-sim genre and built from the app's real theme tokens + real in-game art
 | `iphone-gameplay/` | iPhone 6.5" (gameplay set) | **1284 × 2778** | Clean, full-bleed captures of the actual game UI (no marketing chrome) — what a real device screenshot looks like. 6 frames. |
 | `ipad-13/` | iPad 13" (Pro M4 / 12.9") | **2064 × 2752** | Required for iPad apps (this app has `supportsTablet: true`). Auto-scales to 12.9" (2048×2732) and smaller iPads. |
 
-Both sets: portrait PNG, 6 screenshots each, plus a `_contact-sheet.png` preview
-(the contact sheet is **not** for upload).
+All sets are portrait PNG with a `_contact-sheet.png` preview (the contact sheet
+is **not** for upload). Frame counts: `iphone-6.9/` and `ipad-13/` have **6**
+each, `iphone-hero/` has **5**, `iphone-gameplay/` has **6**.
 
 > 1290 × 2796 (6.7") is also an accepted iPhone size; 1320 × 2868 is the current
 > primary and is what's generated here so there's zero ambiguity at upload.
@@ -72,6 +73,8 @@ rags-to-riches life sim.
 
 ## Regenerating
 
+The first three are **synthetic** (SVG→PNG, no app required):
+
 ```bash
 node scripts/generate-app-store-screenshots.mjs   # iphone-6.9/ + ipad-13/ (12 PNGs)
 node scripts/generate-hero-screenshots.mjs        # iphone-hero/ (5 hero PNGs)
@@ -84,5 +87,17 @@ the per-screen builders (`screen1…6` for iPhone, `ipadScreen1…6` for iPad). 
 hero set is data-driven via the `FRAMES` array at the top of
 `generate-hero-screenshots.mjs` (caption, accent, tilt direction, and the
 floating-chip stats per frame) and reuses the base screens via `buildDeviceLayer()`.
+
+The `iphone-real/` set is **captured from the live app**, not synthesized — it
+drives the actual Expo web build with Playwright. Start the app first, then run
+the capture (it walks New Game → Scenario → Customize → Perks → each tab):
+
+```bash
+npx expo start --web                              # serve the app on :8081 first
+node scripts/capture-real-screenshots.mjs         # iphone-real/ (real-UI PNGs)
+```
+
+Requirements: a Playwright Chromium (`PLAYWRIGHT_BROWSERS_PATH` set if using a
+shared install) and the dev server reachable at `http://localhost:8081`.
 
 > For a Google Play set, add a 1080×1920 (or 1080×2400) target to `main()`.
