@@ -138,7 +138,7 @@ These products are permanent and SHOULD be restored on app reinstall.
     - **Description:** +50% earnings on all jobs
     - **Price:** $1.99
 
-18. **Product ID:** `deeplife_mindset`
+18. **Product ID:** `deeplife_mindset_perk`
     - **Name:** Mindset
     - **Description:** 50% faster promotions
     - **Price:** $1.99
@@ -397,7 +397,7 @@ revival_pack
 deeplife_lifetime_premium
 deeplife_remove_ads
 deeplife_work_boost
-deeplife_mindset
+deeplife_mindset_perk
 deeplife_fast_learner
 deeplife_good_credit
 deeplife_unlock_all_perks

@@ -80,10 +80,13 @@ export const IAP_PRODUCTS = {
     android: 'deeplife_work_boost',
   }) || 'deeplife_work_boost',
 
+  // NOTE: the original `deeplife_mindset` ID is permanently reserved by Apple
+  // (deleted product IDs can never be reused), so this product uses a fresh ID
+  // that must be created in App Store Connect (Non-Consumable).
   MINDSET: Platform.select({
-    ios: 'deeplife_mindset',
-    android: 'deeplife_mindset',
-  }) || 'deeplife_mindset',
+    ios: 'deeplife_mindset_perk',
+    android: 'deeplife_mindset_perk',
+  }) || 'deeplife_mindset_perk',
 
   FAST_LEARNER: Platform.select({
     ios: 'deeplife_fast_learner',
@@ -504,12 +507,14 @@ export const CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.YOUTH_PILL_PACK,
   IAP_PRODUCTS.MONEY_BOOST,
   IAP_PRODUCTS.SKILL_BOOST,
+  // Work Pay Boost is a repeatable purchase (Consumable in App Store Connect),
+  // so it is intentionally NOT restored on reinstall.
+  IAP_PRODUCTS.WORK_BOOST,
 ];
 
 // Non-consumable products - These SHOULD be restored
 // (permanent perks, ad removal, lifetime features)
 export const NON_CONSUMABLE_PRODUCTS = [
-  IAP_PRODUCTS.WORK_BOOST,
   IAP_PRODUCTS.MINDSET,
   IAP_PRODUCTS.FAST_LEARNER,
   IAP_PRODUCTS.GOOD_CREDIT,
