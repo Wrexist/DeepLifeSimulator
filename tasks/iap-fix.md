@@ -34,23 +34,31 @@ transport (library + store config), not the code that grants items.
 This stops the scary alert and makes the store degrade gracefully. It does **not**
 by itself make real purchases work — that needs the migration below.
 
-## What still needs doing (needs a native build + device + App Store Connect)
-Pick ONE library and migrate `services/IAPService.ts` transport calls
-(`connectAsync`, `getProductsAsync`, `purchaseItemAsync`, `finishTransactionAsync`,
-`getPurchaseHistoryAsync`, `setPurchaseListener`) + native config:
+## Migration DONE in code: expo-in-app-purchases → expo-iap
+Chosen library: **expo-iap** (`^4.3.5`, supports SDK 54).
 
-- **expo-iap** — closest drop-in successor to expo-in-app-purchases, Expo config
-  plugin, keep current receipt-verification flow. Lowest-friction.
-- **RevenueCat (react-native-purchases)** — Expo-recommended; offloads
-  receipts/restore/entitlements to their backend. Needs a (free) RevenueCat
-  account + API keys. Least ongoing maintenance.
-- **react-native-iap** — most control, more wiring.
+- New `services/expoIapAdapter.ts` presents the exact legacy surface the service
+  used (`connectAsync`, `getProductsAsync`, `getPurchaseHistoryAsync`,
+  `purchaseItemAsync`, `finishTransactionAsync`, `setPurchaseListener`,
+  `IAPResponseCode`) backed by expo-iap. The 1,600-line `IAPService.ts` is
+  unchanged except the one lazy-load line now requires the adapter.
+- expo-iap is event-driven; the adapter bridges `requestPurchase` +
+  `purchaseUpdatedListener`/`purchaseErrorListener` back to the old
+  promise-returning `purchaseItemAsync` contract, and maps Product/Purchase
+  fields (`id`→`productId`, `displayPrice`→`price`, `purchaseToken`→`receipt`).
+- `app.config.js`: added the `expo-iap` config plugin (Hard Rule #4).
+- `package.json`: removed `expo-in-app-purchases`, added `expo-iap`.
+- Tests: `__tests__/monetization/expoIapAdapter.test.ts` (purchase bridge,
+  cancel mapping, normalization) + the graceful-loading tests. All green.
 
-Then:
-1. Remove `expo-in-app-purchases` from `package.json` AND keep config-plugin
-   alignment per CLAUDE.md Hard Rule #4 (`app.config.js`).
-2. App Store Connect: create every product ID in `utils/iapConfig.ts`, sign the
-   Paid Apps agreement, attach products to the build.
-3. Verify with a **TestFlight build + sandbox tester** (cannot be verified in the
-   cloud dev environment — no native StoreKit there).
-4. `npm run preflight` before the release build.
+### What YOU still have to do (can't be done/verified in the cloud env)
+1. **App Store Connect**: create every product ID from `utils/iapConfig.ts`, sign
+   the **Paid Apps agreement**, and attach the products to the build. Add a
+   **Sandbox tester** (Users and Access → Sandbox).
+2. **Rebuild natively** — `expo-iap` is a native module, so a new **EAS build** is
+   required (it won't work over OTA update). `npm run preflight` first.
+3. **Verify on a real device** via TestFlight + the sandbox account: open the Gem
+   Shop, confirm products + prices load, run a sandbox purchase end-to-end, and
+   confirm benefits apply + restore works. StoreKit can't be tested in the
+   simulator/web/cloud — this step is on-device only.
+4. If anything fails on device, capture the logs and I'll fix.

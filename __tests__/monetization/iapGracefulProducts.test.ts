@@ -25,24 +25,25 @@ jest.mock('@/utils/saveQueue', () => ({
   forceSave: jest.fn().mockResolvedValue(undefined),
 }));
 
-const IAP_RESPONSE_OK = { OK: 0, USER_CANCELED: 1, ERROR: 2, DEFERRED: 3 };
-
-function mockNativeIap(getProductsAsync: jest.Mock) {
-  jest.doMock('expo-in-app-purchases', () => ({
-    IAPResponseCode: IAP_RESPONSE_OK,
-    connectAsync: jest.fn().mockResolvedValue(undefined),
-    disconnectAsync: jest.fn().mockResolvedValue(undefined),
-    getProductsAsync,
-    getPurchaseHistoryAsync: jest.fn().mockResolvedValue({ responseCode: 0, results: [] }),
-    setPurchaseListener: jest.fn(),
-    purchaseItemAsync: jest.fn(),
-    finishTransactionAsync: jest.fn().mockResolvedValue(undefined),
+// Mock the expo-iap native module (the IAPService now talks to it through
+// services/expoIapAdapter.ts). `fetchProducts` drives these tests.
+function mockNativeIap(fetchProducts: jest.Mock) {
+  jest.doMock('expo-iap', () => ({
+    initConnection: jest.fn().mockResolvedValue(true),
+    endConnection: jest.fn().mockResolvedValue(true),
+    fetchProducts,
+    getAvailablePurchases: jest.fn().mockResolvedValue([]),
+    requestPurchase: jest.fn().mockResolvedValue(undefined),
+    finishTransaction: jest.fn().mockResolvedValue(undefined),
+    purchaseUpdatedListener: jest.fn(() => ({ remove: jest.fn() })),
+    purchaseErrorListener: jest.fn(() => ({ remove: jest.fn() })),
+    ErrorCode: { UserCancelled: 'user-cancelled', DeferredPayment: 'deferred-payment' },
   }));
 }
 
-async function freshService(getProductsAsync: jest.Mock) {
+async function freshService(fetchProducts: jest.Mock) {
   jest.resetModules();
-  mockNativeIap(getProductsAsync);
+  mockNativeIap(fetchProducts);
   // Make the retry backoff instant so the test isn't slowed by real timers.
   jest.spyOn(global, 'setTimeout').mockImplementation(((fn: () => void) => {
     fn();
@@ -58,30 +59,31 @@ afterEach(() => {
 
 describe('IAP graceful product loading', () => {
   it('retries an OK-but-empty catalog and loads products once they appear', async () => {
-    const product = { productId: 'deeplife_gems_100', price: '$0.99', title: 'Gems' };
-    const getProducts = jest
+    // expo-iap fetchProducts resolves to a Product[] (here using its `id` field).
+    const product = { id: 'deeplife_gems_100', displayPrice: '$0.99', title: 'Gems' };
+    const fetchProducts = jest
       .fn()
-      .mockResolvedValueOnce({ responseCode: 0, results: [] }) // still propagating
-      .mockResolvedValueOnce({ responseCode: 0, results: [] }) // still propagating
-      .mockResolvedValueOnce({ responseCode: 0, results: [product] }); // now live
+      .mockResolvedValueOnce([]) // still propagating
+      .mockResolvedValueOnce([]) // still propagating
+      .mockResolvedValueOnce([product]); // now live
 
-    const iapService = await freshService(getProducts);
+    const iapService = await freshService(fetchProducts);
     await iapService.loadProducts();
 
-    expect(getProducts).toHaveBeenCalledTimes(3);
+    expect(fetchProducts).toHaveBeenCalledTimes(3);
     expect(iapService.getProducts()).toHaveLength(1);
     expect(iapService.getProducts()[0].productId).toBe('deeplife_gems_100');
     expect(iapService.getState().error).toBeNull();
   });
 
   it('an always-empty catalog never raises a scary error-state', async () => {
-    const getProducts = jest.fn().mockResolvedValue({ responseCode: 0, results: [] });
+    const fetchProducts = jest.fn().mockResolvedValue([]);
 
-    const iapService = await freshService(getProducts);
+    const iapService = await freshService(fetchProducts);
     await expect(iapService.loadProducts()).resolves.toBeUndefined();
 
     // It retried, then gave up quietly — no products, but no alarming error.
-    expect(getProducts).toHaveBeenCalledTimes(3);
+    expect(fetchProducts).toHaveBeenCalledTimes(3);
     expect(iapService.getProducts()).toHaveLength(0);
     expect(iapService.getState().error).toBeNull();
     expect(iapService.isStoreAvailable()).toBe(false);

@@ -43,7 +43,10 @@ function loadInAppPurchasesModule(): boolean {
   inAppPurchasesLoadAttempts++;
 
   try {
-    InAppPurchases = require('expo-in-app-purchases');
+    // Backed by expo-iap via a thin legacy-shaped adapter (expo-in-app-purchases
+    // is deprecated/unsupported on SDK 54). See services/expoIapAdapter.ts.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    InAppPurchases = require('./expoIapAdapter');
     return true;
   } catch (error) {
     // Module not available - will retry on next call (up to MAX_IAP_LOAD_ATTEMPTS)
@@ -379,7 +382,7 @@ export class IAPService {
       }
 
       // Step 4: For client-side validation, we trust the receipt from Apple's IAP SDK
-      // The expo-in-app-purchases SDK already validates the receipt with Apple's servers
+      // expo-iap surfaces the StoreKit-verified transaction; this is a secondary app-side check
       // when the purchase is made. This secondary validation is for our app's logic.
 
       // Additional validation: Check if receipt matches expected product
@@ -586,7 +589,7 @@ export class IAPService {
         return false;
       }
 
-      logger.info('Initializing expo-in-app-purchases...');
+      logger.info('Initializing expo-iap...');
 
       // CRITICAL FIX: Connect to the store with defensive error handling
       // Wrap in Promise.resolve to catch any synchronous errors from native module
