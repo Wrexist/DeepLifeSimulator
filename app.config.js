@@ -122,7 +122,11 @@ module.exports = {
         {
           userTrackingPermission: "This identifier will be used to deliver personalized ads to you."
         }
-      ]
+      ],
+      // In-app purchases. expo-iap replaces the deprecated expo-in-app-purchases
+      // (which no longer links on SDK 54). Its config plugin wires the StoreKit /
+      // Play Billing capability — Hard Rule #4: package in package.json ⇒ plugin here.
+      "expo-iap"
     ],
     experiments: {
       typedRoutes: true

@@ -43,7 +43,10 @@ function loadInAppPurchasesModule(): boolean {
   inAppPurchasesLoadAttempts++;
 
   try {
-    InAppPurchases = require('expo-in-app-purchases');
+    // Backed by expo-iap via a thin legacy-shaped adapter (expo-in-app-purchases
+    // is deprecated/unsupported on SDK 54). See services/expoIapAdapter.ts.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    InAppPurchases = require('./expoIapAdapter');
     return true;
   } catch (error) {
     // Module not available - will retry on next call (up to MAX_IAP_LOAD_ATTEMPTS)
@@ -379,7 +382,7 @@ export class IAPService {
       }
 
       // Step 4: For client-side validation, we trust the receipt from Apple's IAP SDK
-      // The expo-in-app-purchases SDK already validates the receipt with Apple's servers
+      // expo-iap surfaces the StoreKit-verified transaction; this is a secondary app-side check
       // when the purchase is made. This secondary validation is for our app's logic.
 
       // Additional validation: Check if receipt matches expected product
@@ -586,7 +589,7 @@ export class IAPService {
         return false;
       }
 
-      logger.info('Initializing expo-in-app-purchases...');
+      logger.info('Initializing expo-iap...');
 
       // CRITICAL FIX: Connect to the store with defensive error handling
       // Wrap in Promise.resolve to catch any synchronous errors from native module
@@ -623,28 +626,58 @@ export class IAPService {
     }
   }
 
-  // Load available products from store
+  // Load available products from store.
+  //
+  // The App Store can return an OK response with an EMPTY product list while the
+  // catalog is still propagating (newly-approved IAPs, sandbox warm-up, flaky
+  // network). Treating that first empty result as fatal is what surfaced the
+  // "Store products are not configured" alert to players. So we retry a few
+  // times with backoff before giving up, and record whether the catalog ended up
+  // empty so callers/UI can degrade gracefully instead of erroring.
   async loadProducts(): Promise<void> {
-    try {
-      if (!loadInAppPurchasesModule() || !InAppPurchases) return;
+    if (!loadInAppPurchasesModule() || !InAppPurchases) return;
 
-      const productIds = getAllProductIds();
-      logger.debug('Loading products:', { productIds });
+    const productIds = getAllProductIds();
+    const maxAttempts = 3;
 
-      const { responseCode, results } =
-        await InAppPurchases.getProductsAsync(productIds);
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        logger.debug('Loading products:', { productIds, attempt });
 
-      if (responseCode === InAppPurchases.IAPResponseCode.OK) {
-        logger.debug('Loaded products:', { count: results.length });
-        this.setState({ products: results });
-      } else {
-        throw new Error(
-          `Failed to load products. Response code: ${responseCode}`,
-        );
+        const { responseCode, results } =
+          await InAppPurchases.getProductsAsync(productIds);
+
+        if (responseCode !== InAppPurchases.IAPResponseCode.OK) {
+          throw new Error(`Failed to load products. Response code: ${responseCode}`);
+        }
+
+        const loaded = Array.isArray(results) ? results : [];
+        if (loaded.length > 0) {
+          logger.debug('Loaded products:', { count: loaded.length, attempt });
+          this.setState({ products: loaded, error: null });
+          return;
+        }
+
+        // OK but empty — catalog may still be propagating. Retry before giving up.
+        logger.warn('Store returned an empty product catalog', { attempt, maxAttempts });
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, attempt * 1500));
+          continue;
+        }
+        // Final attempt still empty: keep any previously-loaded products, and
+        // clear any stale error from an earlier failed attempt — don't raise a
+        // scary error. This is most often a store-config / propagation issue,
+        // which the purchase flow now reports in friendly, actionable terms.
+        this.setState({ products: this.state.products, error: null });
+        return;
+      } catch (error) {
+        logger.error('Failed to load products:', { error, attempt });
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, attempt * 1500));
+          continue;
+        }
+        this.setState({ error: `Failed to load products: ${error}` });
       }
-    } catch (error) {
-      logger.error('Failed to load products:', error);
-      this.setState({ error: `Failed to load products: ${error}` });
     }
   }
 
@@ -757,7 +790,7 @@ export class IAPService {
         // Check again after loading
         if (this.state.products.length === 0) {
           throw new Error(
-            'No products available in store. Please check App Store Connect configuration.',
+            'No products available. The store is temporarily unavailable — please try again in a moment.',
           );
         }
       }
@@ -967,13 +1000,13 @@ export class IAPService {
           );
         } else if (errorMessage.includes('not found in store')) {
           userFriendlyMessage =
-            'This product is not available in the App Store. Please contact support.';
+            'This item is temporarily unavailable. Please try again later.';
           logger.error(
             'Product not found in store - check App Store Connect configuration',
           );
         } else if (errorMessage.includes('No products available')) {
           userFriendlyMessage =
-            'Store products are not configured. Please contact support.';
+            'The store is temporarily unavailable. Please check your connection and try again in a moment.';
           logger.error(
             'No products loaded - IAP may not be properly configured',
           );
@@ -1448,6 +1481,13 @@ export class IAPService {
   // Get all products
   getProducts(): any[] {
     return this.state.products;
+  }
+
+  // True only when the store connected AND a non-empty catalog actually loaded.
+  // UI can use this to disable/hide buy buttons (with a "store unavailable" note)
+  // instead of letting a tap fail with an error alert.
+  isStoreAvailable(): boolean {
+    return this.state.isConnected && this.state.products.length > 0;
   }
 
   // Get state

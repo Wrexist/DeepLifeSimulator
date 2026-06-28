@@ -352,7 +352,7 @@ async function screen1(b, theme) { // HOME / identity
   b.txt(acx + ar - 6, acy + ar - 7, '12', { size: 22, w: 900, fill: '#1a1304', anchor: 'middle' });
   b.txt(SCX, y + 234, 'Alexander Reed', { size: 40, w: 800, fill: C.text, anchor: 'middle' });
   b.txt(SCX, y + 274, 'Age 28  ·  Software Engineer', { size: 23, w: 600, fill: C.amber, anchor: 'middle' });
-  const stats = [['heart', 'Health', 87, C.green], ['smiley', 'Happiness', 92, C.amber], ['bolt', 'Energy', 76, C.blue], ['dumbbell', 'Fitness', 64, C.violet]];
+  const stats = [['heart', 'Health', 96, C.green], ['smiley', 'Happiness', 98, C.amber], ['bolt', 'Energy', 91, C.blue], ['dumbbell', 'Fitness', 88, C.violet]];
   const gx = cX + 32, gw = (cW - 64 - 28) / 2, gy = y + 308, gh = 88;
   stats.forEach(([ic, label, val, col], i) => {
     const cxp = gx + (i % 2) * (gw + 28), cyp = gy + Math.floor(i / 2) * (gh + 16);
@@ -366,7 +366,7 @@ async function screen1(b, theme) { // HOME / identity
   b.rrect(cX + 24, ny, cW - 48, 56, 16, 'rgba(16,185,129,0.12)', { stroke: 'rgba(16,185,129,0.3)', sw: 1.5 });
   b.icon('trend', cX + 56, ny + 28, 26, C.emerald);
   b.txt(cX + 80, ny + 36, 'NET WORTH', { size: 19, w: 700, fill: C.sub, ls: 1 });
-  b.txt(cX + cW - 44, ny + 38, '$1,284,920', { size: 30, w: 900, fill: C.emerald, anchor: 'end' });
+  b.txt(cX + cW - 44, ny + 38, '$2,847,500', { size: 30, w: 900, fill: C.emerald, anchor: 'end' });
   // goals card
   y = y + h + 24; h = 360;
   b.rrect(cX, y, cW, h, 30, C.surface, { filter: 'url(#cardshadow)' });
@@ -374,7 +374,7 @@ async function screen1(b, theme) { // HOME / identity
   b.icon('target', cX + 38, y + 46, 28, theme.accent);
   b.txt(cX + 62, y + 54, 'Active Goals', { size: 27, w: 800, fill: C.text });
   b.txt(cX + cW - 30, y + 54, '3 in progress', { size: 19, w: 600, fill: C.muted, anchor: 'end' });
-  const goals = [['briefcase', 'Get promoted to Senior Engineer', 72, C.indigo], ['building', 'Buy a luxury penthouse', 45, C.emerald], ['heart', 'Marry the love of your life', 60, C.pink]];
+  const goals = [['briefcase', 'Get promoted to Senior Engineer', 84, C.indigo], ['building', 'Buy a luxury penthouse', 62, C.emerald], ['heart', 'Marry the love of your life', 71, C.pink]];
   goals.forEach(([ic, name, pct, col], i) => {
     const gy2 = y + 90 + i * 84;
     b.rrect(cX + 24, gy2, 56, 56, 16, 'rgba(255,255,255,0.05)', { stroke: C.line, sw: 1 });
@@ -389,7 +389,7 @@ async function screen1(b, theme) { // HOME / identity
   b.rrect(cX, y, cW, h, 30, 'none', { stroke: C.line, sw: 1.5 });
   b.icon('star', cX + 38, y + 46, 28, C.gold, { fill: C.gold });
   b.txt(cX + 64, y + 54, 'Achievements', { size: 27, w: 800, fill: C.text });
-  b.txt(cX + cW - 30, y + 54, '24 / 60', { size: 21, w: 800, fill: C.gold, anchor: 'end' });
+  b.txt(cX + cW - 30, y + 54, '47 / 60', { size: 21, w: 800, fill: C.gold, anchor: 'end' });
   const badges = [['crown', C.gold], ['banknote', C.emerald], ['heart', C.pink], ['gem', C.indigo], ['bolt', C.blue], ['trend', C.emerald]];
   const bw = (cW - 48 - 5 * 16) / 6;
   badges.forEach(([ic, col], i) => {
@@ -452,10 +452,10 @@ async function screen2(b, theme) { // ORIGINS / scenario selection
 async function screen3(b, theme) { // EMPIRE / wealth
   appBg(b, theme);
   b.txt(cX, appTop + 46, 'Net Worth', { size: 25, w: 700, fill: C.sub });
-  b.txt(cX, appTop + 104, '$4.28M', { size: 64, w: 900, fill: C.emerald });
+  b.txt(cX, appTop + 104, '$8.42M', { size: 64, w: 900, fill: C.emerald });
   b.rrect(cX + cW - 158, appTop + 56, 158, 46, 23, 'rgba(16,185,129,0.14)', { stroke: 'rgba(16,185,129,0.35)', sw: 1.4 });
   b.icon('trend', cX + cW - 134, appTop + 79, 22, C.emerald);
-  b.txt(cX + cW - 22, appTop + 87, '+18.4%', { size: 24, w: 800, fill: C.emerald, anchor: 'end' });
+  b.txt(cX + cW - 22, appTop + 87, '+24.6%', { size: 24, w: 800, fill: C.emerald, anchor: 'end' });
   // chart card
   let y = appTop + 132, h = 360;
   b.rrect(cX, y, cW, h, 26, C.surface, { filter: 'url(#cardshadow)' });
@@ -482,9 +482,9 @@ async function screen3(b, theme) { // EMPIRE / wealth
     b.txt(mx + 18, y + 122, big, { size: 26, w: 900, fill: C.text });
     b.txt(mx + 18, y + 142, small, { size: 15, w: 700, fill: col });
   };
-  tile(0, 'Cash', 'banknote', '$92.4K', '+ $8.2K/wk', C.emerald);
-  tile(1, 'Crypto', 'bolt', '1.84 BTC', '▲ $124.9K', C.amber);
-  tile(2, 'Stocks', 'trend', '$1.62M', '▲ 11.3%', C.sky);
+  tile(0, 'Cash', 'banknote', '$284K', '+ $24.8K/wk', C.emerald);
+  tile(1, 'Crypto', 'bolt', '3.6 BTC', '▲ $214.8K', C.amber);
+  tile(2, 'Stocks', 'trend', '$2.9M', '▲ 14.2%', C.sky);
   // assets showcase
   y += th + 26;
   b.txt(cX, y, 'YOUR ASSETS', { size: 19, w: 800, fill: C.muted, ls: 2 });
@@ -504,15 +504,15 @@ async function screen3(b, theme) { // EMPIRE / wealth
     b.txt(sx + 18, y + showH - 12, sub, { size: 17, w: 700, fill: C.gold });
   };
   await showcase(cX, 'Aventador SVJ', '$485,000', car, 'meet', [['0', 'rgba(124,58,237,0.35)'], ['1', 'rgba(8,11,24,0.6)']]);
-  await showcase(cX + mw + 24, 'Modern Mansion', '$3.2M', house, 'slice', [['0', 'rgba(14,116,144,0.35)'], ['1', 'rgba(8,11,24,0.6)']]);
+  await showcase(cX + mw + 24, 'Modern Mansion', '$6.8M', house, 'slice', [['0', 'rgba(14,116,144,0.35)'], ['1', 'rgba(8,11,24,0.6)']]);
   // passive income card (fills remaining)
   y += showH + 26; h = appBottom - y - 18;
   b.rrect(cX, y, cW, h, 26, C.surface, { filter: 'url(#cardshadow)' });
   b.rrect(cX, y, cW, h, 26, 'none', { stroke: C.line, sw: 1.2 });
   b.txt(cX + 26, y + 42, 'Passive Income', { size: 24, w: 800, fill: C.text });
   b.txt(cX + 26, y + 70, 'per month', { size: 17, w: 600, fill: C.muted });
-  b.txt(cX + cW - 26, y + 56, '+$48,200', { size: 34, w: 900, fill: C.emerald, anchor: 'end' });
-  const rows = [['building', 'Real-estate rentals', '$22,400', 0.46, C.emerald], ['bolt', 'Crypto mining', '$13,800', 0.29, C.amber], ['trend', 'Stock dividends', '$12,000', 0.25, C.sky]];
+  b.txt(cX + cW - 26, y + 56, '+$72,400', { size: 34, w: 900, fill: C.emerald, anchor: 'end' });
+  const rows = [['building', 'Real-estate rentals', '$38,500', 0.53, C.emerald], ['bolt', 'Crypto mining', '$21,900', 0.30, C.amber], ['trend', 'Stock dividends', '$12,000', 0.17, C.sky]];
   rows.forEach(([ic, label, amt, frac, col], i) => {
     const ry2 = y + 104 + i * ((h - 116) / 3);
     b.rrect(cX + 22, ry2, 50, 50, 14, `${col}22`, { stroke: `${col}55`, sw: 1.1 });
@@ -541,7 +541,7 @@ async function screen4(b, theme) { // LOVE / dating
   b.txt(cX + 58, y + 49, 'Online', { size: 18, w: 700, fill: '#fff' });
   b.rrect(cX + cW - 156, y + 22, 134, 40, 20, 'rgba(236,72,153,0.92)');
   b.icon('heart', cX + cW - 134, y + 42, 20, '#fff', { fill: '#fff' });
-  b.txt(cX + cW - 116, y + 49, '94% Match', { size: 18, w: 800, fill: '#fff' });
+  b.txt(cX + cW - 116, y + 49, '97% Match', { size: 18, w: 800, fill: '#fff' });
   let iy = y + photoH + 8;
   b.txt(cX + 28, iy + 30, 'Sofia, 26', { size: 42, w: 900, fill: '#fff' });
   b.add(`<circle cx="${cX + 250}" cy="${iy + 18}" r="14" fill="${C.sky}"/>`); b.icon('check', cX + 250, iy + 18, 16, '#fff', { sw: 3 });
@@ -603,14 +603,14 @@ async function screen5(b, theme) { // DYNASTY / family tree
   node(SCX - 150, g2, 50, faces.m, 'Robert R.', '$5.8M', '#E0A06A');
   node(SCX + 150, g2, 50, faces.f, 'Diana R.', '$3.2M', '#D7D7DD');
   gLabel(g3 - 92, 'GEN 3  ·  CURRENT');
-  node(SCX - 76, g3, 58, faces.m, 'Alexander R.', '$1.28M', theme.accent, { you: true, glow: true });
+  node(SCX - 76, g3, 58, faces.m, 'Alexander R.', '$2.84M', theme.accent, { you: true, glow: true });
   node(SCX + 96, g3, 48, faces.f, 'Jessica R.', '$640K', C.emerald);
   gLabel(g4 - 80, 'GEN 4  ·  HEIR');
-  node(SCX, g4, 46, faces.bb, 'Baby Reed', 'Inherits $1.28M', C.amber);
+  node(SCX, g4, 46, faces.bb, 'Baby Reed', 'Inherits $2.84M', C.amber);
   // summary strip
   const sy = fullBottom - 104;
   b.rrect(cX, sy, cW, 96, 24, 'rgba(250,204,21,0.08)', { stroke: 'rgba(250,204,21,0.3)', sw: 1.4, filter: 'url(#cardshadow)' });
-  const sums = [['$24.7M', 'Total Wealth', C.gold], ['7', 'Members', C.sky], ['4', 'Generations', C.emerald], ['12', 'Perks', C.pink]];
+  const sums = [['$48.6M', 'Total Wealth', C.gold], ['7', 'Members', C.sky], ['4', 'Generations', C.emerald], ['24', 'Perks', C.pink]];
   const sw2 = cW / 4;
   sums.forEach(([v, l, col], i) => {
     const x = cX + sw2 * (i + .5);
@@ -627,8 +627,8 @@ async function screen6(b, theme) { // VIRAL / social feed
   b.icon('spark', cX + 96, appTop + 38, 22, C.cyan, { fill: C.cyan });
   b.rrect(cX + cW - 210, appTop + 18, 210, 52, 26, 'rgba(34,211,238,0.12)', { stroke: 'rgba(34,211,238,0.35)', sw: 1.3 });
   b.icon('users', cX + cW - 184, appTop + 44, 22, C.cyan);
-  b.txt(cX + cW - 162, appTop + 40, '128.4K', { size: 23, w: 900, fill: C.text });
-  b.txt(cX + cW - 162, appTop + 60, 'followers ▲ 12%', { size: 14, w: 600, fill: C.emerald });
+  b.txt(cX + cW - 162, appTop + 40, '842.6K', { size: 23, w: 900, fill: C.text });
+  b.txt(cX + cW - 162, appTop + 60, 'followers ▲ 18%', { size: 14, w: 600, fill: C.emerald });
   let tx = cX;
   ['For You', 'Following', 'Trending'].forEach((t, i) => { const on = i === 0; b.txt(tx + 6, appTop + 118, t, { size: 21, w: on ? 800 : 600, fill: on ? C.text : C.muted }); if (on) b.add(`<rect x="${tx + 4}" y="${appTop + 130}" width="${t.length * 12 + 8}" height="4" rx="2" fill="${C.cyan}"/>`); tx += t.length * 13 + 44; });
   b.add(`<line x1="${cX}" y1="${appTop + 142}" x2="${cX + cW}" y2="${appTop + 142}" stroke="rgba(255,255,255,0.08)"/>`);
@@ -656,7 +656,7 @@ async function screen6(b, theme) { // VIRAL / social feed
   y += 300 + gap;
   post(y, 236, female, 'FitQueen', '@fitqueen', false, '4h', ['Morning 10K done in 44 min — new PB!', 'Who else is chasing goals today?'], ['89', '234', '2.1K', '88K']);
   y += 236 + gap;
-  post(y, 250, male, 'Alexander R.', '@alexr', true, '6h', ['Just crossed $1M net worth.', 'Started from the streets. No cap.'], ['456', '1.8K', '8.7K', '231K'], { you: true });
+  post(y, 250, male, 'Alexander R.', '@alexr', true, '6h', ['Just crossed $1M net worth.', 'Started from the streets. No cap.'], ['1.4K', '6.2K', '24.8K', '540K'], { you: true });
   y += 250 + gap;
   // suggested creators card fills the rest
   const ch = appBottom - y - 18;
@@ -811,7 +811,7 @@ async function ipadScreen1(b, theme) { // HOME
   b.txt(acx + ar - 8, acy + ar - 8, '12', { size: 30, w: 900, fill: '#1a1304', anchor: 'middle' });
   b.txt(acx, y0 + 310, 'Alexander Reed', { size: 50, w: 800, fill: C.text, anchor: 'middle' });
   b.txt(acx, y0 + 356, 'Age 28  ·  Software Engineer', { size: 28, w: 600, fill: C.amber, anchor: 'middle' });
-  const stats = [['heart', 'Health', 87, C.green], ['smiley', 'Happiness', 92, C.amber], ['bolt', 'Energy', 76, C.blue], ['dumbbell', 'Fitness', 64, C.violet]];
+  const stats = [['heart', 'Health', 96, C.green], ['smiley', 'Happiness', 98, C.amber], ['bolt', 'Energy', 91, C.blue], ['dumbbell', 'Fitness', 88, C.violet]];
   const gx = dcX + 46, gw = (dColW - 92 - 28) / 2, gy = y0 + 408, gh = 112;
   stats.forEach(([ic, label, val, col], i) => {
     const cxp = gx + (i % 2) * (gw + 28), cyp = gy + Math.floor(i / 2) * (gh + 20);
@@ -825,7 +825,7 @@ async function ipadScreen1(b, theme) { // HOME
   b.rrect(dcX + 46, ny, dColW - 92, 74, 18, 'rgba(16,185,129,0.12)', { stroke: 'rgba(16,185,129,0.3)', sw: 1.5 });
   b.icon('trend', dcX + 86, ny + 37, 30, C.emerald);
   b.txt(dcX + 118, ny + 46, 'NET WORTH', { size: 24, w: 700, fill: C.sub, ls: 1 });
-  b.txt(dcX + dColW - 68, ny + 48, '$1,284,920', { size: 38, w: 900, fill: C.emerald, anchor: 'end' });
+  b.txt(dcX + dColW - 68, ny + 48, '$2,847,500', { size: 38, w: 900, fill: C.emerald, anchor: 'end' });
   b.txt(dcX + 46, ny + 130, 'ACTIVE PERKS', { size: 21, w: 800, fill: C.muted, ls: 2 });
   let hx = dcX + 46;
   [['star', 'Fast Learner', C.amber], ['bolt', 'Workaholic', C.violet], ['trend', 'Investor', C.emerald]].forEach(([ic, t, col]) => { hx += chip(b, hx, ny + 154, 48, ic, t, col, { fillIcon: ic !== 'trend', size: 22 }) + 14; });
@@ -835,7 +835,7 @@ async function ipadScreen1(b, theme) { // HOME
   b.rrect(rx, y0, dColW, gH, 38, 'none', { stroke: C.line, sw: 1.4 });
   cardHead(b, rx + 30, y0 + 48, 'target', 'Active Goals', theme.accent);
   b.txt(rx + dColW - 32, y0 + 57, '3 in progress', { size: 21, w: 600, fill: C.muted, anchor: 'end' });
-  const goals = [['briefcase', 'Promotion to Senior Engineer', 72, C.indigo], ['building', 'Buy a luxury penthouse', 45, C.emerald], ['heart', 'Marry the love of your life', 60, C.pink]];
+  const goals = [['briefcase', 'Promotion to Senior Engineer', 84, C.indigo], ['building', 'Buy a luxury penthouse', 62, C.emerald], ['heart', 'Marry the love of your life', 71, C.pink]];
   goals.forEach(([ic, name, pct, col], i) => {
     const gyy = y0 + 96 + i * ((gH - 120) / 3);
     b.rrect(rx + 30, gyy, 60, 60, 16, 'rgba(255,255,255,0.05)', { stroke: C.line, sw: 1 });
@@ -848,7 +848,7 @@ async function ipadScreen1(b, theme) { // HOME
   b.rrect(rx, ay, dColW, aH, 38, C.surface, { filter: 'url(#cardshadow)' });
   b.rrect(rx, ay, dColW, aH, 38, 'none', { stroke: C.line, sw: 1.4 });
   cardHead(b, rx + 30, ay + 48, 'star', 'Achievements', C.gold);
-  b.txt(rx + dColW - 32, ay + 57, '24 / 60', { size: 24, w: 800, fill: C.gold, anchor: 'end' });
+  b.txt(rx + dColW - 32, ay + 57, '47 / 60', { size: 24, w: 800, fill: C.gold, anchor: 'end' });
   const badges = [['crown', C.gold], ['banknote', C.emerald], ['heart', C.pink], ['gem', C.indigo], ['bolt', C.blue], ['trend', C.emerald]];
   const bw = (dColW - 60 - 5 * 18) / 6;
   badges.forEach(([ic, col], i) => { const bx = rx + 30 + i * (bw + 18); b.rrect(bx, ay + 84, bw, bw, 18, `${col}1f`, { stroke: `${col}55`, sw: 1.2 }); b.icon(ic, bx + bw / 2, ay + 84 + bw / 2, bw * 0.5, col, { fill: ['crown', 'heart', 'gem', 'bolt'].includes(ic) ? col : undefined }); });
@@ -906,10 +906,10 @@ async function ipadScreen2(b, theme) { // ORIGINS grid
 async function ipadScreen3(b, theme) { // EMPIRE
   appBgIpad(b, theme);
   b.txt(dcX, dAppTop + 50, 'Net Worth', { size: 28, w: 700, fill: C.sub });
-  b.txt(dcX, dAppTop + 116, '$4.28M', { size: 76, w: 900, fill: C.emerald });
+  b.txt(dcX, dAppTop + 116, '$8.42M', { size: 76, w: 900, fill: C.emerald });
   b.rrect(dcX + dcW - 184, dAppTop + 56, 184, 52, 26, 'rgba(16,185,129,0.14)', { stroke: 'rgba(16,185,129,0.35)', sw: 1.4 });
   b.icon('trend', dcX + dcW - 156, dAppTop + 82, 24, C.emerald);
-  b.txt(dcX + dcW - 26, dAppTop + 91, '+18.4%', { size: 28, w: 800, fill: C.emerald, anchor: 'end' });
+  b.txt(dcX + dcW - 26, dAppTop + 91, '+24.6%', { size: 28, w: 800, fill: C.emerald, anchor: 'end' });
   // chart full width
   let y = dAppTop + 150, h = 470;
   b.rrect(dcX, y, dcW, h, 28, C.surface, { filter: 'url(#cardshadow)' });
@@ -927,9 +927,9 @@ async function ipadScreen3(b, theme) { // EMPIRE
   // 3 tiles full width
   y += h + 26; const th = 172, tw = (dcW - 2 * 24) / 3;
   const tile = (i, label, ic, big, small, col) => { const mx = dcX + i * (tw + 24); b.rrect(mx, y, tw, th, 22, C.surface, { stroke: C.line, sw: 1.2 }); b.rrect(mx + 22, y + 22, 52, 52, 14, `${col}22`, { stroke: `${col}55`, sw: 1.2 }); b.icon(ic, mx + 48, y + 48, 26, col, { fill: ic === 'bolt' ? col : undefined }); b.txt(mx + 88, y + 44, label, { size: 22, w: 600, fill: C.sub }); b.txt(mx + 22, y + 110, big, { size: 32, w: 900, fill: C.text }); b.txt(mx + 22, y + 146, small, { size: 19, w: 700, fill: col }); };
-  tile(0, 'Cash', 'banknote', '$92.4K', '+ $8.2K/wk', C.emerald);
-  tile(1, 'Crypto', 'bolt', '1.84 BTC', '▲ $124.9K', C.amber);
-  tile(2, 'Stocks', 'trend', '$1.62M', '▲ 11.3%', C.sky);
+  tile(0, 'Cash', 'banknote', '$284K', '+ $24.8K/wk', C.emerald);
+  tile(1, 'Crypto', 'bolt', '3.6 BTC', '▲ $214.8K', C.amber);
+  tile(2, 'Stocks', 'trend', '$2.9M', '▲ 14.2%', C.sky);
   // bottom 2 col: passive income | assets stacked
   y += th + 26; const bottomH = dAppBottom - y - 6;
   // left: passive income
@@ -937,8 +937,8 @@ async function ipadScreen3(b, theme) { // EMPIRE
   b.rrect(dcX, y, dColW, bottomH, 26, 'none', { stroke: C.line, sw: 1.2 });
   b.txt(dcX + 30, y + 46, 'Passive Income', { size: 27, w: 800, fill: C.text });
   b.txt(dcX + 30, y + 76, 'per month', { size: 19, w: 600, fill: C.muted });
-  b.txt(dcX + dColW - 30, y + 60, '+$48,200', { size: 38, w: 900, fill: C.emerald, anchor: 'end' });
-  const rows2 = [['building', 'Real-estate rentals', '$22,400', .46, C.emerald], ['bolt', 'Crypto mining', '$13,800', .29, C.amber], ['trend', 'Stock dividends', '$12,000', .25, C.sky]];
+  b.txt(dcX + dColW - 30, y + 60, '+$72,400', { size: 38, w: 900, fill: C.emerald, anchor: 'end' });
+  const rows2 = [['building', 'Real-estate rentals', '$38,500', .53, C.emerald], ['bolt', 'Crypto mining', '$21,900', .30, C.amber], ['trend', 'Stock dividends', '$12,000', .17, C.sky]];
   rows2.forEach(([ic, label, amt, frac, col], i) => { const ry = y + 116 + i * ((bottomH - 130) / 3); b.rrect(dcX + 28, ry, 56, 56, 14, `${col}22`, { stroke: `${col}55`, sw: 1.1 }); b.icon(ic, dcX + 56, ry + 28, 26, col, { fill: ic === 'bolt' ? col : undefined }); b.txt(dcX + 98, ry + 24, label, { size: 23, w: 600, fill: C.text }); b.bar(dcX + 98, ry + 40, dColW - 320, frac * 100, col, { h: 10, color2: col }); b.txt(dcX + dColW - 30, ry + 34, amt, { size: 24, w: 800, fill: col, anchor: 'end' }); });
   // right: assets stacked
   const showH = (bottomH - 22) / 2;
@@ -946,7 +946,7 @@ async function ipadScreen3(b, theme) { // EMPIRE
   const house = await art('Real Estate/Modern Mansion.png', 720, 460);
   const showcase = async (yy, label, sub, im, par, bgStops) => { const cl = b.clipRound(dColR, yy, dColW, showH, 22); b.rrect(dColR, yy, dColW, showH, 22, b.linGrad(bgStops, 0, 0, 1, 1), { filter: 'url(#cardshadow)' }); b.add(`<g clip-path="url(#${cl})">`); b.img(im, dColR, yy, dColW, showH, { par: par === 'slice' ? 'xMidYMid slice' : 'xMidYMid meet' }); b.add(`<rect x="${dColR}" y="${yy + showH - 92}" width="${dColW}" height="92" fill="${b.linGrad([[0, 'rgba(8,11,24,0)'], [1, 'rgba(8,11,24,0.94)']])}"/>`); b.add(`</g>`); b.rrect(dColR, yy, dColW, showH, 22, 'none', { stroke: C.line2, sw: 1.2 }); b.txt(dColR + 22, yy + showH - 38, label, { size: 26, w: 800, fill: C.text }); b.txt(dColR + 22, yy + showH - 12, sub, { size: 19, w: 700, fill: C.gold }); };
   await showcase(y, 'Aventador SVJ', '$485,000', car, 'meet', [['0', 'rgba(124,58,237,0.35)'], ['1', 'rgba(8,11,24,0.6)']]);
-  await showcase(y + showH + 22, 'Modern Mansion', '$3.2M', house, 'slice', [['0', 'rgba(14,116,144,0.35)'], ['1', 'rgba(8,11,24,0.6)']]);
+  await showcase(y + showH + 22, 'Modern Mansion', '$6.8M', house, 'slice', [['0', 'rgba(14,116,144,0.35)'], ['1', 'rgba(8,11,24,0.6)']]);
   tabBarIpad(b, 4);
 }
 
@@ -970,7 +970,7 @@ async function ipadScreen4(b, theme) { // LOVE wide profile
   const ix = dcX + phW + 50, iw = dcW - phW - 100;
   b.txt(ix, y + 90, 'Sofia, 26', { size: 56, w: 900, fill: C.text });
   b.add(`<circle cx="${ix + 300}" cy="${y + 74}" r="17" fill="${C.sky}"/>`); b.icon('check', ix + 300, y + 74, 20, '#fff', { sw: 3 });
-  b.rrect(ix + iw - 180, y + 50, 180, 50, 25, 'rgba(236,72,153,0.92)'); b.icon('heart', ix + iw - 156, y + 75, 22, '#fff', { fill: '#fff' }); b.txt(ix + iw - 134, y + 83, '94% Match', { size: 22, w: 800, fill: '#fff' });
+  b.rrect(ix + iw - 180, y + 50, 180, 50, 25, 'rgba(236,72,153,0.92)'); b.icon('heart', ix + iw - 156, y + 75, 22, '#fff', { fill: '#fff' }); b.txt(ix + iw - 134, y + 83, '97% Match', { size: 22, w: 800, fill: '#fff' });
   b.icon('mapPin', ix + 14, y + 138, 24, C.sub); b.txt(ix + 38, y + 146, '2 km away  ·  Marketing Director', { size: 24, w: 600, fill: C.sub });
   b.txt(ix, y + 210, '“Coffee, hiking and spontaneous road trips.', { size: 26, w: 500, fill: 'rgba(255,255,255,0.9)' });
   b.txt(ix, y + 248, 'Make me laugh and you’re already in.”', { size: 26, w: 500, fill: 'rgba(255,255,255,0.9)' });
@@ -1017,13 +1017,13 @@ async function ipadScreen5(b, theme) { // DYNASTY wide tree
   node(DSCX - 230, g2, 54, faces.m, 'Robert R.', '$5.8M', '#E0A06A');
   node(DSCX + 230, g2, 54, faces.f, 'Diana R.', '$3.2M', '#D7D7DD');
   gLabel(g3 - 100, 'GEN 3  ·  CURRENT');
-  node(DSCX - 110, g3, 62, faces.m, 'Alexander R.', '$1.28M', theme.accent, { you: true, glow: true });
+  node(DSCX - 110, g3, 62, faces.m, 'Alexander R.', '$2.84M', theme.accent, { you: true, glow: true });
   node(DSCX + 140, g3, 50, faces.f, 'Jessica R.', '$640K', C.emerald);
   gLabel(g4 - 88, 'GEN 4  ·  HEIR');
-  node(DSCX, g4, 50, faces.bb, 'Baby Reed', 'Inherits $1.28M', C.amber);
+  node(DSCX, g4, 50, faces.bb, 'Baby Reed', 'Inherits $2.84M', C.amber);
   const sy = dFullBottom - 108;
   b.rrect(dcX, sy, dcW, 96, 24, 'rgba(250,204,21,0.08)', { stroke: 'rgba(250,204,21,0.3)', sw: 1.4, filter: 'url(#cardshadow)' });
-  const sums = [['$24.7M', 'Total Wealth', C.gold], ['7', 'Members', C.sky], ['4', 'Generations', C.emerald], ['12', 'Perks', C.pink]];
+  const sums = [['$48.6M', 'Total Wealth', C.gold], ['7', 'Members', C.sky], ['4', 'Generations', C.emerald], ['24', 'Perks', C.pink]];
   const sw2 = dcW / 4;
   sums.forEach(([v, l, col], i) => { const x = dcX + sw2 * (i + .5); b.txt(x, sy + 48, v, { size: 32, w: 900, fill: col, anchor: 'middle' }); b.txt(x, sy + 76, l, { size: 18, w: 600, fill: C.sub, anchor: 'middle' }); if (i) b.add(`<line x1="${dcX + sw2 * i}" y1="${sy + 22}" x2="${dcX + sw2 * i}" y2="${sy + 74}" stroke="rgba(255,255,255,0.1)"/>`); });
 }
@@ -1058,7 +1058,7 @@ async function ipadScreen6(b, theme) { // VIRAL 2-col
   const p1 = feedH * 0.42, p2 = (feedH - p1 - gap * 2) * 0.5, p3 = feedH - p1 - p2 - gap * 2;
   post(y, p1, null, 'Maya Quartz', '@mayaq', true, '2h', ['Just quit my 9–5 to go all-in on', 'my startup. Terrified — let’s build.'], ['1.2K', '3.4K', '15.2K', '1.2M'], { flame: true, viral: true });
   post(y + p1 + gap, p2, female, 'FitQueen', '@fitqueen', false, '4h', ['Morning 10K done in 44 min — PB!'], ['89', '234', '2.1K', '88K']);
-  post(y + p1 + p2 + gap * 2, p3, male, 'Alexander R.', '@alexr', true, '6h', ['Just crossed $1M net worth.', 'Started from the streets.'], ['456', '1.8K', '8.7K', '231K'], { you: true });
+  post(y + p1 + p2 + gap * 2, p3, male, 'Alexander R.', '@alexr', true, '6h', ['Just crossed $1M net worth.', 'Started from the streets.'], ['1.4K', '6.2K', '24.8K', '540K'], { you: true });
   // RIGHT column: profile stats + suggested
   const rx = dColR, ry0 = dAppTop + 36;
   const statH = 300;
@@ -1067,9 +1067,9 @@ async function ipadScreen6(b, theme) { // VIRAL 2-col
   b.rrect(rx, ry0, dColW, statH, 28, 'none', { stroke: 'rgba(34,211,238,0.3)', sw: 1.4 });
   b.icon('users', rx + 44, ry0 + 56, 34, C.cyan);
   b.txt(rx + 74, ry0 + 50, 'Followers', { size: 26, w: 700, fill: C.text });
-  b.txt(rx + 30, ry0 + 130, '128.4K', { size: 64, w: 900, fill: C.text });
+  b.txt(rx + 30, ry0 + 130, '842.6K', { size: 64, w: 900, fill: C.text });
   b.rrect(rx + dColW - 150, ry0 + 90, 124, 46, 23, 'rgba(16,185,129,0.16)', { stroke: 'rgba(16,185,129,0.35)', sw: 1.3 });
-  b.icon('trend', rx + dColW - 128, ry0 + 113, 20, C.emerald); b.txt(rx + dColW - 38, ry0 + 121, '+12%', { size: 22, w: 800, fill: C.emerald, anchor: 'end' });
+  b.icon('trend', rx + dColW - 128, ry0 + 113, 20, C.emerald); b.txt(rx + dColW - 38, ry0 + 121, '+18%', { size: 22, w: 800, fill: C.emerald, anchor: 'end' });
   // growth sparkline
   const gx0 = rx + 30, gy0 = ry0 + statH - 40, gpw = dColW - 60, gph = 80;
   const rr = rng(9); let gp = []; let gv = .2; for (let i = 0; i <= 20; i++) { gv = Math.max(.08, Math.min(.95, gv + (rr() - .3) * .08 + i * .006)); gp.push([gx0 + gpw * i / 20, gy0 - gph * gv]); }
@@ -1143,4 +1143,50 @@ async function main() {
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) main().catch(e => { console.error(e); process.exit(1); });
 
-export { buildPhone, buildIpad };
+/**
+ * Render ONLY the device layer (ambient glow + phone frame + a faithful app
+ * screen) for a given screen index, with no background, headline or floaters.
+ * Returned as raw SVG `defs`/`body` strings plus the theme and device geometry
+ * so callers (e.g. the premium "hero" generator) can place the device inside a
+ * 3D-tilt transform and compose their own scene around it. Reuses the real
+ * per-screen builders (screen1…6) so the on-device art always matches the app.
+ */
+async function buildDeviceLayer(idx) {
+  const theme = THEMES[idx];
+  const b = screenBuilder();
+  globalDefs(b);
+  const sb = screenBuilder();
+  statusBar(sb);
+  const screens = { 1: screen1, 2: screen2, 3: screen3, 4: screen4, 5: screen5, 6: screen6 };
+  await screens[idx](sb, theme);
+  b.def(sb.defs);
+  deviceFrame(b, theme, sb.body);
+  return {
+    defs: b.defs,
+    body: b.body,
+    theme,
+    C,
+    geom: { W, H, CX, PX, PY, PW, PH, PR, SX, SY, SW, SH, SR, SCX, SBOT },
+  };
+}
+
+/**
+ * Render ONE faithful app screen FULL-BLEED (no marketing chrome, no phone
+ * bezel) — i.e. exactly what a real on-device screenshot looks like. Reuses the
+ * same screen1…6 builders as everything else, then crops the SVG viewBox to the
+ * screen rectangle and stretches to the requested output size. Returns a
+ * complete SVG string. Square-cornered (a base fill sits under the rounded app
+ * surface) so it reads as a captured screenshot.
+ */
+async function buildAppScreen(idx, outW, outH) {
+  const theme = THEMES[idx];
+  const b = screenBuilder();
+  globalDefs(b);
+  b.rrect(SX, SY, SW, SH, 0, C.bgDeep);   // square base so corners aren't transparent
+  const screens = { 1: screen1, 2: screen2, 3: screen3, 4: screen4, 5: screen5, 6: screen6 };
+  await screens[idx](b, theme);
+  statusBar(b);
+  return `<svg width="${outW}" height="${outH}" viewBox="${SX} ${SY} ${SW} ${SH}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs>${b.defs}</defs>${b.body}</svg>`;
+}
+
+export { buildPhone, buildIpad, buildDeviceLayer, buildAppScreen, screenBuilder, globalDefs, THEMES, C };
