@@ -1143,4 +1143,31 @@ async function main() {
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) main().catch(e => { console.error(e); process.exit(1); });
 
-export { buildPhone, buildIpad };
+/**
+ * Render ONLY the device layer (ambient glow + phone frame + a faithful app
+ * screen) for a given screen index, with no background, headline or floaters.
+ * Returned as raw SVG `defs`/`body` strings plus the theme and device geometry
+ * so callers (e.g. the premium "hero" generator) can place the device inside a
+ * 3D-tilt transform and compose their own scene around it. Reuses the real
+ * per-screen builders (screen1…6) so the on-device art always matches the app.
+ */
+async function buildDeviceLayer(idx) {
+  const theme = THEMES[idx];
+  const b = screenBuilder();
+  globalDefs(b);
+  const sb = screenBuilder();
+  statusBar(sb);
+  const screens = { 1: screen1, 2: screen2, 3: screen3, 4: screen4, 5: screen5, 6: screen6 };
+  await screens[idx](sb, theme);
+  b.def(sb.defs);
+  deviceFrame(b, theme, sb.body);
+  return {
+    defs: b.defs,
+    body: b.body,
+    theme,
+    C,
+    geom: { W, H, CX, PX, PY, PW, PH, PR, SX, SY, SW, SH, SR, SCX, SBOT },
+  };
+}
+
+export { buildPhone, buildIpad, buildDeviceLayer, screenBuilder, globalDefs, THEMES, C };
