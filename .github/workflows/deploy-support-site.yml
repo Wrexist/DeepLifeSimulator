@@ -1,0 +1,45 @@
+name: Deploy support site
+
+# Publishes support-site/ to GitHub Pages.
+# One-time setup: repo Settings → Pages → Build and deployment → Source = "GitHub Actions".
+# Site goes live at https://wrexist.github.io/DeepLifeSimulator/
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'support-site/**'
+      - '.github/workflows/deploy-support-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; cancel in-progress runs for the same ref.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload support-site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: support-site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

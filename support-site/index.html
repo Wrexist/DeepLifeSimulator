@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DeepLife Simulator — Live Any Life. Support &amp; Help</title>
+<meta name="description" content="Official support, help, FAQ and What's New for DeepLife Simulator — the ultimate life simulation game where every choice matters. iOS now, Android soon." />
+<meta name="theme-color" content="#0F172A" />
+<meta property="og:title" content="DeepLife Simulator — Live Any Life" />
+<meta property="og:description" content="The ultimate life simulation where every choice matters. Support, FAQ & What's New." />
+<meta property="og:image" content="assets/shot3.png" />
+<link rel="icon" href="assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+/* homepage-only rules — shared design system lives in styles.css */
+.hero{padding-top:70px;padding-bottom:40px}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(40px,6vw,68px);font-weight:800;margin:14px 0 18px}
+.hero h1 .grad{background:linear-gradient(120deg,#818CF8,#C4B5FD 40%,#F0ABFC);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,2.1vw,20px);color:var(--muted);max-width:540px;margin-bottom:30px}
+.cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.trust{display:flex;gap:26px;margin-top:34px;flex-wrap:wrap}
+.trust .n{font-family:Sora;font-size:28px;font-weight:800;background:linear-gradient(120deg,#fff,#C7D2FE);-webkit-background-clip:text;background-clip:text;color:transparent}
+.trust .l{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+/* phone stack */
+.phones{position:relative;height:560px;display:flex;align-items:center;justify-content:center;perspective:1400px}
+.phone{position:absolute;width:248px;border-radius:34px;overflow:hidden;
+  border:7px solid #0b0f1c;box-shadow:0 40px 80px -20px rgba(0,0,0,.7),0 0 0 1px rgba(148,163,184,.12);
+  transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+.phone img{display:block}
+.phone.p1{transform:rotateY(16deg) translateX(-150px) translateZ(-60px) scale(.86);z-index:1;animation:bobA 7s ease-in-out infinite}
+.phone.p2{transform:translateZ(40px) scale(1.02);z-index:3;animation:bobB 6s ease-in-out infinite}
+.phone.p3{transform:rotateY(-16deg) translateX(150px) translateZ(-60px) scale(.86);z-index:1;animation:bobA 7.5s ease-in-out infinite reverse}
+@keyframes bobA{50%{transform:rotateY(16deg) translateX(-150px) translateZ(-60px) scale(.86) translateY(-22px)}}
+@keyframes bobB{50%{transform:translateZ(40px) scale(1.02) translateY(-16px)}}
+.glow-ring{position:absolute;width:430px;height:430px;border-radius:50%;
+  background:conic-gradient(from 0deg,#6366F1,#8B5CF6,#EC4899,#6366F1);filter:blur(70px);opacity:.4;z-index:0;animation:spin 18s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:900px){.hero-grid{grid-template-columns:1fr}.phones{height:480px;margin-top:10px}.trust{justify-content:center}.hero{text-align:center}.lead{margin-inline:auto}.cta-row{justify-content:center}}
+
+/* screenshot showcase */
+.shots{display:flex;gap:20px;overflow-x:auto;padding:8px 4px 24px;scroll-snap-type:x mandatory;-ms-overflow-style:none;scrollbar-width:none}
+.shots::-webkit-scrollbar{display:none}
+.shot{flex:0 0 auto;width:236px;scroll-snap-align:center;border-radius:30px;overflow:hidden;
+  border:6px solid #0b0f1c;box-shadow:0 30px 60px -24px rgba(0,0,0,.7);transition:transform .35s}
+.shot:hover{transform:translateY(-10px) scale(1.02)}
+.shot figcaption{background:#0b0f1c;color:var(--muted);font-size:12.5px;text-align:center;padding:9px;font-weight:500}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span><span class="orb c"></span></div>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="DeepLife icon" /> DeepLife</a>
+    <div class="navlinks">
+      <a href="features.html">Features</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="whats-new.html">What's New</a>
+      <a href="support.html">Support</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn btn-p" href="#download">Get the App</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header id="top" class="hero wrap">
+  <div class="hero-grid">
+    <div class="reveal in">
+      <span class="eyebrow"><span class="dot"></span> v2.5.1 · Now on iOS</span>
+      <h1>Live <span class="grad">any life</span>.<br/>Every choice matters.</h1>
+      <p class="lead">DeepLife Simulator is the ultimate life sim — be born anywhere, build a career, find love, go viral, raise a family, and leave a dynasty behind. One tap at a time, write a life worth remembering.</p>
+      <div class="cta-row" id="download">
+        <a class="appstore" href="https://apps.apple.com/us/app/deep-life-simulator/id6749675615" target="_blank" rel="noopener" aria-label="Download on the App Store">
+          <svg viewBox="0 0 384 512"><path d="M318.7 268c-.3-37 16.4-65 50.1-85.6-18.8-27-47.2-41.8-84.7-44.7-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C72.5 139.2 16 174.5 16 246.3c0 21.3 3.9 43.3 11.7 66 10.4 30 47.9 103.7 87 102.5 20.5-.5 35-14.6 61.7-14.6 25.9 0 39.3 14.6 62.1 14.6 39.5-.6 73.4-67.5 83.3-97.6-52.9-25-52.1-73.1-52.1-74.2zM258.6 84.8c16.6-19.7 27.6-47.2 24.6-74.8-23.8 1-52.7 15.9-69.7 35.6-15.4 17.6-28.9 45.4-25.3 72.6 26.5 2 52.3-13.5 70.4-33.4z"/></svg>
+          <span><small>Download on the</small><b>App Store</b></span>
+        </a>
+        <a class="btn btn-g" href="#support">Need help?</a>
+      </div>
+      <div class="trust">
+        <div><div class="n" data-count="80">0</div><div class="l">Life events</div></div>
+        <div><div class="n" data-count="100">0</div><div class="l">% your story</div></div>
+        <div><div class="n">∞</div><div class="l">Lives to live</div></div>
+      </div>
+    </div>
+    <div class="phones reveal in">
+      <div class="glow-ring"></div>
+      <div class="phone p1"><img src="assets/shot2.png" alt="Hustle and rise" loading="lazy"/></div>
+      <div class="phone p2"><img src="assets/shot3.png" alt="Build the empire" /></div>
+      <div class="phone p3"><img src="assets/shot4.png" alt="Go viral" loading="lazy"/></div>
+    </div>
+  </div>
+</header>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Why players love it</span>
+      <h2>A life simulator without limits</h2>
+      <p>Deep systems, real consequences, and a world that reacts to who you choose to be.</p>
+    </div>
+    <div class="grid" id="featgrid">
+      <div class="card reveal"><div class="ico">🌍</div><h3>Choose your origin</h3><p>Born into wealth or hardship — your starting hand shapes the climb, never the ceiling.</p></div>
+      <div class="card reveal"><div class="ico">💼</div><h3>Build an empire</h3><p>Hustle, invest, and grow real wealth through a balanced, exploit-free economy.</p></div>
+      <div class="card reveal"><div class="ico">❤️</div><h3>Find your person</h3><p>Date, fall in love, and navigate relationships that remember every decision you make.</p></div>
+      <div class="card reveal"><div class="ico">📱</div><h3>Go viral</h3><p>Chase fame and reputation online — clout opens doors money can't.</p></div>
+      <div class="card reveal"><div class="ico">🧬</div><h3>Leave a dynasty</h3><p>Raise a family, pass on your legacy, and play on through the next generation.</p></div>
+      <div class="card reveal"><div class="ico">🩺</div><h3>Live well</h3><p>Health, happiness, energy and fitness all matter — balance the whole self, week by week.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENS -->
+<section id="screens">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Inside the game</span>
+      <h2>Real moments from real lives</h2>
+      <p>Swipe through actual gameplay captured from the live app.</p>
+    </div>
+    <div class="shots reveal">
+      <figure class="shot"><img src="assets/shot1.png" alt="Live any life" loading="lazy"/><figcaption>Live any life</figcaption></figure>
+      <figure class="shot"><img src="assets/shot2.png" alt="Hustle and rise" loading="lazy"/><figcaption>Hustle &amp; rise</figcaption></figure>
+      <figure class="shot"><img src="assets/shot3.png" alt="Build the empire" loading="lazy"/><figcaption>Build the empire</figcaption></figure>
+      <figure class="shot"><img src="assets/shot4.png" alt="Go viral" loading="lazy"/><figcaption>Go viral</figcaption></figure>
+      <figure class="shot"><img src="assets/shot5.png" alt="Live well" loading="lazy"/><figcaption>Live well</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- WHATS NEW -->
+<section id="whatsnew">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Latest update</span>
+      <h2>What's new</h2>
+      <p>A fairer, more reliable DeepLife — fresh in the newest release.</p>
+    </div>
+    <div class="changelog reveal">
+      <div class="verbar">
+        <span class="v">Version 2.5.1</span>
+        <span class="chip">LATEST</span>
+      </div>
+      <ul class="cl">
+        <li><span class="tag">🛒</span><div><b>Purchases fixed.</b> <span>Resolved the "products not configured" error so the in-app store loads reliably, with smoother, more dependable checkout and restores.</span></div></li>
+        <li><span class="tag">⚖️</span><div><b>Economy rebalanced.</b> <span>Closed a batch of money exploits and loopholes so your wealth reflects real progress and the late game stays challenging.</span></div></li>
+        <li><span class="tag">🎁</span><div><b>Season rewards fixed.</b> <span>Unclaimed rewards are now automatically collected when a season rolls over, so you'll never lose what you earned.</span></div></li>
+        <li><span class="tag">✨</span><div><b>Stability &amp; polish.</b> <span>A range of behind-the-scenes fixes for a smoother, more reliable experience.</span></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SUPPORT -->
+<section id="support">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">We're here to help</span>
+      <h2>Support</h2>
+      <p>Stuck, confused, or found a bug? Reach us directly — we read every message.</p>
+    </div>
+    <div class="support-grid">
+      <div class="contact reveal">
+        <h3>Get in touch</h3>
+        <p>The fastest way to reach the DeepLife team. We typically reply within 1–2 business days.</p>
+        <a class="line" href="mailto:DeepLifeSimulator@gmail.com">
+          <span class="e">✉️</span><span><b>DeepLifeSimulator@gmail.com</b><small>Support, bugs &amp; feedback</small></span>
+        </a>
+        <a class="line" href="privacy.html">
+          <span class="e">🔒</span><span><b>Privacy Policy</b><small>How your data is handled</small></span>
+        </a>
+        <a class="line" href="#whatsnew">
+          <span class="e">📝</span><span><b>Release Notes</b><small>See what changed in v2.5.1</small></span>
+        </a>
+      </div>
+      <div class="faq reveal" id="faq">
+        <details open><summary>How do I restore my purchases?</summary><p>Open the in-app Store and tap "Restore Purchases", signed in with the same Apple ID you bought with. The latest update fixes the "products not configured" error, so the catalog should load reliably. Still stuck? Email us.</p></details>
+        <details><summary>Is my progress saved?</summary><p>Yes. Your life is saved automatically on your device after every meaningful action. Season rewards now auto-collect across rollovers so nothing is lost.</p></details>
+        <details><summary>The store won't load — what do I do?</summary><p>Make sure you're online and on the newest version (2.5.1). The store now retries gracefully if the catalog is slow. If it persists, restart the app or email us your device model and iOS version.</p></details>
+        <details><summary>Is DeepLife on Android?</summary><p>DeepLife Simulator is live on iOS today, with Android in the works. Watch this page for the announcement.</p></details>
+        <details><summary>How do I report a bug or suggest a feature?</summary><p>Email <b>DeepLifeSimulator@gmail.com</b> with a short description (and a screenshot if you can). Player feedback directly shapes what we build next.</p></details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><img src="assets/icon.png" alt="" style="width:30px;height:30px;border-radius:8px" /> DeepLife Simulator</div>
+    <div class="flinks">
+      <a href="features.html">Features</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="whats-new.html">What's New</a>
+      <a href="support.html">Support</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="mailto:DeepLifeSimulator@gmail.com">Contact</a>
+    </div>
+    <small>© 2026 DeepLife Simulator · The ultimate life simulation where every choice matters.</small>
+  </div>
+</footer>
+
+<!-- shared reveal + card-spotlight behavior -->
+<script src="app.js"></script>
+<script>
+// homepage-only: count-up stats
+const cio=new IntersectionObserver((es)=>es.forEach(e=>{
+  if(e.isIntersecting){
+    const el=e.target,target=+el.dataset.count;let cur=0;const step=Math.max(1,Math.ceil(target/40));
+    const suf=target===100?'%':'+';
+    const t=setInterval(()=>{cur+=step;if(cur>=target){cur=target;clearInterval(t)}el.textContent=cur+suf;},24);
+    cio.unobserve(el);
+  }
+}),{threshold:.6});
+document.querySelectorAll('[data-count]').forEach(el=>cio.observe(el));
+
+// homepage-only: subtle parallax on the phone stack
+const phones=document.querySelector('.phones');
+if(phones&&matchMedia('(pointer:fine)').matches){
+  window.addEventListener('pointermove',e=>{
+    const x=(e.clientX/innerWidth-.5),y=(e.clientY/innerHeight-.5);
+    phones.style.transform=`rotateY(${x*6}deg) rotateX(${ -y*4}deg)`;
+  });
+}
+</script>
+</body>
+</html>

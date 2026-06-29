@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gallery — DeepLife Simulator</title>
+<meta name="description" content="A gallery of real gameplay from DeepLife Simulator, captured live from the app." />
+<meta name="theme-color" content="#0F172A" />
+<link rel="icon" href="assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  .lightbox{position:fixed;inset:0;z-index:100;background:rgba(5,8,16,.9);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:30px}
+  .lightbox.on{display:flex}
+  .lightbox img{max-height:88vh;border-radius:30px;border:6px solid #0b0f1c;box-shadow:0 40px 90px rgba(0,0,0,.7)}
+  .lightbox .x{position:absolute;top:22px;right:26px;font-size:34px;color:#fff;cursor:pointer;line-height:1;opacity:.8;background:none;border:none;padding:8px}
+  .lightbox .x:hover,.lightbox .x:focus-visible{opacity:1;outline:none}
+  .gallery button.shot-open{display:block;width:100%;padding:0;border:none;background:none;cursor:pointer;border-radius:21px;overflow:hidden}
+  .gallery button.shot-open:focus-visible{outline:2px solid var(--indigo-l);outline-offset:3px}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span><span class="orb c"></span></div>
+
+<nav><div class="wrap">
+  <a class="brand" href="index.html"><img src="assets/icon.png" alt="" /> DeepLife</a>
+  <div class="navlinks">
+    <a href="features.html">Features</a>
+    <a href="gallery.html" class="active">Gallery</a>
+    <a href="whats-new.html">What's New</a>
+    <a href="support.html">Support</a>
+  </div>
+  <a class="btn btn-p" href="index.html#download">Get the App</a>
+</div></nav>
+
+<header class="pagehead wrap">
+  <span class="eyebrow reveal in">Screenshots</span>
+  <h1 class="reveal in">Real lives, <span class="grad">real screens.</span></h1>
+  <p class="reveal in">Every image below is captured live from DeepLife Simulator. Tap any shot to view it full size.</p>
+</header>
+
+<section class="wrap" style="padding-top:20px">
+  <div class="gallery reveal">
+    <figure><button type="button" class="shot-open" aria-label="View “Live any life” full size"><img src="assets/shot1.png" alt="Live any life" loading="lazy" /></button><figcaption>Live any life</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Begin your story” full size"><img src="assets/g0.png" alt="Main menu" loading="lazy" /></button><figcaption>Begin your story</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Hustle and rise” full size"><img src="assets/shot2.png" alt="Hustle and rise" loading="lazy" /></button><figcaption>Hustle &amp; rise</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Your life, at a glance” full size"><img src="assets/g1.png" alt="Life home" loading="lazy" /></button><figcaption>Your life, at a glance</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Build the empire” full size"><img src="assets/shot3.png" alt="Build the empire" loading="lazy" /></button><figcaption>Build the empire</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Climb the career ladder” full size"><img src="assets/g2.png" alt="Work" loading="lazy" /></button><figcaption>Climb the career ladder</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Go viral” full size"><img src="assets/shot4.png" alt="Go viral" loading="lazy" /></button><figcaption>Go viral</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Stay connected” full size"><img src="assets/g3.png" alt="Phone" loading="lazy" /></button><figcaption>Stay connected</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Live well” full size"><img src="assets/shot5.png" alt="Live well" loading="lazy" /></button><figcaption>Live well</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Trade and invest” full size"><img src="assets/g4.png" alt="Market" loading="lazy" /></button><figcaption>Trade &amp; invest</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “Mind your health” full size"><img src="assets/g5.png" alt="Health" loading="lazy" /></button><figcaption>Mind your health</figcaption></figure>
+    <figure><button type="button" class="shot-open" aria-label="View “A life well lived” full size"><img src="assets/g6.png" alt="Life home final" loading="lazy" /></button><figcaption>A life well lived</figcaption></figure>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="cta-band reveal">
+    <h2>See it in motion.</h2>
+    <p>Download DeepLife Simulator and start writing your own story today.</p>
+    <a class="appstore" href="https://apps.apple.com/us/app/deep-life-simulator/id6749675615" target="_blank" rel="noopener" style="margin:0 auto;width:max-content">
+      <svg viewBox="0 0 384 512"><path d="M318.7 268c-.3-37 16.4-65 50.1-85.6-18.8-27-47.2-41.8-84.7-44.7-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C72.5 139.2 16 174.5 16 246.3c0 21.3 3.9 43.3 11.7 66 10.4 30 47.9 103.7 87 102.5 20.5-.5 35-14.6 61.7-14.6 25.9 0 39.3 14.6 62.1 14.6 39.5-.6 73.4-67.5 83.3-97.6-52.9-25-52.1-73.1-52.1-74.2zM258.6 84.8c16.6-19.7 27.6-47.2 24.6-74.8-23.8 1-52.7 15.9-69.7 35.6-15.4 17.6-28.9 45.4-25.3 72.6 26.5 2 52.3-13.5 70.4-33.4z"/></svg>
+      <span><small>Download on the</small><b>App Store</b></span>
+    </a>
+  </div>
+</section>
+
+<footer><div class="wrap">
+  <div class="brand"><img src="assets/icon.png" alt="" style="width:30px;height:30px;border-radius:8px" /> DeepLife Simulator</div>
+  <div class="flinks">
+    <a href="features.html">Features</a><a href="gallery.html">Gallery</a>
+    <a href="whats-new.html">What's New</a><a href="support.html">Support</a>
+    <a href="privacy.html">Privacy</a>
+  </div>
+  <small>© 2026 DeepLife Simulator · The ultimate life simulation where every choice matters.</small>
+</div></footer>
+
+<div class="lightbox" id="lb" role="dialog" aria-modal="true" aria-label="Screenshot viewer"><button type="button" class="x" id="lbclose" aria-label="Close">&times;</button><img id="lbimg" alt="" /></div>
+<script src="app.js"></script>
+<script>
+  const lb=document.getElementById('lb'),lbimg=document.getElementById('lbimg'),lbclose=document.getElementById('lbclose');
+  let lastFocus=null;
+  function openLB(img){lastFocus=document.activeElement;lbimg.src=img.src;lbimg.alt=img.alt;lb.classList.add('on');lbclose.focus()}
+  function closeLB(){lb.classList.remove('on');lbimg.removeAttribute('src');if(lastFocus)lastFocus.focus()}
+  document.querySelectorAll('.gallery .shot-open').forEach(btn=>btn.addEventListener('click',()=>openLB(btn.querySelector('img'))));
+  lbclose.addEventListener('click',closeLB);
+  lb.addEventListener('click',e=>{if(e.target===lb)closeLB()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&lb.classList.contains('on'))closeLB()});
+</script>
+</body>
+</html>
