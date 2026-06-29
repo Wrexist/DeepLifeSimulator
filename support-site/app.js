@@ -1,3 +1,6 @@
+// Mark JS as available so the .reveal hidden state only applies when this runs.
+document.documentElement.classList.add('js');
+
 const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.14});
 document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 document.querySelectorAll('.card').forEach(c=>{
