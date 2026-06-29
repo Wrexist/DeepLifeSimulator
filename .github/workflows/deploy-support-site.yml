@@ -34,6 +34,10 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # Auto-enable Pages (Actions build type) so the first run doesn't
+          # require manually flipping Settings → Pages → Source.
+          enablement: true
 
       - name: Upload support-site artifact
         uses: actions/upload-pages-artifact@v3
