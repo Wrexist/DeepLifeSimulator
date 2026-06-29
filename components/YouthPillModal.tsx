@@ -21,10 +21,15 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
   const handleUseYouthPill = () => {
     if (youthPills <= 0) return;
 
-    // Use one youth pill and reset age to 18
+    // Use one youth pill and reset age to 18.
+    // BUG FIX: the canonical age that drives aging + old-age death is
+    // `date.age` (the week tick reads/writes it); `userProfile.age` is cosmetic.
+    // Previously only userProfile.age was reset, so the paid youth pill had ZERO
+    // effect on lifespan. Reset date.age (and keep userProfile.age in sync).
     setGameState(prev => ({
       ...prev,
       youthPills: Math.max(0, prev.youthPills - 1),
+      date: { ...prev.date, age: 18 },
       userProfile: {
         ...prev.userProfile,
         age: 18,

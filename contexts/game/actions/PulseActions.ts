@@ -1052,10 +1052,13 @@ export const subscribeVerifiedPro = (
         longerPosts: true,
       },
     };
-    // Signup boost
-    sm.followers = (sm.followers ?? 0) + 500;
-    sm.influenceLevel = getInfluenceLevel(sm.followers);
-    pushNotification(sm, 'verified_pro_renewal', 'Welcome to Pulse Verified Pro — +500 signup followers', prev.weeksLived ?? 0);
+    // Signup boost — ONCE per save (sticky flag survives cancel→resubscribe).
+    if (!sm.verifiedProWelcomeClaimed) {
+      sm.verifiedProWelcomeClaimed = true;
+      sm.followers = (sm.followers ?? 0) + 500;
+      sm.influenceLevel = getInfluenceLevel(sm.followers);
+      pushNotification(sm, 'verified_pro_renewal', 'Welcome to Pulse Verified Pro — +500 signup followers', prev.weeksLived ?? 0);
+    }
 
     // Flip userProfile.verified
     const userProfile = { ...prev.userProfile, verified: true };

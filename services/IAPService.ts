@@ -1283,7 +1283,7 @@ export class IAPService {
           engagementRate: 0,
         };
       }
-      const wasActive = gameState.socialMedia.verifiedPro?.active === true;
+      const welcomeAlreadyClaimed = gameState.socialMedia.verifiedProWelcomeClaimed === true;
       gameState.socialMedia.verifiedPro = {
         active: true,
         subscribedTimestamp: Date.now(),
@@ -1297,8 +1297,11 @@ export class IAPService {
           longerPosts: true,
         },
       };
-      // Signup-bonus followers, once per subscription cycle (not on renewal)
-      if (!wasActive) {
+      // Signup-bonus followers — ONCE per save. ANTI-EXPLOIT: gate on a sticky
+      // flag, not the transient `active` flag, so cancel→resubscribe can't
+      // re-mint the +500 (cancelVerifiedPro never clears the flag).
+      if (!welcomeAlreadyClaimed) {
+        gameState.socialMedia.verifiedProWelcomeClaimed = true;
         gameState.socialMedia.followers =
           (gameState.socialMedia.followers ?? 0) + 500;
       }

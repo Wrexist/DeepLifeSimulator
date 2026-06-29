@@ -542,7 +542,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //
  // R7 step 2.5b-i: `weeklyCtx` was further hoisted to just after newStats
  // creation so the career reducer above can use it too.
+ // Capture the diet deduction so it can be threaded into the weekly cash
+ // writeback below. applyDietPlanForWeek mutates newStats.money, but the
+ // cashBeforeLoans expression recomputes cash from the ORIGINAL currentMoney
+ // and overwrites newStats.money — so without this the diet cost was silently
+ // discarded and the diet plan was effectively free.
+ const moneyBeforeDiet = typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0;
  const dietResult = applyDietPlanForWeek(prevState.dietPlans, weeklyCtx);
+ const dietWeeklyCost = Math.max(0, moneyBeforeDiet - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
  if (dietResult.logMessage) {
    logger.info(dietResult.logMessage);
  }
@@ -726,7 +733,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // normalization (>1 = percent, else decimal), same weekly-rate math,
  // same bankruptcy-floor + breathing-room logic, same missed-payment
  // compounding penalty.
- const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep);
+ const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep - dietWeeklyCost);
  const loanResult = applyLoanAutopay({
    prevLoans: prevState.loans,
    cashAvailable: cashBeforeLoans,

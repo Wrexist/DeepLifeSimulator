@@ -2280,6 +2280,11 @@ export interface GameState {
     scandalHistory?: PulseScandalRecord[];
     brandInbox?: PulseBrandInbox;
     verifiedPro?: PulseVerifiedPro;
+    // ANTI-EXPLOIT: sticky flag — the +500 Verified Pro signup-bonus followers
+    // are granted only the FIRST time ever. Lives OUTSIDE verifiedPro (which is
+    // replaced wholesale on resubscribe) and is never cleared on cancel, so a
+    // cancel→resubscribe loop can't re-mint the bonus.
+    verifiedProWelcomeClaimed?: boolean;
     notifications?: PulseNotification[];                   // ring buffer, cap 100
     liveSession?: PulseLiveSession | null;
     pendingBoosts?: PulsePendingBoost[];

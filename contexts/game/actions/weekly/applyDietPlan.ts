@@ -37,6 +37,28 @@ export function applyDietPlanForWeek(
     return { logMessage: null };
   }
 
+  // ANTI-EXPLOIT: only apply the diet's benefits if the player can afford this
+  // week's cost. Previously the cost was floored to $0 (Math.max(0, money-cost))
+  // while the stat gains were applied unconditionally — a broke player got free
+  // health/energy/happiness forever. If unaffordable, the plan no-ops this week
+  // (no gains, no charge) rather than handing out free stats.
+  const safeDailyCostPre = typeof activeDietPlan.dailyCost === 'number' && isFinite(activeDietPlan.dailyCost)
+    ? activeDietPlan.dailyCost
+    : 0;
+  const weeklyCostPre = safeDailyCostPre * 7;
+  const currentMoneyPre = typeof ctx.newStats.money === 'number' && !isNaN(ctx.newStats.money)
+    ? ctx.newStats.money
+    : 0;
+  if (currentMoneyPre < weeklyCostPre) {
+    // Sanitize money (handles NaN) but apply no gains and charge nothing.
+    ctx.newStats.money = Math.max(0, currentMoneyPre);
+    return {
+      logMessage:
+        `[WEEK PROGRESSION] Diet plan ${activeDietPlan.name} skipped — insufficient funds ` +
+        `(need $${weeklyCostPre}, have $${currentMoneyPre}).`,
+    };
+  }
+
   // Apply health gain.
   if (activeDietPlan.healthGain > 0) {
     ctx.newStats.health = Math.max(0, Math.min(100, ctx.newStats.health + activeDietPlan.healthGain));

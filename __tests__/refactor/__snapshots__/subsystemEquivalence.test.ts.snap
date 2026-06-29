@@ -1498,19 +1498,19 @@ exports[`pre-tick equivalence — applyDeathRibbon edge case (death first fire):
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek NaN money: sanitized to 0 before subtraction 1`] = `
+exports[`pre-tick equivalence — applyDietPlanForWeek NaN money: sanitized to 0, treated as unaffordable (no gains, no charge) 1`] = `
 {
   "newStats": {
-    "energy": 61,
+    "energy": 60,
     "fitness": 50,
     "gems": 0,
     "happiness": 60,
-    "health": 61,
+    "health": 60,
     "money": 0,
     "reputation": 50,
   },
   "result": {
-    "logMessage": "[WEEK PROGRESSION] Active diet plan: X - Health: +1, Energy: +1, Happiness: +0, Cost: -$35",
+    "logMessage": "[WEEK PROGRESSION] Diet plan X skipped — insufficient funds (need $35, have $0).",
   },
 }
 `;
@@ -1549,19 +1549,19 @@ exports[`pre-tick equivalence — applyDietPlanForWeek basic active diet: applie
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek cost > money: floors money at 0 1`] = `
+exports[`pre-tick equivalence — applyDietPlanForWeek cost > money: skips gains and charges nothing (anti free-gain when broke) 1`] = `
 {
   "newStats": {
-    "energy": 61,
+    "energy": 60,
     "fitness": 50,
     "gems": 0,
     "happiness": 60,
-    "health": 61,
-    "money": 0,
+    "health": 60,
+    "money": 200,
     "reputation": 50,
   },
   "result": {
-    "logMessage": "[WEEK PROGRESSION] Active diet plan: Expensive - Health: +1, Energy: +1, Happiness: +0, Cost: -$700",
+    "logMessage": "[WEEK PROGRESSION] Diet plan Expensive skipped — insufficient funds (need $700, have $200).",
   },
 }
 `;
