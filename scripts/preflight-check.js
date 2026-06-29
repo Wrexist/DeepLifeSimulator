@@ -334,15 +334,21 @@ try {
     hasErrors = true;
   } else {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    // The IAP native transport is provided by `expo-iap`. The legacy
+    // `expo-in-app-purchases` package is deprecated and unsupported on Expo
+    // SDK 54 (see services/expoIapAdapter.ts), so it is intentionally NOT used.
+    // Either name satisfies the requirement; expo-iap is the canonical one.
     const hasIapDependency = !!(
+      packageJson?.dependencies?.['expo-iap'] ||
+      packageJson?.devDependencies?.['expo-iap'] ||
       packageJson?.dependencies?.['expo-in-app-purchases'] ||
       packageJson?.devDependencies?.['expo-in-app-purchases']
     );
     const iapEnabledInProduction = process.env.EXPO_PUBLIC_ENABLE_IAP !== 'false';
 
     if (iapEnabledInProduction && !hasIapDependency) {
-      log('[FAIL] IAP is enabled but expo-in-app-purchases dependency is missing', RED);
-      log('   Install with: npx expo install expo-in-app-purchases', RED);
+      log('[FAIL] IAP is enabled but no IAP native module dependency is installed', RED);
+      log('   Install with: npx expo install expo-iap', RED);
       hasErrors = true;
     } else if (!iapEnabledInProduction) {
       log('[SKIP] IAP disabled via EXPO_PUBLIC_ENABLE_IAP=false', YELLOW);
