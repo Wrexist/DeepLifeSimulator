@@ -513,21 +513,48 @@ export function isChallengeComplete(challengeId: string, state: GameState): bool
 }
 
 /**
+ * Number of game weeks (weeksLived) a challenge instance lasts before rotating.
+ * One game "month" (week cycles 1–4 within a month). A challenge persists across
+ * the month so the player has multiple ticks to complete it, and the gem reward
+ * can be earned at most once per rotation.
+ */
+const ROTATION_GAME_WEEKS = 4;
+
+/**
+ * ANTI-EXPLOIT: select the challenge by absolute game week (weeksLived), not
+ * wall-clock. Wall-clock selection let a player scrub their device clock to
+ * force rotation → re-claim the gem reward indefinitely. Game-time selection
+ * ties the reward to genuine play (advancing weeks costs energy/money/ageing).
+ */
+export function getWeeklyChallengeIdForWeek(weeksLived: number): string {
+ const w = typeof weeksLived === 'number' && isFinite(weeksLived) && weeksLived >= 0 ? Math.floor(weeksLived) : 0;
+ const index = w % WEEKLY_CHALLENGES.length;
+ return WEEKLY_CHALLENGES[index].id;
+}
+
+/**
  * Initialize or rotate the weekly challenge.
+ *
+ * ANTI-EXPLOIT: rotation is gated on weeksLived, not Date.now(). A device-clock
+ * change can no longer force a fresh, instantly-complete challenge with
+ * `rewardClaimed: false` to mint gems on demand.
  */
 export function getOrRotateWeeklyChallenge(
  state: GameState
 ): GameState['weeklyChallenge'] {
  const now = Date.now();
+ const weeksLived = typeof state.weeksLived === 'number' && isFinite(state.weeksLived) ? Math.floor(state.weeksLived) : 0;
  const existing = state.weeklyChallenge;
 
- // If existing challenge hasn't expired (within 7 days of startedAt), keep it
- if (existing && !needsRotation(existing)) {
- return existing;
+ // If existing challenge hasn't expired (within ROTATION_GAME_WEEKS game weeks
+ // of startedWeek), keep it. Legacy challenges without startedWeek are adopted
+ // at the current week rather than force-rotated.
+ if (existing && !needsRotation(existing, weeksLived)) {
+ return existing.startedWeek === undefined ? { ...existing, startedWeek: weeksLived } : existing;
  }
 
  // New challenge needed
- const challengeId = getActiveWeeklyChallengeId(now);
+ const challengeId = getWeeklyChallengeIdForWeek(weeksLived);
  const def = getWeeklyChallengeDefinition(challengeId);
  if (!def) return undefined;
 
@@ -536,6 +563,7 @@ export function getOrRotateWeeklyChallenge(
  return {
  challengeId,
  startedAt: now,
+ startedWeek: weeksLived,
  progress: progressResult.map((p) => ({
  objectiveId: p.id,
  current: p.current,
@@ -547,6 +575,11 @@ export function getOrRotateWeeklyChallenge(
  };
 }
 
-function needsRotation(challenge: NonNullable<GameState['weeklyChallenge']>): boolean {
- return Date.now() - challenge.startedAt > MS_PER_WEEK;
+function needsRotation(
+ challenge: NonNullable<GameState['weeklyChallenge']>,
+ currentWeeksLived: number
+): boolean {
+ // Legacy challenge missing startedWeek: don't force-rotate (adopt instead).
+ if (typeof challenge.startedWeek !== 'number' || !isFinite(challenge.startedWeek)) return false;
+ return currentWeeksLived - challenge.startedWeek >= ROTATION_GAME_WEEKS;
 }

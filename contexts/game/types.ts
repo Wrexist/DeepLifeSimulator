@@ -1849,6 +1849,11 @@ export interface GamingStreamingState {
   // ANTI-EXPLOIT: Track weekly stream count to prevent unlimited real-time income farming
   streamsThisWeek?: number;
   lastStreamWeek?: number; // weeksLived when last stream occurred
+  // ANTI-EXPLOIT: same weekly cap for published videos (energy is cheaply
+  // refillable in-week via food, so without a per-week cap immediate video
+  // earnings are unbounded).
+  videosThisWeek?: number;
+  lastVideoWeek?: number; // weeksLived when last video was published
 }
 
 // Re-export from lib/social/relations for convenience
@@ -2422,6 +2427,10 @@ export interface GameState {
   weeklyChallenge?: {
     challengeId: string;
     startedAt: number;
+    /** weeksLived when this challenge instance started. ANTI-EXPLOIT: rotation
+     *  and selection are anchored to this (game time), not Date.now(), so the
+     *  reward can't be re-minted by advancing the device clock. */
+    startedWeek?: number;
     progress: { objectiveId: string; current: number; target: number; met: boolean }[];
     completed: boolean;
     rewardClaimed: boolean;

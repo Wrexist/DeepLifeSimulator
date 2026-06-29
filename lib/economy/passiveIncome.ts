@@ -34,7 +34,18 @@ interface PassiveIncomeBreakdown {
   gamingStreaming: number;
 }
 
-export function calcWeeklyPassiveIncome(state: GameState): { total: number; breakdown: PassiveIncomeBreakdown; reinvested?: number } {
+export function calcWeeklyPassiveIncome(
+  state: GameState,
+  // ANTI-EXPLOIT (rent double-count): when the weekly tick computes spendable
+  // cash it ALSO pays realized tenant rent via the real-estate tenancy tick
+  // (applyRentAndHousing → runRealEstateWeeklyTick). Counting the legacy
+  // property.rent stream here as well paid rent TWICE for the same property,
+  // and let a player-set, unbounded `property.rent` print money. The weekly
+  // tick passes `excludeRealEstate: true` so the tenancy tick is the single,
+  // market-bounded rent source for cash. Projections/UI (no opts) still show
+  // the property-level estimate.
+  opts?: { excludeRealEstate?: boolean }
+): { total: number; breakdown: PassiveIncomeBreakdown; reinvested?: number } {
   // CRITICAL: Wrap entire function in try-catch to prevent crashes
   try {
     let stocksIncome = 0;
@@ -593,9 +604,10 @@ export function calcWeeklyPassiveIncome(state: GameState): { total: number; brea
   const safeCryptoMiningIncome = Math.min(PER_SOURCE_CAPS.cryptoMining, isFinite(cryptoMiningIncome) && cryptoMiningIncome >= 0 ? cryptoMiningIncome : 0);
   const safeCompanyIncome = Math.min(PER_SOURCE_CAPS.companies, isFinite(companyIncome) && companyIncome >= 0 ? companyIncome : 0);
   
+  const realEstateForTotal = opts?.excludeRealEstate ? 0 : safeRealEstateIncome;
   const rawTotal = Math.round(
     safeStocksIncome +
-    safeRealEstateIncome +
+    realEstateForTotal +
     safeSocialMediaIncome +
     safePatentIncome +
     safeBusinessOpportunitiesIncome +

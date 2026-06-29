@@ -175,8 +175,19 @@ export const composePost = (
     sponsoredBrandName: args.sponsoredBrandName,
   };
 
+  let applied = false;
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
+
+    // ANTI-EXPLOIT: re-check the per-content-type weekly cap against FRESH state.
+    // The outer canCreateContent reads the stale snapshot, so two taps in one
+    // batch both passed it; without this guard both appended a post and (via the
+    // side-effects below) double-paid ad revenue + followers.
+    const freshLast = sm.lastPostWeeks?.[args.contentType];
+    if (typeof freshLast === 'number' && freshLast === weeksLived) {
+      return prev;
+    }
+    applied = true;
 
     sm.followers = (sm.followers ?? 0) + followersGained;
     sm.totalPosts = (sm.totalPosts ?? 0) + 1;
@@ -239,6 +250,12 @@ export const composePost = (
 
     return { ...prev, socialMedia: sm };
   });
+
+  // If a same-batch duplicate was rejected inside the updater, do NOT run the
+  // money/stat side-effects (they would double-pay the rejected post).
+  if (!applied) {
+    return { success: false, message: 'You already posted that type this week.' };
+  }
 
   // Side-effects: stats & money happen through the canonical actions so daily
   // summary tracking works.
@@ -909,35 +926,51 @@ export const endLiveStream = (
   if (!live || !live.active) {
     return { success: false, message: 'Not live.', totalDonations: 0, newFollowers: 0, peakViewers: 0, minutesElapsed: 0 };
   }
-  const newFollowers = Math.floor(live.peakViewers * 0.05);
 
+  // ANTI-EXPLOIT: read the session and apply payout INSIDE the updater, guarded
+  // on the FRESH `prev.socialMedia.liveSession.active`. The outer guard reads the
+  // stale snapshot, so two rapid "End" taps both saw active===true and both
+  // double-claimed tips + followers. We capture the applied figures and only run
+  // the money/stat side-effects if this call actually ended the session.
+  let applied = false;
+  let appliedDonations = 0;
+  let appliedFollowers = 0;
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
+    const ls = sm.liveSession;
+    if (!ls || !ls.active) return prev; // already ended by a prior tap → reject
+    applied = true;
+    appliedDonations = ls.donationsEarned;
+    appliedFollowers = Math.floor(ls.peakViewers * 0.05);
     sm.totalLiveStreams = (sm.totalLiveStreams ?? 0) + 1;
-    sm.totalLiveViewers = (sm.totalLiveViewers ?? 0) + live.peakViewers;
-    sm.totalLiveDuration = (sm.totalLiveDuration ?? 0) + live.minutesElapsed;
-    sm.peakLiveViewers = Math.max(sm.peakLiveViewers ?? 0, live.peakViewers);
-    sm.followers = (sm.followers ?? 0) + newFollowers;
+    sm.totalLiveViewers = (sm.totalLiveViewers ?? 0) + ls.peakViewers;
+    sm.totalLiveDuration = (sm.totalLiveDuration ?? 0) + ls.minutesElapsed;
+    sm.peakLiveViewers = Math.max(sm.peakLiveViewers ?? 0, ls.peakViewers);
+    sm.followers = (sm.followers ?? 0) + appliedFollowers;
     sm.influenceLevel = getInfluenceLevel(sm.followers);
-    sm.totalEarnings = (sm.totalEarnings ?? 0) + live.donationsEarned;
+    sm.totalEarnings = (sm.totalEarnings ?? 0) + ls.donationsEarned;
     sm.liveSession = null;
     pushNotification(
       sm,
       'milestone',
-      `Stream ended. Peak ${live.peakViewers} viewers, +${newFollowers} followers, $${live.donationsEarned.toFixed(2)} in tips`,
+      `Stream ended. Peak ${ls.peakViewers} viewers, +${appliedFollowers} followers, $${ls.donationsEarned.toFixed(2)} in tips`,
       prev.weeksLived ?? 0,
     );
     return { ...prev, socialMedia: sm };
   });
 
-  updateMoney(setGameState, live.donationsEarned, 'Pulse live stream tips');
+  if (!applied) {
+    return { success: false, message: 'Not live.', totalDonations: 0, newFollowers: 0, peakViewers: 0, minutesElapsed: 0 };
+  }
+
+  updateMoney(setGameState, appliedDonations, 'Pulse live stream tips');
   updateStats(setGameState, { energy: -20, happiness: 15 });
 
   return {
     success: true,
     message: 'Stream ended.',
-    totalDonations: live.donationsEarned,
-    newFollowers,
+    totalDonations: appliedDonations,
+    newFollowers: appliedFollowers,
     peakViewers: live.peakViewers,
     minutesElapsed: live.minutesElapsed,
   };

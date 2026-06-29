@@ -502,11 +502,21 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
         return prevState;
       }
 
-      // Use prevState.stats.money directly - React guarantees it's current inside the callback
+      // ANTI-EXPLOIT: re-validate level + cost + affordability against FRESH
+      // prevState (the outer checks read the lagging stateRef snapshot). Without
+      // this, two rapid taps both passed the stale guard and both applied —
+      // stacking a level-capped bonus past maxLevel, buying the next level at
+      // the stale (cheaper) cost, and driving prestigePoints negative.
+      const freshBonuses = prevState.prestige.unlockedBonuses || [];
+      if (!canPurchaseBonus(bonus, freshBonuses)) return prevState;
+      const freshCost = getBonusPurchaseCost(bonus, freshBonuses);
+      const freshPoints = prevState.prestige.prestigePoints || 0;
+      if (freshPoints < freshCost) return prevState;
+
       const updatedPrestige = {
         ...prevState.prestige,
-        prestigePoints: prevState.prestige.prestigePoints - cost,
-        unlockedBonuses: [...(prevState.prestige.unlockedBonuses || []), bonusId],
+        prestigePoints: Math.max(0, freshPoints - freshCost),
+        unlockedBonuses: [...freshBonuses, bonusId],
       };
 
       const newState: GameState = {

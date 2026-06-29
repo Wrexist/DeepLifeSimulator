@@ -648,8 +648,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[HUSTLE TICK] Failed:', hustleErr);
  }
 
- // Calculate passive income
- const passiveIncomeResult = calcWeeklyPassiveIncome(prevState);
+ // Calculate passive income.
+ // excludeRealEstate: rent is paid for cash by the tenancy tick below
+ // (applyRentAndHousing → housingRentalIncome). Including the legacy
+ // property.rent stream here too double-paid rent and let an unbounded
+ // player-set rent print money — so it's excluded from the cash total.
+ const passiveIncomeResult = calcWeeklyPassiveIncome(prevState, { excludeRealEstate: true });
  const passiveIncome = passiveIncomeResult.total || 0;
 
  // R7 Phase 2 step 2.4a: income totals aggregation extracted into
@@ -1399,6 +1403,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  yields,
  prices,
  currentWeek: nextWeeksLived,
+ // Gate buy-order fills on actual cash (anti free-fill exploit).
+ cashIn: newStats.money,
  rollFor: weeklyRoll,
  });
  if (stocksTickResult.cashDelta!== 0) {
