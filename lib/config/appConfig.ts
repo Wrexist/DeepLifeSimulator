@@ -11,7 +11,7 @@ export const DISCORD_URL = 'https://discord.gg/rzktazdX8v';
 export const PRIVACY_POLICY_URL = 'https://wrexist.github.io/deeplife-sim-support/privacy.html';
 
 // ── Store Links ───────────────────────────────────────────
-export const APP_STORE_URL = 'https://apps.apple.com/app/id6749675615';
+export const APP_STORE_URL = 'https://apps.apple.com/us/app/deep-life-simulator/id6749675615';
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.deeplife.simulator';
 
 // ── External Services ─────────────────────────────────────
