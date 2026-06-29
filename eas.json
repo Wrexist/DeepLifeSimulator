@@ -38,6 +38,11 @@
         "appleTeamId": "S3U8B8HH96",
         "ascAppId": "6749675615",
         "language": "en-US"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft"
       }
     }
   }

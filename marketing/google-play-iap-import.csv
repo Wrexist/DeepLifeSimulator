@@ -1,0 +1,34 @@
+# DeepLife Simulator — Google Play in-app products & subscriptions
+# Use the Android product IDs below. NOTE: Android Mindset = deeplife_mindset
+# (deeplife_mindset_perk is iOS-only). "Consumable" is a code-side behavior in
+# Google Play (all one-time items are "managed products"); it is shown here for
+# reference. Subscriptions are created under Play Console > Monetize > Subscriptions
+# (they cannot be bulk-imported via the in-app-products CSV).
+product_id,type,consumable,title,description,price_usd,price_micros_usd
+deeplife_gems_100,in-app (managed),yes,"100 Gems","Small gem pack for quick purchases",0.99,990000
+deeplife_gems_500,in-app (managed),yes,"500 Gems","Medium gem pack for regular players",4.99,4990000
+deeplife_gems_1000,in-app (managed),yes,"1,000 Gems","Large gem pack for active players",9.99,9990000
+deeplife_gems_5000,in-app (managed),yes,"5,000 Gems","Huge gem pack for dedicated players",19.99,19990000
+deeplife_gems_15000,in-app (managed),yes,"15,000 Gems","Massive gem pack for power players",49.99,49990000
+deeplife_gems_starter,in-app (managed),yes,"Starter Pack","1,000 Gems + 1 Youth Pill",9.99,9990000
+deeplife_gems_premium,in-app (managed),yes,"Premium Pack","3,500 Gems + 3 Youth Pills + Money Multiplier",24.99,24990000
+deeplife_gems_ultimate,in-app (managed),yes,"Ultimate Pack","12,000 Gems + 10 Youth Pills + All Permanent Upgrades",49.99,49990000
+deeplife_gems_mega,in-app (managed),yes,"Mega Pack","40,000 Gems + Unlimited Youth Pills + Everything Unlocked",99.99,99990000
+deeplife_youth_pill_single,in-app (managed),yes,"Youth Pill (Single)","Reset age to 18 - One time use",4.99,4990000
+deeplife_youth_pill_pack,in-app (managed),yes,"Youth Pill Pack","5 Youth Pills - Great value",19.99,19990000
+deeplife_money_boost,in-app (managed),yes,"Money Boost","Instant $1,000,000 cash injection",7.99,7990000
+deeplife_skill_boost,in-app (managed),yes,"Skill Boost","All skills +50 levels instantly",12.99,12990000
+deeplife_work_boost,in-app (managed),yes,"Work Pay Boost","+50% earnings on all jobs",1.99,1990000
+deeplife_mindset,in-app (managed),no,"Mindset","50% faster promotions",1.99,1990000
+deeplife_fast_learner,in-app (managed),no,"Fast Learner","50% faster education",1.99,1990000
+deeplife_good_credit,in-app (managed),no,"Good Credit Score","Higher bank interest rates",1.99,1990000
+deeplife_unlock_all_perks,in-app (managed),no,"Unlock All Perks","Includes all perks above",6.99,6990000
+deeplife_remove_ads,in-app (managed),no,"Remove Ads","Enjoy ad-free gaming experience",2.99,2990000
+deeplife_lifetime_premium,in-app (managed),no,"Lifetime Premium","All future updates + exclusive content + no ads",79.99,79990000
+deeplife_premium_credit_card,in-app (managed),no,"Premium Credit Card","10% cashback on all purchases",4.99,4990000
+deeplife_financial_planning,in-app (managed),no,"Financial Planning","15% interest on bank savings",2.99,2990000
+deeplife_business_banking,in-app (managed),no,"Business Banking","Company loans and upgrades",3.99,3990000
+deeplife_private_banking,in-app (managed),no,"Private Banking","VIP 3% APR loans",9.99,9990000
+revival_pack,in-app (managed),no,"Revival Pack","Instantly revive your character when they die",2.99,2990000
+deeplife_premium_monthly,subscription,n/a,"Premium Monthly","[To be configured - Monthly premium subscription]",,
+deeplife_premium_yearly,subscription,n/a,"Premium Yearly","[To be configured - Yearly premium subscription]",,
