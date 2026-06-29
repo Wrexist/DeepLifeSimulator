@@ -8,6 +8,7 @@ Immersive multi-page GitHub Pages site for DeepLife Simulator.
 - `gallery.html` — full screenshot gallery (real captures) with lightbox
 - `whats-new.html` — release notes / changelog (v2.5.1 + history)
 - `support.html` — contact + full FAQ / troubleshooting
+- `privacy.html` — full privacy policy (mirrors the canonical policy)
 
 Shared: `styles.css`, `app.js`, `assets/` (real in-app screenshots + app icon).
 
