@@ -66,21 +66,36 @@ export function redeemFavor(
     const fresh = prevLedger.favors.find((f) => f.id === favorId);
     if (!fresh || fresh.status !== 'open') return prev; // already redeemed this batch
 
-    const flipped = {
-      ...prev,
-      favorLedger: redeemFavorPure(prevLedger, favorId),
-    } as GameState;
-
-    // Cash IOU owed-to-player → credit money in the SAME updater.
+    // Cash IOU owed-to-player → validate the amount BEFORE flipping. If the
+    // value is invalid (NaN/Infinity/≤0), keep the favor open rather than
+    // closing it without paying out — a redeemed-but-unpaid IOU is unrecoverable.
     if (fresh.kind === 'money' && fresh.direction === 'owed-to-player') {
+      if (
+        typeof fresh.value !== 'number' ||
+        !isFinite(fresh.value) ||
+        fresh.value <= 0
+      ) {
+        log.warn(`Cannot redeem invalid money favor`, { favorId, value: fresh.value });
+        return prev;
+      }
+      const flipped = {
+        ...prev,
+        favorLedger: redeemFavorPure(prevLedger, favorId),
+      } as GameState;
       const credit = applyMoneyDelta(
         flipped,
         fresh.value,
         `Favor redeemed from ${fresh.contactId}`
       );
-      if (credit) return { ...flipped, ...credit };
+      if (!credit) return prev; // credit rejected → leave the favor open
+      return { ...flipped, ...credit };
     }
-    return flipped;
+
+    // Non-money favor → just flip the ledger.
+    return {
+      ...prev,
+      favorLedger: redeemFavorPure(prevLedger, favorId),
+    } as GameState;
   });
   log.info(`Redeemed favor ${favorId}`);
   return { success: true, message: 'Favor redeemed', favor: target };

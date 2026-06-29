@@ -86,4 +86,24 @@ describe('redeemFavor — same-batch double-credit guard', () => {
     expect(second.success).toBe(false);
     expect(store.get().stats.money).toBe(250);
   });
+
+  it('keeps an invalid-amount money favor OPEN instead of closing it unpaid', () => {
+    const store = makeStore(createTestGameState({ stats: { money: 100 } }));
+    recordFavor(store.setGameState, {
+      id: 'bad',
+      contactId: 'glitch',
+      direction: 'owed-to-player',
+      kind: 'money',
+      value: Number.NaN, // corrupted value
+      createdWeek: 1,
+    });
+
+    redeemFavor(store.get(), store.setGameState, 'bad');
+
+    // No money credited and the favor must remain open (a closed-but-unpaid IOU
+    // is unrecoverable).
+    expect(store.get().stats.money).toBe(100);
+    const favor = store.get().favorLedger?.favors.find((f) => f.id === 'bad');
+    expect(favor?.status).toBe('open');
+  });
 });

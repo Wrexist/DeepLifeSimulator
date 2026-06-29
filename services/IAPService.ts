@@ -1122,10 +1122,11 @@ export class IAPService {
                   );
                   return;
                 }
-                this.processingTransactions.add(transactionId);
                 // Android: also respect acknowledged flag (don't re-grant).
                 // Still finish the transaction so the platform stops
                 // re-delivering it (otherwise Android loops on redelivery).
+                // NB: this returns BEFORE we take the in-memory lock, so there is
+                // no lock to leak on this path.
                 if (purchase.acknowledged === true) {
                   try {
                     await InAppPurchases.finishTransactionAsync(purchase, true);
@@ -1135,6 +1136,9 @@ export class IAPService {
                   return;
                 }
 
+                // Take the in-memory lock only once we're committed to the grant
+                // path; the `finally` below always releases it.
+                this.processingTransactions.add(transactionId);
                 try {
                   logger.info('Processing purchase:', { purchase });
                   const receiptValid = await this.validateReceipt(

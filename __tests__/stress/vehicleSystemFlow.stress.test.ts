@@ -351,16 +351,56 @@ describe('Vehicle system deep audit', () => {
       const premiumPaid = before - afterBuy;
       expect(premiumPaid).toBeGreaterThan(0);
 
-      act(() => { cancelInsurance(captured!.state, captured!.setGameState, vid); });
+      // Confirm coverage was active before cancelling, so the assertions below
+      // can't pass on a no-op cancel.
+      expect(captured!.state.vehicles?.find(v => v.id === vid)?.insurance?.active).toBe(true);
+
+      let cancelResult: { success: boolean; message: string } = { success: false, message: '' };
+      act(() => { cancelResult = cancelInsurance(captured!.state, captured!.setGameState, vid); });
       const afterCancel = captured!.state.stats.money;
       const netDelta = afterCancel - before;
 
+      // The cancel must actually have run (not silently no-op'd) — otherwise the
+      // delta assertions are vacuously satisfied even if the refund path broke.
+      expect(cancelResult.success).toBe(true);
+      expect(captured!.state.vehicles?.find(v => v.id === vid)?.insurance).toBeFalsy();
       // Net change across buy+cancel must be <= 0 (refund can never exceed the
       // premium paid; the $25 fee guarantees a small loss).
       expect(netDelta).toBeLessThanOrEqual(0);
       // And the refund itself must never exceed what was paid.
       expect(afterCancel - afterBuy).toBeLessThanOrEqual(premiumPaid);
     }
+  });
+
+  it("cancelInsurance: a same-batch double-cancel refunds only ONCE (H-9 idempotency)", async () => {
+    mounted = mountGame();
+    seedDriver(1_000_000);
+    const { purchaseVehicle, purchaseInsurance, cancelInsurance } =
+      await import('@/contexts/game/actions/VehicleActions');
+    const deps = await libDeps();
+    act(() => { purchaseVehicle(captured!.state, captured!.setGameState, 'economy_sedan', deps); });
+    const vid = captured!.state.vehicles![0].id;
+    const beforeBuy = captured!.state.stats.money;
+    act(() => { purchaseInsurance(captured!.state, captured!.setGameState, vid, 'premium', deps); });
+    const premiumPaid = beforeBuy - captured!.state.stats.money;
+    expect(premiumPaid).toBeGreaterThan(0);
+
+    // Snapshot stale state and fire two cancels against it (button spam). The
+    // refund must be credited exactly once; the second tap must be a no-op
+    // because the updater re-checks `prev.vehicles[…].insurance`.
+    const stale = captured!.state;
+    const setGameState = captured!.setGameState;
+    const moneyBefore = stale.stats.money;
+    act(() => {
+      cancelInsurance(stale, setGameState, vid);
+      cancelInsurance(stale, setGameState, vid);
+    });
+    const credited = captured!.state.stats.money - moneyBefore;
+    // One refund only: a double refund would roughly double this and exceed the
+    // single premium paid.
+    expect(credited).toBeGreaterThan(0);
+    expect(credited).toBeLessThanOrEqual(premiumPaid);
+    expect(captured!.state.vehicles?.find(v => v.id === vid)?.insurance).toBeFalsy();
   });
 
   // ── SET ACTIVE ─────────────────────────────────────────────────────────
