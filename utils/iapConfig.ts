@@ -80,12 +80,15 @@ export const IAP_PRODUCTS = {
     android: 'deeplife_work_boost',
   }) || 'deeplife_work_boost',
 
-  // NOTE: the original `deeplife_mindset` ID is permanently reserved by Apple
-  // (deleted product IDs can never be reused), so this product uses a fresh ID
-  // that must be created in App Store Connect (Non-Consumable).
+  // App Store Connect permanently reserves deleted product IDs, so iOS can't
+  // reuse `deeplife_mindset` — it uses a fresh `deeplife_mindset_perk` (must be
+  // created in App Store Connect as Non-Consumable). Google Play is a separate
+  // catalog and is NOT affected by Apple's reservation, so Android keeps the
+  // existing `deeplife_mindset` SKU. Only change android here if/when the Play
+  // Console product is renamed too — otherwise Android purchase queries break.
   MINDSET: Platform.select({
     ios: 'deeplife_mindset_perk',
-    android: 'deeplife_mindset_perk',
+    android: 'deeplife_mindset',
   }) || 'deeplife_mindset_perk',
 
   FAST_LEARNER: Platform.select({

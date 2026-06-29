@@ -6,7 +6,7 @@ This document contains all In-App Purchases (IAPs) that need localization in App
 
 ---
 
-## 📦 CONSUMABLE PRODUCTS (14 items)
+## 📦 CONSUMABLE PRODUCTS (15 items)
 
 These products can be purchased multiple times and should NOT be restored on app reinstall.
 
@@ -104,9 +104,17 @@ These products can be purchased multiple times and should NOT be restored on app
       - Restore energy to 100
       - Continue your progress
 
+### Repeatable Perk
+
+**Product ID:** `deeplife_work_boost`
+    - **Name:** Work Pay Boost
+    - **Description:** +50% earnings on all jobs
+    - **Price:** $1.99
+    - **Note:** Consumable / repeatable — not restored on reinstall
+
 ---
 
-## 🔒 NON-CONSUMABLE PRODUCTS (13 items)
+## 🔒 NON-CONSUMABLE PRODUCTS (12 items)
 
 These products are permanent and SHOULD be restored on app reinstall.
 
@@ -133,11 +141,6 @@ These products are permanent and SHOULD be restored on app reinstall.
       - Better performance
 
 ### Perks (Individual)
-17. **Product ID:** `deeplife_work_boost`
-    - **Name:** Work Pay Boost
-    - **Description:** +50% earnings on all jobs
-    - **Price:** $1.99
-
 18. **Product ID:** `deeplife_mindset_perk`
     - **Name:** Mindset
     - **Description:** 50% faster promotions

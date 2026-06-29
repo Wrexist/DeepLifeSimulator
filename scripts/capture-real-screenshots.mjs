@@ -54,11 +54,13 @@ async function shot(page, name, i) {
   console.log('  ✓', file);
 }
 
+const VIEWPORT = { width: 430, height: 932 };
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-web-security'] });
   const page = await browser.newPage({
-    viewport: { width: 430, height: 932 },
+    viewport: VIEWPORT,
     deviceScaleFactor: 3,
     isMobile: true,
   });
@@ -141,7 +143,7 @@ async function main() {
   // The bottom tab bar is exactly 5 evenly-spaced slots: Home · Work · Phone ·
   // Market · Health. Text clicks proved unreliable here (they hit the wrong
   // element), so click each tab by its fixed coordinate in the 430-wide viewport.
-  const VW = 430, TAB_Y = 902;
+  const VW = VIEWPORT.width, TAB_Y = VIEWPORT.height - 30;
   const tabX = (idx) => Math.round((VW * (idx + 0.5)) / 5); // 5 tabs
   const tabs = [
     [1, 'work'],

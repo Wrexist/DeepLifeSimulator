@@ -15,14 +15,17 @@
 import { createRequire } from 'module';
 import { readFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { Buffer } from 'node:buffer';
 import { screenBuilder, THEMES, C } from './generate-app-store-screenshots.mjs';
 
 const require = createRequire(import.meta.url);
-let sharp;
-try { sharp = require('sharp'); }
-catch { sharp = require('/tmp/shottest/node_modules/sharp'); }
+// Loaded lazily so `buildFrame` can be imported without pulling in the native
+// `sharp` dependency (only the rasterizing main() actually needs it).
+function loadSharp() {
+  try { return require('sharp'); }
+  catch { return require('/tmp/shottest/node_modules/sharp'); }
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -182,6 +185,7 @@ async function buildFrame(f) {
 }
 
 async function main() {
+  const sharp = loadSharp();
   await mkdir(OUT, { recursive: true });
   const files = [];
   for (const f of FRAMES) {
@@ -202,7 +206,7 @@ async function main() {
   console.log('✓ contact sheet →', OUT);
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) main().catch(e => { console.error(e); process.exit(1); });
 
 export { buildFrame };
