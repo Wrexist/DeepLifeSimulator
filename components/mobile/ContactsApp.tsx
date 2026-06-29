@@ -171,7 +171,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   const handleRedeemFavor = useCallback(
     (favorId: string) => {
-      const r = redeemFavor(gameState, setGameState, favorId, { updateMoney: updateMoneyDep });
+      const r = redeemFavor(gameState, setGameState, favorId);
       if (r.success) {
         saveGame();
         flash(r.message);
@@ -179,7 +179,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         Alert.alert('Cannot redeem', r.message);
       }
     },
-    [gameState, setGameState, updateMoneyDep, saveGame, flash]
+    [gameState, setGameState, saveGame, flash]
   );
 
   const handleSpecial = useCallback(

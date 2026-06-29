@@ -16,7 +16,7 @@ import {
   redeemFavor as redeemFavorPure,
 } from '@/lib/contacts/favors';
 import { logger } from '@/utils/logger';
-import { updateMoney } from './MoneyActions';
+import { applyMoneyDelta } from './MoneyActions';
 
 const log = logger.scope('ContactsActions');
 
@@ -47,23 +47,56 @@ export function recordFavor(
 export function redeemFavor(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
-  favorId: string,
-  deps: { updateMoney: typeof updateMoney }
+  favorId: string
 ): { success: boolean; message: string; favor?: Favor } {
   const ledger = ledgerOf(gameState);
   const target = ledger.favors.find((f) => f.id === favorId);
   if (!target) return { success: false, message: 'Favor not found' };
   if (target.status !== 'open') return { success: false, message: 'Favor already closed' };
 
-  // Cash IOU owed-to-player → credit money.
-  if (target.kind === 'money' && target.direction === 'owed-to-player') {
-    deps.updateMoney(setGameState, target.value, `Favor redeemed from ${target.contactId}`);
-  }
+  // H-8/H-9: fold the cash credit and the ledger flip into ONE updater that
+  // re-checks the favor's status against `prev`. The previous code gated on the
+  // stale `gameState`, credited money in one setGameState call, then flipped the
+  // ledger in a separate call — so two rapid taps both passed the outer gate and
+  // both paid out (a credit never overdraft-rejects) while the ledger closed
+  // once: a same-batch double-credit money printer. Re-checking `prev` here makes
+  // the second tap a no-op.
+  setGameState((prev) => {
+    const prevLedger = ledgerOf(prev);
+    const fresh = prevLedger.favors.find((f) => f.id === favorId);
+    if (!fresh || fresh.status !== 'open') return prev; // already redeemed this batch
 
-  setGameState((prev) => ({
-    ...prev,
-    favorLedger: redeemFavorPure(ledgerOf(prev), favorId),
-  } as GameState));
+    // Cash IOU owed-to-player → validate the amount BEFORE flipping. If the
+    // value is invalid (NaN/Infinity/≤0), keep the favor open rather than
+    // closing it without paying out — a redeemed-but-unpaid IOU is unrecoverable.
+    if (fresh.kind === 'money' && fresh.direction === 'owed-to-player') {
+      if (
+        typeof fresh.value !== 'number' ||
+        !isFinite(fresh.value) ||
+        fresh.value <= 0
+      ) {
+        log.warn(`Cannot redeem invalid money favor`, { favorId, value: fresh.value });
+        return prev;
+      }
+      const flipped = {
+        ...prev,
+        favorLedger: redeemFavorPure(prevLedger, favorId),
+      } as GameState;
+      const credit = applyMoneyDelta(
+        flipped,
+        fresh.value,
+        `Favor redeemed from ${fresh.contactId}`
+      );
+      if (!credit) return prev; // credit rejected → leave the favor open
+      return { ...flipped, ...credit };
+    }
+
+    // Non-money favor → just flip the ledger.
+    return {
+      ...prev,
+      favorLedger: redeemFavorPure(prevLedger, favorId),
+    } as GameState;
+  });
   log.info(`Redeemed favor ${favorId}`);
   return { success: true, message: 'Favor redeemed', favor: target };
 }
