@@ -120,20 +120,19 @@ export const returnFromTrip = (
 
   const { destination, events, totals, firstVisit } = summary;
 
-  // Apply stat totals (destination benefits + event deltas)
-  deps.updateStats(setGameState, {
-    happiness: totals.happinessDelta,
-    health: totals.healthDelta,
-    energy: totals.energyDelta,
-    ...(totals.reputationDelta ? { reputation: totals.reputationDelta } : {}),
-  });
-
-  // Apply money delta from events (lost wallet, tourist trap, etc.)
-  if (totals.moneyDelta !== 0 && deps.updateMoney) {
-    deps.updateMoney(setGameState, totals.moneyDelta, `Trip events: ${destination.name}`);
-  }
-
+  // ANTI-EXPLOIT: clear the trip FIRST, guarded against fresh state, and only
+  // apply the stat/money rewards if THIS call actually ended the trip. The
+  // readiness check above reads the stale snapshot, so two "Return" taps in one
+  // batch both passed it and both applied the (additive) stat + money rewards.
+  // By clearing inside the updater with a presence check, a second same-batch
+  // tap finds no currentTrip and becomes a no-op (applied stays false).
+  let applied = false;
   setGameState((prev) => {
+    const cur = prev.travel?.currentTrip;
+    if (!cur || cur.destinationId !== trip.destinationId || cur.startWeek !== trip.startWeek) {
+      return prev; // trip already returned by a prior tap → no-op
+    }
+    applied = true;
     const alreadyVisited = prev.travel?.visitedDestinations?.includes(destination.id) || false;
     return {
       ...prev,
@@ -153,6 +152,23 @@ export const returnFromTrip = (
           : prev.lifetimeStatistics,
     };
   });
+
+  if (!applied) {
+    return { success: false, message: 'You are not on a trip' };
+  }
+
+  // Apply stat totals (destination benefits + event deltas) — only once.
+  deps.updateStats(setGameState, {
+    happiness: totals.happinessDelta,
+    health: totals.healthDelta,
+    energy: totals.energyDelta,
+    ...(totals.reputationDelta ? { reputation: totals.reputationDelta } : {}),
+  });
+
+  // Apply money delta from events (lost wallet, tourist trap, etc.)
+  if (totals.moneyDelta !== 0 && deps.updateMoney) {
+    deps.updateMoney(setGameState, totals.moneyDelta, `Trip events: ${destination.name}`);
+  }
 
   if (firstVisit) {
     unlockBusinessOpportunity(gameState, setGameState, destination.id);

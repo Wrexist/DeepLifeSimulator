@@ -1,7 +1,7 @@
 import React from 'react';
 import { GameState, FamilyBusiness } from '../types';
 import { logger } from '@/utils/logger';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('FamilyBusinessActions');
@@ -29,20 +29,29 @@ export const createFamilyBusiness = (
     return;
   }
 
-  deps.updateMoney(setGameState, -cost, 'Create Family Business');
-
-  const newFamilyBusiness: FamilyBusiness = {
-    companyId,
-    foundedGeneration: gameState.generationNumber,
-    generationsHeld: 0,
-    brandValue: 0,
-    reputation: 50, // Start with neutral reputation
-  };
-
-  setGameState(prev => ({
-    ...prev,
-    familyBusinesses: [...(prev.familyBusinesses || []), newFamilyBusiness],
-  }));
+  // ATOMICITY FIX: fold the $1M debit and the familyBusinesses append into ONE
+  // functional updater that reads `prev` (mirrors createCompany). The previous
+  // code charged via a separate updateMoney call and then appended the business
+  // UNCONDITIONALLY — so a same-batch double-tap (or a concurrent spend) charged
+  // once (overdraft reject) while BOTH appends ran, granting a free, duplicated
+  // family business and corrupting state with a duplicate companyId.
+  setGameState(prev => {
+    if (prev.familyBusinesses?.some(fb => fb.companyId === companyId)) return prev; // dedup vs fresh state
+    const spend = applyMoneyDelta(prev, -cost, 'Create Family Business');
+    if (!spend) return prev; // unaffordable against fresh state → reject
+    const newFamilyBusiness: FamilyBusiness = {
+      companyId,
+      foundedGeneration: prev.generationNumber,
+      generationsHeld: 0,
+      brandValue: 0,
+      reputation: 50, // Start with neutral reputation
+    };
+    return {
+      ...prev,
+      ...spend,
+      familyBusinesses: [...(prev.familyBusinesses || []), newFamilyBusiness],
+    };
+  });
 
   log.info(`Created family business for company ${companyId}`);
 };

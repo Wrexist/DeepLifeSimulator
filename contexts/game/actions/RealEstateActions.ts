@@ -274,7 +274,18 @@ export const setPropertyRentMode = (
       log.warn(`Set rent mode rejected: ${propertyId} is not an owned property`);
       return prev;
     }
-    const safeRent = Math.max(0, typeof weeklyRent === 'number' && isFinite(weeklyRent) ? weeklyRent : 0);
+    let safeRent = Math.max(0, typeof weeklyRent === 'number' && isFinite(weeklyRent) ? weeklyRent : 0);
+    // ANTI-EXPLOIT: cap player-set rent to a realistic multiple of the
+    // property's value so it can't be set arbitrarily high. property.rent feeds
+    // income projections (and historically the passive-income cash path), so an
+    // unclamped value let a cheap property "earn" up to the $150k/wk cap. ~0.2%
+    // of value per week (~10%/yr gross) × 2 headroom is a generous ceiling.
+    const owned = findOwnedById(list, propertyId);
+    const propValue = owned && typeof owned.price === 'number' && isFinite(owned.price) ? owned.price : 0;
+    if (propValue > 0) {
+      const rentCeiling = Math.ceil(propValue * 0.004); // ~0.4%/wk (~20%/yr) generous upper bound
+      safeRent = Math.min(safeRent, rentCeiling);
+    }
     const properties = setRentModePure(list, propertyId, mode, safeRent);
     return { ...prev, realEstate: properties };
   });

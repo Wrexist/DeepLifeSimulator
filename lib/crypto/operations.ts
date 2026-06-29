@@ -244,7 +244,16 @@ export function executeMarketOrder(
 export function processOpenOrders(
   market: CryptoMarketState,
   cryptos: Crypto[],
-  currentWeek: number
+  currentWeek: number,
+  /**
+   * ANTI-EXPLOIT: cash the player actually has entering the tick. Buy orders
+   * only fill if affordable against this running budget (sell proceeds top it
+   * up as they fill). Without it, a player could place a limit buy, spend that
+   * same cash elsewhere, and still have the fill credit coins for free next
+   * week (the caller's `Math.max(0, money+delta)` clamp forgave the debt while
+   * keeping the asset). Defaults to Infinity to preserve legacy/test behavior.
+   */
+  cashAvailable: number = Infinity
 ): {
   market: CryptoMarketState;
   fills: { order: CryptoOrder; notionalUSD: number; coinAmount: number; realizedGain: number }[];
@@ -252,6 +261,7 @@ export function processOpenOrders(
   const fills: { order: CryptoOrder; notionalUSD: number; coinAmount: number; realizedGain: number }[] = [];
   let next: CryptoMarketState = market;
   const remaining: CryptoOrder[] = [];
+  let cashLeft = typeof cashAvailable === 'number' && isFinite(cashAvailable) ? cashAvailable : Infinity;
 
   for (const order of market.openOrders) {
     const coin = cryptos.find((c) => c.id === order.cryptoId);
@@ -271,10 +281,21 @@ export function processOpenOrders(
       continue;
     }
 
+    // Affordability gate for buys: a buy reserves `order.amount` USD. If the
+    // player can't currently afford it, leave the order OPEN (it can fill a
+    // later week once funded) rather than crediting coins for free.
+    if (order.side === 'buy' && order.amount > cashLeft + 0.01) {
+      remaining.push(order);
+      continue;
+    }
+
     // Execute as a market order against the current mid.
     const fillPrice = marketFillPrice(mid, order.side, order.amount * (order.side === 'buy' ? 1 : mid), regime);
     const coinAmount = order.side === 'buy' ? order.amount / fillPrice : order.amount;
     const notionalUSD = order.side === 'buy' ? order.amount : order.amount * fillPrice;
+    // Track the running cash budget: buys consume cash, sells add proceeds.
+    if (order.side === 'buy') cashLeft -= notionalUSD;
+    else cashLeft += notionalUSD;
 
     let realizedGain = 0;
     if (order.side === 'buy') {

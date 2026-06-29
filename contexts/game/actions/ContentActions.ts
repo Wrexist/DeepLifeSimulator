@@ -12,11 +12,21 @@ import { computeQuality, qualityMultiplier } from '@/lib/content/quality';
 import { projectStreamOutcome, projectVideoOutcome } from '@/lib/content/algorithm';
 import { streamEarnings, videoEarnings } from '@/lib/content/monetization';
 import { logger } from '@/utils/logger';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 
 const log = logger.scope('ContentActions');
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
+
+/**
+ * ANTI-EXPLOIT: per-week caps on monetized content actions. Energy is the only
+ * gate on streams/videos, but energy is cheaply refilled in-week via food, so
+ * without these caps immediate stream/video earnings (paid before any passive
+ * cap) are unbounded. Counters reset when `lastStreamWeek`/`lastVideoWeek` no
+ * longer equals the current week.
+ */
+const MAX_STREAMS_PER_WEEK = 5;
+const MAX_VIDEOS_PER_WEEK = 5;
 
 type SetGS = Dispatch<SetStateAction<GameState>>;
 
@@ -79,7 +89,13 @@ export function publishVideo(
     return { success: false, message: `Need ${cost} energy to record (have ${Math.round(energy)}).` };
   }
 
-  const channel = ensureChannel(gameState);
+  const preChannel = ensureChannel(gameState);
+  const videosThisWeek = preChannel.lastVideoWeek === currentWeek ? safe(preChannel.videosThisWeek, 0) : 0;
+  if (videosThisWeek >= MAX_VIDEOS_PER_WEEK) {
+    return { success: false, message: `You've published ${MAX_VIDEOS_PER_WEEK} videos this week — come back next week.` };
+  }
+
+  const channel = preChannel;
   const quality = computeQuality(channel.equipment, channel.pcUpgradeLevels);
   const outcome = projectVideoOutcome({
     quality,
@@ -102,12 +118,20 @@ export function publishVideo(
     rpm: Math.round(qualityMultiplier(quality) * 100) / 100,
   };
 
-  deps.updateMoney(setGameState, earnings, `Video: ${args.title}`);
+  // Atomic: re-check the weekly cap + energy against fresh state, fold the
+  // earnings credit into the same updater, and increment the weekly counter.
   setGameState((prev) => {
     const ch = ensureChannel(prev);
+    const count = ch.lastVideoWeek === currentWeek ? safe(ch.videosThisWeek, 0) : 0;
+    if (count >= MAX_VIDEOS_PER_WEEK) return prev;
+    const energyNow = safe(prev.stats?.energy, 0);
+    if (energyNow < cost) return prev;
+    const earn = applyMoneyDelta(prev, earnings, `Video: ${args.title}`);
+    if (!earn) return prev;
     return {
       ...prev,
-      stats: { ...prev.stats, energy: Math.max(0, safe(prev.stats?.energy, 0) - cost) },
+      ...earn,
+      stats: { ...earn.stats, energy: Math.max(0, energyNow - cost) },
       gamingStreaming: {
         ...ch,
         videos: [video, ...(ch.videos ?? [])].slice(0, 200),
@@ -115,6 +139,8 @@ export function publishVideo(
         totalViews: ch.totalViews + outcome.views,
         totalEarnings: ch.totalEarnings + earnings,
         experience: ch.experience + Math.floor(outcome.views / 100),
+        videosThisWeek: count + 1,
+        lastVideoWeek: currentWeek,
       },
     };
   });
@@ -155,7 +181,13 @@ export function runStream(
     return { success: false, message: `Need ${cost} energy to stream (have ${Math.round(energy)}).` };
   }
 
-  const channel = ensureChannel(gameState);
+  const preChannel = ensureChannel(gameState);
+  const streamsThisWeek = preChannel.lastStreamWeek === currentWeek ? safe(preChannel.streamsThisWeek, 0) : 0;
+  if (streamsThisWeek >= MAX_STREAMS_PER_WEEK) {
+    return { success: false, message: `You've streamed ${MAX_STREAMS_PER_WEEK} times this week — come back next week.` };
+  }
+
+  const channel = preChannel;
   const quality = computeQuality(channel.equipment, channel.pcUpgradeLevels);
   const outcome = projectStreamOutcome({
     quality,
@@ -179,12 +211,20 @@ export function runStream(
     uploadedAt: currentWeek,
   };
 
-  deps.updateMoney(setGameState, earnings, `Stream: ${args.game}`);
+  // Atomic: re-check the weekly cap + energy against fresh state, fold the
+  // earnings credit into the same updater, and increment the weekly counter.
   setGameState((prev) => {
     const ch = ensureChannel(prev);
+    const count = ch.lastStreamWeek === currentWeek ? safe(ch.streamsThisWeek, 0) : 0;
+    if (count >= MAX_STREAMS_PER_WEEK) return prev;
+    const energyNow = safe(prev.stats?.energy, 0);
+    if (energyNow < cost) return prev;
+    const earn = applyMoneyDelta(prev, earnings, `Stream: ${args.game}`);
+    if (!earn) return prev;
     return {
       ...prev,
-      stats: { ...prev.stats, energy: Math.max(0, safe(prev.stats?.energy, 0) - cost) },
+      ...earn,
+      stats: { ...earn.stats, energy: Math.max(0, energyNow - cost) },
       gamingStreaming: {
         ...ch,
         followers: ch.followers + outcome.newFollowers,
@@ -196,7 +236,7 @@ export function runStream(
         experience: ch.experience + Math.floor(outcome.viewers / 50),
         bestStream:
           !ch.bestStream || outcome.viewers > ch.bestStream.viewers ? stream : ch.bestStream,
-        streamsThisWeek: (ch.streamsThisWeek ?? 0) + 1,
+        streamsThisWeek: count + 1,
         lastStreamWeek: currentWeek,
       },
     };

@@ -658,11 +658,22 @@ export const applyForJob = (
 
   // Base acceptance chance (50% for first attempt, increases with attempts)
   const baseAcceptanceChance = 50;
-  const acceptanceChance = guaranteedAcceptance ? 100 : Math.min(90, Math.max(10, baseAcceptanceChance + (applicationAttempts - 1) * 8 - criminalPenalty));
+  // ANTI-EXPLOIT: the pity guarantee must NOT erase the criminal-background
+  // penalty. Previously `guaranteedAcceptance` forced 100% regardless of
+  // criminalLevel/wantedLevel, so a maxed-wanted player was auto-hired on the
+  // 5th attempt. When there's a criminal penalty, the pity branch still helps
+  // (caps the attempt at the best available chance) but employers can still
+  // reject — it's a roll capped at `100 - criminalPenalty`, never a guarantee.
+  const cleanGuarantee = guaranteedAcceptance && criminalPenalty <= 0;
+  const acceptanceChance = cleanGuarantee
+    ? 100
+    : guaranteedAcceptance
+      ? Math.min(90, Math.max(10, 100 - criminalPenalty))
+      : Math.min(90, Math.max(10, baseAcceptanceChance + (applicationAttempts - 1) * 8 - criminalPenalty));
   const applicationRollKey = `job_application:${gameState.weeksLived || 0}:${careerId}:attempt:${applicationAttempts}`;
-  const applicationRoll = guaranteedAcceptance ? null : getDeterministicRoll(gameState, applicationRollKey);
-  const rngCommitKeys: string[] = guaranteedAcceptance ? [] : [applicationRollKey];
-  const accepted = guaranteedAcceptance || ((applicationRoll || 0) * 100 < acceptanceChance);
+  const applicationRoll = cleanGuarantee ? null : getDeterministicRoll(gameState, applicationRollKey);
+  const rngCommitKeys: string[] = cleanGuarantee ? [] : [applicationRollKey];
+  const accepted = cleanGuarantee || ((applicationRoll || 0) * 100 < acceptanceChance);
 
   setGameState(prev => {
     // R4-K: re-check pending application + current job inside the updater so
@@ -770,19 +781,30 @@ export const promoteCareer = (
   // Promote to next level
   const newLevel = career.level + 1;
   const levelData = career.levels[newLevel];
-  
+
   if (!levelData) {
     log.error(`Level data not found for level ${newLevel} in career ${careerId}`);
     return { success: false, message: 'Invalid career level' };
   }
 
+  // R4-K-style guard: re-validate against fresh `prev` INSIDE the updater. The
+  // checks above read the stale `gameState` snapshot, so two promote taps in one
+  // React batch would both pass and skip a level / over-grant salary. Computing
+  // the new level from `prev.careers` (not the snapshot) makes the promotion
+  // atomic: the second tap sees progress already reset to 0 and is a no-op.
   setGameState(prev => {
+    const cur = prev.careers.find(c => c.id === careerId);
+    if (!cur || !cur.accepted) return prev;
+    if (cur.level >= cur.levels.length - 1) return prev;
+    if ((cur.progress ?? 0) < 100) return prev;
+    const promotedLevel = cur.level + 1;
+    if (!cur.levels[promotedLevel]) return prev;
     const updatedCareers = prev.careers.map(c => {
       if (c.id !== careerId) return c;
-      
+
       return {
         ...c,
-        level: newLevel,
+        level: promotedLevel,
         progress: 0, // Reset progress after promotion
       };
     });

@@ -87,6 +87,10 @@ export interface Pet {
   // R5-C: weeklyLived of the most recent `petSleep` call. Sleep is gated to
   // once-per-week per pet to prevent infinite free recovery exploits.
   lastSleepWeek?: number;
+  // weeksLived of the most recent `enterCompetition` call. Competitions are
+  // gated to once-per-week per pet: each pays 10× the entry fee at up to 90%
+  // win odds, so without this gate a player could re-tap for unbounded money.
+  lastCompetitionWeek?: number;
 }
 
 export type CrimeSkillId = 'stealth' | 'hacking' | 'lockpicking';
@@ -977,6 +981,10 @@ export interface PulseFollowGraph {
   followingNpcIds: string[];
   followedByNpcIds: string[];
   lastUpdatedWeek: number;     // weeksLived
+  // ANTI-EXPLOIT: NPCs that have already granted their one-time follow-back
+  // follower boost. Without this, a follow → unfollow → re-follow loop farms
+  // unlimited followers (and therefore ad/brand-deal income).
+  followBackGrantedNpcIds?: string[];
 }
 
 export interface PulseDeclinedOffer {
@@ -1841,6 +1849,11 @@ export interface GamingStreamingState {
   // ANTI-EXPLOIT: Track weekly stream count to prevent unlimited real-time income farming
   streamsThisWeek?: number;
   lastStreamWeek?: number; // weeksLived when last stream occurred
+  // ANTI-EXPLOIT: same weekly cap for published videos (energy is cheaply
+  // refillable in-week via food, so without a per-week cap immediate video
+  // earnings are unbounded).
+  videosThisWeek?: number;
+  lastVideoWeek?: number; // weeksLived when last video was published
 }
 
 // Re-export from lib/social/relations for convenience
@@ -2023,6 +2036,11 @@ export interface GameState {
   criminalXp: number;
   weeklyJailActivities?: Record<string, number>;
   weeklyStreetJobs?: Record<string, number>; // Track how many times each street job was done this week
+  // ANTI-EXPLOIT: study sessions completed per education this week. studyExtra
+  // shaves a full week off a degree per call; without a per-week cap a player
+  // could spam-study to complete a multi-year, tuition-gated degree instantly.
+  // Resets on every week advance (like weeklyStreetJobs).
+  weeklyStudySessions?: Record<string, number>;
   streetJobFailureCount?: Record<string, number>; // Track consecutive failures per job (for pity system - guaranteed success after 5 failures)
   // NOTE: streetJobFailureCount persists across weeks (unlike weeklyStreetJobs which resets)
   // This allows pity system to work over multiple weeks
@@ -2262,6 +2280,11 @@ export interface GameState {
     scandalHistory?: PulseScandalRecord[];
     brandInbox?: PulseBrandInbox;
     verifiedPro?: PulseVerifiedPro;
+    // ANTI-EXPLOIT: sticky flag — the +500 Verified Pro signup-bonus followers
+    // are granted only the FIRST time ever. Lives OUTSIDE verifiedPro (which is
+    // replaced wholesale on resubscribe) and is never cleared on cancel, so a
+    // cancel→resubscribe loop can't re-mint the bonus.
+    verifiedProWelcomeClaimed?: boolean;
     notifications?: PulseNotification[];                   // ring buffer, cap 100
     liveSession?: PulseLiveSession | null;
     pendingBoosts?: PulsePendingBoost[];
@@ -2409,6 +2432,10 @@ export interface GameState {
   weeklyChallenge?: {
     challengeId: string;
     startedAt: number;
+    /** weeksLived when this challenge instance started. ANTI-EXPLOIT: rotation
+     *  and selection are anchored to this (game time), not Date.now(), so the
+     *  reward can't be re-minted by advancing the device clock. */
+    startedWeek?: number;
     progress: { objectiveId: string; current: number; target: number; met: boolean }[];
     completed: boolean;
     rewardClaimed: boolean;

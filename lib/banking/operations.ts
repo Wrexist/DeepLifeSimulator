@@ -250,18 +250,19 @@ export function chargeCreditCard(
   if (safe(card.balance) + amt > safeLimit) {
     return { banking, ok: false, rewardsEarned: 0, reason: 'Over credit limit' };
   }
-  const effectiveRate = Math.max(
-    safe(card.rewardsRate),
-    typeof minRewardsRate === 'number' && isFinite(minRewardsRate) ? Math.max(0, minRewardsRate) : 0
-  );
-  const rewards = amt * effectiveRate;
+  // ANTI-EXPLOIT: cashback is accrued on SETTLEMENT (when the balance is paid
+  // down in payCreditCard), NOT at charge time. Crediting rewards the instant a
+  // charge posts — before any cash leaves the player — made cashback riskless
+  // free money: charge to the limit, redeem the rewards, then pay the balance
+  // later from the same cash. Charging now only increases the (interest-bearing)
+  // balance; the player only earns rewards on money they actually repay.
+  void minRewardsRate; // rate is applied at payment time, not here
   const next: BankingState = { ...banking, creditCards: [...banking.creditCards] };
   next.creditCards[idx] = {
     ...card,
     balance: safe(card.balance) + amt,
-    pendingRewards: safe(card.pendingRewards) + rewards,
   };
-  return { banking: next, ok: true, rewardsEarned: rewards };
+  return { banking: next, ok: true, rewardsEarned: 0 };
 }
 
 export function payCreditCard(
@@ -269,7 +270,9 @@ export function payCreditCard(
   cardId: string,
   fromAccountId: string,
   amount: number,
-  currentWeek: number
+  currentWeek: number,
+  /** Cashback-rate floor from the Premium Credit Card IAP (decimal). */
+  minRewardsRate?: number
 ): { banking: BankingState; ok: boolean; reason?: string } {
   const cardIdx = banking.creditCards.findIndex((c) => c.id === cardId);
   if (cardIdx === -1) return { banking, ok: false, reason: 'Card not found' };
@@ -288,9 +291,17 @@ export function payCreditCard(
     lastPaymentWeek?: number;
     onTimePayments?: number;
   };
+  // Cashback accrues here, on the amount actually REPAID (see chargeCreditCard).
+  // This keeps cashback a discount on settled spend rather than free cash.
+  const effectiveRate = Math.max(
+    safe(card.rewardsRate),
+    typeof minRewardsRate === 'number' && isFinite(minRewardsRate) ? Math.max(0, minRewardsRate) : 0
+  );
+  const rewards = amt * effectiveRate;
   next.creditCards[cardIdx] = {
     ...card,
     balance: safe(card.balance) - amt,
+    pendingRewards: safe(card.pendingRewards) + rewards,
     lastPaymentWeek: currentWeek,
     onTimePayments: (cardWithHistory.onTimePayments ?? 0) + 1,
   } as typeof card;

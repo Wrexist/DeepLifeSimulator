@@ -542,7 +542,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  //
  // R7 step 2.5b-i: `weeklyCtx` was further hoisted to just after newStats
  // creation so the career reducer above can use it too.
+ // Capture the diet deduction so it can be threaded into the weekly cash
+ // writeback below. applyDietPlanForWeek mutates newStats.money, but the
+ // cashBeforeLoans expression recomputes cash from the ORIGINAL currentMoney
+ // and overwrites newStats.money — so without this the diet cost was silently
+ // discarded and the diet plan was effectively free.
+ const moneyBeforeDiet = typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0;
  const dietResult = applyDietPlanForWeek(prevState.dietPlans, weeklyCtx);
+ const dietWeeklyCost = Math.max(0, moneyBeforeDiet - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
  if (dietResult.logMessage) {
    logger.info(dietResult.logMessage);
  }
@@ -648,8 +655,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[HUSTLE TICK] Failed:', hustleErr);
  }
 
- // Calculate passive income
- const passiveIncomeResult = calcWeeklyPassiveIncome(prevState);
+ // Calculate passive income.
+ // excludeRealEstate: rent is paid for cash by the tenancy tick below
+ // (applyRentAndHousing → housingRentalIncome). Including the legacy
+ // property.rent stream here too double-paid rent and let an unbounded
+ // player-set rent print money — so it's excluded from the cash total.
+ const passiveIncomeResult = calcWeeklyPassiveIncome(prevState, { excludeRealEstate: true });
  const passiveIncome = passiveIncomeResult.total || 0;
 
  // R7 Phase 2 step 2.4a: income totals aggregation extracted into
@@ -722,7 +733,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // normalization (>1 = percent, else decimal), same weekly-rate math,
  // same bankruptcy-floor + breathing-room logic, same missed-payment
  // compounding penalty.
- const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep);
+ const cashBeforeLoans = Math.max(0, currentMoney + totalIncome - incomeTax - weeklyRent + housingRentalIncome - housingUpkeep - dietWeeklyCost);
  const loanResult = applyLoanAutopay({
    prevLoans: prevState.loans,
    cashAvailable: cashBeforeLoans,
@@ -1399,6 +1410,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  yields,
  prices,
  currentWeek: nextWeeksLived,
+ // Gate buy-order fills on actual cash (anti free-fill exploit).
+ cashIn: newStats.money,
  rollFor: weeklyRoll,
  });
  if (stocksTickResult.cashDelta!== 0) {
@@ -1532,6 +1545,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // These counters track how many times each job/activity was done THIS week
  weeklyStreetJobs: {}, // Always reset when advancing week
  weeklyJailActivities: {}, // Always reset when advancing week
+ weeklyStudySessions: {}, // Always reset when advancing week
  // Decrease jail time by 1 week when advancing, or add police encounter jail time
  jailWeeks: (() => {
  // Base: either an encounter triggered, or decay the prior sentence.

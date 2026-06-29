@@ -187,7 +187,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
   }
 
   // --- 2) Process open orders (limits + stops) ---------------------------
-  const orderResult = processOpenOrders(market, cryptos, input.currentWeek);
+  const orderResult = processOpenOrders(market, cryptos, input.currentWeek, safe(input.cashIn, 0));
   market = orderResult.market;
   for (const fill of orderResult.fills) {
     if (fill.order.side === 'buy') {

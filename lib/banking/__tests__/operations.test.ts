@@ -141,13 +141,25 @@ describe('credit cards', () => {
     expect(r.banking.creditScore.inquiries[0].type).toBe('card');
   });
 
-  it('accrues rewards on spend', () => {
+  it('does NOT accrue rewards on charge (anti-exploit: accrues on settlement)', () => {
     const issued = applyForCreditCard(emptyBanking(), 'standard', 0.20, 0).banking;
     const card = issued.creditCards[0];
     const r = chargeCreditCard(issued, card.id, 500);
     expect(r.ok).toBe(true);
     expect(r.banking.creditCards[0].balance).toBe(500);
-    expect(r.banking.creditCards[0].pendingRewards).toBeCloseTo(5, 2); // 1%
+    // Cashback is no longer credited at charge time — only on repayment.
+    expect(r.banking.creditCards[0].pendingRewards).toBe(0);
+    expect(r.rewardsEarned).toBe(0);
+  });
+
+  it('accrues rewards on settlement (payment), proportional to amount repaid', () => {
+    let b = applyForCreditCard(emptyBanking(), 'standard', 0.20, 0).banking;
+    b = chargeCreditCard(b, b.creditCards[0].id, 500).banking;
+    expect(b.creditCards[0].pendingRewards).toBe(0); // nothing earned yet
+    const r = payCreditCard(b, b.creditCards[0].id, 'chk', 500, 0);
+    expect(r.ok).toBe(true);
+    expect(r.banking.creditCards[0].balance).toBe(0);
+    expect(r.banking.creditCards[0].pendingRewards).toBeCloseTo(5, 2); // 1% of repaid $500
   });
 
   it('rejects charges over the credit limit', () => {

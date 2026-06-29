@@ -148,8 +148,11 @@ export function calculateMiningEarnings(
     const automationBonus = (warehouse.automationLevel || 0) * 0.02; // 2% per level
     minerCryptoEarnings *= (1 + automationBonus);
 
-    // Apply difficulty multiplier (global mining difficulty)
-    const difficulty = warehouse.difficultyMultiplier || 1.0;
+    // Apply difficulty multiplier (global mining difficulty).
+    // Clamp to >= 1: difficulty should only ever reduce earnings. A corrupt or
+    // tampered save with 0 < multiplier < 1 (or <= 0) would otherwise multiply
+    // earnings (or divide by zero → Infinity), minting crypto.
+    const difficulty = Math.max(1, warehouse.difficultyMultiplier || 1.0);
     minerCryptoEarnings /= difficulty;
 
     totalCryptoEarned += minerCryptoEarnings;

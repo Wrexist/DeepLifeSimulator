@@ -2198,12 +2198,16 @@ describe('pre-tick equivalence — applyDietPlanForWeek', () => {
     expect({ result, newStats: ctx.newStats }).toMatchSnapshot();
   });
 
-  it('cost > money: floors money at 0', () => {
+  it('cost > money: skips gains and charges nothing (anti free-gain when broke)', () => {
     const plans: DietPlan[] = [
       { id: 'd5', name: 'Expensive', description: '', dailyCost: 100, healthGain: 1, energyGain: 1, active: true },
     ];
-    const ctx = dietStubCtx(dietStubStats({ money: 200 })); // cost = 700, money = 200 → floor at 0
+    const ctx = dietStubCtx(dietStubStats({ money: 200 })); // cost = 700 > money 200 → no-op week
     const result = applyDietPlanForWeek(plans, ctx);
+    // Unaffordable: money unchanged, no health/energy gains applied.
+    expect(ctx.newStats.money).toBe(200);
+    expect(ctx.newStats.health).toBe(60);
+    expect(ctx.newStats.energy).toBe(60);
     expect({ result, newStats: ctx.newStats }).toMatchSnapshot();
   });
 
@@ -2217,12 +2221,15 @@ describe('pre-tick equivalence — applyDietPlanForWeek', () => {
     expect({ result, newStats: ctx.newStats }).toMatchSnapshot();
   });
 
-  it('NaN money: sanitized to 0 before subtraction', () => {
+  it('NaN money: sanitized to 0, treated as unaffordable (no gains, no charge)', () => {
     const plans: DietPlan[] = [
       { id: 'd6', name: 'X', description: '', dailyCost: 5, healthGain: 1, energyGain: 1, active: true },
     ];
     const ctx = dietStubCtx(dietStubStats({ money: NaN as any }));
     const result = applyDietPlanForWeek(plans, ctx);
+    // NaN → 0, which is < weekly cost (35), so it's a no-op week.
+    expect(ctx.newStats.money).toBe(0);
+    expect(ctx.newStats.health).toBe(60);
     expect({ result, newStats: ctx.newStats }).toMatchSnapshot();
   });
 });

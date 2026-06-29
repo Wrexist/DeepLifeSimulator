@@ -169,6 +169,28 @@ describe('processOpenOrders', () => {
     expect(result.market.orderHistory[0].status).toBe('filled');
   });
 
+  it('does NOT fill a buy the player cannot afford (anti free-fill exploit)', () => {
+    const market = placeOrder(emptyMarket(), {
+      cryptoId: 'btc',
+      side: 'buy',
+      type: 'limit',
+      amount: 1000,
+      limitPrice: 90,
+      placedWeek: 0,
+    }).market;
+    const cheaperBtc = { ...btc, price: 85 }; // price condition met → would fill
+
+    // cashAvailable = 0 → order stays OPEN, no coins credited.
+    const broke = processOpenOrders(market, [cheaperBtc], 2, 0);
+    expect(broke.fills).toHaveLength(0);
+    expect(broke.market.openOrders).toHaveLength(1);
+
+    // cashAvailable >= notional → fills as before.
+    const funded = processOpenOrders(market, [cheaperBtc], 2, 1000);
+    expect(funded.fills).toHaveLength(1);
+    expect(funded.market.openOrders).toHaveLength(0);
+  });
+
   it('triggers a sell stop when price falls below stopPrice', () => {
     let market: CryptoMarketState = {
       ...emptyMarket(),

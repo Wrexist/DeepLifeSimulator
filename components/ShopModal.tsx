@@ -5,9 +5,8 @@ import { useGame } from '@/contexts/GameContext';
 import { X, Zap, TrendingUp, GraduationCap, Banknote, Gift, Unlock, Gem, RefreshCw } from 'lucide-react-native';
 import usePressableScale from '@/hooks/usePressableScale';
 import Skeleton from '@/components/anim/Skeleton';
-import { iapService, applyProductBenefitsToState } from '@/services/IAPService';
-import type { GameState } from '@/contexts/game/types';
-import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 
 const log = logger.scope('ShopModal');
@@ -45,7 +44,7 @@ interface ShopModalProps {
 }
 
 export default function ShopModal({ visible, onClose }: ShopModalProps) {
-  const { gameState, setGameState, saveGame } = useGame();
+  const { gameState } = useGame();
   const { settings, perks } = gameState;
   const [activeTab, setActiveTab] = useState<'perks' | 'packs' | 'special' | 'gold'>('perks');
   const [loading, setLoading] = useState(true);
@@ -152,9 +151,12 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
       const result = await iapService.purchaseProduct(itemId);
       
       if (result.success) {
-        // Apply the purchase benefits locally for immediate feedback
-        await applyPurchaseBenefits(itemId);
-        
+        // DOUBLE-GRANT FIX: do NOT re-apply benefits here. iapService.purchaseProduct
+        // already applies the product to live state (via the IAPHandler-registered
+        // stateUpdater) and persists it, exactly once per transaction. The previous
+        // local applyPurchaseBenefits() ran a SECOND additive grant (+= gems/money/
+        // youth pills), doubling every consumable purchase. (Mirrors the GemShopModal
+        // fix, which removed the same redundant re-apply.)
         Alert.alert('Success', 'Purchase completed! Your items have been added to your account.');
       } else {
         Alert.alert('Purchase Failed', result.message || 'Unable to complete purchase. Please try again.');
@@ -165,31 +167,6 @@ export default function ShopModal({ visible, onClose }: ShopModalProps) {
     } finally {
       setIapLoading(false);
     }
-  };
-
-  const applyPurchaseBenefits = async (itemId: string) => {
-    const config = getProductConfig(itemId);
-    if (!config) return;
-
-    // Apply ALL config benefits through the single shared helper — the same
-    // source of truth the IAP fulfillment paths use — so the Shop can no longer
-    // diverge from them. (This path previously dropped moneyMultiplier, youth
-    // pills, gold upgrades, everythingUnlocked, revival, etc.)
-    setGameState(prev => {
-      const next: GameState =
-        typeof structuredClone === 'function'
-          ? structuredClone(prev)
-          : JSON.parse(JSON.stringify(prev));
-      applyProductBenefitsToState(next, config, itemId);
-      return next;
-    });
-
-    // Persist permanent (cross-slot) perks via the same routine the disk
-    // fulfillment path uses, so the two stay in lock-step.
-    await iapService.persistPermanentPerks(config);
-
-    // Save the game state
-    await saveGame();
   };
 
   const handleRestorePurchases = async () => {

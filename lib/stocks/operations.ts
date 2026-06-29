@@ -85,7 +85,15 @@ export function processOpenOrders(
   orders: StockOrder[],
   orderHistory: StockOrder[],
   prices: Record<string, number>,
-  currentWeek: number
+  currentWeek: number,
+  /**
+   * ANTI-EXPLOIT: cash on hand entering the tick. Buy fills are gated on this
+   * running budget (sell proceeds top it up) so a player can't place a limit
+   * buy, spend the cash elsewhere, and still receive shares for free next week
+   * (the caller floored negative cash to 0, forgiving the debt). Defaults to
+   * Infinity to preserve legacy/test behavior.
+   */
+  cashAvailable: number = Infinity
 ): {
   orders: StockOrder[];
   orderHistory: StockOrder[];
@@ -94,6 +102,7 @@ export function processOpenOrders(
   const fills: { order: StockOrder; notionalUSD: number; shares: number }[] = [];
   const remaining: StockOrder[] = [];
   let history = orderHistory;
+  let cashLeft = typeof cashAvailable === 'number' && isFinite(cashAvailable) ? cashAvailable : Infinity;
 
   for (const order of orders) {
     const mid = safe(prices[order.symbol?.toUpperCase()], 0);
@@ -111,6 +120,14 @@ export function processOpenOrders(
       continue;
     }
 
+    // Affordability gate for buys: a buy reserves `order.amount` USD. If the
+    // player can't currently afford it, leave the order OPEN (fills a later
+    // week once funded) instead of crediting shares for free.
+    if (order.side === 'buy' && order.amount > cashLeft + 0.01) {
+      remaining.push(order);
+      continue;
+    }
+
     // Execute at current mid + spread + slippage.
     const fillPrice = marketFillPrice(
       mid,
@@ -119,6 +136,9 @@ export function processOpenOrders(
     );
     const shares = order.side === 'buy' ? order.amount / fillPrice : order.amount;
     const notional = order.side === 'buy' ? order.amount : order.amount * fillPrice;
+    // Track the running cash budget: buys consume cash, sells add proceeds.
+    if (order.side === 'buy') cashLeft -= notional;
+    else cashLeft += notional;
     const completed: StockOrder = {
       ...order,
       status: 'filled',

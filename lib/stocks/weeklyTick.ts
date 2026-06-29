@@ -40,6 +40,8 @@ export interface StocksTickInput {
   /** Per-symbol current mid price (after legacy simulateWeek). */
   prices: Record<string, number>;
   currentWeek: number;
+  /** Player's cash on hand entering the tick — gates buy-order fills. */
+  cashIn?: number;
   rollFor: (key: string) => number;
 }
 
@@ -111,7 +113,13 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
 
   // 4) Match open limit / stop orders.
   let realizedGains = 0;
-  const orderResult = processOpenOrders(input.openOrders, input.orderHistory, prices, input.currentWeek);
+  const orderResult = processOpenOrders(
+    input.openOrders,
+    input.orderHistory,
+    prices,
+    input.currentWeek,
+    typeof input.cashIn === 'number' && isFinite(input.cashIn) ? input.cashIn : Infinity,
+  );
   for (const fill of orderResult.fills) {
     const sym = fill.order.symbol.toUpperCase();
     if (fill.order.side === 'buy') {
