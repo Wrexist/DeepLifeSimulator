@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DeepLife Simulator — Live Any Life. Support &amp; Help</title>
+<meta name="description" content="Official support, help, FAQ and What's New for DeepLife Simulator — the ultimate life simulation game where every choice matters. iOS now, Android soon." />
+<meta name="theme-color" content="#0F172A" />
+<meta property="og:title" content="DeepLife Simulator — Live Any Life" />
+<meta property="og:description" content="The ultimate life simulation where every choice matters. Support, FAQ & What's New." />
+<meta property="og:image" content="assets/shot3.png" />
+<link rel="icon" href="assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --indigo:#6366F1; --indigo-l:#818CF8; --indigo-d:#4F46E5;
+  --violet:#8B5CF6; --pink:#EC4899; --emerald:#10B981; --amber:#F59E0B; --sky:#3B82F6;
+  --d900:#0F172A; --d800:#1E293B; --d700:#334155; --d600:#475569; --d500:#64748B;
+  --ink:#E2E8F0; --muted:#94A3B8; --white:#fff;
+  --r:20px; --maxw:1160px;
+  --glass:rgba(30,41,59,.55); --stroke:rgba(148,163,184,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;color:var(--ink);background:var(--d900);
+  overflow-x:hidden;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.font-d{font-family:'Sora','Inter',sans-serif;letter-spacing:-.02em;line-height:1.08}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+
+/* ---------- living background ---------- */
+.bg{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(1100px 700px at 12% -8%, rgba(99,102,241,.32), transparent 60%),
+  radial-gradient(1000px 720px at 92% 4%, rgba(139,92,246,.28), transparent 60%),
+  radial-gradient(900px 800px at 60% 110%, rgba(236,72,153,.16), transparent 60%),
+  linear-gradient(180deg,#0B1120,#0F172A 40%,#0B1120);}
+.bg::after{content:"";position:absolute;inset:0;opacity:.5;
+  background-image:radial-gradient(rgba(148,163,184,.10) 1px,transparent 1px);
+  background-size:42px 42px;-webkit-mask-image:radial-gradient(60% 60% at 50% 30%,#000,transparent);
+  mask-image:radial-gradient(60% 60% at 50% 30%,#000,transparent);}
+.orbs{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;animation:float 16s ease-in-out infinite}
+.orb.a{width:420px;height:420px;left:-80px;top:8%;background:radial-gradient(circle,#6366F1,transparent 70%)}
+.orb.b{width:380px;height:380px;right:-60px;top:30%;background:radial-gradient(circle,#8B5CF6,transparent 70%);animation-delay:-4s}
+.orb.c{width:340px;height:340px;left:30%;bottom:-90px;background:radial-gradient(circle,#EC4899,transparent 70%);animation-delay:-8s}
+@keyframes float{0%,100%{transform:translateY(0) translateX(0)}50%{transform:translateY(-46px) translateX(28px)}}
+
+/* ---------- layout ---------- */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+section{padding:96px 0;position:relative}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--indigo-l);background:rgba(99,102,241,.12);
+  border:1px solid rgba(129,140,248,.28);padding:7px 14px;border-radius:999px;margin-bottom:18px}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);box-shadow:0 0 0 4px rgba(16,185,129,.18);animation:pulse 2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 9px rgba(16,185,129,0)}}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(16px);
+  background:rgba(11,17,32,.62);border-bottom:1px solid var(--stroke)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:66px}
+.brand{display:flex;align-items:center;gap:11px;font-family:'Sora';font-weight:800;font-size:18px}
+.brand img{width:34px;height:34px;border-radius:9px;box-shadow:0 6px 18px rgba(99,102,241,.5)}
+.navlinks{display:flex;gap:26px;font-size:14px;font-weight:500;color:var(--muted)}
+.navlinks a{transition:.2s}.navlinks a:hover{color:var(--white)}
+.btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:14px;
+  padding:11px 20px;border-radius:12px;transition:transform .2s,box-shadow .2s,filter .2s;cursor:pointer;border:none}
+.btn-p{background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;box-shadow:0 10px 26px rgba(99,102,241,.45)}
+.btn-p:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(99,102,241,.6);filter:brightness(1.06)}
+.btn-g{background:var(--glass);border:1px solid var(--stroke);color:var(--ink)}
+.btn-g:hover{transform:translateY(-2px);border-color:rgba(129,140,248,.5)}
+@media(max-width:820px){.navlinks{display:none}}
+
+/* ---------- hero ---------- */
+.hero{padding-top:70px;padding-bottom:40px}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(40px,6vw,68px);font-weight:800;margin:14px 0 18px}
+.hero h1 .grad{background:linear-gradient(120deg,#818CF8,#C4B5FD 40%,#F0ABFC);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,2.1vw,20px);color:var(--muted);max-width:540px;margin-bottom:30px}
+.cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.appstore{display:inline-flex;align-items:center;gap:12px;background:#000;border:1px solid #2a2a33;
+  padding:11px 20px;border-radius:14px;transition:.25s}
+.appstore:hover{transform:translateY(-2px);border-color:#555}
+.appstore svg{width:26px;height:26px;fill:#fff}
+.appstore small{display:block;font-size:10px;color:#bbb;line-height:1.1}
+.appstore b{font-family:'Sora';font-size:18px;font-weight:700}
+.trust{display:flex;gap:26px;margin-top:34px;flex-wrap:wrap}
+.trust .n{font-family:'Sora';font-size:28px;font-weight:800;background:linear-gradient(120deg,#fff,#C7D2FE);-webkit-background-clip:text;background-clip:text;color:transparent}
+.trust .l{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+/* phone stack */
+.phones{position:relative;height:560px;display:flex;align-items:center;justify-content:center;perspective:1400px}
+.phone{position:absolute;width:248px;border-radius:34px;overflow:hidden;
+  border:7px solid #0b0f1c;box-shadow:0 40px 80px -20px rgba(0,0,0,.7),0 0 0 1px rgba(148,163,184,.12);
+  transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+.phone img{display:block}
+.phone.p1{transform:rotateY(16deg) translateX(-150px) translateZ(-60px) scale(.86);z-index:1;animation:bobA 7s ease-in-out infinite}
+.phone.p2{transform:translateZ(40px) scale(1.02);z-index:3;animation:bobB 6s ease-in-out infinite}
+.phone.p3{transform:rotateY(-16deg) translateX(150px) translateZ(-60px) scale(.86);z-index:1;animation:bobA 7.5s ease-in-out infinite reverse}
+@keyframes bobA{50%{transform:rotateY(16deg) translateX(-150px) translateZ(-60px) scale(.86) translateY(-22px)}}
+@keyframes bobB{50%{transform:translateZ(40px) scale(1.02) translateY(-16px)}}
+.glow-ring{position:absolute;width:430px;height:430px;border-radius:50%;
+  background:conic-gradient(from 0deg,#6366F1,#8B5CF6,#EC4899,#6366F1);filter:blur(70px);opacity:.4;z-index:0;animation:spin 18s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:900px){.hero-grid{grid-template-columns:1fr}.phones{height:480px;margin-top:10px}.trust{justify-content:center}.hero{text-align:center}.lead{margin-inline:auto}.cta-row{justify-content:center}}
+
+/* ---------- features ---------- */
+.sec-head{text-align:center;max-width:680px;margin:0 auto 56px}
+.sec-head h2{font-size:clamp(30px,4.4vw,46px);font-weight:800;margin-bottom:14px}
+.sec-head p{color:var(--muted);font-size:17px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+@media(max-width:880px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+.card{background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r);padding:30px 26px;
+  position:relative;overflow:hidden;transition:transform .3s,border-color .3s;backdrop-filter:blur(10px)}
+.card::before{content:"";position:absolute;inset:0;background:radial-gradient(400px at var(--mx,50%) var(--my,0),rgba(129,140,248,.16),transparent 60%);opacity:0;transition:.3s}
+.card:hover{transform:translateY(-6px);border-color:rgba(129,140,248,.45)}
+.card:hover::before{opacity:1}
+.ico{width:54px;height:54px;border-radius:15px;display:grid;place-items:center;font-size:26px;margin-bottom:18px;
+  background:linear-gradient(135deg,rgba(99,102,241,.25),rgba(139,92,246,.18));border:1px solid rgba(129,140,248,.3)}
+.card h3{font-size:20px;font-weight:700;margin-bottom:9px}
+.card p{color:var(--muted);font-size:15px}
+
+/* ---------- showcase ---------- */
+.shots{display:flex;gap:20px;overflow-x:auto;padding:8px 4px 24px;scroll-snap-type:x mandatory;-ms-overflow-style:none;scrollbar-width:none}
+.shots::-webkit-scrollbar{display:none}
+.shot{flex:0 0 auto;width:236px;scroll-snap-align:center;border-radius:30px;overflow:hidden;
+  border:6px solid #0b0f1c;box-shadow:0 30px 60px -24px rgba(0,0,0,.7);transition:transform .35s}
+.shot:hover{transform:translateY(-10px) scale(1.02)}
+.shot figcaption{background:#0b0f1c;color:var(--muted);font-size:12.5px;text-align:center;padding:9px;font-weight:500}
+
+/* ---------- whats new ---------- */
+.changelog{max-width:760px;margin:0 auto;background:var(--glass);border:1px solid var(--stroke);
+  border-radius:var(--r);padding:36px 34px;backdrop-filter:blur(10px)}
+.verbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:24px}
+.verbar .v{font-family:'Sora';font-size:26px;font-weight:800}
+.chip{font-size:12px;font-weight:700;color:#0B1120;background:linear-gradient(135deg,var(--emerald),#34D399);padding:5px 12px;border-radius:999px}
+.cl{list-style:none;display:grid;gap:16px}
+.cl li{display:grid;grid-template-columns:34px 1fr;gap:14px;align-items:start}
+.cl .tag{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;
+  background:rgba(99,102,241,.16);border:1px solid rgba(129,140,248,.3)}
+.cl b{color:var(--white)}
+.cl span{color:var(--muted);font-size:15px}
+
+/* ---------- support / faq ---------- */
+.support-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:820px){.support-grid{grid-template-columns:1fr}}
+.faq details{background:var(--glass);border:1px solid var(--stroke);border-radius:14px;margin-bottom:12px;overflow:hidden;transition:.2s}
+.faq details[open]{border-color:rgba(129,140,248,.45)}
+.faq summary{cursor:pointer;list-style:none;padding:18px 20px;font-weight:600;font-size:15.5px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-size:22px;color:var(--indigo-l);transition:.25s}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq p{padding:0 20px 18px;color:var(--muted);font-size:15px}
+.contact{background:linear-gradient(160deg,rgba(99,102,241,.16),rgba(139,92,246,.1));
+  border:1px solid rgba(129,140,248,.3);border-radius:var(--r);padding:32px 30px}
+.contact h3{font-size:22px;margin-bottom:8px}
+.contact p{color:var(--muted);font-size:15px;margin-bottom:20px}
+.contact .line{display:flex;align-items:center;gap:13px;padding:14px 16px;background:rgba(11,17,32,.5);
+  border:1px solid var(--stroke);border-radius:13px;margin-bottom:12px;transition:.2s}
+.contact .line:hover{border-color:rgba(129,140,248,.5);transform:translateX(3px)}
+.contact .line .e{font-size:22px}
+.contact .line b{display:block;font-size:15px}
+.contact .line small{color:var(--muted);font-size:12.5px}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--stroke);padding:46px 0 60px;text-align:center;color:var(--muted)}
+footer .brand{justify-content:center;margin-bottom:14px;color:var(--ink)}
+.flinks{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;font-size:14px;margin-bottom:16px}
+.flinks a:hover{color:var(--white)}
+footer small{font-size:12.5px}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s,transform .7s}
+.reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span><span class="orb c"></span></div>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="DeepLife icon" /> DeepLife</a>
+    <div class="navlinks">
+      <a href="features.html">Features</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="whats-new.html">What's New</a>
+      <a href="support.html">Support</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn btn-p" href="#download">Get the App</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header id="top" class="hero wrap">
+  <div class="hero-grid">
+    <div class="reveal in">
+      <span class="eyebrow"><span class="dot"></span> v2.5.1 · Now on iOS</span>
+      <h1>Live <span class="grad">any life</span>.<br/>Every choice matters.</h1>
+      <p class="lead">DeepLife Simulator is the ultimate life sim — be born anywhere, build a career, find love, go viral, raise a family, and leave a dynasty behind. One tap at a time, write a life worth remembering.</p>
+      <div class="cta-row" id="download">
+        <a class="appstore" href="#" aria-label="Download on the App Store">
+          <svg viewBox="0 0 384 512"><path d="M318.7 268c-.3-37 16.4-65 50.1-85.6-18.8-27-47.2-41.8-84.7-44.7-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C72.5 139.2 16 174.5 16 246.3c0 21.3 3.9 43.3 11.7 66 10.4 30 47.9 103.7 87 102.5 20.5-.5 35-14.6 61.7-14.6 25.9 0 39.3 14.6 62.1 14.6 39.5-.6 73.4-67.5 83.3-97.6-52.9-25-52.1-73.1-52.1-74.2zM258.6 84.8c16.6-19.7 27.6-47.2 24.6-74.8-23.8 1-52.7 15.9-69.7 35.6-15.4 17.6-28.9 45.4-25.3 72.6 26.5 2 52.3-13.5 70.4-33.4z"/></svg>
+          <span><small>Download on the</small><b>App Store</b></span>
+        </a>
+        <a class="btn btn-g" href="#support">Need help?</a>
+      </div>
+      <div class="trust">
+        <div><div class="n" data-count="80">0</div><div class="l">Life events</div></div>
+        <div><div class="n" data-count="100">0</div><div class="l">% your story</div></div>
+        <div><div class="n">∞</div><div class="l">Lives to live</div></div>
+      </div>
+    </div>
+    <div class="phones reveal in">
+      <div class="glow-ring"></div>
+      <div class="phone p1"><img src="assets/shot2.png" alt="Hustle and rise" loading="lazy"/></div>
+      <div class="phone p2"><img src="assets/shot3.png" alt="Build the empire" /></div>
+      <div class="phone p3"><img src="assets/shot4.png" alt="Go viral" loading="lazy"/></div>
+    </div>
+  </div>
+</header>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Why players love it</span>
+      <h2>A life simulator without limits</h2>
+      <p>Deep systems, real consequences, and a world that reacts to who you choose to be.</p>
+    </div>
+    <div class="grid" id="featgrid">
+      <div class="card reveal"><div class="ico">🌍</div><h3>Choose your origin</h3><p>Born into wealth or hardship — your starting hand shapes the climb, never the ceiling.</p></div>
+      <div class="card reveal"><div class="ico">💼</div><h3>Build an empire</h3><p>Hustle, invest, and grow real wealth through a balanced, exploit-free economy.</p></div>
+      <div class="card reveal"><div class="ico">❤️</div><h3>Find your person</h3><p>Date, fall in love, and navigate relationships that remember every decision you make.</p></div>
+      <div class="card reveal"><div class="ico">📱</div><h3>Go viral</h3><p>Chase fame and reputation online — clout opens doors money can't.</p></div>
+      <div class="card reveal"><div class="ico">🧬</div><h3>Leave a dynasty</h3><p>Raise a family, pass on your legacy, and play on through the next generation.</p></div>
+      <div class="card reveal"><div class="ico">🩺</div><h3>Live well</h3><p>Health, happiness, energy and fitness all matter — balance the whole self, week by week.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENS -->
+<section id="screens">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Inside the game</span>
+      <h2>Real moments from real lives</h2>
+      <p>Swipe through actual gameplay captured from the live app.</p>
+    </div>
+    <div class="shots reveal">
+      <figure class="shot"><img src="assets/shot1.png" alt="Live any life" loading="lazy"/><figcaption>Live any life</figcaption></figure>
+      <figure class="shot"><img src="assets/shot2.png" alt="Hustle and rise" loading="lazy"/><figcaption>Hustle &amp; rise</figcaption></figure>
+      <figure class="shot"><img src="assets/shot3.png" alt="Build the empire" loading="lazy"/><figcaption>Build the empire</figcaption></figure>
+      <figure class="shot"><img src="assets/shot4.png" alt="Go viral" loading="lazy"/><figcaption>Go viral</figcaption></figure>
+      <figure class="shot"><img src="assets/shot5.png" alt="Live well" loading="lazy"/><figcaption>Live well</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- WHATS NEW -->
+<section id="whatsnew">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Latest update</span>
+      <h2>What's new</h2>
+      <p>A fairer, more reliable DeepLife — fresh in the newest release.</p>
+    </div>
+    <div class="changelog reveal">
+      <div class="verbar">
+        <span class="v">Version 2.5.1</span>
+        <span class="chip">LATEST</span>
+      </div>
+      <ul class="cl">
+        <li><span class="tag">🛒</span><div><b>Purchases fixed.</b> <span>Resolved the "products not configured" error so the in-app store loads reliably, with smoother, more dependable checkout and restores.</span></div></li>
+        <li><span class="tag">⚖️</span><div><b>Economy rebalanced.</b> <span>Closed a batch of money exploits and loopholes so your wealth reflects real progress and the late game stays challenging.</span></div></li>
+        <li><span class="tag">🎁</span><div><b>Season rewards fixed.</b> <span>Unclaimed rewards are now automatically collected when a season rolls over, so you'll never lose what you earned.</span></div></li>
+        <li><span class="tag">✨</span><div><b>Stability &amp; polish.</b> <span>A range of behind-the-scenes fixes for a smoother, more reliable experience.</span></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SUPPORT -->
+<section id="support">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">We're here to help</span>
+      <h2>Support</h2>
+      <p>Stuck, confused, or found a bug? Reach us directly — we read every message.</p>
+    </div>
+    <div class="support-grid">
+      <div class="contact reveal">
+        <h3>Get in touch</h3>
+        <p>The fastest way to reach the DeepLife team. We typically reply within 1–2 business days.</p>
+        <a class="line" href="mailto:DeepLifeSimulator@gmail.com">
+          <span class="e">✉️</span><span><b>DeepLifeSimulator@gmail.com</b><small>Support, bugs &amp; feedback</small></span>
+        </a>
+        <a class="line" href="https://deeplifesimulator.github.io/privacy-policy/" target="_blank" rel="noopener">
+          <span class="e">🔒</span><span><b>Privacy Policy</b><small>How your data is handled</small></span>
+        </a>
+        <a class="line" href="#whatsnew">
+          <span class="e">📝</span><span><b>Release Notes</b><small>See what changed in v2.5.1</small></span>
+        </a>
+      </div>
+      <div class="faq reveal" id="faq">
+        <details open><summary>How do I restore my purchases?</summary><p>Open the in-app Store and tap "Restore Purchases", signed in with the same Apple ID you bought with. The latest update fixes the "products not configured" error, so the catalog should load reliably. Still stuck? Email us.</p></details>
+        <details><summary>Is my progress saved?</summary><p>Yes. Your life is saved automatically on your device after every meaningful action. Season rewards now auto-collect across rollovers so nothing is lost.</p></details>
+        <details><summary>The store won't load — what do I do?</summary><p>Make sure you're online and on the newest version (2.5.1). The store now retries gracefully if the catalog is slow. If it persists, restart the app or email us your device model and iOS version.</p></details>
+        <details><summary>Is DeepLife on Android?</summary><p>DeepLife Simulator is live on iOS today, with Android in the works. Watch this page for the announcement.</p></details>
+        <details><summary>How do I report a bug or suggest a feature?</summary><p>Email <b>DeepLifeSimulator@gmail.com</b> with a short description (and a screenshot if you can). Player feedback directly shapes what we build next.</p></details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><img src="assets/icon.png" alt="" style="width:30px;height:30px;border-radius:8px" /> DeepLife Simulator</div>
+    <div class="flinks">
+      <a href="features.html">Features</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="whats-new.html">What's New</a>
+      <a href="support.html">Support</a>
+      <a href="https://deeplifesimulator.github.io/privacy-policy/" target="_blank" rel="noopener">Privacy</a>
+      <a href="mailto:DeepLifeSimulator@gmail.com">Contact</a>
+    </div>
+    <small>© 2026 DeepLife Simulator · The ultimate life simulation where every choice matters.</small>
+  </div>
+</footer>
+
+<script>
+// scroll reveal
+const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.16});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// count-up
+function animateCount(el){
+  const target=+el.dataset.count;let cur=0;const step=Math.max(1,Math.round(target/45));
+  const t=setInterval(()=>{cur+=step;if(cur>=target){cur=target;clearInterval(t)}el.textContent=cur+(target===100?'%':'+').replace('%+','%');},22);
+  if(target===100)el.dataset.suffix='%';
+}
+const cio=new IntersectionObserver((es)=>es.forEach(e=>{
+  if(e.isIntersecting){
+    const el=e.target,target=+el.dataset.count;let cur=0;const step=Math.max(1,Math.ceil(target/40));
+    const suf=target===100?'%':'+';
+    const t=setInterval(()=>{cur+=step;if(cur>=target){cur=target;clearInterval(t)}el.textContent=cur+suf;},24);
+    cio.unobserve(el);
+  }
+}),{threshold:.6});
+document.querySelectorAll('[data-count]').forEach(el=>cio.observe(el));
+
+// card spotlight
+document.querySelectorAll('.card').forEach(c=>{
+  c.addEventListener('pointermove',e=>{const r=c.getBoundingClientRect();
+    c.style.setProperty('--mx',(e.clientX-r.left)+'px');c.style.setProperty('--my',(e.clientY-r.top)+'px');});
+});
+
+// subtle parallax on phones
+const phones=document.querySelector('.phones');
+if(phones&&matchMedia('(pointer:fine)').matches){
+  window.addEventListener('pointermove',e=>{
+    const x=(e.clientX/innerWidth-.5),y=(e.clientY/innerHeight-.5);
+    phones.style.transform=`rotateY(${x*6}deg) rotateX(${ -y*4}deg)`;
+  });
+}
+</script>
+</body>
+</html>
