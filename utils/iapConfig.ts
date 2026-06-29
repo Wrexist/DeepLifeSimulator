@@ -80,10 +80,16 @@ export const IAP_PRODUCTS = {
     android: 'deeplife_work_boost',
   }) || 'deeplife_work_boost',
 
+  // App Store Connect permanently reserves deleted product IDs, so iOS can't
+  // reuse `deeplife_mindset` — it uses a fresh `deeplife_mindset_perk` (must be
+  // created in App Store Connect as Non-Consumable). Google Play is a separate
+  // catalog and is NOT affected by Apple's reservation, so Android keeps the
+  // existing `deeplife_mindset` SKU. Only change android here if/when the Play
+  // Console product is renamed too — otherwise Android purchase queries break.
   MINDSET: Platform.select({
-    ios: 'deeplife_mindset',
+    ios: 'deeplife_mindset_perk',
     android: 'deeplife_mindset',
-  }) || 'deeplife_mindset',
+  }) || 'deeplife_mindset_perk',
 
   FAST_LEARNER: Platform.select({
     ios: 'deeplife_fast_learner',
@@ -504,12 +510,14 @@ export const CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.YOUTH_PILL_PACK,
   IAP_PRODUCTS.MONEY_BOOST,
   IAP_PRODUCTS.SKILL_BOOST,
+  // Work Pay Boost is a repeatable purchase (Consumable in App Store Connect),
+  // so it is intentionally NOT restored on reinstall.
+  IAP_PRODUCTS.WORK_BOOST,
 ];
 
 // Non-consumable products - These SHOULD be restored
 // (permanent perks, ad removal, lifetime features)
 export const NON_CONSUMABLE_PRODUCTS = [
-  IAP_PRODUCTS.WORK_BOOST,
   IAP_PRODUCTS.MINDSET,
   IAP_PRODUCTS.FAST_LEARNER,
   IAP_PRODUCTS.GOOD_CREDIT,

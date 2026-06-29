@@ -54,11 +54,13 @@ async function shot(page, name, i) {
   console.log('  ✓', file);
 }
 
+const VIEWPORT = { width: 430, height: 932 };
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-web-security'] });
   const page = await browser.newPage({
-    viewport: { width: 430, height: 932 },
+    viewport: VIEWPORT,
     deviceScaleFactor: 3,
     isMobile: true,
   });
@@ -104,15 +106,22 @@ async function main() {
   // MainMenu → New Game
   await mustStep('New Game', 1500);
   await mustWait('Choose Scenario', 45000);
-  // Scenarios: select the recommended scenario card (by its name), then continue
-  await mustStep('Food Courier', 1500);
-  await step('Continue To Identity', 2500);
-  if (!await waitFor('Create Identity', 8000)) {
-    // selection may not have taken — try the recommended badge then continue again
-    await step('RECOMMENDED FOR BEGINNERS', 1200);
-    await step('Continue To Identity', 2500);
-    await mustWait('Create Identity', 10000);
+  // Static-export builds hydrate slowly, so a scenario tap can land before the
+  // card is interactive. Retry select → continue until the Identity step shows.
+  await sleep(2500);
+  let reachedIdentity = false;
+  for (let attempt = 1; attempt <= 5 && !reachedIdentity; attempt++) {
+    await step('Food Courier', 1200);
+    await step('Continue To Identity', 2200);
+    reachedIdentity = await waitFor('Create Identity', 6000);
+    if (!reachedIdentity) {
+      await step('RECOMMENDED FOR BEGINNERS', 1000);
+      await step('Continue To Identity', 2200);
+      reachedIdentity = await waitFor('Create Identity', 6000);
+    }
+    console.log(`scenario→identity attempt ${attempt}: ${reachedIdentity ? 'ok' : 'retry'}`);
   }
+  if (!reachedIdentity) throw new Error('Navigation failed: stuck on Choose Scenario');
   // Customize: random name, then continue
   await step('Shuffle', 1000);
   await mustStep('Continue To Perks', 1500);
@@ -120,8 +129,9 @@ async function main() {
   // Perks: start the life — the page also CONTAINS the phrase in its hint text,
   // so click the LAST occurrence (the green CTA button at the bottom).
   await mustStep('Start Your Life', 3500, { last: true });
-  // In-game once the home identity / stats show up — abort if we never arrive.
-  if (!(await waitFor('Energy', 30000)) && !(await waitFor('Happiness', 8000))) {
+  // In-game once the home identity shows up — abort if we never arrive.
+  // (Stats render as icon bars, not text, so key off the identity-card labels.)
+  if (!(await waitFor('Net Worth', 30000)) && !(await waitFor('Cash Flow', 8000)) && !(await waitFor('Active Goals', 8000))) {
     throw new Error('Navigation failed: never reached the in-game home screen');
   }
   await sleep(3000);
@@ -129,25 +139,27 @@ async function main() {
   t = await text(page);
   console.log('In-game text:', JSON.stringify(t.slice(0, 260)));
 
-  // Core gameplay tabs (visible labels: Home, Work, Health, Market, Computer, Phone, Progress)
   await shot(page, 'life-home', 1);
+  // The bottom tab bar is exactly 5 evenly-spaced slots: Home · Work · Phone ·
+  // Market · Health. Text clicks proved unreliable here (they hit the wrong
+  // element), so click each tab by its fixed coordinate in the 430-wide viewport.
+  const VW = VIEWPORT.width, TAB_Y = VIEWPORT.height - 30;
+  const tabX = (idx) => Math.round((VW * (idx + 0.5)) / 5); // 5 tabs
   const tabs = [
-    ['Work', 'work'],
-    ['Health', 'health'],
-    ['Market', 'market'],
-    ['Computer', 'computer-bitcoin'],
-    ['Phone', 'phone'],
-    ['Progress', 'progression'],
+    [1, 'work'],
+    [2, 'phone'],
+    [3, 'market'],
+    [4, 'health'],
   ];
   let i = 2;
-  for (const [label, name] of tabs) {
-    const clicked = await clickText(page, label);
-    await sleep(2400);
+  for (const [idx, name] of tabs) {
+    await page.mouse.click(tabX(idx), TAB_Y);
+    await sleep(2600);
     await shot(page, name, i++);
-    console.log(clicked ? `tab ${label} ✓` : `tab ${label} not found`);
+    console.log(`tab ${name} @x${tabX(idx)} captured`);
   }
-  // return to Home for a clean hero shot
-  await clickText(page, 'Home'); await sleep(2000);
+  // back to Home for a clean hero shot
+  await page.mouse.click(tabX(0), TAB_Y); await sleep(2200);
   await shot(page, 'life-home-final', i++);
 
   await browser.close();
