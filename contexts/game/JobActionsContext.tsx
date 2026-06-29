@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
 import * as JobActions from './actions/JobActions';
 import { updateStats } from './actions/StatsActions';
-import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
+import { updateMoney as updateMoneyModule, applyMoneyDelta } from './actions/MoneyActions';
+import { commitDeterministicRoll, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { logger } from '@/utils/logger';
 import { useGameState } from './GameStateContext';
 import { useMoneyActions } from './MoneyActionsContext';
@@ -266,14 +267,32 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
       return { success: false, message: `This activity requires at least ${activity.requiresWeeks} weeks remaining` };
     }
 
-    // Check success rate for activities with failure chance
-    const success = !activity.successRate || Math.random() < activity.successRate;
+    // Check success rate for activities with failure chance.
+    // Use a seeded, save-deterministic roll (keyed by week + activity) instead
+    // of live Math.random(): a raw random could be re-rolled across a reload to
+    // turn a failed escape/parole into a success. The roll is committed to
+    // rngCommitLog inside the updater so it's stable for the rest of the week.
+    const jailRollKey = `jail_activity:${currentWeek}:${activityId}`;
+    const success = !activity.successRate || getDeterministicRoll(state, jailRollKey) < activity.successRate;
 
     let resultMessage = '';
     let willBeReleased = false;
     let criminalXpToGain = 0;
 
     setGameState(prevState => {
+      // Authoritative once-per-week re-check on fresh state: the precondition
+      // above reads stateRef (stale), so two taps in one React batch would both
+      // pass and double-apply payments / sentence reductions before
+      // weeklyJailActivities was committed.
+      if ((prevState.weeklyJailActivities || {})[activityId] === currentWeek) {
+        return prevState;
+      }
+
+      // Route money through applyMoneyDelta so it shares the central overdraft
+      // reject + daily-summary accounting (P2-2). The previous raw
+      // `Math.max(0, money - cost)` floored a fee to $0 instead of rejecting,
+      // letting an underfunded player run paid activities (parole/appeal) free.
+      let working: GameState = prevState;
       const newStats = { ...prevState.stats };
       let newJailWeeks = prevState.jailWeeks;
       const messages: string[] = [];
@@ -282,15 +301,23 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
       newStats.energy = Math.max(0, newStats.energy - activity.energyCost);
 
       if (success) {
-        // Apply payment
-        if (activity.payment) {
-          newStats.money = (newStats.money || 0) + activity.payment;
-          messages.push(`+$${activity.payment}`);
+        // Deduct cost first (atomic affordability) — reject the whole activity
+        // if it can't be paid rather than silently flooring to free.
+        if (activity.cost) {
+          const spend = applyMoneyDelta(working, -activity.cost, `Jail: ${activity.name} fee`);
+          if (!spend) return prevState;
+          working = { ...working, ...spend };
+          newStats.money = working.stats.money;
         }
 
-        // Deduct cost
-        if (activity.cost) {
-          newStats.money = Math.max(0, (newStats.money || 0) - activity.cost);
+        // Apply payment
+        if (activity.payment) {
+          const earn = applyMoneyDelta(working, activity.payment, `Jail: ${activity.name}`);
+          if (earn) {
+            working = { ...working, ...earn };
+            newStats.money = working.stats.money;
+          }
+          messages.push(`+$${activity.payment}`);
         }
 
         // Apply sentence reduction
@@ -364,9 +391,15 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
       return {
         ...prevState,
         stats: newStats,
+        // Preserve the money daily-summary accounting from applyMoneyDelta.
+        dailySummary: working.dailySummary,
         jailWeeks: newJailWeeks,
         wantedLevel: newWantedLevel,
         weeklyJailActivities: newWeeklyActivities,
+        // Commit the seeded success roll so it can't be re-rolled on reload.
+        ...(activity.successRate
+          ? { rngCommitLog: commitDeterministicRoll(prevState, jailRollKey, prevState.weeksLived || 0) }
+          : {}),
         // Mark escaped from jail for achievement tracking
         ...(success && activityId === 'escape_attempt' && willBeReleased && { escapedFromJail: true }),
       };

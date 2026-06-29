@@ -75,6 +75,7 @@ export const initialGameState: GameState = {
   criminalXp: 0,
   weeklyJailActivities: {},
   weeklyStreetJobs: {},
+  weeklyStudySessions: {},
   criminalLevel: 1,
   youthPills: 0,
   petFood: {}, // Pet food inventory: { 'basic': 0, 'premium': 0, 'luxury': 0 }

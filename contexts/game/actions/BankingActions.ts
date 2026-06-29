@@ -223,7 +223,10 @@ export const payDownCard = (
     const fundedFromCash = MIRRORED_ACCOUNT_IDS.has(fromAccountId);
     const card = state.banking.creditCards.find((c) => c.id === cardId);
     const cardBalanceBefore = typeof card?.balance === 'number' && isFinite(card.balance) ? card.balance : 0;
-    const result = payCreditCard(state.banking, cardId, fromAccountId, amount, state.weeksLived);
+    // Premium Credit Card IAP cashback floor — applied at settlement (payment),
+    // matching where rewards now accrue (see chargeCreditCard anti-exploit note).
+    const cashbackFloor = state.settings?.premiumCreditCard ? 0.1 : undefined;
+    const result = payCreditCard(state.banking, cardId, fromAccountId, amount, state.weeksLived, cashbackFloor);
     if (!result.ok) {
       log.warn(`Card pay failed: ${result.reason}`);
       return prev;

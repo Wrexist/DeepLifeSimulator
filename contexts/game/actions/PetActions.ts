@@ -287,6 +287,17 @@ export function enterCompetition(
   const pet = gameState.pets?.find((p) => p.id === petId);
   if (!pet) return { success: false, message: 'Pet not found' };
   if (pet.isDead) return { success: false, message: `${pet.name} has passed on.` };
+  // ANTI-EXPLOIT: gate competitions to once-per-week per pet (mirrors petSleep's
+  // R5-C lastSleepWeek). Each competition pays 10× the entry fee at up to 90% win
+  // odds, and the UI re-rolls `Math.random()` on every tap — without this cap a
+  // player could spam-enter for unbounded money (EV +$400–$4,000 per entry).
+  const currentWeek = gameState.weeksLived ?? 0;
+  if (pet.lastCompetitionWeek === currentWeek) {
+    return {
+      success: false,
+      message: `${pet.name} has already competed this week — come back next week.`,
+    };
+  }
   const result = resolveCompetition(pet, competitionId, roll);
   if (!result || !result.competition) return { success: false, message: 'Unknown competition' };
   const comp = result.competition;
@@ -297,13 +308,20 @@ export function enterCompetition(
   // AND the pet update in one atomic updater, so the entry fee can't be charged
   // without the pet result landing, and a double-tap can't re-enter for free.
   setGameState((prev) => {
+    const target = (prev.pets ?? []).find((p) => p.id === petId);
+    // Authoritative once-per-week re-check on fresh state: the precondition above
+    // reads the stale snapshot, so a rapid double-tap would otherwise enter twice
+    // before `lastCompetitionWeek` was committed.
+    if (!target || target.isDead || target.lastCompetitionWeek === currentWeek) return prev;
     const net = result.won ? comp.prize - comp.entryFee : -comp.entryFee;
     const spend = applyMoneyDelta(prev, net, result.won ? `Won ${comp.name}!` : `${comp.name} entry`);
     if (!spend) return prev; // race guard
     return {
       ...prev,
       ...spend,
-      pets: (prev.pets ?? []).map((p) => (p.id === petId ? result.pet : p)),
+      pets: (prev.pets ?? []).map((p) =>
+        p.id === petId ? { ...result.pet, lastCompetitionWeek: currentWeek } : p
+      ),
     };
   });
   return {

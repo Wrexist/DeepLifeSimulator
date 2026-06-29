@@ -1532,6 +1532,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // These counters track how many times each job/activity was done THIS week
  weeklyStreetJobs: {}, // Always reset when advancing week
  weeklyJailActivities: {}, // Always reset when advancing week
+ weeklyStudySessions: {}, // Always reset when advancing week
  // Decrease jail time by 1 week when advancing, or add police encounter jail time
  jailWeeks: (() => {
  // Base: either an encounter triggered, or decay the prior sentence.

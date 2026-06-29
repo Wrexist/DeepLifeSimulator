@@ -25,6 +25,13 @@ const log = logger.scope('EducationActions');
 /** Standard student-loan term in weeks (10 years). */
 const STUDENT_LOAN_TERM_WEEKS = 10 * 52;
 
+/**
+ * ANTI-EXPLOIT: max player-driven `studyExtra` sessions per program per week.
+ * Each session advances the degree by a full week, so this bounds how fast a
+ * tuition-gated degree can be completed regardless of energy on hand.
+ */
+const MAX_STUDY_SESSIONS_PER_WEEK = 3;
+
 /** Read politics' education perk effects. */
 function politicsEducationPerks(state: GameState): {
   weeksReduction: number;
@@ -229,6 +236,16 @@ export const studyExtra = (
   setGameState((prev) => {
     const ed = (prev.educations ?? []).find((e) => e.id === educationId);
     if (!ed || ed.completed || ed.paused) return prev;
+    // ANTI-EXPLOIT: cap player-driven study sessions per program per week. Each
+    // call shaves a full week off the degree, so without this gate a player
+    // could spam-study (or restore energy and continue) to finish a multi-year,
+    // tuition-gated degree in a single week. Mirrors the per-job street-job cap.
+    // Resets on week advance via `weeklyStudySessions: {}`.
+    const sessionsThisWeek = prev.weeklyStudySessions?.[educationId] ?? 0;
+    if (sessionsThisWeek >= MAX_STUDY_SESSIONS_PER_WEEK) {
+      log.warn(`Study rejected: weekly cap (${MAX_STUDY_SESSIONS_PER_WEEK}) reached for ${educationId}`);
+      return prev;
+    }
     const stats = prev.stats ?? ({} as any);
     const energy = stats.energy ?? 0;
     if (energy < energyCost) {
@@ -242,6 +259,10 @@ export const studyExtra = (
         ...stats,
         energy: Math.max(0, energy - energyCost),
         happiness: Math.max(0, happiness - happinessCost),
+      },
+      weeklyStudySessions: {
+        ...(prev.weeklyStudySessions ?? {}),
+        [educationId]: sessionsThisWeek + 1,
       },
       educations: applyStudySession(prev.educations ?? [], educationId, 1),
     };

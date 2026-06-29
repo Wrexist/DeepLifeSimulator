@@ -384,9 +384,17 @@ export const followNpc = (
     if (Math.random() < baseProb && !updated.followedByNpcIds.includes(npcId)) {
       updated.followedByNpcIds = [...updated.followedByNpcIds, npcId];
       mutualFollow = true;
-      // Followed back → small follower boost from their followers seeing the connection
-      sm.followers = (sm.followers ?? 0) + Math.floor(50 + Math.random() * 150);
-      sm.influenceLevel = getInfluenceLevel(sm.followers);
+      // ANTI-EXPLOIT: grant the one-time follower boost only the FIRST time this
+      // NPC ever follows back. Re-following after an unfollow re-establishes the
+      // mutual edge but must NOT re-pay the boost, otherwise a follow/unfollow
+      // loop farms unlimited followers → influence → ad/brand income.
+      const granted = updated.followBackGrantedNpcIds ?? [];
+      if (!granted.includes(npcId)) {
+        updated.followBackGrantedNpcIds = [...granted, npcId];
+        // Followed back → small follower boost from their followers seeing the connection
+        sm.followers = (sm.followers ?? 0) + Math.floor(50 + Math.random() * 150);
+        sm.influenceLevel = getInfluenceLevel(sm.followers);
+      }
       pushNotification(
         sm,
         'follow',
