@@ -1105,6 +1105,24 @@ export class IAPService {
                   }
                   return;
                 }
+                // P0-17: cross-path double-grant guard. The interactive
+                // `runPurchaseFlow` marks a transaction in `processingTransactions`
+                // (in-memory) but only writes the persisted ledger
+                // (`markTransactionProcessed`) at the END of `applyBenefit`, after
+                // an async disk read/write. If this listener fires for the same
+                // transactionId while the foreground grant is mid-flight, the
+                // persisted `isTransactionProcessed` check above still returns
+                // false and both paths would call `applyBenefit`, double-granting a
+                // consumable (gems/money). Consult the same in-memory lock the
+                // foreground path uses so only one path applies the benefit.
+                if (this.processingTransactions.has(transactionId)) {
+                  logger.info(
+                    '[IAP listener] transaction already being processed by foreground flow, skipping',
+                    { transactionId },
+                  );
+                  return;
+                }
+                this.processingTransactions.add(transactionId);
                 // Android: also respect acknowledged flag (don't re-grant).
                 // Still finish the transaction so the platform stops
                 // re-delivering it (otherwise Android loops on redelivery).
@@ -1117,26 +1135,32 @@ export class IAPService {
                   return;
                 }
 
-                logger.info('Processing purchase:', { purchase });
-                const receiptValid = await this.validateReceipt(
-                  purchase.transactionReceipt || '',
-                  purchase.productId,
-                );
-                const serverVerified = await this.verifyReceiptWithServer(
-                  purchase.transactionReceipt || '',
-                  purchase.productId,
-                  purchase.transactionId,
-                );
-                if (!receiptValid || !serverVerified) {
-                  logger.warn('Skipping unverified purchase from listener', {
-                    productId: purchase.productId,
-                    transactionId: purchase.transactionId,
-                  });
-                  return;
-                }
+                try {
+                  logger.info('Processing purchase:', { purchase });
+                  const receiptValid = await this.validateReceipt(
+                    purchase.transactionReceipt || '',
+                    purchase.productId,
+                  );
+                  const serverVerified = await this.verifyReceiptWithServer(
+                    purchase.transactionReceipt || '',
+                    purchase.productId,
+                    purchase.transactionId,
+                  );
+                  if (!receiptValid || !serverVerified) {
+                    logger.warn('Skipping unverified purchase from listener', {
+                      productId: purchase.productId,
+                      transactionId: purchase.transactionId,
+                    });
+                    return;
+                  }
 
-                await this.applyBenefit(purchase.productId, transactionId);
-                await InAppPurchases.finishTransactionAsync(purchase, true);
+                  await this.applyBenefit(purchase.productId, transactionId);
+                  await InAppPurchases.finishTransactionAsync(purchase, true);
+                } finally {
+                  // Release the in-memory lock once this path is done (the
+                  // persisted ledger now records the grant for cold starts).
+                  this.processingTransactions.delete(transactionId);
+                }
               } catch (err) {
                 logger.error('[IAP listener] Failed to process purchase', err);
               }

@@ -191,6 +191,13 @@ export const sellVehicle = (
     : 0;
 
   setGameState(prev => {
+    // H-9: re-check ownership against `prev`. Without this, two rapid taps both
+    // read the vehicle from the stale `gameState`, and each updater adds
+    // `sellPrice` again (the second `.filter` is a harmless no-op) — duplicating
+    // the sale proceeds per extra tap. If the vehicle is already gone this batch,
+    // the sale already happened: return prev unchanged.
+    if (!(prev.vehicles || []).some(v => v.id === vehicleId)) return prev;
+
     const vehicles = (prev.vehicles || []).filter(v => v.id !== vehicleId);
     const activeVehicleId = prev.activeVehicleId === vehicleId
       ? (vehicles.length > 0 ? vehicles[0].id : undefined)
@@ -405,13 +412,27 @@ export const cancelInsurance = (
   // the cancel-after-claim arbitrage without punishing legitimate cancels.
   const currentWeek = gameState.weeksLived ?? 0;
   const expiresWeek = vehicle.insurance.expiresWeek ?? currentWeek;
-  const weeksRemaining = Math.max(0, expiresWeek - currentWeek);
+  // H-3 refund-printer fix: prorate against the ACTUAL premium paid and the
+  // ACTUAL policy term, not a 4-week month. The premium is `monthlyCost * 6`
+  // charged for a 26-week term (see purchaseInsurance), so a "month" here is
+  // 26/6 ≈ 4.33 weeks. The previous formula divided weeksRemaining by 4, which
+  // refunded up to 26/4 = 6.5 months of premium for a 6-month policy — so a
+  // buy-then-immediately-cancel netted +$25..+$175 per cycle, repeatable. By
+  // prorating `premiumPaid * remaining/term` and clamping to `premiumPaid`, the
+  // refund can never exceed what was paid: cancelling only ever costs the $25
+  // admin fee.
+  const POLICY_TERM_WEEKS = 26; // matches the 6-month term set at purchase
   const monthlyCost = typeof vehicle.insurance.monthlyCost === 'number' && isFinite(vehicle.insurance.monthlyCost)
     ? vehicle.insurance.monthlyCost
     : 0;
-  // 4 weeks ≈ 1 month, 25 admin fee minimum
-  const refundRaw = Math.floor(monthlyCost * (weeksRemaining / 4)) - 25;
-  const refund = Math.max(0, refundRaw);
+  const premiumPaid = monthlyCost * 6;
+  const weeksRemaining = Math.min(
+    POLICY_TERM_WEEKS,
+    Math.max(0, expiresWeek - currentWeek)
+  );
+  // 25 admin fee minimum; refund is the unused fraction of the premium paid.
+  const refundRaw = Math.floor(premiumPaid * (weeksRemaining / POLICY_TERM_WEEKS)) - 25;
+  const refund = Math.max(0, Math.min(premiumPaid, refundRaw));
   setGameState(prev => ({
     ...prev,
     vehicles: (prev.vehicles || []).map(v =>

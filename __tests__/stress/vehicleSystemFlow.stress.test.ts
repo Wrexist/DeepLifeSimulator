@@ -332,6 +332,37 @@ describe('Vehicle system deep audit', () => {
     expect(v?.insurance?.active).toBeFalsy();
   });
 
+  it("cancelInsurance: buy-then-cancel is NEVER a money printer (H-3 refund-printer guard)", async () => {
+    mounted = mountGame();
+    seedDriver(1_000_000);
+    const { purchaseVehicle, purchaseInsurance, cancelInsurance } =
+      await import('@/contexts/game/actions/VehicleActions');
+    const deps = await libDeps();
+    act(() => { purchaseVehicle(captured!.state, captured!.setGameState, 'economy_sedan', deps); });
+    const vid = captured!.state.vehicles![0].id;
+
+    // Worst case for the old bug: cancel immediately after purchase, when
+    // weeksRemaining is at its max (26). Every plan must net <= 0 (only the
+    // $25 admin fee is lost) — a buy-then-cancel must never print money.
+    for (const plan of ['basic', 'comprehensive', 'premium'] as const) {
+      const before = captured!.state.stats.money;
+      act(() => { purchaseInsurance(captured!.state, captured!.setGameState, vid, plan, deps); });
+      const afterBuy = captured!.state.stats.money;
+      const premiumPaid = before - afterBuy;
+      expect(premiumPaid).toBeGreaterThan(0);
+
+      act(() => { cancelInsurance(captured!.state, captured!.setGameState, vid); });
+      const afterCancel = captured!.state.stats.money;
+      const netDelta = afterCancel - before;
+
+      // Net change across buy+cancel must be <= 0 (refund can never exceed the
+      // premium paid; the $25 fee guarantees a small loss).
+      expect(netDelta).toBeLessThanOrEqual(0);
+      // And the refund itself must never exceed what was paid.
+      expect(afterCancel - afterBuy).toBeLessThanOrEqual(premiumPaid);
+    }
+  });
+
   // ── SET ACTIVE ─────────────────────────────────────────────────────────
   it("setActiveVehicle: rejects unknown id", async () => {
     mounted = mountGame();
