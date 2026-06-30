@@ -4,6 +4,39 @@
 
 ## Patterns to Watch For
 
+### 2026-06-30 - IAP `applyBenefit` double-granted every consumable (in-memory path + disk path both additive)
+
+- What went wrong: `IAPService.applyBenefit` runs TWO grant paths in sequence for every
+  purchase: (1) the in-memory `stateUpdater` (registered by `<IAPHandler/>`, mounted in
+  `GameProvider`) clones live state, applies the product via `applyProductToState`, and
+  `await`s `saveGame(true)` — persisting the credited state to the active slot — before
+  resolving; then (2) `applyBenefitToDisk` reads that just-persisted slot back and calls
+  `applyProductBenefitsToState` AGAIN. That helper is additive for consumables
+  (`gems/money/youthPills` use `+=`), so every foreground gem/money/youth-pill purchase
+  credited the player 2×. Flag products (perks, multipliers, ads-removed) are idempotent
+  boolean sets, so they were unaffected — which masked the bug.
+- Why it hid: all existing IAP tests (`iapMonetization.stress.test.ts`,
+  `premiumPackIncome.test.ts`) exercised `applyProductToState` — ONE path — never the
+  combined `applyBenefit`. The disk path was designed as a cold-start FALLBACK ("Always
+  update disk as backup/source of truth") but ran unconditionally even when the in-memory
+  path had already applied+persisted. `ShopModal` even carries a "DOUBLE-GRANT FIX"
+  comment asserting the grant happens "exactly once per transaction" — the author removed
+  a UI-layer re-apply but never saw that `applyBenefit` itself re-applies on disk.
+- How it was found: the weekly-audit economy subagent flagged it (MEDIUM); source-verified
+  by tracing `applyBenefit` → `stateUpdater` (IAPHandler) → `applyBenefitToDisk`, confirming
+  `applyProductBenefitsToState` is `+=` additive and `<IAPHandler/>` is mounted
+  (`GameProvider.tsx:113`). Proven with a new test that drives the real `applyBenefit` with
+  the save pipeline mocked to an in-memory slot: warm path granted 1000 gems for a 500-gem
+  pack (2×) before the fix. Fixed by capturing the in-memory updater's boolean result and
+  passing `{ skipBenefitReapply: inMemoryApplied }` to `applyBenefitToDisk`, which then
+  gates only the additive `applyProductBenefitsToState` re-apply (disk-only concerns —
+  permanent perks, subscription fulfillment, transaction ledger, save — still run).
+- Rule: when a benefit/grant has redundant apply paths (in-memory + disk, optimistic +
+  authoritative), exactly ONE must perform the additive mutation per transaction; the
+  fallback path must no-op the additive part when the primary already applied+persisted.
+  Test the COMBINED entry point, not just the shared leaf helper — a redundant-path bug is
+  invisible to a test that only calls the helper once.
+
 ### 2026-06-24 - "Normalize to current season" helper RESET unclaimed Legacy Pass rewards instead of rolling over
 
 - What went wrong: the Legacy Pass module has two ways to bring a stale pass up to the live
