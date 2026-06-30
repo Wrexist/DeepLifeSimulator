@@ -1183,6 +1183,7 @@ export class IAPService {
   private async applyBenefitToDisk(
     purchase: any,
     transactionId?: string,
+    options?: { skipBenefitReapply?: boolean },
   ): Promise<void> {
     const config = getProductConfig(purchase.productId);
     if (!config) return;
@@ -1251,7 +1252,12 @@ export class IAPService {
 
     // Apply all config benefits via the single shared helper (same logic the
     // in-memory applyProductToState path uses — they can no longer drift).
-    applyProductBenefitsToState(gameState, config, purchase.productId);
+    // SKIP when the in-memory updater already applied + persisted them: this
+    // helper is additive for consumables (gems/money/youthPills `+=`), so a
+    // second pass over the already-credited save double-grants the purchase.
+    if (!options?.skipBenefitReapply) {
+      applyProductBenefitsToState(gameState, config, purchase.productId);
+    }
 
     // Disk path only: persist permanent (cross-slot) perks to storage.
     await this.persistPermanentPerks(config);
@@ -1670,19 +1676,29 @@ export class IAPService {
     productId: string,
     transactionId?: string,
   ): Promise<void> {
-    // 1. Try in-memory update
+    // 1. Try in-memory update. When the in-memory updater (IAPHandler) applies
+    //    the product to live state AND persists it (saveGame) — which it does
+    //    before resolving — the disk path below must NOT additively re-apply the
+    //    same config benefits, or every consumable (gems/money/youthPills) is
+    //    granted twice.
+    let inMemoryApplied = false;
     if (this.stateUpdater) {
       try {
-        await this.stateUpdater(productId);
+        inMemoryApplied = (await this.stateUpdater(productId)) === true;
         logger.info(` Benefit applied via in-memory updater: ${productId}`);
       } catch (error) {
         logger.error('Error in state updater:', error);
       }
     }
 
-    // 2. Always update disk as backup/source of truth for cold start
+    // 2. Always touch disk as the source of truth for cold start AND for the
+    //    disk-only concerns (permanent perks, subscription fulfillment, the
+    //    transaction ledger). Re-apply the additive config benefits ONLY when
+    //    the in-memory path did not already apply + persist them.
     logger.info(`Applying benefit to disk: ${productId}`);
-    await this.applyBenefitToDisk({ productId }, transactionId);
+    await this.applyBenefitToDisk({ productId }, transactionId, {
+      skipBenefitReapply: inMemoryApplied,
+    });
 
     // 3. Mark transaction processed only after entitlement grant succeeds.
     if (transactionId) {
