@@ -195,7 +195,10 @@ export async function requestTrackingPermission(): Promise<boolean> {
  */
 export async function isTrackingAllowed(): Promise<boolean> {
   if (Platform.OS !== 'ios') {
-    return true;
+    // No consent flow exists for Android yet (no Google UMP integration) — default
+    // to non-personalized ads there rather than reporting tracking as allowed
+    // unconditionally, which was a live GDPR exposure once Android ships with ads.
+    return false;
   }
   
   // Add a small delay to ensure the app is fully initialized

@@ -53,7 +53,7 @@ import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
 // expo-tracking-transparency is in package.json AND wired via the config plugin
 // in app.config.js (see P0-13). The runtime helper below is loaded lazily.
-import { requestTrackingPermission, isTrackingAllowed } from '@/utils/trackingTransparency';
+import { requestTrackingPermission } from '@/utils/trackingTransparency';
 import { logger } from '@/utils/logger';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { AppProviders } from '@/contexts/AppProviders';
@@ -1104,20 +1104,20 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     }
 
     // Add Telemetry task (Wave 0.1): pure-JS analytics, no native SDK. Only runs
-    // when the opt-in `telemetry` flag is set, AND consent is derived from the
-    // user's tracking choice (ATT) rather than force-enabled — telemetry stays a
-    // no-op until tracking is allowed. The pipeline still uses only an anonymous
-    // install id (never a device/advertising id).
+    // when the opt-in `telemetry` flag is set. Consent here is intentionally NOT
+    // tied to isTrackingAllowed() (ATT/UMP ad-tracking consent) — this pipeline
+    // only ever records an anonymous, locally-generated install id (never a
+    // device/advertising id), which is a distinct privacy category from the
+    // cross-app ad tracking ATT/UMP govern. Gating it on ad-tracking consent would
+    // silently drop product analytics for any user (or platform) that declines ad
+    // tracking, which isn't what that consent choice is about.
     if (enableTelemetry) {
       const telemetryTask = createSafeServiceTask(
         'Telemetry Service',
         async () => {
           await analytics.init();
-          const trackingAllowed = await isTrackingAllowed();
-          analytics.setConsent(trackingAllowed);
-          if (trackingAllowed) {
-            track('session_start', { platform: Platform.OS });
-          }
+          analytics.setConsent(true);
+          track('session_start', { platform: Platform.OS });
         },
         { timeout: 3000, critical: false, enabled: enableTelemetry }
       );
