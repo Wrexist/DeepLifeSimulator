@@ -9,7 +9,9 @@
       "env": {
         "EXPO_PUBLIC_ENABLE_ADMOB": "true",
         "EXPO_PUBLIC_ENABLE_IAP": "true",
-        "EXPO_PUBLIC_ENABLE_ATT": "true"
+        "EXPO_PUBLIC_ENABLE_ATT": "true",
+        "EXPO_PUBLIC_ENABLE_ANALYTICS": "true",
+        "EXPO_PUBLIC_ANALYTICS_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1/analytics"
       },
       "ios": {
         "image": "latest"

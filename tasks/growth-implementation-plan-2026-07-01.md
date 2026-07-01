@@ -64,8 +64,25 @@ Then verify `services/AdMobService.ts` (the consumer of this function, around li
 **Effort:** S (one-line change + verification). **Do this before N9 (Android launch)** — shipping Android with this unfixed is a live GDPR exposure the moment EU users install.
 
 ### N5. Turn on analytics/telemetry with install-source attribution
-**Status:** 🔴 Confirmed off — `eas.json` production build env has no `EXPO_PUBLIC_ENABLE_ANALYTICS`, and `FEATURE_FLAGS.analytics` is hardcoded `false` in `lib/config/featureFlags.ts` (Sentry disabled for an iOS 26 TurboModule crash — leave that one off, don't re-enable Sentry specifically).
-**Steps:**
+**Status:** 🟢 **BACKEND LIVE + WIRED (2026-07-01)** — the ingestion pipeline is fully stood up and will start flowing on the next production build. No action needed to enable it.
+
+**What was done (2026-07-01):**
+- Supabase project **`deeplife-backend`** (`gyxmoqanjdvvllwjfsst`, org `Wrexist's Org`, **free plan — $0**) was restored from paused.
+- Found a **pre-existing, well-written `analytics` edge function** (deployed 2026-06-23) that a prior session left half-finished — it upserts into an `analytics_events` table that **had never been created**, so every event was silently failing.
+- Created the missing `public.analytics_events` table (migration `create_analytics_events`) with columns matching the function exactly (`id` PK, `name`, `ts`, `install_id`, `session_id`, `props` jsonb), RLS enabled with **no policies** (only the service-role function can write — anon clients cannot read/write directly), and indexes on `install_id` / `name` / `ts` for retention + funnel queries.
+- **Verified** the function's exact upsert succeeds against the table and that duplicate ids de-dupe (client-retry safe). *(The raw HTTP endpoint couldn't be hit from the build sandbox — outbound to `*.supabase.co` is blocked by the agent proxy — but the DB-write contract, the only thing that was broken, is proven. It will be reachable from real devices.)*
+- Wired into the app via `eas.json` `build.production.env` (both are non-secret `EXPO_PUBLIC_*` vars, so no `eas secret` needed):
+  - `EXPO_PUBLIC_ENABLE_ANALYTICS: "true"` (flips `FEATURE_FLAGS.telemetry` on in prod)
+  - `EXPO_PUBLIC_ANALYTICS_URL: "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1/analytics"` (read by `AnalyticsService.ts:138`)
+- Client already inits + fires `session_start` (`app/_layout.tsx`), now on Android too (the consent-decouple fix earlier this session).
+
+**Retention is computable from `session_start` alone** (first appearance of an `install_id` = install; re-appearance N days later = D1/D7/D30 retention). Query the table via the Supabase dashboard or MCP once real data arrives.
+
+**Still open (follow-ups, not blockers):**
+- Purchase-funnel events (`paywall_viewed` / `purchase_started` / `purchase_succeeded`) exist in the event catalogue but may not be wired at the IAP call sites yet — verify/instrument for conversion analysis.
+- Install-source attribution: iOS gets this free from App Store Connect analytics; Android would need the Play Install Referrer API wired in later.
+
+**Original steps (for reference / if rebuilding elsewhere):**
 1. The pure-JS telemetry pipeline (`FEATURE_FLAGS.telemetry`, gated on `EXPO_PUBLIC_ENABLE_ANALYTICS === 'true'`) is a separate flag from the disabled Sentry one — confirm it's wired to a real ingestion endpoint (check what it currently POSTs to; if nothing, this needs a destination — even a simple logging endpoint or a third-party like PostHog/Amplitude free tier is enough to start).
 2. Add `"EXPO_PUBLIC_ENABLE_ANALYTICS": "true"` to `eas.json`'s `build.production.env` block (same place `EXPO_PUBLIC_ENABLE_ADMOB` etc. already live).
 3. Instrument at minimum: install (first-open), D1/D7/D30 session markers, funnel-to-first-purchase event, and — critically for attribution — capture the store referrer/campaign token if the telemetry pipeline doesn't already (iOS: App Store Connect's own analytics already gives impressions→conversion without any app code; Android: Play's Install Referrer API is the equivalent, worth wiring in if not present).
