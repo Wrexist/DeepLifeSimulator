@@ -7,6 +7,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { APP_STORE_URL } from '@/lib/config/appConfig';
 
 export interface Obituary {
   headline: string;
@@ -117,12 +118,17 @@ export function generateObituary(state: GameState): Obituary {
     .join(' ');
 
   // Build share text (compact for social media)
+  // Include a direct install link so a shared obituary actually converts viewers
+  // into installs — a social share with no link is a dead-end for growth. Direct
+  // App Store link is correct while the app is iOS-only; switch to a
+  // platform-aware / marketing landing link once Android is live.
   const shareText = [
     `RIP ${name} (Age ${age})`,
     `${descriptor.charAt(0).toUpperCase() + descriptor.slice(1)} ${factsStr}.`,
     `Net worth: ${formatMoney(netWorth)}`,
     `Cause of death: ${deathReason}`,
     '',
+    `Live your own life: ${APP_STORE_URL}`,
     '#DeepLifeSim',
   ].join('\n');
 
