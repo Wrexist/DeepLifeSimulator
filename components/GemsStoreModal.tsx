@@ -19,7 +19,7 @@ const LinearGradient = LinearGradientFallback;
 const BlurView = BlurViewFallback;
 import { Ionicons } from '@expo/vector-icons';
 import { RefreshCw } from 'lucide-react-native';
-import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { responsiveFontSize, responsivePadding } from '@/utils/scaling';
@@ -91,7 +91,6 @@ const GEM_PACKAGES: GemPackage[] = [
 ];
 
 export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps) {
-  const setGameState = useSetGameState();
   const gems = useGameSelector((s) => s.stats.gems);
   const [isLoading, setIsLoading] = useState(false);
   const [purchasing, setPurchasing] = useState<string | null>(null);
@@ -126,15 +125,13 @@ export default function GemsStoreModal({ visible, onClose }: GemsStoreModalProps
         const packageData = GEM_PACKAGES.find(pkg => pkg.id === packageId);
         if (packageData) {
           const totalGems = packageData.gems + (packageData.bonus || 0);
-          
-          setGameState(prev => ({
-            ...prev,
-            stats: {
-              ...prev.stats,
-              gems: prev.stats.gems + totalGems,
-            },
-          }));
 
+          // DOUBLE-GRANT FIX: do NOT add gems here. iapService.purchaseProduct
+          // already applies the gem pack to live state (via the IAPHandler-
+          // registered stateUpdater, which reads config.gems) and persists it
+          // exactly once per transaction. The previous local `+= totalGems` ran
+          // a SECOND additive grant, doubling every gem purchase. Mirrors the
+          // ShopModal / GemShopModal double-grant fixes.
           Alert.alert(
             'Purchase Successful!',
             `You received ${totalGems} gems! ${packageData.bonus ? `(${packageData.bonus} bonus gems included)` : ''}`,

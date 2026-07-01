@@ -4,7 +4,7 @@
 import React from 'react';
 import { GameState } from '../types';
 import { logger } from '@/utils/logger';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { clampHobbySkill, clampHobbySkillLevel } from '@/utils/stateValidation';
 import { getDeterministicRoll } from '@/lib/randomness/deterministicRng';
@@ -119,26 +119,58 @@ export const enterHobbyTournament = (
     };
   }
 
-  // Deterministic tournament logic — prevents save-reload exploits
+  // Deterministic tournament logic — prevents save-reload exploits. Computed
+  // from lineage-seeded state (stable within a batch), so the message below and
+  // the authoritative recompute inside the updater agree.
   const winChance = 30 + (hobby.skillLevel * 5);
   const rollKey = `tournament:${currentWeeksLived}:${hobbyId}`;
   const roll = getDeterministicRoll(gameState, rollKey);
   const won = (roll || 0) * 100 < winChance;
+  const reward = hobby.tournamentReward * (1 + (hobby.skillLevel * 0.2));
 
-  // Mark the entry BEFORE applying rewards/energy so a successful entry
-  // commits even if the reward path returns early.
-  setGameState(prev => ({
-    ...prev,
-    hobbies: (prev.hobbies || []).map(h =>
-      h.id === hobbyId ? { ...h, lastTournamentWeek: currentWeeksLived } : h
-    ),
-  }));
+  // ANTI-EXPLOIT (H-8/H-9 same-batch double-tap): the once-per-week gate above
+  // reads the stale render-time snapshot. Fold the cooldown re-check, energy
+  // cost, entry marker, AND the reward into ONE atomic updater — mirroring
+  // `trainHobby` and PetActions `enterCompetition` — so two rapid same-batch
+  // entries can't both pass the gate and double-pay before `lastTournamentWeek`
+  // commits. Previously the marker, energy, and reward were three separate
+  // `setGameState`/dispatch calls with no re-check, so N taps → N payouts.
+  setGameState(prev => {
+    const prevHobby = (prev.hobbies || []).find(h => h.id === hobbyId);
+    if (!prevHobby) return prev;
+    const prevWeek = prev.weeksLived || 0;
+    // Authoritative once-per-week re-check on fresh state.
+    if ((prevHobby.lastTournamentWeek ?? -1) === prevWeek) return prev;
+    // Re-check affordability (energy) against fresh state.
+    if ((prev.stats.energy || 0) < 20) return prev;
 
-  deps.updateStats(setGameState, { energy: -20 });
+    // Re-derive the deterministic result from `prev` (same seed → same roll).
+    const wonNow =
+      getDeterministicRoll(prev, `tournament:${prevWeek}:${hobbyId}`) * 100 <
+      30 + prevHobby.skillLevel * 5;
+
+    let stats = { ...prev.stats, energy: Math.max(0, (prev.stats.energy || 0) - 20) };
+    let dailySummary = prev.dailySummary;
+    if (wonNow) {
+      const prize = prevHobby.tournamentReward * (1 + prevHobby.skillLevel * 0.2);
+      const credit = applyMoneyDelta({ ...prev, stats }, prize, `Won ${prevHobby.name} tournament`);
+      if (credit) {
+        stats = credit.stats;
+        dailySummary = credit.dailySummary;
+      }
+    }
+
+    return {
+      ...prev,
+      stats,
+      dailySummary,
+      hobbies: (prev.hobbies || []).map(h =>
+        h.id === hobbyId ? { ...h, lastTournamentWeek: prevWeek } : h
+      ),
+    };
+  });
 
   if (won) {
-    const reward = hobby.tournamentReward * (1 + (hobby.skillLevel * 0.2));
-    deps.updateMoney(setGameState, reward, `Won ${hobby.name} tournament`);
     return { success: true, message: `You won the tournament! Earned $${reward}` };
   }
 
