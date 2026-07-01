@@ -18,11 +18,13 @@ const deps = {
   updateStats: jest.fn() as never,
 }; // signature-only; the atomic path no longer routes money/energy through deps
 
-function makeBatchedSetState(initial: GameState) {
+function makeBatchedSetState(
+  initial: GameState
+): { setState: React.Dispatch<React.SetStateAction<GameState>>; get: () => GameState } {
   let state = initial;
-  const setState = ((update: unknown) => {
-    state = typeof update === 'function' ? update(state) : (update as GameState);
-  }) as React.Dispatch<React.SetStateAction<GameState>>;
+  const setState: React.Dispatch<React.SetStateAction<GameState>> = update => {
+    state = typeof update === 'function' ? update(state) : update;
+  };
   return { setState, get: () => state };
 }
 
