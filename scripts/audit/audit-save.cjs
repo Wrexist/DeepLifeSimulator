@@ -7,7 +7,7 @@
  *
  * Invariants:
  *   V1  STATE_VERSION is parseable from the canonical source (initialState.ts).
- *   V2  CLAUDE.md and AGENTS.md document the same STATE_VERSION (no doc drift — lessons.md).
+ *   V2  DEV.md and WORKFLOW.md document the same STATE_VERSION (no doc drift — lessons.md).
  *   V3  Every version in [2..STATE_VERSION] is migration-covered (registry or no-op set).
  *   V4  CURRENT_STATE_VERSION tracks STATE_VERSION (no hardcoded fork).
  *   V5  Checksum + tamper verification primitives exist in saveValidation.ts.
@@ -37,9 +37,14 @@ function build() {
   a.pass(`STATE_VERSION = ${stateVersion} (canonical)`, '', 'contexts/game/initialState.ts:6');
 
   // --- V2: doc drift -------------------------------------------------------
-  for (const doc of ['CLAUDE.md', 'AGENTS.md']) {
+  // The canonical dev docs were renamed CLAUDE.md→DEV.md, AGENTS.md→WORKFLOW.md.
+  // (Legacy names deliberately dropped — the coverage guard below catches a future rename.)
+  const DOC_CANDIDATES = ['DEV.md', 'WORKFLOW.md'];
+  let docsChecked = 0;
+  for (const doc of DOC_CANDIDATES) {
     const src = L.read(doc);
     if (src == null) { a.low(`${doc} not found`, 'Skipping doc-version check.', doc); continue; }
+    docsChecked++;
     const m = src.match(/STATE_VERSION\s*=\s*(\d+)/);
     if (!m) {
       a.medium(`${doc} does not state STATE_VERSION`, 'Add the canonical version so drift is visible.', doc);
@@ -49,6 +54,13 @@ function build() {
         `${doc} STATE_VERSION drift: doc says ${m[1]}, code is ${stateVersion}`,
         'Documented save-version drift has bitten this repo before (lessons.md).', doc);
     }
+  }
+  // Coverage guard: if NONE of the canonical docs exist, the drift check silently
+  // passed — surface that as a real finding so a rename can't blind the analyzer.
+  if (docsChecked === 0) {
+    a.medium('No canonical dev doc states STATE_VERSION',
+      `Checked ${DOC_CANDIDATES.join(', ')} — none found; doc-version drift is now unguarded.`,
+      'scripts/audit/audit-save.cjs');
   }
 
   // --- V3/V4: migration coverage ------------------------------------------
