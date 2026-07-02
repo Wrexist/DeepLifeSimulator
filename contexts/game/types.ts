@@ -2571,6 +2571,11 @@ export interface PoliticsState {
   alliances: PoliticalAlliance[];
   campaignFunds: number;
   lastElectionWeek?: number;
+  // Same-batch dedup marker: set on EVERY election attempt (win OR loss) so a
+  // duplicate same-week tap no-ops regardless of the independent win/loss roll.
+  // Kept separate from lastElectionWeek, which feeds the election-cooldown math
+  // and must only advance on a win.
+  lastElectionAttemptWeek?: number;
   nextElectionWeek?: number;
   activePolicyEffects?: {
     stocks?: { volatilityModifier: number; dividendBonus: number; companyBoost?: string[]; };

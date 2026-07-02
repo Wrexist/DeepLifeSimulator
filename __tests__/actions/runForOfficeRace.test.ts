@@ -41,10 +41,11 @@ function candidateState(money: number): GameState {
 
 describe('runForOffice same-batch race regression (weekly audit 2026-07-02)', () => {
   let rand: jest.SpyInstance;
-  beforeEach(() => { rand = jest.spyOn(Math, 'random').mockReturnValue(0); }); // roll 0 → guaranteed win
+  beforeEach(() => { rand = jest.spyOn(Math, 'random'); });
   afterEach(() => { rand.mockRestore(); });
 
   it('two same-batch taps award the election bonus ONCE', () => {
+    rand.mockReturnValue(0); // roll 0 → guaranteed win
     const snapshot = candidateState(5000); // exactly one campaign
     const { setState, get } = makeBatchedSetState(snapshot);
 
@@ -56,7 +57,36 @@ describe('runForOffice same-batch race regression (weekly audit 2026-07-02)', ()
     expect(get().politics?.electionsWon).toBe(1);
   });
 
+  it('two same-batch taps that both LOSE charge the campaign cost ONCE', () => {
+    rand.mockReturnValue(0.99); // roll 99 → guaranteed loss (successChance ~77)
+    const snapshot = candidateState(10000); // enough for TWO campaigns
+    const { setState, get } = makeBatchedSetState(snapshot);
+
+    runForOffice(snapshot, setState, 'council_member', deps);
+    runForOffice(snapshot, setState, 'council_member', deps); // double-tap
+
+    // charged once (10000 - 5000), NOT twice — the per-week attempt marker no-ops tap 2
+    expect(get().stats.money).toBe(5000);
+    expect(get().politics?.electionsWon ?? 0).toBe(0);
+  });
+
+  it('a win followed by an independently-rolled loss does not re-charge the winner', () => {
+    // First tap wins (roll 0), second tap would lose (roll 99) — the attempt marker
+    // set by the win must make the second tap no-op instead of charging a phantom loss.
+    rand.mockReturnValueOnce(0).mockReturnValue(0.99);
+    const snapshot = candidateState(10000);
+    const { setState, get } = makeBatchedSetState(snapshot);
+
+    runForOffice(snapshot, setState, 'council_member', deps);
+    runForOffice(snapshot, setState, 'council_member', deps);
+
+    // win only: 10000 - 5000 + 10000 = 15000; no extra loss-branch charge
+    expect(get().stats.money).toBe(15000);
+    expect(get().politics?.electionsWon).toBe(1);
+  });
+
   it('a single valid campaign still wins and pays the bonus', () => {
+    rand.mockReturnValue(0);
     const snapshot = candidateState(5000);
     const { setState, get } = makeBatchedSetState(snapshot);
 
