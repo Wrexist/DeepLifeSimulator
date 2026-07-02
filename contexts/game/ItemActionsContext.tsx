@@ -343,8 +343,11 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         
         diseasesToCheck.forEach((disease, diseaseIdx) => {
           if (disease.curable) {
-            // 50% cure chance (pre-rolled for StrictMode safety)
-            const cureRoll = curePreRolls[diseaseIdx];
+            // 50% cure chance (pre-rolled for StrictMode safety). Wrap the index
+            // modulo the buffer length so a player carrying more than 10 curable
+            // diseases doesn't read `undefined` (which `< 0.5` treats as false =
+            // silent cure-immunity) — same buffer-overflow class as pet sickness.
+            const cureRoll = curePreRolls[diseaseIdx % curePreRolls.length];
             if (cureRoll < 0.5) {
               // Disease cured
               curedDiseases.push(disease.name);

@@ -310,8 +310,18 @@ export const runForOffice = (
 
     const reward = electionRewards[office] || 0;
 
-    // Atomic: merge campaign cost + election reward + politics update into single update
-    setGameState(prev => ({
+    // Atomic: merge campaign cost + election reward + politics update into single update.
+    // R-audit 2026-07-02: the outer age/reputation/money gates read the stale render-time
+    // `gameState`, so two same-batch taps both passed them and both applied the (up to $5M)
+    // election reward. Re-check affordability AND idempotency against `prev` — the first tap
+    // stamps `lastElectionWeek`/`careerLevel`, so a second tap for the same office this week
+    // no-ops instead of double-paying.
+    setGameState(prev => {
+      if ((prev.stats?.money ?? 0) < campaignCost) return prev;
+      if (prev.politics?.lastElectionWeek === currentWeek && (prev.politics?.careerLevel ?? 0) >= newLevel) {
+        return prev;
+      }
+      return {
       ...prev,
       stats: {
         ...prev.stats,
@@ -344,7 +354,8 @@ export const runForOffice = (
         nextElectionWeek: nextElection,
       },
       currentJob: 'political',
-    }));
+      };
+    });
 
     log.info(`Won election for ${office}, now at level ${newLevel}, reward: $${reward}`);
     const rewardMessage = reward > 0 ? ` You received $${reward.toLocaleString()} as an election bonus!` : '';
@@ -353,8 +364,12 @@ export const runForOffice = (
     const levelName = POLITICAL_CAREER.levels[safeLevel]?.name || 'Unknown Office';
     return { success: true, message: `Congratulations! You won the election and are now ${levelName}!${rewardMessage}` };
   } else {
-    // Lost election - deduct campaign cost + small approval hit
-    setGameState(prev => ({
+    // Lost election - deduct campaign cost + small approval hit.
+    // Re-check funds against `prev` so a same-batch double-tap can't over-charge
+    // a player who could only afford one campaign.
+    setGameState(prev => {
+      if ((prev.stats?.money ?? 0) < campaignCost) return prev;
+      return {
       ...prev,
       stats: {
         ...prev.stats,
@@ -373,7 +388,8 @@ export const runForOffice = (
         },
         approvalRating: Math.max(0, (prev.politics?.approvalRating ?? 50) - 5),
       },
-    }));
+      };
+    });
 
     log.info(`Lost election for ${office}`);
     return { success: false, message: 'You lost the election. Better luck next time!' };

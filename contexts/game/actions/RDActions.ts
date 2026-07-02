@@ -312,15 +312,20 @@ export const filePatent = (
     company.rdLab?.type
   );
 
-  // Update state: deduct money AND update company in a single state update to avoid race conditions
+  // Update state: deduct money AND update company in a single state update to avoid race conditions.
+  // R-audit 2026-07-02: the dedup ("patent already filed") and money gates above read the stale
+  // outer `gameState`, so two same-batch taps both passed them and filed TWO patents for one
+  // technology (each a perpetual weekly-income source), the 2nd partial-free via the old floored
+  // `Math.max(0, money - cost)`. Re-check both against `prev` and debit via applyMoneyDelta.
   setGameState(prev => {
-    const newMoney = Math.max(0, prev.stats.money - patentCost);
+    const prevCompany = (prev.companies || []).find(c => c.id === companyId);
+    if (!prevCompany) return prev;
+    if (prevCompany.patents?.some(p => p.technologyId === technologyId && p.duration > 0)) return prev;
+    const spend = applyMoneyDelta(prev, -patentCost, 'File patent');
+    if (!spend) return prev;
     return {
       ...prev,
-      stats: {
-        ...prev.stats,
-        money: newMoney,
-      },
+      ...spend,
       companies: (prev.companies || []).map(c => {
         if (c.id !== companyId) return c;
         return {
@@ -402,9 +407,6 @@ export const enterCompetition = (
     return { success: false, message: `You need $${competition.entryCost.toLocaleString()} to enter this competition` };
   }
 
-  // Deduct entry cost
-  deps.updateMoney(setGameState, -competition.entryCost, `Enter ${competition.name}`);
-
   // Calculate company score
   const score = calculateCompetitionScore(company);
 
@@ -420,22 +422,43 @@ export const enterCompetition = (
     rank: undefined,
   };
 
-  setGameState(prev => ({
-    ...prev,
-    companies: (prev.companies || []).map(c => {
-      if (c.id !== companyId) return c;
-      return {
-        ...c,
-        competitionHistory: [...(c.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
-      };
-    }),
-    company: prev.company?.id === companyId
-      ? {
-          ...prev.company,
-          competitionHistory: [...(prev.company.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
-        }
-      : prev.company,
-  }));
+  // R-audit 2026-07-02: previously the entry fee was charged in a separate
+  // `updateMoney` call (which overdraft-rejects) while the entry was appended in
+  // an UNCONDITIONAL second updater — so two same-batch taps paid ONE fee but
+  // recorded TWO entries, and processCompetitionResults pays a prize per entry
+  // (a 2× prize printer). Fold the once-per-week gate re-check, the debit
+  // (applyMoneyDelta, shares the overdraft guard), and the append into ONE updater
+  // that re-reads its gate from `prev` and no-ops the duplicate tap. The success
+  // message stays optimistic (matches the outer-snapshot gates already passed above),
+  // consistent with the other atomic action fixes in this codebase.
+  setGameState(prev => {
+    const prevCompany = (prev.companies || []).find(c => c.id === companyId);
+    if (!prevCompany) return prev;
+    const prevHistory = prevCompany.competitionHistory || [];
+    const alreadyEnteredPrev = prevHistory.some(
+      e => e.competitionId === competitionId && e.entryWeek === absoluteWeek && !e.completed
+    );
+    if (alreadyEnteredPrev) return prev;
+    const spend = applyMoneyDelta(prev, -competition.entryCost, `Enter ${competition.name}`);
+    if (!spend) return prev;
+    return {
+      ...prev,
+      ...spend,
+      companies: (prev.companies || []).map(c => {
+        if (c.id !== companyId) return c;
+        return {
+          ...c,
+          competitionHistory: [...(c.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
+        };
+      }),
+      company: prev.company?.id === companyId
+        ? {
+            ...prev.company,
+            competitionHistory: [...(prev.company.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
+          }
+        : prev.company,
+    };
+  });
 
   log.info(`Entered competition: ${competition.name} for ${companyId} with score ${score}`);
   const resultDelayWeeks = Math.max(1, competition.endWeek - competition.startWeek);

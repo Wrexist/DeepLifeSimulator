@@ -27,9 +27,13 @@
  *      Clamp score, otherwise unchanged.
  *
  * `preRolls.relBreakup` and `preRolls.relDisappointed` are size-20 arrays.
- * For `relIdx >= 20`, the access returns `undefined`, and `undefined < x`
- * is `false` in JS — so neither roll ever fires for the 21st+ rel.
- * This quirk is PRESERVED VERBATIM (not "fixed") — same as the legacy.
+ * `relIdx` is the raw index into the FULL relationships list (parents, children,
+ * friends, partners), which is uncapped — so for `relIdx >= 20` the raw access
+ * returned `undefined`, and `undefined < x` is `false` in JS, making the 21st+
+ * relationship permanently immune to breakup/disappointment. That is the same
+ * silent-immunity buffer-overflow class as the pet-sickness lesson (2026-06-21),
+ * so the index is now wrapped modulo the buffer length — matching the pet,
+ * vehicle, and disease consumers — instead of being preserved as a quirk.
  *
  * Side effects on `ctx`:
  *   - `ctx.notifications.push(...)` — one 'relationship-breakup' OR one
@@ -68,7 +72,7 @@ export function applyRelationshipHealth(
       const breakupChance = Math.min(0.4, (30 - rel.relationshipScore) / 100);
       const disappointedChance = 0.3;
 
-      if (preRolls.relBreakup[relIdx] < breakupChance) {
+      if (preRolls.relBreakup[relIdx % preRolls.relBreakup.length] < breakupChance) {
         logger.info(`[RELATIONSHIP] ${rel.name} broke up due to low relationship (${rel.relationshipScore}%)`);
         ctx.notifications.push({
           id: 'relationship-breakup',
@@ -78,7 +82,7 @@ export function applyRelationshipHealth(
         return { rel: null, happinessPenalty: -25 };
       }
 
-      if (preRolls.relDisappointed[relIdx] < disappointedChance) {
+      if (preRolls.relDisappointed[relIdx % preRolls.relDisappointed.length] < disappointedChance) {
         logger.info(`[RELATIONSHIP] ${rel.name} is disappointed (${rel.relationshipScore}%)`);
         ctx.notifications.push({
           id: 'relationship-disappointed',
