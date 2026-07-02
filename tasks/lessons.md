@@ -4,6 +4,50 @@
 
 ## Patterns to Watch For
 
+### 2026-07-02 - Weekly audit: doc rename silently blinded the save-integrity analyzer + 6 more real bugs
+
+- What went wrong (analyzer): `CLAUDE.md`→`DEV.md` and `AGENTS.md`→`WORKFLOW.md` were renamed
+  this week, but `audit-save.cjs` still read the OLD names to cross-check that the docs state the
+  same `STATE_VERSION` as the code. Both reads missed → the doc-drift check silently skipped
+  (two ⚪ "not found" warnings), and the report LOOKED fine while a real invariant went unchecked.
+  Fixed by pointing the check at `DEV.md`/`WORKFLOW.md` AND adding a coverage guard that emits a
+  medium finding if NO canonical doc is found — so a future rename can't blind the analyzer again.
+- Rule: when a static analyzer reads a doc/config by hard-coded filename, a rename elsewhere turns
+  the check into a silent no-op that still reports green. Any "file not found → skip" branch in an
+  analyzer must ALSO assert that at least one expected target existed; otherwise "skip" masquerades
+  as "pass". The SKILL's "false positive → tighten the analyzer, don't suppress" applies to
+  coverage loss too — restore the check, don't delete it.
+- What the deep qualitative pass found that the constants-only static audit could not (all
+  source-verified before fixing, all with same-batch / index-past-buffer regression tests):
+  - THREE more non-atomic gate→grant money printers (same H-8/H-9 class the mega-audit keeps
+    closing): `runForOffice` re-applied the up-to-$5M election reward with no idempotency re-check;
+    `enterCompetition` appended the entry UNCONDITIONALLY after a rejecting `updateMoney` (2 entries
+    for 1 fee → 2× prize); `filePatent` filed duplicate perpetual-income patents via stale-outer
+    dedup + inline floored charge. Plus `stakeCrypto` drove the coin balance negative and minted a
+    phantom staking position. Fix idiom unchanged: fold gate re-check + debit(`applyMoneyDelta`) +
+    grant into ONE `setGameState(prev => …)` that returns `prev` when the gate no longer holds.
+  - TWO more fixed-size pre-roll buffers indexed by an uncapped collection (the petSickness class,
+    2026-06-21): `relBreakup`/`relDisappointed` (len 20) indexed by the raw full-relationships
+    index → partner past index 20 immune to breakup; doctor-visit cure buffer (len 10) → 11th+
+    curable disease never cured. Both fixed with `idx % buffer.length`, matching the pet/vehicle/
+    disease consumers that already wrap. A docstring that says a quirk is "PRESERVED VERBATIM" is a
+    red flag, not a spec — re-verify it's intended, not just inherited.
+  - TWO unguarded `.length` reads on fields `repairGameState` does NOT backfill (`family.children`,
+    `curedDiseases`) — crash-on-old-save. Note `curedDiseases.length` sat in a useEffect dependency
+    array, which evaluates EVERY render regardless of the render-guard short-circuit below it.
+- Process note: the economy "lead" subagent stalled awaiting its own nested cluster agents and kept
+  returning a status instead of findings; the cluster agents delivered directly to main. When a
+  delegating agent loops on "waiting for sub-agents," verify the highest-value domain yourself
+  rather than re-prompting it — and ALWAYS re-read the cited code before fixing (over-grading remains
+  the #1 failure mode; every fix this run was confirmed at the line first).
+- Deferred to backlog (documented in the PR, not fixed): 4 low-severity self-harm double-CHARGES
+  (cost-side, not printers), several capped non-cash double-taps (interactRelation, swipe quota),
+  and two week-loop robustness items — 4 subsystem ticks (crypto/banking/darkWeb/politics) not
+  individually try/catch-wrapped like their `stocks` sibling, and `stateUpdateError` read before the
+  deferred updater runs (the read sees `null`; the error dialog is effectively dead). The latter two
+  touch the load-bearing week tick and need per-consumer fallback care, so they were filed, not
+  rushed.
+
 ### 2026-06-30 - IAP `applyBenefit` double-granted every consumable (in-memory path + disk path both additive)
 
 - What went wrong: `IAPService.applyBenefit` runs TWO grant paths in sequence for every
