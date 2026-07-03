@@ -190,8 +190,15 @@ function OnionAppInner({ onBack }: OnionAppProps) {
               currentWeek={gameState.weeksLived}
               darkMode={darkMode}
               onRun={() => {
-                runJobStage(setGameState, job.id);
+                const res = runJobStage(gameState, setGameState, job.id);
                 queueSave();
+                if (!res.success) {
+                  Alert.alert('Cannot Run Stage', res.message);
+                } else if (res.outcome === 'completed') {
+                  Alert.alert('Job Complete', res.message);
+                } else if (res.outcome === 'fail') {
+                  Alert.alert('Stage Failed', res.message);
+                }
               }}
             />
           );

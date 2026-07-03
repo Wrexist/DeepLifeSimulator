@@ -103,36 +103,72 @@ export const beginDarkWebJob = (
 /**
  * Run the current stage of a job. Deducts energy on attempt; on completion,
  * the BTC payout lands in the dirty wallet (the player still has to launder it).
+ *
+ * Returns an outcome the caller must surface — a silently swallowed block or
+ * failure reads as "the button does nothing" (bug report 2026-07-03).
  */
 export const runJobStage = (
+  currentState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   jobId: string
-) => {
+): { success: boolean; outcome?: 'success' | 'fail' | 'completed' | 'expired'; message: string } => {
   // P1-2: pre-roll outside the updater (see buyMarketListing for rationale).
   const stageRoll = Math.random();
+
+  // Evaluate on the caller's snapshot so the result can be reported to the UI.
+  // The updater below re-runs the same pure logic with the same roll.
+  const snapshot = ensureDarkWeb(currentState);
+  if (!snapshot.darkWeb) return { success: false, message: 'Dark web is unavailable.' };
+  const pre = attemptJobStage(snapshot.darkWeb, jobId, stageRoll, snapshot.weeksLived);
+  if (!pre.ok) {
+    log.warn(`Stage attempt failed: ${pre.reason}`);
+    return { success: false, message: pre.reason };
+  }
+  // BUGFIX: gate on energy. Previously the cost was only subtracted (floored at
+  // 0) AFTER the attempt, so a player at 0 energy could spam Run Stage for free.
+  // attemptJobStage is pure (no state mutation), so bailing here is safe.
+  const energy = snapshot.stats?.energy ?? 0;
+  if (energy < pre.result.energyCost) {
+    log.info(`Stage attempt blocked: need ${pre.result.energyCost} energy, have ${Math.round(energy)}`);
+    return {
+      success: false,
+      message: `Not enough energy — this stage needs ${pre.result.energyCost} energy and you have ${Math.round(energy)}. Rest up and try again.`,
+    };
+  }
+
   setGameState((prev) => {
     const state = ensureDarkWeb(prev);
     if (!state.darkWeb) return prev;
     const r = attemptJobStage(state.darkWeb, jobId, stageRoll, state.weeksLived);
-    if (!r.ok) {
-      log.warn(`Stage attempt failed: ${r.reason}`);
-      return prev;
-    }
-    // BUGFIX: gate on energy. Previously the cost was only subtracted (floored at
-    // 0) AFTER the attempt, so a player at 0 energy could spam Run Stage for free.
-    // attemptJobStage is pure (no state mutation), so bailing here is safe.
-    const energy = state.stats?.energy ?? 0;
-    if (energy < r.result.energyCost) {
-      log.info(`Stage attempt blocked: need ${r.result.energyCost} energy, have ${Math.round(energy)}`);
-      return prev;
-    }
-    const energyAfter = Math.max(0, energy - r.result.energyCost);
+    if (!r.ok) return prev;
+    const prevEnergy = state.stats?.energy ?? 0;
+    if (prevEnergy < r.result.energyCost) return prev;
     return {
       ...state,
-      stats: { ...state.stats, energy: energyAfter },
+      stats: { ...state.stats, energy: Math.max(0, prevEnergy - r.result.energyCost) },
       darkWeb: r.result.dw,
     };
   });
+
+  const { outcome, dirtyBtcEarned, dw } = pre.result;
+  if (outcome === 'completed') {
+    return {
+      success: true,
+      outcome,
+      message: `Job complete! ${dirtyBtcEarned.toFixed(4)} ₿ landed in your dirty wallet — launder it before cashing out.`,
+    };
+  }
+  if (outcome === 'fail') {
+    const burned = dw.activeJobs.find((j) => j.id === jobId)?.status === 'failed';
+    return {
+      success: true,
+      outcome,
+      message: burned
+        ? 'The stage failed one time too many — the job is burned and gone.'
+        : 'The stage failed and your progress reset to stage 1. Too many failures will burn the job.',
+    };
+  }
+  return { success: true, outcome, message: 'Stage complete — advanced to the next stage.' };
 };
 
 // ---------------------------------------------------------------------------
