@@ -54,10 +54,12 @@ describe('events engine', () => {
       }
     }
 
-    // Late-game random event frequency is intentionally low (~2-6% observed in deterministic runs).
+    // Late-game cadence: the ~12% frequency gate now guarantees a weighted
+    // pick when it passes (bug report 2026-07-03: players effectively never
+    // saw events because a second 6% per-template roll ran after the gate).
     const eventRate = eventsGenerated / testRuns;
-    expect(eventRate).toBeGreaterThanOrEqual(0.02);
-    expect(eventRate).toBeLessThanOrEqual(0.08);
+    expect(eventRate).toBeGreaterThanOrEqual(0.08);
+    expect(eventRate).toBeLessThanOrEqual(0.22);
   });
 
   it('SMOOTHNESS: suppresses discretionary popups during the cooldown window', () => {
@@ -83,6 +85,20 @@ describe('events engine', () => {
     // Nothing but a pity-guaranteed event (24-week drought) may fire here, and a
     // 1-week-old event is nowhere near pity — so the window stays quiet.
     expect(eventsGenerated).toBe(0);
+  });
+
+  it('VARIETY: surfaces different events across weeks instead of one fixed rotation', () => {
+    // Regression (bug report 2026-07-03): pity always forced the single
+    // highest-weight template, so players saw the same event forever.
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const weeksLived = 60 + i * 3;
+      const events = rollWeeklyEvents(
+        createState({ weeksLived, lastEventWeeksLived: weeksLived - 30 })
+      );
+      for (const e of events) seen.add(e.id.split('-')[0]);
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(4);
   });
 
   it('SMOOTHNESS: still guarantees an event after a long drought (pity)', () => {
