@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import {
   ArrowLeft,
   Wallet,
@@ -41,6 +41,8 @@ import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from
 import {
   depositCashToAccount,
   withdrawCashFromAccount,
+  closeBankAccount,
+  toggleBill,
   openNewAccount,
   applyForCard,
   payDownCard,
@@ -102,6 +104,27 @@ function BankAppInner({ onBack }: BankAppProps) {
     saveGame().catch(() => {});
   }, [saveGame]);
 
+  const confirmCloseAccount = useCallback(
+    (acct: BankAccount) => {
+      Alert.alert(
+        'Close account?',
+        `Close "${acct.name}"? Its balance of ${formatMoney(acct.balance)} will be returned to your cash.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Close Account',
+            style: 'destructive',
+            onPress: () => {
+              closeBankAccount(setGameState, acct.id);
+              queueSave();
+            },
+          },
+        ]
+      );
+    },
+    [setGameState, queueSave]
+  );
+
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
       <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
@@ -143,6 +166,8 @@ function BankAppInner({ onBack }: BankAppProps) {
             currentWeek={gameState.weeksLived}
             darkMode={darkMode}
             onPress={() => setDepositTarget(acct)}
+            onWithdraw={() => setWithdrawTarget(acct)}
+            onClose={() => confirmCloseAccount(acct)}
           />
         ))}
 
@@ -188,6 +213,10 @@ function BankAppInner({ onBack }: BankAppProps) {
               rule={rule}
               currentWeek={gameState.weeksLived}
               darkMode={darkMode}
+              onToggle={() => {
+                toggleBill(setGameState, rule.id);
+                queueSave();
+              }}
               onDelete={() => {
                 removeBill(setGameState, rule.id);
                 queueSave();
@@ -366,9 +395,6 @@ function BankAppInner({ onBack }: BankAppProps) {
           setPayCardId(null);
         }}
       />
-
-      {/* Silence unused-var warning for setWithdrawTarget kept for symmetry with desktop. */}
-      {false && <Text>{String(setWithdrawTarget)}</Text>}
     </View>
   );
 }
