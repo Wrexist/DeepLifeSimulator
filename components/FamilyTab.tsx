@@ -33,6 +33,11 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
+import RingSelectionModal from '@/components/mobile/RingSelectionModal';
+import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
+import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
+import { updateMoney as rawUpdateMoney } from '@/contexts/game/actions/MoneyActions';
+import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
 const LinearGradient = LinearGradientFallback;
 
 interface FamilyTabProps {
@@ -42,8 +47,8 @@ interface FamilyTabProps {
 function FamilyTab({ onClose }: FamilyTabProps) {
  const {
  gameState,
+ setGameState,
  saveGame,
- proposeToPartner,
  moveInTogether,
  haveChild,
  } = useGame();
@@ -52,6 +57,8 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const settings = safeSettings(gameState);
  const [selectedChild, setSelectedChild] = useState<string | null>(null);
  const [showChildModal, setShowChildModal] = useState(false);
+ const [showRingModal, setShowRingModal] = useState(false);
+ const [showWeddingModal, setShowWeddingModal] = useState(false);
  
  const partner = gameState.relationships?.find(r => r.type === 'partner');
  const spouse = gameState.family?.spouse;
@@ -101,7 +108,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const handlePropose = useCallback(() => {
  if (!partner) return;
 
- if (partner.relationshipScore < 80) {
+ if (partner.relationshipScore < 60) {
  Alert.alert(
  'Not Ready',
  `Your relationship with ${partner.name} needs to be stronger before proposing. Current: ${partner.relationshipScore}/100`,
@@ -110,26 +117,26 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return;
  }
 
- Alert.alert(
- 'Propose Marriage',
- `Are you ready to ask ${partner.name} to marry you? This is a big step!`,
- [
- { text: 'Cancel', style: 'cancel' },
- {
- text: 'Propose',
- onPress: () => {
- const result = proposeToPartner(partner.id);
- if (result?.success) {
+ setShowRingModal(true);
+ }, [partner]);
+
+ const handleProposeWithRing = useCallback((ringId: string) => {
+ if (!partner) return;
+ setShowRingModal(false);
+
+ const result = proposeMarriage(gameState, setGameState, partner.id, ringId, {
+ updateMoney: rawUpdateMoney,
+ updateStats: rawUpdateStats,
+ });
  saveGame();
- Alert.alert('Congratulations!', result.message);
+ if (result.accepted) {
+ Alert.alert('Congratulations! 💍', `${result.message}\n\nNext step: plan the wedding!`);
+ } else if (result.success) {
+ Alert.alert('Rejected', result.message);
  } else {
- Alert.alert('Response', result?.message || 'They need more time to think...');
+ Alert.alert('Cannot Propose', result.message);
  }
- },
- },
- ]
- );
- }, [partner, proposeToPartner, saveGame]);
+ }, [partner, gameState, setGameState, saveGame]);
 
  const handleMoveIn = useCallback(() => {
  if (!partner) return;
@@ -305,7 +312,9 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const renderPartnerCard = () => {
  if (!partner || spouse) return null;
 
- const canPropose = partner.relationshipScore >= 80;
+ const isEngaged = partner.engagementWeek != null;
+ const hasWeddingPlan = Boolean(partner.weddingPlanned);
+ const canPropose = partner.relationshipScore >= 60 && !isEngaged;
  const canMoveIn = partner.relationshipScore >= 60 &&!partner.livingTogether;
  const canTryForBaby = !partner.isPregnant
  && partner.relationshipScore >= 70
@@ -332,7 +341,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Heart size={16} color="#F59E0B" />
  </View>
  <Text style={[styles.cardSubtitle, settings.darkMode && styles.textMuted]}>
- Your Partner • {partner.personality}
+ {isEngaged ? 'Your Fiancé(e)' : 'Your Partner'} • {partner.personality}
  {partner.livingTogether && ' • Living Together'}
  </Text>
  <View style={styles.progressContainer}>
@@ -348,7 +357,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  />
  </View>
  <Text style={[styles.progressText, settings.darkMode && styles.textMuted]}>
- {partner.relationshipScore}% • {partner.relationshipScore >= 80 ? 'Ready for proposal!': 'Building relationship...'}
+ {partner.relationshipScore}% • {isEngaged ? 'Engaged!' : partner.relationshipScore >= 60 ? 'Ready for proposal!': 'Building relationship...'}
  </Text>
  </View>
  </View>
@@ -366,6 +375,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </Text>
  </TouchableOpacity>
  )}
+ {!isEngaged && (
  <TouchableOpacity
  style={[styles.actionButton, { flex: 1, opacity: canPropose ? 1: 0.5 }]}
  onPress={handlePropose}
@@ -379,6 +389,32 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Text style={styles.actionButtonText}>Propose</Text>
  </LinearGradient>
  </TouchableOpacity>
+ )}
+ {isEngaged && !hasWeddingPlan && (
+ <TouchableOpacity
+ style={[styles.actionButton, { flex: 1 }]}
+ onPress={() => setShowWeddingModal(true)}
+ >
+ <LinearGradient
+ colors={['#EC4899', '#DB2777']}
+ style={styles.actionButtonGradient}
+ >
+ <Heart size={18} color="#FFF" />
+ <Text style={styles.actionButtonText}>Plan Wedding</Text>
+ </LinearGradient>
+ </TouchableOpacity>
+ )}
+ {isEngaged && hasWeddingPlan && (
+ <View style={[styles.actionButton, { flex: 1 }]}>
+ <LinearGradient
+ colors={['#10B981', '#059669']}
+ style={styles.actionButtonGradient}
+ >
+ <Heart size={18} color="#FFF" />
+ <Text style={styles.actionButtonText}>Wedding scheduled!</Text>
+ </LinearGradient>
+ </View>
+ )}
  </View>
 
  {partner.isPregnant && (
@@ -705,6 +741,26 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </ScrollView>
 
  {renderChildModal()}
+
+ {partner && (
+ <RingSelectionModal
+ visible={showRingModal}
+ onClose={() => setShowRingModal(false)}
+ partnerName={partner.name}
+ relationshipScore={partner.relationshipScore}
+ datesCount={partner.datesCount || 0}
+ livingTogether={partner.livingTogether || false}
+ onPropose={handleProposeWithRing}
+ />
+ )}
+ {partner && (
+ <WeddingPlanningModal
+ visible={showWeddingModal}
+ onClose={() => setShowWeddingModal(false)}
+ partnerId={partner.id}
+ partnerName={partner.name}
+ />
+ )}
  </LinearGradient>
  </View>
  );
