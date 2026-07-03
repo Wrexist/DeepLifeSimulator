@@ -15,7 +15,7 @@
  */
 
 import { BankingState, Loan } from '@/contexts/game/types';
-import { recomputeCreditScore, tickBillPay } from './operations';
+import { accrueAccountInterest, recomputeCreditScore, tickBillPay } from './operations';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -131,6 +131,11 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
 
   // 1. Mirror cash + savings into the banking slice.
   let banking = mirrorAccountsFromLegacy(input.banking, input.newBankSavings, input.newMoney);
+
+  // 1b. Accrue APR on self-opened accounts (savings/HY/CD/money market).
+  // The advertised baseAPR previously never paid out — the legacy interest
+  // path only covered the mirrored savings-default account.
+  banking = accrueAccountInterest(banking).banking;
 
   // 2. Run user-added bill-pay rules (Phase C adds the UI; for now this is a no-op for
   //    existing players because billPayRules[] is empty).

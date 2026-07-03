@@ -19,6 +19,7 @@ import {
   SavingsGoal,
 } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { SAVINGS_BALANCE_SOFT_CAP, SAVINGS_CAP_EFFICIENCY } from '@/lib/economy/constants';
 import {
   calculatePeriodicPayment,
   creditScoreAPRAdjustment,
@@ -171,6 +172,64 @@ export function openAccount(
     minBalance: spec.minBalance,
   };
   return { banking: { ...banking, accounts: [...banking.accounts, account] }, account };
+}
+
+/**
+ * Accrue one week of interest on every self-opened account.
+ *
+ * The two mirrored legacy accounts are skipped — `savings-default` is paid by
+ * the legacy applySavingsInterest path and `checking-default` mirrors cash.
+ * Uses the same soft-cap diminishing-returns curve as the legacy path so a
+ * parked fortune doesn't compound at full rate. Locked accounts (CDs) still
+ * accrue — that's the point of a CD.
+ */
+export function accrueAccountInterest(
+  banking: BankingState
+): { banking: BankingState; totalInterest: number } {
+  let totalInterest = 0;
+  const accounts = (banking.accounts || []).map((acct) => {
+    if (MIRRORED_ACCOUNT_IDS.has(acct.id)) return acct;
+    const apr = safe(acct.baseAPR);
+    const balance = safe(acct.balance);
+    if (apr <= 0 || balance <= 0) return acct;
+    const belowCap = Math.min(balance, SAVINGS_BALANCE_SOFT_CAP);
+    const aboveCap = Math.max(0, balance - SAVINGS_BALANCE_SOFT_CAP);
+    const interest =
+      (belowCap * apr) / WEEKS_PER_YEAR +
+      (aboveCap * apr * SAVINGS_CAP_EFFICIENCY) / WEEKS_PER_YEAR;
+    if (interest <= 0) return acct;
+    totalInterest += interest;
+    return { ...acct, balance: balance + interest };
+  });
+  if (totalInterest === 0) return { banking, totalInterest: 0 };
+  return { banking: { ...banking, accounts }, totalInterest };
+}
+
+/**
+ * Close a self-opened account. The residual balance is returned to the caller,
+ * which must credit it to the player's cash (action layer responsibility).
+ */
+export function closeAccount(
+  banking: BankingState,
+  accountId: string,
+  currentWeek: number
+): { banking: BankingState; ok: boolean; residualBalance: number; reason?: string } {
+  const account = findAccount(banking, accountId);
+  if (!account) {
+    return { banking, ok: false, residualBalance: 0, reason: 'Account not found' };
+  }
+  if (MIRRORED_ACCOUNT_IDS.has(accountId)) {
+    return { banking, ok: false, residualBalance: 0, reason: 'Your primary checking and savings accounts cannot be closed' };
+  }
+  if (account.lockUntilWeek && currentWeek < account.lockUntilWeek) {
+    return { banking, ok: false, residualBalance: 0, reason: `Locked until week ${account.lockUntilWeek}` };
+  }
+  const residualBalance = Math.max(0, safe(account.balance));
+  return {
+    banking: { ...banking, accounts: banking.accounts.filter((a) => a.id !== accountId) },
+    ok: true,
+    residualBalance,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +412,16 @@ export function addBillPayRule(
 
 export function removeBillPayRule(banking: BankingState, ruleId: string): BankingState {
   return { ...banking, billPayRules: banking.billPayRules.filter((r) => r.id !== ruleId) };
+}
+
+/** Pause/resume a bill-pay rule without deleting it. */
+export function toggleBillPayRule(banking: BankingState, ruleId: string): BankingState {
+  return {
+    ...banking,
+    billPayRules: banking.billPayRules.map((r) =>
+      r.id === ruleId ? { ...r, enabled: !r.enabled } : r
+    ),
+  };
 }
 
 /**
