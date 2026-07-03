@@ -45,7 +45,7 @@ function build() {
   // after the rename the STATE_VERSION cross-check silently went dark.
   const CURRENT_DOCS = ['DEV.md', 'WORKFLOW.md'];
   const LEGACY_DOCS = ['CLAUDE.md', 'AGENTS.md'];
-  let docsChecked = 0;
+  let anyDocFound = false;
   for (const doc of [...CURRENT_DOCS, ...LEGACY_DOCS]) {
     const src = L.read(doc);
     if (src == null) {
@@ -54,18 +54,22 @@ function build() {
       if (CURRENT_DOCS.includes(doc)) a.info(`${doc} not found`, 'Skipping doc-version check.', doc);
       continue;
     }
+    anyDocFound = true;
     const m = src.match(/STATE_VERSION\s*=\s*(\d+)/);
     if (!m) {
+      // A present-but-silent doc is already covered by this per-doc medium — the
+      // aggregate below must NOT also fire for it (that would double-report one root cause).
       a.medium(`${doc} does not state STATE_VERSION`, 'Add the canonical version so drift is visible.', doc);
     } else {
-      docsChecked++;
       a.assert(Number(m[1]) === stateVersion, 'medium',
         `${doc} STATE_VERSION matches code (${stateVersion})`,
         `${doc} STATE_VERSION drift: doc says ${m[1]}, code is ${stateVersion}`,
         'Documented save-version drift has bitten this repo before (lessons.md).', doc);
     }
   }
-  if (docsChecked === 0) {
+  // Only escalate when NO dev doc was found at all; a doc that exists but omits
+  // the version is handled by its own per-doc medium above.
+  if (!anyDocFound) {
     a.medium('No dev doc states STATE_VERSION',
       'DEV.md/WORKFLOW.md must document the canonical save version so drift is visible.', 'DEV.md');
   }
