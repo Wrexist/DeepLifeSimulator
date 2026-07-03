@@ -402,40 +402,56 @@ export const enterCompetition = (
     return { success: false, message: `You need $${competition.entryCost.toLocaleString()} to enter this competition` };
   }
 
-  // Deduct entry cost
-  deps.updateMoney(setGameState, -competition.entryCost, `Enter ${competition.name}`);
-
-  // Calculate company score
+  // Optimistic score for the log line below; the authoritative score is
+  // recomputed from `prev` inside the atomic updater.
   const score = calculateCompetitionScore(company);
 
-  // Add competition entry to history
-  const competitionEntry = {
-    competitionId: competition.id,
-    competitionName: competition.name,
-    entryWeek: absoluteWeek,
-    endWeek: absoluteWeek + Math.max(1, competition.endWeek - competition.startWeek),
-    score: score,
-    completed: false,
-    prize: undefined,
-    rank: undefined,
-  };
+  // H-8/H-9: fold the affordability + already-entered re-check, the entry-fee
+  // charge, and the history append into ONE `setGameState(prev => …)` keyed off
+  // `prev`. Previously the fee (deps.updateMoney) and the history append were two
+  // separate dispatches, and the append never re-checked `alreadyEntered` — so two
+  // same-batch taps both passed the stale outer gate and both appended a duplicate
+  // entry. `processCompetitionResults` sums a prize PER entry, so the duplicate
+  // paid out twice: a repeatable, untaxed money printer. Re-reading the gate from
+  // `prev` (and routing the fee through applyMoneyDelta for the overdraft guard)
+  // makes the second tap a no-op.
+  setGameState(prev => {
+    const target = (prev.companies || []).find(c => c.id === companyId);
+    if (!target) return prev;
 
-  setGameState(prev => ({
-    ...prev,
-    companies: (prev.companies || []).map(c => {
-      if (c.id !== companyId) return c;
-      return {
-        ...c,
-        competitionHistory: [...(c.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
-      };
-    }),
-    company: prev.company?.id === companyId
-      ? {
-          ...prev.company,
-          competitionHistory: [...(prev.company.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
-        }
-      : prev.company,
-  }));
+    const enteredInPrev = (target.competitionHistory || []).some(
+      entry => entry.competitionId === competitionId &&
+               entry.entryWeek === absoluteWeek &&
+               !entry.completed
+    );
+    if (enteredInPrev) return prev; // second same-batch tap — reject atomically
+
+    const spend = applyMoneyDelta(prev, -competition.entryCost, `Enter ${competition.name}`);
+    if (!spend) return prev; // unaffordable (race guard) — reject atomically
+
+    const competitionEntry = {
+      competitionId: competition.id,
+      competitionName: competition.name,
+      entryWeek: absoluteWeek,
+      endWeek: absoluteWeek + Math.max(1, competition.endWeek - competition.startWeek),
+      score: calculateCompetitionScore(target),
+      completed: false,
+      prize: undefined,
+      rank: undefined,
+    };
+
+    const appendEntry = (c: GameState['companies'][number]) => ({
+      ...c,
+      competitionHistory: [...(c.competitionHistory || []), competitionEntry].slice(-COMPETITION_HISTORY_CAP),
+    });
+
+    return {
+      ...prev,
+      ...spend,
+      companies: (prev.companies || []).map(c => (c.id === companyId ? appendEntry(c) : c)),
+      company: prev.company?.id === companyId ? appendEntry(prev.company) : prev.company,
+    };
+  });
 
   log.info(`Entered competition: ${competition.name} for ${companyId} with score ${score}`);
   const resultDelayWeeks = Math.max(1, competition.endWeek - competition.startWeek);
