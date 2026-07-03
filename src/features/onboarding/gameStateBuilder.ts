@@ -85,6 +85,14 @@ const EDUCATION_MAP: Record<string, string> = {
   College: 'business_degree',
 };
 
+/** Display names for seeded educations (mirrors the EducationApp catalog). */
+const EDUCATION_NAME_MAP: Record<string, string> = {
+  business_degree: 'Business Degree',
+};
+
+/** GPA recorded for degrees granted by a scenario ("solid" band). */
+const SEEDED_EDUCATION_GPA = 3.0;
+
 export function mapScenarioItemIds(scenarioItems: string[]): string[] {
   return scenarioItems.map((sid) => ITEM_ID_MAP[sid] || sid).filter(Boolean);
 }
@@ -193,7 +201,13 @@ export function buildNewGameState(params: BuildGameStateParams): any {
         const wanted = Array.isArray(eduFromScenario) ? eduFromScenario : [eduFromScenario];
         const mappedWanted = wanted.map((w) => EDUCATION_MAP[w] || w).filter((w) => w !== 'Dropout');
         if (mappedWanted.length > 0 && mappedWanted.includes(e.id)) {
-          return { ...e, completed: true, weeksRemaining: undefined };
+          return {
+            ...e,
+            completed: true,
+            weeksRemaining: undefined,
+            gpa: e.gpa ?? SEEDED_EDUCATION_GPA,
+            name: e.name ?? EDUCATION_NAME_MAP[e.id] ?? e.id,
+          };
         }
         return e;
       });
@@ -210,11 +224,12 @@ export function buildNewGameState(params: BuildGameStateParams): any {
           if (!existing.find((e) => e.id === eduId)) {
             existing.push({
               id: eduId,
-              name: eduId, // Display name — UI catalogs (e.g. EducationApp) override on render
+              name: EDUCATION_NAME_MAP[eduId] || eduId,
               description: '',
               cost: 0,
               duration: 0,
               completed: true,
+              gpa: SEEDED_EDUCATION_GPA,
             });
           }
         }
