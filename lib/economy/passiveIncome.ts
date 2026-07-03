@@ -298,6 +298,29 @@ export function calcWeeklyPassiveIncome(
       // Skip contract bonus if calculation fails
     }
     
+    // Brand & market share (Hustle overlay) now affect revenue: strong brand
+    // (>50) and market share lift income, weak brand drags it.
+    // factor = 1 + (brand - 50)/200 + marketShare%/200, clamped to [0.75, 1.6].
+    // Older saves without a hustleApp overlay get a neutral 1.0.
+    try {
+      const overlay = state.hustleApp?.companies?.[company.id];
+      if (overlay) {
+        const brandScore = typeof overlay.brand?.score === 'number' && isFinite(overlay.brand.score)
+          ? overlay.brand.score
+          : 50;
+        const marketShare = typeof overlay.marketSharePercent === 'number' && isFinite(overlay.marketSharePercent)
+          ? overlay.marketSharePercent
+          : 0;
+        const rawFactor = 1 + (brandScore - 50) / 200 + marketShare / 200;
+        const brandFactor = Math.min(1.6, Math.max(0.75, rawFactor));
+        if (isFinite(brandFactor) && brandFactor > 0) {
+          weeklyIncome = Math.round(weeklyIncome * brandFactor);
+        }
+      }
+    } catch {
+      // Neutral on any overlay read failure — never zero company income.
+    }
+
     // CRITICAL: Validate efficiencyMultiplier before applying
     const safeEfficiencyMultiplier = isFinite(efficiencyMultiplier) && efficiencyMultiplier > 0 ? efficiencyMultiplier : 1;
     weeklyIncome = Math.round(weeklyIncome * safeEfficiencyMultiplier);

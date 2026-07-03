@@ -105,4 +105,66 @@ describe('calcWeeklyPassiveIncome', () => {
       result.breakdown.gamingStreaming;
     expect(result.total).toBe(expectedTotal);
   });
+
+  describe('company brand / market-share multiplier (Hustle overlay)', () => {
+    const baseCompany = {
+      id: 'factory',
+      name: 'My Factory',
+      type: 'factory' as const,
+      weeklyIncome: 10000,
+      baseWeeklyIncome: 10000,
+      upgrades: [],
+      employees: 0,
+      workerSalary: 500,
+      workerMultiplier: 1.1,
+      marketingLevel: 1,
+      miners: {},
+      warehouseLevel: 0,
+    };
+
+    function stateWithOverlay(brandScore: number | undefined, marketSharePercent: number | undefined): GameState {
+      return createState({
+        companies: [baseCompany],
+        hustleApp: {
+          companies: {
+            factory: {
+              companyId: 'factory',
+              brand: brandScore === undefined ? undefined : { score: brandScore, trend: 'flat', lastUpdatedWeek: 0 },
+              marketSharePercent,
+            },
+          },
+          lifetimeStats: {},
+        },
+      } as unknown as Partial<GameState>);
+    }
+
+    it('applies the brand + market share factor to company income', () => {
+      // factor = 1 + (90-50)/200 + 40/200 = 1.4
+      const result = calcWeeklyPassiveIncome(stateWithOverlay(90, 40));
+      expect(result.breakdown.companies).toBe(Math.round(10000 * 1.4));
+    });
+
+    it('clamps the factor at the 1.6 upper bound', () => {
+      // raw = 1 + 50/200 + 100/200 = 1.75 → clamped to 1.6
+      const result = calcWeeklyPassiveIncome(stateWithOverlay(100, 100));
+      expect(result.breakdown.companies).toBe(Math.round(10000 * 1.6));
+    });
+
+    it('clamps the factor at the 0.75 lower bound', () => {
+      // raw = 1 - 50/200 + 0 = 0.75 (exactly the floor; anything lower clamps)
+      const result = calcWeeklyPassiveIncome(stateWithOverlay(0, 0));
+      expect(result.breakdown.companies).toBe(Math.round(10000 * 0.75));
+    });
+
+    it('is neutral (1.0) when the hustle overlay is missing (older saves)', () => {
+      const result = calcWeeklyPassiveIncome(createState({ companies: [baseCompany] }));
+      expect(result.breakdown.companies).toBe(10000);
+    });
+
+    it('treats a malformed overlay (missing brand/share) as neutral-ish defaults', () => {
+      // brand missing → 50 (neutral), share missing → 0 → factor = 1.0
+      const result = calcWeeklyPassiveIncome(stateWithOverlay(undefined, undefined));
+      expect(result.breakdown.companies).toBe(10000);
+    });
+  });
 });

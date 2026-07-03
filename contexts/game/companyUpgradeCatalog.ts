@@ -293,3 +293,21 @@ export const COMPANY_UPGRADES: Record<string, CompanyUpgrade[]> = {
 
 /** Uniform per-level cost growth applied to every company upgrade. */
 export const COMPANY_UPGRADE_COST_MULTIPLIER = 1.5;
+
+/**
+ * Starting weekly income per industry (was a flat 2000 for every type, which
+ * made pricier companies strictly worse buys). Scales loosely with founding
+ * cost so payback periods stay sane:
+ *   factory    $50k  → $1,500/wk (~33 wk payback, cheap steady starter)
+ *   ai         $90k  → $2,200/wk (~41 wk; big upgrade ceiling)
+ *   restaurant $130k → $2,600/wk (~50 wk)
+ *   realestate $200k → $3,200/wk (~63 wk)
+ *   bank       $2M   → $4,000/wk (endgame; huge upgrade bonuses carry it)
+ */
+export const COMPANY_STARTING_INCOME: Record<string, number> = {
+  factory: 1500,
+  ai: 2200,
+  restaurant: 2600,
+  realestate: 3200,
+  bank: 4000,
+};

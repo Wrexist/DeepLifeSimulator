@@ -41,6 +41,9 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
     let shareSum = 0;
     for (const c of companies) {
       weekly += c.weeklyIncome ?? 0;
+      // c.employees is the canonical headcount and already INCLUDES named
+      // hires (hireCandidate/fireNamedHire keep it in sync) — never add
+      // overlay.hiringPipeline.namedHires.length on top of this.
       employees += c.employees ?? 0;
       const o = overlays[c.id];
       if (o) {
