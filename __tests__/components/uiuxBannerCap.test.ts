@@ -1,4 +1,4 @@
-import { capErrorBanners } from '@/contexts/UIUXContext';
+import { capErrorBanners, isBlankNotification } from '@/contexts/UIUXContext';
 
 /**
  * Regression: spamming the green "Next Week" button flooded the screen with
@@ -62,5 +62,24 @@ describe('capErrorBanners', () => {
     // All four real errors kept (never dropped); every advisory squeezed out.
     expect(capped.map(b => b.id)).toEqual(['e1', 'e2', 'e3', 'e4']);
     expect(capped.some(b => b.severity === 'info')).toBe(false);
+  });
+});
+
+/**
+ * Regression (bug report 2026-07-03): "blue banner with nothing on it" —
+ * a notification whose message resolved to undefined/empty rendered as a
+ * bare icon-only banner. Blank notifications are now dropped at the source.
+ */
+describe('isBlankNotification', () => {
+  it('flags missing, empty, and whitespace-only content as blank', () => {
+    expect(isBlankNotification(undefined, undefined)).toBe(true);
+    expect(isBlankNotification('', '')).toBe(true);
+    expect(isBlankNotification('   ', '\n')).toBe(true);
+  });
+
+  it('keeps notifications that have any visible text', () => {
+    expect(isBlankNotification('Something happened', undefined)).toBe(false);
+    expect(isBlankNotification(undefined, 'Title only')).toBe(false);
+    expect(isBlankNotification('', 'Title')).toBe(false);
   });
 });
