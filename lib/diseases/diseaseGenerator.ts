@@ -231,21 +231,47 @@ export function generateRandomDisease(state: GameState): Disease | null {
     }
   }
 
+  // Filter the pool before rolling:
+  //  - minAge keeps age-related conditions (heart disease, stroke, dementia…)
+  //    from hitting implausibly young players;
+  //  - no duplicates of an already-active disease;
+  //  - at most 2 concurrent non-mild conditions — beyond that only mild
+  //    diseases can still occur;
+  //  - never stack a second terminal (weeksUntilDeath) illness.
+  const activeDiseases = Array.isArray(state.diseases) ? state.diseases : [];
+  const activeSeriousCount = activeDiseases.filter(d => d && d.severity !== 'mild').length;
+  const hasTerminal = activeDiseases.some(d => d && typeof d.weeksUntilDeath === 'number');
+  const eligibleTemplates = DISEASE_DEFINITIONS.filter(template => {
+    if (template.minAge != null && age < template.minAge) return false;
+    if (activeDiseases.some(d => d && d.id === template.id)) return false;
+    if (activeSeriousCount >= 2 && template.severity !== 'mild') return false;
+    if (hasTerminal && template.weeksUntilDeath != null) return false;
+    return true;
+  });
+
   // Roll for each disease type
   let diseaseRoll = seededRandom(weekSeed + 20000);
   let cumulativeChance = 0;
 
   // Calculate chances for all diseases
-  const diseaseChances = DISEASE_DEFINITIONS.map(template => ({
+  const diseaseChances = eligibleTemplates.map(template => ({
     template,
     chance: calculateDiseaseSpecificRisk(template, state, baseRiskMultiplier),
   }));
 
-  // Normalize chances (sum should be reasonable)
   const totalChance = diseaseChances.reduce((sum, d) => sum + d.chance, 0);
 
   // If total chance is very low, likely no disease
   if (totalChance < 0.01) {
+    return null;
+  }
+
+  // Occurrence gate: roll against the summed absolute risk. Previously the
+  // per-disease chances were only normalized into a "which disease" pick, so
+  // once past the gates above a disease landed EVERY cooldown window (~13 a
+  // year) regardless of how small the individual chances were.
+  const occurrenceChance = Math.min(totalChance, 0.35);
+  if (seededRandom(weekSeed + 30000) >= occurrenceChance) {
     return null;
   }
 
@@ -274,8 +300,20 @@ export function generateEventDisease(eventId: string, state: GameState): Disease
     stress_event: ['stress', 'depression'],
   };
 
-  const possibleDiseaseIds = eventDiseaseMap[eventId];
-  if (!possibleDiseaseIds || possibleDiseaseIds.length === 0) {
+  // Respect the same guards as the weekly roll: age gates, no duplicates,
+  // and never stack a second terminal illness via an event.
+  const age = state.date?.age ?? ADULTHOOD_AGE;
+  const activeDiseases = Array.isArray(state.diseases) ? state.diseases : [];
+  const hasTerminal = activeDiseases.some(d => d && typeof d.weeksUntilDeath === 'number');
+  const possibleDiseaseIds = (eventDiseaseMap[eventId] || []).filter(id => {
+    const template = getDiseaseTemplate(id);
+    if (!template) return false;
+    if (template.minAge != null && age < template.minAge) return false;
+    if (activeDiseases.some(d => d && d.id === id)) return false;
+    if (hasTerminal && template.weeksUntilDeath != null) return false;
+    return true;
+  });
+  if (possibleDiseaseIds.length === 0) {
     return null;
   }
 

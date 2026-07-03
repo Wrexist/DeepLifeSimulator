@@ -19,6 +19,7 @@ export interface DiseaseTemplate {
   fitnessRiskModifier: number; // Multiplier for fitness-based risk
   baseChance: number; // Base chance of this disease (0-1)
   chronic?: boolean; // If true, disease is manageable but not curable
+  minAge?: number; // Minimum age before this disease can occur naturally
 }
 
 /**
@@ -188,6 +189,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 1.6,
     fitnessRiskModifier: 2.0, // Much higher risk with low fitness
     baseChance: 0.003, // 0.3% base chance
+    minAge: 30, // Not rolled naturally before this age
   },
   {
     id: 'high_blood_pressure',
@@ -211,6 +213,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 1.4,
     fitnessRiskModifier: 1.7,
     baseChance: 0.004,
+    minAge: 30, // Not rolled naturally before this age
   },
   {
     id: 'depression',
@@ -260,6 +263,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 1.5,
     fitnessRiskModifier: 1.3,
     baseChance: 0.001, // 0.1% base chance (very rare)
+    minAge: 30, // Not rolled naturally before this age
   },
   {
     id: 'heart_disease',
@@ -271,7 +275,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
       fitness: -8,
       happiness: -3,
     },
-    curable: false,
+    curable: true, // Treatable via experimental treatment (critical-tier care)
     treatmentRequired: true,
     weeksUntilDeath: 15,
     chronic: true,
@@ -286,6 +290,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 1.6,
     fitnessRiskModifier: 2.2, // Much higher risk with low fitness
     baseChance: 0.002,
+    minAge: 45, // Not rolled naturally before this age
   },
   {
     id: 'stroke',
@@ -297,7 +302,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
       fitness: -10,
       happiness: -5,
     },
-    curable: false,
+    curable: true, // Treatable via experimental treatment (critical-tier care)
     treatmentRequired: true,
     weeksUntilDeath: 12,
     description: 'A medical emergency causing brain damage. Immediate treatment is critical.',
@@ -311,6 +316,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 1.8,
     fitnessRiskModifier: 1.6,
     baseChance: 0.0015,
+    minAge: 45, // Not rolled naturally before this age
   },
   {
     id: 'organ_failure',
@@ -322,7 +328,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
       fitness: -12,
       happiness: -6,
     },
-    curable: false,
+    curable: true, // Treatable via experimental treatment (critical-tier care)
     treatmentRequired: true,
     weeksUntilDeath: 10,
     description: 'Severe organ dysfunction requiring immediate medical intervention.',
@@ -335,6 +341,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 2.0,
     fitnessRiskModifier: 1.5,
     baseChance: 0.0008, // Very rare
+    minAge: 40, // Not rolled naturally before this age
   },
 
   // ─── Phase 3 additions: Mental Health ─────────────────────────────
@@ -674,6 +681,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 1.3,
     fitnessRiskModifier: 1.6,
     baseChance: 0.003,
+    minAge: 35, // Not rolled naturally before this age
   },
   {
     id: 'kidney_disease',
@@ -685,7 +693,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
       fitness: -6,
       happiness: -5,
     },
-    curable: false,
+    curable: true, // Treatable via experimental treatment (critical-tier care)
     treatmentRequired: true,
     weeksUntilDeath: 25,
     chronic: true,
@@ -699,6 +707,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 1.7,
     fitnessRiskModifier: 1.3,
     baseChance: 0.001,
+    minAge: 40, // Not rolled naturally before this age
   },
   {
     id: 'dementia',
@@ -722,6 +731,7 @@ export const DISEASE_DEFINITIONS: DiseaseTemplate[] = [
     healthRiskModifier: 1.3,
     fitnessRiskModifier: 1.4,
     baseChance: 0.001,
+    minAge: 60, // Not rolled naturally before this age
   },
 ];
 
