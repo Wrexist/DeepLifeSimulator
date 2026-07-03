@@ -25,7 +25,7 @@ import {
   setRentMode as setRentModePure,
 } from '@/lib/realEstate/operations';
 import { RentMode } from '@/lib/realEstate/tenancy';
-import { quoteLoan } from '@/lib/banking/operations';
+import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
 import { politicsAprReduction } from './LoanActions';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 
@@ -212,8 +212,15 @@ export const buyPropertyWithMortgage = (
       `Bought ${catalog.name} for $${catalog.price.toLocaleString()} (down: $${(quote.downPaymentUSD ?? 0).toLocaleString()}, financed: $${(quote.loanPrincipal ?? 0).toLocaleString()})`
     );
 
+    // Budget tab: the down payment leaves cash today → housing spending. The
+    // mortgage principal is NOT recorded; its repayments are tracked as 'debt'.
+    const banking = prev.banking?.budgetSpend
+      ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', downPayment)
+      : prev.banking;
+
     return {
       ...prev,
+      banking,
       stats: { ...prev.stats, money: newMoney },
       realEstate: updatedRealEstate,
       loans: updatedLoans,
@@ -331,6 +338,10 @@ export const maintainProperty = (
     const updated = performMaintenance(prev.realEstate ?? [], propertyId, prev.weeksLived);
     return {
       ...prev,
+      // Budget tab: property maintenance is housing spending.
+      banking: prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', cost)
+        : prev.banking,
       stats: { ...prev.stats, money: cash - cost },
       realEstate: updated,
     };

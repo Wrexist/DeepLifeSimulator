@@ -11,6 +11,7 @@
 
 import { GameState, VehicleInsurance } from '../types';
 import { logger } from '@/utils/logger';
+import { trackBudgetSpend } from '@/lib/banking/operations';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import {
@@ -149,8 +150,14 @@ export const purchaseVehicle = (
       log.info(`Vehicle purchase: ${moneyChange > 0 ? '+' : ''}${moneyChange} (Vehicle Purchase: ${template.name})`);
     }
 
+    // Budget tab: vehicle purchases are transport spending.
+    const banking = prev.banking?.budgetSpend
+      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', vehiclePrice)
+      : prev.banking;
+
     return {
       ...prev,
+      banking,
       stats: {
         ...prev.stats,
         money: newMoney,
@@ -246,6 +253,10 @@ export const refuelVehicle = (
   // Atomic: merge fuel cost + fuel level update into single update
   setGameState(prev => ({
     ...prev,
+    // Budget tab: fuel is transport spending.
+    banking: prev.banking?.budgetSpend
+      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', fuelCost)
+      : prev.banking,
     stats: {
       ...prev.stats,
       money: Math.max(0, prev.stats.money - fuelCost),
@@ -292,6 +303,10 @@ export const repairVehicle = (
   // Atomic: merge repair cost + condition update into single update
   setGameState(prev => ({
     ...prev,
+    // Budget tab: repairs are transport spending.
+    banking: prev.banking?.budgetSpend
+      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', repairCost)
+      : prev.banking,
     stats: {
       ...prev.stats,
       money: Math.max(0, prev.stats.money - repairCost),
@@ -372,6 +387,10 @@ export const purchaseInsurance = (
 
     return {
       ...prev,
+      // Budget tab: insurance premium (6 months upfront) is transport spending.
+      banking: prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, currentWeeksLived, 'transport', premiumCost)
+        : prev.banking,
       stats: {
         ...prev.stats,
         money: Math.max(0, prev.stats.money - premiumCost),
@@ -834,8 +853,16 @@ export const purchaseVehicleWithAutoLoan = (
           : `Financed ${template.name} — $${(quote.downPaymentUSD ?? 0).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk`,
     };
 
+    // Budget tab: the down payment leaves cash today → transport spending.
+    // The financed remainder is NOT recorded here; its weekly repayments are
+    // tracked as 'debt' by the loan-payment path.
+    const banking = prev.banking?.budgetSpend
+      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', quote.downPaymentUSD ?? 0)
+      : prev.banking;
+
     return {
       ...prev,
+      banking,
       stats: { ...prev.stats, money: newMoney },
       vehicles,
       activeVehicleId,

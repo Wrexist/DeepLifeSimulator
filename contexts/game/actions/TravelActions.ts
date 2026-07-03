@@ -1,5 +1,6 @@
 import { GameState, TravelState } from '../types';
 import { logger } from '@/utils/logger';
+import { trackBudgetSpend } from '@/lib/banking/operations';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { DESTINATIONS } from '@/lib/travel/destinations';
@@ -55,6 +56,11 @@ export const travelTo = (
 
   setGameState((prev) => ({
     ...prev,
+    // Budget tab: trip bookings are entertainment spending (cost was deducted
+    // by the updateMoney call above).
+    banking: prev.banking?.budgetSpend
+      ? trackBudgetSpend(prev.banking, prev.weeksLived || 0, 'entertainment', adjustedCost)
+      : prev.banking,
     travel: {
       ...prev.travel,
       currentTrip: {

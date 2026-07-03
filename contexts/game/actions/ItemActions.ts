@@ -5,6 +5,7 @@ import React from 'react';
 import { GameState, HackResult } from '../types';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
+import { trackBudgetSpend } from '@/lib/banking/operations';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { rejectIfBlocked } from './_guards';
@@ -96,8 +97,15 @@ export const buyItem = (
       log.info(`Item purchase: ${moneyChange > 0 ? '+' : ''}${moneyChange} (Bought item: ${item.name})`);
     }
 
+    // Budget tab: record shop purchases as lifestyle spending. Done inside the
+    // updater so a bailed-out purchase (already owned / can't afford) records nothing.
+    const banking = prev.banking?.budgetSpend
+      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'lifestyle', price)
+      : prev.banking;
+
     return {
       ...prev,
+      banking,
       stats: {
         ...prev.stats,
         money: newMoney, // Explicitly set the new money value

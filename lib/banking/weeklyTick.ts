@@ -14,8 +14,8 @@
  * Pure function — no React, no setGameState.
  */
 
-import { BankingState, Loan } from '@/contexts/game/types';
-import { accrueAccountInterest, recomputeCreditScore, tickBillPay } from './operations';
+import { BankingState, BudgetCategory, Loan } from '@/contexts/game/types';
+import { accrueAccountInterest, recomputeCreditScore, tickBillPay, trackBudgetSpend } from './operations';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -33,6 +33,15 @@ export interface WeeklyBankingTickInput {
   /** Current economy state, used to surface rate-shock notifications. */
   economyState?: 'normal' | 'recession' | 'boom' | 'crash';
   currentWeek: number;
+  /**
+   * Categorized cash outflows already deducted by the legacy weekly pipeline
+   * (rent, upkeep, diet, taxes, pet food, vehicle running costs, loan autopay…).
+   * Recorded into banking.budgetSpend so the Budget tab reflects real spending.
+   * Zero / negative / non-finite amounts are ignored (trackBudgetSpend guards).
+   * NOTE: do NOT pass outflows that are already tracked elsewhere (bill-pay
+   * rules and manual loan payments call trackBudgetSpend themselves).
+   */
+  spendEvents?: { category: BudgetCategory; amount: number }[];
 }
 
 export interface WeeklyBankingTickResult {
@@ -149,6 +158,13 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
       title: '💳 Missed Bill Payments',
       message: `${billResult.missed.length} bill${billResult.missed.length > 1 ? 's' : ''} could not be paid. Late fees applied.`,
     });
+  }
+
+  // 2b. Record the weekly pipeline's categorized cash outflows into the budget
+  //     tracker. These were already deducted from cash by the legacy tick —
+  //     this only makes them visible on the Budget tab (no balance changes).
+  for (const ev of input.spendEvents ?? []) {
+    banking = trackBudgetSpend(banking, input.currentWeek, ev.category, ev.amount);
   }
 
   // 3. Sync loan payment trackers so credit score reflects the existing tick's outcome.
