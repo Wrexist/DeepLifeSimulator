@@ -260,6 +260,10 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     if (partner.relationshipScore < 70) {
       logger.error('Relationship score too low for child:', partner.relationshipScore);
+      Alert.alert(
+        'Not Ready',
+        `Your relationship with ${partner.name} needs to be stronger before starting a family. Current: ${partner.relationshipScore}/100`
+      );
       return;
     }
 
