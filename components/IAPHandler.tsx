@@ -56,7 +56,15 @@ export function IAPHandler() {
                     setTimeout(() => {
                         logger.info('IAPHandler: Triggering force save');
                         saveGame(true)
-                            .then(() => resolve(true))
+                            // Resolve with the ACTUAL apply result, not an
+                            // unconditional `true`. IAPService keys its
+                            // skip-disk-reapply guard on this boolean: if the
+                            // in-memory apply failed (applied === false) but the
+                            // save succeeded, resolving `true` made the service
+                            // skip the additive disk re-apply and the paid
+                            // consumable was silently never credited. `applied`
+                            // is only true when the benefit actually landed.
+                            .then(() => resolve(applied))
                             .catch(e => {
                                 logger.error('IAPHandler: Save failed', e);
                                 resolve(false);
