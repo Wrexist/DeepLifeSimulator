@@ -4553,6 +4553,7 @@ exports[`pre-tick equivalence — applyRentAndHousing vacant status (no status f
 
 exports[`pre-tick equivalence — applyScheduledWedding boundary: scheduledWeek 47 (1 below threshold) IS stale 1`] = `
 {
+  "familySpouse": null,
   "rel": {
     "id": "r1",
     "name": "Iris",
@@ -4568,6 +4569,14 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: can afford → 
 {
   "money": 35000,
   "result": {
+    "familySpouse": {
+      "id": "r1",
+      "name": "Alice",
+      "relationshipScore": 90,
+      "type": "spouse",
+      "weddingPlanned": undefined,
+      "weeksAtLowRelationship": 0,
+    },
     "rel": {
       "id": "r1",
       "name": "Alice",
@@ -4585,6 +4594,14 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: can afford → 
 
 exports[`pre-tick equivalence — applyScheduledWedding execute: relationshipScore clamped at 100 even with +20 bonus 1`] = `
 {
+  "familySpouse": {
+    "id": "r1",
+    "name": "Dave",
+    "relationshipScore": 100,
+    "type": "spouse",
+    "weddingPlanned": undefined,
+    "weeksAtLowRelationship": 0,
+  },
   "rel": {
     "id": "r1",
     "name": "Dave",
@@ -4601,6 +4618,14 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: relationshipSco
 
 exports[`pre-tick equivalence — applyScheduledWedding execute: weeksAtLowRelationship reset to 0 even if it was high 1`] = `
 {
+  "familySpouse": {
+    "id": "r1",
+    "name": "Carol",
+    "relationshipScore": 70,
+    "type": "spouse",
+    "weddingPlanned": undefined,
+    "weeksAtLowRelationship": 0,
+  },
   "rel": {
     "id": "r1",
     "name": "Carol",
@@ -4619,6 +4644,14 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: zero budget →
 {
   "money": 0,
   "result": {
+    "familySpouse": {
+      "id": "r1",
+      "name": "Bob",
+      "relationshipScore": 80,
+      "type": "spouse",
+      "weddingPlanned": undefined,
+      "weeksAtLowRelationship": 0,
+    },
     "rel": {
       "id": "r1",
       "name": "Bob",
@@ -4636,6 +4669,7 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: zero budget →
 
 exports[`pre-tick equivalence — applyScheduledWedding expire: cant afford AND weddingAge >= 52 → expire, -15 score 1`] = `
 {
+  "familySpouse": null,
   "rel": {
     "id": "r1",
     "name": "Frank",
@@ -4654,6 +4688,7 @@ exports[`pre-tick equivalence — applyScheduledWedding postpone: cant afford, w
 {
   "moneyUnchanged": 100,
   "result": {
+    "familySpouse": null,
     "rel": {
       "id": "r1",
       "name": "Eve",
@@ -4672,6 +4707,7 @@ exports[`pre-tick equivalence — applyScheduledWedding postpone: cant afford, w
 
 exports[`pre-tick equivalence — applyScheduledWedding stale: relationshipScore floored at 0 after -10 penalty when starting < 10 1`] = `
 {
+  "familySpouse": null,
   "rel": {
     "id": "r1",
     "name": "JLow",
@@ -4687,6 +4723,7 @@ exports[`pre-tick equivalence — applyScheduledWedding stale: scheduledWeek 1 y
 {
   "moneyUnchanged": 100000,
   "result": {
+    "familySpouse": null,
     "rel": {
       "id": "r1",
       "name": "Gina",

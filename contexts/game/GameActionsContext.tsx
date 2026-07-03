@@ -110,6 +110,7 @@ import { applyMiningWarehouse } from './actions/weekly/applyMiningWarehouse';
 import { applyNPCDepthTick } from './actions/weekly/applyNPCDepthTick';
 import { applyChildAging } from './actions/weekly/applyChildAging';
 import { applyScheduledWedding } from './actions/weekly/applyScheduledWedding';
+import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { applyPregnancyProgression } from './actions/weekly/applyPregnancyProgression';
 import { applyRelationshipHealth } from './actions/weekly/applyRelationshipHealth';
 import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
@@ -772,6 +773,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let newDeathReason = prevState.deathReason;
  let newShowWeddingPopup = prevState.showWeddingPopup || false;
  let newWeddingPartnerName = prevState.weddingPartnerName;
+ // Set when a scheduled wedding executes this tick — mirrored into
+ // family.spouse below (same as executeWedding in DatingActions.ts).
+ let newWeddingSpouse: Relationship | null = null;
 
  // Health tracking
  if (newStats.health <= 0) {
@@ -889,6 +893,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (weddingResult.weddingPopup) {
  newShowWeddingPopup = true;
  newWeddingPartnerName = weddingResult.weddingPopup.partnerName;
+ }
+ if (weddingResult.familySpouse) {
+ newWeddingSpouse = weddingResult.familySpouse;
  }
  return weddingResult.rel;
  }
@@ -1358,6 +1365,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  newMoney: newStats.money,
  economyState: prevState.economy?.economyEvents?.currentState,
  currentWeek: nextWeeksLived,
+ // Categorized weekly outflows already deducted from cash above — recorded
+ // into banking.budgetSpend so the bank's Budget tab reflects real spending.
+ // Bill-pay rules and manual loan payments track themselves; not repeated here.
+ spendEvents: [
+ { category: 'housing', amount: weeklyRent + housingUpkeep },
+ { category: 'food', amount: dietWeeklyCost },
+ { category: 'taxes', amount: incomeTax },
+ { category: 'debt', amount: totalLoanAutoPaid },
+ { category: 'lifestyle', amount: petFoodCost },
+ // Vehicle running costs: same owned-vehicle sum applyVehiclesForWeek deducted.
+ { category: 'transport', amount: (prevState.vehicles || []).reduce(
+ (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },
+ ],
  });
  if (bankingTick.lateFeesDeducted > 0) {
  newStats.money = Math.max(0, newStats.money - bankingTick.lateFeesDeducted);
@@ -1608,9 +1628,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  })(),
  // Process weddings, pregnancy, and relationship health
  relationships: processedRelationships,
- // Update family with newborn children
- family: newBornChildren.length > 0 ? {
+ // Update family with newborn children + a spouse from a scheduled
+ // wedding executed this tick (mirrors executeWedding's family.spouse).
+ family: (newBornChildren.length > 0 || newWeddingSpouse) ? {
 ...prevState.family,
+...(newWeddingSpouse ? { spouse: newWeddingSpouse }: {}),
  children: [
 ...(prevState.family?.children || []),
 ...newBornChildren.map(child => ({...child, birthWeeksLived: nextWeeksLived })),
@@ -3192,6 +3214,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return { success: false, message: 'Your relationship needs to be stronger before proposing.' };
  }
 
+ // ANTI-BIGAMY: can't propose while committed (engaged / married / living
+ // with) to someone else.
+ const committedElsewhere = findCommittedPartner(currentState.relationships, partnerId);
+ if (committedElsewhere) {
+ return { success: false, message: `You are already with ${committedElsewhere.name}. You can't propose to ${partner.name}.` };
+ }
+
  if (currentState.stats.money < 5000) {
  return { success: false, message: 'You need at least $5,000 for a proper proposal.' };
  }
@@ -3203,6 +3232,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  setGameState(prev => {
  const p = (prev.relationships || []).find(r => r.id === partnerId && r.type === 'partner');
  if (!p || p.engagementWeek != null) return prev; // partner gone or already engaged
+ if (findCommittedPartner(prev.relationships, partnerId)) return prev; // ANTI-BIGAMY recheck (same-batch double-propose)
  const spend = applyMoneyDelta(prev, -5000, `Engagement ring for ${p.name}`);
  if (!spend) return prev; // unaffordable → no free engagement
  return {
@@ -3237,6 +3267,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return { success: false, message: 'Your relationship needs to be stronger before moving in together.' };
  }
 
+ // ANTI-BIGAMY: can't move in while committed (living with / engaged /
+ // married) to someone else.
+ const committedElsewhere = findCommittedPartner(currentState.relationships, partnerId);
+ if (committedElsewhere) {
+ return { success: false, message: `You are already with ${committedElsewhere.name}. You can't move in with ${partner.name}.` };
+ }
+
  // Check if player owns (and has moved into) or rents any real estate property
  const hasProperty = (currentState.realEstate || []).some(property => {
  const status = 'status' in property ? property.status: undefined;
@@ -3259,12 +3296,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
  }
 
- setGameState(prev => ({
+ setGameState(prev => {
+ // ANTI-BIGAMY recheck inside the updater — a same-batch double-tap must
+ // not end up cohabiting with two people.
+ if (findCommittedPartner(prev.relationships, partnerId)) return prev;
+ return {
 ...prev,
  relationships: (prev.relationships || []).map(r =>
  r.id === partnerId ? {...r, livingTogether: true }: r
  ),
- }));
+ };
+ });
 
  updateStats({ happiness: 10 });
 

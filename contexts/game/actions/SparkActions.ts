@@ -39,6 +39,7 @@ import {
   superLikesRemaining,
 } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
+import { findRomanticPartner } from '@/lib/dating/relationshipGuards';
 
 const log = logger.scope('SparkActions');
 
@@ -461,12 +462,22 @@ export const promoteMatchToRelationship = (
   const match = sp?.matches.find((m) => m.id === matchId);
   if (!sp || !match) return { success: false, message: 'Match not found' };
   if (match.promoted) return { success: false, message: 'Already dating this person' };
+  // ANTI-BIGAMY: exclusivity — can't start dating while already with someone
+  // (same rule + message style as SocialActionsContext.startDating).
+  const existingPartner = findRomanticPartner(gameState.relationships);
+  if (existingPartner) {
+    return { success: false, message: `You are already with ${existingPartner.name}.` };
+  }
   const profile = findProfile(match.profileId);
   if (!profile) return { success: false, message: 'Profile no longer exists' };
 
   const relationshipId = match.id; // share the id so future ops can find both sides
 
   setGameState((prev) => {
+    // ANTI-BIGAMY recheck inside the updater — a same-batch double-tap (or a
+    // promote racing another relationship-creating action) must not append a
+    // second partner.
+    if (findRomanticPartner(prev.relationships)) return prev;
     const s = ensureSpark(prev);
     const newRelationship = {
       id: relationshipId,

@@ -28,6 +28,7 @@ import {
 } from '@/lib/dating/weddingVenues';
 import type { Dispatch, SetStateAction } from 'react';
 import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('DatingActions');
@@ -290,6 +291,17 @@ export const proposeMarriage = (
     return { success: false, message: 'Partner not found.', accepted: false };
   }
 
+  // ANTI-BIGAMY: can't propose while committed (engaged / married / living
+  // with) to someone else.
+  const committedElsewhere = findCommittedPartner(gameState.relationships, partnerId);
+  if (committedElsewhere) {
+    return {
+      success: false,
+      message: `You are already with ${committedElsewhere.name}. You can't propose to ${partner.name}.`,
+      accepted: false,
+    };
+  }
+
   const ring = getEngagementRing(ringId);
   if (!ring) {
     return { success: false, message: 'Ring not found.', accepted: false };
@@ -335,6 +347,11 @@ export const proposeMarriage = (
     setGameState(prev => {
       const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
       if (!prevPartner || prevPartner.type !== 'partner' || prevPartner.engagementWeek != null) {
+        return prev;
+      }
+      // ANTI-BIGAMY recheck — a same-batch propose to a second partner must
+      // not go through (or charge for the ring) once the first is engaged.
+      if (findCommittedPartner(prev.relationships, partnerId)) {
         return prev;
       }
       if ((prev.stats?.money ?? 0) < ring.price) {
@@ -384,6 +401,11 @@ export const proposeMarriage = (
     setGameState(prev => {
       const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
       if (!prevPartner || prevPartner.type !== 'partner' || prevPartner.engagementWeek != null) {
+        return prev;
+      }
+      // ANTI-BIGAMY recheck — a same-batch propose to a second partner must
+      // not go through (or charge for the ring) once the first is engaged.
+      if (findCommittedPartner(prev.relationships, partnerId)) {
         return prev;
       }
       if ((prev.stats?.money ?? 0) < ring.price) {

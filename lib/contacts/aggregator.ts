@@ -81,7 +81,8 @@ export function aggregateContacts(
       id: r.id,
       kind,
       name: r.name,
-      subtitle: r.type === 'spouse' ? 'Spouse' : r.type === 'partner' ? 'Partner' : r.type === 'parent' ? 'Parent' : r.type === 'child' ? 'Child' : 'Friend',
+      // Stage-aware: an engaged partner shows as Fiancé(e), not plain Partner.
+      subtitle: r.type === 'spouse' ? 'Spouse' : r.type === 'partner' ? (r.engagementWeek != null ? 'Fiancé(e)' : 'Partner') : r.type === 'parent' ? 'Parent' : r.type === 'child' ? 'Child' : 'Friend',
       strength: Math.max(0, Math.min(100, safe(r.relationshipScore, 0))),
       weeksSinceContact: lastContact !== undefined ? Math.max(0, week - lastContact) : undefined,
       tags: [
