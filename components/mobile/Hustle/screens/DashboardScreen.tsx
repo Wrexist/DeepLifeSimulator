@@ -7,10 +7,11 @@
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Briefcase, DollarSign, Plus, TrendingUp, Users } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import KPICard from '../components/KPICard';
 import CompanyTile from '../components/CompanyTile';
@@ -28,6 +29,7 @@ interface DashboardScreenProps {
 export default function DashboardScreen({ onOpenCompany, onCreateCompany }: DashboardScreenProps) {
   const { gameState } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const companies = gameState.companies ?? [];
   const overlays = gameState.hustleApp?.companies ?? {};
@@ -88,7 +90,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
         {/* Hero strip */}
         <LinearGradient
           colors={HUSTLE_GRADIENT_SOFT as unknown as string[]}
@@ -126,7 +128,12 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
         accessibilityRole="button"
         accessibilityLabel="Create new company"
         hitSlop={8}
-        style={({ pressed }) => [styles.fabTouch, pressed && { transform: [{ scale: 0.94 }] }]}
+        style={({ pressed }) => [
+          styles.fabTouch,
+          // Lift the FAB above the floating phone tab bar (was hidden under it).
+          { bottom: getTabBarSafePadding(insets.bottom) },
+          pressed && { transform: [{ scale: 0.94 }] },
+        ]}
       >
         <LinearGradient
           colors={HUSTLE_GRADIENT as unknown as string[]}

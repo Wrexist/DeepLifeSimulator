@@ -42,6 +42,7 @@ import {
   X as XIcon,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
@@ -55,6 +56,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  getTabBarSafePadding,
 } from '@/utils/scaling';
 
 type TabType = 'personal' | 'network' | 'favors' | 'attention';
@@ -79,6 +81,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   } = useGame();
   // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
   const timers = useTimerManager();
+  const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
@@ -323,7 +326,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   };
 
   const renderPersonal = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {personalContacts.length === 0 ? (
         <EmptyHero
           Icon={Users}
@@ -338,7 +341,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderNetwork = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.statsTitle, { color: theme.text }]}>Your network</Text>
         <View style={styles.statsRow}>
@@ -362,7 +365,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderFavors = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.statsTitle, { color: theme.text }]}>IOU position</Text>
         <View style={styles.statsRow}>
@@ -425,7 +428,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderAttention = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {needAttention.length === 0 ? (
         <EmptyHero
           Icon={Heart}
@@ -493,7 +496,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       {activeTab === 'attention' && renderAttention()}
 
       {feedback && !feedback.id ? (
-        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info }]}>
+        <View style={[styles.toast, { bottom: getTabBarSafePadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.info }]}>
           <Text style={{ color: theme.text }}>{feedback.message}</Text>
         </View>
       ) : null}

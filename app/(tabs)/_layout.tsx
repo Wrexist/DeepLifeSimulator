@@ -83,15 +83,11 @@ export default function TabLayout() {
           right: 0,
           ...getGlassTabBar(isDark),
           paddingTop: scale(12),
-          // Account for bottom safe area (navigation bar) on Android
-          // Use at least scale(12) but add bottom inset if it exists
-          paddingBottom: Platform.OS === 'android' 
-            ? Math.max(scale(12), insets.bottom || 0)
-            : scale(12),
-          // Add bottom inset to height to prevent overlap with navigation bar
-          height: Platform.OS === 'android'
-            ? scale(70) + (insets.bottom || 0)
-            : scale(70),
+          // Account for the bottom safe area (Android navigation bar / iOS
+          // home indicator). Both platforms need the inset — omitting it on
+          // iOS left the bar short on notched iPhones.
+          paddingBottom: Math.max(scale(12), insets.bottom || 0),
+          height: scale(70) + (insets.bottom || 0),
         },
         tabBarBackground: () => (
           <View style={{

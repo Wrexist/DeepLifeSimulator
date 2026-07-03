@@ -43,6 +43,7 @@ import {
   TrendingUp,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DESTINATIONS, TravelDestination } from '@/lib/travel/destinations';
 import { transportationMods } from '@/lib/travel/transportation';
 import { quoteTrip } from '@/lib/travel/operations';
@@ -63,6 +64,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  getTabBarSafePadding,
 } from '@/utils/scaling';
 
 type TabType = 'destinations' | 'trip' | 'business' | 'history';
@@ -73,6 +75,7 @@ interface TravelAppProps {
 
 export default function TravelApp({ onBack }: TravelAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
+  const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
@@ -214,7 +217,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
   };
 
   const renderDestinations = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <EconomyEventBanner context="travel" />
       {renderTransportationCard()}
       {!ownsPassport && (
@@ -342,7 +345,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const effectiveReturn = returnWeek <= 8 && week > 8 ? week : returnWeek;
     const remaining = Math.max(0, effectiveReturn - week);
     return (
-      <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
         <View style={[styles.tripCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={[styles.tripIcon, { backgroundColor: accent.info }]}>
             <Plane size={scale(28)} color="white" />
@@ -389,7 +392,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       );
     }
     return (
-      <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
         {opps.map((opp) => (
           <View
             key={opp.id}
@@ -434,7 +437,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       );
     }
     return (
-      <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
         {[...history].reverse().map((entry, idx) => {
           const dest = DESTINATIONS.find((d) => d.id === entry.destinationId);
           if (!dest) return null;

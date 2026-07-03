@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { HUSTLE_GRADIENT, industryColor } from '../styles/hustleTheme';
@@ -39,18 +39,16 @@ interface CreateCompanyScreenProps {
   onCreated: (companyId: string) => void;
 }
 
-// Tab bar (in app/(tabs)/_layout.tsx) is absolute-positioned with height scale(70)
-// plus bottom safe area inset on Android. The CTA footer here sits inside the same
-// frame, so we must reserve that height or the button is hidden under the tab bar.
-const TAB_BAR_HEIGHT = scale(70);
-
 export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompanyScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<HustleIndustry | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const tabBarOffset = TAB_BAR_HEIGHT + (Platform.OS === 'android' ? insets.bottom : 0);
+  // Tab bar (in app/(tabs)/_layout.tsx) is absolute-positioned and floats over
+  // this screen; getTabBarSafePadding reserves its height + inset + breathing room
+  // on BOTH platforms (the old Android-only offset left the CTA covered on iOS).
+  const tabBarOffset = getTabBarSafePadding(insets.bottom);
 
   const playerMoney = gameState.stats?.money ?? 0;
 
@@ -78,7 +76,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: tabBarOffset + scale(100) }]}
+        contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.intro, { color: theme.textSecondary }]}>
@@ -145,7 +143,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
           {
             borderTopColor: theme.border,
             backgroundColor: theme.surface,
-            paddingBottom: responsiveSpacing.md + tabBarOffset,
+            paddingBottom: tabBarOffset,
           },
         ]}
       >

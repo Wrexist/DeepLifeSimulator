@@ -14,10 +14,11 @@ import {
   AlertTriangle, ArrowLeft, Briefcase, Building2, ChevronRight,
   DollarSign, Megaphone, Rocket, TrendingUp, Users, Zap,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import KPICard from '../components/KPICard';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
@@ -40,6 +41,7 @@ export default function CompanyDetailScreen({
 }: CompanyDetailScreenProps) {
   const { gameState } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const company = useMemo(
     () => (gameState.companies ?? []).find((c) => c.id === companyId),
@@ -93,7 +95,7 @@ export default function CompanyDetailScreen({
         </Pressable>
       ) : null}
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient
           colors={[accent + 'BB', accent + '66']}

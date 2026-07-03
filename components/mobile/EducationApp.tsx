@@ -23,7 +23,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Education } from '@/contexts/game/types';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import EducationRow from '@/components/education/EducationRow';
@@ -233,7 +233,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: responsiveSpacing['2xl'] }}
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getTabBarSafePadding(insets.bottom) }}
       >
         {activeTab === 'available' && renderAvailable()}
         {activeTab === 'enrolled' && renderEnrolled()}

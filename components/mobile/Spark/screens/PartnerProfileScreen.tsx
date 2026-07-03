@@ -18,10 +18,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft, AlertTriangle, Briefcase, GraduationCap, Heart, MapPin, MessageCircle, Sparkles, UserX } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import { unmatch, reportProfile } from '@/contexts/game/actions/SparkActions';
 import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
@@ -41,6 +42,7 @@ interface PartnerProfileScreenProps {
 export default function PartnerProfileScreen({ matchId, onBack, onClosed }: PartnerProfileScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const sp = gameState.sparkApp;
   const match = sp?.matches?.find((m: any) => m.id === matchId);
@@ -105,7 +107,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <Header theme={theme} title="Profile" onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
         {/* Hero */}
         <View style={styles.hero}>
           <LinearGradient

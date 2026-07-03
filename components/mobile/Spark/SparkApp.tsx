@@ -16,10 +16,11 @@
 import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft, Crown, Flame, Heart, MessageCircle, User } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { SPARK_GRADIENT, SPARK_COLORS } from './styles/sparkTheme';
 import SwipeScreen from './screens/SwipeScreen';
 import MatchesScreen from './screens/MatchesScreen';
@@ -41,6 +42,7 @@ interface SparkAppProps {
 export default function SparkApp({ onBack }: SparkAppProps) {
   const { gameState } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<SparkTab>('swipe');
   const [openChatId, setOpenChatId] = useState<string | null>(null);
   const [openProfileId, setOpenProfileId] = useState<string | null>(null);
@@ -152,8 +154,8 @@ export default function SparkApp({ onBack }: SparkAppProps) {
         {activeTab === 'profile' && <ProfileTab />}
       </View>
 
-      {/* Bottom tab bar */}
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+      {/* Bottom tab bar — padded so it clears the floating phone tab bar. */}
+      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
         <TabBtn
           icon={Flame}
           label="Swipe"

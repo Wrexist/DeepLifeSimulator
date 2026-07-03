@@ -30,6 +30,7 @@ import {
   Star,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
@@ -47,6 +48,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  getTabBarSafePadding,
 } from '@/utils/scaling';
 import { GamingStreamingState } from '@/contexts/game/types';
 
@@ -87,6 +89,7 @@ interface Props {
 
 export default function GamingApp({ onBack }: Props) {
   const { gameState, setGameState, saveGame } = useGame();
+  const insets = useSafeAreaInsets();
   // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
   const timers = useTimerManager();
   const darkMode = !!gameState.settings?.darkMode;
@@ -157,7 +160,7 @@ export default function GamingApp({ onBack }: Props) {
   );
 
   const renderChannel = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.heroRow}>
           <View>
@@ -221,7 +224,7 @@ export default function GamingApp({ onBack }: Props) {
   );
 
   const renderRecord = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>New video</Text>
         <TextInput
@@ -275,7 +278,7 @@ export default function GamingApp({ onBack }: Props) {
   );
 
   const renderVideos = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {videos.length === 0 ? (
         <View style={styles.empty}>
           <VideoIcon size={scale(48)} color={theme.textSecondary} />
@@ -306,7 +309,7 @@ export default function GamingApp({ onBack }: Props) {
   );
 
   const renderStudio = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Accessories</Text>
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
@@ -403,7 +406,7 @@ export default function GamingApp({ onBack }: Props) {
       {activeTab === 'studio' && renderStudio()}
 
       {feedback ? (
-        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info }]}>
+        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info, bottom: getTabBarSafePadding(insets.bottom) }]}>
           <Text style={{ color: theme.text }}>{feedback}</Text>
         </View>
       ) : null}

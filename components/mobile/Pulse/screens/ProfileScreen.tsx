@@ -7,10 +7,11 @@
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, getTabBarSafePadding } from '@/utils/scaling';
 import { Calendar, Link2, MapPin } from 'lucide-react-native';
 import PostCard from '../components/PostCard';
 import CommentItem from '../components/CommentItem';
@@ -49,6 +50,7 @@ interface ProfileScreenProps {
 export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostPost, onEditProfile }: ProfileScreenProps) {
   const { gameState } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
 
   const sm = gameState.socialMedia;
@@ -100,7 +102,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
   }, [sm?.commentThreads]);
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {/* Cover photo */}
       <View style={styles.cover}>
         {profile.headerPhoto ? (

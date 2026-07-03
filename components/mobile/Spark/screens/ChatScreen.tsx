@@ -11,10 +11,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ArrowLeft, Heart, Send, User } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import {
   sendSparkMessage,
   generateNpcReply,
@@ -39,6 +40,7 @@ interface ChatScreenProps {
 export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: ChatScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<FlatList<SparkMessage>>(null);
@@ -95,7 +97,8 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background }]}>
+    // Bottom padding keeps the composer (and error line) above the floating phone tab bar.
+    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
           <ArrowLeft size={fontScale(22)} color={theme.text} />
