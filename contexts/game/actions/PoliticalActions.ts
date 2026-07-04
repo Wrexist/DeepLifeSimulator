@@ -267,6 +267,15 @@ export const runForOffice = (
     };
   }
 
+  // One campaign per week: catches a sequential duplicate tap with an honest
+  // message instead of rolling a second election. A SAME-BATCH duplicate (both
+  // taps sharing a stale snapshot) is caught by the in-updater
+  // lastElectionAttemptWeek re-check below; its return message stays
+  // optimistic, consistent with the other atomic action fixes.
+  if (gameState.politics?.lastElectionAttemptWeek === gameState.weeksLived) {
+    return { success: false, message: 'You already ran a campaign this week. Try again next week.' };
+  }
+
   // Pre-roll impure values before updater
   const electionRoll = Math.random() * 100;
 

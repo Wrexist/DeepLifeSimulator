@@ -44,13 +44,15 @@ jobs:
           persist-credentials: false
 
       # Fail fast (before any macOS minutes) if the requested marketing
-      # version isn't a valid MAJOR.MINOR[.PATCH] string.
+      # version isn't a full MAJOR.MINOR.PATCH string. Three parts required:
+      # `npm version` (used to stamp package.json) rejects two-part inputs
+      # like "2.5", which would otherwise fail late in the macOS job.
       - name: Validate marketing version input
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
-            echo "::error::Version '$VERSION' is not a valid MAJOR.MINOR[.PATCH] string (e.g. 2.5.3)."
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' must be a full MAJOR.MINOR.PATCH string (e.g. 2.5.3)."
             exit 1
           fi
           CURRENT=$(node -p "require('./package.json').version")
