@@ -147,6 +147,10 @@ export default function ToastNotification({
     dismiss();
   };
 
+  // Nothing to say — an empty toast renders as a bare icon-only pill.
+  // (After the hooks so hook order stays stable.)
+  if (!message?.trim()) return null;
+
   const containerStyle = [
     styles.container,
     {

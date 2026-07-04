@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { GameState, Company } from '../types';
-import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '../companyUpgradeCatalog';
+import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME } from '../companyUpgradeCatalog';
 import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
@@ -86,12 +86,15 @@ export const createCompany = (
     ? safeCompanyType.charAt(0).toUpperCase() + safeCompanyType.slice(1)
     : 'Company';
   
+  // Industry-varied starting income (see COMPANY_STARTING_INCOME docs).
+  const startingIncome = COMPANY_STARTING_INCOME[companyType] ?? 2000;
+
   const newCompany: Company = {
     id: companyType,
     name: `My ${capitalizedType}`,
     type: companyType as Company['type'],
-    weeklyIncome: 2000,
-    baseWeeklyIncome: 2000,
+    weeklyIncome: startingIncome,
+    baseWeeklyIncome: startingIncome,
     upgrades: [], // Start with no upgrades
     employees: 0,
     workerSalary: workerConfig.salary,

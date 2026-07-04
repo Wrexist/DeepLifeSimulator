@@ -46,6 +46,8 @@ export default function ErrorMessage({
  }, [visible, autoDismiss, onDismiss, dismissAfter]);
 
  if (!visible) return null;
+ // Nothing to say: an empty banner (icon + X only) reads as a broken event.
+ if (!message?.trim() && !title?.trim()) return null;
 
  const getSeverityColors = () => {
  switch (severity) {

@@ -26,7 +26,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { initialGameState } from '@/contexts/game/initialState';
 import { DarkWebMixerTier, DarkWebSkillId } from '@/contexts/game/types';
@@ -190,8 +190,15 @@ function OnionAppInner({ onBack }: OnionAppProps) {
               currentWeek={gameState.weeksLived}
               darkMode={darkMode}
               onRun={() => {
-                runJobStage(setGameState, job.id);
+                const res = runJobStage(gameState, setGameState, job.id);
                 queueSave();
+                if (!res.success) {
+                  Alert.alert('Cannot Run Stage', res.message);
+                } else if (res.outcome === 'completed') {
+                  Alert.alert('Job Complete', res.message);
+                } else if (res.outcome === 'fail') {
+                  Alert.alert('Stage Failed', res.message);
+                }
               }}
             />
           );
@@ -383,7 +390,9 @@ function OnionAppInner({ onBack }: OnionAppProps) {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: responsiveSpacing['2xl'] }}
+        // Clear the floating tab bar — a short padding left the bottom
+        // buttons (Run Stage, cash-out) untappable underneath it.
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getTabBarSafePadding(insets.bottom) }}
       >
         {activeTab === 'market' && renderMarket()}
         {activeTab === 'jobs' && renderJobs()}

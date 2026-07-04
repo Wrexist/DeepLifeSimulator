@@ -124,6 +124,96 @@ describe('Disease Generator', () => {
     });
   });
 
+  // Regression suite for the 2026-07-03 balance report: terminal heart
+  // disease at 21, three simultaneous conditions, ~13 diseases/year.
+  describe('generateRandomDisease balance guards', () => {
+    const baseStats = { health: 55, fitness: 30, happiness: 50, energy: 50, money: 1000, reputation: 0, gems: 0 };
+
+    it('never gives an age-gated disease to a young player', () => {
+      const gated = new Set(['heart_disease', 'stroke', 'organ_failure', 'kidney_disease', 'dementia', 'arthritis', 'diabetes', 'high_blood_pressure', 'cancer']);
+      for (let week = 0; week < 400; week += 4) {
+        const state = createTestGameState({
+          weeksLived: week,
+          lastDiseaseWeek: week - 4,
+          stats: { ...baseStats, health: 25, fitness: 5 },
+          date: { age: 21, year: 2025, month: 'January', week: 1 },
+        });
+        const disease = generateRandomDisease(state);
+        if (disease) {
+          expect(gated.has(disease.id)).toBe(false);
+        }
+      }
+    });
+
+    it('does not produce a disease on every cooldown window (occurrence gate)', () => {
+      let generated = 0;
+      let rolls = 0;
+      for (let week = 0; week < 800; week += 4) {
+        const state = createTestGameState({
+          weeksLived: week,
+          lastDiseaseWeek: week - 4,
+          stats: baseStats,
+          date: { age: 30, year: 2025, month: 'January', week: 1 },
+        });
+        rolls++;
+        if (generateRandomDisease(state)) generated++;
+      }
+      // Pre-fix this was ~100% of rolls (a disease every 4 weeks).
+      expect(generated / rolls).toBeLessThan(0.5);
+      expect(generated).toBeGreaterThan(0); // still possible, just not constant
+    });
+
+    it('never stacks a second terminal illness', () => {
+      for (let week = 0; week < 400; week += 4) {
+        const state = createTestGameState({
+          weeksLived: week,
+          lastDiseaseWeek: week - 4,
+          stats: { ...baseStats, health: 15, fitness: 5 },
+          date: { age: 70, year: 2025, month: 'January', week: 1 },
+          diseases: [
+            { id: 'cancer', name: 'Cancer', severity: 'critical', effects: {}, curable: true, weeksUntilDeath: 10, contractedWeek: 0, description: '' },
+          ],
+        } as any);
+        const disease = generateRandomDisease(state);
+        if (disease) {
+          expect(disease.weeksUntilDeath).toBeUndefined();
+        }
+      }
+    });
+
+    it('only allows mild diseases once two serious conditions are active', () => {
+      for (let week = 0; week < 400; week += 4) {
+        const state = createTestGameState({
+          weeksLived: week,
+          lastDiseaseWeek: week - 4,
+          stats: { ...baseStats, health: 15, fitness: 5 },
+          date: { age: 70, year: 2025, month: 'January', week: 1 },
+          diseases: [
+            { id: 'asthma', name: 'Asthma', severity: 'serious', effects: {}, curable: false, contractedWeek: 0, description: '' },
+            { id: 'arthritis', name: 'Arthritis', severity: 'serious', effects: {}, curable: false, contractedWeek: 0, description: '' },
+          ],
+        } as any);
+        const disease = generateRandomDisease(state);
+        if (disease) {
+          expect(disease.severity).toBe('mild');
+        }
+      }
+    });
+
+    it('generateEventDisease respects the age gate too', () => {
+      for (let week = 0; week < 200; week += 1) {
+        const state = createTestGameState({
+          weeksLived: week,
+          date: { age: 21, year: 2025, month: 'January', week: 1 },
+        });
+        const disease = generateEventDisease('medical_emergency', state);
+        if (disease) {
+          expect(['pneumonia'].includes(disease.id)).toBe(true);
+        }
+      }
+    });
+  });
+
   describe('generateEventDisease', () => {
     it('should generate disease for medical_emergency event', () => {
       const state = createTestGameState({ 

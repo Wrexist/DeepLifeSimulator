@@ -7,9 +7,10 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, getTabBarSafePadding } from '@/utils/scaling';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import EmptyState from '../components/EmptyState';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
@@ -28,6 +29,7 @@ interface BrandDealsScreenProps {
 export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
   const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<BrandTab>('inbox');
 
   const sm = gameState.socialMedia;
@@ -121,7 +123,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
         {activeTab === 'inbox' && pending.length === 0 && (
           <EmptyState
             observation="No offers yet."

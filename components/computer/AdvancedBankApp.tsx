@@ -24,6 +24,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import {
   ArrowLeft,
@@ -40,7 +41,7 @@ import { useGame } from '@/contexts/GameContext';
 import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '@/contexts/game/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { initialGameState } from '@/contexts/game/initialState';
 
@@ -61,6 +62,8 @@ import AddBillModal from '@/components/banking/AddBillModal';
 import {
   depositCashToAccount,
   withdrawCashFromAccount,
+  closeBankAccount,
+  toggleBill,
   openNewAccount,
   applyForCard,
   payDownCard,
@@ -156,6 +159,27 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     });
   }, [saveGame]);
 
+  const confirmCloseAccount = useCallback(
+    (acct: BankAccount) => {
+      Alert.alert(
+        'Close account?',
+        `Close "${acct.name}"? Its balance of ${formatMoney(acct.balance)} will be returned to your cash.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Close Account',
+            style: 'destructive',
+            onPress: () => {
+              closeBankAccount(setGameState, acct.id);
+              queueSave();
+            },
+          },
+        ]
+      );
+    },
+    [setGameState, queueSave]
+  );
+
   // --- Render helpers -------------------------------------------------------
   const renderOverview = () => {
     const checking = banking.accounts.find((a) => a.type === 'checking');
@@ -217,6 +241,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           currentWeek={gameState.weeksLived}
           darkMode={darkMode}
           onPress={() => setDepositTarget(acct)}
+          onWithdraw={() => setWithdrawTarget(acct)}
+          onClose={() => confirmCloseAccount(acct)}
         />
       ))}
 
@@ -315,6 +341,10 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             rule={rule}
             currentWeek={gameState.weeksLived}
             darkMode={darkMode}
+            onToggle={() => {
+              toggleBill(setGameState, rule.id);
+              queueSave();
+            }}
             onDelete={() => {
               removeBill(setGameState, rule.id);
               queueSave();
@@ -357,7 +387,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: responsiveSpacing['2xl'] }}
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getTabBarSafePadding(insets.bottom) }}
       >
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'accounts' && renderAccounts()}
@@ -539,10 +569,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         }}
       />
 
-      {/* Silence unused-variable warnings for fields kept for future Phase-D wiring. */}
-      {false && (
-        <Text>{String(refinanceLoan)}{String(setWithdrawTarget)}</Text>
-      )}
+      {/* Silence unused-variable warning for refinanceLoan kept for future Phase-D wiring. */}
+      {false && <Text>{String(refinanceLoan)}</Text>}
     </View>
   );
 }

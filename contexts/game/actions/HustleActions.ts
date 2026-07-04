@@ -26,6 +26,7 @@ import type {
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
 import { clampStatByKey } from '@/utils/statUtils';
+import { companyIncomeMultiplier } from '../company';
 import {
   generateCandidates,
   evaluateOffer,
@@ -121,6 +122,35 @@ function ensureOverlay(
       notifications: [],
     }
   );
+}
+
+/**
+ * Named hires ARE employees: apply a headcount delta to the canonical
+ * Company record (gameState.companies) and recompute weeklyIncome with the
+ * same diminishing-returns multiplier addWorker/removeWorker use. Floors at
+ * 0 employees. No-op when the company is missing (defensive for stale ids).
+ */
+function withEmployeeDelta(state: GameState, companyId: string, delta: number): GameState {
+  const companies = state.companies || [];
+  const idx = companies.findIndex((c) => c && c.id === companyId);
+  if (idx === -1) return state;
+  const company = companies[idx];
+  const employees = Math.max(0, (company.employees ?? 0) + delta);
+  if (employees === company.employees) return state;
+  const updated = {
+    ...company,
+    employees,
+    weeklyIncome: Math.round(
+      (company.baseWeeklyIncome ?? 0) * companyIncomeMultiplier(company.workerMultiplier ?? 1.1, employees),
+    ),
+  };
+  const nextCompanies = [...companies];
+  nextCompanies[idx] = updated;
+  return {
+    ...state,
+    companies: nextCompanies,
+    company: state.company?.id === companyId ? updated : state.company,
+  };
 }
 
 function genId(prefix: string): string {
@@ -233,7 +263,13 @@ export const hireCandidate = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
+    // Double-tap guard: if the candidate is already gone from the FRESH
+    // pipeline, the offer was already processed — don't hire (or charge) twice.
+    const freshCandidate = prev.hustleApp?.companies?.[companyId]?.hiringPipeline.candidates
+      .some((c) => c.id === candidateId);
+    if (!freshCandidate) return prev;
+
+    let next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       if (!accepted) {
         // Remove the candidate from the pipeline regardless — they took
         // another offer (or stayed at their current job).
@@ -270,6 +306,11 @@ export const hireCandidate = (
         weeksLived,
       );
     });
+    // Named hires ARE employees — bump the canonical headcount (and income
+    // multiplier) in the SAME state update so counts can never drift.
+    if (accepted) {
+      next = withEmployeeDelta(next, companyId, +1);
+    }
     // P0-2: charge the sign-on bonus IN THE SAME updater so a double-tap / low-cash
     // race can't grant the hire while a separate `updateMoney` charge is rejected.
     if (accepted && offeredBonus > 0) {
@@ -308,7 +349,13 @@ export const fireNamedHire = (
   const weeksLived = gameState.weeksLived ?? 0;
 
   setGameState((prev) => {
-    const next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
+    // Double-tap guard: if the hire is already gone from FRESH state, the fire
+    // already happened — don't pay severance or decrement headcount twice.
+    const freshHire = prev.hustleApp?.companies?.[companyId]?.hiringPipeline.namedHires
+      .some((h) => h.candidateId === candidateId);
+    if (!freshHire) return prev;
+
+    let next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       ha.lifetimeStats.totalFires += 1;
       return pushNotif(
         {
@@ -324,6 +371,9 @@ export const fireNamedHire = (
         weeksLived,
       );
     });
+    // Named hires ARE employees — decrement the canonical headcount (floor 0)
+    // in the SAME state update.
+    next = withEmployeeDelta(next, companyId, -1);
     // P0-2: pay severance IN THE SAME updater (atomic — closes the fire-without-paying race).
     const spend = applyMoneyDelta(next, -severance, `Hustle severance payout`);
     if (!spend) return prev; // can't cover severance → don't fire

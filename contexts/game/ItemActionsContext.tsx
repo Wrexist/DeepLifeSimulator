@@ -342,7 +342,9 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         const diseasesToCheck = [...updatedDiseases];
         
         diseasesToCheck.forEach((disease, diseaseIdx) => {
-          if (disease.curable) {
+          // Critical diseases need experimental treatment (matches the
+          // SicknessModal guidance) — a routine doctor visit can't cure them.
+          if (disease.curable && disease.severity !== 'critical') {
             // 50% cure chance (pre-rolled for StrictMode safety)
             const cureRoll = curePreRolls[diseaseIdx];
             if (cureRoll < 0.5) {
@@ -385,8 +387,10 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           };
         }
       } else if (activityId === 'hospital') {
-        // Hospital stay: 100% cure for all curable diseases (except cancer needs experimental)
-        const diseasesToCure = updatedDiseases.filter(d => d.curable && d.id !== 'cancer');
+        // Hospital stay: 100% cure for all curable diseases. Critical-tier
+        // diseases (cancer, heart disease, stroke, organ/kidney failure) need
+        // experimental treatment — was previously a cancer-only special case.
+        const diseasesToCure = updatedDiseases.filter(d => d.curable && d.severity !== 'critical');
         const curedDiseaseIds = new Set<string>();
         
         // Process each disease to cure

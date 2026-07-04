@@ -2992,7 +2992,27 @@ const starterEventTemplates: EventTemplate[] = [
 ];
 
 const MAX_EVENTS_PER_WEEK = 1; // Only one event per week maximum
-const EVENT_FREQUENCY_MODIFIER = 0.06; // 6% multiplier (was 10%) - less annoying for players
+
+/**
+ * Weighted-random pick from (template, weight) pairs using a deterministic
+ * roll in [0, 1). Returns null when every weight is zero.
+ *
+ * Both the routine roll and the pity system select through this so the pool's
+ * variety actually surfaces — the old flow multiplied each template's chance
+ * by a global 6% modifier AFTER the frequency gate had already passed, so most
+ * "event weeks" produced nothing, and pity always forced the single
+ * highest-weight template (players saw the same 1-2 events forever).
+ */
+function pickWeighted<T>(entries: { item: T; weight: number }[], roll: number): T | null {
+  const total = entries.reduce((sum, e) => sum + Math.max(0, e.weight), 0);
+  if (total <= 0) return null;
+  let cursor = roll * total;
+  for (const entry of entries) {
+    cursor -= Math.max(0, entry.weight);
+    if (cursor < 0) return entry.item;
+  }
+  return entries[entries.length - 1]?.item ?? null;
+}
 
 /**
  * Roll weekly events with reduced frequency
@@ -3182,9 +3202,9 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   if (currentWeeksLived < EARLY_GAME_THRESHOLD_WEEKS) {
     baseEventChance = EARLY_GAME_EVENT_CHANCE; // 45% — hook player with events early
   } else if (currentWeeksLived < 50) {
-    baseEventChance = 0.08 + Math.min(0.07, currentWeeksLived * 0.001); // 8-15% — mid-game variety
+    baseEventChance = 0.15 + Math.min(0.05, currentWeeksLived * 0.001); // 15-20% — mid-game variety
   } else {
-    baseEventChance = 0.06; // 6% — moderate late game
+    baseEventChance = 0.12; // 12% — with the min-gap cooldown this lands ~1 event/12 weeks late game
   }
   baseEventChance += seededRandom(weekSeed) * 0.01; // Small deterministic jitter
 
@@ -3220,67 +3240,31 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
 
   // RANDOMNESS FIX: If guaranteed event (pity system), force at least one event
   // EDGE CASE: If no eligible events (all have unmet conditions), fallback to general event
-  let eventForced = false;
-  if (guaranteedEvent && events.length === 0) {
-    // Force the highest weight event that meets conditions
-    const eligibleEvents = baseEventTemplates
+  // The frequency gate above already decided that an event happens this week
+  // (routine roll or pity). Select exactly ONE event, weighted by template
+  // weight (+ consequence modifiers) and the player's per-category risk, via a
+  // deterministic weighted-random pick so the whole pool gets airtime instead
+  // of the same highest-weight template every time.
+  if (events.length < MAX_EVENTS_PER_WEEK) {
+    const eligible = baseEventTemplates
       .filter(t => !t.condition || t.condition(state))
-      .sort((a, b) => {
-        const weightA = typeof a.weight === 'function' ? a.weight(state) : a.weight;
-        const weightB = typeof b.weight === 'function' ? b.weight(state) : b.weight;
-        const modifierA = consequenceState.eventWeightModifiers[a.id] || 0;
-        const modifierB = consequenceState.eventWeightModifiers[b.id] || 0;
-        return (weightB + modifierB) - (weightA + modifierA); // Include modifiers in sort
+      .map(template => {
+        const weight = typeof template.weight === 'function' ? template.weight(state) : template.weight;
+        const weightModifier = consequenceState.eventWeightModifiers[template.id] || 0;
+        const adjustedWeight = Math.max(0, weight + weightModifier);
+        return { item: template, weight: adjustedWeight * riskByCategory[template.category] };
       });
 
-    if (eligibleEvents.length > 0) {
-      events.push(eligibleEvents[0].generate(state));
-      eventForced = true;
-    } else {
-      // Fallback: Force a general event if no eligible events (should never happen, but defensive)
+    const chosen = pickWeighted(eligible, seededRandom(weekSeed + 2));
+    if (chosen) {
+      events.push(chosen.generate(state));
+    } else if (guaranteedEvent) {
+      // Defensive: pity must not starve — fall back to any general event.
       const generalEvent = baseEventTemplates.find(t => t.category === 'general');
       if (generalEvent) {
         events.push(generalEvent.generate(state));
-        eventForced = true;
       } else {
-        // Last resort: Log warning if even general events are unavailable
         logger.warn('Event pity system: No eligible events found, including general events');
-      }
-    }
-  }
-
-  // If event was forced, skip random selection
-  if (!eventForced) {
-    // Track if we've already added a personal crisis event this week
-    // Personal crisis events: medical_emergency, identity_theft, relationship_crisis, legal_issue
-    // (investment_opportunity and job_offer are opportunities, not crises)
-    const personalCrisisEventIds = ['medical_emergency', 'identity_theft', 'relationship_crisis', 'legal_issue'];
-    let hasPersonalCrisis = false;
-
-    for (const template of baseEventTemplates) {
-      if (events.length >= MAX_EVENTS_PER_WEEK) break;
-      if (template.condition && !template.condition(state)) continue;
-
-      // Prevent multiple personal crisis events in the same week
-      const isPersonalCrisis = personalCrisisEventIds.includes(template.id);
-      if (isPersonalCrisis && hasPersonalCrisis) {
-        continue; // Skip this personal crisis event if we already have one
-      }
-
-      const weight = typeof template.weight === 'function' ? template.weight(state) : template.weight;
-
-      // Apply weight modifiers from consequences (NEW)
-      const weightModifier = consequenceState.eventWeightModifiers[template.id] || 0;
-      const adjustedWeight = Math.max(0, weight + weightModifier);
-
-      const chance = adjustedWeight * riskByCategory[template.category] * EVENT_FREQUENCY_MODIFIER;
-      // TESTFLIGHT FIX: Use deterministic random based on template index for consistency
-      const templateSeed = weekSeed + 100 + eventTemplates.indexOf(template);
-      if (seededRandom(templateSeed) < chance) {
-        events.push(template.generate(state));
-        if (isPersonalCrisis) {
-          hasPersonalCrisis = true; // Mark that we've added a personal crisis event
-        }
       }
     }
   }

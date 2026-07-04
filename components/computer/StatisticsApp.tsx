@@ -31,6 +31,7 @@ import {
   AlertTriangle,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { calculateLifeExpectancy } from '@/lib/statistics/lifeExpectancy';
 import { calculateFIRETracker } from '@/lib/statistics/fireTracker';
@@ -46,6 +47,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  getTabBarSafePadding,
 } from '@/utils/scaling';
 
 type TabType = 'overview' | 'systems' | 'milestones' | 'planning';
@@ -56,6 +58,7 @@ interface Props {
 
 export default function StatisticsApp({ onBack }: Props) {
   const { gameState } = useGame();
+  const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -92,7 +95,7 @@ export default function StatisticsApp({ onBack }: Props) {
   const retirementOnTrack = retirement.savingsGap <= 0;
 
   const renderOverview = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Net worth</Text>
         <Text style={[styles.heroValue, { color: theme.text }]}>
@@ -184,7 +187,7 @@ export default function StatisticsApp({ onBack }: Props) {
   );
 
   const renderSystems = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {summary.cards.length === 0 ? (
         <View style={styles.empty}>
           <Layers size={scale(48)} color={theme.textSecondary} />
@@ -200,7 +203,7 @@ export default function StatisticsApp({ onBack }: Props) {
   );
 
   const renderMilestones = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {milestones.length === 0 ? (
         <View style={styles.empty}>
           <Trophy size={scale(48)} color={theme.textSecondary} />
@@ -234,7 +237,7 @@ export default function StatisticsApp({ onBack }: Props) {
   );
 
   const renderPlanning = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Life expectancy</Text>
         <View style={styles.statsRow}>

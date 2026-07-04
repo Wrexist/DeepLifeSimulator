@@ -8,19 +8,25 @@
  * Existing CompanyActions (createCompany, buyCompanyUpgrade) remain canonical
  * for the upgrade economy — Hustle layers premium systems on top.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   AlertTriangle, ArrowLeft, Briefcase, Building2, ChevronRight,
-  DollarSign, Megaphone, Rocket, TrendingUp, Users, Zap,
+  DollarSign, Megaphone, Rocket, TrendingUp, UserMinus, UserPlus, Users, Zap,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import KPICard from '../components/KPICard';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
+import { addWorker, removeWorker } from '@/contexts/game/company';
+import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/game/companyUpgradeCatalog';
+import { getInflatedPrice } from '@/lib/economy/inflation';
 import type { HustleCompanyOverlay } from '@/contexts/game/types';
 
 const LinearGradient = LinearGradientFallback;
@@ -38,14 +44,41 @@ interface CompanyDetailScreenProps {
 export default function CompanyDetailScreen({
   companyId, onBack, onOpenHire, onOpenCampaign, onOpenScandal, onOpenIPO, onOpenAcquisitions,
 }: CompanyDetailScreenProps) {
-  const { gameState } = useGame();
+  const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const company = useMemo(
     () => (gameState.companies ?? []).find((c) => c.id === companyId),
     [gameState.companies, companyId],
   );
   const overlay: HustleCompanyOverlay | undefined = gameState.hustleApp?.companies?.[companyId];
+
+  // Generic staff management — canonical addWorker/removeWorker mutators
+  // (contexts/game/company.ts). Hiring charges one week's salary up front and
+  // recomputes weeklyIncome with the diminishing-returns headcount multiplier.
+  const handleHireWorker = useCallback(() => {
+    hustleHaptics.tap();
+    addWorker(gameState, setGameState, companyId);
+    saveGame?.();
+  }, [gameState, setGameState, companyId, saveGame]);
+
+  const handleRemoveWorker = useCallback(() => {
+    hustleHaptics.tap();
+    removeWorker(gameState, setGameState, companyId);
+    saveGame?.();
+  }, [gameState, setGameState, companyId, saveGame]);
+
+  const handleBuyUpgrade = useCallback((upgradeId: string) => {
+    const r = buyCompanyUpgrade(gameState, setGameState, upgradeId, { updateMoney }, companyId);
+    if (r.success) {
+      hustleHaptics.success();
+      saveGame?.();
+    } else {
+      hustleHaptics.error();
+      Alert.alert('Upgrade', r.message);
+    }
+  }, [gameState, setGameState, companyId, saveGame]);
 
   if (!company) {
     return (
@@ -68,6 +101,17 @@ export default function CompanyDetailScreen({
   const pendingAcqCount = overlay?.pendingAcquisitions?.length ?? 0;
   const namedHires = overlay?.hiringPipeline?.namedHires ?? [];
   const isPublic = overlay?.ipo?.status === 'public';
+
+  // Staff + upgrade derived state
+  const money = gameState.stats?.money ?? 0;
+  const STAFF_CAP = 30; // matches addWorker's hard cap
+  const canHireWorker = company.employees < STAFF_CAP && money >= company.workerSalary;
+  const canRemoveWorker = company.employees > 0;
+  const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0
+    ? gameState.economy.priceIndex
+    : 1;
+  const upgradeDiscount = gameState.settings?.businessBanking ? 0.15 : 0;
+  const upgradeDefs = COMPANY_UPGRADES[company.type] ?? [];
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -93,7 +137,7 @@ export default function CompanyDetailScreen({
         </Pressable>
       ) : null}
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient
           colors={[accent + 'BB', accent + '66']}
@@ -109,7 +153,8 @@ export default function CompanyDetailScreen({
             <Text style={styles.heroRevenueSuffix}> / week</Text>
           </Text>
           <Text style={styles.heroEmployees}>
-            {company.employees} employees · {namedHires.length} key hires
+            {/* employees already INCLUDES named hires — do not sum them */}
+            {company.employees} employees{namedHires.length > 0 ? ` (incl. ${namedHires.length} key ${namedHires.length === 1 ? 'hire' : 'hires'})` : ''}
           </Text>
         </LinearGradient>
 
@@ -123,6 +168,42 @@ export default function CompanyDetailScreen({
           ) : (
             <KPICard icon={Users} label="Employees" value={String(company.employees)} />
           )}
+        </View>
+
+        {/* Staff — generic employees via canonical addWorker/removeWorker */}
+        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Staff</Text>
+        <View style={[styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.staffCount, { color: theme.text }]}>
+            {company.employees} / {STAFF_CAP} employees
+          </Text>
+          <Text style={[styles.staffHint, { color: theme.textSecondary }]}>
+            Hiring costs ${company.workerSalary.toLocaleString()} up front. Each employee compounds weekly income:
+            +10% each for the first 5, then smaller gains (+5%, +2%, +1%) up to {STAFF_CAP}. Removing staff is free but lowers income.
+          </Text>
+          <View style={styles.staffBtnRow}>
+            <Pressable
+              onPress={handleHireWorker}
+              disabled={!canHireWorker}
+              accessibilityRole="button"
+              accessibilityLabel={`Hire employee for $${company.workerSalary.toLocaleString()}`}
+              accessibilityState={{ disabled: !canHireWorker }}
+              style={[styles.staffBtn, { backgroundColor: HUSTLE_COLORS.accent, opacity: canHireWorker ? 1 : 0.5 }]}
+            >
+              <UserPlus size={fontScale(16)} color="#FFFFFF" strokeWidth={2.2} />
+              <Text style={styles.staffBtnText}>Hire · ${company.workerSalary.toLocaleString()}</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleRemoveWorker}
+              disabled={!canRemoveWorker}
+              accessibilityRole="button"
+              accessibilityLabel="Remove employee"
+              accessibilityState={{ disabled: !canRemoveWorker }}
+              style={[styles.staffBtnOutline, { borderColor: HUSTLE_COLORS.danger, opacity: canRemoveWorker ? 1 : 0.5 }]}
+            >
+              <UserMinus size={fontScale(16)} color={HUSTLE_COLORS.danger} strokeWidth={2.2} />
+              <Text style={[styles.staffBtnOutlineText, { color: HUSTLE_COLORS.danger }]}>Remove</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Action cards */}
@@ -173,6 +254,54 @@ export default function CompanyDetailScreen({
           onPress={() => { hustleHaptics.tap(); onOpenAcquisitions(); }}
           badge={pendingAcqCount}
         />
+
+        {/* Upgrades — canonical buyCompanyUpgrade catalog */}
+        {upgradeDefs.length > 0 ? (
+          <>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Upgrades</Text>
+            {upgradeDefs.map((def) => {
+              const owned = (company.upgrades ?? []).find((u) => u.id === def.id);
+              const level = owned?.level ?? 0;
+              const maxed = level >= def.maxLevel;
+              const nextLevelCost = level === 0
+                ? def.cost
+                : Math.round(def.cost * Math.pow(COMPANY_UPGRADE_COST_MULTIPLIER, level));
+              const cost = Math.round(getInflatedPrice(nextLevelCost, priceIndex) * (1 - upgradeDiscount));
+              const affordable = money >= cost;
+              return (
+                <View key={def.id} style={[styles.upgradeRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <View style={[styles.actionIconSquare, { backgroundColor: HUSTLE_COLORS.warning + '22' }]}>
+                    <Zap size={fontScale(18)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
+                  </View>
+                  <View style={styles.actionText}>
+                    <Text style={[styles.actionTitle, { color: theme.text }]}>
+                      {def.name} · Lv {level}/{def.maxLevel}
+                    </Text>
+                    <Text style={[styles.actionSub, { color: theme.textSecondary }]} numberOfLines={2}>
+                      {def.description} · +${def.weeklyIncomeBonus.toLocaleString()}/wk base (reduced at higher levels)
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => handleBuyUpgrade(def.id)}
+                    disabled={maxed || !affordable}
+                    accessibilityRole="button"
+                    accessibilityLabel={maxed ? `${def.name} is at max level` : `Buy ${def.name} for $${cost.toLocaleString()}`}
+                    accessibilityState={{ disabled: maxed || !affordable }}
+                    style={[
+                      styles.upgradeBuyBtn,
+                      {
+                        backgroundColor: maxed ? theme.border : HUSTLE_COLORS.accent,
+                        opacity: maxed || !affordable ? 0.55 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.upgradeBuyText}>{maxed ? 'MAX' : `$${cost.toLocaleString()}`}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </>
+        ) : null}
 
         {/* Notifications list */}
         {overlay && overlay.notifications.length > 0 ? (
@@ -384,6 +513,77 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: fontScale(10),
+    fontWeight: '800',
+  },
+  staffCard: {
+    borderRadius: scale(12),
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
+    gap: responsiveSpacing.sm,
+  },
+  staffCount: {
+    fontSize: fontScale(14),
+    fontWeight: '700',
+  },
+  staffHint: {
+    fontSize: fontScale(11),
+    lineHeight: fontScale(15),
+  },
+  staffBtnRow: {
+    flexDirection: 'row',
+    gap: responsiveSpacing.sm,
+  },
+  staffBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: scale(10),
+    paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
+  },
+  staffBtnText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  staffBtnOutline: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: scale(10),
+    borderWidth: 1.5,
+    paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
+  },
+  staffBtnOutlineText: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+  },
+  upgradeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.sm,
+    padding: responsiveSpacing.md,
+    borderRadius: scale(12),
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: responsiveSpacing.sm,
+  },
+  upgradeBuyBtn: {
+    borderRadius: scale(8),
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: 8,
+    minWidth: scale(72),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upgradeBuyText: {
+    color: '#FFFFFF',
+    fontSize: fontScale(11),
     fontWeight: '800',
   },
   notifRow: {

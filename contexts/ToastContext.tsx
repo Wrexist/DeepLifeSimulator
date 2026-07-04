@@ -72,6 +72,14 @@ export function ToastProvider({ children }: ToastProviderProps) {
         return;
       }
 
+      // Drop blank toasts — an empty message renders as a bare icon-only
+      // blue pill (a call site passed an optional result?.message that was
+      // undefined). Nothing useful to show.
+      if (!message?.trim()) {
+        if (__DEV__) console.warn('[toast suppressed: empty message]', type);
+        return;
+      }
+
       const id = `toast-${Date.now()}-${Math.random()}`;
       const newToast: Toast = {
         id,

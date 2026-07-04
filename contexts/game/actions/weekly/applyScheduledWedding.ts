@@ -39,6 +39,14 @@ import type { WeekContext } from './weekContext';
 export interface ScheduledWeddingResult {
   rel: Relationship;
   weddingPopup: { partnerName: string } | null;
+  /**
+   * Set (to the just-married relationship) ONLY on the execute path.
+   * The caller must mirror `executeWedding` (DatingActions.ts) and write
+   * this into `family.spouse` — otherwise a scheduled wedding leaves
+   * `family` inconsistent with `relationships` (spouse in one, not the
+   * other).
+   */
+  familySpouse: Relationship | null;
 }
 
 export function applyScheduledWedding(
@@ -57,6 +65,7 @@ export function applyScheduledWedding(
     return {
       rel: { ...rel, weddingPlanned: undefined },
       weddingPopup: null,
+      familySpouse: null,
     };
   }
 
@@ -71,15 +80,19 @@ export function applyScheduledWedding(
       logger.info(
         `[WEDDING] Wedding happening for ${rel.name} in week ${nextWeeksLived}! Charged $${remainingBalance} remaining balance.`,
       );
+      const marriedRel: Relationship = {
+        ...rel,
+        type: 'spouse' as const,
+        weddingPlanned: undefined,
+        relationshipScore: clampRelationshipScore(rel.relationshipScore + 20),
+        weeksAtLowRelationship: 0,
+      };
       return {
-        rel: {
-          ...rel,
-          type: 'spouse' as const,
-          weddingPlanned: undefined,
-          relationshipScore: clampRelationshipScore(rel.relationshipScore + 20),
-          weeksAtLowRelationship: 0,
-        },
+        rel: marriedRel,
         weddingPopup: { partnerName: rel.name },
+        // Mirror executeWedding (DatingActions.ts): family.spouse must be
+        // set to the updated relationship on wedding execution.
+        familySpouse: marriedRel,
       };
     }
     // Can't afford wedding - postpone by 4 weeks, but expire after WEEKS_PER_YEAR weeks from original date
@@ -97,6 +110,7 @@ export function applyScheduledWedding(
           relationshipScore: clampRelationshipScore(rel.relationshipScore - 15),
         },
         weddingPopup: null,
+        familySpouse: null,
       };
     }
     logger.info(
@@ -108,6 +122,7 @@ export function applyScheduledWedding(
         weddingPlanned: { ...rel.weddingPlanned, scheduledWeek: nextWeeksLived + 4 },
       },
       weddingPopup: null,
+      familySpouse: null,
     };
   }
 
@@ -125,6 +140,7 @@ export function applyScheduledWedding(
         relationshipScore: clampRelationshipScore(rel.relationshipScore - 10),
       },
       weddingPopup: null,
+      familySpouse: null,
     };
   }
 

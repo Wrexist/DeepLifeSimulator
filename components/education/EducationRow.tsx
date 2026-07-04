@@ -31,8 +31,11 @@ function formatMoney(n: number): string {
 export default function EducationRow({ education, darkMode, onPress, onTogglePause }: Props) {
   const theme = getThemeColors(darkMode);
   const ed = education;
+  // A completed degree with no recorded GPA (e.g. granted by a starting
+  // scenario) has no grade on record — don't let the 0 default read as an F.
+  const noRecordedGpa = ed.completed && ed.gpa == null;
   const gpa = ed.gpa ?? 0;
-  const band = gpaBand(gpa);
+  const band = noRecordedGpa ? 'solid' : gpaBand(gpa);
   const bandColor = BAND_COLOR[band];
   const remaining = ed.weeksRemaining ?? ed.duration;
   const progress = ed.duration > 0 ? 1 - remaining / ed.duration : 0;
@@ -54,7 +57,9 @@ export default function EducationRow({ education, darkMode, onPress, onTogglePau
           </Text>
           <Text style={[styles.sub, { color: theme.textMuted }]} numberOfLines={1}>
             {ed.completed
-              ? `Completed · ${gpaLetter(gpa)} (${gpa.toFixed(2)})`
+              ? noRecordedGpa
+                ? 'Completed'
+                : `Completed · ${gpaLetter(gpa)} (${gpa.toFixed(2)})`
               : `${remaining}w left · GPA ${gpa.toFixed(2)}`}
           </Text>
         </View>
@@ -73,7 +78,9 @@ export default function EducationRow({ education, darkMode, onPress, onTogglePau
           {ed.completed ? (
             <View style={styles.honorsBadge}>
               <Award size={scale(12)} color={bandColor} />
-              <Text style={[styles.honorsText, { color: bandColor }]}>{gpaBandLabel(band)}</Text>
+              <Text style={[styles.honorsText, { color: bandColor }]}>
+                {noRecordedGpa ? 'Graduated' : gpaBandLabel(band)}
+              </Text>
             </View>
           ) : (
             <Text style={[styles.cost, { color: theme.textMuted }]}>{formatMoney(ed.cost)}</Text>

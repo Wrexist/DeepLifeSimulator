@@ -566,15 +566,69 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     act(() => { proposeMarriage(captured!.state, captured!.setGameState, 'lover_alex', 'classic_solitaire', deps); });
     expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')?.engagementWeek).toBeDefined();
 
-    // Try to also engage Bob — production code allows it (no anti-bigamy guard
-    // beyond the wedding step, which replaces the spouse). We document this
-    // behavior — both partners are engaged after the second propose.
-    act(() => { proposeMarriage(captured!.state, captured!.setGameState, 'lover_bob', 'classic_solitaire', deps); });
+    // Try to also engage Bob — the anti-bigamy guard must reject the second
+    // proposal outright: no engagement, no ring charge.
+    const moneyBefore = captured!.state.stats.money;
+    let second: { success: boolean; message: string; accepted: boolean } | undefined;
+    act(() => { second = proposeMarriage(captured!.state, captured!.setGameState, 'lover_bob', 'classic_solitaire', deps); });
     const alex = captured!.state.relationships?.find(r => r.id === 'lover_alex');
     const bob = captured!.state.relationships?.find(r => r.id === 'lover_bob');
-    expect(alex?.engagementWeek).toBeDefined();
-    expect(bob?.engagementWeek).toBeDefined(); // current behavior: both engaged
-    assertClean('multi-engagement');
+    expect(second!.success).toBe(false);
+    expect(second!.accepted).toBe(false);
+    expect(second!.message).toContain('already with Alex');
+    expect(alex?.engagementWeek).toBeDefined(); // first engagement intact
+    expect(bob?.engagementWeek).toBeUndefined(); // second proposal rejected
+    expect(captured!.state.stats.money).toBe(moneyBefore); // no ring charge
+    assertClean('multi-engagement blocked');
+  });
+
+  it('Move-in: cannot move in with a second partner while living with one (anti-bigamy)', () => {
+    mounted = mountGame();
+    seedPartner('lover_alex', 95);
+    // Alex already lives with the player; Bob is a second high-score partner.
+    act(() => captured!.setGameState(prev => ({
+      ...prev,
+      relationships: [
+        ...(prev.relationships || []).map(r =>
+          r.id === 'lover_alex' ? { ...r, livingTogether: true } : r
+        ),
+        { id: 'lover_bob', name: 'Bob', type: 'partner', relationshipScore: 95, personality: 'kind', gender: 'male', age: 26, datesCount: 15 } as Relationship,
+      ],
+    })));
+
+    let result: { success: boolean; message: string } | void;
+    act(() => { result = captured!.game.moveInTogether('lover_bob'); });
+    expect(result).toBeDefined();
+    expect((result as { success: boolean; message: string }).success).toBe(false);
+    expect((result as { success: boolean; message: string }).message).toContain('already with Alex');
+    const bob = captured!.state.relationships?.find(r => r.id === 'lover_bob');
+    expect(bob?.livingTogether).toBeFalsy();
+    assertClean('second move-in blocked');
+  });
+
+  it('Spark promote: refuses a second partner while already with someone (anti-bigamy)', async () => {
+    mounted = mountGame();
+    seedPartner('lover_alex', 90);
+
+    const { promoteMatchToRelationship } = await import('@/contexts/game/actions/SparkActions');
+    // The exclusivity guard fires before the profile lookup, so a minimal
+    // match stub is enough — state is never mutated on the refusal path.
+    const stateWithMatch = {
+      ...captured!.state,
+      sparkApp: {
+        ...(captured!.state.sparkApp ?? {}),
+        matches: [{ id: 'match_1', profileId: 'profile_x', promoted: false }],
+      },
+    } as unknown as GameState;
+
+    const relCountBefore = captured!.state.relationships?.length ?? 0;
+    let promote: { success: boolean; message: string; relationshipId?: string } | undefined;
+    act(() => { promote = promoteMatchToRelationship(captured!.setGameState, stateWithMatch, 'match_1'); });
+    expect(promote!.success).toBe(false);
+    expect(promote!.message).toBe('You are already with Alex.');
+    expect(promote!.relationshipId).toBeUndefined();
+    expect(captured!.state.relationships?.length ?? 0).toBe(relCountBefore); // no partner appended
+    assertClean('second promote blocked');
   });
 
   it('Hook surface: useSocialActions.breakUp removes the partner', () => {

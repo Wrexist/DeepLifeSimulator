@@ -42,11 +42,14 @@ import {
   X as XIcon,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import type { Relationship } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger } from '@/lib/contacts/favors';
-import { goOnDate, giveGift } from '@/contexts/game/actions/DatingActions';
+import { goOnDate, giveGift, proposeMarriage } from '@/contexts/game/actions/DatingActions';
+import RingSelectionModal from '@/components/mobile/RingSelectionModal';
+import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { redeemFavor } from '@/contexts/game/actions/ContactsActions';
 import { getRelationshipImage } from '@/utils/characterImages';
 import { getThemeColors, accent } from '@/lib/config/theme';
@@ -55,6 +58,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  getTabBarSafePadding,
 } from '@/utils/scaling';
 
 type TabType = 'personal' | 'network' | 'favors' | 'attention';
@@ -72,19 +76,21 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     updateRelationship,
     recordRelationshipAction,
     breakUpWithPartner,
-    proposeToPartner,
     moveInTogether,
     fileDivorce,
     saveGame,
   } = useGame();
   // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
   const timers = useTimerManager();
+  const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
   const [activeTab, setActiveTab] = useState<TabType>('personal');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ id?: string; message: string } | null>(null);
+  const [ringTargetId, setRingTargetId] = useState<string | null>(null);
+  const [weddingTargetId, setWeddingTargetId] = useState<string | null>(null);
 
   // aggregateContacts walks 5+ arrays. Only re-run when the underlying source
   // arrays actually change — not on every gameState mutation (e.g., stat ticks).
@@ -184,8 +190,13 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   const handleSpecial = useCallback(
     (contactId: string, action: 'propose' | 'movein' | 'breakup' | 'divorce') => {
+      if (action === 'propose') {
+        // Ring-selection flow → canonical proposeMarriage (the old
+        // proposeToPartner stub charged a flat $5k and had no ring).
+        setRingTargetId(contactId);
+        return;
+      }
       const fn =
-        action === 'propose' ? proposeToPartner :
         action === 'movein' ? moveInTogether :
         action === 'breakup' ? breakUpWithPartner :
         () => fileDivorce(contactId);
@@ -195,7 +206,26 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         flash(r.message, contactId);
       }
     },
-    [proposeToPartner, moveInTogether, breakUpWithPartner, fileDivorce, saveGame, flash]
+    [moveInTogether, breakUpWithPartner, fileDivorce, saveGame, flash]
+  );
+
+  const handleProposeWithRing = useCallback(
+    (ringId: string) => {
+      const contactId = ringTargetId;
+      setRingTargetId(null);
+      if (!contactId) return;
+      const r = proposeMarriage(gameState, setGameState, contactId, ringId, {
+        updateMoney: updateMoneyDep,
+        updateStats: updateStatsDep,
+      });
+      if (r.success) saveGame();
+      if (r.accepted) {
+        Alert.alert('Congratulations! 💍', `${r.message}\n\nNext step: plan the wedding!`);
+      } else {
+        flash(r.message, contactId);
+      }
+    },
+    [ringTargetId, gameState, setGameState, updateMoneyDep, updateStatsDep, saveGame, flash]
   );
 
   const renderPersonalCard = (c: ContactView) => {
@@ -219,7 +249,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
             <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
-              {r.type} {r.personality ? `· ${r.personality}` : ''}
+              {c.subtitle} {r.personality ? `· ${r.personality}` : ''}
             </Text>
             <View style={[styles.bar, { backgroundColor: theme.surfaceElevated }]}>
               <View
@@ -269,6 +299,9 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
                 )}
                 {!r.engagementWeek && r.livingTogether && (
                   <ActionBtn label="Propose" Icon={Heart} color={accent.gold} onPress={() => handleSpecial(c.id, 'propose')} wide />
+                )}
+                {r.engagementWeek != null && !r.weddingPlanned && (
+                  <ActionBtn label="Plan Wedding" Icon={Heart} color={accent.purple} onPress={() => setWeddingTargetId(c.id)} wide />
                 )}
                 <ActionBtn label="Break up" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'breakup')} wide subtle />
               </>
@@ -323,7 +356,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   };
 
   const renderPersonal = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {personalContacts.length === 0 ? (
         <EmptyHero
           Icon={Users}
@@ -338,7 +371,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderNetwork = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.statsTitle, { color: theme.text }]}>Your network</Text>
         <View style={styles.statsRow}>
@@ -362,7 +395,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderFavors = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.statsTitle, { color: theme.text }]}>IOU position</Text>
         <View style={styles.statsRow}>
@@ -425,7 +458,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderAttention = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={styles.scrollPad}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {needAttention.length === 0 ? (
         <EmptyHero
           Icon={Heart}
@@ -493,10 +526,40 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       {activeTab === 'attention' && renderAttention()}
 
       {feedback && !feedback.id ? (
-        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info }]}>
+        <View style={[styles.toast, { bottom: getTabBarSafePadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.info }]}>
           <Text style={{ color: theme.text }}>{feedback.message}</Text>
         </View>
       ) : null}
+
+      {(() => {
+        const ringTarget = ringTargetId
+          ? gameState.relationships?.find((rel) => rel.id === ringTargetId)
+          : undefined;
+        return ringTarget ? (
+          <RingSelectionModal
+            visible
+            onClose={() => setRingTargetId(null)}
+            partnerName={ringTarget.name}
+            relationshipScore={ringTarget.relationshipScore}
+            datesCount={ringTarget.datesCount || 0}
+            livingTogether={ringTarget.livingTogether || false}
+            onPropose={handleProposeWithRing}
+          />
+        ) : null;
+      })()}
+      {(() => {
+        const weddingTarget = weddingTargetId
+          ? gameState.relationships?.find((rel) => rel.id === weddingTargetId)
+          : undefined;
+        return weddingTarget ? (
+          <WeddingPlanningModal
+            visible
+            onClose={() => setWeddingTargetId(null)}
+            partnerId={weddingTarget.id}
+            partnerName={weddingTarget.name}
+          />
+        ) : null;
+      })()}
     </View>
   );
 }

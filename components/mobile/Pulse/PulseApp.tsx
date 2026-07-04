@@ -11,10 +11,11 @@
 import React, { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft, Bell, Briefcase, Flame, Home, Mail, Radio } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { PULSE_GRADIENT } from './styles/pulseTheme';
 import PulseFAB from './components/PulseFAB';
@@ -52,6 +53,7 @@ interface PulseAppProps {
 export default function PulseApp({ onBack }: PulseAppProps) {
   const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<PulseTab>('home');
   const [overlay, setOverlay] = useState<PulseOverlay>(null);
   const [detailPostId, setDetailPostId] = useState<string | null>(null);
@@ -172,7 +174,9 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background }]}>
+    // Bottom padding keeps the internal tab bar (and the bottom-anchored FAB /
+    // deal chip) above the floating phone tab bar.
+    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       {/* ── Header ──────────────────────────────────────────── */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable

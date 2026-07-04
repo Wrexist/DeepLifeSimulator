@@ -192,11 +192,16 @@ function IdentityCard() {
   const name =
     [userProfile?.firstName, userProfile?.lastName].filter(Boolean).join(' ') ||
     userProfile?.name;
-  const partner = (relationships || []).find(r => r.type === 'spouse' || r.type === 'partner');
+  // Prefer the spouse: a partner earlier in the array must not mask a spouse.
+  const partner =
+    (relationships || []).find(r => r.type === 'spouse') ??
+    (relationships || []).find(r => r.type === 'partner');
   const relationshipStatus = partner
     ? partner.type === 'spouse'
       ? 'Married'
-      : 'In Relationship'
+      : partner.engagementWeek != null
+        ? 'Engaged'
+        : 'In Relationship'
     : 'Single';
   const currentCareer = (careers || []).find(c => c.id === currentJob);
   const job = currentCareer && currentCareer.levels && currentCareer.levels[currentCareer.level]

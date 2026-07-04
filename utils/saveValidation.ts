@@ -421,6 +421,25 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
+  // Refresh template-derived disease flags on active diseases. Instances
+  // snapshot `curable` at contraction time, so saves from before the disease
+  // rebalance (critical terminals became curable via experimental treatment)
+  // carried an unwinnable `curable: false` heart disease/stroke/etc. forever.
+  if (Array.isArray(s.diseases)) {
+    // Lazy require avoids pulling the disease catalog into every import of this module.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getDiseaseTemplate } = require('@/lib/diseases/diseaseDefinitions');
+    for (const disease of s.diseases as { id?: unknown; curable?: unknown }[]) {
+      if (!disease || typeof disease !== 'object' || typeof disease.id !== 'string') continue;
+      const template = getDiseaseTemplate(disease.id);
+      if (template && typeof disease.curable === 'boolean' && disease.curable !== template.curable) {
+        disease.curable = template.curable;
+        repairs.push(`Synced curable flag for disease ${disease.id}`);
+        repaired = true;
+      }
+    }
+  }
+
   // Catalog arrays hold the game's available jobs/foods/activities/hacks. An
   // empty default would break gameplay, and validateGameEntry REQUIRES these to
   // exist — so when repair didn't create them (its list had drifted behind the

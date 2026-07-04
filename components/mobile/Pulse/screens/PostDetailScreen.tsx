@@ -24,10 +24,11 @@ import {
   View,
 } from 'react-native';
 import { ArrowLeft, Heart, MessageCircle, Repeat2, Send } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { commentOnPost, likePost, repostPost } from '@/contexts/game/actions/PulseActions';
 import CommentThread from '../components/CommentThread';
 import { PULSE_COLORS } from '../styles/pulseTheme';
@@ -44,6 +45,7 @@ interface PostDetailScreenProps {
 export default function PostDetailScreen({ postId, onClose }: PostDetailScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -104,7 +106,8 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background }]}>
+    // Bottom padding keeps the sticky composer above the floating phone tab bar.
+    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
       <Header onBack={onClose} text={theme.text} border={theme.border} />
 
       <KeyboardAvoidingView

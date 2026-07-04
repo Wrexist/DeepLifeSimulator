@@ -66,7 +66,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     const result = executeWedding(state, setGameState, partnerId, datingDeps);
     if (result?.success) {
       haptic.heavy(); // Wedding — major life event!
-      showInfo('Wedding Success', result.message);
+      showInfo('Wedding Success', result.message || 'You got married!');
     } else {
       showError('Wedding Failed', result?.message || 'Could not get married');
     }
@@ -145,7 +145,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     const result = goOnDateAction(state, setGameState, characterId, 'casual', datingDeps);
     if (result?.success) {
-      showInfo('Date', result.message);
+      showInfo('Date', result.message || 'You had a great date!');
     } else {
       showError('Date Failed', result?.message || 'Could not go on date.');
     }
@@ -186,7 +186,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     const result = giveGiftAction(state, setGameState, characterId, giftType, datingDeps);
     if (result?.success) {
-      showInfo('Gift', result.message);
+      showInfo('Gift', result.message || 'Your gift was appreciated!');
     } else {
       showError('Gift Failed', result?.message || 'Could not give gift.');
     }
@@ -260,6 +260,10 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     if (partner.relationshipScore < 70) {
       logger.error('Relationship score too low for child:', partner.relationshipScore);
+      Alert.alert(
+        'Not Ready',
+        `Your relationship with ${partner.name} needs to be stronger before starting a family. Current: ${partner.relationshipScore}/100`
+      );
       return;
     }
 
@@ -348,7 +352,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     const result = fileDivorceAction(state, setGameState, spouse.id, datingDeps);
     if (result?.success) {
-      showInfo('Divorce', result.message);
+      showInfo('Divorce', result.message || 'The divorce was finalized.');
     } else {
       showError('Divorce Failed', result?.message || 'Could not file for divorce.');
     }

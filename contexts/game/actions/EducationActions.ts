@@ -18,6 +18,7 @@ import {
 import { quoteScholarship } from '@/lib/education/scholarships';
 import { highestGpa } from '@/lib/education/gpa';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
+import { trackBudgetSpend } from '@/lib/banking/operations';
 import { politicsAprReduction } from './LoanActions';
 
 const log = logger.scope('EducationActions');
@@ -163,6 +164,13 @@ export const enrollInProgram = (
     // (loan covers tuition directly).
     const newMoney = spec.mode === 'cash' ? Math.max(0, cash - netCost) : cash;
 
+    // Budget tab: cash tuition is an education outflow. Loan-mode is NOT
+    // recorded here — its weekly repayments are tracked as 'debt' instead.
+    const banking =
+      spec.mode === 'cash' && netCost > 0 && prev.banking?.budgetSpend
+        ? trackBudgetSpend(prev.banking, prev.weeksLived, 'education', netCost)
+        : prev.banking;
+
     const result = enrollPure(prev.educations ?? [], {
       templateId: spec.templateId,
       name: spec.name,
@@ -179,6 +187,7 @@ export const enrollInProgram = (
 
     return {
       ...prev,
+      banking,
       stats: { ...prev.stats, money: newMoney },
       educations: result.educations,
       loans: newLoans,

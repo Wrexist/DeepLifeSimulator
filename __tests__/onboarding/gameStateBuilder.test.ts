@@ -240,6 +240,10 @@ describe('buildNewGameState', () => {
     );
     const biz = state.educations.find((e: any) => e.id === 'business_degree');
     expect(biz.completed).toBe(true);
+    // Seeded degrees carry a passing GPA and a real display name so they
+    // don't render as a failing "business_degree" (bug report 2026-07-03).
+    expect(biz.gpa).toBeGreaterThanOrEqual(2.0);
+    expect(biz.name).toBe('Business Degree');
   });
 
   it('sets version from stateVersion param', () => {

@@ -67,6 +67,15 @@ function isRealError(error: ErrorState): boolean {
 }
 
 /**
+ * A notification with no visible text renders as a bare icon-only banner
+ * (the "empty blue banner" bug) — drop it at the source instead.
+ * Exported for unit testing.
+ */
+export function isBlankNotification(message?: string, title?: string): boolean {
+  return !message?.trim() && !title?.trim();
+}
+
+/**
  * Bound the banner stack so a burst of notifications can't flood the screen.
  * Never drops a real error/critical; once those are kept, the remaining slots
  * go to the most recent info/warning advisories (arrival order preserved).
@@ -138,6 +147,13 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     title?: string,
     onRetry?: () => void
   ) => {
+    // Drop blank notifications: a missing/empty message (e.g. a call site
+    // passing an optional result?.message, or the Toast-style showInfo
+    // signature by mistake) rendered as a bare icon-only banner.
+    if (isBlankNotification(message, title)) {
+      logger.warn(`[UIUX] dropped empty ${severity} banner (id: ${id})`);
+      return;
+    }
     setState(prev => {
       const next: ErrorState = {
         id,

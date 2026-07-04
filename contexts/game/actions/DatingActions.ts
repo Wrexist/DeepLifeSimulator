@@ -28,6 +28,7 @@ import {
 } from '@/lib/dating/weddingVenues';
 import type { Dispatch, SetStateAction } from 'react';
 import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('DatingActions');
@@ -290,6 +291,17 @@ export const proposeMarriage = (
     return { success: false, message: 'Partner not found.', accepted: false };
   }
 
+  // ANTI-BIGAMY: can't propose while committed (engaged / married / living
+  // with) to someone else.
+  const committedElsewhere = findCommittedPartner(gameState.relationships, partnerId);
+  if (committedElsewhere) {
+    return {
+      success: false,
+      message: `You are already with ${committedElsewhere.name}. You can't propose to ${partner.name}.`,
+      accepted: false,
+    };
+  }
+
   const ring = getEngagementRing(ringId);
   if (!ring) {
     return { success: false, message: 'Ring not found.', accepted: false };
@@ -335,6 +347,11 @@ export const proposeMarriage = (
     setGameState(prev => {
       const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
       if (!prevPartner || prevPartner.type !== 'partner' || prevPartner.engagementWeek != null) {
+        return prev;
+      }
+      // ANTI-BIGAMY recheck — a same-batch propose to a second partner must
+      // not go through (or charge for the ring) once the first is engaged.
+      if (findCommittedPartner(prev.relationships, partnerId)) {
         return prev;
       }
       if ((prev.stats?.money ?? 0) < ring.price) {
@@ -384,6 +401,11 @@ export const proposeMarriage = (
     setGameState(prev => {
       const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
       if (!prevPartner || prevPartner.type !== 'partner' || prevPartner.engagementWeek != null) {
+        return prev;
+      }
+      // ANTI-BIGAMY recheck — a same-batch propose to a second partner must
+      // not go through (or charge for the ring) once the first is engaged.
+      if (findCommittedPartner(prev.relationships, partnerId)) {
         return prev;
       }
       if ((prev.stats?.money ?? 0) < ring.price) {
@@ -436,6 +458,21 @@ export const planWedding = (
     return { success: false, message: 'A wedding is already planned!' };
   }
 
+  // ANTI-BIGAMY: pre-fix saves can carry two engagements (the old propose stub
+  // had no exclusivity guard). Let such players marry ONE of them, but never
+  // schedule a second wedding or plan one while already married.
+  const otherCommitted = (gameState.relationships || []).find(
+    r => r.id !== partnerId && (r.type === 'spouse' || r.weddingPlanned)
+  );
+  if (otherCommitted) {
+    return {
+      success: false,
+      message: otherCommitted.type === 'spouse'
+        ? `You're already married to ${otherCommitted.name}.`
+        : `You're already planning a wedding with ${otherCommitted.name}.`,
+    };
+  }
+
   const venue = getWeddingVenue(venueId);
   if (!venue) {
     return { success: false, message: 'Venue not found.' };
@@ -462,16 +499,23 @@ export const planWedding = (
   }
 
   // Save wedding plan
-  setGameState(prev => ({
-    ...prev,
-    relationships: (prev.relationships || []).map(r =>
-      r.id === partnerId ? { ...r, weddingPlanned: plan } : r
-    ),
-    stats: {
-      ...prev.stats,
-      money: Math.max(0, (prev.stats.money || 0) - deposit),
-    },
-  }));
+  setGameState(prev => {
+    // ANTI-BIGAMY recheck — a same-batch double-plan must not schedule two.
+    const prevOtherCommitted = (prev.relationships || []).some(
+      r => r.id !== partnerId && (r.type === 'spouse' || r.weddingPlanned)
+    );
+    if (prevOtherCommitted) return prev;
+    return {
+      ...prev,
+      relationships: (prev.relationships || []).map(r =>
+        r.id === partnerId ? { ...r, weddingPlanned: plan } : r
+      ),
+      stats: {
+        ...prev.stats,
+        money: Math.max(0, (prev.stats.money || 0) - deposit),
+      },
+    };
+  });
 
   log.info(`Wedding planned at ${venue.name} for week ${scheduledWeek}`);
   return { 

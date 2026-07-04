@@ -33,6 +33,11 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { scale, fontScale } from '@/utils/scaling';
 import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
+import RingSelectionModal from '@/components/mobile/RingSelectionModal';
+import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
+import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
+import { updateMoney as rawUpdateMoney } from '@/contexts/game/actions/MoneyActions';
+import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
 const LinearGradient = LinearGradientFallback;
 
 interface FamilyTabProps {
@@ -42,15 +47,18 @@ interface FamilyTabProps {
 function FamilyTab({ onClose }: FamilyTabProps) {
  const {
  gameState,
+ setGameState,
  saveGame,
- proposeToPartner,
  moveInTogether,
+ haveChild,
  } = useGame();
 
  // R2-A: defensive — this is the family tab, hit on every play session.
  const settings = safeSettings(gameState);
  const [selectedChild, setSelectedChild] = useState<string | null>(null);
  const [showChildModal, setShowChildModal] = useState(false);
+ const [showRingModal, setShowRingModal] = useState(false);
+ const [showWeddingModal, setShowWeddingModal] = useState(false);
  
  const partner = gameState.relationships?.find(r => r.type === 'partner');
  const spouse = gameState.family?.spouse;
@@ -83,10 +91,24 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return income;
  }, [spouse, children]);
 
+ // Check pregnancy status from relationships array (has latest state).
+ // Falls back to the partner relationship so engaged/cohabiting couples
+ // (who never reach family.spouse) can also start a family.
+ const spouseRelationship = useMemo(() =>
+ gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
+ [gameState.relationships, spouse?.id]
+ );
+ const babyTarget = spouseRelationship ?? partner ?? null;
+ const isPregnant = babyTarget?.isPregnant ?? false;
+ const pregnancyWeeks = isPregnant && babyTarget?.pregnancyStartWeek != null
+ ? (gameState.weeksLived || 0) - babyTarget.pregnancyStartWeek
+: 0;
+ const pregnancyProgress = Math.min(100, Math.round((pregnancyWeeks / 10) * 100));
+
  const handlePropose = useCallback(() => {
  if (!partner) return;
 
- if (partner.relationshipScore < 80) {
+ if (partner.relationshipScore < 60) {
  Alert.alert(
  'Not Ready',
  `Your relationship with ${partner.name} needs to be stronger before proposing. Current: ${partner.relationshipScore}/100`,
@@ -95,26 +117,26 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return;
  }
 
- Alert.alert(
- 'Propose Marriage',
- `Are you ready to ask ${partner.name} to marry you? This is a big step!`,
- [
- { text: 'Cancel', style: 'cancel' },
- {
- text: 'Propose',
- onPress: () => {
- const result = proposeToPartner(partner.id);
- if (result?.success) {
+ setShowRingModal(true);
+ }, [partner]);
+
+ const handleProposeWithRing = useCallback((ringId: string) => {
+ if (!partner) return;
+ setShowRingModal(false);
+
+ const result = proposeMarriage(gameState, setGameState, partner.id, ringId, {
+ updateMoney: rawUpdateMoney,
+ updateStats: rawUpdateStats,
+ });
  saveGame();
- Alert.alert('Congratulations!', result.message);
+ if (result.accepted) {
+ Alert.alert('Congratulations! 💍', `${result.message}\n\nNext step: plan the wedding!`);
+ } else if (result.success) {
+ Alert.alert('Rejected', result.message);
  } else {
- Alert.alert('Response', result?.message || 'They need more time to think...');
+ Alert.alert('Cannot Propose', result.message);
  }
- },
- },
- ]
- );
- }, [partner, proposeToPartner, saveGame]);
+ }, [partner, gameState, setGameState, saveGame]);
 
  const handleMoveIn = useCallback(() => {
  if (!partner) return;
@@ -150,8 +172,8 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  }, [partner, moveInTogether, saveGame]);
 
  const handleHaveChild = useCallback(() => {
- if (!spouse) {
- Alert.alert('Marriage Required', 'You need to be married before having children.');
+ if (!babyTarget) {
+ Alert.alert('Partner Required', 'You need a partner or spouse before having children.');
  return;
  }
 
@@ -160,26 +182,29 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return;
  }
 
+ if (babyTarget.relationshipScore < 70) {
+ Alert.alert(
+ 'Not Ready',
+ `Your relationship with ${babyTarget.name} needs to be stronger before starting a family. Current: ${babyTarget.relationshipScore}/100`
+ );
+ return;
+ }
+
  Alert.alert(
  'Have a Child',
- `Are you and ${spouse.name} ready to start or expand your family?`,
+ `Are you and ${babyTarget.name} ready to start or expand your family?`,
  [
  { text: 'Cancel', style: 'cancel' },
  {
  text: 'Try for Baby',
  onPress: () => {
- // haveChild has no canonical implementation — children are
- // currently created via the relationship pregnancy tick.
- // Surface an honest message until a manual flow is wired.
- Alert.alert(
- 'Coming Soon',
- 'Children currently arrive through the marriage system over time. A manual "try for baby" flow is on the roadmap.',
- );
+ haveChild(babyTarget.id);
+ saveGame();
  },
  },
  ]
  );
- }, [spouse, gameState.date.age]);
+ }, [babyTarget, gameState.date.age, haveChild, saveGame]);
 
  const getLifeStageColor = (stage: string) => {
  switch (stage) {
@@ -197,17 +222,6 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  if (score >= 40) return '#EF4444';
  return '#6B7280';
  };
-
- // Check pregnancy status from relationships array (has latest state)
- const spouseRelationship = useMemo(() =>
- gameState.relationships?.find(r => r.id === spouse?.id && (r.type === 'spouse' || r.type === 'partner')),
- [gameState.relationships, spouse?.id]
- );
- const isPregnant = spouseRelationship?.isPregnant ?? false;
- const pregnancyWeeks = isPregnant && spouseRelationship?.pregnancyStartWeek!= null
- ? (gameState.weeksLived || 0) - spouseRelationship.pregnancyStartWeek
-: 0;
- const pregnancyProgress = Math.min(100, Math.round((pregnancyWeeks / 10) * 100));
 
  const renderSpouseCard = () => {
  if (!spouse) return null;
@@ -261,11 +275,11 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <View style={styles.pregnancyHeader}>
  <Baby size={16} color="#EC4899" />
  <Text style={[styles.pregnancyTitle, settings.darkMode && styles.textDark]}>
- Expecting a {spouseRelationship?.pregnancyChildGender === 'male' ? 'Boy': 'Girl'}!
+ Expecting a {babyTarget?.pregnancyChildGender === 'male' ? 'Boy': 'Girl'}!
  </Text>
  </View>
  <Text style={[styles.pregnancySubtext, settings.darkMode && styles.textMuted]}>
- {spouseRelationship?.pregnancyChildName} {'\u2022'} Week {pregnancyWeeks} of 10
+ {babyTarget?.pregnancyChildName} {'\u2022'} Week {pregnancyWeeks} of 10
  </Text>
  <View style={styles.pregnancyBarContainer}>
  <View style={styles.pregnancyBarBg}>
@@ -298,8 +312,13 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const renderPartnerCard = () => {
  if (!partner || spouse) return null;
 
- const canPropose = partner.relationshipScore >= 80;
+ const isEngaged = partner.engagementWeek != null;
+ const hasWeddingPlan = Boolean(partner.weddingPlanned);
+ const canPropose = partner.relationshipScore >= 60 && !isEngaged;
  const canMoveIn = partner.relationshipScore >= 60 &&!partner.livingTogether;
+ const canTryForBaby = !partner.isPregnant
+ && partner.relationshipScore >= 70
+ && (partner.livingTogether || partner.engagementWeek != null);
 
  return (
  <View style={[styles.card, settings.darkMode && styles.cardDark]}>
@@ -322,7 +341,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Heart size={16} color="#F59E0B" />
  </View>
  <Text style={[styles.cardSubtitle, settings.darkMode && styles.textMuted]}>
- Your Partner • {partner.personality}
+ {isEngaged ? 'Your Fiancé(e)' : 'Your Partner'} • {partner.personality}
  {partner.livingTogether && ' • Living Together'}
  </Text>
  <View style={styles.progressContainer}>
@@ -338,7 +357,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  />
  </View>
  <Text style={[styles.progressText, settings.darkMode && styles.textMuted]}>
- {partner.relationshipScore}% • {partner.relationshipScore >= 80 ? 'Ready for proposal!': 'Building relationship...'}
+ {partner.relationshipScore}% • {isEngaged ? 'Engaged!' : partner.relationshipScore >= 60 ? 'Ready for proposal!': 'Building relationship...'}
  </Text>
  </View>
  </View>
@@ -356,6 +375,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </Text>
  </TouchableOpacity>
  )}
+ {!isEngaged && (
  <TouchableOpacity
  style={[styles.actionButton, { flex: 1, opacity: canPropose ? 1: 0.5 }]}
  onPress={handlePropose}
@@ -369,7 +389,68 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Text style={styles.actionButtonText}>Propose</Text>
  </LinearGradient>
  </TouchableOpacity>
+ )}
+ {isEngaged && !hasWeddingPlan && (
+ <TouchableOpacity
+ style={[styles.actionButton, { flex: 1 }]}
+ onPress={() => setShowWeddingModal(true)}
+ >
+ <LinearGradient
+ colors={['#EC4899', '#DB2777']}
+ style={styles.actionButtonGradient}
+ >
+ <Heart size={18} color="#FFF" />
+ <Text style={styles.actionButtonText}>Plan Wedding</Text>
+ </LinearGradient>
+ </TouchableOpacity>
+ )}
+ {isEngaged && hasWeddingPlan && (
+ <View style={[styles.actionButton, { flex: 1 }]}>
+ <LinearGradient
+ colors={['#10B981', '#059669']}
+ style={styles.actionButtonGradient}
+ >
+ <Heart size={18} color="#FFF" />
+ <Text style={styles.actionButtonText}>Wedding scheduled!</Text>
+ </LinearGradient>
  </View>
+ )}
+ </View>
+
+ {partner.isPregnant && (
+ <View style={styles.pregnancySection}>
+ <View style={styles.pregnancyHeader}>
+ <Baby size={16} color="#EC4899" />
+ <Text style={[styles.pregnancyTitle, settings.darkMode && styles.textDark]}>
+ Expecting a {partner.pregnancyChildGender === 'male' ? 'Boy': 'Girl'}!
+ </Text>
+ </View>
+ <Text style={[styles.pregnancySubtext, settings.darkMode && styles.textMuted]}>
+ {partner.pregnancyChildName} {'•'} Week {pregnancyWeeks} of 10
+ </Text>
+ <View style={styles.pregnancyBarContainer}>
+ <View style={styles.pregnancyBarBg}>
+ <View style={[styles.pregnancyBarFill, { width: `${pregnancyProgress}%` }]} />
+ </View>
+ <Text style={styles.pregnancyPercent}>{pregnancyProgress}%</Text>
+ </View>
+ </View>
+ )}
+
+ {canTryForBaby && (
+ <TouchableOpacity
+ style={[styles.actionButton, { marginTop: scale(8) }]}
+ onPress={handleHaveChild}
+ >
+ <LinearGradient
+ colors={['#EC4899', '#DB2777']}
+ style={styles.actionButtonGradient}
+ >
+ <Baby size={18} color="#FFF" />
+ <Text style={styles.actionButtonText}>Try for Baby</Text>
+ </LinearGradient>
+ </TouchableOpacity>
+ )}
  </LinearGradient>
  </View>
  );
@@ -660,6 +741,26 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </ScrollView>
 
  {renderChildModal()}
+
+ {partner && (
+ <RingSelectionModal
+ visible={showRingModal}
+ onClose={() => setShowRingModal(false)}
+ partnerName={partner.name}
+ relationshipScore={partner.relationshipScore}
+ datesCount={partner.datesCount || 0}
+ livingTogether={partner.livingTogether || false}
+ onPropose={handleProposeWithRing}
+ />
+ )}
+ {partner && (
+ <WeddingPlanningModal
+ visible={showWeddingModal}
+ onClose={() => setShowWeddingModal(false)}
+ partnerId={partner.id}
+ partnerName={partner.name}
+ />
+ )}
  </LinearGradient>
  </View>
  );

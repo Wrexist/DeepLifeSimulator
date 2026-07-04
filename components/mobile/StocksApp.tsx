@@ -20,7 +20,7 @@ import { ArrowLeft, BarChart3, Briefcase, Clock, X } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import StockRow from '@/components/stocks/StockRow';
@@ -319,7 +319,9 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: responsiveSpacing['2xl'] }}
+        // Clear the floating tab bar — a short padding left the bottom rows
+        // (holdings / order cancel buttons) untappable underneath it.
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getTabBarSafePadding(insets.bottom) }}
       >
         {activeTab === 'market' && renderMarket()}
         {activeTab === 'portfolio' && renderPortfolio()}

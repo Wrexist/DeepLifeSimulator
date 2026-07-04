@@ -215,4 +215,40 @@ describe('runWeeklyBankingTick', () => {
     expect(r.lateFeesDeducted).toBeGreaterThan(0);
     expect(r.notifications.find((n) => n.id === 'billpay-missed')).toBeDefined();
   });
+
+  it('records passed-in spend events into budgetSpend', () => {
+    const r = runWeeklyBankingTick({
+      banking: blankBanking(),
+      prevLoans: [],
+      processedLoans: [],
+      newBankSavings: 0,
+      newMoney: 0,
+      currentWeek: 7,
+      spendEvents: [
+        { category: 'housing', amount: 400 },
+        { category: 'food', amount: 60 },
+        { category: 'housing', amount: 50 }, // same category accumulates
+        { category: 'transport', amount: 0 }, // zero → ignored
+        { category: 'taxes', amount: NaN }, // non-finite → ignored
+      ],
+    });
+    const bucket = r.banking.budgetSpend.find((b) => b.weeksLived === 7)!;
+    expect(bucket).toBeDefined();
+    expect(bucket.byCategory.housing).toBe(450);
+    expect(bucket.byCategory.food).toBe(60);
+    expect(bucket.byCategory.transport).toBeUndefined();
+    expect(bucket.byCategory.taxes).toBeUndefined();
+  });
+
+  it('handles an omitted / empty spendEvents input without touching budgetSpend', () => {
+    const r = runWeeklyBankingTick({
+      banking: blankBanking(),
+      prevLoans: [],
+      processedLoans: [],
+      newBankSavings: 0,
+      newMoney: 0,
+      currentWeek: 3,
+    });
+    expect(r.banking.budgetSpend).toHaveLength(0);
+  });
 });

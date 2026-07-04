@@ -16,6 +16,8 @@ import {
   withdrawFromAccount,
   transferBetweenAccounts,
   openAccount,
+  closeAccount,
+  toggleBillPayRule,
   applyForCreditCard,
   chargeCreditCard,
   payCreditCard,
@@ -149,6 +151,13 @@ export const openNewAccount = (
   setGameState((prev) => {
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
+    // One account per type (CDs excepted — laddering multiple CDs is a real
+    // strategy). Duplicate savings/checking accounts confused players and
+    // there was no way to remove them.
+    if (spec.type !== 'cd' && state.banking.accounts.some((a) => a.type === spec.type)) {
+      log.warn(`Open account rejected: already have a ${spec.type} account`);
+      return prev;
+    }
     const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
     if (spec.initialDeposit > currentMoney) {
       log.warn(`Open account rejected: insufficient cash for initial deposit`);
@@ -160,6 +169,30 @@ export const openNewAccount = (
       stats: { ...state.stats, money: currentMoney - spec.initialDeposit },
       banking: result.banking,
     };
+  });
+};
+
+export const closeBankAccount = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  accountId: string
+) => {
+  setGameState((prev) => {
+    if (prev.showDeathPopup) return prev; // E-2: no transactions once the player is dead.
+    const state = ensureBanking(prev);
+    if (!state.banking) return prev;
+    const result = closeAccount(state.banking, accountId, state.weeksLived);
+    if (!result.ok) {
+      log.warn(`Close account failed: ${result.reason}`);
+      return prev;
+    }
+    // Residual balance returns to cash through applyMoneyDelta (MONEY_CEILING +
+    // isFinite guards), mirroring withdrawCashFromAccount.
+    if (result.residualBalance > 0) {
+      const credit = applyMoneyDelta(state, result.residualBalance, `Close account ${accountId}`);
+      if (!credit) return prev;
+      return { ...state, ...credit, banking: result.banking };
+    }
+    return { ...state, banking: result.banking };
   });
 };
 
@@ -324,6 +357,17 @@ export const removeBill = (
     const state = ensureBanking(prev);
     if (!state.banking) return prev;
     return { ...state, banking: removeBillPayRule(state.banking, ruleId) };
+  });
+};
+
+export const toggleBill = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  ruleId: string
+) => {
+  setGameState((prev) => {
+    const state = ensureBanking(prev);
+    if (!state.banking) return prev;
+    return { ...state, banking: toggleBillPayRule(state.banking, ruleId) };
   });
 };
 

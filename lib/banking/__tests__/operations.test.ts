@@ -12,6 +12,9 @@ import {
   quoteLoan,
   recomputeCreditScore,
   removeBillPayRule,
+  toggleBillPayRule,
+  accrueAccountInterest,
+  closeAccount,
   tickBillPay,
   totalBankBalance,
   totalCreditCardDebt,
@@ -122,6 +125,78 @@ describe('account operations', () => {
 
   it('aggregates total bank balance', () => {
     expect(totalBankBalance(emptyBanking())).toBe(1500);
+  });
+});
+
+describe('accrueAccountInterest', () => {
+  it('pays weekly APR on self-opened accounts', () => {
+    const { banking, totalInterest } = accrueAccountInterest(emptyBanking());
+    const sav = banking.accounts.find((a) => a.id === 'sav')!;
+    // 2% APR on $500 => ~$0.19/week
+    expect(sav.balance).toBeCloseTo(500 + (500 * 0.02) / 52, 6);
+    expect(totalInterest).toBeGreaterThan(0);
+  });
+
+  it('skips mirrored legacy accounts and zero-APR accounts', () => {
+    const base = emptyBanking();
+    base.accounts = [
+      { id: 'checking-default', type: 'checking', name: 'Checking', balance: 1000, baseAPR: 0.05, openedWeek: 0 },
+      { id: 'savings-default', type: 'savings', name: 'Savings', balance: 1000, baseAPR: 0.05, openedWeek: 0 },
+      { id: 'chk', type: 'checking', name: 'Checking 2', balance: 1000, baseAPR: 0, openedWeek: 0 },
+    ];
+    const { banking, totalInterest } = accrueAccountInterest(base);
+    expect(totalInterest).toBe(0);
+    expect(banking.accounts.every((a) => a.balance === 1000)).toBe(true);
+  });
+
+  it('accrues on locked CDs (that is the point of a CD)', () => {
+    const base = emptyBanking();
+    base.accounts = [
+      { id: 'cd1', type: 'cd', name: 'CD', balance: 10_000, baseAPR: 0.04, openedWeek: 0, lockUntilWeek: 52 },
+    ];
+    const { banking } = accrueAccountInterest(base);
+    expect(banking.accounts[0].balance).toBeGreaterThan(10_000);
+  });
+});
+
+describe('closeAccount', () => {
+  it('removes the account and returns the residual balance', () => {
+    const r = closeAccount(emptyBanking(), 'sav', 10);
+    expect(r.ok).toBe(true);
+    expect(r.residualBalance).toBe(500);
+    expect(r.banking.accounts.some((a) => a.id === 'sav')).toBe(false);
+  });
+
+  it('refuses to close mirrored legacy accounts', () => {
+    const base = emptyBanking();
+    base.accounts = [
+      { id: 'checking-default', type: 'checking', name: 'Checking', balance: 1000, baseAPR: 0, openedWeek: 0 },
+    ];
+    const r = closeAccount(base, 'checking-default', 10);
+    expect(r.ok).toBe(false);
+    expect(r.banking.accounts).toHaveLength(1);
+  });
+
+  it('refuses to close a locked CD before maturity', () => {
+    const base = emptyBanking();
+    base.accounts = [
+      { id: 'cd1', type: 'cd', name: 'CD', balance: 10_000, baseAPR: 0.04, openedWeek: 0, lockUntilWeek: 52 },
+    ];
+    expect(closeAccount(base, 'cd1', 10).ok).toBe(false);
+    expect(closeAccount(base, 'cd1', 52).ok).toBe(true);
+  });
+});
+
+describe('toggleBillPayRule', () => {
+  it('flips enabled without deleting the rule', () => {
+    const added = addBillPayRule(emptyBanking(), {
+      name: 'Rent', amount: 100, cadenceWeeks: 4, nextDueWeek: 4, source: 'chk', enabled: true,
+    } as any);
+    const toggled = toggleBillPayRule(added.banking, added.rule.id);
+    expect(toggled.billPayRules).toHaveLength(1);
+    expect(toggled.billPayRules[0].enabled).toBe(false);
+    const back = toggleBillPayRule(toggled, added.rule.id);
+    expect(back.billPayRules[0].enabled).toBe(true);
   });
 });
 

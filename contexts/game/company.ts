@@ -1,6 +1,6 @@
 // cspell:words realestate fintech
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from './companyUpgradeCatalog';
+import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER, COMPANY_STARTING_INCOME } from './companyUpgradeCatalog';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { logger } from '@/utils/logger';
 import type { GameState, Company, CompanyUpgrade } from './types';
@@ -62,12 +62,16 @@ export function createCompany(
 
   const workerConfig = workerConfigs[companyType as keyof typeof workerConfigs];
 
+  // Industry-varied starting income — kept consistent with the canonical
+  // CompanyActions.createCompany (see COMPANY_STARTING_INCOME docs).
+  const startingIncome = COMPANY_STARTING_INCOME[companyType] ?? 2000;
+
   const newCompany: Company = {
     id: companyType,
     name: `My ${companyType.charAt(0).toUpperCase() + companyType.slice(1)}`,
     type: companyType as Company['type'],
-    weeklyIncome: 2000,
-    baseWeeklyIncome: 2000,
+    weeklyIncome: startingIncome,
+    baseWeeklyIncome: startingIncome,
     upgrades: companyUpgrades[companyType] || [],
     employees: 0,
     workerSalary: workerConfig.salary,
@@ -189,6 +193,21 @@ export function buyCompanyUpgrade(
   });
 }
 
+/**
+ * Diminishing-returns income multiplier from headcount.
+ * workerMultiplier (1.1x) each for employees 1-5, then 1.05x for 6-10,
+ * 1.02x for 11-20, and 1.01x for 21+. Shared by addWorker/removeWorker and
+ * the Hustle named-hire pipeline so both hiring paths scale income identically.
+ */
+export function companyIncomeMultiplier(workerMultiplier: number, employeeCount: number): number {
+  const safeMult = isFinite(workerMultiplier) && workerMultiplier > 0 ? workerMultiplier : 1.1;
+  const count = Math.max(0, Math.floor(isFinite(employeeCount) ? employeeCount : 0));
+  if (count <= 5) return Math.pow(safeMult, count);
+  if (count <= 10) return Math.pow(safeMult, 5) * Math.pow(1.05, count - 5);
+  if (count <= 20) return Math.pow(safeMult, 5) * Math.pow(1.05, 5) * Math.pow(1.02, count - 10);
+  return Math.pow(safeMult, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, count - 20);
+}
+
 export function addWorker(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
@@ -223,22 +242,10 @@ export function addWorker(
       effectiveMultiplier = 1.01; // Minimal growth after 20 employees
     }
     
-    // Calculate income with diminishing returns
-    // For employees 1-5: use 1.1^count
-    // For employees 6-10: use 1.1^5 * 1.05^(count-5)
-    // For employees 11-20: use 1.1^5 * 1.05^5 * 1.02^(count-10)
-    // For employees 21+: use 1.1^5 * 1.05^5 * 1.02^10 * 1.01^(count-20)
-    let incomeMultiplier: number;
-    if (employeeCount <= 5) {
-      incomeMultiplier = Math.pow(workerMultiplier, employeeCount);
-    } else if (employeeCount <= 10) {
-      incomeMultiplier = Math.pow(workerMultiplier, 5) * Math.pow(1.05, employeeCount - 5);
-    } else if (employeeCount <= 20) {
-      incomeMultiplier = Math.pow(workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, employeeCount - 10);
-    } else {
-      incomeMultiplier = Math.pow(workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, employeeCount - 20);
-    }
-    
+    // Calculate income with diminishing returns (shared helper)
+    const incomeMultiplier = companyIncomeMultiplier(workerMultiplier, employeeCount);
+
+
     const updated: Company = {
       ...company,
       employees: company.employees + 1,
@@ -275,17 +282,9 @@ export function removeWorker(
 
     // ECONOMY FIX: Apply same diminishing returns when removing workers
     const employeeCount = company.employees - 1;
-    let incomeMultiplier: number;
-    if (employeeCount <= 5) {
-      incomeMultiplier = Math.pow(company.workerMultiplier, employeeCount);
-    } else if (employeeCount <= 10) {
-      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, employeeCount - 5);
-    } else if (employeeCount <= 20) {
-      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, employeeCount - 10);
-    } else {
-      incomeMultiplier = Math.pow(company.workerMultiplier, 5) * Math.pow(1.05, 5) * Math.pow(1.02, 10) * Math.pow(1.01, employeeCount - 20);
-    }
-    
+    const incomeMultiplier = companyIncomeMultiplier(company.workerMultiplier, employeeCount);
+
+
     const updated: Company = {
       ...company,
       employees: company.employees - 1,
