@@ -312,15 +312,20 @@ export const filePatent = (
     company.rdLab?.type
   );
 
-  // Update state: deduct money AND update company in a single state update to avoid race conditions
+  // Update state: deduct money AND update company in a single state update to avoid race conditions.
+  // R-audit 2026-07-02: the dedup ("patent already filed") and money gates above read the stale
+  // outer `gameState`, so two same-batch taps both passed them and filed TWO patents for one
+  // technology (each a perpetual weekly-income source), the 2nd partial-free via the old floored
+  // `Math.max(0, money - cost)`. Re-check both against `prev` and debit via applyMoneyDelta.
   setGameState(prev => {
-    const newMoney = Math.max(0, prev.stats.money - patentCost);
+    const prevCompany = (prev.companies || []).find(c => c.id === companyId);
+    if (!prevCompany) return prev;
+    if (prevCompany.patents?.some(p => p.technologyId === technologyId && p.duration > 0)) return prev;
+    const spend = applyMoneyDelta(prev, -patentCost, 'File patent');
+    if (!spend) return prev;
     return {
       ...prev,
-      stats: {
-        ...prev.stats,
-        money: newMoney,
-      },
+      ...spend,
       companies: (prev.companies || []).map(c => {
         if (c.id !== companyId) return c;
         return {

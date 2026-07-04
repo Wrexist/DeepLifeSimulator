@@ -52,8 +52,11 @@ function generateTagline(gameState: GameState): string {
  }
 
  if (family?.spouse) {
- if (family.children.length > 0) {
- return ` Building a legacy! ${family.children.length} kids deep`;
+ // family.children can be undefined on old/partial saves (repairGameState does
+ // not backfill `family`); guard it like line 130 in this same file does.
+ const childCount = family.children?.length ?? 0;
+ if (childCount > 0) {
+ return ` Building a legacy! ${childCount} kids deep`;
  }
  return ' Happily married & thriving';
  }

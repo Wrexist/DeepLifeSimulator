@@ -4,6 +4,31 @@
 
 ## Patterns to Watch For
 
+### 2026-07-02 - Weekly audit (salvaged from PR #45): 3 more money printers + 2 silent-immunity buffers + crash guards
+
+- Origin: PR #45 (weekly audit 2026-07-02) went unmergeable after PR #46 independently landed two
+  of its fixes (audit-save doc rename + `enterCompetition` atomicity). The remaining six fixes were
+  salvaged onto the bug-fix branch instead of rebasing the conflicted PR.
+- Non-atomic gate→grant money printers (same H-8/H-9 class the mega-audit keeps closing):
+  `runForOffice` re-applied the up-to-$5M election reward with no idempotency re-check (fixed with a
+  `lastElectionAttemptWeek` marker stamped by BOTH branches, since win/loss is rolled independently
+  per tap); `filePatent` filed duplicate perpetual-income patents via stale-outer dedup + inline
+  floored charge; `stakeCrypto` drove the coin balance negative and minted a phantom staking
+  position. Fix idiom unchanged: fold gate re-check + debit (`applyMoneyDelta`) + grant into ONE
+  `setGameState(prev => …)` that returns `prev` when the gate no longer holds.
+- TWO more fixed-size pre-roll buffers indexed by an uncapped collection (the petSickness class,
+  2026-06-21): `relBreakup`/`relDisappointed` (len 20) indexed by the raw full-relationships
+  index → partner past index 20 immune to breakup; doctor-visit cure buffer (len 10) → 11th+
+  curable disease never cured. Both fixed with `idx % buffer.length`, matching the pet/vehicle/
+  disease consumers that already wrap. A docstring that says a quirk is "PRESERVED VERBATIM" is a
+  red flag, not a spec — re-verify it's intended, not just inherited.
+- TWO unguarded `.length` reads on fields `repairGameState` does NOT backfill (`family.children`
+  in ShareLifeCard's tagline, `curedDiseases` in CureSuccessModal) — crash-on-old-save. Note
+  `curedDiseases.length` sat in a useEffect dependency array, which evaluates EVERY render
+  regardless of the render-guard short-circuit below it.
+- Process note: when two audit PRs overlap, the conflicted one is not worthless — diff it against
+  main fix-by-fix before closing; here 6 of 8 fixes were still missing from main.
+
 ### 2026-06-30 - IAP `applyBenefit` double-granted every consumable (in-memory path + disk path both additive)
 
 - What went wrong: `IAPService.applyBenefit` runs TWO grant paths in sequence for every
