@@ -411,6 +411,12 @@ export function stakeCrypto(
   setGameState(prev => {
     if (!prev.warehouse) return prev;
 
+    // R4-E: re-read the coin balance from `prev` so a same-batch double-tap
+    // can't both pass the stale outer gate and each subtract `amount` — that
+    // drove `owned` negative and minted phantom staking positions.
+    const freshCrypto = prev.cryptos.find(c => c.id === cryptoId);
+    if (!freshCrypto || freshCrypto.owned < amount) return prev;
+
     const stakingPositions = prev.warehouse.stakingPositions || [];
     const newPosition: StakingPosition = {
       cryptoId,

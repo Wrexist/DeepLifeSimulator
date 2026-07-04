@@ -33,7 +33,7 @@ function build() {
     'No `.week` used in time comparisons (uses `weeksLived`)',
     `${weekHits.length} possible \`.week\`-in-comparison site(s) — should likely be \`weeksLived\``,
     weekHits.slice(0, 6).map((h) => `${h.file}:${h.line}`).join(', ') + (weekHits.length > 6 ? ' …' : ''),
-    'CLAUDE.md: week is display-only; weeksLived is the absolute clock');
+    'DEV.md: week is display-only; weeksLived is the absolute clock');
 
   // --- G2: DatingActions signature trap -----------------------------------
   const dating = L.read('contexts/game/actions/DatingActions.ts');

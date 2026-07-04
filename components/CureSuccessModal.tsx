@@ -14,7 +14,11 @@ const LinearGradient = LinearGradientFallback;
 
 export default function CureSuccessModal() {
   const { gameState, dismissCureSuccessModal } = useGame();
-  const { showCureSuccessModal, curedDiseases, week } = gameState;
+  // curedDiseases is not backfilled by repairGameState, and its `.length` is read
+  // in the effect dependency array below (unconditionally, every render) — default
+  // it here so an old/partial save with curedDiseases === undefined can't crash.
+  const { showCureSuccessModal, week } = gameState;
+  const curedDiseases = gameState.curedDiseases || [];
   // R2-A: rare-path modal — bail safely if settings is undefined.
   const settings = safeSettings(gameState);
   const darkMode = settings.darkMode;

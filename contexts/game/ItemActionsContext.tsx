@@ -345,8 +345,11 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
           // Critical diseases need experimental treatment (matches the
           // SicknessModal guidance) — a routine doctor visit can't cure them.
           if (disease.curable && disease.severity !== 'critical') {
-            // 50% cure chance (pre-rolled for StrictMode safety)
-            const cureRoll = curePreRolls[diseaseIdx];
+            // 50% cure chance (pre-rolled for StrictMode safety). Wrap the index
+            // modulo the buffer length so a player carrying more than 10 curable
+            // diseases doesn't read `undefined` (which `< 0.5` treats as false =
+            // silent cure-immunity) — same buffer-overflow class as pet sickness.
+            const cureRoll = curePreRolls[diseaseIdx % curePreRolls.length];
             if (cureRoll < 0.5) {
               // Disease cured
               curedDiseases.push(disease.name);

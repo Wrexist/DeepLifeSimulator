@@ -267,6 +267,15 @@ export const runForOffice = (
     };
   }
 
+  // One campaign per week: catches a sequential duplicate tap with an honest
+  // message instead of rolling a second election. A SAME-BATCH duplicate (both
+  // taps sharing a stale snapshot) is caught by the in-updater
+  // lastElectionAttemptWeek re-check below; its return message stays
+  // optimistic, consistent with the other atomic action fixes.
+  if (gameState.politics?.lastElectionAttemptWeek === gameState.weeksLived) {
+    return { success: false, message: 'You already ran a campaign this week. Try again next week.' };
+  }
+
   // Pre-roll impure values before updater
   const electionRoll = Math.random() * 100;
 
@@ -282,6 +291,9 @@ export const runForOffice = (
   const successChance = Math.min(95, baseChance + approvalBonus + reputationBonus + karmaApprovalBonus);
 
   const won = electionRoll < successChance;
+  // Hoisted above the win/loss split: both branches stamp `lastElectionAttemptWeek`
+  // with this value to dedupe same-batch duplicate invocations.
+  const currentWeek = gameState.weeksLived;
 
   if (won) {
     // Determine new level based on office
@@ -295,7 +307,6 @@ export const runForOffice = (
     };
 
     const newLevel = levelMap[office];
-    const currentWeek = gameState.weeksLived;
     const nextElection = getNextElectionWeek(currentWeek, newLevel as 0 | 1 | 2 | 3 | 4 | 5, currentWeek);
 
     // Calculate election win reward based on office level
@@ -310,8 +321,17 @@ export const runForOffice = (
 
     const reward = electionRewards[office] || 0;
 
-    // Atomic: merge campaign cost + election reward + politics update into single update
-    setGameState(prev => ({
+    // Atomic: merge campaign cost + election reward + politics update into single update.
+    // R-audit 2026-07-02: the outer age/reputation/money gates read the stale render-time
+    // `gameState`, so two same-batch taps both passed them and both applied the (up to $5M)
+    // election reward. Re-check affordability AND idempotency against `prev` — the first tap
+    // stamps `lastElectionAttemptWeek`, so ANY second tap this week (win, loss, or mixed roll)
+    // no-ops instead of double-paying / double-charging. (minWeeksInPrevious already prevents
+    // a legitimate second office run in the same week.)
+    setGameState(prev => {
+      if ((prev.stats?.money ?? 0) < campaignCost) return prev;
+      if (prev.politics?.lastElectionAttemptWeek === currentWeek) return prev;
+      return {
       ...prev,
       stats: {
         ...prev.stats,
@@ -341,10 +361,12 @@ export const runForOffice = (
         electionsWon: (prev.politics?.electionsWon || 0) + 1,
         approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + 10),
         lastElectionWeek: currentWeek,
+        lastElectionAttemptWeek: currentWeek,
         nextElectionWeek: nextElection,
       },
       currentJob: 'political',
-    }));
+      };
+    });
 
     log.info(`Won election for ${office}, now at level ${newLevel}, reward: $${reward}`);
     const rewardMessage = reward > 0 ? ` You received $${reward.toLocaleString()} as an election bonus!` : '';
@@ -353,8 +375,14 @@ export const runForOffice = (
     const levelName = POLITICAL_CAREER.levels[safeLevel]?.name || 'Unknown Office';
     return { success: true, message: `Congratulations! You won the election and are now ${levelName}!${rewardMessage}` };
   } else {
-    // Lost election - deduct campaign cost + small approval hit
-    setGameState(prev => ({
+    // Lost election - deduct campaign cost + small approval hit.
+    // Re-check funds AND the per-week attempt marker against `prev` so a same-batch
+    // double-tap (lose+lose, or a win followed by an independently-rolled loss) can't
+    // over-charge — any second attempt this week no-ops.
+    setGameState(prev => {
+      if ((prev.stats?.money ?? 0) < campaignCost) return prev;
+      if (prev.politics?.lastElectionAttemptWeek === currentWeek) return prev;
+      return {
       ...prev,
       stats: {
         ...prev.stats,
@@ -372,8 +400,10 @@ export const runForOffice = (
           campaignFunds: 0,
         },
         approvalRating: Math.max(0, (prev.politics?.approvalRating ?? 50) - 5),
+        lastElectionAttemptWeek: currentWeek,
       },
-    }));
+      };
+    });
 
     log.info(`Lost election for ${office}`);
     return { success: false, message: 'You lost the election. Better luck next time!' };

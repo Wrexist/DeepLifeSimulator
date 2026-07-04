@@ -6,6 +6,13 @@ on:
   # pipeline red). Trigger a release build by hand from the Actions tab instead.
   # OTA JS updates still ship automatically via eas-update.yml on push to main.
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Marketing version to ship (e.g. 2.5.3). Apple rejects a version that was already released — bump it for every store release.'
+        type: string
+        # Required with no default: forces an explicit choice on every run, so
+        # a stale package.json version can never be submitted by accident.
+        required: true
 
 jobs:
   build:
@@ -15,6 +22,18 @@ jobs:
       matrix:
         platform: [android, ios]
     steps:
+      # Fail fast before any expensive work (Expo Doctor, type-check, tests run
+      # on BOTH matrix legs). Three parts required: `npm version` (used to
+      # stamp package.json below) rejects two-part inputs like "2.5".
+      - name: Validate marketing version input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' must be a full MAJOR.MINOR.PATCH string (e.g. 2.5.3)."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -84,6 +103,16 @@ jobs:
           EXPO_PUBLIC_ADMOB_BANNER_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_BANNER_ANDROID }}
           EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID }}
           EXPO_PUBLIC_ADMOB_REWARDED_ANDROID: ${{ secrets.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID }}
+
+      # app.config.js reads expo.version from package.json (single source of
+      # truth), so stamp the chosen (already-validated) version there before
+      # the project is uploaded to the EAS build queue. Working-tree-only change.
+      - name: Set marketing version from workflow input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "::notice::expo.version for this build: $(node -p "require('./package.json').version")"
 
       - name: EAS Build ${{ matrix.platform }}
         run: eas build --platform ${{ matrix.platform }} --profile production --non-interactive
