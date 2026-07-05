@@ -177,8 +177,10 @@ export default function TabLayout() {
         life moment win first; the weekly event will show after dismissal. */}
     {/* P2-6: suppress these tabs-layer modals while the root-level DeathPopup is
         up. DeathPopup gates its own dismissal, so a transparent LifeMoment/Weekly
-        modal underneath would otherwise intercept taps and soft-lock the player. */}
-    {gameState.showDeathPopup ? null : gameState.lifeMoments?.pendingMoment ? (
+        modal underneath would otherwise intercept taps and soft-lock the player.
+        Same for the WeddingPopup — a wedding + life-moment landing on one tick
+        stacked two full-screen modals. */}
+    {(gameState.showDeathPopup || gameState.showWeddingPopup) ? null : gameState.lifeMoments?.pendingMoment ? (
       <Suspense fallback={null}>
         <LifeMomentModal />
       </Suspense>

@@ -114,6 +114,8 @@ function HomeScreenContent() {
       jailWeeks: s?.jailWeeks,
       date: s?.date,
       showWelcomePopup: s?.showWelcomePopup,
+      showDeathPopup: s?.showDeathPopup,
+      showWeddingPopup: s?.showWeddingPopup,
       showDailyRewardPopup: s?.showDailyRewardPopup,
       dailyRewardAmount: s?.dailyRewardAmount,
       lastLoginRewardDate: s?.lastLoginRewardDate,
@@ -142,6 +144,10 @@ function HomeScreenContent() {
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
   const [showPrestigeInfo, setShowPrestigeInfo] = useState(false);
+
+  // Root-level blocking modals (death/wedding) own the screen — every
+  // celebration/reward popup below defers to them.
+  const blockingModalUp = !!(gameState.showDeathPopup || gameState.showWeddingPopup);
 
   // Contextual tips hook for showing help when player is stuck
   const { activeTip, dismissTip } = useContextualTip(gameState);
@@ -478,9 +484,14 @@ function HomeScreenContent() {
         <FirstWeekGuide currentWeek={gameState.weeksLived ?? 0} />
       )}
 
+      {/* NOISE: light popup coordination. The root layout owns blocking modals
+          (death/wedding) — no celebration/reward popup may present on top of
+          them. Within this screen, popups present strictly one at a time in
+          priority order (goal > daily reward > welcome back > community)
+          instead of whichever setTimeout won the race. */}
       <Suspense fallback={null}>
         <GoalCompletionPopup
-          visible={showGoalCompletion}
+          visible={showGoalCompletion && !blockingModalUp}
           completedGoal={completedGoal}
           nextGoal={nextGoal}
           onClose={() => setShowGoalCompletion(false)}
@@ -489,7 +500,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <DailyRewardPopup
-          visible={gameState.showDailyRewardPopup || false}
+          visible={(gameState.showDailyRewardPopup || false) && !blockingModalUp && !showGoalCompletion}
           rewardAmount={gameState.dailyRewardAmount || 0}
           onClose={() => setGameState(prev => ({
             ...prev,
@@ -500,7 +511,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <WelcomeBackPopup
-          visible={showWelcomeBack}
+          visible={showWelcomeBack && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup}
           onClose={() => {
             setShowWelcomeBack(false);
             // Actually GRANT the welcome-back bonus the popup advertised (it was
@@ -522,7 +533,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <CommunityRewardPopup
-          visible={showCommunityReward}
+          visible={showCommunityReward && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup && !showWelcomeBack}
           rewardAmount={DISCORD_JOIN_REWARD_MONEY}
           onJoin={handleJoinCommunity}
           onDismiss={handleDismissCommunity}
