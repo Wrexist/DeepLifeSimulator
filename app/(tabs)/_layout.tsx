@@ -67,6 +67,11 @@ export default function TabLayout() {
       screenListeners={{ tabPress: () => haptic.light() }}
       screenOptions={{
         headerShown: false,
+        // PERF: freeze blurred tab screens (react-native-screens). Every tab
+        // screen subscribes to game state, so without this all mounted tabs
+        // re-rendered on every state change — 5 hidden screens' worth of work
+        // on each "Next Week" press. Frozen screens catch up on focus.
+        freezeOnBlur: true,
         tabBarShowLabel: true,
         tabBarLabelStyle: {
           fontSize: 10,
