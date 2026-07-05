@@ -132,10 +132,6 @@ describe('Animated.loop cleanup — BUGFIX #38', () => {
     expect(src).toContain('pulseLoop?.stop()');
   });
 
-  it('InteractiveTutorial: every Animated.loop is stopped on cleanup', () => {
-    const file = path.resolve(__dirname, '../../components/InteractiveTutorial.tsx');
-    const src = fs.readFileSync(file, 'utf8');
-    expect(src).toContain('pulseLoop?.stop()');
-    expect(src).toContain('arrowLoop?.stop()');
-  });
+  // InteractiveTutorial was removed (dead code — its TutorialProvider was never
+  // mounted; the live tutorial is UIUXContext + TutorialManager/SimpleTutorialModal).
 });

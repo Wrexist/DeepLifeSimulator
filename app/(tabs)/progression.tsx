@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Platform, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, BarChart3, Bell, BookOpen, Brain } from 'lucide-react-native';
+import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, Bell, BookOpen, Brain } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
-import EnhancedDataVisualization from '@/components/EnhancedDataVisualization';
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
@@ -33,7 +32,6 @@ function ProgressionScreenContent() {
   const legacyClaimable = getClaimableCount(gameState.legacyPass);
   // Screen defaults to dark unless darkMode is explicitly false.
   const isDark = settings?.darkMode !== false;
-  const [showDataVisualization, setShowDataVisualization] = useState(false);
   const [showSmartNotifications, setShowSmartNotifications] = useState(false);
   const [showPrestigeHistory, setShowPrestigeHistory] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
@@ -99,15 +97,10 @@ function ProgressionScreenContent() {
         {/* Enhanced Features Section */}
         <View style={[styles.enhancedFeaturesSection, settings?.darkMode !== false && styles.enhancedFeaturesSectionDark]}>
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Enhanced Features</Text>
+          {/* "Data Analytics" was removed: it rendered EnhancedDataVisualization,
+              whose every chart point was Math.random() noise presented as the
+              player's history. Bring it back only with real persisted data. */}
           <View style={styles.featureButtons}>
-            <TouchableOpacity
-              style={[styles.featureButton, isDark && styles.featureButtonDark]}
-              onPress={() => setShowDataVisualization(true)}
-            >
-              <BarChart3 size={24} color="#3B82F6" />
-              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Data Analytics</Text>
-            </TouchableOpacity>
-            
             <TouchableOpacity
               style={[styles.featureButton, isDark && styles.featureButtonDark]}
               onPress={() => setShowSmartNotifications(true)}
@@ -265,9 +258,6 @@ function ProgressionScreenContent() {
       </ScrollView>
       
       {/* Enhanced Components */}
-        {showDataVisualization && (
-          <EnhancedDataVisualization darkMode={gameState.settings?.darkMode} compact={false} />
-        )}
         <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
         <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
         <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
