@@ -22,13 +22,17 @@ interface StatChangeContextType {
  * still flagging genuinely impactful swings.
  */
 const STAT_CHANGE_THRESHOLDS: Record<StatChange['stat'], number> = {
-    energy: 10, // regenerates/depletes a little every single tick — only flag big swings
-    health: 5,
-    happiness: 5,
-    fitness: 5,
-    money: 50,
+    energy: 20, // regenerates ~40/wk — a pill on every tick was pure noise
+    health: 8,
+    happiness: 8,
+    fitness: 8,
+    money: 250, // weekly income routinely clears 50 — only flag real swings
     gems: 1, // rare and meaningful — always worth showing
 };
+
+/** Max simultaneously-floating pills. 8 turned every week-advance into a
+ *  confetti burst; a few at a time keeps the signal readable. */
+const MAX_VISIBLE_PILLS = 4;
 
 const StatChangeContext = createContext<StatChangeContextType | undefined>(undefined);
 
@@ -73,8 +77,8 @@ export function StatChangeProvider({ children }: StatChangeProviderProps) {
                 );
             }
 
-            // Add new change, keep max 8
-            return [...prev, newChange].slice(-8);
+            // Add new change, bounded so bursts stay readable
+            return [...prev, newChange].slice(-MAX_VISIBLE_PILLS);
         });
     }, []);
 

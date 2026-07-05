@@ -37,7 +37,10 @@ interface UIUXContextType extends UIUXState {
   // Error management
   showError: (id: string, message: string, severity?: ErrorState['severity'], title?: string, onRetry?: () => void) => void;
   hideError: (id: string) => void;
-  showInfo: (id: string, message: string, title?: string) => void;
+  // Named `showInfoBanner` (not `showInfo`) on purpose: ToastContext exposes a
+  // `showInfo(message, duration)` with an incompatible signature, and call sites
+  // that grabbed the wrong hook silently passed the message as the banner id.
+  showInfoBanner: (id: string, message: string, title?: string) => void;
   showWarning: (id: string, message: string, title?: string) => void;
   
   // Tutorial management
@@ -60,7 +63,7 @@ const TUTORIAL_COMPLETED_KEY = 'tutorial_completed';
  * the screen (every banner is offset `stackIndex * 96px`) before the ~5s
  * auto-dismiss could clear them. Spamming "Next Week" reproduced this reliably.
  */
-const MAX_VISIBLE_BANNERS = 3;
+const MAX_VISIBLE_BANNERS = 2;
 
 function isRealError(error: ErrorState): boolean {
   return error.severity === 'error' || error.severity === 'critical';
@@ -178,7 +181,7 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const showInfo = useCallback((id: string, message: string, title?: string) => {
+  const showInfoBanner = useCallback((id: string, message: string, title?: string) => {
     showError(id, message, 'info', title);
   }, [showError]);
 
@@ -270,7 +273,7 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     isLoading,
     showError,
     hideError,
-    showInfo,
+    showInfoBanner,
     showWarning,
     startTutorial,
     completeTutorial,
@@ -285,7 +288,7 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     isLoading,
     showError,
     hideError,
-    showInfo,
+    showInfoBanner,
     showWarning,
     startTutorial,
     completeTutorial,
@@ -317,8 +320,8 @@ export function useLoading() {
 }
 
 export function useError() {
-  const { showError, hideError, showInfo, showWarning } = useUIUX();
-  return { showError, hideError, showInfo, showWarning };
+  const { showError, hideError, showInfoBanner, showWarning } = useUIUX();
+  return { showError, hideError, showInfoBanner, showWarning };
 }
 
 export function useTutorial() {

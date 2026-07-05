@@ -176,11 +176,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const { gameState, setGameState, currentSlot } = useGameState();
  const { setIsLoading, setLoadingProgress, setLoadingMessage } = useGameUI();
  const { updateMoney } = useMoneyActions();
- // NOTE: gameplay notifications use `showInfo` (friendly, auto-dismissing) — not
+ // NOTE: gameplay notifications use `showInfoBanner` (friendly, auto-dismissing) — not
  // `showWarning`, whose orange AlertTriangle banner never auto-dismissed and piled
  // up after week/job actions (the "old warning symbols" players were seeing).
  // `showWarning` is reserved for genuinely actionable problems.
- const { showError, showWarning, showInfo } = useUIUX();
+ const { showError, showWarning, showInfoBanner } = useUIUX();
 
  // Refs for AppState listener (prevents stale closures)
  const gameStateRef = useRef<GameState | null>(null);
@@ -1773,8 +1773,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  seenIds.has(n.id) ? false: (seenIds.add(n.id), true)
  );
  setTimeout(() => {
+ // NOISE: if this tick killed the character, the DeathPopup owns the
+ // screen — routine subsystem banners on top of it are pure clutter.
+ // (deathTriggered is assigned by the updater, well before this 100ms
+ // callback runs.)
+ if (deathTriggered) return;
+ // NOISE: a busy mid/late-game week can emit 5-10 subsystem messages
+ // (crypto, banking, stocks, politics, relationships…). Showing each as
+ // its own banner flooded the screen every "Next Week". Two or fewer
+ // show as-is; more collapse into ONE "This week" summary banner (fixed
+ // id, so consecutive weeks replace rather than stack).
+ if (uniqueNotifications.length <= 2) {
  for (const n of uniqueNotifications) {
- showInfo(n.id, n.message, n.title);
+ showInfoBanner(n.id, n.message, n.title);
+ }
+ } else {
+ const shown = uniqueNotifications.slice(0, 3);
+ const more = uniqueNotifications.length - shown.length;
+ const summary = shown.map(n => n.message).join('\n')
+ + (more > 0 ? `\n+${more} more this week` : '');
+ showInfoBanner('weekly-summary', summary, 'This week');
  }
  }, 100);
  }
@@ -1926,7 +1944,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ANTI-EXPLOIT: Release the week progression guard
  nextWeekInProgressRef.current = false;
  }
- }, [setGameState, setIsLoading, setLoadingMessage, setLoadingProgress, showError, showWarning, showInfo, saveGame]);
+ }, [setGameState, setIsLoading, setLoadingMessage, setLoadingProgress, showError, showWarning, showInfoBanner, saveGame]);
 
  // Ref to track resolving events (prevent duplicates)
  const resolvingEventsRef = useRef<Set<string>>(new Set());

@@ -29,6 +29,11 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
     queueLength: 0,
   });
   const [showDetails, setShowDetails] = useState(false);
+  // NOISE: the indicator is transient — visible while a save is in flight (or
+  // errored) plus a short "Saved" confirmation, then it disappears instead of
+  // sitting on the HUD forever.
+  const [visible, setVisible] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // R6: guard against setState-after-unmount when the async AsyncStorage read
   // resolves after the component is gone (common on rapid tab switches).
@@ -41,15 +46,18 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
         if (!isMountedRef.current) return;
         const lastSaveTime = lastSaveStr ? parseInt(lastSaveStr, 10) : null;
         const queueStatus = saveQueue.getStatus();
-        setSaveStatus({
-          status: queueStatus.isProcessing ? 'saving' : queueStatus.queueLength > 0 ? 'pending' : 'saved',
-          lastSaveTime,
-          queueLength: queueStatus.queueLength,
-        });
+        const status: SaveStatus['status'] = queueStatus.isProcessing ? 'saving' : queueStatus.queueLength > 0 ? 'pending' : 'saved';
+        // PERF: only commit when something actually changed — the old
+        // unconditional setState re-rendered the HUD card every 2s forever.
+        setSaveStatus(prev =>
+          prev.status === status && prev.lastSaveTime === lastSaveTime && prev.queueLength === queueStatus.queueLength
+            ? prev
+            : { status, lastSaveTime, queueLength: queueStatus.queueLength }
+        );
       } catch (error) {
         if (!isMountedRef.current) return;
         logger.error('Failed to update save status:', error);
-        setSaveStatus(prev => ({ ...prev, status: 'error' }));
+        setSaveStatus(prev => (prev.status === 'error' ? prev : { ...prev, status: 'error' }));
       }
     };
 
@@ -65,6 +73,28 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
     // the interval on every state change tore down + recreated the timer plus
     // hammered AsyncStorage on the hot path.
   }, []);
+
+  // Transient visibility: appear on activity/error, linger briefly on "saved",
+  // then hide (and collapse any open details) until the next save cycle.
+  useEffect(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    if (saveStatus.status !== 'saved') {
+      setVisible(true);
+      return undefined;
+    }
+    // Just returned to "saved": if we were showing activity, keep the
+    // confirmation up for a moment; if we were already hidden, stay hidden.
+    hideTimerRef.current = setTimeout(() => {
+      setVisible(false);
+      setShowDetails(false);
+    }, 2500);
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, [saveStatus.status]);
 
   const formatLastSaveTime = (timestamp: number | null): string => {
     if (!timestamp) return 'Never';
@@ -132,7 +162,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
   // R2-A: AutoSaveIndicator mounts globally — a missing settings would crash
   // the entire layout. Use safe accessor with autoSave/darkMode defaults.
   const safeAutoSaveSettings = settings;
-  if (!safeAutoSaveSettings.autoSave) {
+  if (!safeAutoSaveSettings.autoSave || !visible) {
     return null;
   }
 

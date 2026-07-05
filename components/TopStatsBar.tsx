@@ -242,6 +242,9 @@ function TopStatsBarComponent() {
  // the UI thread and no longer touches the JS thread every frame — it stopped
  // janking the already-busy post-tick window.
  if (shouldGlow(value)) {
+ // NOISE: pulse a few cycles as an attention cue, then rest. The old
+ // unbounded loop kept the HUD pulsing for as long as the stat stayed
+ // low — which early-game is basically always.
  const glowLoop = Animated.loop(
  Animated.sequence([
  Animated.timing(glowAnimations[key], {
@@ -256,7 +259,8 @@ function TopStatsBarComponent() {
  useNativeDriver: true,
  easing: Easing.inOut(Easing.ease)
  }),
- ])
+ ]),
+ { iterations: 3 }
  );
  glowLoop.start();
  return glowLoop;

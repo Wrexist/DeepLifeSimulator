@@ -48,7 +48,7 @@ interface SocialActionsProviderProps {
 
 export function SocialActionsProvider({ children }: SocialActionsProviderProps) {
   const { gameState, setGameState } = useGameState();
-  const { showError, showInfo } = useUIUX();
+  const { showError, showInfoBanner } = useUIUX();
 
   // Ref keeps latest state for callbacks without adding gameState to deps
   const stateRef = useRef(gameState);
@@ -66,11 +66,11 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     const result = executeWedding(state, setGameState, partnerId, datingDeps);
     if (result?.success) {
       haptic.heavy(); // Wedding — major life event!
-      showInfo('Wedding Success', result.message || 'You got married!');
+      showInfoBanner('Wedding Success', result.message || 'You got married!');
     } else {
       showError('Wedding Failed', result?.message || 'Could not get married');
     }
-  }, [setGameState, showError, showInfo]);
+  }, [setGameState, showError, showInfoBanner]);
 
   const startDating = useCallback((characterId: string) => {
     const state = stateRef.current;
@@ -84,8 +84,8 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     }
 
     logger.info('Started dating:', { characterId });
-    showInfo('Dating', 'You started a new relationship!');
-  }, [showError, showInfo]);
+    showInfoBanner('Dating', 'You started a new relationship!');
+  }, [showError, showInfoBanner]);
 
   const breakUp = useCallback((relationshipId: string) => {
     const state = stateRef.current;
@@ -114,9 +114,9 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     }));
     rawUpdateStats(setGameState, { happiness: -15 });
 
-    showInfo('Break Up', `You ended your relationship with ${relationship.name}.`);
+    showInfoBanner('Break Up', `You ended your relationship with ${relationship.name}.`);
     logger.info('Broke up with:', { relationshipId, name: relationship.name });
-  }, [setGameState, showError, showInfo]);
+  }, [setGameState, showError, showInfoBanner]);
 
   const increaseRelationshipLevel = useCallback((relationshipId: string) => {
     const state = stateRef.current;
@@ -145,11 +145,11 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     const result = goOnDateAction(state, setGameState, characterId, 'casual', datingDeps);
     if (result?.success) {
-      showInfo('Date', result.message || 'You had a great date!');
+      showInfoBanner('Date', result.message || 'You had a great date!');
     } else {
       showError('Date Failed', result?.message || 'Could not go on date.');
     }
-  }, [setGameState, showError, showInfo]);
+  }, [setGameState, showError, showInfoBanner]);
 
   const inviteToEvent = useCallback((characterId: string, eventType: string) => {
     const state = stateRef.current;
@@ -172,9 +172,9 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     }));
     rawUpdateStats(setGameState, { happiness: 5, energy: -5 });
 
-    showInfo('Event', `You invited ${relationship.name} to ${eventType}. They had a great time!`);
+    showInfoBanner('Event', `You invited ${relationship.name} to ${eventType}. They had a great time!`);
     logger.info('Invited to event:', { characterId, eventType });
-  }, [setGameState, showError, showInfo]);
+  }, [setGameState, showError, showInfoBanner]);
 
   const giveGift = useCallback((characterId: string, giftId: string) => {
     const state = stateRef.current;
@@ -186,11 +186,11 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     const result = giveGiftAction(state, setGameState, characterId, giftType, datingDeps);
     if (result?.success) {
-      showInfo('Gift', result.message || 'Your gift was appreciated!');
+      showInfoBanner('Gift', result.message || 'Your gift was appreciated!');
     } else {
       showError('Gift Failed', result?.message || 'Could not give gift.');
     }
-  }, [setGameState, showError, showInfo]);
+  }, [setGameState, showError, showInfoBanner]);
 
   const startConversation = useCallback((characterId: string) => {
     const state = stateRef.current;
@@ -352,11 +352,11 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     const result = fileDivorceAction(state, setGameState, spouse.id, datingDeps);
     if (result?.success) {
-      showInfo('Divorce', result.message || 'The divorce was finalized.');
+      showInfoBanner('Divorce', result.message || 'The divorce was finalized.');
     } else {
       showError('Divorce Failed', result?.message || 'Could not file for divorce.');
     }
-  }, [setGameState, showError, showInfo]);
+  }, [setGameState, showError, showInfoBanner]);
 
   const value = useMemo<SocialActionsContextType>(() => ({
     executeWedding: executeWeddingAction,
