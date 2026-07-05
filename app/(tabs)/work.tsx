@@ -922,7 +922,7 @@ function WorkScreenContent() {
                                                     )}
 
                                                     <Text style={[styles.careerSalary, settings.darkMode && styles.careerSalaryDark]}>
-                                                        ${(career.levels?.[0]?.salary ?? 0).toLocaleString()}/year
+                                                        ${(career.levels?.[0]?.salary ?? 0).toLocaleString()}/wk
                                                     </Text>
                                                 </TouchableOpacity>
                                             );

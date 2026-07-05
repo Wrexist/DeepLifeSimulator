@@ -4,7 +4,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
-import { Briefcase, ChevronRight } from 'lucide-react-native';
+import { Briefcase, ChevronRight, Trophy } from 'lucide-react-native';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -469,6 +469,28 @@ function HomeScreenContent() {
           />
         )}
 
+        {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
+            skill tree, lifetime stats) was hidden from the tab bar with no
+            other entry point — this card is its front door. */}
+        <FadeInUp delay={110}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/progression')}
+            activeOpacity={0.85}
+            style={styles.progressLinkCard}
+          >
+            <View style={styles.progressLinkIcon}>
+              <Trophy size={scale(20)} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.progressLinkTitle}>Your Progress</Text>
+              <Text style={styles.progressLinkSub}>
+                Prestige, Legacy Pass, life story & lifetime stats
+              </Text>
+            </View>
+            <ChevronRight size={scale(18)} color="#94A3B8" />
+          </TouchableOpacity>
+        </FadeInUp>
+
         <FadeInUp delay={120}>
           <AchievementsProgress />
         </FadeInUp>
@@ -549,6 +571,36 @@ function HomeScreenContent() {
 }
 
 const styles = StyleSheet.create({
+  progressLinkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(12),
+    marginHorizontal: responsivePadding.horizontal,
+    marginBottom: verticalScale(12),
+    padding: scale(14),
+    borderRadius: responsiveBorderRadius.lg,
+    backgroundColor: 'rgba(30, 41, 59, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  progressLinkIcon: {
+    width: scale(38),
+    height: scale(38),
+    borderRadius: scale(19),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  progressLinkTitle: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  progressLinkSub: {
+    fontSize: fontScale(11.5),
+    color: '#94A3B8',
+    marginTop: scale(2),
+  },
   container: {
     flex: 1,
     backgroundColor: '#020617',

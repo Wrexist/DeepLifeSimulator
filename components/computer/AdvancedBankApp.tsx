@@ -111,7 +111,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const [showLoanQuote, setShowLoanQuote] = useState(false);
   const [showApplyCard, setShowApplyCard] = useState(false);
   const [showAddBill, setShowAddBill] = useState(false);
-  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
@@ -158,6 +158,36 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       // Errors are surfaced via the existing logger; non-fatal in the UI.
     });
   }, [saveGame]);
+
+
+  // Loan tap → choose Prepay or Refinance. Refinance re-prices the APR from
+  // the CURRENT credit score (and adds a hard inquiry), so a player who has
+  // built credit since taking the loan can cut their rate — this action
+  // existed but was never wired to any button.
+  const openLoanActions = useCallback((loan: { id: string; name?: string; type: string; rateAPR: number }) => {
+    Alert.alert(
+      loan.name || 'Loan',
+      `Current rate: ${(loan.rateAPR * 100).toFixed(2)}% APR`,
+      [
+        { text: 'Prepay…', onPress: () => setPrepayLoanId(loan.id) },
+        {
+          text: 'Refinance',
+          onPress: () => {
+            Alert.alert(
+              'Refinance term',
+              'Re-price this loan at your current credit score. Adds a hard inquiry.',
+              [
+                { text: '1 year (52 wks)', onPress: () => { refinanceLoan(setGameState, loan.id, 52); queueSave(); } },
+                { text: '2 years (104 wks)', onPress: () => { refinanceLoan(setGameState, loan.id, 104); queueSave(); } },
+                { text: 'Cancel', style: 'cancel' },
+              ]
+            );
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  }, [setGameState, queueSave]);
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {
@@ -212,7 +242,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <>
             <SectionTitle theme={theme}>Active loans</SectionTitle>
             {(gameState.loans ?? []).slice(0, 2).map((loan) => (
-              <LoanRow key={loan.id} loan={loan} darkMode={darkMode} onPress={() => setPrepayLoanId(loan.id)} />
+              <LoanRow key={loan.id} loan={loan} darkMode={darkMode} onPress={() => openLoanActions(loan)} />
             ))}
           </>
         )}
@@ -249,7 +279,19 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       <View style={styles.headerRow}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Savings Goals</Text>
         <TouchableOpacity
-          onPress={() => setShowAddGoal(true)}
+          onPress={() => Alert.alert('What are you saving for?', undefined, [
+              { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
+              { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
+              {
+                text: 'More…',
+                onPress: () =>
+                  Alert.alert('What are you saving for?', undefined, [
+                    { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
+                    { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
+                    { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
+                  ]),
+              },
+            ])}
           style={[styles.addBtn, { backgroundColor: accent.success }]}
         >
           <Plus size={scale(14)} color="white" />
@@ -289,7 +331,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         <Text style={[styles.emptyText, { color: theme.textMuted }]}>No active loans.</Text>
       ) : (
         (gameState.loans ?? []).map((loan) => (
-          <LoanRow key={loan.id} loan={loan} darkMode={darkMode} onPress={() => setPrepayLoanId(loan.id)} />
+          <LoanRow key={loan.id} loan={loan} darkMode={darkMode} onPress={() => openLoanActions(loan)} />
         ))
       )}
 
@@ -491,25 +533,26 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         }}
       />
 
-      {/* Inline goal creator — reuse AmountInputModal in two steps would be heavier; */}
-      {/* we use a single amount prompt and create the goal as "Custom Goal" since the */}
-      {/* full builder modal can ship in Phase D polish. */}
+      {/* Goal creator: pick what you're saving for (named + categorized so the
+          goals list is readable), then the target amount. */}
       <AmountInputModal
-        visible={showAddGoal}
-        title="Set a savings goal"
+        visible={!!addGoalPick}
+        title={addGoalPick ? `Goal: ${addGoalPick.name}` : 'Set a savings goal'}
         subtitle="How much do you want to save?"
         confirmLabel="Create Goal"
         presets={[1000, 5000, 25000]}
         darkMode={darkMode}
-        onClose={() => setShowAddGoal(false)}
+        onClose={() => setAddGoalPick(null)}
         onConfirm={(amt) => {
-          createSavingsGoal(setGameState, {
-            name: 'Savings Goal',
-            targetAmount: amt,
-            category: 'other' as SavingsGoalCategory,
-          });
-          queueSave();
-          setShowAddGoal(false);
+          if (addGoalPick) {
+            createSavingsGoal(setGameState, {
+              name: addGoalPick.name,
+              targetAmount: amt,
+              category: addGoalPick.category,
+            });
+            queueSave();
+          }
+          setAddGoalPick(null);
         }}
       />
 
@@ -569,8 +612,6 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         }}
       />
 
-      {/* Silence unused-variable warning for refinanceLoan kept for future Phase-D wiring. */}
-      {false && <Text>{String(refinanceLoan)}</Text>}
     </View>
   );
 }

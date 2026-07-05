@@ -79,7 +79,7 @@ function BankAppInner({ onBack }: BankAppProps) {
   const [showLoanQuote, setShowLoanQuote] = useState(false);
   const [showApplyCard, setShowApplyCard] = useState(false);
   const [showAddBill, setShowAddBill] = useState(false);
-  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
@@ -203,7 +203,21 @@ function BankAppInner({ onBack }: BankAppProps) {
           ))
         )}
 
-        <SectionHeader theme={theme} title="Savings Goals" onAdd={() => setShowAddGoal(true)} addLabel="New" />
+        <SectionHeader theme={theme} title="Savings Goals" onAdd={() =>
+            Alert.alert('What are you saving for?', undefined, [
+              { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
+              { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
+              {
+                text: 'More…',
+                onPress: () =>
+                  Alert.alert('What are you saving for?', undefined, [
+                    { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
+                    { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
+                    { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
+                  ]),
+              },
+            ])
+          } addLabel="New" />
         {banking.savingsGoals.length === 0 ? (
           <EmptyText theme={theme}>No goals yet.</EmptyText>
         ) : (
@@ -336,21 +350,23 @@ function BankAppInner({ onBack }: BankAppProps) {
       />
 
       <AmountInputModal
-        visible={showAddGoal}
-        title="Set a savings goal"
+        visible={!!addGoalPick}
+        title={addGoalPick ? `Goal: ${addGoalPick.name}` : 'Set a savings goal'}
         subtitle="How much do you want to save?"
         confirmLabel="Create Goal"
         presets={[1000, 5000, 25000]}
         darkMode={darkMode}
-        onClose={() => setShowAddGoal(false)}
+        onClose={() => setAddGoalPick(null)}
         onConfirm={(amt) => {
-          createSavingsGoal(setGameState, {
-            name: 'Savings Goal',
-            targetAmount: amt,
-            category: 'other' as SavingsGoalCategory,
-          });
-          queueSave();
-          setShowAddGoal(false);
+          if (addGoalPick) {
+            createSavingsGoal(setGameState, {
+              name: addGoalPick.name,
+              targetAmount: amt,
+              category: addGoalPick.category,
+            });
+            queueSave();
+          }
+          setAddGoalPick(null);
         }}
       />
 
