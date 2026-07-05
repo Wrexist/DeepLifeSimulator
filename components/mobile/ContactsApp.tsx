@@ -51,6 +51,7 @@ import { goOnDate, giveGift, proposeMarriage } from '@/contexts/game/actions/Dat
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { redeemFavor } from '@/contexts/game/actions/ContactsActions';
+import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { getRelationshipImage } from '@/utils/characterImages';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
@@ -175,6 +176,67 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     [gameState, updateMoney, updateRelationship, recordRelationshipAction, flash]
   );
 
+
+  // "Ask $" — the button previously cost 5 relationship points and granted
+  // NOTHING (the money leg was never wired; the pity-system fields on
+  // Relationship existed but were unused). Success scales with relationship
+  // score, with a guaranteed grant after 5 straight refusals. Gate re-check +
+  // relationship update + money grant happen in ONE updater; the roll is
+  // pre-rolled so the updater stays StrictMode-pure.
+  const askOutcome = useCallback((rel: Relationship, roll: number) => {
+    const score = rel.relationshipScore ?? 0;
+    const attempts = rel.moneyRequestAttempts ?? 0;
+    const granted = attempts >= 5 || roll < Math.min(0.85, score / 150);
+    const amount = granted ? Math.round(25 + score * 1.5) : 0;
+    return { granted, amount };
+  }, []);
+
+  const handleAskMoney = useCallback(
+    (contactId: string) => {
+      const rel = gameState.relationships?.find((r) => r.id === contactId);
+      if (!rel) return;
+      const ws = gameState.weeksLived ?? 0;
+      if (rel.actions?.['askmoney'] === ws) {
+        flash('Already asked this week.', contactId);
+        return;
+      }
+      const roll = Math.random();
+      setGameState((prev) => {
+        const rels = prev.relationships ?? [];
+        const idx = rels.findIndex((r) => r.id === contactId);
+        if (idx === -1) return prev;
+        const target = rels[idx];
+        const prevWs = prev.weeksLived ?? 0;
+        if (target.actions?.['askmoney'] === prevWs) return prev;
+        const { granted, amount } = askOutcome(target, roll);
+        const updatedRel: Relationship = {
+          ...target,
+          relationshipScore: Math.max(0, (target.relationshipScore ?? 0) + (granted ? -3 : -5)),
+          actions: { ...(target.actions ?? {}), askmoney: prevWs },
+          moneyRequestAttempts: granted ? 0 : (target.moneyRequestAttempts ?? 0) + 1,
+          lastMoneyRequest: prevWs,
+        };
+        const newRels = [...rels];
+        newRels[idx] = updatedRel;
+        if (!granted) return { ...prev, relationships: newRels };
+        const grant = applyMoneyDelta(prev, amount, `Borrowed from ${target.name}`);
+        if (!grant) return { ...prev, relationships: newRels };
+        return { ...prev, ...grant, relationships: newRels };
+      });
+      // Message from the snapshot + the same pre-rolled RNG (updater is
+      // authoritative for state; this only phrases the feedback).
+      const { granted, amount } = askOutcome(rel, roll);
+      flash(
+        granted
+          ? `${rel.name} lent you $${amount.toLocaleString()}. (-3)`
+          : `${rel.name} said no this time. (-5)`,
+        contactId
+      );
+      saveGame();
+    },
+    [gameState, setGameState, saveGame, flash, askOutcome]
+  );
+
   const handleRedeemFavor = useCallback(
     (favorId: string) => {
       const r = redeemFavor(gameState, setGameState, favorId);
@@ -279,7 +341,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             <View style={styles.actionsRow}>
               <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} />
               <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} />
-              <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleSimple(c.id, 'askmoney', 0, -5)} />
+              <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleAskMoney(c.id)} />
             </View>
             {isPartner && (
               <>

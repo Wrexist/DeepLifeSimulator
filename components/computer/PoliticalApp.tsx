@@ -105,11 +105,11 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
   const cash = gameState.stats?.money ?? 0;
   const btcOwned = useMemo(
-    () => gameState.cryptos.find((c) => c.id === 'btc')?.owned ?? 0,
+    () => (gameState.cryptos ?? []).find((c) => c.id === 'btc')?.owned ?? 0,
     [gameState.cryptos]
   );
   const btcPrice = useMemo(
-    () => gameState.cryptos.find((c) => c.id === 'btc')?.price ?? 0,
+    () => (gameState.cryptos ?? []).find((c) => c.id === 'btc')?.price ?? 0,
     [gameState.cryptos]
   );
 

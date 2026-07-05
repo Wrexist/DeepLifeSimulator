@@ -307,7 +307,10 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             </View>
 
             <View style={styles.plansRow}>
-              {INSURANCE_PLANS.map((p) => (
+              {/* Hide the buy buttons while a policy is active — the action
+                  rejects the purchase anyway; offering three always-blue Buy
+                  buttons next to an active policy just invited error taps. */}
+              {!v.insurance?.active && INSURANCE_PLANS.map((p) => (
                 <TouchableOpacity
                   key={p.type}
                   onPress={() => {

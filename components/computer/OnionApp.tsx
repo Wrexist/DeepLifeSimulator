@@ -84,7 +84,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
   const [showCashOut, setShowCashOut] = useState(false);
 
   const btcOwned = useMemo(
-    () => gameState.cryptos.find((c) => c.id === 'btc')?.owned ?? 0,
+    () => (gameState.cryptos ?? []).find((c) => c.id === 'btc')?.owned ?? 0,
     [gameState.cryptos]
   );
 

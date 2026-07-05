@@ -1,7 +1,7 @@
 import { GameState, TravelState } from '../types';
 import { logger } from '@/utils/logger';
 import { trackBudgetSpend } from '@/lib/banking/operations';
-import { updateMoney } from './MoneyActions';
+import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { DESTINATIONS } from '@/lib/travel/destinations';
 import { quoteTrip, buildTripReturnSummary, isTripReady } from '@/lib/travel/operations';
@@ -251,19 +251,26 @@ export const purchasePassport = (
     };
   }
 
-  deps.updateMoney(setGameState, -passportCost, 'Passport purchase');
-
-  setGameState((prev) => ({
-    ...prev,
-    travel: {
-      ...(prev.travel || {
-        visitedDestinations: [],
-        businessOpportunities: {},
-        travelHistory: [],
-      }),
-      passportOwned: true,
-    },
-  }));
+  // Atomic gate→debit→grant: re-check ownership + funds against prev so a
+  // same-batch double-tap can't charge $500 twice for one passport.
+  setGameState((prev) => {
+    const prevPassportItem = prev.items?.find((i) => i.id === 'passport');
+    if (prev.travel?.passportOwned || prevPassportItem?.owned) return prev;
+    const spend = applyMoneyDelta(prev, -passportCost, 'Passport purchase');
+    if (!spend) return prev;
+    return {
+      ...prev,
+      ...spend,
+      travel: {
+        ...(prev.travel || {
+          visitedDestinations: [],
+          businessOpportunities: {},
+          travelHistory: [],
+        }),
+        passportOwned: true,
+      },
+    };
+  });
 
   log.info('Passport purchased');
   return { success: true, message: 'Passport purchased! You can now travel internationally.' };
@@ -297,21 +304,28 @@ export const investInBusinessOpportunity = (
     return { success: false, message: `You need $${opportunity.cost.toLocaleString()} to invest in this opportunity` };
   }
 
-  deps.updateMoney(setGameState, -opportunity.cost, `Invest in ${opportunity.name}`);
-
-  setGameState((prev) => ({
-    ...prev,
-    travel: {
-      ...prev.travel!,
-      businessOpportunities: {
-        ...(prev.travel?.businessOpportunities || {}),
-        [opportunityId]: {
-          ...opportunity,
-          invested: true,
+  // Atomic gate→debit→grant: re-check invested + funds against prev so a
+  // same-batch double-tap can't charge the investment cost twice.
+  setGameState((prev) => {
+    const prevOpp = prev.travel?.businessOpportunities?.[opportunityId];
+    if (!prevOpp || !prevOpp.unlocked || prevOpp.invested) return prev;
+    const spend = applyMoneyDelta(prev, -prevOpp.cost, `Invest in ${prevOpp.name}`);
+    if (!spend) return prev;
+    return {
+      ...prev,
+      ...spend,
+      travel: {
+        ...prev.travel!,
+        businessOpportunities: {
+          ...(prev.travel?.businessOpportunities || {}),
+          [opportunityId]: {
+            ...prevOpp,
+            invested: true,
+          },
         },
       },
-    },
-  }));
+    };
+  });
 
   log.info(`Invested in business opportunity: ${opportunity.name}`);
   return {

@@ -114,7 +114,7 @@ function ComputerScreenContent() {
 
   // Redirect away from computer screen if computer is sold
   useEffect(() => {
-    const ownsComputer = gameState.items.find(item => item.id === 'computer')?.owned;
+    const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
     if (!ownsComputer && currentRoute === 'computer') {
       // Redirect to home tab if computer is sold
       router.replace('/(tabs)/home');
@@ -134,7 +134,7 @@ function ComputerScreenContent() {
   // R10-perf: hoist the only career-dependent flag to a primitive so the 17-app
   // list (and its 3 derived filtered lists) don't rebuild every decay tick just
   // because `gameState.careers` got a new array identity.
-  const canRunPolitical = gameState.careers.some(c => c.id === 'political' && c.accepted);
+  const canRunPolitical = (gameState.careers || []).some(c => c.id === 'political' && c.accepted);
   const appsList = useMemo(() => [
     {
       id: 'bitcoin',
@@ -293,7 +293,7 @@ function ComputerScreenContent() {
 
   // Separate apps into categories
   const desktopApps = useMemo(() => appsList.filter(app => 
-    ['bitcoin', 'realestate', 'onion', 'gaming', 'travel', 'political', 'statistics', 'vehicle', 'company', 'education'].includes(app.id)
+    ['bitcoin', 'realestate', 'onion', 'gaming', 'streaming', 'travel', 'political', 'statistics', 'vehicle', 'company', 'education'].includes(app.id)
   ), [appsList]);
   
   const mobileApps = useMemo(() => appsList.filter(app => 
@@ -306,7 +306,7 @@ function ComputerScreenContent() {
     return apps.filter(app => app.available !== false);
   }, [appCategory, desktopApps, mobileApps]);
 
-  if (!gameState.items.find(item => item.id === 'computer')?.owned) {
+  if (!(gameState.items || []).find(item => item.id === 'computer')?.owned) {
     return (
       <LinearGradient
         colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}

@@ -133,8 +133,6 @@ function WorkScreenContent() {
     }, [gameState.streetJobs]);
 
     // State for negative stats popup
-    const [showNegativeStatsPopup, setShowNegativeStatsPopup] = useState(false);
-    const [selectedJobForStats] = useState<StreetJob | null>(null);
 
     // Auto-switch to career tab if player doesn't have a job or is coming from tutorial
     useEffect(() => {
@@ -251,11 +249,6 @@ function WorkScreenContent() {
         showError('Something went wrong working that job. Tap Report to send us the details.');
         return undefined;
       }
-    };
-
-    const handlePayBail = () => {
-        // payBail functionality removed or moved elsewhere
-        Alert.alert('Bail', 'Bail functionality is not available in this context');
     };
 
     // Hobbies completely removed - no handler functions needed
@@ -881,10 +874,17 @@ function WorkScreenContent() {
                                                         isAccepted && styles.careerCardActive,
                                                     ]}
                                                     onPress={actionable ? () => {
-                                                        setGameState(prev => ({
-                                                            ...prev,
-                                                            careers: [...prev.careers, { ...career, applied: true }],
-                                                        }));
+                                                        // Atomic gate: re-check against prev so a same-batch double-tap
+                                                        // can't push the same career twice (duplicate rows corrupt every
+                                                        // downstream careers.find/.some and the weekly acceptor).
+                                                        setGameState(prev => {
+                                                            const careers = prev.careers || [];
+                                                            if (careers.some(c => c.id === career.id)) return prev;
+                                                            return {
+                                                                ...prev,
+                                                                careers: [...careers, { ...career, applied: true }],
+                                                            };
+                                                        });
                                                         saveGame();
                                                         showSuccess(`Applied for ${displayName} — your application is under review.`);
                                                     } : undefined}
@@ -1019,172 +1019,6 @@ function WorkScreenContent() {
                     </View>
                 </>
             )}
-
-            {/* Negative Stats Popup */}
-            <Modal
-                visible={showNegativeStatsPopup}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowNegativeStatsPopup(false)}
-            >
-                <View style={styles.negativeStatsModalOverlay}>
-                    <TouchableOpacity
-                        style={styles.negativeStatsModalOverlay}
-                        activeOpacity={1}
-                        onPress={() => setShowNegativeStatsPopup(false)}
-                    >
-                        <TouchableOpacity
-                            style={styles.negativeStatsModalContainer}
-                            activeOpacity={1}
-                            onPress={(e) => e.stopPropagation()}
-                        >
-                            <LinearGradient
-                                colors={settings.darkMode ? ['#1F2937', '#111827'] : ['#FFFFFF', '#F8FAFC']}
-                                style={styles.negativeStatsModalContent}
-                            >
-                                {selectedJobForStats && (() => {
-                                    const { happinessPenalty, healthPenalty } = getJobPenalties(selectedJobForStats);
-                                    const isDangerous = (selectedJobForStats.jailWeeks && selectedJobForStats.jailWeeks >= 3) ||
-                                        (selectedJobForStats.wantedIncrease && selectedJobForStats.wantedIncrease >= 3);
-
-                                    return (
-                                        <>
-                                            <View style={styles.negativeStatsModalHeader}>
-                                                <View style={styles.negativeStatsModalIconContainer}>
-                                                    <AlertTriangle size={32} color="#EF4444" />
-                                                </View>
-                                                <View style={styles.negativeStatsModalTitleContainer}>
-                                                    <Text style={[styles.negativeStatsModalTitle, settings.darkMode && styles.negativeStatsModalTitleDark]}>
-                                                        Job Penalties
-                                                    </Text>
-                                                    <Text style={[styles.negativeStatsModalSubtitle, settings.darkMode && styles.negativeStatsModalSubtitleDark]}>
-                                                        {selectedJobForStats.name}
-                                                    </Text>
-                                                </View>
-                                                <TouchableOpacity
-                                                    style={styles.negativeStatsModalCloseButton}
-                                                    onPress={() => setShowNegativeStatsPopup(false)}
-                                                >
-                                                    <X size={24} color={settings.darkMode ? '#F9FAFB' : '#1F2937'} />
-                                                </TouchableOpacity>
-                                            </View>
-
-                                            <View style={styles.negativeStatsModalBody}>
-                                                <Text style={[styles.negativeStatsModalDescription, settings.darkMode && styles.negativeStatsModalDescriptionDark]}>
-                                                    This job will have the following negative effects on your stats:
-                                                </Text>
-
-                                                <View style={styles.negativeStatsList}>
-                                                    {happinessPenalty < 0 && (
-                                                        <View style={styles.negativeStatItem}>
-                                                            <View style={styles.negativeStatIconContainer}>
-                                                                <AlertTriangle size={20} color="#EF4444" />
-                                                            </View>
-                                                            <View style={styles.negativeStatInfo}>
-                                                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
-                                                                    Happiness
-                                                                </Text>
-                                                                <Text style={styles.negativeStatValue}>
-                                                                    {happinessPenalty}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
-                                                    )}
-
-                                                    {healthPenalty < 0 && (
-                                                        <View style={styles.negativeStatItem}>
-                                                            <View style={styles.negativeStatIconContainer}>
-                                                                <AlertTriangle size={20} color="#EF4444" />
-                                                            </View>
-                                                            <View style={styles.negativeStatInfo}>
-                                                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
-                                                                    Health
-                                                                </Text>
-                                                                <Text style={styles.negativeStatValue}>
-                                                                    {healthPenalty}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
-                                                    )}
-
-                                                    {selectedJobForStats.illegal && (
-                                                        <View style={styles.negativeStatItem}>
-                                                            <View style={[styles.negativeStatIconContainer, { backgroundColor: 'rgba(220, 38, 38, 0.2)' }]}>
-                                                                <AlertTriangle size={20} color="#DC2626" />
-                                                            </View>
-                                                            <View style={styles.negativeStatInfo}>
-                                                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
-                                                                    Illegal Activity
-                                                                </Text>
-                                                                <Text style={[styles.negativeStatValue, { color: '#DC2626' }]}>
-                                                                    Risk of jail time
-                                                                </Text>
-                                                            </View>
-                                                        </View>
-                                                    )}
-
-                                                    {selectedJobForStats.wantedIncrease && selectedJobForStats.wantedIncrease > 0 && (
-                                                        <View style={styles.negativeStatItem}>
-                                                            <View style={[styles.negativeStatIconContainer, { backgroundColor: 'rgba(220, 38, 38, 0.2)' }]}>
-                                                                <AlertTriangle size={20} color="#DC2626" />
-                                                            </View>
-                                                            <View style={styles.negativeStatInfo}>
-                                                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
-                                                                    Wanted Level
-                                                                </Text>
-                                                                <Text style={[styles.negativeStatValue, { color: '#DC2626' }]}>
-                                                                    +{selectedJobForStats.wantedIncrease}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
-                                                    )}
-
-                                                    {selectedJobForStats.jailWeeks && selectedJobForStats.jailWeeks > 0 && (
-                                                        <View style={styles.negativeStatItem}>
-                                                            <View style={[styles.negativeStatIconContainer, { backgroundColor: 'rgba(220, 38, 38, 0.2)' }]}>
-                                                                <AlertTriangle size={20} color="#DC2626" />
-                                                            </View>
-                                                            <View style={styles.negativeStatInfo}>
-                                                                <Text style={[styles.negativeStatLabel, settings.darkMode && styles.negativeStatLabelDark]}>
-                                                                    Jail Time (if caught)
-                                                                </Text>
-                                                                <Text style={[styles.negativeStatValue, { color: '#DC2626' }]}>
-                                                                    {selectedJobForStats.jailWeeks} week{selectedJobForStats.jailWeeks > 1 ? 's' : ''}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
-                                                    )}
-                                                </View>
-
-                                                {isDangerous && (
-                                                    <View style={styles.negativeStatsWarningBox}>
-                                                        <AlertTriangle size={20} color="#F59E0B" />
-                                                        <Text style={[styles.negativeStatsWarningText, settings.darkMode && styles.negativeStatsWarningTextDark]}>
-                                                            This is a dangerous job with high risks!
-                                                        </Text>
-                                                    </View>
-                                                )}
-                                            </View>
-
-                                            <TouchableOpacity
-                                                style={styles.negativeStatsModalCloseButtonBottom}
-                                                onPress={() => setShowNegativeStatsPopup(false)}
-                                            >
-                                                <LinearGradient
-                                                    colors={settings.darkMode ? ['#3B82F6', '#2563EB'] : ['#3B82F6', '#2563EB']}
-                                                    style={styles.negativeStatsModalCloseButtonGradient}
-                                                >
-                                                    <Text style={styles.negativeStatsModalCloseButtonText}>Got it</Text>
-                                                </LinearGradient>
-                                            </TouchableOpacity>
-                                        </>
-                                    );
-                                })()}
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    </TouchableOpacity>
-                </View>
-            </Modal>
 
             {/* Quit Job Confirmation Dialog */}
             <ConfirmDialog

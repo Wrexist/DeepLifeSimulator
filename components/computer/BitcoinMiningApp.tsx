@@ -94,7 +94,9 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const [showDCA, setShowDCA] = useState(false);
 
   const cash = gameState.stats?.money ?? 0;
-  const selectedCoin = gameState.cryptos.find((c) => c.id === selectedCoinId);
+  // Old/migrated saves can lack the cryptos array — guard every read.
+  const cryptos = gameState.cryptos ?? [];
+  const selectedCoin = cryptos.find((c) => c.id === selectedCoinId);
   const selectedCoinMarket = market.coinMarkets[selectedCoinId];
 
   const queueSave = useCallback(() => {
@@ -103,7 +105,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
   // --- Portfolio derived values --------------------------------------------
   const portfolioTotalValue = useMemo(
-    () => gameState.cryptos.reduce((sum, c) => sum + (c.owned ?? 0) * (c.price ?? 0), 0),
+    () => cryptos.reduce((sum, c) => sum + (c.owned ?? 0) * (c.price ?? 0), 0),
     [gameState.cryptos]
   );
   const portfolioCostBasis = useMemo(
@@ -158,6 +160,11 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       return;
     }
     setGameState((prev) => {
+      // Atomic gate: re-check affordability against prev. The old
+      // Math.max(0, money - price) clamp let a same-batch double-tap grant a
+      // second miner while only clamping money to 0 — a discounted-to-free
+      // income asset.
+      if ((prev.stats?.money ?? 0) < price) return prev;
       const w = prev.warehouse ?? {
         level: 1,
         miners: {},
@@ -167,7 +174,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       miners[tierId] = (miners[tierId] ?? 0) + 1;
       return {
         ...prev,
-        stats: { ...prev.stats, money: Math.max(0, (prev.stats?.money ?? 0) - price) },
+        stats: { ...prev.stats, money: (prev.stats?.money ?? 0) - price },
         warehouse: { ...w, miners },
       };
     });
@@ -187,7 +194,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       )}
 
       <SectionTitle theme={theme}>Markets</SectionTitle>
-      {gameState.cryptos.map((coin) => (
+      {cryptos.map((coin) => (
         <CoinRow
           key={coin.id}
           coin={coin}
@@ -289,7 +296,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
       <SectionTitle theme={theme}>Selected Coin</SectionTitle>
       <View style={styles.chipRow}>
-        {gameState.cryptos.map((c) => (
+        {cryptos.map((c) => (
           <TouchableOpacity
             key={c.id}
             onPress={() => {
@@ -337,7 +344,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
     // Dirty-BTC indicator: dirty BTC sits in the dark-web wallet; exchanges refuse it.
     const dirtyBtc = gameState.darkWeb?.dirtyBtc ?? 0;
-    const btcCoin = gameState.cryptos.find((c) => c.id === 'btc');
+    const btcCoin = cryptos.find((c) => c.id === 'btc');
     const dirtyBtcUSD = dirtyBtc * (btcCoin?.price ?? 0);
 
     return (
@@ -393,7 +400,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       </View>
 
       <SectionTitle theme={theme}>Holdings</SectionTitle>
-      {gameState.cryptos.filter((c) => c.owned > 0).length === 0 ? (
+      {cryptos.filter((c) => c.owned > 0).length === 0 ? (
         <EmptyText theme={theme}>You don&apos;t hold any crypto yet.</EmptyText>
       ) : (
         gameState.cryptos

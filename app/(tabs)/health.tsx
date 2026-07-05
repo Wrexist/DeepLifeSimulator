@@ -184,11 +184,16 @@ function HealthScreenContent() {
                 : (activity.energyCost || 0) > 0 && (gameState.stats?.energy ?? 0) < (activity.energyCost || 0)
                   ? `Need ${activity.energyCost} energy`
                   : undefined;
-              const isCureActivity = activity.id === 'doctor' || activity.id === 'hospital';
+              const isCureActivity = activity.id === 'doctor' || activity.id === 'hospital' || activity.id === 'experimental';
               const description = isCureActivity
                 ? activity.id === 'doctor'
                   ? `${activity.description}  •  ${t('health.chanceToCure')}`
-                  : `${activity.description}  •  ${t('health.curesAllHealthIssues')}`
+                  : activity.id === 'hospital'
+                    ? `${activity.description}  •  ${t('health.curesAllHealthIssues')}`
+                    // Experimental treatment is the ONLY cure for critical
+                    // conditions (cancer/heart/stroke -- hospital excludes them);
+                    // without this line a dying player has no signal it exists.
+                    : `${activity.description}  •  Only treatment for critical conditions`
                 : activity.description;
 
               return (
