@@ -12,52 +12,51 @@ one-time save repairs for players affected by the bugs below).
 
 ---
 
-## 📱 Store "What's New" (copy-paste ready)
+## Store "What's New" (copy-paste ready)
 
 ```
-v2.6.0 — Kids, Weddings & Banking, Fixed
+We've been hard at work making DeepLife fairer and more reliable.
 
-A big batch of fixes for the issues you reported most — thank you for flagging these.
+Family
+• Fixed "Try for Baby" so it actually works again — you can have children with your spouse or
+  partner.
+• Marriage now completes properly: propose with a ring, plan the wedding, and it goes through.
+• Relationships are exclusive again, with clearer stage labels (Partner, Fiancé(e), Spouse).
 
-👶 Family
-• "Try for Baby" works again — you can finally have children with your spouse or partner
-• Marriage is fixed end-to-end: pick a ring when you propose, plan the wedding, and it now
-  actually completes
-• Relationships are exclusive again — no more accidentally juggling multiple partners at once,
-  and relationship titles now reflect your real stage (Partner → Fiancé(e) → Spouse)
+Life Events and Health
+• Weekly life events fire reliably again instead of going quiet for stretches.
+• Rebalanced diseases so terminal diagnoses can't strike too early or stack unfairly; critical
+  illnesses can now be cured with experimental treatment.
+• Removed blank, empty notification banners.
 
-🎲 Life Events & Health
-• Weekly life events fire reliably again instead of going quiet for stretches
-• Fixed random terminal diagnoses striking too early and stacking unfairly — and critical
-  illnesses can now be cured with experimental treatment
-• No more blank, empty notification banners
+Banking
+• Savings and CDs now pay the interest rate they advertise.
+• Withdraw and close-account actions work, so money is never stuck.
+• Added an auto-pay pause, blocked duplicate accounts, and the Budget tab now shows your real
+  spending.
 
-🏦 Banking
-• Savings and CDs now actually pay the interest rate they advertise
-• Withdraw and close-account buttons work — no more money stuck in an account
-• Auto-pay can be paused, duplicate accounts are blocked, and the Budget tab now shows your
-  real spending by category
+Game Balance
+• Fixed company income so it reflects your industry and actually grows with hiring, upgrades,
+  brand, and market share.
+• Closed several economy exploits (competition entries, tournament re-entry, and more) so rewards
+  can't be duplicated by rapid tapping.
 
-🏢 Careers & Companies
-• Company income no longer stuck at a flat $2K — starting income now reflects your industry,
-  and hiring staff, upgrades, brand, and market share all actually grow your business
+Stability
+• Fixed the floating tab bar covering buttons across the app, including a dark web screen that
+  felt stuck.
+• Fixed starting degrees showing the wrong grade and name.
+• A range of other behind-the-scenes fixes for a smoother experience.
 
-📱 Everywhere Else
-• Fixed the floating tab bar covering buttons on 24+ screens — including the dark web "Run
-  Stage" button that felt stuck
-• Starting degrees from scenarios now show the right GPA and name instead of "Failing"
-• Closed a couple of under-the-hood exploits so rewards can't be duplicated by rapid tapping
-
-Keep the reports coming — Discord: https://discord.gg/rzktazdX8v
+Thanks for playing DeepLife Simulator!
 ```
 
 ---
 
-## 📋 Full Release Notes
+## Full Release Notes
 
 Everything below is **new since v2.5.2**.
 
-### 👶 Family & Relationships
+### Family & Relationships
 
 - **Kids are back** — "Try for Baby" had been silently wired to a "Coming Soon" placeholder; it
   now calls the real family action and works for spouses as well as engaged/cohabiting partners.
@@ -71,7 +70,7 @@ Everything below is **new since v2.5.2**.
 - **Stage-aware titles** — relationship labels now correctly track Partner → Fiancé(e) → Spouse
   (and In Relationship → Engaged → Married) instead of getting stuck on one label.
 
-### 🎲 Life Events & Health
+### Life Events & Health
 
 - **Events fire again** — the weekly event check now reliably delivers one event once it passes,
   instead of frequently rolling nothing even on a "successful" week. Late-game event frequency and
@@ -83,7 +82,7 @@ Everything below is **new since v2.5.2**.
 - **No more empty banners** — blank notification pills no longer render; they're dropped before
   they'd ever reach your screen.
 
-### 🏦 Banking
+### Banking
 
 - Opened accounts now accrue their advertised interest rate every week (previously balances just
   sat there).
@@ -92,7 +91,7 @@ Everything below is **new since v2.5.2**.
 - Duplicate account types are blocked, and auto-pay can be toggled off/paused.
 - The **Budget tab** now shows your real, categorized spending instead of a placeholder.
 
-### 🏢 Careers & Companies
+### Game Balance — Careers & Companies
 
 - Starting company income now scales with your industry ($1.5K–$4K) instead of a flat $2K.
 - New hires now actually count toward your headcount, and the staff-hiring and upgrade catalog
@@ -100,7 +99,13 @@ Everything below is **new since v2.5.2**.
 - Brand reputation and market share now genuinely multiply your revenue (roughly 0.75×–1.6×)
   instead of doing nothing.
 
-### 📱 UI & Everywhere Else
+### Game Balance — Fair Play
+
+- Closed a couple of rapid-double-tap exploits (R&D competition entries, hobby tournaments) that
+  could duplicate a payout; fixed a purchase edge case where a paid in-app item could fail to
+  apply after a successful purchase.
+
+### Stability & UI
 
 - **Tab bar no longer blocks buttons** — 24 sub-app screens (banking, company, dark web, and
   more) now reserve space for the floating tab bar, including the home-indicator area on iPhones
@@ -110,15 +115,9 @@ Everything below is **new since v2.5.2**.
 - Scenario-granted starting degrees now show a passing GPA and proper name instead of rendering
   "business_degree — Failing".
 
-### ⚖️ Fair Play
-
-- Closed a couple of rapid-double-tap exploits (R&D competition entries, hobby tournaments) that
-  could duplicate a payout; fixed a purchase edge case where a paid in-app item could fail to
-  apply after a successful purchase.
-
 ---
 
-## 🧱 Also includes — prior cumulative updates
+## Also includes — prior cumulative updates
 
 For players coming from further back, this build also contains everything from the **v2.5.0
 Stability, Speed & Fair-Play Update** (instant week-advance, purchase-apply overhaul, duplicate
