@@ -136,7 +136,7 @@ export default function VideoPanel({
  <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>Title (optional)</Text>
  <TextInput
  placeholder="Enter a title or leave empty to randomize"
- placeholderTextColor="#6B7280"
+ placeholderTextColor="#9CA3AF"
  value={videoTitle}
  onChangeText={setVideoTitle}
  style={{

@@ -16,6 +16,7 @@ import {
   Wallet,
   PiggyBank,
   TrendingUp,
+  LineChart,
   Plus,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -89,6 +90,16 @@ function BankAppInner({ onBack }: BankAppProps) {
     banking.creditCards.reduce((s, c) => s + c.balance, 0) +
     (gameState.loans ?? []).reduce((s, l) => s + l.remaining, 0);
 
+  // Cross-app tile: what the player has working in the market apps (Stocks +
+  // Crypto holdings at current prices), so the Bank is the one money overview.
+  const investedValue = useMemo(() => {
+    const stocksValue = (gameState.stocks?.holdings ?? []).reduce(
+      (s, h) => s + (h.shares ?? 0) * (h.currentPrice ?? 0), 0);
+    const cryptoValue = (gameState.cryptos ?? []).reduce(
+      (s, c) => s + (c.owned ?? 0) * (c.price ?? 0), 0);
+    return stocksValue + cryptoValue;
+  }, [gameState.stocks?.holdings, gameState.cryptos]);
+
   const weeklyIncome = useMemo(() => {
     let income = 0;
     const job = (gameState.careers ?? []).find((c: any) => c?.id === gameState.currentJob && c?.accepted);
@@ -157,6 +168,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         <View style={styles.statRow}>
           <Stat theme={theme} icon={Wallet} label="Cash" value={formatMoney(cash)} />
           <Stat theme={theme} icon={PiggyBank} label="Bank" value={formatMoney(totalBank)} />
+          <Stat theme={theme} icon={LineChart} label="Invested" value={formatMoney(investedValue)} />
           <Stat theme={theme} icon={TrendingUp} label="Debt" value={formatMoney(totalDebt)} negative={totalDebt > 0} />
         </View>
 
