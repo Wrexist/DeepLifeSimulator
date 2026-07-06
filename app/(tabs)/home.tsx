@@ -26,6 +26,7 @@ import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
+import LifeChapterCard from '@/components/LifeChapterCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -454,6 +455,11 @@ function HomeScreenContent() {
           (((gameState.stats?.money ?? 0) + (gameState.bankSavings ?? 0)) > 25000) && (
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
+
+        {/* Life Chapter — the chunked-goal spine (was built but had no UI). */}
+        <FadeInUp delay={50}>
+          <LifeChapterCard />
+        </FadeInUp>
 
         {/* Active Goals Section */}
         <FadeInUp delay={60}>
