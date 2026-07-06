@@ -14,6 +14,7 @@ import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { rejectIfBlocked } from './_guards';
+import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion } from '@/lib/social/npcDepth';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import {
@@ -177,6 +178,17 @@ export const goOnDate = (
             lastDateWeek: prev.weeksLived || 0,
             // ANTI-EXPLOIT: Track dates this week to prevent spam (especially free chat dates)
             datesThisWeek: (r.lastDateWeek === (prev.weeksLived || 0) ? (r.datesThisWeek || 0) : 0) + 1,
+            // NPC reactivity: a date builds trust/attraction and is remembered.
+            npcOpinion: updateOpinion(
+              r.npcOpinion ?? createInitialOpinion(r.type, r.relationshipScore),
+              'date',
+            ),
+            npcMemories: addMemory(r.npcMemories ?? [], {
+              type: 'date',
+              description: `You took them on a ${dateType} date`,
+              weeksLived: prev.weeksLived || 0,
+              sentiment: 'positive',
+            }),
           }
         : r
     ),
@@ -258,22 +270,42 @@ export const giveGift = (
         ...prev.stats,
         money: Math.max(0, prevMoney - config.cost),
       },
-      relationships: (prev.relationships || []).map(r =>
-        r.id === partnerId
-          ? {
-              ...r,
-              relationshipScore: clampRelationshipScore(r.relationshipScore + config.relationshipBoost),
-              giftsReceived: (r.giftsReceived || 0) + 1,
-              giftsThisWeek: prevGiftsThisWeek + 1,
-              lastGiftWeek: prevWeek,
-            }
-          : r
-      ),
+      relationships: (prev.relationships || []).map(r => {
+        if (r.id !== partnerId) return r;
+        // NPC reactivity: scale the boost by how much THIS npc likes this gift
+        // type (personality-driven), move their opinion, and record a memory so
+        // they actually remember it. Previously every gift was identical.
+        const mult = getGiftMultiplier(r, giftType);
+        const scaledBoost = Math.max(1, Math.round(config.relationshipBoost * mult));
+        const disliked = mult < 1.0;
+        return {
+          ...r,
+          relationshipScore: clampRelationshipScore(r.relationshipScore + scaledBoost),
+          giftsReceived: (r.giftsReceived || 0) + 1,
+          giftsThisWeek: prevGiftsThisWeek + 1,
+          lastGiftWeek: prevWeek,
+          npcOpinion: updateOpinion(
+            r.npcOpinion ?? createInitialOpinion(r.type, r.relationshipScore),
+            disliked ? 'gift_disliked' : 'gift_liked',
+          ),
+          npcMemories: addMemory(r.npcMemories ?? [], {
+            type: 'gift',
+            description: `You gave them ${config.message}${mult > 1 ? ' — a favorite' : disliked ? " — not their taste" : ''}`,
+            weeksLived: prevWeek,
+            sentiment: disliked ? 'negative' : 'positive',
+          }),
+        };
+      }),
     };
   });
 
+  // Message reflects the NPC's actual taste.
+  const reactMult = getGiftMultiplier(partner, giftType);
+  const reaction = reactMult > 1 ? `${partner.name} adored ${config.message}!`
+    : reactMult < 1 ? `${partner.name} accepted ${config.message}, but it wasn't quite their taste.`
+    : `${partner.name} appreciated ${config.message}.`;
   log.info(`Gift to ${partner.name} - type: ${giftType}`);
-  return { success: true, message: `${partner.name} loved ${config.message}!` };
+  return { success: true, message: reaction };
 };
 
 /**

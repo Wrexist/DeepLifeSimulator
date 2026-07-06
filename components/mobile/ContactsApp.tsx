@@ -59,6 +59,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  fontScale,
   getTabBarSafePadding,
 } from '@/utils/scaling';
 
@@ -369,6 +370,14 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
         {expanded && (
           <View style={styles.actionsBox}>
+            {r.npcMemories && r.npcMemories.length > 0 ? (
+              <Text
+                style={{ fontSize: fontScale(11.5), color: theme.textSecondary, fontStyle: 'italic', marginBottom: scale(8) }}
+                numberOfLines={2}
+              >
+                Remembers: {r.npcMemories[r.npcMemories.length - 1].description}
+              </Text>
+            ) : null}
             <View style={styles.actionsRow}>
               <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} />
               <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} />
