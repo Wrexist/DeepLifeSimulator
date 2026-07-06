@@ -146,54 +146,55 @@ describe('Pet system lifecycle', () => {
     expect(getPet('p1')!.age).toBe(52);
   });
 
-  // ── HUNGER PROGRESSION ─────────────────────────────────────────────────
-  it('Hunger: increases by 8 per week, capped at 100', async () => {
+  // ── HUNGER (FULLNESS) PROGRESSION ──────────────────────────────────────
+  // hunger = fullness/satiety (100 = full, 0 = starving). Decays weekly; the
+  // player feeds to top it back up.
+  it('Fullness: decreases by 8 per week, floored at 0', async () => {
     mounted = mountGame();
     seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 50 });
     await tick();
-    expect(getPet('p1')!.hunger).toBe(58);
+    expect(getPet('p1')!.hunger).toBe(42);
     await tick();
-    expect(getPet('p1')!.hunger).toBe(66);
+    expect(getPet('p1')!.hunger).toBe(34);
 
-    // Push near cap.
+    // Floor at 0.
     act(() => captured!.setGameState(prev => ({
       ...prev,
-      pets: prev.pets?.map(p => p.id === 'p1' ? { ...p, hunger: 96 } : p),
+      pets: prev.pets?.map(p => p.id === 'p1' ? { ...p, hunger: 4 } : p),
     })));
     await tick();
-    expect(getPet('p1')!.hunger).toBe(100); // 96 + 8 → 104 → clamped to 100
+    expect(getPet('p1')!.hunger).toBe(0); // 4 - 8 → clamped to 0
   });
 
-  // ── HAPPINESS DECAY WHEN HUNGRY ────────────────────────────────────────
-  it('Happiness: decays -5 when hunger > 60', async () => {
+  // ── HAPPINESS DECAY WHEN GETTING HUNGRY ────────────────────────────────
+  it('Happiness: decays -5 when fullness < 40', async () => {
     mounted = mountGame();
-    seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 65, happiness: 80 });
+    seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 35, happiness: 80 });
     await tick();
-    // hunger becomes 73 (>60). happiness drops by 5.
+    // fullness becomes 27 (<40). happiness drops by 5.
     expect(getPet('p1')!.happiness).toBe(75);
   });
 
-  it('Happiness: does NOT decay when hunger <= 60', async () => {
+  it('Happiness: does NOT decay when fullness stays >= 40', async () => {
     mounted = mountGame();
-    seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 40, happiness: 80 });
+    seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 60, happiness: 80 });
     await tick();
-    // hunger becomes 48 (<60). happiness unchanged.
+    // fullness becomes 52 (>=40). happiness unchanged.
     expect(getPet('p1')!.happiness).toBe(80);
   });
 
-  // ── HEALTH DECAY WHEN VERY HUNGRY ──────────────────────────────────────
-  it('Health: decays at least 3 when hunger > 80', async () => {
+  // ── HEALTH DECAY WHEN STARVING ─────────────────────────────────────────
+  it('Health: decays at least 3 when fullness < 20 (starving)', async () => {
     mounted = mountGame();
-    seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 75, health: 90 });
+    seedPet({ id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 25, health: 90 });
     await tick();
     const p = getPet('p1')!;
-    // hunger becomes 83 (>80) → -3 from hunger.
-    // Additionally, the deterministic sickness roll MAY also fire (~2% chance per
-    // tick) — if so, also -10 for onset + -5 for sick-decay = up to -18 total.
-    // Either way: health dropped by at least 3, never below 0.
+    // fullness becomes 17 (<20) → -3 from starvation.
+    // The deterministic sickness roll MAY also fire (~2%/tick) — if so, also
+    // -10 onset + -5 sick-decay. Either way: health dropped by at least 3.
     expect(p.health).toBeLessThanOrEqual(87);
     expect(p.health).toBeGreaterThanOrEqual(0);
-    expect(p.hunger).toBeGreaterThan(80);
+    expect(p.hunger).toBeLessThan(20);
   });
 
   it('Health: stays clamped to [0, 100] under extreme starvation', async () => {
@@ -360,15 +361,15 @@ describe('Pet system lifecycle', () => {
     const b = getPet('b');
     const c = getPet('c');
 
-    // A: hunger 30 → 38 (≤60, no happiness loss)
+    // A: fullness 30 → 22 (<40, happiness -5)
     expect(a!.age).toBe(51);
-    expect(a!.hunger).toBe(38);
-    expect(a!.happiness).toBe(70);
+    expect(a!.hunger).toBe(22);
+    expect(a!.happiness).toBe(65);
 
-    // B: hunger 65 → 73 (>60, happiness -5)
+    // B: fullness 65 → 57 (>=40, no happiness loss)
     expect(b!.age).toBe(51);
-    expect(b!.hunger).toBe(73);
-    expect(b!.happiness).toBe(65);
+    expect(b!.hunger).toBe(57);
+    expect(b!.happiness).toBe(70);
 
     // C: dead — unchanged.
     expect(c!.age).toBe(50);
