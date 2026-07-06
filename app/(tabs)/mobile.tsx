@@ -45,11 +45,7 @@ import {
   scale,
   getTabBarSafePadding,
 } from '@/utils/scaling';
-import { 
-  getGlassHeader, 
-  getGlassIconContainer, 
-  getGlassAppCard,
-} from '@/utils/glassmorphismStyles';
+import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePerformanceMonitor } from '@/utils/performanceOptimization';
@@ -245,21 +241,10 @@ function MobileScreenContent() {
       style={styles.container}
     >
       <View style={styles.header}>
-        <View style={[styles.headerGlass, settings.darkMode && styles.headerGlassDark]}>
-          <View style={styles.headerContent}>
-            <View style={[styles.headerIconGlass, settings.darkMode && styles.headerIconGlassDark]}>
-              <Smartphone size={32} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
-            </View>
-            <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
-                {t('mobile.mobileApps')}
-              </Text>
-              <Text style={[styles.headerSubtitle, settings.darkMode && styles.headerSubtitleDark]}>
-                {t('mobile.accessSmartphoneApplications')}
-              </Text>
-            </View>
-          </View>
-        </View>
+        <Smartphone size={scale(18)} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
+        <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
+          {t('mobile.mobileApps')}
+        </Text>
       </View>
 
       <ScrollView
@@ -338,47 +323,21 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
   header: {
-    paddingTop: responsivePadding.vertical,
-    paddingBottom: responsiveSpacing.md,
-    paddingHorizontal: responsivePadding.horizontal,
-  },
-  headerGlass: {
-    ...getGlassHeader(false),
-  },
-  headerGlassDark: {
-    ...getGlassHeader(true),
-  },
-  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: responsiveSpacing.md,
-  },
-  headerIconGlass: {
-    ...getGlassIconContainer(false, 48),
-  },
-  headerIconGlassDark: {
-    ...getGlassIconContainer(true, 48),
-  },
-  headerTextContainer: {
-    flex: 1,
+    gap: scale(8),
+    paddingTop: responsivePadding.vertical,
+    paddingBottom: responsiveSpacing.sm,
+    paddingHorizontal: responsivePadding.horizontal,
   },
   headerTitle: {
-    fontSize: responsiveFontSize['3xl'],
-    fontWeight: '700',
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '800',
     color: '#111827',
-    marginBottom: scale(4),
     letterSpacing: -0.5,
   },
   headerTitleDark: {
     color: '#F9FAFB',
-  },
-  headerSubtitle: {
-    fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  headerSubtitleDark: {
-    color: '#9CA3AF',
   },
   scrollView: {
     flex: 1,

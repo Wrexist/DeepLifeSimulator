@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { HealthActivity } from '@/contexts/game/types';
-import { Activity, Utensils, AlertTriangle, Heart } from 'lucide-react-native';
+import { Activity, Utensils, AlertTriangle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
@@ -121,16 +121,47 @@ function HealthScreenContent() {
   const currentDiseases = gameState.diseases || [];
   const hasDiseases = currentDiseases.length > 0;
 
+  // At-a-glance vitals — the health screen never showed the player's own stats.
+  const stats = gameState.stats ?? { health: 0, energy: 0, happiness: 0, fitness: 0 };
+  const vitals = [
+    { key: 'health', label: t('game.health'), value: stats.health ?? 0, color: '#34D399', Icon: Heart },
+    { key: 'energy', label: t('game.energy'), value: stats.energy ?? 0, color: '#60A5FA', Icon: Zap },
+    { key: 'happiness', label: t('game.happiness'), value: stats.happiness ?? 0, color: '#FBBF24', Icon: Smile },
+    { key: 'fitness', label: t('game.fitness'), value: stats.fitness ?? 0, color: '#A78BFA', Icon: Dumbbell },
+  ];
+
   const sectionTitleStyle = [styles.sectionTitle, settings.darkMode && styles.sectionTitleDark];
   const sectionDescStyle = [styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark];
 
   return (
-    <View style={[styles.container, settings.darkMode && styles.containerDark]}>
+    <View style={styles.container}>
       <ScrollView
         style={styles.content}
         contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Vitals overview — current health/energy/happiness/fitness at a glance */}
+        <View style={styles.vitalsCard}>
+          <Text style={styles.vitalsTitle}>Your Vitals</Text>
+          <View style={styles.vitalsList}>
+            {vitals.map(v => {
+              const pct = Math.max(0, Math.min(100, v.value));
+              return (
+                <View key={v.key} style={styles.vitalRow}>
+                  <View style={[styles.vitalIcon, { borderColor: v.color + '66', backgroundColor: v.color + '1A' }]}>
+                    <v.Icon size={scale(13)} color={v.color} />
+                  </View>
+                  <Text style={styles.vitalLabel}>{v.label}</Text>
+                  <View style={styles.vitalBarBg}>
+                    <View style={[styles.vitalBarFill, { width: `${pct}%`, backgroundColor: v.color }]} />
+                  </View>
+                  <Text style={styles.vitalValue}>{Math.round(v.value)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Disease status — quiet warning card, no left bar */}
         {hasDiseases && (
           <View style={styles.diseaseCard}>
@@ -266,11 +297,65 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#020617',
   },
-  containerDark: {
-    backgroundColor: '#020617',
-  },
   content: {
     flex: 1,
+  },
+  // Vitals overview
+  vitalsCard: {
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: responsiveSpacing.md,
+    gap: verticalScale(12),
+  },
+  vitalsTitle: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    color: 'rgba(226, 232, 240, 0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  vitalsList: {
+    gap: verticalScale(10),
+  },
+  vitalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+  },
+  vitalIcon: {
+    width: scale(26),
+    height: scale(26),
+    borderRadius: scale(8),
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vitalLabel: {
+    width: scale(66),
+    fontSize: fontScale(12.5),
+    fontWeight: '600',
+    color: '#E2E8F0',
+  },
+  vitalBarBg: {
+    flex: 1,
+    height: scale(7),
+    borderRadius: scale(4),
+    backgroundColor: 'rgba(148, 163, 184, 0.18)',
+    overflow: 'hidden',
+  },
+  vitalBarFill: {
+    height: '100%',
+    borderRadius: scale(4),
+  },
+  vitalValue: {
+    width: scale(30),
+    textAlign: 'right',
+    fontSize: fontScale(13),
+    fontWeight: '800',
+    color: '#F8FAFC',
+    fontVariant: ['tabular-nums'],
   },
   contentInner: {
     padding: responsiveSpacing.md,
