@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, Share, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Share, Linking } from 'react-native';
 // CRITICAL: Use fallback instead of direct expo-linear-gradient import to prevent crashes
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { RefreshCw, AlertTriangle, Home, Download, MessageCircle, FileText } from 'lucide-react-native';
@@ -71,6 +71,35 @@ interface State {
 class ErrorBoundary extends Component<Props, State> {
   private maxRetries = 3;
 
+  // Only ONE boundary presents the full-screen crash UI at a time. The app
+  // nests boundaries (screen + modal + provider), and a cascading failure put
+  // TWO full fallbacks on screen at once — overlapping, semi-transparent,
+  // unreadable. Non-presenting erroring boundaries render null; when the
+  // presenter recovers/unmounts, the next erroring boundary is promoted.
+  private static erroringInstances = new Set<ErrorBoundary>();
+  private static presentingInstance: ErrorBoundary | null = null;
+
+  private static claimPresentation(instance: ErrorBoundary) {
+    ErrorBoundary.erroringInstances.add(instance);
+    if (ErrorBoundary.presentingInstance === null) {
+      ErrorBoundary.presentingInstance = instance;
+    } else if (ErrorBoundary.presentingInstance !== instance) {
+      // A presenter already exists — repaint this one to null right away.
+      // componentDidCatch runs in the commit phase (before the frame paints),
+      // so the user never sees the second screen.
+      instance.forceUpdate();
+    }
+  }
+
+  private static releasePresentation(instance: ErrorBoundary) {
+    ErrorBoundary.erroringInstances.delete(instance);
+    if (ErrorBoundary.presentingInstance === instance) {
+      const next = ErrorBoundary.erroringInstances.values().next();
+      ErrorBoundary.presentingInstance = next.done ? null : next.value;
+      ErrorBoundary.presentingInstance?.forceUpdate();
+    }
+  }
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -79,6 +108,10 @@ class ErrorBoundary extends Component<Props, State> {
       errorInfo: null,
       retryCount: 0,
     };
+  }
+
+  componentWillUnmount() {
+    ErrorBoundary.releasePresentation(this);
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -92,6 +125,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   async componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logger.error('ErrorBoundary caught an error:', error, errorInfo);
+    ErrorBoundary.claimPresentation(this);
 
     // Categorize error
     const category = this.categorizeError(error);
@@ -306,6 +340,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   private handleRetry = () => {
     if (this.state.retryCount < this.maxRetries) {
+      ErrorBoundary.releasePresentation(this);
       this.setState(prevState => ({
         hasError: false,
         error: null,
@@ -393,6 +428,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   private handleGoHome = () => {
     // Reset error state and navigate to home
+    ErrorBoundary.releasePresentation(this);
     this.setState({
       hasError: false,
       error: null,
@@ -708,6 +744,15 @@ Discord: ${DISCORD_URL}`;
         return this.props.fallback;
       }
 
+      // Another boundary already presents the full crash screen — stay quiet.
+      // (Claims happen in componentDidCatch, which only runs for COMMITTED
+      // instances; claiming during render broke when React discarded and
+      // re-instantiated throwing trees, leaving a stale claim.) This subtree
+      // is broken anyway, and the presenter offers Try Again / Go Home.
+      if (ErrorBoundary.presentingInstance && ErrorBoundary.presentingInstance !== this) {
+        return null;
+      }
+
       // Default error UI
       return (
         <View style={styles.container}>
@@ -717,7 +762,11 @@ Discord: ${DISCORD_URL}`;
             end={{ x: 1, y: 1 }}
             style={styles.gradient}
           >
-            <View style={styles.content}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.iconContainer}>
                 <AlertTriangle size={48} color="#DC2626" />
               </View>
@@ -808,7 +857,7 @@ Discord: ${DISCORD_URL}`;
               <Text style={styles.retryInfo}>
                 Retry attempt: {this.state.retryCount + 1} of {this.maxRetries + 1}
               </Text>
-            </View>
+            </ScrollView>
           </LinearGradient>
         </View>
       );
@@ -821,12 +870,18 @@ Discord: ${DISCORD_URL}`;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    // Explicit opaque bg: the gradient renders via the LinearGradient
+    // fallback, and a transparent crash screen let broken content bleed
+    // through from behind.
+    backgroundColor: '#FEF2F2',
   },
   gradient: {
     flex: 1,
   },
   content: {
-    flex: 1,
+    // flexGrow (not flex) so tall content — dev stack traces, the report
+    // cards — scrolls instead of overflowing off-screen.
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
