@@ -5109,8 +5109,8 @@ exports[`pre-tick equivalence — computeSavingsInterest NaN savings: clamped to
 
 exports[`pre-tick equivalence — computeSavingsInterest all perks + high-yield + above soft cap (max-stack scenario) 1`] = `
 {
-  "newBankSavings": 250540.86538461538,
-  "savingsInterest": 540.8653846153846,
+  "newBankSavings": 250264.42307692306,
+  "savingsInterest": 264.4230769230769,
 }
 `;
 
@@ -5137,8 +5137,8 @@ exports[`pre-tick equivalence — computeSavingsInterest base APR, well above so
 
 exports[`pre-tick equivalence — computeSavingsInterest both gold + perk: 2.25× (1.5 × 1.5) interest, multiplicative stack 1`] = `
 {
-  "newBankSavings": 10012.98076923077,
-  "savingsInterest": 12.98076923076923,
+  "newBankSavings": 10010.576923076924,
+  "savingsInterest": 10.576923076923077,
 }
 `;
 

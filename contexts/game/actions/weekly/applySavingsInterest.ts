@@ -23,6 +23,7 @@
 import {
   SAVINGS_APR_BASE,
   SAVINGS_APR_FINANCIAL_PLANNING,
+  SAVINGS_APR_HARD_CAP,
   SAVINGS_BALANCE_SOFT_CAP,
   SAVINGS_CAP_EFFICIENCY,
 } from '@/lib/economy/constants';
@@ -62,20 +63,25 @@ export function computeSavingsInterest(input: SavingsInterestInput): SavingsInte
     ? Math.max(0, input.prevBankSavings)
     : 0;
 
+  // 4. Good Credit perk stack — both flags multiply by 1.5×, multiplicatively.
+  let interestMultiplier = 1;
+  if (input.goldCreditUpgrade) interestMultiplier *= 1.5;
+  if (input.goodCreditPerk) interestMultiplier *= 1.5;
+
+  // ANTI-ARBITRAGE: fold the perk stack into the APR, then clamp the EFFECTIVE rate
+  // strictly below the cheapest borrow rate (SAVINGS_APR_HARD_CAP < loan floor). The
+  // stacked rate (up to 11.25%) previously beat the 6% loan floor, letting a player
+  // borrow cheap and park the proceeds in savings for risk-free profit.
+  const effectiveAPR = Math.min(savingsAPR * interestMultiplier, SAVINGS_APR_HARD_CAP);
+
   // 3. Soft-cap diminishing-returns interest.
   // ANTI-EXPLOIT: balance below cap earns full rate, balance above earns reduced rate.
   let savingsInterest = 0;
   if (currentSavings > 0) {
     const belowCap = Math.min(currentSavings, SAVINGS_BALANCE_SOFT_CAP);
     const aboveCap = Math.max(0, currentSavings - SAVINGS_BALANCE_SOFT_CAP);
-    savingsInterest = (belowCap * savingsAPR) / WEEKS_PER_YEAR
-      + (aboveCap * savingsAPR * SAVINGS_CAP_EFFICIENCY) / WEEKS_PER_YEAR;
-
-    // 4. Good Credit perk stack — both flags multiply by 1.5×, multiplicatively.
-    let interestMultiplier = 1;
-    if (input.goldCreditUpgrade) interestMultiplier *= 1.5;
-    if (input.goodCreditPerk) interestMultiplier *= 1.5;
-    savingsInterest *= interestMultiplier;
+    savingsInterest = (belowCap * effectiveAPR) / WEEKS_PER_YEAR
+      + (aboveCap * effectiveAPR * SAVINGS_CAP_EFFICIENCY) / WEEKS_PER_YEAR;
   }
 
   const newBankSavings = Math.max(0, currentSavings + savingsInterest);

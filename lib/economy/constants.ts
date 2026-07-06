@@ -21,6 +21,13 @@ export const PLAYER_RENT_RATE_WEEKLY = RENT_INCOME_RATE;
 // ANTI-EXPLOIT: Savings APR must be LOWER than loan base APR (8%) to prevent loan-to-savings arbitrage
 export const SAVINGS_APR_BASE = 0.03; // 3% base (was 15% - created free money via loan arbitrage)
 export const SAVINGS_APR_FINANCIAL_PLANNING = 0.05; // 5% with financial planning (was 30%)
+/**
+ * ANTI-ARBITRAGE hard ceiling on the EFFECTIVE savings APR after the Good-Credit
+ * perk stack (up to 5% × 1.5 × 1.5 = 11.25%). Kept strictly below the cheapest
+ * borrow rate (private-banking loan floor = PRIVATE_BANKING_APR_CAP = 6%) so that
+ * "borrow cheap → park in savings" can never turn a profit. 5.5% leaves margin.
+ */
+export const SAVINGS_APR_HARD_CAP = 0.055;
 export const LOAN_MISSED_PAYMENT_PENALTY = 0.01;
 // ANTI-EXPLOIT: Savings balance cap - diminishing returns above this threshold
 export const SAVINGS_BALANCE_SOFT_CAP = 500_000; // Interest efficiency drops above $500K
