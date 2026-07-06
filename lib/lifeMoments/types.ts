@@ -1,4 +1,5 @@
 import type { GameStats } from '@/contexts/game/types';
+import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 
 /**
  * Hidden consequence from a player choice
@@ -66,6 +67,13 @@ export interface LifeMomentChoice {
   id: string;
   text: string;
   quickEffect: { stat: keyof GameStats | 'money'; amount: number; label: string }[];
+  /**
+   * Moral fingerprint effect — moves one karma dimension when the choice has a
+   * clear ethical valence (honesty/generosity/loyalty…). Applied by
+   * LifeMomentModal via applyKarmaChange. Previously life-moment choices never
+   * touched karma, so those dimensions barely moved.
+   */
+  karma?: { dimension: KarmaDimension; amount: number; reason: string };
   hiddenEffect?: string; // Description shown later when consequence activates
   hiddenConsequences?: Omit<HiddenConsequence, 'id' | 'eventId' | 'choiceId' | 'active' | 'weeksSinceCreated' | 'createdAt'>[];
 }

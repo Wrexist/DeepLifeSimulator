@@ -3,6 +3,7 @@ import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { safeSettings } from '@/utils/safeGameState';
+import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
 
 const LinearGradient = LinearGradientFallback;
@@ -30,6 +31,15 @@ export default function LifeMomentModal() {
           updateStats({ [effect.stat]: effect.amount }, false);
         }
       });
+
+      // Moral choices move the karma fingerprint (honesty/generosity/loyalty…).
+      if (choice.karma) {
+        const k = choice.karma;
+        setGameState(prev => ({
+          ...prev,
+          karma: applyKarmaChange(prev.karma ?? INITIAL_KARMA, k.dimension, k.amount, k.reason, prev.weeksLived ?? 0),
+        }));
+      }
 
       if (choice.hiddenConsequences && choice.hiddenConsequences.length > 0) {
         const { applyChoiceConsequences } = require('@/lib/lifeMoments/consequenceTracker');
