@@ -72,6 +72,10 @@ export const styles = StyleSheet.create({
   activeTabText: {
     color: TEXT,
   },
+  marketTabs: {
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: responsiveSpacing.md,
+  },
   scrollView: {
     flex: 1,
   },

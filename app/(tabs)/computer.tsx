@@ -76,6 +76,7 @@ import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import SegmentedControl from '@/components/ui/SegmentedControl';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -371,26 +372,14 @@ function ComputerScreenContent() {
     >
       {/* Category segmented control */}
       <View style={styles.categoryTabsWrapper}>
-        <View style={styles.segControl}>
-          {(['desktop', 'mobile'] as const).map((cat) => {
-            const active = appCategory === cat;
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.segTab, active && styles.segTabActive]}
-                onPress={() => setAppCategory(cat)}
-                activeOpacity={0.85}
-                accessibilityRole="tab"
-                accessibilityLabel={`${cat === 'desktop' ? 'Desktop' : 'Mobile'} apps`}
-                accessibilityState={{ selected: active }}
-              >
-                <Text style={[styles.segTabText, active && styles.segTabTextActive]}>
-                  {cat === 'desktop' ? 'Desktop Apps' : 'Mobile Apps'}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          segments={[
+            { key: 'desktop', label: 'Desktop Apps' },
+            { key: 'mobile', label: 'Mobile Apps' },
+          ]}
+          value={appCategory}
+          onChange={setAppCategory}
+        />
       </View>
 
       <ScrollView
@@ -622,37 +611,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding.horizontal,
     paddingTop: responsivePadding.vertical,
     paddingBottom: responsiveSpacing.md,
-  },
-  // Segmented control — dark glass container, tinted active tab (matches Market).
-  segControl: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    padding: scale(4),
-    gap: scale(4),
-  },
-  segTab: {
-    flex: 1,
-    minHeight: scale(40),
-    borderRadius: responsiveBorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: responsiveSpacing.sm,
-  },
-  segTabActive: {
-    backgroundColor: 'rgba(59, 130, 246, 0.9)',
-  },
-  segTabText: {
-    fontSize: responsiveFontSize.md,
-    fontWeight: '600',
-    color: 'rgba(226, 232, 240, 0.55)',
-    letterSpacing: 0.2,
-  },
-  segTabTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
 });
 

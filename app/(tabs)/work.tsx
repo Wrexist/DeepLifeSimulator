@@ -11,6 +11,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
 import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import ProgressRing from '@/components/ui/ProgressRing';
+import SegmentedControl from '@/components/ui/SegmentedControl';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -777,50 +778,16 @@ function WorkScreenContent() {
                                 </View>
                             </View>
                         )}
-                        <View style={[styles.tabContainer, styles.tabContainerDark]}>
-                            <TouchableOpacity
-                                style={[styles.tab, activeTab === 'street' && styles.activeTab]}
-                                onPress={() => setActiveTab('street')}
-                            >
-                                <Text
-                                    style={[
-                                        styles.tabText,
-                                        activeTab === 'street' && styles.activeTabText,
-                                        styles.tabTextDark,
-                                    ]}
-                                >
-                                    {t('work.street')}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.tab, activeTab === 'career' && styles.activeTab]}
-                                onPress={() => setActiveTab('career')}
-                            >
-                                <Text
-                                    style={[
-                                        styles.tabText,
-                                        activeTab === 'career' && styles.activeTabText,
-                                        styles.tabTextDark,
-                                    ]}
-                                >
-                                    {t('work.career')}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.tab, activeTab === 'skills' && styles.activeTab]}
-                                onPress={() => setActiveTab('skills')}
-                            >
-                                <Text
-                                    style={[
-                                        styles.tabText,
-                                        activeTab === 'skills' && styles.activeTabText,
-                                        styles.tabTextDark,
-                                    ]}
-                                >
-                                    {t('work.crimeJobs')}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                        <SegmentedControl
+                            style={local.workTabs}
+                            segments={[
+                                { key: 'street', label: t('work.street') },
+                                { key: 'career', label: t('work.career') },
+                                { key: 'skills', label: t('work.crimeJobs') },
+                            ]}
+                            value={activeTab}
+                            onChange={setActiveTab}
+                        />
 
                         <ScrollView
                             style={styles.content}
@@ -1051,6 +1018,11 @@ function WorkScreenContent() {
 }
 
 const local = StyleSheet.create({
+    workTabs: {
+        marginHorizontal: scale(16),
+        marginTop: scale(12),
+        marginBottom: scale(4),
+    },
     // Current Job hero — reference-style ring card.
     heroCard: {
         flexDirection: 'row',

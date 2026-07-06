@@ -15,6 +15,7 @@ import InfoButton from '@/components/ui/InfoButton';
 import { getTabBarSafePadding, scale } from '@/utils/scaling';
 import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
+import SegmentedControl from '@/components/ui/SegmentedControl';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 // Item category mapping - outside component for stability
@@ -371,59 +372,52 @@ function MarketScreenContent() {
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
       {/* Fixed Tab Bar */}
-      <View style={[styles.tabContainer, settings.darkMode && styles.tabContainerDark]}>
-        <View style={styles.tabWithInfo}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'items' && styles.activeTab]}
-            onPress={() => setActiveTab('items')}
-          >
-            <ShoppingBag size={scale(17)} color={activeTab === 'items' ? accent.info : 'rgba(226, 232, 240, 0.45)'} />
-            <Text style={[styles.tabText, activeTab === 'items' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-              {t('market.items')}
-            </Text>
-          </TouchableOpacity>
-          <InfoButton
-            title="Market Items"
-            content="Buy essential items to improve your life! Computer unlocks mobile apps, smartphone gives you access to banking and social features, and other items provide various benefits."
-            size="small"
-            darkMode={settings.darkMode}
-          />
-        </View>
-        <View style={styles.tabWithInfo}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'food' && styles.activeTab]}
-            onPress={() => setActiveTab('food')}
-          >
-            <Apple size={scale(17)} color={activeTab === 'food' ? accent.info : 'rgba(226, 232, 240, 0.45)'} />
-            <Text style={[styles.tabText, activeTab === 'food' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-              {t('market.food')}
-            </Text>
-          </TouchableOpacity>
-          <InfoButton
-            title="Food & Health"
-            content="Buy food to restore your health and energy! Different foods provide different amounts of health and energy restoration. Keep your character healthy to avoid penalties!"
-            size="small"
-            darkMode={settings.darkMode}
-          />
-        </View>
-        <View style={styles.tabWithInfo}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'gym' && styles.activeTab]}
-            onPress={() => setActiveTab('gym')}
-          >
-            <Dumbbell size={scale(17)} color={activeTab === 'gym' ? accent.info : 'rgba(226, 232, 240, 0.45)'} />
-            <Text style={[styles.tabText, activeTab === 'gym' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
-              {t('market.gym')}
-            </Text>
-          </TouchableOpacity>
-          <InfoButton
-            title="Gym Training"
-            content="Train at the gym to increase your fitness, health, and happiness! Each session costs $50 and provides +5 fitness, +3 health, and +2 happiness. Higher fitness unlocks better career opportunities."
-            size="small"
-            darkMode={settings.darkMode}
-          />
-        </View>
-      </View>
+      <SegmentedControl
+        style={styles.marketTabs}
+        value={activeTab}
+        onChange={setActiveTab}
+        segments={[
+          {
+            key: 'items',
+            label: t('market.items'),
+            icon: ShoppingBag,
+            accessory: (
+              <InfoButton
+                title="Market Items"
+                content="Buy essential items to improve your life! Computer unlocks mobile apps, smartphone gives you access to banking and social features, and other items provide various benefits."
+                size="small"
+                darkMode={settings.darkMode}
+              />
+            ),
+          },
+          {
+            key: 'food',
+            label: t('market.food'),
+            icon: Apple,
+            accessory: (
+              <InfoButton
+                title="Food & Health"
+                content="Buy food to restore your health and energy! Different foods provide different amounts of health and energy restoration. Keep your character healthy to avoid penalties!"
+                size="small"
+                darkMode={settings.darkMode}
+              />
+            ),
+          },
+          {
+            key: 'gym',
+            label: t('market.gym'),
+            icon: Dumbbell,
+            accessory: (
+              <InfoButton
+                title="Gym Training"
+                content="Train at the gym to increase your fitness, health, and happiness! Each session costs $50 and provides +5 fitness, +3 health, and +2 happiness. Higher fitness unlocks better career opportunities."
+                size="small"
+                darkMode={settings.darkMode}
+              />
+            ),
+          },
+        ]}
+      />
 
       {/* Scrollable Content */}
       <ScrollView
