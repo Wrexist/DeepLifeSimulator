@@ -52,6 +52,8 @@ import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { ClaimableBadge } from '@/components/ClaimableBadge';
+import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -181,6 +183,13 @@ function MobileScreenContent() {
     },
   ], [t]);
 
+  // Per-app "needs attention" badge counts (unread matches, scandals, critical
+  // pets, company alerts) — computed before any early return (Rules of Hooks).
+  const appBadges = useMemo(
+    () => getAppBadgeCounts(gameState),
+    [gameState.sparkApp, gameState.socialMedia?.activeScandal, gameState.pets, gameState.companies],
+  );
+
   if (!(gameState.items ?? []).find(item => item.id === 'smartphone')?.owned) {
     return (
       <LinearGradient
@@ -293,6 +302,7 @@ function MobileScreenContent() {
                   {app.description}
                 </Text>
               </View>
+              <ClaimableBadge count={appBadges[app.id] ?? 0} />
             </TouchableOpacity>
           ))}
         </View>

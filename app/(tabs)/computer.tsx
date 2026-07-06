@@ -77,6 +77,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
+import { ClaimableBadge } from '@/components/ClaimableBadge';
+import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -303,6 +305,12 @@ function ComputerScreenContent() {
     return apps.filter(app => app.available !== false);
   }, [appCategory, desktopApps, mobileApps]);
 
+  // Per-app "needs attention" badge counts — computed before any early return.
+  const appBadges = useMemo(
+    () => getAppBadgeCounts(gameState),
+    [gameState.sparkApp, gameState.socialMedia?.activeScandal, gameState.pets, gameState.companies],
+  );
+
   if (!(gameState.items || []).find(item => item.id === 'computer')?.owned) {
     return (
       <LinearGradient
@@ -430,6 +438,7 @@ function ComputerScreenContent() {
                     {app.description}
                   </Text>
                 </View>
+                <ClaimableBadge count={appBadges[app.id] ?? 0} />
               </TouchableOpacity>
             );
           })}
