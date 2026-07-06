@@ -811,7 +811,7 @@ function WorkScreenContent() {
                             {activeTab === 'street' && (
                                 <View>
                                     <View style={styles.sectionHeader}>
-                                        <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Street Jobs</Text>
+                                        <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Street Jobs</Text>
                                         <InfoButton
                                             title="Street Jobs"
                                             content="Street jobs are a great way to start earning money and build your skills. Each job has ranks that improve with experience. Work more to level up and earn better pay!"
@@ -831,7 +831,7 @@ function WorkScreenContent() {
                                     )}
 
                                     <View style={styles.sectionHeader}>
-                                        <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Careers</Text>
+                                        <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Careers</Text>
                                         <InfoButton
                                             title="Career Jobs"
                                             content="Apply for traditional careers that offer steady income and advancement opportunities. Each career has requirements like education or fitness levels you must meet first. Work hard to get promoted and earn higher salaries!"
@@ -839,7 +839,7 @@ function WorkScreenContent() {
                                             darkMode={settings.darkMode}
                                         />
                                     </View>
-                                    <Text style={[styles.subheader, styles.subheaderDark]}>Standard Careers</Text>
+                                    <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Standard Careers</Text>
                                     {basicCareers.map(career => renderCareerCard(career))}
                                     <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Advanced Careers</Text>
                                     {(() => {
