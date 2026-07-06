@@ -959,7 +959,10 @@ const styles = StyleSheet.create({
   recoveryContainer: {
     backgroundColor: '#FEF3C7',
     padding: 12,
-    borderRadius: 8,
+    // Square left corners: a one-sided border + borderRadius makes RN wrap
+    // the accent bar around the curve (a "(" crescent artifact).
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
     marginBottom: 20,
     width: '100%',
     borderLeftWidth: 3,
@@ -979,7 +982,9 @@ const styles = StyleSheet.create({
   bugReportContainer: {
     backgroundColor: '#EFF6FF',
     padding: 16,
-    borderRadius: 12,
+    // Square left corners — same crescent-artifact fix as recoveryContainer.
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
     marginBottom: 20,
     width: '100%',
     borderLeftWidth: 4,
