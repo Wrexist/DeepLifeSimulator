@@ -4,7 +4,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
-import { Briefcase, ChevronRight, Trophy } from 'lucide-react-native';
+import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -145,6 +145,8 @@ function HomeScreenContent() {
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
   const [showPrestigeInfo, setShowPrestigeInfo] = useState(false);
+  // Collapses the secondary tail of the home feed so it doesn't grow unbounded.
+  const [showMore, setShowMore] = useState(false);
 
   // Root-level blocking modals (death/wedding) own the screen — every
   // celebration/reward popup below defers to them.
@@ -466,18 +468,9 @@ function HomeScreenContent() {
           <ActiveGoalsCard compact={false} />
         </FadeInUp>
 
-        {/* Discovery Progress Indicator. Hidden in the first few weeks. */}
-        {(gameState.weeksLived || 0) > 5 && (
-          <DiscoveryIndicator
-            gameState={gameState}
-            compact={false}
-            darkMode={isDark}
-          />
-        )}
-
         {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
             skill tree, lifetime stats) was hidden from the tab bar with no
-            other entry point — this card is its front door. */}
+            other entry point — this card is its front door. Always visible. */}
         <FadeInUp delay={110}>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/progression')}
@@ -497,9 +490,34 @@ function HomeScreenContent() {
           </TouchableOpacity>
         </FadeInUp>
 
-        <FadeInUp delay={120}>
-          <AchievementsProgress />
-        </FadeInUp>
+        {/* Secondary detail modules collapse behind "Show more" so the feed
+            doesn't grow unbounded on an established save. */}
+        {showMore && (
+          <>
+            {(gameState.weeksLived || 0) > 5 && (
+              <DiscoveryIndicator
+                gameState={gameState}
+                compact={false}
+                darkMode={isDark}
+              />
+            )}
+            <FadeInUp delay={0}>
+              <AchievementsProgress />
+            </FadeInUp>
+          </>
+        )}
+
+        <TouchableOpacity
+          onPress={() => setShowMore(v => !v)}
+          activeOpacity={0.8}
+          style={styles.showMoreBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.showMoreText}>{showMore ? 'Show less' : 'Show more'}</Text>
+          {showMore
+            ? <ChevronUp size={scale(15)} color="#94A3B8" />
+            : <ChevronDown size={scale(15)} color="#94A3B8" />}
+        </TouchableOpacity>
 
         {/* First Week Guide — leave space so the overlay doesn't clip cards. */}
         {(gameState.weeksLived || 0) <= 3 && !hasCompletedTutorial && (
@@ -606,6 +624,22 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11.5),
     color: '#94A3B8',
     marginTop: scale(2),
+  },
+  showMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
+    alignSelf: 'center',
+    marginTop: verticalScale(4),
+    marginBottom: verticalScale(8),
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: scale(16),
+  },
+  showMoreText: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    color: '#94A3B8',
   },
   container: {
     flex: 1,
