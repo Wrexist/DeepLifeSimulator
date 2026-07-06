@@ -48,23 +48,34 @@ export default function GradientButton({
   const animateTo = (v: number) =>
     Animated.timing(press, { toValue: v, duration: 90, useNativeDriver: true }).start();
 
-  // Colored glow gives the depth/immersion; suppressed when disabled.
+  // Colored glow gives the depth/immersion; suppressed when disabled. The glow
+  // view carries the SAME borderRadius so the shadow is rounded (not a hard
+  // rectangle poking past the corners) and a solid bottom-color background so
+  // iOS has a rounded shape to cast the shadow from (the rounded SVG rect sits
+  // exactly on top of it, hiding it).
   const glowStyle: ViewStyle = disabled
     ? {}
     : Platform.select<ViewStyle>({
-        web: { boxShadow: `0px ${scale(6)}px ${scale(16)}px ${glow}59` } as ViewStyle,
+        web: { boxShadow: `0px ${scale(5)}px ${scale(14)}px ${glow}4D` } as ViewStyle,
         ios: {
           shadowColor: glow,
-          shadowOffset: { width: 0, height: scale(5) },
-          shadowOpacity: 0.45,
-          shadowRadius: scale(9),
+          shadowOffset: { width: 0, height: scale(4) },
+          shadowOpacity: 0.4,
+          shadowRadius: scale(10),
         },
         android: { elevation: 6 },
         default: {},
       }) ?? {};
 
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, glowStyle, style]}>
+    <Animated.View
+      style={[
+        styles.wrap,
+        { transform: [{ scale: scaleAnim }], backgroundColor: disabled ? 'transparent' : colors[2] },
+        glowStyle,
+        style,
+      ]}
+    >
       <TouchableOpacity
         activeOpacity={0.92}
         onPress={onPress}
@@ -88,14 +99,18 @@ export default function GradientButton({
                   <Stop offset="0.55" stopColor={colors[1]} />
                   <Stop offset="1" stopColor={colors[2]} />
                 </SvgLinearGradient>
-                {/* Glass shine: a soft white highlight over the top third. */}
+                {/* Glass shine: soft white highlight that fades out by mid-height
+                    (full-height + rounded so there's no hard cut-off line). */}
                 <SvgLinearGradient id={`${gid}-shine`} x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.22} />
+                  <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.2} />
+                  <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={0} />
                   <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
                 </SvgLinearGradient>
               </Defs>
-              <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gid}-fill)`} />
-              <Rect x="0" y="0" width="100%" height="45%" fill={`url(#${gid}-shine)`} />
+              {/* Rounded rects (rx/ry = the button radius) so the gradient shape
+                  itself is rounded — no square-corner seam against the clip. */}
+              <Rect x="0" y="0" width="100%" height="100%" rx={RADIUS} ry={RADIUS} fill={`url(#${gid}-fill)`} />
+              <Rect x="0" y="0" width="100%" height="100%" rx={RADIUS} ry={RADIUS} fill={`url(#${gid}-shine)`} />
             </Svg>
           )}
 
@@ -111,18 +126,24 @@ export default function GradientButton({
   );
 }
 
+const RADIUS = responsiveBorderRadius.md;
+
 const styles = StyleSheet.create({
+  wrap: {
+    borderRadius: RADIUS,
+  },
   touch: {
-    borderRadius: responsiveBorderRadius.md,
+    borderRadius: RADIUS,
   },
   clip: {
-    borderRadius: responsiveBorderRadius.md,
+    borderRadius: RADIUS,
     overflow: 'hidden',
     minHeight: verticalScale(44),
     justifyContent: 'center',
   },
   disabledFill: {
     ...StyleSheet.absoluteFillObject,
+    borderRadius: RADIUS,
     backgroundColor: 'rgba(148, 163, 184, 0.12)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.07)',
