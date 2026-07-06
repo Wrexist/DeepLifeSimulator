@@ -64,12 +64,18 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
 ];
 
+// Values mirror warehouseMinerEarnings in lib/economy/passiveIncome.ts so the
+// "estimated weekly yield" is accurate — and all 8 economy tiers are buyable
+// (the top 3 were defined in the economy but missing from this UI).
 const MINER_TIERS: { id: string; label: string; weeklyEarnings: number }[] = [
-  { id: 'basic',      label: 'Basic Miner',      weeklyEarnings: 20 },
-  { id: 'advanced',   label: 'Advanced Miner',   weeklyEarnings: 80 },
-  { id: 'pro',        label: 'Pro Miner',        weeklyEarnings: 350 },
-  { id: 'industrial', label: 'Industrial Miner', weeklyEarnings: 1200 },
-  { id: 'quantum',    label: 'Quantum Miner',    weeklyEarnings: 5000 },
+  { id: 'basic',      label: 'Basic Miner',      weeklyEarnings: 22 },
+  { id: 'advanced',   label: 'Advanced Miner',   weeklyEarnings: 105 },
+  { id: 'pro',        label: 'Pro Miner',        weeklyEarnings: 438 },
+  { id: 'industrial', label: 'Industrial Miner', weeklyEarnings: 1575 },
+  { id: 'quantum',    label: 'Quantum Miner',    weeklyEarnings: 7000 },
+  { id: 'mega',       label: 'Mega Miner',       weeklyEarnings: 35000 },
+  { id: 'giga',       label: 'Giga Miner',       weeklyEarnings: 140000 },
+  { id: 'tera',       label: 'Tera Miner',       weeklyEarnings: 700000 },
 ];
 
 function formatMoney(n: number): string {

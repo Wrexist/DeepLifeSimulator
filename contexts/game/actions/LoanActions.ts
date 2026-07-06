@@ -58,11 +58,16 @@ export function politicsAprReduction(state: GameState): number {
 }
 
 /**
- * Private Banking IAP delivers "VIP 3% APR loans" — caps every loan's offered
- * rate at 3% (and refinances down to it). Returns undefined when not owned so
- * pricing falls through to the normal credit-score + politics formula.
+ * Private Banking IAP delivers "VIP low-APR loans" — caps every loan's offered
+ * rate (and refinances down to it). Returns undefined when not owned so pricing
+ * falls through to the normal credit-score + politics formula.
+ *
+ * BALANCE: this cap MUST stay above the best self-opened deposit APR
+ * (CD = 5.5%, HYSA = 4.5%) or it opens a risk-free borrow-low/save-high
+ * arbitrage. Set to 6% — still a real discount vs the ~8% base loan rate, but
+ * above every deposit rate so parking a loan in a CD loses money.
  */
-export const PRIVATE_BANKING_APR_CAP = 0.03;
+export const PRIVATE_BANKING_APR_CAP = 0.06;
 export function privateBankingAprCap(state: GameState): number | undefined {
   return state.settings?.privateBanking ? PRIVATE_BANKING_APR_CAP : undefined;
 }

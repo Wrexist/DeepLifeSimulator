@@ -588,6 +588,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           if (prepayLoanId && checking) {
             prepayLoan(setGameState, prepayLoanId, checking.id, amt);
             queueSave();
+          } else if (prepayLoanId && !checking) {
+            Alert.alert('No checking account', 'Open a checking account first — loan payments are drawn from checking.');
           }
           setPrepayLoanId(null);
         }}
@@ -607,6 +609,8 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           if (payCardId && checking) {
             payDownCard(setGameState, payCardId, checking.id, amt);
             queueSave();
+          } else if (payCardId && !checking) {
+            Alert.alert('No checking account', 'Open a checking account first — card payments are drawn from checking.');
           }
           setPayCardId(null);
         }}

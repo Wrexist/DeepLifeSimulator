@@ -44,7 +44,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
-import type { Relationship } from '@/contexts/game/types';
+import type { Relationship, GameState } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger } from '@/lib/contacts/favors';
 import { goOnDate, giveGift, proposeMarriage } from '@/contexts/game/actions/DatingActions';
@@ -160,20 +160,51 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     (contactId: string, action: string, cost: number, bonus: number) => {
       const rel = gameState.relationships?.find((r) => r.id === contactId);
       if (!rel) return;
-      if (rel.actions?.[action] === gameState.weeksLived) {
+      const ws = gameState.weeksLived ?? 0;
+      // Pre-checks for immediate feedback; the authoritative re-check is inside
+      // the updater below.
+      if (rel.actions?.[action] === ws) {
         flash('Already used this week.', contactId);
         return;
       }
-      if (cost > 0 && gameState.stats.money < cost) {
+      if (cost > 0 && (gameState.stats?.money ?? 0) < cost) {
         flash(`Need $${cost.toLocaleString()}.`, contactId);
         return;
       }
-      if (cost > 0) updateMoney(-cost, `${action} with ${rel.name}`, false);
-      updateRelationship(contactId, bonus);
-      recordRelationshipAction(contactId, action);
-      flash(`+${bonus} with ${rel.name}.`, contactId);
+
+      // Single atomic updater — the once-per-week gate, the affordability check,
+      // the money leg, the relationship bump, and the action record all happen
+      // against `prev` so a same-batch double-tap can't charge/grant twice.
+      // (Previously three separate imperative updaters read a stale snapshot.)
+      let applied = false;
+      setGameState((prev) => {
+        const rels = prev.relationships ?? [];
+        const idx = rels.findIndex((r) => r.id === contactId);
+        if (idx === -1) return prev;
+        const target = rels[idx];
+        const prevWs = prev.weeksLived ?? 0;
+        if (target.actions?.[action] === prevWs) return prev; // already used this week
+        if (cost > 0 && (prev.stats?.money ?? 0) < cost) return prev; // can't afford
+
+        const updatedRel: Relationship = {
+          ...target,
+          relationshipScore: Math.max(0, Math.min(100, (target.relationshipScore ?? 0) + bonus)),
+          actions: { ...(target.actions ?? {}), [action]: prevWs },
+        };
+        const newRels = [...rels];
+        newRels[idx] = updatedRel;
+        let next: GameState = { ...prev, relationships: newRels };
+        if (cost > 0) {
+          const paid = applyMoneyDelta(next, -cost, `${action} with ${target.name}`);
+          if (!paid) return prev; // affordability failed inside the delta — abort
+          next = { ...next, ...paid };
+        }
+        applied = true;
+        return next;
+      });
+      if (applied) flash(`+${bonus} with ${rel.name}.`, contactId);
     },
-    [gameState, updateMoney, updateRelationship, recordRelationshipAction, flash]
+    [gameState, setGameState, flash]
   );
 
 
