@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   clip: {
     borderRadius: RADIUS,
     overflow: 'hidden',
-    minHeight: verticalScale(44),
+    minHeight: verticalScale(36),
     justifyContent: 'center',
   },
   disabledFill: {
@@ -153,11 +153,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: scale(7),
-    paddingVertical: verticalScale(11),
+    paddingVertical: verticalScale(8),
     paddingHorizontal: scale(14),
   },
   label: {
-    fontSize: fontScale(13.5),
+    fontSize: fontScale(13),
     fontWeight: '800',
     letterSpacing: 0.4,
   },
