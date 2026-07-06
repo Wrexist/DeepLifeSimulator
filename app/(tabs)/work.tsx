@@ -10,6 +10,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import ConfirmDialog from '@/components/ConfirmDialog';
 import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
 import CrimeSkillCard from '@/components/work/CrimeSkillCard';
+import ProgressRing from '@/components/ui/ProgressRing';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -610,17 +611,21 @@ function WorkScreenContent() {
                 );
             } else {
                 footer = (
-                    <View>
-                        <View style={styles.progressInfo}>
-                            <Text style={[styles.progressLabel, settings.darkMode && styles.progressLabelDark]}>
-                                Progress to promotion
+                    <View style={local.cardProgressRow}>
+                        <ProgressRing
+                            value={career.progress}
+                            size={40}
+                            strokeWidth={5}
+                            showPill={false}
+                            label={`Promotion progress ${career.progress}%`}
+                        >
+                            <Text style={local.cardProgressPct}>{career.progress}%</Text>
+                        </ProgressRing>
+                        <View style={{ flex: 1 }}>
+                            <Text style={local.cardProgressLabel}>Progress to promotion</Text>
+                            <Text style={local.cardProgressSub}>
+                                {Math.max(0, 100 - career.progress)}% to Lv {career.level + 2}
                             </Text>
-                            <Text style={[styles.progressPercent, settings.darkMode && styles.progressPercentDark]}>
-                                {career.progress}%
-                            </Text>
-                        </View>
-                        <View style={styles.progressBar}>
-                            <View style={[styles.progressFill, { width: `${career.progress}%` }]} />
                         </View>
                     </View>
                 );
@@ -735,33 +740,41 @@ function WorkScreenContent() {
                 <>
                     <View style={styles.container}>
                         {currentJob && currentJobLevel && (
-                            <View style={local.currentJobCard}>
-                                <View style={local.currentJobTopRow}>
-                                    <View style={local.currentJobIcon}>
-                                        <Briefcase size={scale(16)} color="#34D399" />
+                            <View style={local.heroCard}>
+                                <ProgressRing
+                                    value={currentJobAtMax ? 100 : currentJob.progress}
+                                    size={86}
+                                    state={currentJobAtMax ? 'done' : 'active'}
+                                    label={currentJobAtMax ? 'Fully promoted' : `Promotion progress ${currentJob.progress}%`}
+                                >
+                                    <View style={[local.heroRingIcon, { borderColor: currentJobAtMax ? 'rgba(16,185,129,0.4)' : 'rgba(59,130,246,0.4)', backgroundColor: currentJobAtMax ? 'rgba(16,185,129,0.14)' : 'rgba(59,130,246,0.14)' }]}>
+                                        <Briefcase size={scale(24)} color={currentJobAtMax ? '#34D399' : '#60A5FA'} />
                                     </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={local.currentJobLabel}>Current Job</Text>
-                                        <Text style={local.currentJobTitle} numberOfLines={1}>{currentJobLevel.name}</Text>
+                                </ProgressRing>
+
+                                <View style={local.heroRight}>
+                                    <Text style={local.heroLabel}>Current Job</Text>
+                                    <Text style={local.heroTitle} numberOfLines={1}>{currentJobLevel.name}</Text>
+
+                                    <View style={local.heroStageRow}>
+                                        <View style={local.heroStageChip}>
+                                            <TrendingUp size={scale(13)} color={currentJobAtMax ? '#34D399' : '#60A5FA'} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={local.heroStageLabel} numberOfLines={1}>
+                                                {currentJobAtMax ? 'Top of the ladder' : 'Working toward promotion'}
+                                            </Text>
+                                            <Text style={local.heroStageSub} numberOfLines={1}>
+                                                {currentJobAtMax ? 'Max level reached' : `${Math.max(0, 100 - currentJob.progress)}% to next level`}
+                                            </Text>
+                                        </View>
                                     </View>
-                                    <View style={{ alignItems: 'flex-end' }}>
-                                        <Text style={local.currentJobSalary}>${currentJobSalary.toLocaleString()}/wk</Text>
-                                        {currentJobRaisePct > 0 && (
-                                            <Text style={local.currentJobRaise}>+{currentJobRaisePct}% raise</Text>
-                                        )}
-                                    </View>
+
+                                    <Text style={local.heroMeta} numberOfLines={1}>
+                                        ${currentJobSalary.toLocaleString()}/wk · Lv {currentJob.level + 1}/{currentJob.levels.length}
+                                        {currentJobRaisePct > 0 ? ` · +${currentJobRaisePct}%` : ''}
+                                    </Text>
                                 </View>
-                                {!currentJobAtMax && (
-                                    <View style={local.currentJobProgressWrap}>
-                                        <View style={local.currentJobProgressLabelRow}>
-                                            <Text style={local.currentJobProgressLabel}>Progress to promotion</Text>
-                                            <Text style={local.currentJobProgressPct}>{currentJob.progress}%</Text>
-                                        </View>
-                                        <View style={local.currentJobProgressBar}>
-                                            <View style={[local.currentJobProgressFill, { width: `${Math.min(100, currentJob.progress)}%` }]} />
-                                        </View>
-                                    </View>
-                                )}
                             </View>
                         )}
                         <View style={[styles.tabContainer, styles.tabContainerDark]}>
@@ -1038,87 +1051,102 @@ function WorkScreenContent() {
 }
 
 const local = StyleSheet.create({
-    currentJobCard: {
-        marginHorizontal: scale(16),
-        marginTop: scale(12),
-        marginBottom: scale(4),
-        padding: scale(14),
-        borderRadius: scale(12),
-        backgroundColor: 'rgba(16, 185, 129, 0.08)',
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(16, 185, 129, 0.3)',
-        gap: scale(10),
-    },
-    currentJobTopRow: {
+    // Current Job hero — reference-style ring card.
+    heroCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: scale(11),
-    },
-    currentJobIcon: {
-        width: scale(34),
-        height: scale(34),
-        borderRadius: scale(10),
-        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        gap: scale(16),
+        marginHorizontal: scale(16),
+        marginTop: scale(12),
+        marginBottom: scale(6),
+        padding: scale(16),
+        paddingRight: scale(18),
+        borderRadius: scale(16),
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(16, 185, 129, 0.4)',
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+    },
+    heroRingIcon: {
+        width: scale(44),
+        height: scale(44),
+        borderRadius: scale(13),
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    currentJobLabel: {
+    heroRight: {
+        flex: 1,
+        gap: scale(6),
+    },
+    heroLabel: {
         fontSize: fontScale(10.5),
         fontWeight: '700',
-        color: 'rgba(52, 211, 153, 0.85)',
+        color: 'rgba(226, 232, 240, 0.5)',
         textTransform: 'uppercase',
-        letterSpacing: 0.6,
+        letterSpacing: 0.7,
     },
-    currentJobTitle: {
-        fontSize: fontScale(16),
+    heroTitle: {
+        fontSize: fontScale(19),
         fontWeight: '800',
         color: '#F8FAFC',
-        letterSpacing: -0.3,
-        marginTop: scale(1),
+        letterSpacing: -0.4,
     },
-    currentJobSalary: {
-        fontSize: fontScale(15),
-        fontWeight: '800',
-        color: '#34D399',
-        fontVariant: ['tabular-nums'],
-    },
-    currentJobRaise: {
-        fontSize: fontScale(10.5),
-        fontWeight: '700',
-        color: 'rgba(52, 211, 153, 0.8)',
-        marginTop: scale(1),
-    },
-    currentJobProgressWrap: {
-        gap: scale(5),
-    },
-    currentJobProgressLabelRow: {
+    heroStageRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        gap: scale(9),
+        marginTop: scale(1),
     },
-    currentJobProgressLabel: {
-        fontSize: fontScale(11),
-        fontWeight: '600',
-        color: 'rgba(226, 232, 240, 0.6)',
+    heroStageChip: {
+        width: scale(28),
+        height: scale(28),
+        borderRadius: scale(9),
+        backgroundColor: 'rgba(148, 163, 184, 0.12)',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    currentJobProgressPct: {
-        fontSize: fontScale(11),
+    heroStageLabel: {
+        fontSize: fontScale(13),
         fontWeight: '700',
-        color: 'rgba(226, 232, 240, 0.8)',
+        color: '#E2E8F0',
+    },
+    heroStageSub: {
+        fontSize: fontScale(11),
+        fontWeight: '500',
+        color: 'rgba(226, 232, 240, 0.55)',
+        marginTop: scale(1),
+    },
+    heroMeta: {
+        fontSize: fontScale(12.5),
+        fontWeight: '700',
+        color: 'rgba(226, 232, 240, 0.75)',
+        fontVariant: ['tabular-nums'],
+        marginTop: scale(1),
+    },
+    // Employed career card footer — mini ring + label.
+    cardProgressRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: scale(12),
+    },
+    cardProgressPct: {
+        fontSize: fontScale(9.5),
+        fontWeight: '800',
+        color: '#F8FAFC',
         fontVariant: ['tabular-nums'],
     },
-    currentJobProgressBar: {
-        height: scale(6),
-        borderRadius: scale(3),
-        backgroundColor: 'rgba(148, 163, 184, 0.2)',
-        overflow: 'hidden',
+    cardProgressLabel: {
+        fontSize: fontScale(12.5),
+        fontWeight: '700',
+        color: '#E2E8F0',
     },
-    currentJobProgressFill: {
-        height: '100%',
-        borderRadius: scale(3),
-        backgroundColor: '#10B981',
+    cardProgressSub: {
+        fontSize: fontScale(11),
+        fontWeight: '500',
+        color: 'rgba(226, 232, 240, 0.55)',
+        marginTop: scale(1),
     },
     // Action sheet
     sheetOverlay: {
