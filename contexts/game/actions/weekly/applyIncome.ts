@@ -50,6 +50,13 @@ export interface IncomeTickInput {
   weeksLivedNow: number;
   /** `prevState.prestige?.unlockedBonuses || []`. */
   unlockedBonuses: string[];
+  /**
+   * Macro economy income modifier from the active economy event (recession
+   * 0.85, boom 1.15, crash 0.9, inflation 0.95). Previously the economy event's
+   * `incomeMultiplier` was a dead field — the recession/boom banner showed but
+   * never touched the paycheck. Defaults to 1.0 (no active event / no effect).
+   */
+  economyIncomeMultiplier?: number;
 }
 
 export interface IncomeTickResult {
@@ -115,7 +122,16 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
     perkIncomeBonus = Math.min(perkIncomeBonus, MAX_PERK_INCOME_BONUS);
   }
 
-  const totalIncome = Math.round(baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus * perkIncomeBonus);
+  // 7. Macro economy modifier — recession/crash shrink the paycheck, a boom
+  // lifts it. Sanitized; a missing/garbage value falls back to 1.0 (no effect).
+  const rawEconMult = input.economyIncomeMultiplier;
+  const safeEconMult = typeof rawEconMult === 'number' && isFinite(rawEconMult) && rawEconMult > 0
+    ? rawEconMult
+    : 1.0;
+
+  const totalIncome = Math.round(
+    baseTotalIncome * safeIncomeMultiplier * moneyMultiplierBonus * perkIncomeBonus * safeEconMult,
+  );
 
   return { partnerIncome, baseTotalIncome, totalIncome };
 }

@@ -677,6 +677,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    pulseEarnings: pulseTickResult?.pulseEarnings ?? 0,
    weeksLivedNow,
    unlockedBonuses,
+   // Macro teeth: recession/crash/boom now moves the paycheck (was a dead field).
+   economyIncomeMultiplier: prevState.economy?.economyEvents?.modifiers?.incomeMultiplier,
  });
  const { partnerIncome, baseTotalIncome, totalIncome } = incomeResult;
 
@@ -1429,6 +1431,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  currentWeek: nextWeeksLived,
  // Gate buy-order fills on actual cash (anti free-fill exploit).
  cashIn: newStats.money,
+ // Macro teeth: a recession/crash/boom now drives a broad-market drift on
+ // equities (crypto already reacts via forced regimes).
+ economyState: prevState.economy?.economyEvents?.currentState,
  rollFor: weeklyRoll,
  });
  if (stocksTickResult.cashDelta!== 0) {
