@@ -54,6 +54,7 @@ Priority order — when they conflict, higher wins:
 - **Theme:** `useTheme()` hook or `getThemeColors(darkMode)` from `lib/config/theme.ts`
 - **Glassmorphism:** helpers in `utils/glassmorphismStyles.ts` accept `darkMode` param
 - **Scaling:** always use `scale()`, `fontScale()` from `utils/scaling.ts`
+- **Borders:** never pair a one-sided border with a full `borderRadius` — see Hard Rule 7
 
 ---
 
@@ -85,6 +86,20 @@ Priority order — when they conflict, higher wins:
 ### 6. Preflight Before Release
 - Run `npm run preflight` before any release build
 - Do not skip checks, do not use `--force` flags
+
+### 7. NEVER: one-sided border + full `borderRadius` (the "crescent" / accent-bar callout)
+- **Do NOT** combine a single-side border (`borderLeftWidth` / `borderRightWidth` /
+  `borderTopWidth` / `borderBottomWidth`) with a full `borderRadius` on the same style.
+  React Native curls the one-sided border around the rounded corners, rendering a
+  crescent/parenthesis `(` artifact. This look is **banned** app-wide.
+- **Left accent-bar callouts** (the "Suggestion" / "Note" / severity cards): keep the
+  colored bar, but **square the bar side** — set `borderTopLeftRadius: 0` and
+  `borderBottomLeftRadius: 0` (round only the opposite corners). Mirror for other sides.
+- Alternatives that are always fine: a **full** border (all four sides) with
+  `borderRadius`; a background color/stripe instead of a border; or no radius on the
+  bordered side.
+- Applies to every surface — mobile apps, desktop apps, popups, tooltips, the crash
+  screen. If you add a card with a colored side bar, square that side.
 
 ---
 

@@ -276,6 +276,9 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md,
     borderLeftWidth: 4,
     borderLeftColor: '#10B981',
+    // Square the accent-bar side (DEV.md: no one-sided border + full radius).
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
   },
   goalHeader: {
     flexDirection: 'row',
@@ -306,6 +309,9 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md,
     borderLeftWidth: 4,
     borderLeftColor: '#F59E0B',
+    // Square the accent-bar side (DEV.md: no one-sided border + full radius).
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
   },
   rewardLabel: {
     fontSize: responsiveFontSize.sm,
@@ -343,6 +349,9 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md,
     borderLeftWidth: 4,
     borderLeftColor: '#3B82F6',
+    // Square the accent-bar side (DEV.md: no one-sided border + full radius).
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
   },
   nextGoalHeader: {
     flexDirection: 'row',

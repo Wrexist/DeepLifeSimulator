@@ -642,6 +642,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderLeftWidth: 3,
     borderLeftColor: '#EF4444',
+    // Square the accent-bar side (DEV.md: no one-sided border + full radius).
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
   },
   detailedFailureApp: {
     fontSize: responsiveFontSize.base,

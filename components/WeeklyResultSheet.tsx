@@ -313,6 +313,9 @@ const styles = StyleSheet.create({
     borderRadius: scale(8),
     borderLeftWidth: 3,
     borderLeftColor: '#8B5CF6',
+    // Square the accent-bar side (DEV.md: no one-sided border + full radius).
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
   },
   cliffhangerText: {
     fontSize: fontScale(14),

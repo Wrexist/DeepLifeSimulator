@@ -792,6 +792,9 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#3B82F6',
+    // Square the accent-bar side (DEV.md: no one-sided border + full radius).
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
   },
   upcomingItemDark: {
     backgroundColor: '#374151',

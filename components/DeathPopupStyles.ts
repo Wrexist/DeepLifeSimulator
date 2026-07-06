@@ -763,6 +763,9 @@ export function createStyles(darkMode: boolean) {
       padding: scale(14),
       borderRadius: scale(12),
       borderLeftWidth: scale(4),
+      // Square the accent-bar side (DEV.md: no one-sided border + full radius).
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
     },
     ribbonEmoji: {
       fontSize: fontScale(36),
