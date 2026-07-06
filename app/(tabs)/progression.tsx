@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Platform, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
-import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, Bell, BookOpen, Brain } from 'lucide-react-native';
+import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, Bell, BookOpen, Brain, Palette } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
@@ -12,6 +12,7 @@ import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LifeStoryModal from '@/components/LifeStoryModal';
 import SkillTreeModal from '@/components/SkillTreeModal';
+import HobbiesModal from '@/components/HobbiesModal';
 import LegacyPassModal from '@/components/LegacyPassModal';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
@@ -38,6 +39,7 @@ function ProgressionScreenContent() {
   const [showCommitments, setShowCommitments] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
+  const [showHobbies, setShowHobbies] = useState(false);
   const [showLegacyPass, setShowLegacyPass] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
 
@@ -131,6 +133,14 @@ function ProgressionScreenContent() {
             >
               <Brain size={24} color="#10B981" />
               <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Life Skills</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.featureButton, isDark && styles.featureButtonDark]}
+              onPress={() => setShowHobbies(true)}
+            >
+              <Palette size={24} color="#A855F7" />
+              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Hobbies</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -262,6 +272,7 @@ function ProgressionScreenContent() {
         <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
         <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
         <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
+        <HobbiesModal visible={showHobbies} onClose={() => setShowHobbies(false)} />
         <LegacyPassModal
           visible={showLegacyPass}
           onClose={() => setShowLegacyPass(false)}

@@ -3,7 +3,7 @@ import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 
-export const STATE_VERSION = 20;
+export const STATE_VERSION = 21;
 
 const getLifeStage = (age: number): LifeStage => {
   if (age < 13) return 'child';
@@ -76,6 +76,8 @@ export const initialGameState: GameState = {
   weeklyJailActivities: {},
   weeklyStreetJobs: {},
   weeklyStudySessions: {},
+  pursuits: {},
+  weeklyPursuitPractice: {},
   criminalLevel: 1,
   youthPills: 0,
   petFood: {}, // Pet food inventory: { 'basic': 0, 'premium': 0, 'luxury': 0 }

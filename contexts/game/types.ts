@@ -160,6 +160,13 @@ export interface Career {
   lastRaiseWeeksLived?: number; // weeksLived of the last raise REQUEST (approved OR denied) — gates the cooldown.
 }
 
+/** A practiced hobby/skill (v21 mastery loop). Level is derived from xp but
+ *  cached for cheap reads. */
+export interface PlayerPursuit {
+  xp: number;
+  level: number;
+}
+
 export interface Hobby {
   id: string;
   name: string;
@@ -2407,6 +2414,13 @@ export interface GameState {
   /** Life chapters — themed goal groups that unlock based on weeksLived */
   activeChapterId?: string;
   completedChapters?: string[];
+  /**
+   * Hobby mastery (v21) — pursuits you practice weekly to level up, each with a
+   * compounding perk. `pursuits[id]` accrues xp; `weeklyPursuitPractice` caps
+   * practices per week and is reset on week advance (like weeklyStudySessions).
+   */
+  pursuits?: Record<string, PlayerPursuit>;
+  weeklyPursuitPractice?: Record<string, number>;
   /** Tutorial step completion tracking for rewards */
   completedTutorialSteps?: string[];
 

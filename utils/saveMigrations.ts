@@ -544,6 +544,21 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 20;
     return state;
   },
+
+  // Version 21: Hobby Mastery. Adds the `pursuits` map (per-hobby xp/level) and
+  // the `weeklyPursuitPractice` weekly cap counter. Idempotent — only sets when
+  // missing. Both are optional and consumers guard with `?? {}`, so this is a
+  // pure default-fill.
+  21: (state) => {
+    if (!state.pursuits || typeof state.pursuits !== 'object') {
+      state.pursuits = {};
+    }
+    if (!state.weeklyPursuitPractice || typeof state.weeklyPursuitPractice !== 'object') {
+      state.weeklyPursuitPractice = {};
+    }
+    state.version = 21;
+    return state;
+  },
 };
 
 /**

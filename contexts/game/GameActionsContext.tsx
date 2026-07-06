@@ -1566,6 +1566,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  weeklyStreetJobs: {}, // Always reset when advancing week
  weeklyJailActivities: {}, // Always reset when advancing week
  weeklyStudySessions: {}, // Always reset when advancing week
+ weeklyPursuitPractice: {}, // Hobby mastery: reset weekly practice caps
  // Decrease jail time by 1 week when advancing, or add police encounter jail time
  jailWeeks: (() => {
  // Base: either an encounter triggered, or decay the prior sentence.
