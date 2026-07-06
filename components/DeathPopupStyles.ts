@@ -762,10 +762,9 @@ export function createStyles(darkMode: boolean) {
       alignItems: 'center',
       padding: scale(14),
       borderRadius: scale(12),
-      borderLeftWidth: scale(4),
-      // Square the accent-bar side (DEV.md: no one-sided border + full radius).
-      borderTopLeftRadius: 0,
-      borderBottomLeftRadius: 0,
+      // Plain full border (color set inline via borderColor), no side stripe
+      // (DEV.md Hard Rule 7).
+      borderWidth: scale(1),
     },
     ribbonEmoji: {
       fontSize: fontScale(36),

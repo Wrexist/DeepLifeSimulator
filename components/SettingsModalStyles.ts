@@ -790,15 +790,13 @@ export const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
-    // Square the accent-bar side (DEV.md: no one-sided border + full radius).
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
+    // Plain full border, no side stripe (DEV.md Hard Rule 7).
+    borderWidth: 1,
+    borderColor: '#3B82F6',
   },
   upcomingItemDark: {
     backgroundColor: '#374151',
-    borderLeftColor: '#60A5FA',
+    borderColor: '#60A5FA',
   },
   upcomingItemTitle: {
     fontSize: 16,

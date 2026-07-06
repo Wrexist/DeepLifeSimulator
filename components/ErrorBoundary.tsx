@@ -959,14 +959,12 @@ const styles = StyleSheet.create({
   recoveryContainer: {
     backgroundColor: '#FEF3C7',
     padding: 12,
-    // Square left corners: a one-sided border + borderRadius makes RN wrap
-    // the accent bar around the curve (a "(" crescent artifact).
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
+    borderRadius: 8,
     marginBottom: 20,
     width: '100%',
-    borderLeftWidth: 3,
-    borderLeftColor: '#F59E0B',
+    // Plain full border, no side stripe (DEV.md Hard Rule 7).
+    borderWidth: 1,
+    borderColor: '#F59E0B',
   },
   recoveryTitle: {
     fontSize: 14,
@@ -982,13 +980,12 @@ const styles = StyleSheet.create({
   bugReportContainer: {
     backgroundColor: '#EFF6FF',
     padding: 16,
-    // Square left corners — same crescent-artifact fix as recoveryContainer.
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
+    borderRadius: 12,
     marginBottom: 20,
     width: '100%',
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
+    // Plain full border, no side stripe (DEV.md Hard Rule 7).
+    borderWidth: 1,
+    borderColor: '#3B82F6',
   },
   bugReportHeader: {
     flexDirection: 'row',

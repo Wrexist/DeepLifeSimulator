@@ -1502,11 +1502,9 @@ export const styles = StyleSheet.create({
         padding: responsiveSpacing.md,
         borderRadius: responsiveBorderRadius.sm,
         marginBottom: responsiveSpacing.md,
-        borderLeftWidth: 2,
-        borderLeftColor: '#10B981',
-        // Square the accent-bar side (DEV.md: no one-sided border + full radius).
-        borderTopLeftRadius: 0,
-        borderBottomLeftRadius: 0,
+        // Plain full border, no side stripe (DEV.md Hard Rule 7).
+        borderWidth: 1,
+        borderColor: '#10B981',
     },
     upgradeTitle: {
         fontSize: responsiveFontSize.base,

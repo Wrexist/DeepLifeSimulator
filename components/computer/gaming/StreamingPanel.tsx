@@ -150,7 +150,7 @@ export default function StreamingPanel({
  key={sub.id}
  top={sub.position.top}
  left={sub.position.left}
- bgStyle={[settings.darkMode && styles.donationPopupDark, { borderLeftColor: '#10B981' }]}
+ bgStyle={[settings.darkMode && styles.donationPopupDark, { borderColor: '#10B981' }]}
  >
  <Text style={[styles.donationAmount, settings.darkMode && styles.donationAmountDark]}>â­ New sub: {sub.name}</Text>
  </AnimatedPopup>

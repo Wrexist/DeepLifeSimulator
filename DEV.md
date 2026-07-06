@@ -54,7 +54,7 @@ Priority order — when they conflict, higher wins:
 - **Theme:** `useTheme()` hook or `getThemeColors(darkMode)` from `lib/config/theme.ts`
 - **Glassmorphism:** helpers in `utils/glassmorphismStyles.ts` accept `darkMode` param
 - **Scaling:** always use `scale()`, `fontScale()` from `utils/scaling.ts`
-- **Borders:** never pair a one-sided border with a full `borderRadius` — see Hard Rule 7
+- **Borders:** no side accent bars / one-sided colored borders — use a full border (`borderWidth` + `borderColor`) instead. See Hard Rule 7
 
 ---
 
@@ -87,19 +87,26 @@ Priority order — when they conflict, higher wins:
 - Run `npm run preflight` before any release build
 - Do not skip checks, do not use `--force` flags
 
-### 7. NEVER: one-sided border + full `borderRadius` (the "crescent" / accent-bar callout)
-- **Do NOT** combine a single-side border (`borderLeftWidth` / `borderRightWidth` /
-  `borderTopWidth` / `borderBottomWidth`) with a full `borderRadius` on the same style.
-  React Native curls the one-sided border around the rounded corners, rendering a
-  crescent/parenthesis `(` artifact. This look is **banned** app-wide.
-- **Left accent-bar callouts** (the "Suggestion" / "Note" / severity cards): keep the
-  colored bar, but **square the bar side** — set `borderTopLeftRadius: 0` and
-  `borderBottomLeftRadius: 0` (round only the opposite corners). Mirror for other sides.
-- Alternatives that are always fine: a **full** border (all four sides) with
-  `borderRadius`; a background color/stripe instead of a border; or no radius on the
-  bordered side.
+### 7. NEVER: side accent bars / one-sided borders on cards
+- **Do NOT** use a colored one-sided border as a decorative accent stripe
+  (`borderLeftWidth` / `borderRightWidth` / `borderTopWidth` / `borderBottomWidth`
+  paired with a `border*Color`). The side accent-bar / "stripe" callout look is
+  **banned app-wide** — the product owner explicitly rejected it.
+  - It also renders a crescent/parenthesis `(` artifact when combined with
+    `borderRadius` (RN curls the one-sided border around the rounded corner).
+- **Instead:** use a **plain full border** — `borderWidth: 1` + `borderColor: <color>`
+  (all four sides) with a normal `borderRadius`. Keep the color for meaning
+  (green=success, amber=warning, red=danger, blue=info); just no stripe.
+- Also fine: a tinted `backgroundColor` with no border at all.
+- **Allowed exceptions (structural selection/separation, NOT decorative accents):**
+  a row/section divider (`borderBottomColor`/`borderTopColor` on a `View`), an
+  **active-tab underline** (`borderBottomColor: accent.x` + `borderBottomWidth: 2` on
+  the selected tab), a hairline thread-indent guide line, or a continuous hairline
+  border wrapping a bottom-sheet's rounded top. These convey structure/selection —
+  they are not a colored accent stripe on a card.
 - Applies to every surface — mobile apps, desktop apps, popups, tooltips, the crash
-  screen. If you add a card with a colored side bar, square that side.
+  screen. If you catch yourself adding `borderLeftColor`/`borderTopColor` etc. as an
+  accent, convert it to a full border.
 
 ---
 
