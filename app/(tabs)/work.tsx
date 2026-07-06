@@ -408,19 +408,29 @@ function WorkScreenContent() {
                     lockReason={lockReason}
                     feedback={workFeedback[job.id]}
                     feedbackOpacity={feedbackOpacity}
+                    progress={(timesDoneThisWeek / maxPerWeek) * 100}
+                    progressState={atLimit ? 'done' : 'active'}
+                    ringCenter={<Text style={local.ringCount}>{timesDoneThisWeek}/{maxPerWeek}</Text>}
+                    ringLabel={`Done ${timesDoneThisWeek} of ${maxPerWeek} this week`}
                 />
             );
         }
 
         const missing = getMissingRequirements(job);
-        const locked = lacksEnergy || inJail || missing.length > 0;
-        const lockReason = missing.length > 0
-            ? `Need ${missing.join(', ')}`
-            : inJail
-                ? 'Unavailable while in jail.'
-                : lacksEnergy
-                    ? `Needs ${job.energyCost} energy.`
-                    : undefined;
+        const streetWeekly = gameState.weeklyStreetJobs || {};
+        const streetDoneThisWeek = streetWeekly[job.id] || 0;
+        const streetMaxPerWeek = 3;
+        const streetAtLimit = streetDoneThisWeek >= streetMaxPerWeek;
+        const locked = lacksEnergy || inJail || missing.length > 0 || streetAtLimit;
+        const lockReason = streetAtLimit
+            ? `Used ${streetDoneThisWeek}/${streetMaxPerWeek} this week — wait for next week.`
+            : missing.length > 0
+                ? `Need ${missing.join(', ')}`
+                : inJail
+                    ? 'Unavailable while in jail.'
+                    : lacksEnergy
+                        ? `Needs ${job.energyCost} energy.`
+                        : undefined;
 
         const streetMetadata: JobCardMetadata[] = [...metadata];
         if (job.risks && job.risks.length > 0) {
@@ -439,13 +449,17 @@ function WorkScreenContent() {
                 description={job.description}
                 reward={reward}
                 metadata={streetMetadata}
-                buttonText={locked ? 'Locked' : 'Work'}
+                buttonText={streetAtLimit ? 'Limit reached' : locked ? 'Locked' : 'Work'}
                 onPress={() => handleStreetJob(job.id)}
                 locked={locked}
                 lockReason={lockReason}
                 feedback={workFeedback[job.id]}
                 feedbackOpacity={feedbackOpacity}
                 footer={interconnectionFooter}
+                progress={(streetDoneThisWeek / streetMaxPerWeek) * 100}
+                progressState={streetAtLimit ? 'done' : 'active'}
+                ringCenter={<Text style={local.ringCount}>{streetDoneThisWeek}/{streetMaxPerWeek}</Text>}
+                ringLabel={`Done ${streetDoneThisWeek} of ${streetMaxPerWeek} this week`}
             />
         );
     };
@@ -1018,6 +1032,12 @@ function WorkScreenContent() {
 }
 
 const local = StyleSheet.create({
+    ringCount: {
+        fontSize: fontScale(9.5),
+        fontWeight: '800',
+        color: '#F8FAFC',
+        fontVariant: ['tabular-nums'],
+    },
     workTabs: {
         marginHorizontal: scale(16),
         marginTop: scale(12),

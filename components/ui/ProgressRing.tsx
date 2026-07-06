@@ -48,6 +48,12 @@ export interface ProgressRingProps {
   inkColor?: string;
   /** Show the NN% pill (default true). */
   showPill?: boolean;
+  /**
+   * Ambient looping motion (pulsing halo + orbiting sweep). Default true for a
+   * standalone showpiece; pass false in dense lists so a dozen rings stay calm
+   * (the fill still animates on value changes).
+   */
+  ambient?: boolean;
   /** Accessibility label for the progressbar. */
   label?: string;
   /** Centered content (icon / illustration). */
@@ -67,11 +73,13 @@ export default function ProgressRing({
   borderColor = 'rgba(255, 255, 255, 0.12)',
   inkColor = '#F8FAFC',
   showPill = true,
+  ambient = true,
   label,
   children,
   style,
 }: ProgressRingProps) {
   const reduced = useReducedMotion();
+  const motion = ambient && !reduced; // looping halo/orbit only when both allow
   const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
   const color = state === 'done' ? positiveColor : accentColor;
 
@@ -106,7 +114,7 @@ export default function ProgressRing({
   const halo = useRef(new Animated.Value(0)).current; // pulsing halo
 
   useEffect(() => {
-    if (reduced) return;
+    if (!motion) return;
     const orbit = Animated.loop(
       Animated.timing(spin, { toValue: 1, duration: 2400, easing: Easing.linear, useNativeDriver: true }),
     );
@@ -119,7 +127,7 @@ export default function ProgressRing({
     orbit.start();
     pulse.start();
     return () => { orbit.stop(); pulse.stop(); };
-  }, [reduced, spin, halo]);
+  }, [motion, spin, halo]);
 
   const spinDeg = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const haloScale = halo.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
@@ -136,7 +144,7 @@ export default function ProgressRing({
     >
       {/* 1. Halo glow */}
       <Animated.View
-        style={[StyleSheet.absoluteFill, styles.center, { opacity: reduced ? 0.85 : haloOpacity, transform: reduced ? [] : [{ scale: haloScale }] }]}
+        style={[StyleSheet.absoluteFill, styles.center, { opacity: motion ? haloOpacity : 0.8, transform: motion ? [{ scale: haloScale }] : [] }]}
         pointerEvents="none"
       >
         <Svg width={D} height={D}>
@@ -152,7 +160,7 @@ export default function ProgressRing({
       </Animated.View>
 
       {/* 2. Orbiting accent sweep */}
-      {!reduced && (
+      {motion && (
         <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate: spinDeg }] }]} pointerEvents="none">
           <Svg width={D} height={D}>
             <Circle

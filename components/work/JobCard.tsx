@@ -3,6 +3,7 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { Lock } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+import ProgressRing from '@/components/ui/ProgressRing';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
@@ -30,6 +31,15 @@ interface JobCardProps {
   feedback?: string;
   feedbackOpacity?: Animated.Value;
   footer?: React.ReactNode;
+  /**
+   * When set (0–100), a compact leading ProgressRing renders in the header —
+   * used by street/crime jobs to show weekly-usage against the 3×/week cap.
+   */
+  progress?: number;
+  progressState?: 'active' | 'done';
+  /** Small content shown in the ring's center (e.g. "1/3"). */
+  ringCenter?: React.ReactNode;
+  ringLabel?: string;
 }
 
 const ACCENTS: Record<JobCardAccent, { reward: string; button: [string, string, string]; disabled: [string, string] }> = {
@@ -70,6 +80,10 @@ export default function JobCard({
   feedback,
   feedbackOpacity,
   footer,
+  progress,
+  progressState = 'active',
+  ringCenter,
+  ringLabel,
 }: JobCardProps) {
   const palette = ACCENTS[accent];
   const buttonPalette = ACCENTS[buttonAccent ?? accent];
@@ -84,6 +98,20 @@ export default function JobCard({
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
+          {typeof progress === 'number' ? (
+            <ProgressRing
+              value={progress}
+              size={46}
+              strokeWidth={5}
+              showPill={false}
+              ambient={false}
+              state={progressState}
+              accentColor={palette.reward}
+              label={ringLabel}
+            >
+              {ringCenter}
+            </ProgressRing>
+          ) : null}
           <Text style={styles.title} numberOfLines={2}>
             {title}
           </Text>
@@ -165,7 +193,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: scale(12),
   },
