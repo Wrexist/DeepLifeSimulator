@@ -1,22 +1,21 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers } from 'lucide-react-native';
-import { getItemBadges, getUnlockDescription, type ItemBadgeInfo } from '@/utils/marketBadges';
+import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Package, TrendingUp } from 'lucide-react-native';
+import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
 import InfoButton from '@/components/ui/InfoButton';
-import { getTabBarSafePadding } from '@/utils/scaling';
+import { getTabBarSafePadding, scale } from '@/utils/scaling';
+import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
 import ErrorBoundary from '@/components/ErrorBoundary';
-const LinearGradient = LinearGradientFallback;
 
 // Item category mapping - outside component for stability
 const ITEM_CATEGORIES: Record<string, 'electronics' | 'crime' | 'lifestyle'> = {
@@ -43,7 +42,10 @@ const FILTER_CATEGORIES = [
   { id: 'all', label: 'All', icon: Layers, color: '#6366F1' },
   { id: 'electronics', label: 'Electronics', icon: Smartphone, color: '#3B82F6' },
   { id: 'lifestyle', label: 'Lifestyle', icon: Heart, color: '#10B981' },
+  { id: 'owned', label: 'Owned', icon: Package, color: '#F59E0B' },
 ] as const;
+
+type MarketFilter = (typeof FILTER_CATEGORIES)[number]['id'];
 
 function MarketScreen() {
   return (
@@ -73,7 +75,7 @@ function MarketScreenContent() {
   const [showSellConfirm, setShowSellConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
   const [showPurchaseConfirm, setShowPurchaseConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
-  const [activeFilter, setActiveFilter] = useState<'all' | 'electronics' | 'lifestyle'>('all');
+  const [activeFilter, setActiveFilter] = useState<MarketFilter>('all');
 
   const setLoading = (key: string, loading: boolean) => {
     setLoadingStates(prev => ({ ...prev, [key]: loading }));
@@ -142,9 +144,12 @@ function MarketScreenContent() {
 
   // Memoized data with stable sorting and filtering
   const sortedItems = useMemo(() => {
+    const all = [...(gameState.items || [])];
     const filtered = activeFilter === 'all'
-      ? [...(gameState.items || [])]
-      : [...(gameState.items || [])].filter(item => ITEM_CATEGORIES[item.id] === activeFilter);
+      ? all
+      : activeFilter === 'owned'
+        ? all.filter(item => item.owned)
+        : all.filter(item => ITEM_CATEGORIES[item.id] === activeFilter);
 
     return filtered.sort((a, b) => {
       // Sort by price first, then by name for stability
@@ -372,7 +377,7 @@ function MarketScreenContent() {
             style={[styles.tab, activeTab === 'items' && styles.activeTab]}
             onPress={() => setActiveTab('items')}
           >
-            <ShoppingBag size={18} color={activeTab === 'items' ? '#FFFFFF' : '#6B7280'} />
+            <ShoppingBag size={scale(17)} color={activeTab === 'items' ? accent.info : 'rgba(226, 232, 240, 0.45)'} />
             <Text style={[styles.tabText, activeTab === 'items' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
               {t('market.items')}
             </Text>
@@ -389,7 +394,7 @@ function MarketScreenContent() {
             style={[styles.tab, activeTab === 'food' && styles.activeTab]}
             onPress={() => setActiveTab('food')}
           >
-            <Apple size={18} color={activeTab === 'food' ? '#FFFFFF' : '#6B7280'} />
+            <Apple size={scale(17)} color={activeTab === 'food' ? accent.info : 'rgba(226, 232, 240, 0.45)'} />
             <Text style={[styles.tabText, activeTab === 'food' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
               {t('market.food')}
             </Text>
@@ -406,7 +411,7 @@ function MarketScreenContent() {
             style={[styles.tab, activeTab === 'gym' && styles.activeTab]}
             onPress={() => setActiveTab('gym')}
           >
-            <Dumbbell size={18} color={activeTab === 'gym' ? '#FFFFFF' : '#6B7280'} />
+            <Dumbbell size={scale(17)} color={activeTab === 'gym' ? accent.info : 'rgba(226, 232, 240, 0.45)'} />
             <Text style={[styles.tabText, activeTab === 'gym' && styles.activeTabText, settings.darkMode && styles.tabTextDark]}>
               {t('market.gym')}
             </Text>
@@ -437,6 +442,16 @@ function MarketScreenContent() {
                 {t('market.purchaseItems')}
               </Text>
 
+              {/* Inflation indicator — surfaces the otherwise-invisible price index. */}
+              {(gameState.economy?.priceIndex ?? 1) > 1.001 && (
+                <View style={styles.inflationChip}>
+                  <TrendingUp size={scale(12)} color={accent.amber} />
+                  <Text style={styles.inflationChipText}>
+                    Prices +{Math.round(((gameState.economy?.priceIndex ?? 1) - 1) * 100)}% from inflation
+                  </Text>
+                </View>
+              )}
+
               {/* Filter Bar */}
               <ScrollView
                 horizontal
@@ -455,12 +470,12 @@ function MarketScreenContent() {
                         settings.darkMode && styles.filterButtonDark,
                         isActive && { backgroundColor: category.color, borderColor: category.color },
                       ]}
-                      onPress={() => setActiveFilter(category.id as typeof activeFilter)}
+                      onPress={() => setActiveFilter(category.id)}
                       activeOpacity={0.7}
                     >
                       <IconComponent
-                        size={14}
-                        color={isActive ? '#FFFFFF' : (settings.darkMode ? '#9CA3AF' : '#6B7280')}
+                        size={scale(14)}
+                        color={isActive ? '#FFFFFF' : 'rgba(226, 232, 240, 0.45)'}
                       />
                       <Text style={[
                         styles.filterButtonText,
@@ -474,7 +489,9 @@ function MarketScreenContent() {
                           <Text style={styles.filterCountText}>
                             {category.id === 'all'
                               ? gameState.items.length
-                              : gameState.items.filter(item => ITEM_CATEGORIES[item.id] === category.id).length
+                              : category.id === 'owned'
+                                ? gameState.items.filter(item => item.owned).length
+                                : gameState.items.filter(item => ITEM_CATEGORIES[item.id] === category.id).length
                             }
                           </Text>
                         </View>
@@ -494,189 +511,67 @@ function MarketScreenContent() {
               {sortedFoods.map((food) => renderFood({ item: food }))}
             </>
           ) : (
-            <>
-              {/* Main Gym Session Card */}
-              <View style={styles.gymCardWrapper}>
-                <LinearGradient
-                  colors={hasMembership
-                    ? settings.darkMode
-                      ? ['rgba(31, 41, 55, 0.7)', 'rgba(17, 24, 39, 0.8)']
-                      : ['rgba(255, 255, 255, 0.8)', 'rgba(243, 244, 246, 0.9)']
-                    : settings.darkMode
-                      ? ['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.4)']
-                      : ['rgba(243, 244, 246, 0.6)', 'rgba(229, 231, 235, 0.7)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.gymCardGradient}
-                >
-                  <View style={styles.gymCardHeader}>
-                    <View style={styles.gymIconContainer}>
-                      <Dumbbell size={28} color="#3B82F6" />
-                    </View>
-                    <View style={styles.gymTitleContainer}>
-                      <Text style={[styles.gymCardTitle, settings.darkMode && styles.gymCardTitleDark]}>
-                        {t('market.gymSession')}
-                      </Text>
-                      <Text style={[styles.gymCardSubtitle, settings.darkMode && styles.gymCardSubtitleDark]}>
-                        Current Fitness: {Math.floor(gameState.stats.fitness)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {!hasMembership && (
-                    <View style={styles.membershipWarningContainer}>
-                      <Text style={[styles.membershipWarningText, settings.darkMode && styles.membershipWarningTextDark]}>
-                        Gym Membership Required
-                      </Text>
-                      <Text style={[styles.membershipWarningSubtext, settings.darkMode && styles.membershipWarningSubtextDark]}>
-                        Buy a Gym Membership from the Items tab to access the gym
-                      </Text>
-                    </View>
-                  )}
-
-                  {hasMembership && (
-                    <>
-                      <Text style={[styles.gymCardDescription, settings.darkMode && styles.gymCardDescriptionDark]}>
-                        {t('market.gymDescription')}
-                      </Text>
-
-                      <View style={styles.gymStatsContainer}>
-                        <View style={styles.gymStatCard}>
-                          <LinearGradient
-                            colors={settings.darkMode
-                              ? ['rgba(16, 185, 129, 0.4)', 'rgba(5, 150, 105, 0.5)']
-                              : ['rgba(16, 185, 129, 0.3)', 'rgba(5, 150, 105, 0.4)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.gymStatGradient}
-                          >
-                            <Text style={styles.gymStatValue}>+5</Text>
-                            <Text
-                              style={[styles.gymStatLabel, settings.darkMode && styles.gymStatLabelDark]}
-                              numberOfLines={1}
-                              adjustsFontSizeToFit
-                              minimumFontScale={0.8}
-                            >
-                              {t('game.fitness')}
-                            </Text>
-                          </LinearGradient>
-                        </View>
-
-                        <View style={styles.gymStatCard}>
-                          <LinearGradient
-                            colors={settings.darkMode
-                              ? ['rgba(59, 130, 246, 0.4)', 'rgba(37, 99, 235, 0.5)']
-                              : ['rgba(59, 130, 246, 0.3)', 'rgba(37, 99, 235, 0.4)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.gymStatGradient}
-                          >
-                            <Text style={styles.gymStatValue}>+3</Text>
-                            <Text
-                              style={[styles.gymStatLabel, settings.darkMode && styles.gymStatLabelDark]}
-                              numberOfLines={1}
-                              adjustsFontSizeToFit
-                              minimumFontScale={0.8}
-                            >
-                              {t('game.health')}
-                            </Text>
-                          </LinearGradient>
-                        </View>
-
-                        <View style={styles.gymStatCard}>
-                          <LinearGradient
-                            colors={settings.darkMode
-                              ? ['rgba(245, 158, 11, 0.4)', 'rgba(217, 119, 6, 0.5)']
-                              : ['rgba(245, 158, 11, 0.3)', 'rgba(217, 119, 6, 0.4)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.gymStatGradient}
-                          >
-                            <Text style={styles.gymStatValue}>+2</Text>
-                            <Text
-                              style={[styles.gymStatLabel, settings.darkMode && styles.gymStatLabelDark]}
-                              numberOfLines={1}
-                              adjustsFontSizeToFit
-                              minimumFontScale={0.8}
-                            >
-                              {t('game.happiness')}
-                            </Text>
-                          </LinearGradient>
-                        </View>
-                      </View>
-
-                      <View style={styles.gymCostCard}>
-                        <LinearGradient
-                          colors={settings.darkMode
-                            ? ['rgba(107, 114, 128, 0.3)', 'rgba(75, 85, 99, 0.4)']
-                            : ['rgba(243, 244, 246, 0.5)', 'rgba(229, 231, 235, 0.6)']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.gymCostGradient}
-                        >
-                          <Text style={[styles.gymCostLabel, settings.darkMode && styles.gymCostLabelDark]}>
-                            Session Cost
-                          </Text>
-                          <Text style={[styles.gymCostValue, settings.darkMode && styles.gymCostValueDark]}>
-                            $50 + 20 {t('game.energy')}
-                          </Text>
-                        </LinearGradient>
-                      </View>
-
-                      <TouchableOpacity
-                        onPress={handleGym}
-                        disabled={!canUseGym}
-                        activeOpacity={0.7}
-                        style={styles.gymButtonContainer}
-                      >
-                        <LinearGradient
-                          colors={canUseGym
-                            ? ['rgba(59, 130, 246, 0.7)', 'rgba(37, 99, 235, 0.8)']
-                            : settings.darkMode
-                              ? ['rgba(107, 114, 128, 0.4)', 'rgba(75, 85, 99, 0.5)']
-                              : ['rgba(229, 231, 235, 0.6)', 'rgba(209, 213, 219, 0.7)']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.gymButtonGradient}
-                        >
-                          <Text style={[styles.gymButtonText, !canUseGym && styles.gymButtonTextDisabled]}>
-                            {gameState.stats.money < 50 ? t('market.notEnoughMoney') :
-                              gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
-                                t('market.startWorkout')}
-                          </Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </LinearGradient>
-              </View>
-
-              {/* Workout Tips Card */}
-              <View style={styles.gymCardWrapper}>
-                <LinearGradient
-                  colors={settings.darkMode
-                    ? ['rgba(55, 65, 81, 0.3)', 'rgba(31, 41, 55, 0.4)']
-                    : ['rgba(243, 244, 246, 0.6)', 'rgba(229, 231, 235, 0.7)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.gymCardGradient}
-                >
-                  <View style={styles.gymCardHeader}>
-                    <Dumbbell size={16} color="#34D399" style={{ marginRight: 8 }} />
-                    <Text style={[styles.gymCardTitle, settings.darkMode && styles.gymCardTitleDark]}>
-                      Why Work Out?
-                    </Text>
-                  </View>
-                  <Text style={[styles.gymCardDescription, settings.darkMode && styles.gymCardDescriptionDark]}>
-                    Working out a little each week pays off:{'\n\n'}
-                    • More energy and better health{'\n'}
-                    • Higher fitness unlocks better jobs{'\n'}
-                    • A quick happiness boost{'\n\n'}
-                    Keep it consistent — small sessions add up.
+            <View style={styles.gymCard}>
+              <View style={styles.gymCardHeader}>
+                <View style={styles.gymIconContainer}>
+                  <Dumbbell size={scale(22)} color={accent.info} />
+                </View>
+                <View style={styles.gymTitleContainer}>
+                  <Text style={styles.gymCardTitle}>{t('market.gymSession')}</Text>
+                  <Text style={styles.gymCardSubtitle}>
+                    Current Fitness: {Math.floor(gameState.stats.fitness)}
                   </Text>
-                </LinearGradient>
+                </View>
               </View>
-            </>
+
+              {!hasMembership ? (
+                <View style={styles.membershipWarningContainer}>
+                  <Text style={styles.membershipWarningText}>Gym Membership Required</Text>
+                  <Text style={styles.membershipWarningSubtext}>
+                    Buy a Gym Membership from the Items tab to access the gym.
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.gymStatsContainer}>
+                    <View style={styles.gymStatChip}>
+                      <Text style={[styles.gymStatValue, { color: accent.purple }]}>+5</Text>
+                      <Text style={styles.gymStatLabel}>{t('game.fitness')}</Text>
+                    </View>
+                    <View style={styles.gymStatChip}>
+                      <Text style={[styles.gymStatValue, { color: accent.success }]}>+3</Text>
+                      <Text style={styles.gymStatLabel}>{t('game.health')}</Text>
+                    </View>
+                    <View style={styles.gymStatChip}>
+                      <Text style={[styles.gymStatValue, { color: accent.warning }]}>+2</Text>
+                      <Text style={styles.gymStatLabel}>{t('game.happiness')}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.gymCostRow}>
+                    <Text style={styles.gymCostLabel}>Session Cost</Text>
+                    <Text style={styles.gymCostValue}>$50 · 20 {t('game.energy')}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={handleGym}
+                    disabled={!canUseGym}
+                    activeOpacity={0.85}
+                    style={[styles.gymButton, !canUseGym && styles.gymButtonDisabled]}
+                  >
+                    <Text style={[styles.gymButtonText, !canUseGym && styles.gymButtonTextDisabled]}>
+                      {gameState.stats.money < 50 ? t('market.notEnoughMoney') :
+                        gameState.stats.energy < 20 ? t('market.notEnoughEnergy') :
+                          t('market.startWorkout')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.gymTip}>
+                    Consistent sessions raise fitness — which unlocks better jobs.
+                  </Text>
+                </>
+              )}
+            </View>
           )}
         </View>
       </ScrollView>

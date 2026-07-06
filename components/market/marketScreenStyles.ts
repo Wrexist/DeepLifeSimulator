@@ -3,25 +3,40 @@
  *
  * Extracted verbatim and kept outside app/ so expo-router does not treat it as
  * a route. Static module-level StyleSheet.
+ *
+ * House style: dark-glass surfaces (matches Health + the item cards), full
+ * hairline borders (no side accent stripes — DEV.md Hard Rule 7), no textShadow,
+ * no decorative gradients. Sizing via scale/fontScale.
  */
-import { Platform, StyleSheet } from 'react-native';
-import { responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { StyleSheet } from 'react-native';
+import { fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
+import { accent } from '@/lib/config/theme';
+
+const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
+const GLASS_BORDER = 'rgba(255, 255, 255, 0.08)';
+const TEXT = '#F8FAFC';
+const TEXT_SECONDARY = 'rgba(226, 232, 240, 0.65)';
+const TEXT_MUTED = 'rgba(226, 232, 240, 0.45)';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFBFC',
+    backgroundColor: '#020617',
   },
   containerDark: {
-    backgroundColor: '#111827',
+    backgroundColor: '#020617',
   },
+  // Segmented control tab bar — dark glass, active tab gets a tinted fill.
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: GLASS_BG,
     margin: responsiveSpacing.md,
     marginBottom: 0,
-    borderRadius: responsiveBorderRadius.sm,
-    padding: 4,
+    borderRadius: responsiveBorderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS_BORDER,
+    padding: scale(4),
+    gap: scale(4),
     zIndex: 10,
   },
   tabWithInfo: {
@@ -31,47 +46,31 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabContainerDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: GLASS_BG,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: scale(6),
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.sm,
-    minHeight: 44,
+    minHeight: scale(40),
   },
   activeTab: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: 'rgba(59, 130, 246, 0.18)',
   },
   tabText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginLeft: 4,
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
+    fontSize: fontScale(12.5),
+    fontWeight: '600',
+    color: TEXT_MUTED,
   },
   tabTextDark: {
-    color: '#FFFFFF',
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
+    color: TEXT_MUTED,
   },
   activeTabText: {
-    color: '#FFFFFF',
+    color: TEXT,
   },
   scrollView: {
     flex: 1,
@@ -86,454 +85,339 @@ export const styles = StyleSheet.create({
   },
   contentDark: {},
   sectionDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 20,
-    lineHeight: 20,
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
+    fontSize: fontScale(13),
+    color: TEXT_SECONDARY,
+    marginBottom: responsiveSpacing.sm,
+    lineHeight: fontScale(19),
   },
   sectionDescriptionDark: {
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
+    color: TEXT_SECONDARY,
   },
-  // Filter bar styles
+  // Inflation chip
+  inflationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: scale(6),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(5),
+    borderRadius: responsiveBorderRadius.full,
+    backgroundColor: 'rgba(249, 115, 22, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(249, 115, 22, 0.35)',
+    marginBottom: responsiveSpacing.md,
+  },
+  inflationChipText: {
+    fontSize: fontScale(11.5),
+    fontWeight: '700',
+    color: accent.amber,
+    fontVariant: ['tabular-nums'],
+  },
+  // Filter bar — dark glass chips.
   filterContainer: {
-    marginBottom: 16,
+    marginBottom: responsiveSpacing.md,
     flexGrow: 0,
     flexShrink: 0,
   },
   filterContent: {
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-    gap: 10,
+    paddingHorizontal: scale(2),
+    paddingVertical: scale(4),
+    gap: scale(8),
     alignItems: 'center',
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 22,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    gap: 8,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(8),
+    borderRadius: responsiveBorderRadius.full,
+    backgroundColor: GLASS_BG,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS_BORDER,
+    gap: scale(7),
   },
   filterButtonDark: {
-    backgroundColor: '#374151',
-    borderColor: '#4B5563',
+    backgroundColor: GLASS_BG,
+    borderColor: GLASS_BORDER,
   },
   filterButtonText: {
-    fontSize: 13,
+    fontSize: fontScale(12.5),
     fontWeight: '600',
-    color: '#6B7280',
+    color: TEXT_MUTED,
   },
   filterButtonTextDark: {
-    color: '#9CA3AF',
+    color: TEXT_MUTED,
   },
   filterButtonTextActive: {
     color: '#FFFFFF',
   },
   filterCount: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 20,
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(1),
+    borderRadius: responsiveBorderRadius.full,
+    minWidth: scale(18),
     alignItems: 'center',
   },
   filterCountText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: fontScale(10.5),
+    fontWeight: '800',
     color: '#FFFFFF',
-    textShadowRadius: 2,
   },
   itemCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    backgroundColor: GLASS_BG,
     padding: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.md,
     marginBottom: responsiveSpacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: scale(12),
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: GLASS_BORDER,
   },
   itemCardDark: {
-    // Same surface in dark mode — the glass look is the default.
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    backgroundColor: GLASS_BG,
   },
   itemInfo: {
     flex: 1,
   },
   itemName: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: TEXT,
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   itemNameDark: {
-    color: '#F8FAFC',
+    color: TEXT,
   },
   itemDescription: {
-    fontSize: 12,
-    color: 'rgba(226, 232, 240, 0.65)',
-    marginBottom: 4,
-    lineHeight: 17,
+    fontSize: fontScale(12),
+    color: TEXT_SECONDARY,
+    marginBottom: scale(4),
+    lineHeight: fontScale(17),
   },
   itemDescriptionDark: {
-    color: 'rgba(226, 232, 240, 0.65)',
+    color: TEXT_SECONDARY,
   },
   itemPrice: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '700',
     color: '#34D399',
     letterSpacing: -0.2,
-    marginBottom: 6,
+    marginBottom: scale(2),
     fontVariant: ['tabular-nums'],
   },
   bonusInfo: {
-    marginTop: 4,
+    marginTop: scale(4),
+    gap: scale(1),
   },
   bonusTitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 2,
+    fontSize: fontScale(11),
+    fontWeight: '600',
+    color: TEXT_MUTED,
+    marginBottom: scale(2),
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   bonusTitleDark: {
-    color: '#9CA3AF',
+    color: TEXT_MUTED,
   },
   bonusText: {
-    fontSize: 11,
-    color: '#3B82F6',
-    fontWeight: '500',
+    fontSize: fontScale(11.5),
+    color: '#93C5FD',
+    fontWeight: '600',
   },
   bonusTextDark: {
     color: '#93C5FD',
   },
-  buyButton: {
-    // LoadingButton handles all styling
-  },
-  sellButton: {
-    // LoadingButton handles all styling
-  },
-  ownedButton: {
-    backgroundColor: '#10B981',
-  },
-  disabledButton: {
-    backgroundColor: '#E5E7EB',
-  },
-  buyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sellButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  ownedButtonText: {
-    color: '#FFFFFF',
-  },
-  disabledButtonText: {
-    color: '#9CA3AF',
-  },
-  gymCardWrapper: {
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  gymCardGradient: {
-    padding: 20,
-    borderRadius: 16,
+  buyButton: {},
+  sellButton: {},
+  // Gym — single dark-glass card, no gradients.
+  gymCard: {
+    backgroundColor: GLASS_BG,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS_BORDER,
+    padding: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.md,
+    gap: responsiveSpacing.md,
   },
   gymCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    gap: scale(12),
   },
   gymIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(13),
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    marginRight: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(59, 130, 246, 0.4)',
   },
   gymTitleContainer: {
     flex: 1,
   },
   gymCardTitle: {
-    fontSize: 22,
+    fontSize: fontScale(18),
     fontWeight: '800',
-    color: '#1F2937',
-    marginBottom: 6,
+    color: TEXT,
+    letterSpacing: -0.3,
+    marginBottom: scale(2),
   },
   gymCardTitleDark: {
-    color: '#FFFFFF',
+    color: TEXT,
   },
   gymCardSubtitle: {
-    fontSize: 15,
+    fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#93C5FD',
   },
   gymCardSubtitleDark: {
     color: '#93C5FD',
   },
   membershipWarningContainer: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  membershipWarning: {
-    backgroundColor: '#FEF3C7',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-  },
-  membershipWarningDark: {
-    backgroundColor: '#4B5563',
-    borderColor: '#F59E0B',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
   },
   membershipWarningText: {
-    fontSize: 15,
+    fontSize: fontScale(14),
     fontWeight: '700',
-    color: '#92400E',
-    marginBottom: 4,
+    color: '#FCD34D',
+    marginBottom: scale(3),
   },
   membershipWarningTextDark: {
     color: '#FCD34D',
   },
   membershipWarningSubtext: {
-    fontSize: 13,
-    color: '#92400E',
-    lineHeight: 18,
+    fontSize: fontScale(12),
+    color: 'rgba(252, 211, 77, 0.75)',
+    lineHeight: fontScale(17),
   },
   membershipWarningSubtextDark: {
-    color: '#FCD34D',
-  },
-  gymCardDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  gymCardDescriptionDark: {
-    color: '#D1D5DB',
+    color: 'rgba(252, 211, 77, 0.75)',
   },
   gymStatsContainer: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
+    gap: scale(10),
   },
-  gymStatCard: {
+  gymStatChip: {
     flex: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    aspectRatio: 1,
-    minWidth: 0,
-  },
-  gymStatGradient: {
-    padding: 14,
+    borderRadius: responsiveBorderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS_BORDER,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    paddingVertical: responsiveSpacing.sm,
     alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    width: '100%',
+    gap: scale(3),
   },
   gymStatValue: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    ...Platform.select({
-      web: { textShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
+    fontSize: fontScale(22),
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   gymStatLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: fontScale(10.5),
+    fontWeight: '600',
+    color: TEXT_SECONDARY,
     textAlign: 'center',
-    ...Platform.select({
-      web: { textShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
-    maxWidth: '100%',
   },
   gymStatLabelDark: {
-    color: '#FFFFFF',
+    color: TEXT_SECONDARY,
   },
-  gymCostCard: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  gymCostGradient: {
-    padding: 16,
+  gymCostRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: responsiveSpacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: GLASS_BORDER,
   },
   gymCostLabel: {
-    fontSize: 13,
+    fontSize: fontScale(11),
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 6,
+    color: TEXT_MUTED,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   gymCostLabelDark: {
-    color: '#9CA3AF',
+    color: TEXT_MUTED,
   },
   gymCostValue: {
-    fontSize: 20,
+    fontSize: fontScale(15),
     fontWeight: '800',
-    color: '#1F2937',
+    color: TEXT,
+    fontVariant: ['tabular-nums'],
   },
   gymCostValueDark: {
-    color: '#FFFFFF',
-  },
-  gymButtonContainer: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-    }),
-    elevation: 4,
-  },
-  gymButtonGradient: {
-    padding: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gymButtonText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    ...Platform.select({
-      web: { textShadow: '0px 1px 2px rgba(0, 0, 0, 0.3)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
-  },
-  gymButtonTextDisabled: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: TEXT,
   },
   gymButton: {
-    // LoadingButton handles all styling
-  },
-  scrollIndicatorContainer: {
-    position: 'absolute',
-    right: 10,
-    top: 20,
-    bottom: 20,
-    width: 4,
-    zIndex: 1,
-  },
-  scrollIndicator: {
-    flex: 1,
+    borderRadius: responsiveBorderRadius.md,
+    paddingVertical: responsiveSpacing.sm,
+    alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: accent.info,
   },
-  scrollBar: {
-    width: 4,
-    height: 40,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
+  gymButtonDisabled: {
+    backgroundColor: 'rgba(148, 163, 184, 0.15)',
   },
-  scrollBarDark: {
-    backgroundColor: '#374151',
+  gymButtonText: {
+    fontSize: fontScale(15),
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-  scrollThumb: {
-    width: 4,
-    height: 20,
-    backgroundColor: '#9CA3AF',
-    borderRadius: 2,
+  gymButtonTextDisabled: {
+    color: TEXT_MUTED,
   },
-  scrollThumbDark: {
-    backgroundColor: '#6B7280',
+  gymTip: {
+    fontSize: fontScale(11.5),
+    color: TEXT_MUTED,
+    lineHeight: fontScale(16),
+    textAlign: 'center',
   },
   highlightedCard: {
-    // Subtle accent border instead of the previous yellow glow + scale.
     borderColor: 'rgba(245, 158, 11, 0.55)',
   },
   recommendedCard: {
-    // No left bar, no green glow — just a quiet white-alpha border bump.
     borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   badgesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 6,
+    gap: scale(10),
+    marginBottom: scale(6),
   },
   itemBadge: {
-    // Flat tag — no pill, no border. A tiny color dot + uppercase label.
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: scale(5),
     backgroundColor: 'transparent',
   },
   badgeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
+    width: scale(5),
+    height: scale(5),
+    borderRadius: scale(3),
   },
   badgeLabel: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     fontWeight: '700',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
   unlockDescription: {
-    fontSize: 12,
-    color: 'rgba(226, 232, 240, 0.65)',
+    fontSize: fontScale(12),
+    color: TEXT_SECONDARY,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   unlockDescriptionDark: {
-    color: 'rgba(226, 232, 240, 0.65)',
+    color: TEXT_SECONDARY,
   },
 });
