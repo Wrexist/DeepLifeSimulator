@@ -181,7 +181,7 @@ function MobileScreenContent() {
     },
   ], [t]);
 
-  if (!gameState.items.find(item => item.id === 'smartphone')?.owned) {
+  if (!(gameState.items ?? []).find(item => item.id === 'smartphone')?.owned) {
     return (
       <LinearGradient
         colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}

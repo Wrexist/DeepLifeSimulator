@@ -54,14 +54,17 @@ export default function LifeMomentModal() {
         });
       }
 
+      // The moment was already counted when it was GENERATED
+      // (applyLifeMoment.ts). Resolving it must NOT re-increment the counters —
+      // just clear the pending moment. (Previously double-counted every moment.)
       setGameState(prev => ({
         ...prev,
         lifeMoments: {
-          lastMomentWeek: prev.lifeMoments?.lastMomentWeek ?? prev.weeksLived,
           ...(prev.lifeMoments || {}),
+          lastMomentWeek: prev.lifeMoments?.lastMomentWeek ?? prev.weeksLived,
+          momentsThisWeek: prev.lifeMoments?.momentsThisWeek ?? 0,
+          totalMoments: prev.lifeMoments?.totalMoments ?? 0,
           pendingMoment: undefined,
-          momentsThisWeek: (prev.lifeMoments?.momentsThisWeek || 0) + 1,
-          totalMoments: (prev.lifeMoments?.totalMoments || 0) + 1,
         },
       }));
 

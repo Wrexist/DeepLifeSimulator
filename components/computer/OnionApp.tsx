@@ -209,7 +209,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       <View style={styles.skillsGrid}>
         {(Object.keys(dw.skills) as DarkWebSkillId[]).map((id) => {
           const s = dw.skills[id];
-          const pct = Math.max(0, Math.min(1, s.xp / s.nextLevelXp));
+          const pct = Math.max(0, Math.min(1, s.xp / (s.nextLevelXp || 1)));
           return (
             <View
               key={id}

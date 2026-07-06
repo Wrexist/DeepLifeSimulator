@@ -4078,14 +4078,14 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects no-op when no pets 1
 
 exports[`pre-tick equivalence — applyPregnancyProgression birth: money clamped at 0 when below $5000 1`] = `
 {
-  "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Baby!",
+  "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Kai!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
     "id": "child_1234567890_abc",
-    "name": "Baby",
+    "name": "Kai",
     "personality": "Playful",
     "relationshipScore": 100,
     "type": "child",
@@ -4105,14 +4105,14 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: money clamped
 
 exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChildGender override wins over preRolls.childGender 1`] = `
 {
-  "birthMessage": "Beth gave birth to a beautiful baby boy named Baby!",
+  "birthMessage": "Beth gave birth to a beautiful baby boy named Kai!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
     "id": "child_1234567890_abc",
-    "name": "Baby",
+    "name": "Kai",
     "personality": "Playful",
     "relationshipScore": 100,
     "type": "child",
@@ -4169,14 +4169,14 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyWeek
     "reputation": 50,
   },
   "result": {
-    "birthMessage": "Alice gave birth to a beautiful baby girl named Baby!",
+    "birthMessage": "Alice gave birth to a beautiful baby girl named Mia!",
     "newborn": {
       "age": 0,
       "birthWeeksLived": 100,
       "datesCount": 0,
       "gender": "female",
       "id": "child_99_sfx",
-      "name": "Baby",
+      "name": "Mia",
       "personality": "Energetic",
       "relationshipScore": 100,
       "type": "child",
@@ -4197,14 +4197,14 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyWeek
 
 exports[`pre-tick equivalence — applyPregnancyProgression birth: spouse (not just partner) fires the same path 1`] = `
 {
-  "birthMessage": "Diane gave birth to a beautiful baby boy named Baby!",
+  "birthMessage": "Diane gave birth to a beautiful baby boy named Kai!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
     "id": "child_1234567890_abc",
-    "name": "Baby",
+    "name": "Kai",
     "personality": "Playful",
     "relationshipScore": 100,
     "type": "child",
