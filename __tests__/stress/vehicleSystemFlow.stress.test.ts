@@ -208,6 +208,28 @@ describe('Vehicle system deep audit', () => {
     expect(second.message).toMatch(/already own/i);
   });
 
+  it("purchaseVehicleWithAutoLoan: the auto loan links to its vehicle by id", async () => {
+    mounted = mountGame();
+    seedDriver(10_000_000);
+    const { purchaseVehicleWithAutoLoan } = await import('@/contexts/game/actions/VehicleActions');
+    let result: { success: boolean; message: string } = { success: false, message: '' };
+    act(() => {
+      result = purchaseVehicleWithAutoLoan(captured!.setGameState, {
+        templateId: 'economy_sedan',
+        tier: 'standard',
+        term: '5y',
+        weeklyIncome: 5000,
+      });
+    });
+    expect(result.success).toBe(true);
+    const vehicle = (captured!.state.vehicles ?? []).find(v => v.id === 'economy_sedan');
+    const autoLoan = (captured!.state.loans ?? []).find(l => l.type === 'auto');
+    expect(vehicle).toBeDefined();
+    expect(autoLoan).toBeDefined();
+    // The loan must carry the vehicle's id — the UI links them by this, not by name.
+    expect(autoLoan!.vehicleId).toBe(vehicle!.id);
+  });
+
   // ── PURCHASE: HAPPY PATH ────────────────────────────────────────────────
   it("purchaseVehicle: first vehicle becomes activeVehicleId automatically", async () => {
     mounted = mountGame();

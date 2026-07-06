@@ -1570,6 +1570,13 @@ export interface Loan {
   lastPaidWeek?: number;
   /** Original APR offered (may differ from rateAPR if refinanced). */
   originalAPR?: number;
+  /**
+   * For `type: 'auto'` loans — the id of the financed vehicle. Lets the UI link
+   * a loan to its vehicle reliably (matching by name substring mismatched
+   * duplicate models and collided on names that were substrings of others).
+   * Optional: legacy auto loans predate this field and fall back to name match.
+   */
+  vehicleId?: string;
 }
 
 // ---------------------------------------------------------------------------

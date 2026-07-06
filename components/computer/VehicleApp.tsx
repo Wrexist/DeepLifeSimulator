@@ -194,8 +194,13 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         </EmptyText>
       ) : (
         vehicles.map((v) => {
-          // Try to match a corresponding auto loan by name to display debt per vehicle.
-          const matchingLoan = autoLoans.find((l) => l.name.includes(v.name));
+          // Match the auto loan to this vehicle by id (reliable). Fall back to
+          // the legacy name-substring match for loans created before vehicleId
+          // existed. Guard the fallback so a legacy loan already claimed by its
+          // own vehicle-id match isn't double-attributed here.
+          const matchingLoan =
+            autoLoans.find((l) => l.vehicleId === v.id) ??
+            autoLoans.find((l) => !l.vehicleId && l.name.includes(v.name));
           return (
             <View key={v.id} style={{ gap: responsiveSpacing.xs }}>
               <VehicleRow

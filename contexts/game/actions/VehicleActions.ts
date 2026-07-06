@@ -837,6 +837,10 @@ export const purchaseVehicleWithAutoLoan = (
       const loan: Loan = {
         id: newLoanId(),
         name: `Auto Loan: ${template.name}`,
+        // Link the loan to its vehicle by id (createVehicleFromTemplate sets the
+        // new vehicle's id to template.id === spec.templateId). The UI matches on
+        // this instead of a fragile name substring.
+        vehicleId: spec.templateId,
         principal: quote.loanPrincipal!,
         remaining: quote.loanPrincipal!,
         rateAPR: quote.offeredAPR!,
