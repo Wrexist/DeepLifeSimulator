@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View,
     Text,
     ScrollView,
     TouchableOpacity,
     Modal,
-    Alert,
+    StyleSheet,
     Animated } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
-import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
 import CrimeSkillCard from '@/components/work/CrimeSkillCard';
@@ -27,7 +26,6 @@ import {
     AlertTriangle,
     Heart,
     Smile,
-    Check,
     Eye,
     Brain,
     Target,
@@ -51,36 +49,7 @@ import { styles } from '@/components/work/workScreenStyles';
 import { CareerPathCard } from '@/components/CareerPathCard';
 import type { AdvancedCareer } from '@/lib/careers/advancedCareers';
 const LinearGradient = LinearGradientFallback;
-const BlurView = BlurViewFallback;
 
-// Hobbies removed - all hobby images removed
-
-const CRIME_SKILL_UPGRADES: Record<
-    CrimeSkillId,
-    { id: string; name: string; description: string; cost: number; level: number; effect: string }[]
-> = {
-    stealth: [
-        { id: 'silentStep', name: 'Silent Step', description: 'Learn to move silently', cost: 100, level: 1, effect: '+10% stealth success rate' },
-        { id: 'shadowBlend', name: 'Shadow Blend', description: 'Master the art of blending into shadows', cost: 200, level: 2, effect: '+20% stealth success rate' },
-        { id: 'ghost', name: 'Ghost', description: 'Become nearly invisible in darkness', cost: 300, level: 3, effect: '+30% stealth success rate' },
-        { id: 'nightMaster', name: 'Night Master', description: 'Complete mastery of night operations', cost: 400, level: 4, effect: '+40% stealth success rate' },
-        { id: 'shadowLord', name: 'Shadow Lord', description: 'Legendary stealth abilities', cost: 500, level: 5, effect: '+50% stealth success rate' },
-    ],
-    hacking: [
-        { id: 'bruteForce', name: 'Brute Force', description: 'Basic password cracking techniques', cost: 100, level: 1, effect: '+10% hacking success rate' },
-        { id: 'backdoor', name: 'Backdoor', description: 'Create hidden system access points', cost: 200, level: 2, effect: '+20% hacking success rate' },
-        { id: 'quantumLeap', name: 'Quantum Leap', description: 'Advanced quantum computing techniques', cost: 300, level: 3, effect: '+30% hacking success rate' },
-        { id: 'deepSpoof', name: 'Deep Spoof', description: 'Master identity spoofing', cost: 400, level: 4, effect: '+40% hacking success rate' },
-        { id: 'aiOverride', name: 'AI Override', description: 'Control AI systems directly', cost: 500, level: 5, effect: '+50% hacking success rate' },
-    ],
-    lockpicking: [
-        { id: 'quickPick', name: 'Quick Pick', description: 'Fast lock picking techniques', cost: 100, level: 1, effect: '+10% lockpicking success rate' },
-        { id: 'masterKey', name: 'Master Key', description: 'Create universal keys', cost: 200, level: 2, effect: '+20% lockpicking success rate' },
-        { id: 'phantomTouch', name: 'Phantom Touch', description: 'Feel locks without touching them', cost: 300, level: 3, effect: '+30% lockpicking success rate' },
-        { id: 'silentDrill', name: 'Silent Drill', description: 'Silent drilling techniques', cost: 400, level: 4, effect: '+40% lockpicking success rate' },
-        { id: 'molecularKey', name: 'Molecular Key', description: 'Molecular-level lock manipulation', cost: 500, level: 5, effect: '+50% lockpicking success rate' },
-    ],
-};
 
 // Creative/hobby ids that can leak into streetJobs but must not render as street
 // work. Hoisted to module scope (and thus a stable identity) — it was a fresh
@@ -100,12 +69,13 @@ function WorkScreenContent() {
     const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<'street' | 'career' | 'skills'>('street');
     const [workFeedback, setWorkFeedback] = useState<{ [key: string]: string }>({});
-    // Hobbies removed - unused state variables removed
     const [selectedSkillTree, setSelectedSkillTree] = useState<CrimeSkillId | null>(null);
     const [feedbackOpacity] = useState(new Animated.Value(0));
     // P3-2: dead state — `_showJailReleaseMessage` and `_previousJailWeeks`
     // were never referenced after being renamed by an unused-var lint sweep.
     const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
+    // Career id whose in-app "Manage Job" action sheet is open (null = closed).
+    const [manageJobId, setManageJobId] = useState<string | null>(null);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
 
     const {
@@ -114,7 +84,6 @@ function WorkScreenContent() {
         performStreetJob,
         applyForJob,
         quitJob,
-        // Hobbies removed - hobby actions no longer available
         saveGame,
     } = useGame();
 
@@ -122,22 +91,15 @@ function WorkScreenContent() {
 
     // Employed-job actions: raise negotiation or quitting. A raise adds a
     // permanent salary premium, gated on performance + an 8-week cooldown;
-    // a denial can cost happiness / draw a warning.
-    const handleManageJob = React.useCallback((careerId: string) => {
-        Alert.alert('Your Job', 'What would you like to do?', [
-            {
-                text: 'Ask for a Raise',
-                onPress: () => {
-                    const r = requestRaise(careerId);
-                    if (r.approved) showSuccess(r.message);
-                    else if (r.success) showWarning(r.message);
-                    else showInfo(r.message);
-                    saveGame();
-                },
-            },
-            { text: 'Quit Job', style: 'destructive', onPress: () => setShowQuitJobConfirm(true) },
-            { text: 'Cancel', style: 'cancel' },
-        ]);
+    // a denial can cost happiness / draw a warning. Opens an in-app action
+    // sheet (below) instead of a native Alert, to stay on-brand.
+    const handleAskForRaise = React.useCallback((careerId: string) => {
+        const r = requestRaise(careerId);
+        if (r.approved) showSuccess(r.message);
+        else if (r.success) showWarning(r.message);
+        else showInfo(r.message);
+        saveGame();
+        setManageJobId(null);
     }, [requestRaise, showSuccess, showWarning, showInfo, saveGame]);
 
     const { settings } = gameState;
@@ -196,8 +158,6 @@ function WorkScreenContent() {
             }
         };
     }, [workFeedback, feedbackOpacity]);
-
-    // Hobbies completely removed - no state variables needed
 
     const handleStreetJob = (jobId: string) => {
       // Hard guard: a throw anywhere in this handler used to leave the work
@@ -271,49 +231,6 @@ function WorkScreenContent() {
       }
     };
 
-    // Hobbies completely removed - no handler functions needed
-
-    const canPerformJob = (job: StreetJob) => {
-        if (gameState.jailWeeks > 0) {
-            return false;
-        }
-
-        // Check weekly limit - prevent spamming jobs
-        const weeklyJobs = gameState.weeklyStreetJobs || {};
-        const timesDoneThisWeek = weeklyJobs[job.id] || 0;
-        const maxPerWeek = 3; // Allow each job to be done max 3 times per week
-
-        if (timesDoneThisWeek >= maxPerWeek) {
-            return false;
-        }
-
-        // Energy check - use current energy value
-        const hasEnoughEnergy = (gameState?.stats?.energy ?? 0) >= job.energyCost;
-
-        if (!hasEnoughEnergy) return false;
-
-        const hasItems =
-            !job.requirements ||
-            job.requirements.every((req: string) =>
-                (gameState.items || []).find(item => item.id === req)?.owned
-            );
-
-        const hasDarkItems =
-            !job.darkWebRequirements ||
-            job.darkWebRequirements.every((req: string) => {
-                // Check both darkWebItems and regular items (for compatibility)
-                const darkWebItem = (gameState.darkWebItems || []).find(item => item.id === req)?.owned;
-                const regularItem = (gameState.items || []).find(item => item.id === req)?.owned;
-                return darkWebItem || regularItem;
-            });
-
-        const meetsLevel =
-            !job.criminalLevelReq ||
-            gameState.criminalLevel >= job.criminalLevelReq;
-
-        return hasItems && hasDarkItems && meetsLevel;
-    };
-
     const getJailRisk = (job: StreetJob) => {
         if (!job.illegal) return 0;
 
@@ -345,8 +262,6 @@ function WorkScreenContent() {
         return { happinessPenalty: -3, healthPenalty: -2 };
     };
 
-
-    const availableCrimeJobs = criminalStreetJobs.filter(job => canPerformJob(job));
 
     const getMissingRequirements = (job: StreetJob) => {
         const missing: string[] = [];
@@ -647,7 +562,7 @@ function WorkScreenContent() {
         } else if (isEmployedHere) {
             const premiumPct = Math.round(((career.raiseMultiplier ?? 1) - 1) * 100);
             buttonText = premiumPct > 0 ? `Manage Job (+${premiumPct}%)` : 'Manage Job';
-            onPress = () => handleManageJob(career.id);
+            onPress = () => setManageJobId(career.id);
             buttonAccent = 'career';
         } else if (career.accepted) {
             buttonText = 'Hired';
@@ -730,11 +645,80 @@ function WorkScreenContent() {
         );
     };
 
+    // Advanced careers now share the JobCard language instead of a bespoke card.
+    const renderAdvancedCareerCard = (
+        career: AdvancedCareer,
+        state: { isLocked: boolean; isApplied: boolean; isAccepted: boolean; lockReqs: string[] },
+    ): React.ReactElement => {
+        const displayName = career.levels?.[0]?.name ?? career.id;
+        const salary = career.levels?.[0]?.salary ?? 0;
+        const { isLocked, isApplied, isAccepted, lockReqs } = state;
+
+        const metadata: JobCardMetadata[] = [
+            { icon: <Crown size={scale(13)} color="rgba(168, 85, 247, 0.95)" />, value: 'Elite career' },
+        ];
+
+        let buttonText: string;
+        let onPress: (() => void) | undefined;
+        let locked = false;
+        let lockReason: string | undefined;
+
+        if (isAccepted) {
+            buttonText = 'Working';
+            locked = true;
+        } else if (isApplied) {
+            buttonText = 'Applied';
+            locked = true;
+        } else if (isLocked) {
+            buttonText = 'Locked';
+            locked = true;
+            lockReason = lockReqs.length > 0 ? `Requires — ${lockReqs.join(' · ')}` : undefined;
+        } else {
+            buttonText = t('work.apply');
+            onPress = () => {
+                // Atomic gate: re-check against prev so a same-batch double-tap can't
+                // push the same career twice (duplicate rows corrupt downstream finds).
+                setGameState(prev => {
+                    const careers = prev.careers || [];
+                    if (careers.some(c => c.id === career.id)) return prev;
+                    return { ...prev, careers: [...careers, { ...career, applied: true }] };
+                });
+                saveGame();
+                showSuccess(`Applied for ${displayName} — your application is under review.`);
+            };
+        }
+
+        return (
+            <JobCard
+                key={career.id}
+                accent="career"
+                title={displayName}
+                description={career.description}
+                reward={isLocked ? '— Locked' : `$${salary.toLocaleString()}/wk`}
+                metadata={metadata}
+                buttonText={buttonText}
+                onPress={onPress}
+                locked={locked}
+                lockReason={lockReason}
+            />
+        );
+    };
+
     const sortedCareers = [...(gameState.careers || [])].sort(
         (a, b) => (a.levels?.[0]?.salary ?? 0) - (b.levels?.[0]?.salary ?? 0)
     );
     const advancedIds = ['politician', 'celebrity', 'athlete'];
     const basicCareers = sortedCareers.filter(c => !advancedIds.includes(c.id));
+
+    // Persistent "Current Job" summary so employment state is always visible,
+    // not buried inside the Career tab.
+    const currentJob = gameState.currentJob
+        ? (gameState.careers || []).find(c => c.id === gameState.currentJob)
+        : undefined;
+    const currentJobLevel = currentJob ? (currentJob.levels?.[currentJob.level] ?? currentJob.levels?.[0]) : undefined;
+    const currentJobSalary = currentJobLevel?.salary ?? 0;
+    const currentJobRaisePct = currentJob ? Math.round(((currentJob.raiseMultiplier ?? 1) - 1) * 100) : 0;
+    const currentJobAtMax = currentJob ? currentJob.level >= (currentJob.levels.length - 1) : false;
 
     const workScreenGradient = settings.darkMode
         ? [themeColors.palette.dark900, themeColors.palette.dark900]
@@ -750,6 +734,36 @@ function WorkScreenContent() {
             ) : (
                 <>
                     <View style={styles.container}>
+                        {currentJob && currentJobLevel && (
+                            <View style={local.currentJobCard}>
+                                <View style={local.currentJobTopRow}>
+                                    <View style={local.currentJobIcon}>
+                                        <Briefcase size={scale(16)} color="#34D399" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={local.currentJobLabel}>Current Job</Text>
+                                        <Text style={local.currentJobTitle} numberOfLines={1}>{currentJobLevel.name}</Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <Text style={local.currentJobSalary}>${currentJobSalary.toLocaleString()}/wk</Text>
+                                        {currentJobRaisePct > 0 && (
+                                            <Text style={local.currentJobRaise}>+{currentJobRaisePct}% raise</Text>
+                                        )}
+                                    </View>
+                                </View>
+                                {!currentJobAtMax && (
+                                    <View style={local.currentJobProgressWrap}>
+                                        <View style={local.currentJobProgressLabelRow}>
+                                            <Text style={local.currentJobProgressLabel}>Progress to promotion</Text>
+                                            <Text style={local.currentJobProgressPct}>{currentJob.progress}%</Text>
+                                        </View>
+                                        <View style={local.currentJobProgressBar}>
+                                            <View style={[local.currentJobProgressFill, { width: `${Math.min(100, currentJob.progress)}%` }]} />
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+                        )}
                         <View style={[styles.tabContainer, styles.tabContainerDark]}>
                             <TouchableOpacity
                                 style={[styles.tab, activeTab === 'street' && styles.activeTab]}
@@ -779,7 +793,6 @@ function WorkScreenContent() {
                                     {t('work.career')}
                                 </Text>
                             </TouchableOpacity>
-                            {/* Hobby tab hidden for release */}
                             <TouchableOpacity
                                 style={[styles.tab, activeTab === 'skills' && styles.activeTab]}
                                 onPress={() => setActiveTab('skills')}
@@ -859,9 +872,6 @@ function WorkScreenContent() {
                                         }
 
                                         return unlockedCareers.map((career: AdvancedCareer) => {
-                                            // Advanced careers carry no top-level `name`; the
-                                            // human title is the entry-level label.
-                                            const displayName = career.levels?.[0]?.name ?? career.id;
                                             const isLocked = !isCareerUnlocked(career, {
                                                 education: gameState.educations || [],
                                                 achievements: gameState.achievements || [],
@@ -872,10 +882,6 @@ function WorkScreenContent() {
                                             });
                                             const isApplied = gameState.careers.some(c => c.id === career.id && c.applied);
                                             const isAccepted = gameState.careers.some(c => c.id === career.id && c.accepted);
-                                            // Only an un-applied, unlocked card does anything on tap. Applied /
-                                            // working / locked states are shown inline (badge + requirements)
-                                            // instead of firing a blocking Alert on every tap.
-                                            const actionable = !isLocked && !isApplied && !isAccepted;
 
                                             const lockReqs: string[] = [];
                                             if (isLocked) {
@@ -886,75 +892,11 @@ function WorkScreenContent() {
                                                 if ('netWorth' in req && req.netWorth) lockReqs.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
                                             }
 
-                                            return (
-                                                <TouchableOpacity
-                                                    key={career.id}
-                                                    style={[
-                                                        styles.careerCard,
-                                                        settings.darkMode && styles.careerCardDark,
-                                                        isAccepted && styles.careerCardActive,
-                                                    ]}
-                                                    onPress={actionable ? () => {
-                                                        // Atomic gate: re-check against prev so a same-batch double-tap
-                                                        // can't push the same career twice (duplicate rows corrupt every
-                                                        // downstream careers.find/.some and the weekly acceptor).
-                                                        setGameState(prev => {
-                                                            const careers = prev.careers || [];
-                                                            if (careers.some(c => c.id === career.id)) return prev;
-                                                            return {
-                                                                ...prev,
-                                                                careers: [...careers, { ...career, applied: true }],
-                                                            };
-                                                        });
-                                                        saveGame();
-                                                        showSuccess(`Applied for ${displayName} — your application is under review.`);
-                                                    } : undefined}
-                                                    disabled={!actionable}
-                                                    activeOpacity={actionable ? 0.7 : 1}
-                                                >
-                                                    <View style={styles.careerCardHeader}>
-                                                        <View style={{ flex: 1, paddingRight: scale(8) }}>
-                                                            <Text style={[styles.careerName, settings.darkMode && styles.careerNameDark]}>
-                                                                {displayName}
-                                                            </Text>
-                                                            <Text style={[styles.careerDescription, settings.darkMode && styles.careerDescriptionDark]}>
-                                                                {career.description}
-                                                            </Text>
-                                                        </View>
-                                                        {/* Inline status — replaces the Active/Pending/Locked alerts. */}
-                                                        {isAccepted ? (
-                                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: scale(8), paddingVertical: scale(3), borderRadius: scale(8), backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
-                                                                <Check size={scale(13)} color="#22C55E" />
-                                                                <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#22C55E' }}>Working</Text>
-                                                            </View>
-                                                        ) : isApplied ? (
-                                                            <View style={{ paddingHorizontal: scale(8), paddingVertical: scale(3), borderRadius: scale(8), backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
-                                                                <Text style={{ fontSize: fontScale(11), fontWeight: '700', color: '#F59E0B' }}>Applied</Text>
-                                                            </View>
-                                                        ) : isLocked ? (
-                                                            <Lock size={scale(20)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
-                                                        ) : null}
-                                                    </View>
-
-                                                    {isLocked && lockReqs.length > 0 && (
-                                                        <Text style={[styles.careerDescription, settings.darkMode && styles.careerDescriptionDark, { marginTop: scale(4), fontStyle: 'italic' }]}>
-                                                            Requires — {lockReqs.join(' · ')}
-                                                        </Text>
-                                                    )}
-
-                                                    <Text style={[styles.careerSalary, settings.darkMode && styles.careerSalaryDark]}>
-                                                        ${(career.levels?.[0]?.salary ?? 0).toLocaleString()}/wk
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
+                                            return renderAdvancedCareerCard(career, { isLocked, isApplied, isAccepted, lockReqs });
                                         });
                                     })()}
                                 </View>
                             )}
-
-                            {/* Hobbies completely removed */}
-
-                            {/* Hobbies removed - All hobby-related Modals removed */}
 
                             {activeTab === 'skills' && (
                                 <View>
@@ -1009,15 +951,10 @@ function WorkScreenContent() {
                                     {criminalStreetJobs.length > 0 ? (
                                         criminalStreetJobs.map(renderJobCard)
                                     ) : (
-                                        <View style={{ padding: 16, alignItems: 'center' }}>
+                                        <View style={{ padding: scale(16), alignItems: 'center' }}>
                                             <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
                                                 No underground jobs available right now — raise your criminal level or check back later.
                                             </Text>
-                                            {__DEV__ && (
-                                                <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark, { fontSize: 12, marginTop: 8 }]}>
-                                                    [dev] total={gameState.streetJobs.length} illegal={gameState.streetJobs.filter(job => job.illegal === true).length}
-                                                </Text>
-                                            )}
                                         </View>
                                     )}
                                 </View>
@@ -1030,12 +967,6 @@ function WorkScreenContent() {
                                     onClose={() => setSelectedSkillTree(null)}
                                 />
                             )}
-
-                            {/* Hobbies removed - Songs, Artworks, Sponsors, and Contracts Modals removed */}
-
-                            {/* Contracts Modal removed - hobbies no longer exist */}
-
-                            {/* Hobbies removed - Contract Offers and League Modals removed */}
                         </ScrollView>
                     </View>
                 </>
@@ -1056,9 +987,202 @@ function WorkScreenContent() {
                 type="warning"
             />
 
+            {/* Manage Job — in-app action sheet (replaces the native Alert). */}
+            <Modal
+                visible={manageJobId !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setManageJobId(null)}
+            >
+                <TouchableOpacity
+                    style={local.sheetOverlay}
+                    activeOpacity={1}
+                    onPress={() => setManageJobId(null)}
+                >
+                    <View style={local.sheet}>
+                        <View style={local.sheetHandle} />
+                        <Text style={local.sheetTitle}>Your Job</Text>
+                        <Text style={local.sheetSubtitle}>What would you like to do?</Text>
+
+                        <TouchableOpacity
+                            style={local.sheetAction}
+                            activeOpacity={0.85}
+                            onPress={() => { if (manageJobId) handleAskForRaise(manageJobId); }}
+                        >
+                            <TrendingUp size={scale(17)} color="#34D399" />
+                            <Text style={local.sheetActionText}>Ask for a Raise</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={local.sheetAction}
+                            activeOpacity={0.85}
+                            onPress={() => { setManageJobId(null); setShowQuitJobConfirm(true); }}
+                        >
+                            <X size={scale(17)} color="#F87171" />
+                            <Text style={[local.sheetActionText, { color: '#F87171' }]}>Quit Job</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={local.sheetCancel}
+                            activeOpacity={0.85}
+                            onPress={() => setManageJobId(null)}
+                        >
+                            <Text style={local.sheetCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
         </LinearGradient>
     );
 }
+
+const local = StyleSheet.create({
+    currentJobCard: {
+        marginHorizontal: scale(16),
+        marginTop: scale(12),
+        marginBottom: scale(4),
+        padding: scale(14),
+        borderRadius: scale(12),
+        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(16, 185, 129, 0.3)',
+        gap: scale(10),
+    },
+    currentJobTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: scale(11),
+    },
+    currentJobIcon: {
+        width: scale(34),
+        height: scale(34),
+        borderRadius: scale(10),
+        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(16, 185, 129, 0.4)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    currentJobLabel: {
+        fontSize: fontScale(10.5),
+        fontWeight: '700',
+        color: 'rgba(52, 211, 153, 0.85)',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    currentJobTitle: {
+        fontSize: fontScale(16),
+        fontWeight: '800',
+        color: '#F8FAFC',
+        letterSpacing: -0.3,
+        marginTop: scale(1),
+    },
+    currentJobSalary: {
+        fontSize: fontScale(15),
+        fontWeight: '800',
+        color: '#34D399',
+        fontVariant: ['tabular-nums'],
+    },
+    currentJobRaise: {
+        fontSize: fontScale(10.5),
+        fontWeight: '700',
+        color: 'rgba(52, 211, 153, 0.8)',
+        marginTop: scale(1),
+    },
+    currentJobProgressWrap: {
+        gap: scale(5),
+    },
+    currentJobProgressLabelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    currentJobProgressLabel: {
+        fontSize: fontScale(11),
+        fontWeight: '600',
+        color: 'rgba(226, 232, 240, 0.6)',
+    },
+    currentJobProgressPct: {
+        fontSize: fontScale(11),
+        fontWeight: '700',
+        color: 'rgba(226, 232, 240, 0.8)',
+        fontVariant: ['tabular-nums'],
+    },
+    currentJobProgressBar: {
+        height: scale(6),
+        borderRadius: scale(3),
+        backgroundColor: 'rgba(148, 163, 184, 0.2)',
+        overflow: 'hidden',
+    },
+    currentJobProgressFill: {
+        height: '100%',
+        borderRadius: scale(3),
+        backgroundColor: '#10B981',
+    },
+    // Action sheet
+    sheetOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.55)',
+        justifyContent: 'flex-end',
+    },
+    sheet: {
+        backgroundColor: '#0F172A',
+        borderTopLeftRadius: scale(20),
+        borderTopRightRadius: scale(20),
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        paddingHorizontal: scale(16),
+        paddingTop: scale(10),
+        paddingBottom: scale(34),
+        gap: scale(10),
+    },
+    sheetHandle: {
+        alignSelf: 'center',
+        width: scale(38),
+        height: scale(4),
+        borderRadius: scale(2),
+        backgroundColor: 'rgba(148, 163, 184, 0.4)',
+        marginBottom: scale(8),
+    },
+    sheetTitle: {
+        fontSize: fontScale(18),
+        fontWeight: '800',
+        color: '#F8FAFC',
+        letterSpacing: -0.3,
+    },
+    sheetSubtitle: {
+        fontSize: fontScale(13),
+        color: 'rgba(226, 232, 240, 0.6)',
+        marginBottom: scale(4),
+    },
+    sheetAction: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: scale(12),
+        paddingVertical: scale(14),
+        paddingHorizontal: scale(14),
+        borderRadius: scale(12),
+        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+    },
+    sheetActionText: {
+        fontSize: fontScale(15),
+        fontWeight: '700',
+        color: '#F8FAFC',
+    },
+    sheetCancel: {
+        alignItems: 'center',
+        paddingVertical: scale(13),
+        marginTop: scale(2),
+    },
+    sheetCancelText: {
+        fontSize: fontScale(14),
+        fontWeight: '700',
+        color: 'rgba(226, 232, 240, 0.55)',
+    },
+});
 
 
 export default React.memo(WorkScreen);
