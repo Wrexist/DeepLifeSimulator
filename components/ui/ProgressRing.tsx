@@ -25,6 +25,10 @@ import { fontScale, scale } from '@/utils/scaling';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
+// Unique-ish gradient id per mount so multiple rings on one screen don't all
+// reference the same `url(#halo)` def (which would pull the wrong color).
+let _ringId = 0;
+
 export interface ProgressRingProps {
   /** 0–100 */
   value: number;
@@ -80,6 +84,7 @@ export default function ProgressRing({
 }: ProgressRingProps) {
   const reduced = useReducedMotion();
   const motion = ambient && !reduced; // looping halo/orbit only when both allow
+  const haloId = useRef(`halo${_ringId++}`).current;
   const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
   const color = state === 'done' ? positiveColor : accentColor;
 
@@ -142,22 +147,25 @@ export default function ProgressRing({
       accessibilityLabel={label ?? 'Progress'}
       accessibilityValue={{ now: Math.round(clamped), min: 0, max: 100 }}
     >
-      {/* 1. Halo glow */}
-      <Animated.View
-        style={[StyleSheet.absoluteFill, styles.center, { opacity: motion ? haloOpacity : 0.8, transform: motion ? [{ scale: haloScale }] : [] }]}
-        pointerEvents="none"
-      >
-        <Svg width={D} height={D}>
-          <Defs>
-            <RadialGradient id="halo" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={color} stopOpacity={0.28} />
-              <Stop offset="70%" stopColor={color} stopOpacity={0.06} />
-              <Stop offset="100%" stopColor={color} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Circle cx={c} cy={c} r={c} fill="url(#halo)" />
-        </Svg>
-      </Animated.View>
+      {/* 1. Halo glow — only for the animated showpiece (hero). List rings skip
+          it: lighter, and avoids many rings sharing a halo def. */}
+      {motion && (
+        <Animated.View
+          style={[StyleSheet.absoluteFill, styles.center, { opacity: haloOpacity, transform: [{ scale: haloScale }] }]}
+          pointerEvents="none"
+        >
+          <Svg width={D} height={D}>
+            <Defs>
+              <RadialGradient id={haloId} cx="50%" cy="50%" r="50%">
+                <Stop offset="0%" stopColor={color} stopOpacity={0.28} />
+                <Stop offset="70%" stopColor={color} stopOpacity={0.06} />
+                <Stop offset="100%" stopColor={color} stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Circle cx={c} cy={c} r={c} fill={`url(#${haloId})`} />
+          </Svg>
+        </Animated.View>
+      )}
 
       {/* 2. Orbiting accent sweep */}
       {motion && (
