@@ -33,6 +33,7 @@ import { getCharacterImage } from '@/utils/characterImages';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { getReputationStanding } from '@/lib/reputation/reputationTier';
 import type { Loan } from '@/contexts/game/types';
 const LinearGradient = LinearGradientFallback;
 
@@ -207,6 +208,8 @@ function IdentityCard() {
   const job = currentCareer && currentCareer.levels && currentCareer.levels[currentCareer.level]
     ? currentCareer.levels[currentCareer.level].name
     : 'Unemployed';
+  // Reputation standing (Unknown → Icon) — makes the hidden reputation stat legible.
+  const reputationStanding = getReputationStanding(stats?.reputation ?? 0);
 
   const netWorth = useMemo(() => {
     const assets: Asset[] = [
@@ -570,6 +573,17 @@ function IdentityCard() {
             </Text>
             <Text style={[styles.statValue, styles.statValueDark]} numberOfLines={1}>
               {job}
+            </Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={[styles.statLabel, styles.statLabelDark]}>
+              Standing
+            </Text>
+            <Text
+              style={[styles.statValue, styles.statValueDark, { color: reputationStanding.color }]}
+              numberOfLines={1}
+            >
+              {reputationStanding.label}
             </Text>
           </View>
         </View>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { TrendingUp, TrendingDown, Sparkles, Flame } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Sparkles, Flame, Briefcase, Mail } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -22,12 +22,14 @@ function LastWeekRecap() {
       weekResult: s?.weekResult,
       playStreak: s?.playStreak,
       weeksLived: s?.weeksLived,
+      pendingEventCount: s?.pendingEvents?.length ?? 0,
     }),
     shallowEqual,
   ) as {
     weekResult?: import('@/contexts/game/types').GameState['weekResult'];
     playStreak?: import('@/contexts/game/types').GameState['playStreak'];
     weeksLived?: number;
+    pendingEventCount?: number;
   };
 
   const wr = data?.weekResult;
@@ -62,6 +64,8 @@ function LastWeekRecap() {
   const expenses = wr.expensesPaid ?? 0;
   const streakBonus = wr.streakBonus ?? 0;
   const streakCount = data?.playStreak?.count ?? 0;
+  const careerProgress = Math.round(wr.careerProgressPercent ?? 0);
+  const pendingEvents = data?.pendingEventCount ?? 0;
 
   // A truly empty week (no money movement at all) stays silent rather than
   // showing a hollow "$0" recap.
@@ -117,6 +121,20 @@ function LastWeekRecap() {
             <Flame size={scale(11)} color="#A78BFA" />
             <Text style={styles.badgeStreak}>
               {streakCount}d streak +{fmt(streakBonus)}
+            </Text>
+          </View>
+        )}
+        {careerProgress > 0 && (
+          <View style={styles.badge}>
+            <Briefcase size={scale(11)} color="#60A5FA" />
+            <Text style={styles.badgeCareer}>Career +{careerProgress}%</Text>
+          </View>
+        )}
+        {pendingEvents > 0 && (
+          <View style={styles.badge}>
+            <Mail size={scale(11)} color="#F59E0B" />
+            <Text style={styles.badgeDecision}>
+              {pendingEvents === 1 ? 'A decision is waiting' : `${pendingEvents} decisions waiting`}
             </Text>
           </View>
         )}
@@ -194,6 +212,16 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     fontWeight: '700',
     color: '#A78BFA',
+  },
+  badgeCareer: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: '#60A5FA',
+  },
+  badgeDecision: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: '#F59E0B',
   },
 });
 

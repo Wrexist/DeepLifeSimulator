@@ -17,6 +17,7 @@ interface JobActionsContextType {
   unlockCrimeSkillUpgrade: (skillId: CrimeSkillId, upgradeId: string, cost: number, levelReq: number) => void;
   applyForJob: (jobId: string) => void;
   promoteCareer: (careerId: string) => { success: boolean; message: string };
+  requestRaise: (careerId: string) => { success: boolean; message: string; approved?: boolean };
   quitJob: () => void;
 
   // Jail
@@ -169,6 +170,19 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
     }
     if (result) {
       logger.info('Promoted career:', { careerId, result });
+    }
+    return result;
+  }, [setGameState]);
+
+  const requestRaise = useCallback((careerId: string) => {
+    const state = stateRef.current;
+    if (!state) return { success: false, message: 'Game state not available' };
+
+    const result = JobActions.requestRaise(state, setGameState, careerId);
+    if (result?.approved) {
+      haptic.success();
+    } else if (result?.success) {
+      haptic.warning();
     }
     return result;
   }, [setGameState]);
@@ -465,11 +479,12 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
     unlockCrimeSkillUpgrade,
     applyForJob,
     promoteCareer,
+    requestRaise,
     quitJob,
     performJailActivity,
     payBail,
     serveJailTime,
-  }), [performStreetJob, gainCriminalXp, gainCrimeSkillXp, unlockCrimeSkillUpgrade, applyForJob, promoteCareer, quitJob, performJailActivity, payBail, serveJailTime]);
+  }), [performStreetJob, gainCriminalXp, gainCrimeSkillXp, unlockCrimeSkillUpgrade, applyForJob, promoteCareer, requestRaise, quitJob, performJailActivity, payBail, serveJailTime]);
 
   return (
     <JobActionsContext.Provider value={value}>

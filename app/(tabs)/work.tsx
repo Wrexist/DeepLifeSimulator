@@ -106,7 +106,7 @@ function WorkScreenContent() {
     // P3-2: dead state — `_showJailReleaseMessage` and `_previousJailWeeks`
     // were never referenced after being renamed by an unused-var lint sweep.
     const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
-    const { showSuccess, showError, showWarning } = useToast();
+    const { showSuccess, showError, showWarning, showInfo } = useToast();
 
     const {
         gameState,
@@ -118,7 +118,27 @@ function WorkScreenContent() {
         saveGame,
     } = useGame();
 
-    const { promoteCareer } = useJobActions();
+    const { promoteCareer, requestRaise } = useJobActions();
+
+    // Employed-job actions: raise negotiation or quitting. A raise adds a
+    // permanent salary premium, gated on performance + an 8-week cooldown;
+    // a denial can cost happiness / draw a warning.
+    const handleManageJob = React.useCallback((careerId: string) => {
+        Alert.alert('Your Job', 'What would you like to do?', [
+            {
+                text: 'Ask for a Raise',
+                onPress: () => {
+                    const r = requestRaise(careerId);
+                    if (r.approved) showSuccess(r.message);
+                    else if (r.success) showWarning(r.message);
+                    else showInfo(r.message);
+                    saveGame();
+                },
+            },
+            { text: 'Quit Job', style: 'destructive', onPress: () => setShowQuitJobConfirm(true) },
+            { text: 'Cancel', style: 'cancel' },
+        ]);
+    }, [requestRaise, showSuccess, showWarning, showInfo, saveGame]);
 
     const { settings } = gameState;
     // Filter out any creative/hobby jobs that might exist in streetJobs.
@@ -625,9 +645,10 @@ function WorkScreenContent() {
                 }
             };
         } else if (isEmployedHere) {
-            buttonText = atMaxLevel ? 'Quit (max level)' : 'Quit';
-            onPress = () => setShowQuitJobConfirm(true);
-            buttonAccent = 'crime';
+            const premiumPct = Math.round(((career.raiseMultiplier ?? 1) - 1) * 100);
+            buttonText = premiumPct > 0 ? `Manage Job (+${premiumPct}%)` : 'Manage Job';
+            onPress = () => handleManageJob(career.id);
+            buttonAccent = 'career';
         } else if (career.accepted) {
             buttonText = 'Hired';
             locked = true;

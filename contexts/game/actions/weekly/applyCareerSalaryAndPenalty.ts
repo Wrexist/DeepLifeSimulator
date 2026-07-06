@@ -52,8 +52,13 @@ export function applyCareerSalaryAndPenalty(
       const safeLevel = Math.max(0, Math.min(currentCareer.level, currentCareer.levels.length - 1));
       const levelData = currentCareer.levels[safeLevel];
       if (levelData && typeof levelData.salary === 'number' && levelData.salary > 0) {
-        // Salary is stored as weekly amount (e.g., 55 = $55/week).
-        careerSalary = Math.round(levelData.salary);
+        // Salary is stored as weekly amount (e.g., 55 = $55/week). Apply any
+        // negotiated raise premium (raiseMultiplier, 1 = base) from the
+        // "Ask for a raise" action — clamped defensively to [1, 3].
+        const raisePremium = typeof currentCareer.raiseMultiplier === 'number' && isFinite(currentCareer.raiseMultiplier)
+          ? Math.max(1, Math.min(3, currentCareer.raiseMultiplier))
+          : 1;
+        careerSalary = Math.round(levelData.salary * raisePremium);
 
         // Work Pay Boost perk (+50% earnings). The $1.99 perks.workBoost IAP
         // previously set the flag with no callsite consuming it — paying users

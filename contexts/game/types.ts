@@ -156,6 +156,8 @@ export interface Career {
   performance?: number; // 0-100 job performance rating (affects progress speed, firing risk, raises)
   warningsReceived?: number; // Number of formal warnings (3 = auto-fired)
   currentLevel?: number; // Current level index (alias for level, used by some components)
+  raiseMultiplier?: number; // Negotiated salary premium (1 = base). Applied to paid salary; persists across promotions.
+  lastRaiseWeeksLived?: number; // weeksLived of the last raise REQUEST (approved OR denied) — gates the cooldown.
 }
 
 export interface Hobby {
