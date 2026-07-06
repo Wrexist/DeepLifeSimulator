@@ -1,12 +1,12 @@
 import { Tabs, useRouter, useSegments } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Platform, View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy } from 'lucide-react-native';
+import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale } from '@/utils/scaling';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTheme } from '@/hooks/useTheme';
-import React, { useEffect, lazy, Suspense } from 'react';
+import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { getGlassTabBar } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { useStatChanges } from '@/contexts/StatChangeContext';
@@ -14,6 +14,7 @@ import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
 const LifeMomentModal = lazy(() => import('@/components/LifeMomentModal'));
+const WeeklyResultSheet = lazy(() => import('@/components/WeeklyResultSheet'));
 
 // The game home tab lives at `home`, NOT the bare `index`. app/index.tsx is the
 // boot loader and owns "/"; if a (tabs)/index.tsx existed it would ALSO resolve
@@ -36,6 +37,44 @@ export default function TabLayout() {
   const isInPrison = (gameState?.jailWeeks ?? 0) > 0;
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
   const items = gameState?.items ?? [];
+
+  // Weekly payoff sheet — shows after a week actually advances during the
+  // session (never on app load), and only when the week had something worth
+  // reporting. Sits below the death/wedding/life-moment/event modals.
+  const [resultWeek, setResultWeek] = useState<number | null>(null);
+  const prevWeekRef = useRef<number | null>(null);
+  useEffect(() => {
+    const w = gameState?.weeksLived ?? 0;
+    if (prevWeekRef.current === null) { prevWeekRef.current = w; return; } // first observe
+    if (w > prevWeekRef.current) {
+      prevWeekRef.current = w;
+      const wr = gameState?.weekResult;
+      const meaningful = !!wr && (
+        (wr.incomeEarned ?? 0) > 0 || (wr.expensesPaid ?? 0) > 0 ||
+        (wr.luckyBonus ?? 0) > 0 || (wr.streakBonus ?? 0) > 0 ||
+        (wr.careerProgressPercent ?? 0) > 0 || !!wr.cliffhangerTeaser
+      );
+      if (meaningful && !gameState?.showDeathPopup) setResultWeek(w);
+    } else {
+      prevWeekRef.current = w;
+    }
+  }, [gameState?.weeksLived, gameState?.weekResult, gameState?.showDeathPopup]);
+
+  // Non-blocking weekly-event inbox: events queue but never auto-pop. The
+  // player opens them from a pill; the modal walks the queue on demand.
+  const [eventInboxOpen, setEventInboxOpen] = useState(false);
+  const pendingEventCount = gameState?.pendingEvents?.length ?? 0;
+  useEffect(() => {
+    if (pendingEventCount === 0 && eventInboxOpen) setEventInboxOpen(false);
+  }, [pendingEventCount, eventInboxOpen]);
+
+  const higherModalUp = !!(
+    gameState?.showDeathPopup || gameState?.showWeddingPopup ||
+    gameState?.lifeMoments?.pendingMoment || eventInboxOpen
+  );
+  const showWeekResult = resultWeek !== null && !higherModalUp;
+  // The inbox pill shows when decisions are waiting and nothing else is up.
+  const showEventPill = pendingEventCount > 0 && !higherModalUp && !showWeekResult && !isInPrison;
 
   // Force navigation to work tab when entering prison
   useEffect(() => {
@@ -184,10 +223,49 @@ export default function TabLayout() {
       <Suspense fallback={null}>
         <LifeMomentModal />
       </Suspense>
-    ) : gameState.pendingEvents && gameState.pendingEvents.length > 0 ? (
+    ) : eventInboxOpen && pendingEventCount > 0 ? (
       <Suspense fallback={null}>
         <WeeklyEventModal />
       </Suspense>
+    ) : null}
+    {/* Weekly payoff sheet — the satisfying end-of-week beat. Lowest priority:
+        only shows once the modals above have cleared. */}
+    {showWeekResult ? (
+      <Suspense fallback={null}>
+        <WeeklyResultSheet
+          visible={showWeekResult}
+          gameState={gameState}
+          onClose={() => setResultWeek(null)}
+        />
+      </Suspense>
+    ) : null}
+    {/* Non-blocking event inbox pill — tap to review decisions on your own time. */}
+    {showEventPill ? (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => setEventInboxOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`${pendingEventCount} decision${pendingEventCount === 1 ? '' : 's'} waiting`}
+        style={{
+          position: 'absolute',
+          bottom: scale(88) + insets.bottom,
+          alignSelf: 'center',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: scale(8),
+          paddingVertical: scale(9),
+          paddingHorizontal: scale(16),
+          borderRadius: scale(999),
+          backgroundColor: 'rgba(15, 23, 42, 0.92)',
+          borderWidth: 1,
+          borderColor: 'rgba(96, 165, 250, 0.5)',
+        }}
+      >
+        <Bell size={scale(15)} color="#60A5FA" />
+        <Text style={{ color: '#F8FAFC', fontWeight: '700', fontSize: scale(13) }}>
+          {pendingEventCount} decision{pendingEventCount === 1 ? '' : 's'} waiting
+        </Text>
+      </TouchableOpacity>
     ) : null}
     {/* ENGAGEMENT: Floating stat change indicators on week advance */}
     <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />

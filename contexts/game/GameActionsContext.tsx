@@ -1044,16 +1044,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  updatedPendingChainedEvents = stillPending.length > 100 ? stillPending.slice(-100): stillPending;
  }
 
- // Weekly event "Heads Up" pop-ups are disabled by default (player feedback:
- // they interrupted the Next Week flow on nearly every tick). Drop everything
- // queued this tick AND any backlog carried in old saves so the
- // WeeklyEventModal never appears. The economy simulation itself is unaffected
- // — only the interrupting notification is suppressed. Re-enable with
- // EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS=true.
- if (!FEATURE_FLAGS.weeklyEvents) {
- updatedPendingEvents = [];
- updatedPendingChainedEvents = [];
- }
+ // Weekly events now use a NON-BLOCKING inbox instead of an interrupting
+ // auto-pop modal (that was the original complaint that got them disabled).
+ // Events queue and the player opens them from a "decisions waiting" pill on
+ // their own time — see app/(tabs)/_layout.tsx. Cap the visible inbox so it
+ // reads as an inbox, not a firehose; chained follow-ups stay queued (already
+ // capped above) so life-moment / cliffhanger ripples can still resolve.
+ updatedPendingEvents = updatedPendingEvents.slice(-12);
 
  // R7 Phase 2 step 2.7-D: life moment generation extracted into
  // ./actions/weekly/applyLifeMoment.ts. Same generator call, same merge
