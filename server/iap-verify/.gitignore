@@ -1,0 +1,6 @@
+# Do not commit real credentials.
+node_modules/
+.vercel/
+*.env
+.env*
+google-service-account*.json
