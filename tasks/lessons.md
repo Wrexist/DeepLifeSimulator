@@ -4,6 +4,40 @@
 
 ## Patterns to Watch For
 
+### 2026-07-07 - Weekly audit: divergent duplicate code paths (auto vs. manual wedding) + one unguarded call in a per-tick loop
+
+- Two code paths that reach the SAME outcome must produce IDENTICAL state, or one silently drifts.
+  `applyScheduledWedding` (the weekly-tick auto-marry path) built the spouse record with only
+  `type: 'spouse'` + score, while the manual `executeWedding` (DatingActions) additionally set
+  `marriageWeek`/`anniversaryWeek`, cleared `engagementWeek`/`engagementRing`, and set
+  `livingTogether: true`. Which path fires is purely whether the player taps "execute" that week or
+  lets the tick resolve it — so a large fraction of marriages went through the auto path and got an
+  incomplete record. Concrete fallout: `checkAnniversary` bails on `!spouse.anniversaryWeek`, so
+  auto-married couples NEVER got an anniversary (happiness reward + milestone permanently
+  unreachable), and a married partner kept stale engagement flags. Fix: mirror the manual path
+  field-for-field. Lesson: when you extract/duplicate a state transition, snapshot BOTH outputs and
+  diff them — a subsystem-equivalence snapshot test is the right home for this (it caught the diff
+  cleanly on `-u`).
+- One unguarded caller in an every-tick loop reintroduces a soft-lock class the resilience test
+  exists to prevent. `trackBudgetSpend` did `[...banking.budgetSpend]`; EVERY other caller guarded
+  with `prev.banking?.budgetSpend ? … : …`, but the new weekly-tick `spendEvents` loop
+  (`lib/banking/weeklyTick.ts`) called it unguarded every week. On a partial/older banking slice
+  (`budgetSpend === undefined`) that throws inside the tick updater, whose outer catch returns
+  `prevState` → "Next Week" silently no-ops (soft-lock). Fixed at the SOURCE (default
+  `[...(banking.budgetSpend || [])]`) so all present/future callers are covered, and wrapped
+  `runWeeklyBankingTick` in its own try/catch like the pulse/spark/stocks ticks — its crash surface
+  grew this week (interest accrual + budget tracking) without an inner guard. Lesson: if N callers
+  guard a helper and one doesn't, the fix belongs IN the helper, not in the Nth caller. And a
+  subsystem tick whose failure aborts the whole week needs its own try/catch — check that every new
+  tick step has one.
+- `planWedding` charged its 25% deposit without re-checking affordability inside the updater
+  (the same H-class atomicity gap the audit keeps closing) — a same-batch double-tap double-charged.
+  Added the in-updater `money >= deposit` re-check to match `proposeMarriage`/`executeWedding`.
+- Process note: the referenced project subagents/prompts (`.claude/agents/*`, `.claude/prompts/*`)
+  do not exist in this repo — the SKILL points at them but they were never committed. Ran the deep
+  qualitative pass with general-purpose subagents (one per domain) instead; worked fine. Worth
+  either committing those agent/prompt files or updating the SKILL to drop the dead references.
+
 ### 2026-07-02 - Weekly audit (salvaged from PR #45): 3 more money printers + 2 silent-immunity buffers + crash guards
 
 - Origin: PR #45 (weekly audit 2026-07-02) went unmergeable after PR #46 independently landed two

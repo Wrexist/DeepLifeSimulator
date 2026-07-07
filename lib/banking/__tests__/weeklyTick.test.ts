@@ -251,4 +251,24 @@ describe('runWeeklyBankingTick', () => {
     });
     expect(r.banking.budgetSpend).toHaveLength(0);
   });
+
+  it('does not throw when a partial banking slice has no budgetSpend array (soft-lock guard)', () => {
+    // A partial/older banking slice can reach the tick without a budgetSpend
+    // array. The per-tick spendEvents loop calls trackBudgetSpend every week, so
+    // an unguarded `[...undefined]` would throw inside the tick updater and
+    // soft-lock "Next Week". The default in trackBudgetSpend must absorb it.
+    const banking = { ...blankBanking(), budgetSpend: undefined } as unknown as BankingState;
+    const r = runWeeklyBankingTick({
+      banking,
+      prevLoans: [],
+      processedLoans: [],
+      newBankSavings: 0,
+      newMoney: 0,
+      currentWeek: 9,
+      spendEvents: [{ category: 'housing', amount: 400 }],
+    });
+    const bucket = r.banking.budgetSpend.find((b) => b.weeksLived === 9)!;
+    expect(bucket).toBeDefined();
+    expect(bucket.byCategory.housing).toBe(400);
+  });
 });

@@ -505,6 +505,10 @@ export const planWedding = (
       r => r.id !== partnerId && (r.type === 'spouse' || r.weddingPlanned)
     );
     if (prevOtherCommitted) return prev;
+    // Re-check affordability inside the updater (matches proposeMarriage /
+    // executeWedding) so a same-batch double-tap can't double-charge the
+    // 25% deposit.
+    if ((prev.stats?.money ?? 0) < deposit) return prev;
     return {
       ...prev,
       relationships: (prev.relationships || []).map(r =>

@@ -80,10 +80,22 @@ export function applyScheduledWedding(
       logger.info(
         `[WEDDING] Wedding happening for ${rel.name} in week ${nextWeeksLived}! Charged $${remainingBalance} remaining balance.`,
       );
+      // Mirror the manual executeWedding (DatingActions.ts:577-591) field-for-
+      // field. The auto path previously set only type/score, leaving
+      // marriageWeek + anniversaryWeek undefined — which permanently disabled
+      // anniversaries (checkAnniversary bails on `!spouse.anniversaryWeek`) and
+      // left stale engagement flags on a married partner. Which path runs is
+      // purely a function of whether the player taps "execute" that week or lets
+      // the tick resolve it, so the two must produce identical spouse records.
       const marriedRel: Relationship = {
         ...rel,
         type: 'spouse' as const,
         weddingPlanned: undefined,
+        marriageWeek: nextWeeksLived,
+        anniversaryWeek: nextWeeksLived,
+        engagementWeek: undefined,
+        engagementRing: undefined,
+        livingTogether: true,
         relationshipScore: clampRelationshipScore(rel.relationshipScore + 20),
         weeksAtLowRelationship: 0,
       };
