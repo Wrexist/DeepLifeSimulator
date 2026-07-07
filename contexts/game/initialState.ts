@@ -1391,11 +1391,6 @@ export const initialGameState: GameState = {
   goals: [],
   goalProgress: {},
   completedGoals: [],
-  // Enhanced Social System
-  socialEvents: [],
-  socialGroups: [],
-  socialInteractions: [],
-  lastEventTimes: {},
   hasPhone: false,
   computerPreviouslyOwned: false,
   hasDriversLicense: false,
@@ -1692,13 +1687,6 @@ export const initialGameState: GameState = {
   },
   // Depth Enhancement System
   discoveredSystems: [],
-  depthMetrics: {
-    depthScore: 0,
-    systemsEngaged: 0,
-    lastCalculated: Date.now(),
-  },
-  progressiveDisclosureLevel: 'standard',
-  systemStatistics: {},
   // Engagement & Addiction Systems
   playStreak: { count: 0, lastPlayTimestamp: 0, longestStreak: 0 },
   weekResult: undefined,

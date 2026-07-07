@@ -370,12 +370,8 @@ export function applyLegacyBonuses(
     newState.stats.reputation = (newState.stats.reputation || 0) + 20;
   }
 
-  // Family business legacy bonus
-  if (unlockedBonuses.includes('legacy_business') && previousState) {
-    // Inherit family businesses (simplified - add a flag that the company system can check)
-    newState.hasFamilyBusinessLegacy = true;
-    // Could also transfer specific companies if needed
-  }
+  // (Removed dead hasFamilyBusinessLegacy write: the flag was set here but no
+  // system ever read it. The live legacy_business path is familyBusinesses[].)
 
   return newState;
 }

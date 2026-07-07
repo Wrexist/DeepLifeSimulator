@@ -15,7 +15,6 @@ import type { PrestigeData } from '@/lib/prestige/prestigeTypes';
 import type { SocialState } from '@/lib/social/relations';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
-import type { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
 import type { KarmaState } from '@/lib/karma/karmaSystem';
 import type { AutomationState } from '@/lib/automation/automationTypes';
 
@@ -2031,7 +2030,6 @@ export interface GameState {
     reputationBonus: number;
   };
   familyBusinesses?: FamilyBusiness[];
-  hasFamilyBusinessLegacy?: boolean; // Prestige legacy_business bonus flag
   mindset?: {
     activeTraitId?: string;
     [key: string]: any;
@@ -2248,17 +2246,11 @@ export interface GameState {
   goals: Goal[];
   goalProgress: Record<string, GoalProgress>;
   completedGoals: string[];
-  socialEvents: SocialEvent[];
-  socialGroups: SocialGroup[];
-  socialInteractions: SocialInteraction[];
-  lastEventTimes: Record<string, number>;
-  dailyChallenges?: {
-    easy: DailyChallengeState;
-    medium: DailyChallengeState;
-    hard: DailyChallengeState;
-    lastRefresh: number;
-    lastRefreshDayKey?: string;
-  };
+  // DEAD-CODE CLEANUP: the "Enhanced Social System" block (socialEvents,
+  // socialGroups, socialInteractions, lastEventTimes) and the old
+  // dailyChallenges shape were write-only orphans — declared + initialized but
+  // never read or updated by any gameplay code. Removed; old saves carrying
+  // the keys are unaffected (unknown keys are ignored on load).
   rngCommitLog?: RngCommitLog;
   prestige?: PrestigeData;
   prestigeAvailable?: boolean; // True when net worth >= $100M
@@ -2360,15 +2352,10 @@ export interface GameState {
       health: number; // 0-100, increases with health activities, decays when neglected
     };
   };
-  // Depth Enhancement System - tracks discovered systems and depth metrics
+  // Depth Enhancement System - tracks discovered systems
+  // (depthMetrics / progressiveDisclosureLevel / systemStatistics removed:
+  // write-only orphans with no reader anywhere in gameplay code.)
   discoveredSystems?: DiscoveredSystem[];
-  depthMetrics?: {
-    depthScore: number; // 0-100 score of game depth engagement
-    systemsEngaged: number;
-    lastCalculated: number; // timestamp
-  };
-  progressiveDisclosureLevel?: 'simple' | 'standard' | 'advanced';
-  systemStatistics?: Record<string, SystemStatistics>;
   // Life Moments & Consequence System
   consequenceState?: import('@/lib/lifeMoments/types').ConsequenceState;
   lifeMoments?: {
@@ -2380,10 +2367,6 @@ export interface GameState {
   // B-4: IAP processed transaction IDs stored in save envelope for cross-device resilience
   // Belt-and-suspenders: also stored in separate AsyncStorage key for cross-slot persistence
   processedIAPTransactions?: string[];
-  // IDs of EnhancedAchievement entries the player has already claimed —
-  // used by the achievement screen to gate the Claim button and avoid
-  // double-paying rewards.
-  claimedEnhancedAchievements?: string[];
   // Education System — campus event pending for UI display
   pendingCampusEventEducationId?: string;
 
@@ -2638,45 +2621,12 @@ export interface GoalProgress {
   lastUpdated: number;
 }
 
-export interface SocialEvent {
-  id: string;
-  type: 'party' | 'wedding' | 'funeral' | 'graduation' | 'birthday';
-  date: number;
-  attendees: string[];
-  cost: number;
-  reputationImpact: number;
-}
-
-export interface SocialGroup {
-  id: string;
-  name: string;
-  members: string[];
-  reputation: number;
-  type: 'friends' | 'colleagues' | 'club' | 'gang';
-}
-
-export interface SocialInteraction {
-  id: string;
-  targetId: string;
-  type: string;
-  date: number;
-  outcome: 'positive' | 'negative' | 'neutral';
-  impact: number;
-}
-
 export interface RngCommitLog {
   seed: number;
   sequence: number;
   entries: Record<string, number>;
   order: string[];
   lastCommittedWeek?: number;
-}
-
-export interface DailyChallengeState {
-  id: string;
-  progress: number;
-  claimed: boolean;
-  initialState: number; // Changed from any to number for tracking initial value
 }
 
 // ============================================
