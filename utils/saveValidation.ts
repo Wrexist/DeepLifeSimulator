@@ -902,6 +902,15 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       repairs.push('Set missing settings.weeklySummaryEnabled');
       repaired = true;
     }
+    // Light mode was never fully implemented and produced a broken half-themed
+    // look (light chrome around dark content), so the toggle was removed. Coerce
+    // any save that had toggled it off back to dark, otherwise those players are
+    // stranded in the broken light state with no toggle to escape it.
+    if (s.settings.darkMode !== true) {
+      s.settings.darkMode = true;
+      repairs.push('Coerced settings.darkMode back to true (light mode removed)');
+      repaired = true;
+    }
   }
 
   // Ensure version exists — use current STATE_VERSION, not a stale hardcoded value
