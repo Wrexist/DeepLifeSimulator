@@ -171,7 +171,8 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   // no silent loss) and re-derives the premium flag from the live subscription.
   useEffect(() => {
     if (!visible) return;
-    const subscribed = subscriptionService.getSubscriptionTier() !== 'free';
+    // Premium access via an active subscription OR the one-time lifetime unlock.
+    const subscribed = subscriptionService.hasPremiumAccess();
     setGameState((prev) => reconcileLegacyPassSeason(prev, subscribed));
   }, [visible, setGameState]);
 
@@ -366,7 +367,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
                   </TouchableOpacity>
                   <View style={styles.heroFootRow}>
                     <CheckCircle2 size={scale(13)} color="#FCD34D" />
-                    <Text style={styles.heroFootText}>One-time unlock. Yours forever.</Text>
+                    <Text style={styles.heroFootText}>Subscribe monthly — or unlock forever.</Text>
                   </View>
                 </View>
               </Animated.View>

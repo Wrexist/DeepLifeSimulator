@@ -1,6 +1,6 @@
 import { Platform, Linking } from 'react-native';
 import { iapService } from './IAPService';
-import { SUBSCRIPTION_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { SUBSCRIPTION_PRODUCTS, IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
 import { logger } from '@/utils/logger';
 import { SUBSCRIPTION_MANAGE_URL_IOS, SUBSCRIPTION_MANAGE_URL_ANDROID } from '@/lib/config/appConfig';
@@ -183,6 +183,25 @@ class SubscriptionService {
   }
 
   /**
+   * True if the player owns the one-time "Lifetime Premium" unlock (a
+   * non-consumable IAP, tracked in the purchase ledger rather than as a
+   * subscription).
+   */
+  hasLifetimePremium(): boolean {
+    return iapService.hasPurchased(IAP_PRODUCTS.LIFETIME_PREMIUM);
+  }
+
+  /**
+   * The single question every premium gate should ask: does this player have
+   * premium access RIGHT NOW — via an active auto-renewing subscription OR the
+   * one-time lifetime unlock? Both routes grant the same entitlements (Legacy
+   * Pass premium track, ad-free, exclusive cosmetics).
+   */
+  hasPremiumAccess(): boolean {
+    return this.getSubscriptionTier() !== 'free' || this.hasLifetimePremium();
+  }
+
+  /**
    * Check if feature is available for current tier
    */
   hasFeature(feature: string): boolean {
@@ -214,6 +233,37 @@ class SubscriptionService {
         return { success: true, message: 'Subscription activated successfully!' };
       }
       
+      return { success: false, message: result.message || 'Purchase failed' };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Purchase premium via EITHER path: an auto-renewing subscription
+   * (deeplife_premium_monthly / _yearly) OR the one-time lifetime unlock
+   * (deeplife_lifetime_premium). Both flow through the same store purchase; we
+   * then re-sync so `hasPremiumAccess()` reflects the new entitlement. Callers
+   * don't need to know which kind they bought.
+   */
+  async purchasePremium(productId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const result = await iapService.purchaseProduct(productId);
+      if (result.success) {
+        // Refresh subscription state (no-op for the one-time unlock, which is
+        // tracked in the IAP purchase ledger and read via hasLifetimePremium()).
+        await this.syncSubscriptions();
+        const lifetime = productId === IAP_PRODUCTS.LIFETIME_PREMIUM;
+        return {
+          success: true,
+          message: lifetime
+            ? 'Premium unlocked forever — thank you!'
+            : 'Subscription activated successfully!',
+        };
+      }
       return { success: false, message: result.message || 'Purchase failed' };
     } catch (error) {
       return {
