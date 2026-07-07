@@ -482,6 +482,19 @@ export const getProductConfig = (productId: string) => {
   return PRODUCT_CONFIGS[productId as keyof typeof PRODUCT_CONFIGS];
 };
 
+// Helper function to get a subscription config
+export const getSubscriptionConfig = (productId: string) => {
+  return SUBSCRIPTION_CONFIGS[productId];
+};
+
+// True when the SKU is an auto-renewing subscription (App Store: Subscriptions
+// group / Google Play: Subscriptions) rather than a one-time product. The store
+// fetch + purchase transport differ by type ('subs' vs 'in-app'), so callers
+// must branch on this — see services/IAPService.ts and expoIapAdapter.ts.
+export const isSubscriptionProduct = (productId: string): boolean => {
+  return getAllSubscriptionIds().includes(productId);
+};
+
 // Helper function to check if product is popular
 export const isPopularProduct = (productId: string) => {
   const config = getProductConfig(productId);

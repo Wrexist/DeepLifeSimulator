@@ -3,8 +3,11 @@ import type { GameState } from '@/contexts/game/types';
 import {
   IAP_PRODUCTS,
   getProductConfig,
+  getSubscriptionConfig,
   getAllProductIds,
+  getAllSubscriptionIds,
   isConsumableProduct,
+  isSubscriptionProduct,
 } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import { track } from '@/lib/analytics';
@@ -653,8 +656,17 @@ export class IAPService {
 
         const loaded = Array.isArray(results) ? results : [];
         if (loaded.length > 0) {
-          logger.debug('Loaded products:', { count: loaded.length, attempt });
-          this.setState({ products: loaded, error: null });
+          // Subscriptions are a separate store query ('subs'); merge them into
+          // the same catalog so the purchase flow can find a subscription SKU.
+          const subs = await this.loadSubscriptionProducts();
+          const merged = this.mergeProductCatalogs(loaded, subs);
+          logger.debug('Loaded products:', {
+            count: merged.length,
+            products: loaded.length,
+            subscriptions: subs.length,
+            attempt,
+          });
+          this.setState({ products: merged, error: null });
           return;
         }
 
@@ -664,11 +676,16 @@ export class IAPService {
           await new Promise((r) => setTimeout(r, attempt * 1500));
           continue;
         }
-        // Final attempt still empty: keep any previously-loaded products, and
-        // clear any stale error from an earlier failed attempt — don't raise a
-        // scary error. This is most often a store-config / propagation issue,
-        // which the purchase flow now reports in friendly, actionable terms.
-        this.setState({ products: this.state.products, error: null });
+        // Final attempt still empty for one-time products: still try subscriptions
+        // (they may be configured even if the in-app catalog is momentarily
+        // empty), then keep any previously-loaded products. Clear any stale error
+        // — this is usually store-config / propagation, which the purchase flow
+        // reports in friendly, actionable terms.
+        {
+          const subs = await this.loadSubscriptionProducts();
+          const merged = this.mergeProductCatalogs(this.state.products, subs);
+          this.setState({ products: merged, error: null });
+        }
         return;
       } catch (error) {
         logger.error('Failed to load products:', { error, attempt });
@@ -679,6 +696,43 @@ export class IAPService {
         this.setState({ error: `Failed to load products: ${error}` });
       }
     }
+  }
+
+  // Fetch auto-renewing subscription products ('subs' store query). Isolated in
+  // its own try/catch and returns [] on any failure so a not-yet-configured
+  // subscription group can never blank out the one-time product catalog.
+  private async loadSubscriptionProducts(): Promise<any[]> {
+    if (!loadInAppPurchasesModule() || !InAppPurchases) return [];
+    const subscriptionIds = getAllSubscriptionIds();
+    if (subscriptionIds.length === 0) return [];
+    try {
+      const { responseCode, results } = await InAppPurchases.getProductsAsync(
+        subscriptionIds,
+        'subs',
+      );
+      if (responseCode !== InAppPurchases.IAPResponseCode.OK) {
+        logger.warn('Subscription catalog query returned non-OK', { responseCode });
+        return [];
+      }
+      const loaded = Array.isArray(results) ? results : [];
+      logger.debug('Loaded subscription products:', { count: loaded.length });
+      return loaded;
+    } catch (error) {
+      logger.warn('Failed to load subscription products (non-fatal)', {
+        error: String(error),
+      });
+      return [];
+    }
+  }
+
+  // Merge one-time products with subscriptions, de-duped by productId so a
+  // reload never stacks duplicates.
+  private mergeProductCatalogs(base: any[], extra: any[]): any[] {
+    const byId = new Map<string, any>();
+    for (const p of [...(base || []), ...(extra || [])]) {
+      if (p && p.productId) byId.set(p.productId, p);
+    }
+    return Array.from(byId.values());
   }
 
   // Load existing purchases
@@ -758,8 +812,10 @@ export class IAPService {
         });
         this.setState({ isLoading: false });
 
-        // Simulate successful purchase
-        const config = getProductConfig(productId);
+        // Simulate successful purchase. Subscriptions have no PRODUCT_CONFIG
+        // (they live in SUBSCRIPTION_CONFIGS), so fall back to that so dev/Expo
+        // Go can exercise the premium subscription flow too.
+        const config = getProductConfig(productId) || getSubscriptionConfig(productId);
         if (config) {
           logger.info('Product config found:', { name: config.name });
 
@@ -805,14 +861,20 @@ export class IAPService {
         );
       }
 
-      logger.info('Attempting to purchase:', { productId });
+      const purchasingSubscription = isSubscriptionProduct(productId);
+      logger.info('Attempting to purchase:', { productId, subscription: purchasingSubscription });
 
       // Request purchase with proper error handling
       // Ensure module is loaded before use
       if (!loadInAppPurchasesModule() || !InAppPurchases) {
         throw new Error('IAP module not available');
       }
-      const purchaseResult = await InAppPurchases.purchaseItemAsync(productId);
+      // Subscriptions must be requested under the 'subs' type or the store
+      // rejects the SKU; one-time products default to 'in-app'.
+      const purchaseResult = await InAppPurchases.purchaseItemAsync(
+        productId,
+        purchasingSubscription ? 'subs' : 'in-app',
+      );
 
       // Check if purchase result is valid
       if (!purchaseResult || typeof purchaseResult !== 'object') {
@@ -931,8 +993,14 @@ export class IAPService {
 
         // Finish transaction with store AFTER benefit is applied and persisted.
         // If this fails, the store will retry via the purchase listener on next launch.
+        // Subscriptions must be acknowledged, NOT consumed — consuming a
+        // subscription on Android lets it be re-bought and breaks the
+        // entitlement. Everything else keeps its existing finish behavior.
         try {
-          await InAppPurchases.finishTransactionAsync(purchase, true);
+          await InAppPurchases.finishTransactionAsync(
+            purchase,
+            !isSubscriptionProduct(purchase.productId),
+          );
           logger.info('Transaction finished with store');
         } catch (finishError) {
           logger.warn(
@@ -1099,7 +1167,7 @@ export class IAPService {
                   // Already applied — still finish on the platform so it stops
                   // being re-delivered, but no other work.
                   try {
-                    await InAppPurchases.finishTransactionAsync(purchase, true);
+                    await InAppPurchases.finishTransactionAsync(purchase, !isSubscriptionProduct(purchase.productId));
                   } catch (err) {
                     logger.warn('finishTransactionAsync failed on duplicate', { err });
                   }
@@ -1129,7 +1197,7 @@ export class IAPService {
                 // no lock to leak on this path.
                 if (purchase.acknowledged === true) {
                   try {
-                    await InAppPurchases.finishTransactionAsync(purchase, true);
+                    await InAppPurchases.finishTransactionAsync(purchase, !isSubscriptionProduct(purchase.productId));
                   } catch (err) {
                     logger.warn('finishTransactionAsync failed on acknowledged', { err });
                   }
@@ -1159,7 +1227,7 @@ export class IAPService {
                   }
 
                   await this.applyBenefit(purchase.productId, transactionId);
-                  await InAppPurchases.finishTransactionAsync(purchase, true);
+                  await InAppPurchases.finishTransactionAsync(purchase, !isSubscriptionProduct(purchase.productId));
                 } finally {
                   // Release the in-memory lock once this path is done (the
                   // persisted ledger now records the grant for cold starts).
@@ -1186,7 +1254,12 @@ export class IAPService {
     options?: { skipBenefitReapply?: boolean },
   ): Promise<void> {
     const config = getProductConfig(purchase.productId);
-    if (!config) return;
+    // Subscriptions have no one-time PRODUCT_CONFIG (they live in
+    // SUBSCRIPTION_CONFIGS) but DO need disk fulfillment — the Verified-Pro
+    // block below grants their perks. Only bail when the SKU is neither a
+    // configured one-time product nor a known subscription.
+    const isSubscription = isSubscriptionProduct(purchase.productId);
+    if (!config && !isSubscription) return;
 
     // Resolve authoritative slot. Prefer currentSlot, keep lastSlot fallback for legacy writes.
     const currentSlotRaw = await safeGetItem('currentSlot');
@@ -1255,12 +1328,16 @@ export class IAPService {
     // SKIP when the in-memory updater already applied + persisted them: this
     // helper is additive for consumables (gems/money/youthPills `+=`), so a
     // second pass over the already-credited save double-grants the purchase.
-    if (!options?.skipBenefitReapply) {
-      applyProductBenefitsToState(gameState, config, purchase.productId);
-    }
+    // Subscriptions have no `config`; their fulfillment is the Verified-Pro
+    // block below, so skip the one-time-product benefit/perk application.
+    if (config) {
+      if (!options?.skipBenefitReapply) {
+        applyProductBenefitsToState(gameState, config, purchase.productId);
+      }
 
-    // Disk path only: persist permanent (cross-slot) perks to storage.
-    await this.persistPermanentPerks(config);
+      // Disk path only: persist permanent (cross-slot) perks to storage.
+      await this.persistPermanentPerks(config);
+    }
 
     // ─── Pulse Verified Pro subscription fulfillment (v13+) ───
     // Mirrors `subscribeVerifiedPro`from contexts/game/actions/VibeActions.ts.

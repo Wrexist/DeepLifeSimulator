@@ -70,8 +70,12 @@ describe('IAP graceful product loading', () => {
     const iapService = await freshService(fetchProducts);
     await iapService.loadProducts();
 
-    expect(fetchProducts).toHaveBeenCalledTimes(3);
-    expect(iapService.getProducts()).toHaveLength(1);
+    // The one-time ('in-app') catalog is retried until it's non-empty (3×), and
+    // once it loads the subscriptions ('subs') are queried once and merged in.
+    const inAppCalls = fetchProducts.mock.calls.filter(([arg]) => arg?.type === 'in-app');
+    const subCalls = fetchProducts.mock.calls.filter(([arg]) => arg?.type === 'subs');
+    expect(inAppCalls).toHaveLength(3);
+    expect(subCalls).toHaveLength(1);
     expect(iapService.getProducts()[0].productId).toBe('deeplife_gems_100');
     expect(iapService.getState().error).toBeNull();
   });
@@ -82,8 +86,12 @@ describe('IAP graceful product loading', () => {
     const iapService = await freshService(fetchProducts);
     await expect(iapService.loadProducts()).resolves.toBeUndefined();
 
-    // It retried, then gave up quietly — no products, but no alarming error.
-    expect(fetchProducts).toHaveBeenCalledTimes(3);
+    // It retried the one-time catalog (3×), also tried subscriptions once, then
+    // gave up quietly — no products, but no alarming error.
+    const inAppCalls = fetchProducts.mock.calls.filter(([arg]) => arg?.type === 'in-app');
+    const subCalls = fetchProducts.mock.calls.filter(([arg]) => arg?.type === 'subs');
+    expect(inAppCalls).toHaveLength(3);
+    expect(subCalls).toHaveLength(1);
     expect(iapService.getProducts()).toHaveLength(0);
     expect(iapService.getState().error).toBeNull();
     expect(iapService.isStoreAvailable()).toBe(false);
