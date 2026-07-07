@@ -130,10 +130,6 @@ function ComputerScreenContent() {
   }, [navigation]);
 
   // Memoize apps list - must be called before any early returns (Rules of Hooks)
-  // R10-perf: hoist the only career-dependent flag to a primitive so the 17-app
-  // list (and its 3 derived filtered lists) don't rebuild every decay tick just
-  // because `gameState.careers` got a new array identity.
-  const canRunPolitical = (gameState.careers || []).some(c => c.id === 'political' && c.accepted);
   const appsList = useMemo(() => [
     {
       id: 'bitcoin',
@@ -264,11 +260,14 @@ function ComputerScreenContent() {
     {
       id: 'political',
       name: 'Political Office',
-      description: 'Manage your political career',
+      description: 'Run for office, campaign, and govern',
       icon: Vote,
       gradient: ['#DC2626', '#B91C1C'], // Red gradient for politics
       iconGradient: ['#DC2626', '#B91C1C'],
-      available: canRunPolitical,
+      // Always reachable: politics is a life path you enter FROM this app (Run
+      // for Office). Gating it on already holding office made it a locked door
+      // nobody could open. The Office tab enforces age/reputation/education.
+      available: true,
     },
     {
       id: 'statistics',
@@ -288,7 +287,7 @@ function ComputerScreenContent() {
       iconGradient: ['#6366F1', '#8B5CF6'],
       available: true,
     },
-  ], [t, canRunPolitical]);
+  ], [t]);
 
   // Separate apps into categories
   const desktopApps = useMemo(() => appsList.filter(app => 

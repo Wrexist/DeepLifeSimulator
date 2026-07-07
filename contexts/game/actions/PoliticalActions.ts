@@ -341,8 +341,13 @@ export const runForOffice = (
         if (c.id !== 'political') return c;
         return {
           ...c,
+          // career.level is the 0-based index into POLITICAL_CAREER.levels
+          // (Council=0 … President=5), used for salary. accepted:true marks the
+          // office as held so the Politics app + salary treat it as a real job.
           level: newLevel,
           progress: 0,
+          applied: true,
+          accepted: true,
         };
       }),
       politics: {
@@ -357,7 +362,11 @@ export const runForOffice = (
           alliances: [],
           campaignFunds: 0,
         },
-        careerLevel: newLevel,
+        // politics.careerLevel is the 1-based office RANK (0=Citizen, 1=Council
+        // … 6=President) — matches OFFICE_NAME and unlocks the scandal tick +
+        // political events (all gated on careerLevel > 0). It is deliberately
+        // career.level + 1.
+        careerLevel: newLevel + 1,
         electionsWon: (prev.politics?.electionsWon || 0) + 1,
         approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + 10),
         lastElectionWeek: currentWeek,

@@ -8533,6 +8533,7 @@ exports[`subsystem tick equivalence — runDarkWebWeeklyTick wealthyGame 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick earlyCareer 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8551,6 +8552,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick earlyCareer 1`] = 
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick freshGame 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8569,6 +8571,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick freshGame 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick inPrison 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8587,6 +8590,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick inPrison 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick midGame 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8605,6 +8609,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick midGame 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick nearDeath 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8623,6 +8628,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick nearDeath 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick wealthyGame 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,

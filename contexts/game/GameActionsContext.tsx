@@ -1471,9 +1471,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  for (const note of politicsTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
  }
- // Forced resignation: drop careerLevel back to 0 and clear nextElectionWeek.
+ // Forced resignation OR lost re-election: drop careerLevel to 0 and clear the
+ // election countdown. The political salary is gated on politics.careerLevel > 0
+ // (lib/economy/passiveIncome.ts), so zeroing it here stops the paycheck. The
+ // re-election-loss path in the tick already sets careerLevel:0; this also covers
+ // the scandal-resignation flag.
  let nextPolitics = politicsTick.politics;
- if (politicsTick.forcedResignation) {
+ if (politicsTick.forcedResignation || politicsTick.lostOffice) {
  nextPolitics = {
 ...nextPolitics,
  careerLevel: 0,
@@ -2322,6 +2326,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  );
  }
 
+ // Politics event effects: approval rating + policy influence. These were
+ // previously DROPPED — the resolver only applied money/stats/relationship/pet,
+ // so every political event that promised an approval or influence swing did
+ // nothing. Also catch legacy events that mistakenly nested `approvalRating`
+ // inside `stats` (the stats loop skips it since it isn't a GameStats key).
+ let updatedPolitics: GameState['politics'] | undefined;
+ const approvalDelta = (effects.approvalRating ?? 0) + ((effects.stats as Record<string, number> | undefined)?.approvalRating ?? 0);
+ const influenceDelta = effects.policyInfluence ?? 0;
+ if ((approvalDelta !== 0 || influenceDelta !== 0) && prevState.politics && effectsAffordable) {
+ updatedPolitics = {
+...prevState.politics,
+ approvalRating: Math.max(0, Math.min(100, (prevState.politics.approvalRating ?? 50) + approvalDelta)),
+ policyInfluence: Math.max(0, Math.min(100, (prevState.politics.policyInfluence ?? 0) + influenceDelta)),
+ };
+ }
+
  // CRITICAL: Return complete state with all properties preserved
  // Use spread operator to ensure we don't lose any properties
  const newState: GameState = {
@@ -2337,6 +2357,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 ...(updatedConsequenceState && { consequenceState: updatedConsequenceState }), // Add consequence state if updated
 ...(updatedMemories && { memories: updatedMemories }), // Add memories if created
 ...(updatedKarma && { karma: updatedKarma }), // Update karma if changed
+...(updatedPolitics && { politics: updatedPolitics }), // Approval/influence event effects
  diseases: updatedDiseases, // Update diseases if event triggered one
  showSicknessModal: showSicknessModal, // Show modal if new disease
  diseaseHistory: updatedDiseaseHistory, // Update disease history

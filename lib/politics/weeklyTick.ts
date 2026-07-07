@@ -13,9 +13,20 @@ import {
   rollScandal,
   tickScandals,
 } from './operations';
+import { getNextElectionWeek, OfficeLevel } from './elections';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
+
+/** Office rank (1-based) → display title. Rank 0 is Citizen (no office). */
+const OFFICE_TITLES: Record<number, string> = {
+  1: 'Council Member',
+  2: 'Mayor',
+  3: 'State Representative',
+  4: 'Governor',
+  5: 'Senator',
+  6: 'President',
+};
 
 export interface PoliticsWeeklyTickInput {
   politics: PoliticsState;
@@ -33,6 +44,8 @@ export interface PoliticsWeeklyTickResult {
   politics: PoliticsState;
   /** True if the scandal tick triggered a forced resignation — caller resets careerLevel. */
   forcedResignation: boolean;
+  /** True if the player left office this tick (scandal resignation OR lost re-election) — caller resets the political career (accepted:false, currentJob). */
+  lostOffice: boolean;
   notifications: { id: string; title: string; message: string }[];
 }
 
@@ -41,7 +54,7 @@ export function runPoliticsWeeklyTick(input: PoliticsWeeklyTickInput): PoliticsW
   // Citizens building credibility before running can still skip this.
   const careerLevel = safe(input.politics.careerLevel, 0);
   if (careerLevel === 0) {
-    return { politics: input.politics, forcedResignation: false, notifications: [] };
+    return { politics: input.politics, forcedResignation: false, lostOffice: false, notifications: [] };
   }
 
   let politics = ensurePoliticsHasNewFields(input.politics);
@@ -89,5 +102,55 @@ export function runPoliticsWeeklyTick(input: PoliticsWeeklyTickInput): PoliticsW
   // 3) Natural drift toward 50.
   politics = driftApproval(politics);
 
-  return { politics, forcedResignation: tick.forcedResignation, notifications };
+  // 4) Re-election when the term ends. Previously the UI counted down to a date
+  // that nothing resolved. Now the incumbent faces the voters: heavily favored,
+  // but a low approval rating can cost the seat — which is what finally gives
+  // approval (and campaign spending / scandals) real stakes.
+  let lostOffice = tick.forcedResignation;
+  const currentCareerLevel = safe(politics.careerLevel, 0);
+  const nextElectionWeek = politics.nextElectionWeek;
+  if (
+    !tick.forcedResignation &&
+    currentCareerLevel > 0 &&
+    typeof nextElectionWeek === 'number' &&
+    input.currentWeek >= nextElectionWeek
+  ) {
+    const approval = safe(politics.approvalRating, 50);
+    const electionsWon = safe(politics.electionsWon, 0);
+    // Incumbent advantage: base 45 + approval weight + small tenure bonus, clamped.
+    const successChance = Math.max(25, Math.min(92, 45 + approval * 0.45 + Math.min(10, electionsWon)));
+    const won = input.rollFor('politics.reelection.outcome') * 100 < successChance;
+    const officeTitle = OFFICE_TITLES[currentCareerLevel] ?? 'office';
+    if (won) {
+      const officeIndex = (currentCareerLevel - 1) as OfficeLevel;
+      const scheduled = getNextElectionWeek(input.currentWeek, officeIndex, input.currentWeek);
+      politics = {
+        ...politics,
+        electionsWon: electionsWon + 1,
+        approvalRating: Math.min(100, approval + 5),
+        lastElectionWeek: input.currentWeek,
+        nextElectionWeek: scheduled,
+      };
+      notifications.push({
+        id: `politics-reelect-win-${input.currentWeek}`,
+        title: '🗳️ Re-elected',
+        message: `Voters returned you to office as ${officeTitle}. Approval +5.`,
+      });
+    } else {
+      politics = {
+        ...politics,
+        careerLevel: 0,
+        approvalRating: Math.max(0, approval - 10),
+        nextElectionWeek: undefined,
+      };
+      lostOffice = true;
+      notifications.push({
+        id: `politics-reelect-loss-${input.currentWeek}`,
+        title: '🗳️ Voted Out of Office',
+        message: `You lost the ${officeTitle} election. Your term is over — win back the seat by running again.`,
+      });
+    }
+  }
+
+  return { politics, forcedResignation: tick.forcedResignation, lostOffice, notifications };
 }
