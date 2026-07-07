@@ -11,6 +11,7 @@ import { getGlassTabBar } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { useStatChanges } from '@/contexts/StatChangeContext';
 import SmartNotificationTicker from '@/components/SmartNotificationTicker';
+import PremiumPassPromo from '@/components/PremiumPassPromo';
 import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
@@ -232,6 +233,9 @@ export default function TabLayout() {
     {/* Urgent smart notifications (critical/high only) auto-surface after a
         week advance — the authored warning content was manual-only before. */}
     <SmartNotificationTicker />
+    {/* Occasional animated premium-pass upsell (gated: unsubscribed + rewards
+        already earned & waiting + long cooldown). */}
+    <PremiumPassPromo />
     {/* Weekly payoff sheet — the satisfying end-of-week beat. Lowest priority:
         only shows once the modals above have cleared. */}
     {showWeekResult ? (

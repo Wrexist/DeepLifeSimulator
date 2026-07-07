@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import {
@@ -67,6 +68,13 @@ function ProgressionScreenContent() {
   const [showHobbies, setShowHobbies] = useState(false);
   const [showLegacyPass, setShowLegacyPass] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
+
+  // Deep link: the premium-pass promo popup routes here with ?openPass=1 to open
+  // the Legacy Pass directly, so the upsell is a single tap, not a scavenger hunt.
+  const params = useLocalSearchParams<{ openPass?: string }>();
+  useEffect(() => {
+    if (params?.openPass === '1') setShowLegacyPass(true);
+  }, [params?.openPass]);
 
   // P2-7: depend on PRIMITIVES, not object/array references. Under the current
   // provider, `gameState.stats`/`relationships`/`items` get a fresh identity on

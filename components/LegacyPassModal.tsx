@@ -6,8 +6,9 @@
  * active subscription (synced into the pass on open).
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
-import { X, Lock, Check, Crown, Gift } from 'lucide-react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, Easing } from 'react-native';
+import { X, Lock, Check, Crown, Gift, Sparkles, ChevronRight } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -71,6 +72,28 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const claimedFree = useMemo(() => new Set(pass.claimedFreeTiers), [pass.claimedFreeTiers]);
   const claimedPremium = useMemo(() => new Set(pass.claimedPremiumTiers), [pass.claimedPremiumTiers]);
 
+  // Premium value framing — what the player is missing out on. Drives the
+  // upsell copy so "go premium" is a concrete offer, not a vague banner.
+  const premiumStats = useMemo(() => {
+    let total = 0;         // total premium rewards in the season
+    let earnedLocked = 0;  // premium rewards already earned but unclaimable (no sub)
+    let lockedGems = 0;    // gems sitting behind the paywall, already earned
+    let headline = '';     // the flashiest premium reward to name-drop
+    for (let tier = 1; tier <= MAX_TIER; tier++) {
+      const r = getLegacyPassReward('premium', tier);
+      if (!r) continue;
+      total += 1;
+      if (currentTier >= tier) {
+        earnedLocked += 1;
+        if (r.kind === 'gems') lockedGems += r.amount ?? 0;
+      }
+      // Prefer a non-gems, high-tier reward as the headline (cosmetics/items feel premium).
+      if (r.kind !== 'gems' && (!headline || tier > MAX_TIER / 2)) headline = r.label;
+    }
+    if (!headline) headline = 'exclusive rewards';
+    return { total, earnedLocked, lockedGems, headline };
+  }, [currentTier]);
+
   const equipped = useGameSelector((s) => s.equippedCosmetics);
   const ownedCosmetics = useMemo(() => resolveOwnedCosmetics(pass.ownedCosmetics), [pass.ownedCosmetics]);
   const equippedFrame = equipped?.frame ? getCosmetic(equipped.frame) : undefined;
@@ -80,6 +103,31 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const fillRatio = currentTier >= MAX_TIER ? 1 : intoTier / XP_PER_TIER;
   const fillAnim = useRef(new Animated.Value(fillRatio)).current;
   const toastAnim = useRef(new Animated.Value(0)).current;
+
+  // Premium upsell juice: a breathing glow, a shimmer sweep, and a crown pulse —
+  // makes the "Go Premium" card feel alive and draws the eye. All looped &
+  // reduced-motion aware; the shimmer uses translateX so it can stay native.
+  const showUpsell = !pass.premiumOwned;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const crownAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!visible || !showUpsell || reducedMotion) {
+      glowAnim.setValue(0); shimmerAnim.setValue(0); crownAnim.setValue(0);
+      return;
+    }
+    const glow = Animated.loop(Animated.sequence([
+      Animated.timing(glowAnim, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(glowAnim, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    const shimmer = Animated.loop(Animated.timing(shimmerAnim, { toValue: 1, duration: 2200, easing: Easing.linear, useNativeDriver: true }));
+    const crown = Animated.loop(Animated.sequence([
+      Animated.timing(crownAnim, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(crownAnim, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    glow.start(); shimmer.start(); crown.start();
+    return () => { glow.stop(); shimmer.stop(); crown.stop(); };
+  }, [visible, showUpsell, reducedMotion, glowAnim, shimmerAnim, crownAnim]);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -260,17 +308,58 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
             </Animated.View>
           )}
 
-          {/* Premium banner */}
-          {!pass.premiumOwned && (
-            <TouchableOpacity
-              style={[styles.premiumBanner, { borderColor: accent.warning }]}
-              onPress={onSubscribe}
-              accessibilityRole="button"
-              accessibilityLabel="Subscribe to unlock the premium track"
-            >
-              <Crown size={scale(16)} color={accent.warning} />
-              <Text style={[styles.premiumText, { color: theme.text }]}>Subscribe to unlock the premium track</Text>
-            </TouchableOpacity>
+          {/* Premium upsell — the sell. Animated gold card with a shimmer sweep,
+              a breathing glow, a pulsing crown, and concrete FOMO copy (how many
+              premium rewards you've ALREADY earned but can't claim). */}
+          {showUpsell && (
+            <Animated.View style={{ transform: [{ scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] }) }] }}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={onSubscribe}
+                accessibilityRole="button"
+                accessibilityLabel="Go Premium — unlock the premium track"
+                style={styles.upsellWrap}
+              >
+                <LinearGradientFallback
+                  colors={['#B8860B', '#F5C542', '#FBBF24', '#B8860B']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.upsellCard}
+                >
+                  {/* Shimmer sweep */}
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.shimmer,
+                      { transform: [{ translateX: shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [-scale(220), scale(360)] }) }, { rotate: '18deg' }] },
+                    ]}
+                  />
+                  <View style={styles.upsellRow}>
+                    <Animated.View style={[styles.upsellCrown, { transform: [{ scale: crownAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) }] }]}>
+                      <Crown size={scale(22)} color="#3B2F00" fill="#3B2F00" />
+                    </Animated.View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.upsellTitleRow}>
+                        <Text style={styles.upsellTitle}>Go Premium</Text>
+                        <View style={styles.upsellValueBadge}>
+                          <Sparkles size={scale(10)} color="#3B2F00" />
+                          <Text style={styles.upsellValueBadgeText}>BEST VALUE</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.upsellSub} numberOfLines={2}>
+                        {premiumStats.earnedLocked > 0
+                          ? `${premiumStats.earnedLocked} premium reward${premiumStats.earnedLocked === 1 ? '' : 's'} already waiting${premiumStats.lockedGems > 0 ? ` · +${premiumStats.lockedGems} gems` : ''} — plus ${premiumStats.headline}`
+                          : `Unlock all ${premiumStats.total} premium rewards — incl. ${premiumStats.headline}`}
+                      </Text>
+                    </View>
+                    <View style={styles.upsellCta}>
+                      <Text style={styles.upsellCtaText}>Unlock</Text>
+                      <ChevronRight size={scale(15)} color="#3B2F00" />
+                    </View>
+                  </View>
+                </LinearGradientFallback>
+              </TouchableOpacity>
+            </Animated.View>
           )}
 
           {/* Cosmetics — owned items, tap to equip; live preview reflects the loadout */}
@@ -406,6 +495,35 @@ const styles = StyleSheet.create({
     padding: scale(10), marginBottom: scale(12),
   },
   premiumText: { fontSize: fontScale(13), fontWeight: '600', flex: 1 },
+  upsellWrap: {
+    marginBottom: scale(12), borderRadius: responsiveBorderRadius.lg, overflow: 'hidden',
+    shadowColor: '#F5C542', shadowOpacity: 0.5, shadowRadius: scale(12), shadowOffset: { width: 0, height: scale(3) }, elevation: 6,
+  },
+  upsellCard: { borderRadius: responsiveBorderRadius.lg, padding: scale(12), overflow: 'hidden' },
+  shimmer: {
+    position: 'absolute', top: -scale(30), bottom: -scale(30), width: scale(60),
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  upsellRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
+  upsellCrown: {
+    width: scale(40), height: scale(40), borderRadius: scale(20),
+    backgroundColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center',
+  },
+  upsellTitleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
+  upsellTitle: { fontSize: fontScale(17), fontWeight: '900', color: '#2A2000', letterSpacing: 0.3 },
+  upsellValueBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: scale(3),
+    backgroundColor: 'rgba(255,255,255,0.55)', borderRadius: scale(6),
+    paddingHorizontal: scale(6), paddingVertical: scale(2),
+  },
+  upsellValueBadgeText: { fontSize: fontScale(9), fontWeight: '900', color: '#3B2F00', letterSpacing: 0.5 },
+  upsellSub: { fontSize: fontScale(11.5), fontWeight: '600', color: '#3B2F00', marginTop: scale(2), opacity: 0.92 },
+  upsellCta: {
+    flexDirection: 'row', alignItems: 'center', gap: scale(2),
+    backgroundColor: 'rgba(255,255,255,0.65)', borderRadius: scale(999),
+    paddingLeft: scale(12), paddingRight: scale(8), paddingVertical: scale(8),
+  },
+  upsellCtaText: { fontSize: fontScale(13), fontWeight: '900', color: '#2A2000' },
   cosmeticsBox: { borderWidth: 1, borderRadius: responsiveBorderRadius.md, padding: scale(10), marginBottom: scale(12) },
   cosmeticsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: scale(8) },
   cosmeticsTitle: { fontSize: fontScale(13), fontWeight: '700' },
