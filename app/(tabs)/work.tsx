@@ -612,7 +612,7 @@ function WorkScreenContent() {
         if (isEmployedHere) {
             if (atMaxLevel) {
                 footer = (
-                    <Text style={[styles.maxPromotionText, settings.darkMode && styles.maxPromotionTextDark, { textAlign: 'center' }]}>
+                    <Text style={[styles.maxPromotionText, styles.maxPromotionTextDark, { textAlign: 'center' }]}>
                         Max promotion reached
                     </Text>
                 );
@@ -811,7 +811,7 @@ function WorkScreenContent() {
                             {activeTab === 'street' && (
                                 <View>
                                     <View style={styles.sectionHeader}>
-                                        <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Street Jobs</Text>
+                                        <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Street Jobs</Text>
                                         <InfoButton
                                             title="Street Jobs"
                                             content="Street jobs are a great way to start earning money and build your skills. Each job has ranks that improve with experience. Work more to level up and earn better pay!"
@@ -831,7 +831,7 @@ function WorkScreenContent() {
                                     )}
 
                                     <View style={styles.sectionHeader}>
-                                        <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Careers</Text>
+                                        <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Careers</Text>
                                         <InfoButton
                                             title="Career Jobs"
                                             content="Apply for traditional careers that offer steady income and advancement opportunities. Each career has requirements like education or fitness levels you must meet first. Work hard to get promoted and earn higher salaries!"
@@ -839,9 +839,9 @@ function WorkScreenContent() {
                                             darkMode={settings.darkMode}
                                         />
                                     </View>
-                                    <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Standard Careers</Text>
+                                    <Text style={[styles.subheader, styles.subheaderDark]}>Standard Careers</Text>
                                     {basicCareers.map(career => renderCareerCard(career))}
-                                    <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>Advanced Careers</Text>
+                                    <Text style={[styles.subheader, styles.subheaderDark]}>Advanced Careers</Text>
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         const { getUnlockedAdvancedCareers, isCareerUnlocked } = require('@/lib/careers/advancedCareers');
@@ -858,7 +858,7 @@ function WorkScreenContent() {
                                             return (
                                                 <View style={styles.lockedCareerContainer}>
                                                     <Lock size={scale(24)} color={settings.darkMode ? '#9CA3AF' : '#6B7280'} />
-                                                    <Text style={[styles.lockedCareerText, settings.darkMode && styles.lockedCareerTextDark]}>
+                                                    <Text style={[styles.lockedCareerText, styles.lockedCareerTextDark]}>
                                                         Complete education, gain experience, and build reputation to unlock advanced careers.
                                                     </Text>
                                                 </View>
@@ -895,7 +895,7 @@ function WorkScreenContent() {
                             {activeTab === 'skills' && (
                                 <View>
                                     <View style={styles.sectionHeader}>
-                                        <Text style={[styles.sectionTitle, settings.darkMode && styles.sectionTitleDark]}>Crime Skills</Text>
+                                        <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Crime Skills</Text>
                                         <InfoButton
                                             title="Crime Skills"
                                             content="Crime skills improve your odds in illegal jobs. Each skill has talents you can unlock that give +5% success rate and +10% payment bonus. Level up your skills by doing illegal jobs and unlock powerful abilities!"
@@ -939,7 +939,7 @@ function WorkScreenContent() {
                                         })}
                                     </View>
 
-                                    <Text style={[styles.subheader, settings.darkMode && styles.subheaderDark]}>
+                                    <Text style={[styles.subheader, styles.subheaderDark]}>
                                         Crime Jobs (Level {gameState.criminalLevel})
                                     </Text>
                                     {criminalStreetJobs.length > 0 ? (
