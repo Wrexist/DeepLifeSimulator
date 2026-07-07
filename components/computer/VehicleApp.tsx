@@ -400,7 +400,9 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               term,
               weeklyIncome,
             });
-            if (!result.success) Alert.alert('Purchase', result.message);
+            // Celebrate the win too — buying a car is one of the game's most
+            // aspirational purchases and used to complete in total silence.
+            Alert.alert(result.success ? '🚗 New Ride!' : 'Purchase', result.message);
             queueSave();
             setActiveTab('garage');
           }

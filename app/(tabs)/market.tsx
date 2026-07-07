@@ -363,7 +363,10 @@ function MarketScreenContent() {
       health: 3,
       happiness: 2,
     });
-  }, [hasMembership, gameState.stats.money, gameState.stats.energy, updateStats]);
+    // Effort → reward feedback, matching the food/buy paths on this screen.
+    // This was the one silent action on an otherwise-reactive tab.
+    showSuccess('💪 Workout done! +5 Fitness, +3 Health');
+  }, [hasMembership, gameState.stats.money, gameState.stats.energy, updateStats, showSuccess]);
 
 
   // (P1-8: scroll indicator layout block removed — see comment near the dead

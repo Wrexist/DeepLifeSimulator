@@ -67,9 +67,11 @@ function LastWeekRecap() {
   const careerProgress = Math.round(wr.careerProgressPercent ?? 0);
   const pendingEvents = data?.pendingEventCount ?? 0;
 
-  // A truly empty week (no money movement at all) stays silent rather than
-  // showing a hollow "$0" recap.
-  if (income === 0 && expenses === 0 && net === 0 && lucky === 0) return null;
+  // Only go silent when there is truly NOTHING to say. Previously any
+  // money-flat week returned null — which also swallowed career progress and
+  // even the "decisions waiting" badge, making those weeks feel dead.
+  const moneyMoved = income !== 0 || expenses !== 0 || net !== 0 || lucky !== 0;
+  if (!moneyMoved && careerProgress === 0 && pendingEvents === 0) return null;
 
   const positive = net >= 0;
   const netColor = positive ? '#34D399' : '#F87171';
@@ -86,17 +88,21 @@ function LastWeekRecap() {
     >
       <View style={styles.topRow}>
         <Text style={[styles.label, { color: subColor }]}>LAST WEEK</Text>
-        <View style={styles.netCluster}>
-          {positive ? (
-            <TrendingUp size={scale(15)} color={netColor} />
-          ) : (
-            <TrendingDown size={scale(15)} color={netColor} />
-          )}
-          <Text style={[styles.netValue, { color: netColor }]}>
-            {positive ? '+' : '-'}
-            {fmt(net)}
-          </Text>
-        </View>
+        {moneyMoved ? (
+          <View style={styles.netCluster}>
+            {positive ? (
+              <TrendingUp size={scale(15)} color={netColor} />
+            ) : (
+              <TrendingDown size={scale(15)} color={netColor} />
+            )}
+            <Text style={[styles.netValue, { color: netColor }]}>
+              {positive ? '+' : '-'}
+              {fmt(net)}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[styles.chip, { color: subColor }]}>A quiet week for your wallet</Text>
+        )}
       </View>
 
       <View style={styles.chipRow}>

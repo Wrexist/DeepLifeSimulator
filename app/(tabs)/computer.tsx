@@ -30,6 +30,7 @@ import {
   Video,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useFeedback } from '@/utils/feedbackSystem';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
@@ -100,6 +101,9 @@ function ComputerScreenContent() {
   const { gameState } = useGame();
   const { highlightedItem } = useTutorialHighlight();
   const { settings } = gameState;
+  // Haptic parity with the phone grid — opening an app on mobile buzzed,
+  // opening one on the computer was silent.
+  const { buttonPress } = useFeedback(settings?.hapticFeedback ?? false);
   const router = useRouter();
   const segments = useSegments();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
@@ -405,7 +409,7 @@ function ComputerScreenContent() {
                   { width: cardWidth },
                   isHighlighted && styles.highlightedCardGlass
                 ]}
-                onPress={() => setActiveApp(app.id)}
+                onPress={() => { buttonPress(); setActiveApp(app.id); }}
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${app.name}`}
