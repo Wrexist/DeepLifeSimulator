@@ -36,7 +36,7 @@ function applyStreetJobXp(
     }
   }
   const skillId = job.skill;
-  if (skillId && prev.crimeSkills[skillId]) {
+  if (skillId && prev.crimeSkills?.[skillId]) {
     const skill = prev.crimeSkills[skillId];
     const newXp = skill.xp + (success ? 15 : 5);
     const nextLevelXp = skill.level * 100;
@@ -156,7 +156,7 @@ export const performStreetJob = (
 
   // Calculate success chance (karma affects crime success for experienced criminals)
   const baseSuccess = job.baseSuccessRate;
-  const skillBonus = job.skill ? (gameState.crimeSkills[job.skill]?.level || 0) * 5 : 0;
+  const skillBonus = job.skill ? (gameState.crimeSkills?.[job.skill]?.level || 0) * 5 : 0;
   let karmaBonus = 0;
   if (gameState.karma) {
     const { getKarmaModifiers } = require('@/lib/karma/karmaSystem');
@@ -566,7 +566,7 @@ export const applyForJob = (
   const blocked = rejectIfBlocked(gameState);
   if (blocked) return blocked;
 
-  const career = gameState.careers.find(c => c.id === careerId);
+  const career = (gameState.careers || []).find(c => c.id === careerId);
   if (!career) {
     log.error(`Career not found: ${careerId}`);
     return { success: false, message: 'Career not found' };
@@ -583,7 +583,7 @@ export const applyForJob = (
   }
 
   // Check if there's a pending application
-  const pendingApplication = gameState.careers.some(c => c.applied && !c.accepted);
+  const pendingApplication = (gameState.careers || []).some(c => c.applied && !c.accepted);
   if (pendingApplication) {
     return { success: false, message: 'You have a pending application. Wait for a response first.' };
   }
@@ -757,7 +757,7 @@ export const promoteCareer = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   careerId: string
 ): { success: boolean; message: string } => {
-  const career = gameState.careers.find(c => c.id === careerId);
+  const career = (gameState.careers || []).find(c => c.id === careerId);
   if (!career) {
     log.error(`Career not found: ${careerId}`);
     return { success: false, message: 'Career not found' };
