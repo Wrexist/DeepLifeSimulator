@@ -54,6 +54,7 @@ import { useFeedback } from '@/utils/feedbackSystem';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
+import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -261,6 +262,8 @@ function MobileScreenContent() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={true}
       >
+        {/* Macro economy strip — null in normal times. */}
+        <EconomyEventBanner context="generic" />
         <View style={styles.appsGrid}>
           {appsList.map((app) => (
             <TouchableOpacity

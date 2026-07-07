@@ -16,6 +16,7 @@ import { getTabBarSafePadding, scale } from '@/utils/scaling';
 import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
 import SegmentedControl from '@/components/ui/SegmentedControl';
+import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 // Item category mapping - outside component for stability
@@ -433,6 +434,10 @@ function MarketScreenContent() {
         showsVerticalScrollIndicator={true}
       >
         <View style={[styles.content, settings.darkMode && styles.contentDark]}>
+          {/* Macro economy strip — a recession/boom/crash now affects prices,
+              income, and markets, but was invisible outside buried sub-apps.
+              Renders nothing in normal times. */}
+          <EconomyEventBanner context="generic" />
           {activeTab === 'items' ? (
             <>
               <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
+import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
@@ -398,6 +399,8 @@ function ComputerScreenContent() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={true}
       >
+        {/* Macro economy strip — visible where the money apps live; null in normal times. */}
+        <EconomyEventBanner context="generic" />
         <View style={styles.appsGrid}>
           {displayedApps.map((app) => {
             const isHighlighted = highlightedItem === 'stock-app' && app.id === 'stocks';

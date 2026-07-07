@@ -2087,6 +2087,8 @@ export interface GameState {
     watchlist: string[];
     realizedGains?: number; // Total realized gains from sold shares
     savedMarketPrices?: Record<string, { price: number; dividendYield: number }>; // Persisted market prices to prevent save/reload exploit
+    /** Previous week's price snapshot — powers the ▲/▼ week-over-week change on the market board. */
+    lastWeekPrices?: Record<string, { price: number; dividendYield: number }>;
 
     // -----------------------------------------------------------------------
     // StocksApp Remake 6: sectors, order book, dividends. All optional so

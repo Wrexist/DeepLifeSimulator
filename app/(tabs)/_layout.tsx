@@ -10,6 +10,7 @@ import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { getGlassTabBar } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { useStatChanges } from '@/contexts/StatChangeContext';
+import SmartNotificationTicker from '@/components/SmartNotificationTicker';
 import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
@@ -228,6 +229,9 @@ export default function TabLayout() {
         <WeeklyEventModal />
       </Suspense>
     ) : null}
+    {/* Urgent smart notifications (critical/high only) auto-surface after a
+        week advance — the authored warning content was manual-only before. */}
+    <SmartNotificationTicker />
     {/* Weekly payoff sheet — the satisfying end-of-week beat. Lowest priority:
         only shows once the modals above have cleared. */}
     {showWeekResult ? (

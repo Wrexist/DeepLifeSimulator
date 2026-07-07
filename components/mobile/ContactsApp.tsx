@@ -53,6 +53,7 @@ import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { redeemFavor } from '@/contexts/game/actions/ContactsActions';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { getRelationshipImage } from '@/utils/characterImages';
+import { getMoodEmoji, getMoodLabel } from '@/lib/social/npcDepth';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
   responsiveFontSize as fs,
@@ -344,6 +345,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
             <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
               {c.subtitle} {r.personality ? `· ${r.personality}` : ''}
+              {r.npcMood ? ` · ${getMoodEmoji(r.npcMood)} ${getMoodLabel(r.npcMood)}` : ''}
             </Text>
             <View style={[styles.bar, { backgroundColor: theme.surfaceElevated }]}>
               <View
@@ -370,6 +372,36 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
         {expanded && (
           <View style={styles.actionsBox}>
+            {/* Inner life: the weekly NPC-depth tick evolves opinion (trust/
+                attraction/respect), goals, gift tastes, and memories — but none
+                of it was rendered, so relationships read as one static bar.
+                Surface it compactly here. */}
+            {r.npcOpinion ? (
+              <View style={styles.opinionRow}>
+                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                  🤝 Trust <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.trust ?? 0)}</Text>
+                </Text>
+                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                  💘 Attraction <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.attraction ?? 0)}</Text>
+                </Text>
+                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                  🎖️ Respect <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.respect ?? 0)}</Text>
+                </Text>
+              </View>
+            ) : null}
+            {(() => {
+              const goal = (r.npcGoals ?? []).find((g) => !g.fulfilled);
+              return goal ? (
+                <Text style={[styles.innerLifeLine, { color: theme.textSecondary }]} numberOfLines={1}>
+                  🎯 Dreams of: {goal.label}
+                </Text>
+              ) : null;
+            })()}
+            {r.giftPreferences && r.giftPreferences.length > 0 ? (
+              <Text style={[styles.innerLifeLine, { color: theme.textSecondary }]} numberOfLines={1}>
+                🎁 Loves: {r.giftPreferences.slice(0, 3).join(', ')}
+              </Text>
+            ) : null}
             {r.npcMemories && r.npcMemories.length > 0 ? (
               <Text
                 style={{ fontSize: fontScale(11.5), color: theme.textSecondary, fontStyle: 'italic', marginBottom: scale(8) }}
@@ -817,6 +849,9 @@ const styles = StyleSheet.create({
   tagText: { fontSize: fs.xs, fontWeight: '700' },
   actionsBox: { gap: sp.sm, marginTop: sp.md },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  opinionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
+  opinionStat: { fontSize: fontScale(11) },
+  innerLifeLine: { fontSize: fontScale(11.5) },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',

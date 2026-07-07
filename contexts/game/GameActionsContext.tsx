@@ -1610,6 +1610,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  watchlist: prevState.stocks?.watchlist ?? [],
  realizedGains: (prevState.stocks?.realizedGains ?? 0) + stocksTickResult.realizedGains,
  savedMarketPrices: getStockPricesSnapshot(),
+ // Keep last week's snapshot so the market board can show ▲/▼ weekly change.
+ lastWeekPrices: prevState.stocks?.savedMarketPrices,
  openOrders: stocksTickResult.openOrders,
  orderHistory: stocksTickResult.orderHistory,
  sectorSnapshots: stocksTickResult.sectorSnapshots,
@@ -1631,6 +1633,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  watchlist: prevState.stocks?.watchlist || [],
  realizedGains: prevState.stocks?.realizedGains || 0,
  savedMarketPrices: getStockPricesSnapshot(),
+ lastWeekPrices: prevState.stocks?.savedMarketPrices,
  };
  })(),
  // Process weddings, pregnancy, and relationship health
