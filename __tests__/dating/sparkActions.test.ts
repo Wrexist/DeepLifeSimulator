@@ -224,6 +224,24 @@ describe('boost / catfish / jealousy', () => {
     expect(getState().sparkApp!.lifetimeStats.totalCatfishExposed).toBe(1);
   });
 
+  it('exposeCatfish is idempotent under a same-batch double-tap (no duplicate record / double rep)', () => {
+    const state = freshState({ weeksLived: 1 });
+    state.stats.reputation = 20;
+    const { setGameState, getState } = makeHarness(state);
+    // Two taps in one React batch both hand the SAME stale `state` snapshot.
+    // The in-updater dedup must reject the second so reputation rises +5 once
+    // (not +10) and exactly one catfishRecord is written.
+    const r1 = exposeCatfish(setGameState, state, SAMPLE_ID);
+    const r2 = exposeCatfish(setGameState, state, SAMPLE_ID);
+    expect(r1.success).toBe(true);
+    expect(r2.success).toBe(false);
+    expect(getState().stats.reputation).toBe(25);
+    expect(getState().sparkApp!.lifetimeStats.totalCatfishExposed).toBe(1);
+    expect(
+      getState().sparkApp!.catfishRecords.filter((c) => c.profileId === SAMPLE_ID),
+    ).toHaveLength(1);
+  });
+
   it('resolveJealousy applies effects and clears the event', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.reputation = 50;
