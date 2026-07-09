@@ -629,8 +629,18 @@ export const exposeCatfish = (
   const weeksLived = gameState.weeksLived ?? 0;
   const reputationGain = 5;
 
+  // ANTI-EXPLOIT (H-8/H-9 class): the outer call may fire twice in one React
+  // batch. Without a dedup re-check inside the updater, both taps appended a
+  // duplicate catfishRecord + bumped totalCatfishExposed, and the trailing
+  // updateStats double-granted reputation for one catfish. Re-check FRESH state
+  // and skip the reputation leg when the duplicate is rejected.
+  let applied = false;
   setGameState((prev) => {
     const s = ensureSpark(prev);
+    if (s.catfishRecords.some((r) => r.profileId === profileId && r.outcome === 'exposed')) {
+      return prev;
+    }
+    applied = true;
     return {
       ...prev,
       sparkApp: {
@@ -647,6 +657,9 @@ export const exposeCatfish = (
       },
     };
   });
+  if (!applied) {
+    return { success: false, message: 'You already exposed this catfish.', reputationGain: 0 };
+  }
   updateStats(setGameState, { reputation: reputationGain });
   return {
     success: true,
