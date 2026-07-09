@@ -58,7 +58,7 @@ export default function CreditScoreGauge({ score, band, darkMode, compact = fals
 const styles = StyleSheet.create({
   card: {
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.xl,
+    borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
   },
   cardCompact: {

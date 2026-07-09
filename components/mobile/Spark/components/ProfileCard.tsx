@@ -51,7 +51,7 @@ export default function ProfileCard({
 
       {/* Dark gradient under the text */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.0)', 'rgba(0,0,0,0.85)'] as unknown as string[]}
+        colors={['transparent', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.85)'] as unknown as string[]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -133,6 +133,13 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: scale(20),
     overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
   },
   photo: {
     width: '100%',

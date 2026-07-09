@@ -53,7 +53,7 @@ import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { redeemFavor } from '@/contexts/game/actions/ContactsActions';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { getRelationshipImage } from '@/utils/characterImages';
-import { getMoodEmoji, getMoodLabel } from '@/lib/social/npcDepth';
+import { getMoodLabel } from '@/lib/social/npcDepth';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
   responsiveFontSize as fs,
@@ -344,8 +344,8 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
             <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
-              {c.subtitle} {r.personality ? `· ${r.personality}` : ''}
-              {r.npcMood ? ` · ${getMoodEmoji(r.npcMood)} ${getMoodLabel(r.npcMood)}` : ''}
+              {c.subtitle}{r.personality ? ` · ${r.personality}` : ''}
+              {r.npcMood ? ` · ${getMoodLabel(r.npcMood)}` : ''}
             </Text>
             <View style={[styles.bar, { backgroundColor: theme.surfaceElevated }]}>
               <View
@@ -359,6 +359,9 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
               />
             </View>
           </View>
+          <Text style={[styles.cardScore, { color: strengthColor(c.strength) }]}>
+            {Math.round(c.strength)}
+          </Text>
           <ChevronDown
             size={scale(18)}
             color={theme.textSecondary}
@@ -814,8 +817,8 @@ function favorColor(kind: string): string {
 
 function strengthColor(s: number): string {
   if (s >= 80) return accent.success;
-  if (s >= 60) return accent.warning;
-  if (s >= 40) return accent.amber;
+  if (s >= 60) return accent.gold;
+  if (s >= 40) return accent.warning;
   return accent.danger;
 }
 
@@ -839,7 +842,8 @@ const styles = StyleSheet.create({
   card: { padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
   cardName: { fontSize: fs.md, fontWeight: '800' },
-  cardSub: { fontSize: fs.xs, marginTop: 2 },
+  cardSub: { fontSize: fs.sm, marginTop: 2 },
+  cardScore: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
   avatar: { width: scale(48), height: scale(48), borderRadius: scale(24) },
   networkIcon: { width: scale(40), height: scale(40), borderRadius: scale(20), alignItems: 'center', justifyContent: 'center' },
   bar: { height: scale(6), borderRadius: br.full, marginTop: sp.xs, overflow: 'hidden' },

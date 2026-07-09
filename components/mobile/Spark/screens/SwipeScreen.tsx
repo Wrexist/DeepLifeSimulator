@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   cardBehind: {
-    transform: [{ scale: 0.94 }],
+    transform: [{ scale: 0.94 }, { translateY: scale(12) }],
     opacity: 0.85,
   },
   statusRow: {
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.md,
   },
   statusText: {
     fontSize: fontScale(12),

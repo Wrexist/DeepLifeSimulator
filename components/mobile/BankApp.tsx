@@ -487,7 +487,13 @@ function SectionHeader({
 }
 
 function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>;
+  // Give empty sections a card so they share the same rhythm as populated ones
+  // instead of floating as bare text between bordered rows.
+  return (
+    <View style={[styles.emptyCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
+    </View>
+  );
 }
 
 export default function BankApp(props: BankAppProps) {
@@ -532,12 +538,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  statValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: responsiveSpacing.sm,
+    marginTop: responsiveSpacing.md,
   },
   sectionTitle: {
     fontSize: responsiveFontSize.md,
@@ -552,9 +558,15 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
   },
   addBtnText: { color: 'white', fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  emptyCard: {
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: responsiveSpacing.lg,
+  },
   emptyText: {
     fontSize: responsiveFontSize.sm,
     textAlign: 'center',
-    paddingVertical: responsiveSpacing.md,
   },
 });

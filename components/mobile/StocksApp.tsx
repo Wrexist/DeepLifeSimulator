@@ -176,7 +176,8 @@ function StocksAppInner({ onBack }: StocksAppProps) {
           <Text style={[styles.heroValue, { color: theme.text }]}>{formatMoney(portfolioValue)}</Text>
           <Text style={[styles.heroSub, { color: unrealized >= 0 ? accent.success : accent.danger }]}>
             {unrealized >= 0 ? '+' : ''}
-            {formatMoney(unrealized)} unrealized
+            {formatMoney(unrealized)}
+            {costBasis > 0 ? ` · ${unrealized >= 0 ? '+' : ''}${((unrealized / costBasis) * 100).toFixed(1)}%` : ''} unrealized
           </Text>
         </View>
       </View>
@@ -441,8 +442,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  heroValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800' },
-  heroSub: { fontSize: responsiveFontSize.xs, marginTop: 2 },
+  heroValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  heroSub: { fontSize: responsiveFontSize.xs, marginTop: 2, fontVariant: ['tabular-nums'] },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
   statCard: {
     // 2-per-row wrap so formatMoney() values like "$1,234,567" don't get
@@ -455,7 +456,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
   orderRow: {
     flexDirection: 'row',
     borderRadius: responsiveBorderRadius.lg,

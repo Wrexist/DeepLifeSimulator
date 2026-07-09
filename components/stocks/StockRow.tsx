@@ -102,7 +102,7 @@ export default function StockRow({
           <View style={styles.changeRow}>
             <ChangeIcon size={scale(10)} color={changeColor} />
             <Text style={[styles.changeText, { color: changeColor }]}>
-              {(changePct * 100).toFixed(2)}%
+              {changePct > 0 ? '+' : ''}{(changePct * 100).toFixed(2)}%
             </Text>
           </View>
         )}
@@ -121,7 +121,8 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
     gap: responsiveSpacing.sm,
@@ -144,9 +145,9 @@ const styles = StyleSheet.create({
   },
   sectorText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
   holdingText: { fontSize: responsiveFontSize.xs, marginTop: 2 },
-  price: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  price: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
   changeRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
-  changeText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  changeText: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
   ownedBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
   ownedText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
 });
