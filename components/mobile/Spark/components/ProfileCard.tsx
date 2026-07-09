@@ -21,6 +21,17 @@ import { getDatingProfileImage } from '@/lib/dating/datingProfiles';
 
 const LinearGradient = LinearGradientFallback;
 
+// Scrim fade steps, top→bottom. Alphas stay small where the step edge crosses
+// the photo's midsection and only grow near the identity text, so the stacked
+// flat layers read as a fade rather than horizontal bands.
+const SCRIM_STEPS = [
+  { height: '64%', alpha: 0.1 },
+  { height: '50%', alpha: 0.12 },
+  { height: '38%', alpha: 0.16 },
+  { height: '28%', alpha: 0.2 },
+  { height: '19%', alpha: 0.26 },
+] as const;
+
 interface ProfileCardProps {
   profile: DatingProfile;
   /** Visible 'like' watermark opacity (0-1) when the user is dragging right. */
@@ -63,13 +74,19 @@ export default function ProfileCard({
         <Image source={photo} style={styles.photo} resizeMode="cover" />
 
         {/* Bottom scrim so identity text stays legible on any photo. The gradient
-            fallback only renders colors[0], so depth is faked with stacked
-            translucent Views that darken toward the bottom. */}
-        <View pointerEvents="none" style={styles.scrimSoft} />
-        <View pointerEvents="none" style={styles.scrimMid} />
+            fallback only renders colors[0], so the fade is faked with stacked
+            translucent steps — gentle alpha jumps up top (over the face),
+            heavier ones only near the text so no single edge reads as a band. */}
+        {SCRIM_STEPS.map((s) => (
+          <View
+            key={s.height}
+            pointerEvents="none"
+            style={[styles.scrimStep, { height: s.height, backgroundColor: `rgba(0,0,0,${s.alpha})` }]}
+          />
+        ))}
         <LinearGradient
           pointerEvents="none"
-          colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)'] as unknown as string[]}
+          colors={['rgba(0,0,0,0.30)', 'rgba(0,0,0,0.85)'] as unknown as string[]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.scrimStrong}
@@ -166,28 +183,18 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   // Stacked scrim layers (fallback gradient renders flat, so we fake the fade).
-  scrimSoft: {
+  scrimStep: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: '68%',
-    backgroundColor: 'rgba(0,0,0,0.26)',
-  },
-  scrimMid: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '46%',
-    backgroundColor: 'rgba(0,0,0,0.30)',
   },
   scrimStrong: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: '26%',
+    height: '11%',
   },
   topHairline: {
     position: 'absolute',
