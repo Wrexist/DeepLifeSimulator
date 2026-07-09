@@ -1,14 +1,18 @@
 import React, { useCallback, useRef } from 'react';
-import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
 import { AlertCircle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown } from 'lucide-react-native';
 import type { EnhancedEventChoice } from '@/lib/events/engine';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
-import { safeSettings } from "@/utils/safeGameState";
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { getCurrentEconomicState } from '@/lib/events/economyEvents';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
+import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
+const LinearGradient = LinearGradientFallback;
 const { height: screenHeight } = Dimensions.get('window');
 const log = logger.scope('WeeklyEventModal');
 
@@ -21,7 +25,6 @@ export default function WeeklyEventModal() {
  ? gameState.pendingEvents[0]
 : null;
 
- const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
  // Optional-chain `pets`: a save predating the field leaves it undefined, and
  // this modal mounts outside the home ErrorBoundary on any weekly event.
  const pet = event ? gameState.pets?.find(p => p.id === event.relationId): undefined;
@@ -40,19 +43,19 @@ export default function WeeklyEventModal() {
  const resolvingRef = useRef<Set<string>>(new Set());
  const handleResolveEvent = useCallback((eventId: string, choiceId: string) => {
  const resolutionKey = `${eventId}_${choiceId}`;
- 
+
  // Prevent duplicate calls
  if (resolvingRef.current.has(resolutionKey)) {
  log.warn('Event resolution already in progress, skipping duplicate call', { eventId, choiceId });
  return;
  }
- 
+
  resolvingRef.current.add(resolutionKey);
- 
+
  try {
  log.info('Resolving event', { eventId, choiceId });
  resolveEvent(eventId, choiceId);
- 
+
  // Remove from pending after a short delay to allow state update
  setTimeout(() => {
  resolvingRef.current.delete(resolutionKey);
@@ -83,20 +86,20 @@ export default function WeeklyEventModal() {
  'spring_cleaning', 'summer_music_festival', 'national_holiday',
  'thanksgiving_feast', 'black_friday_sale', 'new_years_resolution', 'winter_market'
  ];
- 
+
  // Check if this is an economic event
  const economicEventIds = [
  'economic_recession', 'economic_boom', 'market_crash', 'inflation_spike', 'job_market_shift'
  ];
  const isEconomicEvent = economicEventIds.includes(event.id);
- 
+
  // Check if this is a personal crisis event
  const personalCrisisEventIds = [
  'medical_emergency', 'identity_theft', 'investment_opportunity',
  'job_offer', 'relationship_crisis', 'legal_issue'
  ];
  const isPersonalCrisisEvent = personalCrisisEventIds.includes(event.id);
- 
+
  const isSeasonalEvent = seasonalEventIds.includes(event.id);
  const seasonData = isSeasonalEvent ? getCurrentSeason(gameState.weeksLived || 0): null;
 
@@ -108,11 +111,11 @@ export default function WeeklyEventModal() {
  // Good events (green)
  if (isSeasonalEvent) return 'good';
  if (event.id === 'economic_boom') return 'good';
- if (event.id === 'lottery_win' || event.id === 'found_wallet' || event.id === 'charity_event' || 
+ if (event.id === 'lottery_win' || event.id === 'found_wallet' || event.id === 'charity_event' ||
  event.id === 'job_bonus' || event.id === 'investment_opportunity' || event.id === 'job_offer') {
  return 'good';
  }
- 
+
  // Bad events (red)
  if (event.id === 'economic_recession' || event.id === 'market_crash' || event.id === 'inflation_spike') {
  return 'bad';
@@ -121,7 +124,7 @@ export default function WeeklyEventModal() {
  event.id === 'burglary' || event.id === 'police_raid' || event.id === 'court_trial') {
  return 'bad';
  }
- 
+
  // Warning events (yellow) - everything else
  return 'warning';
  };
@@ -130,7 +133,7 @@ export default function WeeklyEventModal() {
 
  const getSeasonalTheme = () => {
  if (!seasonData) return null;
- 
+
  switch (seasonData.season) {
  case 'spring':
  return {
@@ -162,79 +165,90 @@ export default function WeeklyEventModal() {
  const seasonalTheme = getSeasonalTheme();
  const SeasonalIcon = seasonalTheme?.icon;
 
- // Get notification style based on event type
+ // Liquid-glass palette per event type. The accent color carries the MEANING
+ // (green=good, amber=heads-up, red=bad) and appears only on the border, icon
+ // chip and a soft top glow — never as a side stripe (DEV.md Hard Rule 7). The
+ // card body is the game's dark frosted glass so it reads as one family with
+ // the rest of the UI.
  const getNotificationStyle = () => {
  switch (eventType) {
  case 'good':
  return {
- backgroundColor: '#065F46', // Dark green
- borderColor: '#10B981', // Lighter green border
- icon: CheckCircle,
- iconColor: '#10B981',
+ accent: '#34D399',
+ accentDeep: '#059669',
+ icon: isSeasonalEvent && SeasonalIcon ? SeasonalIcon : CheckCircle,
  title: isSeasonalEvent ? 'Seasonal Event': 'Good News',
- titleColor: '#FFFFFF',
  };
  case 'warning':
  return {
- backgroundColor: '#1F2937', // Dark gray
- borderColor: '#F59E0B', // Amber accent
+ accent: '#FBBF24',
+ accentDeep: '#D97706',
  // Friendly rounded icon — these are gameplay life events, not errors,
  // so no alarming warning triangle.
  icon: AlertCircle,
- iconColor: '#F59E0B',
  title: isPersonalCrisisEvent ? 'Personal Crisis': 'Heads Up',
- titleColor: '#FFFFFF',
  };
  case 'bad':
  return {
- backgroundColor: '#1F2937', // Dark gray
- borderColor: '#EF4444', // Red border
+ accent: '#F87171',
+ accentDeep: '#DC2626',
  icon: XCircle,
- iconColor: '#EF4444',
- title: isEconomicEvent ? 'Economic Event': 'Error',
- titleColor: '#FFFFFF',
+ // Parallels "Good News"; these are serious life events, not app errors.
+ title: isEconomicEvent ? 'Economic Event': 'Bad News',
  };
  }
  };
 
  const notificationStyle = getNotificationStyle();
  const NotificationIcon = notificationStyle.icon;
+ const accent = notificationStyle.accent;
+ const accentDeep = notificationStyle.accentDeep;
 
  return (
  <Modal visible transparent animationType="fade" onRequestClose={handleEmergencyDismiss}>
  <View style={styles.overlay}>
- <View style={[
- styles.container,
- { backgroundColor: notificationStyle.backgroundColor, borderColor: notificationStyle.borderColor }
- ]}>
+ <BlurViewFallback
+ intensity={34}
+ tint="dark"
+ style={[styles.card, { borderColor: `${accent}66`, shadowColor: accent }]}
+ >
+ {/* Soft accent glow bleeding down from the top edge — the "light through
+ glass" cue. Low alpha over the dark frosted body so it reads as a glow,
+ not a band. */}
+ <View style={[styles.accentGlow, { backgroundColor: `${accentDeep}1A` }]} pointerEvents="none" />
+ {/* Thin glass highlight along the top edge (structural, not an accent stripe). */}
+ <View style={styles.topHighlight} pointerEvents="none" />
+
  {/* Emergency close button in corner */}
- <TouchableOpacity 
- style={styles.closeButton} 
+ <TouchableOpacity
+ style={styles.closeButton}
  onPress={handleEmergencyDismiss}
  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+ accessibilityRole="button"
+ accessibilityLabel="Dismiss"
  >
- <X size={20} color="#FFFFFF" />
+ <X size={scale(18)} color="rgba(226, 232, 240, 0.75)" />
  </TouchableOpacity>
- 
- <ScrollView 
+
+ <ScrollView
  style={styles.scrollView}
  contentContainerStyle={styles.scrollContent}
- showsVerticalScrollIndicator={true}
+ showsVerticalScrollIndicator={false}
  bounces={true}
  >
  <View style={styles.header}>
- <View style={styles.iconCircle}>
- <NotificationIcon size={24} color={notificationStyle.iconColor} />
+ <View style={[styles.iconCircle, { borderColor: `${accent}55`, backgroundColor: `${accent}1F` }]}>
+ <NotificationIcon size={scale(22)} color={accent} />
  </View>
- <Text style={[styles.notificationTitle, { color: notificationStyle.titleColor }]}>
+ <Text style={styles.notificationTitle}>
  {notificationStyle.title}
  </Text>
  </View>
- 
+
  <Text style={styles.notificationDescription}>
  {event.description || 'An event has occurred.'}
  </Text>
- 
+
  {/* Show economic event effects */}
  {isEconomicEvent && (() => {
  const econState = getCurrentEconomicState(gameState);
@@ -243,44 +257,44 @@ export default function WeeklyEventModal() {
  const incomeChangePercent = ((econState.modifiers.incomeMultiplier - 1) * 100);
  const volatilityChangePercent = ((econState.modifiers.stockVolatility - 1) * 100);
  const jobChangePercent = ((econState.modifiers.jobAvailability - 1) * 100);
- 
+
  // Format with proper sign and no decimal places
- const incomeChange = incomeChangePercent >= 0 
- ? `+${incomeChangePercent.toFixed(0)}` 
+ const incomeChange = incomeChangePercent >= 0
+ ? `+${incomeChangePercent.toFixed(0)}`
 : incomeChangePercent.toFixed(0);
- const volatilityChange = volatilityChangePercent >= 0 
- ? `+${volatilityChangePercent.toFixed(0)}` 
+ const volatilityChange = volatilityChangePercent >= 0
+ ? `+${volatilityChangePercent.toFixed(0)}`
 : volatilityChangePercent.toFixed(0);
- const jobChange = jobChangePercent >= 0 
- ? `+${jobChangePercent.toFixed(0)}` 
+ const jobChange = jobChangePercent >= 0
+ ? `+${jobChangePercent.toFixed(0)}`
 : jobChangePercent.toFixed(0);
- 
+
  // Calculate weeks remaining: duration - (current week - start week)
  // When event first appears, weeksLived equals stateStartWeek, so weeksRemaining = duration
  // Each subsequent week, weeksRemaining decreases by 1
  const weeksInState = gameState.weeksLived - econState.stateStartWeek;
  const weeksRemaining = Math.max(0, econState.stateDuration - weeksInState);
- 
+
  return (
- <View style={[styles.economicInfo, styles.economicInfoDark]}>
- <Text style={[styles.economicInfoTitle]}>
+ <View style={styles.infoPanel}>
+ <Text style={styles.infoPanelTitle}>
  Economic Effects (Active for {weeksRemaining} more week{weeksRemaining!== 1 ? 's': ''}):
  </Text>
  <View style={styles.economicStats}>
  <View style={styles.economicStat}>
- <DollarSign size={16} color={incomeChangePercent < 0 ? '#EF4444': '#10B981'} />
+ <DollarSign size={scale(15)} color={incomeChangePercent < 0 ? '#F87171': '#34D399'} />
  <Text style={styles.economicStatText}>
  Income: {incomeChange}%
  </Text>
  </View>
  <View style={styles.economicStat}>
- <TrendingUp size={16} color="#F59E0B" />
+ <TrendingUp size={scale(15)} color="#FBBF24" />
  <Text style={styles.economicStatText}>
  Stock Volatility: {volatilityChange}%
  </Text>
  </View>
  <View style={styles.economicStat}>
- <TrendingDown size={16} color={jobChangePercent < 0 ? '#EF4444': '#10B981'} />
+ <TrendingDown size={scale(15)} color={jobChangePercent < 0 ? '#F87171': '#34D399'} />
  <Text style={styles.economicStatText}>
  Job Availability: {jobChange}%
  </Text>
@@ -291,17 +305,17 @@ export default function WeeklyEventModal() {
  }
  return null;
  })()}
- 
+
  {pet && (
  <View style={styles.petInfo}>
- <Text style={[styles.petText, settings.darkMode && styles.petTextDark]}>
+ <Text style={styles.petText}>
  {pet.name} — Hunger {pet.hunger} • Happiness {pet.happiness}
  </Text>
  </View>
  )}
- 
+
  {/* Show choice effects preview */}
- <View style={[styles.choiceEffectsInfo, styles.choiceEffectsInfoDark]}>
+ <View style={styles.infoPanel}>
  <Text style={styles.choiceEffectsTitle}>
  Choice Effects
  </Text>
@@ -310,9 +324,9 @@ export default function WeeklyEventModal() {
  const moneyChange = effects.money || 0;
  const statChanges = effects.stats || {};
  const hasEffects = moneyChange!== 0 || Object.keys(statChanges).length > 0;
- 
+
  if (!hasEffects) return null;
- 
+
  return (
  <View key={choice.id} style={styles.choiceEffect}>
  <Text style={styles.choiceEffectLabel}>
@@ -338,67 +352,93 @@ export default function WeeklyEventModal() {
  );
  })}
  </View>
- 
+
  <View style={styles.choicesContainer}>
  {event.choices.map((choice, index) => {
  const enhancedChoice = choice as EnhancedEventChoice;
- 
+ const isPrimary = index === 0;
+
  return (
  <TouchableOpacity
  key={choice.id || `choice-${index}`}
- style={[
- styles.choiceButton,
- index === 0 ? styles.primaryChoice: styles.secondaryChoice,
- settings.darkMode && styles.choiceButton
- ]}
+ style={styles.choiceButton}
  onPress={() => handleResolveEvent(event.id, choice.id)}
- activeOpacity={0.8}
+ activeOpacity={0.85}
+ accessibilityRole="button"
+ accessibilityLabel={choice.text || 'Continue'}
  >
- <View style={[
- styles.choiceButtonContent,
- index === 0 ? styles.primaryChoiceContent: styles.secondaryChoiceContent
- ]}>
- <View style={styles.choiceContent}>
- {index === 0 ? (
- <CheckCircle size={20} color="#FFFFFF" />
+ {isPrimary ? (
+ <LinearGradient
+ colors={['#10B981', '#059669']}
+ start={{ x: 0, y: 0 }}
+ end={{ x: 1, y: 1 }}
+ style={styles.choiceButtonContent}
+ >
+ {renderChoiceInner(choice, enhancedChoice, true)}
+ </LinearGradient>
  ): (
- <XCircle size={20} color="#9CA3AF" />
+ <View style={[styles.choiceButtonContent, styles.secondaryChoiceContent]}>
+ {renderChoiceInner(choice, enhancedChoice, false)}
+ </View>
+ )}
+ </TouchableOpacity>
+ );
+ })}
+ </View>
+ </ScrollView>
+ </BlurViewFallback>
+ </View>
+ </Modal>
+ );
+}
+
+/**
+ * Choice button inner content — icon + label, plus the optional tradeoff and
+ * emotional-impact readouts. Split out so the primary (gradient) and secondary
+ * (glass) buttons share identical inner markup.
+ */
+function renderChoiceInner(
+ choice: { text?: string },
+ enhancedChoice: EnhancedEventChoice,
+ isPrimary: boolean,
+) {
+ return (
+ <>
+ <View style={styles.choiceContent}>
+ {isPrimary ? (
+ <CheckCircle size={scale(19)} color="#FFFFFF" />
+ ): (
+ <XCircle size={scale(19)} color="rgba(148, 163, 184, 0.9)" />
  )}
  <Text style={[
  styles.choiceText,
- index === 0 ? styles.primaryChoiceText: styles.secondaryChoiceText
+ isPrimary ? styles.primaryChoiceText: styles.secondaryChoiceText
  ]}>
  {choice.text || 'Continue'}
  </Text>
  </View>
- 
- {/* Tradeoff Display (NEW) - shows gains and losses */}
+
+ {/* Tradeoff Display - shows gains and losses */}
  {enhancedChoice.tradeoffs && (
  <View style={styles.tradeoffContainer}>
- {/* Gains */}
  {enhancedChoice.tradeoffs.gain.length > 0 && (
  <View style={styles.gainContainer}>
- <Text style={styles.tradeoffLabel}>
- You gain:
- </Text>
+ <Text style={styles.tradeoffLabel}>You gain:</Text>
  {enhancedChoice.tradeoffs.gain.map((gain, i) => (
  <View key={i} style={styles.tradeoffItem}>
- <ArrowUp size={14} color="#10B981" />
+ <ArrowUp size={scale(13)} color="#34D399" />
  <Text style={styles.gainText}>{gain.label}</Text>
  </View>
  ))}
  </View>
  )}
- 
- {/* Losses */}
+
  {enhancedChoice.tradeoffs.lose.length > 0 && (
  <View style={styles.loseContainer}>
- <Text style={styles.tradeoffLabel}>
- You lose:
- </Text>
+ <Text style={styles.tradeoffLabel}>You lose:</Text>
  {enhancedChoice.tradeoffs.lose.map((loss, i) => (
  <View key={i} style={styles.tradeoffItem}>
- <ArrowDown size={14} color="#EF4444" />
+ <ArrowDown size={scale(13)} color="#F87171" />
  <Text style={styles.loseText}>{loss.label}</Text>
  </View>
  ))}
@@ -406,8 +446,8 @@ export default function WeeklyEventModal() {
  )}
  </View>
  )}
- 
- {/* Emotional Impact Indicator (NEW) */}
+
+ {/* Emotional Impact Indicator */}
  {enhancedChoice.emotionalImpact && (
  <View style={styles.emotionalIndicator}>
  <Text style={styles.emotionalText}>
@@ -417,53 +457,63 @@ export default function WeeklyEventModal() {
  </Text>
  </View>
  )}
- </View>
- </TouchableOpacity>
- );
- })}
- </View>
- </ScrollView>
- </View>
- </View>
- </Modal>
+ </>
  );
 }
 
 const styles = StyleSheet.create({
  overlay: {
  flex: 1,
- backgroundColor: 'rgba(0,0,0,0.6)',
+ backgroundColor: 'rgba(2, 6, 23, 0.7)',
  justifyContent: 'center',
  alignItems: 'center',
- padding: 20,
+ padding: responsiveSpacing.md,
  },
- container: {
- borderRadius: 12,
- padding: 20,
+ card: {
  width: '100%',
- maxWidth: 400,
- maxHeight: screenHeight * 0.8,
- borderWidth: 2,
- boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)',
-...Platform.select({
- web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
- default: {
- shadowColor: '#000',
- shadowOffset: { width: 0, height: 8 },
- shadowOpacity: 0.3,
- shadowRadius: 16,
+ maxWidth: scale(400),
+ maxHeight: screenHeight * 0.82,
+ borderRadius: responsiveBorderRadius['2xl'],
+ borderWidth: 1,
+ overflow: 'hidden',
+ // Solid frosted-dark body: real backdrop blur is disabled app-wide for
+ // TurboModule crash-safety, so translucency is faked with a near-opaque dark
+ // surface (legible over the dimmed game screen, on-brand with the game's
+ // other glass panels). The slight transparency keeps a hint of depth.
+ backgroundColor: 'rgba(17, 24, 39, 0.94)',
+ // Soft drop shadow via the glassmorphism design-system helper (accent
+ // shadowColor is applied inline on the card so the glow matches the event).
+...getPlatformShadows(16, 0.35, 12, 28),
+ elevation: 16,
  },
- }),
- elevation: 12,
+ accentGlow: {
+ position: 'absolute',
+ top: 0,
+ left: 0,
+ right: 0,
+ height: verticalScale(96),
+ },
+ topHighlight: {
+ position: 'absolute',
+ top: 0,
+ left: scale(20),
+ right: scale(20),
+ height: StyleSheet.hairlineWidth,
+ backgroundColor: 'rgba(255, 255, 255, 0.25)',
  },
  closeButton: {
  position: 'absolute',
- top: 12,
- right: 12,
+ top: scale(12),
+ right: scale(12),
  zIndex: 10,
- padding: 4,
- backgroundColor: 'transparent',
- borderRadius: 12,
+ width: scale(30),
+ height: scale(30),
+ alignItems: 'center',
+ justifyContent: 'center',
+ borderRadius: scale(15),
+ backgroundColor: 'rgba(148, 163, 184, 0.14)',
+ borderWidth: StyleSheet.hairlineWidth,
+ borderColor: 'rgba(255, 255, 255, 0.12)',
  },
  scrollView: {
  width: '100%',
@@ -471,279 +521,206 @@ const styles = StyleSheet.create({
  flexShrink: 1,
  },
  scrollContent: {
- alignItems: 'center',
- paddingTop: 8,
+ padding: responsiveSpacing.lg,
+ paddingTop: verticalScale(20),
  },
  header: {
  flexDirection: 'row',
  alignItems: 'center',
- marginBottom: 16,
- gap: 12,
+ marginBottom: verticalScale(14),
+ gap: scale(12),
+ paddingRight: scale(28),
  },
  iconCircle: {
- width: 40,
- height: 40,
- borderRadius: 20,
- backgroundColor: 'rgba(255, 255, 255, 0.1)',
+ width: scale(44),
+ height: scale(44),
+ borderRadius: scale(22),
+ borderWidth: 1,
  alignItems: 'center',
  justifyContent: 'center',
  },
  notificationTitle: {
- fontSize: 18,
- fontWeight: '600',
+ fontSize: fontScale(20),
+ fontWeight: '800',
+ color: '#F8FAFC',
  flex: 1,
+ letterSpacing: -0.3,
  },
  notificationDescription: {
- fontSize: 14,
- color: '#D1D5DB',
+ fontSize: fontScale(15),
+ color: 'rgba(226, 232, 240, 0.92)',
  textAlign: 'left',
- lineHeight: 20,
- marginBottom: 20,
- opacity: 0.9,
+ lineHeight: fontScale(22),
+ marginBottom: verticalScale(18),
  },
- title: {
- fontSize: 20,
- fontWeight: 'bold',
- color: '#1F2937',
- marginLeft: 8,
+ // Shared frosted sub-panel (economic effects + choice-effects preview).
+ infoPanel: {
+ backgroundColor: 'rgba(15, 23, 42, 0.55)',
+ borderRadius: responsiveBorderRadius.lg,
+ padding: responsiveSpacing.md,
+ marginBottom: verticalScale(16),
+ borderWidth: StyleSheet.hairlineWidth,
+ borderColor: 'rgba(148, 163, 184, 0.22)',
  },
- titleDark: {
- color: '#F9FAFB',
+ infoPanelTitle: {
+ fontSize: fontScale(14),
+ fontWeight: '700',
+ color: '#F8FAFC',
+ marginBottom: verticalScale(8),
  },
- seasonalTitle: {
- fontSize: 20,
- fontWeight: 'bold',
- color: '#FFFFFF',
- marginLeft: 4,
+ economicStats: {
+ gap: verticalScale(6),
  },
- crisisTitle: {
- fontSize: 20,
- fontWeight: 'bold',
- color: '#FFFFFF',
- marginLeft: 4,
+ economicStat: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ gap: scale(8),
  },
- description: {
- fontSize: 16,
- color: '#374151',
- textAlign: 'center',
- lineHeight: 24,
- marginBottom: 20,
- },
- descriptionDark: {
- color: '#D1D5DB',
+ economicStatText: {
+ fontSize: fontScale(13),
+ color: 'rgba(226, 232, 240, 0.85)',
  },
  petInfo: {
- backgroundColor: 'rgba(0, 0, 0, 0.2)',
- borderRadius: 8,
- padding: 12,
- marginBottom: 20,
- borderWidth: 1,
- borderColor: 'rgba(255, 255, 255, 0.1)',
+ backgroundColor: 'rgba(15, 23, 42, 0.55)',
+ borderRadius: responsiveBorderRadius.lg,
+ padding: responsiveSpacing.md,
+ marginBottom: verticalScale(16),
+ borderWidth: StyleSheet.hairlineWidth,
+ borderColor: 'rgba(148, 163, 184, 0.22)',
  },
  petText: {
  textAlign: 'center',
- color: '#D1D5DB',
- fontSize: 14,
+ color: 'rgba(226, 232, 240, 0.9)',
+ fontSize: fontScale(14),
  },
- petTextDark: {
- color: '#F9FAFB',
+ choiceEffectsTitle: {
+ fontSize: fontScale(13),
+ fontWeight: '700',
+ color: 'rgba(226, 232, 240, 0.75)',
+ marginBottom: verticalScale(12),
+ letterSpacing: 0.6,
+ textTransform: 'uppercase',
+ },
+ choiceEffect: {
+ marginBottom: verticalScale(12),
+ },
+ choiceEffectLabel: {
+ fontSize: fontScale(13),
+ fontWeight: '600',
+ color: 'rgba(226, 232, 240, 0.9)',
+ marginBottom: verticalScale(8),
+ },
+ choiceEffectDetails: {
+ flexDirection: 'row',
+ flexWrap: 'wrap',
+ gap: scale(8),
+ },
+ effectBadge: {
+ paddingHorizontal: scale(12),
+ paddingVertical: verticalScale(6),
+ borderRadius: responsiveBorderRadius.md,
+ minWidth: scale(58),
+ alignItems: 'center',
+ justifyContent: 'center',
+ borderWidth: 1,
+ },
+ positiveBadge: {
+ backgroundColor: 'rgba(16, 185, 129, 0.18)',
+ borderColor: 'rgba(52, 211, 153, 0.55)',
+ },
+ negativeBadge: {
+ backgroundColor: 'rgba(239, 68, 68, 0.18)',
+ borderColor: 'rgba(248, 113, 113, 0.55)',
+ },
+ effectBadgeText: {
+ fontSize: fontScale(14),
+ fontWeight: '700',
+ color: '#FFFFFF',
  },
  choicesContainer: {
- gap: 12,
+ gap: verticalScale(12),
  },
  choiceButton: {
- borderRadius: 8,
+ borderRadius: responsiveBorderRadius.lg,
  overflow: 'hidden',
-...Platform.select({
- web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' } as any,
- default: {
- shadowColor: '#000',
- shadowOffset: { width: 0, height: 2 },
- shadowOpacity: 0.1,
- shadowRadius: 4,
- },
- }),
+...getPlatformShadows(6, 0.2, 3, 8),
  elevation: 3,
  },
- primaryChoice: {
- shadowColor: '#059669',
- shadowOpacity: 0.2,
- },
- secondaryChoice: {
- shadowColor: '#6B7280',
- },
  choiceButtonContent: {
- padding: 16,
- gap: 8,
- },
- primaryChoiceContent: {
- backgroundColor: '#10B981', // Green for primary choice
+ paddingVertical: verticalScale(15),
+ paddingHorizontal: responsiveSpacing.md,
+ gap: verticalScale(8),
  },
  secondaryChoiceContent: {
- backgroundColor: '#374151', // Dark gray for secondary choices
+ backgroundColor: 'rgba(148, 163, 184, 0.12)',
+ borderWidth: StyleSheet.hairlineWidth,
+ borderColor: 'rgba(148, 163, 184, 0.25)',
+ borderRadius: responsiveBorderRadius.lg,
  },
  choiceContent: {
  flexDirection: 'row',
  alignItems: 'center',
  justifyContent: 'center',
- gap: 8,
- marginBottom: 8,
+ gap: scale(8),
  },
  choiceText: {
- fontSize: 16,
- fontWeight: '600',
+ fontSize: fontScale(16),
+ fontWeight: '700',
  textAlign: 'center',
+ flexShrink: 1,
  },
  primaryChoiceText: {
  color: '#FFFFFF',
  },
  secondaryChoiceText: {
- color: '#D1D5DB',
- },
- economicInfo: {
- backgroundColor: 'rgba(0, 0, 0, 0.2)',
- borderRadius: 8,
- padding: 12,
- marginVertical: 12,
- borderWidth: 1,
- borderColor: 'rgba(255, 255, 255, 0.1)',
- },
- economicInfoDark: {
- backgroundColor: 'rgba(0, 0, 0, 0.2)',
- borderColor: 'rgba(255, 255, 255, 0.1)',
- },
- economicInfoTitle: {
- fontSize: 14,
- fontWeight: '600',
- color: '#FFFFFF',
- marginBottom: 8,
- },
- economicStats: {
- gap: 6,
- },
- economicStat: {
- flexDirection: 'row',
- alignItems: 'center',
- gap: 8,
- },
- economicStatText: {
- fontSize: 13,
- color: '#D1D5DB',
- },
- choiceEffectsInfo: {
- marginVertical: 16,
- padding: 16,
- backgroundColor: 'rgba(0, 0, 0, 0.2)',
- borderRadius: 8,
- borderWidth: 1,
- borderColor: 'rgba(255, 255, 255, 0.1)',
- },
- choiceEffectsInfoDark: {
- backgroundColor: 'rgba(0, 0, 0, 0.2)',
- borderColor: 'rgba(255, 255, 255, 0.1)',
- },
- choiceEffectsTitle: {
- fontSize: 14,
- fontWeight: '600',
- color: '#FFFFFF',
- marginBottom: 12,
- opacity: 0.9,
- letterSpacing: 0.5,
- },
- choiceEffect: {
- marginBottom: 12,
- },
- choiceEffectLabel: {
- fontSize: 13,
- fontWeight: '500',
- color: '#D1D5DB',
- marginBottom: 8,
- opacity: 0.9,
- },
- choiceEffectDetails: {
- flexDirection: 'row',
- flexWrap: 'wrap',
- gap: 8,
- },
- effectBadge: {
- paddingHorizontal: 12,
- paddingVertical: 6,
- borderRadius: 8,
- minWidth: 60,
- alignItems: 'center',
- justifyContent: 'center',
- },
- positiveBadge: {
- backgroundColor: 'rgba(16, 185, 129, 0.25)',
- borderWidth: 1.5,
- borderColor: '#10B981',
- },
- negativeBadge: {
- backgroundColor: 'rgba(239, 68, 68, 0.25)',
- borderWidth: 1.5,
- borderColor: '#EF4444',
- },
- effectBadgeText: {
- fontSize: 14,
- fontWeight: '600',
- color: '#FFFFFF',
-...Platform.select({
- web: { textShadow: '0px 1px 2px rgba(0, 0, 0, 0.5)' } as any,
- default: {
- textShadowColor: 'rgba(0, 0, 0, 0.5)',
- textShadowOffset: { width: 0, height: 1 },
- textShadowRadius: 2,
- },
- }),
+ color: 'rgba(226, 232, 240, 0.92)',
  },
  tradeoffContainer: {
- marginTop: 8,
- paddingTop: 12,
- borderTopWidth: 1,
- borderTopColor: 'rgba(255, 255, 255, 0.1)',
- gap: 8,
+ marginTop: verticalScale(8),
+ paddingTop: verticalScale(10),
+ borderTopWidth: StyleSheet.hairlineWidth,
+ borderTopColor: 'rgba(255, 255, 255, 0.14)',
+ gap: verticalScale(8),
  },
  gainContainer: {
- gap: 4,
- marginBottom: 4,
+ gap: verticalScale(4),
+ marginBottom: verticalScale(4),
  },
  loseContainer: {
- gap: 4,
+ gap: verticalScale(4),
  },
  tradeoffLabel: {
- fontSize: 12,
+ fontSize: fontScale(12),
  fontWeight: '600',
- color: '#D1D5DB',
- marginBottom: 4,
+ color: 'rgba(226, 232, 240, 0.85)',
+ marginBottom: verticalScale(4),
  },
  tradeoffItem: {
  flexDirection: 'row',
  alignItems: 'center',
- gap: 6,
- marginLeft: 4,
+ gap: scale(6),
+ marginLeft: scale(4),
  },
  gainText: {
- fontSize: 12,
- color: '#10B981',
- fontWeight: '500',
+ fontSize: fontScale(12),
+ color: '#34D399',
+ fontWeight: '600',
  },
  loseText: {
- fontSize: 12,
- color: '#EF4444',
- fontWeight: '500',
+ fontSize: fontScale(12),
+ color: '#F87171',
+ fontWeight: '600',
  },
  emotionalIndicator: {
- marginTop: 8,
- paddingTop: 8,
- borderTopWidth: 1,
- borderTopColor: 'rgba(255, 255, 255, 0.1)',
+ marginTop: verticalScale(8),
+ paddingTop: verticalScale(8),
+ borderTopWidth: StyleSheet.hairlineWidth,
+ borderTopColor: 'rgba(255, 255, 255, 0.14)',
  },
  emotionalText: {
- fontSize: 11,
- color: '#9CA3AF',
+ fontSize: fontScale(11),
+ color: 'rgba(148, 163, 184, 0.9)',
  textAlign: 'center',
  fontStyle: 'italic',
  },
 });
-
-

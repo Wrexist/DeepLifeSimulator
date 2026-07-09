@@ -151,11 +151,18 @@ function HealthScreenContent() {
                   <View style={[styles.vitalIcon, { borderColor: v.color + '66', backgroundColor: v.color + '1A' }]}>
                     <v.Icon size={scale(13)} color={v.color} />
                   </View>
-                  <Text style={styles.vitalLabel}>{v.label}</Text>
+                  <Text
+                    style={styles.vitalLabel}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
+                  >
+                    {v.label}
+                  </Text>
                   <View style={styles.vitalBarBg}>
                     <View style={[styles.vitalBarFill, { width: `${pct}%`, backgroundColor: v.color }]} />
                   </View>
-                  <Text style={styles.vitalValue}>{Math.round(v.value)}</Text>
+                  <Text style={styles.vitalValue} numberOfLines={1}>{Math.round(v.value)}</Text>
                 </View>
               );
             })}
@@ -333,7 +340,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   vitalLabel: {
-    width: scale(66),
+    // Sized for the longest label ("Happiness"); numberOfLines + adjustsFontSizeToFit
+    // guarantee it never wraps to "Happine\nss" on any resolution / font-scale.
+    width: scale(74),
     fontSize: fontScale(12.5),
     fontWeight: '600',
     color: '#E2E8F0',
@@ -350,7 +359,9 @@ const styles = StyleSheet.create({
     borderRadius: scale(4),
   },
   vitalValue: {
-    width: scale(30),
+    // Wide enough for a 3-digit "100" with tabular figures so the value never
+    // wraps to "10\n0". Fixed width keeps every row's number right-aligned.
+    width: scale(38),
     textAlign: 'right',
     fontSize: fontScale(13),
     fontWeight: '800',

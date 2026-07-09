@@ -45,6 +45,9 @@ export default function TabLayout() {
   // reporting. Sits below the death/wedding/life-moment/event modals.
   const [resultWeek, setResultWeek] = useState<number | null>(null);
   const prevWeekRef = useRef<number | null>(null);
+  // Player-facing on/off switch (Settings → "Week Summary"). Defaults to on;
+  // only an explicit `false` suppresses the recap sheet.
+  const weekSummaryEnabled = gameState?.settings?.weeklySummaryEnabled !== false;
   useEffect(() => {
     const w = gameState?.weeksLived ?? 0;
     if (prevWeekRef.current === null) { prevWeekRef.current = w; return; } // first observe
@@ -56,11 +59,11 @@ export default function TabLayout() {
         (wr.luckyBonus ?? 0) > 0 || (wr.streakBonus ?? 0) > 0 ||
         (wr.careerProgressPercent ?? 0) > 0 || !!wr.cliffhangerTeaser
       );
-      if (meaningful && !gameState?.showDeathPopup) setResultWeek(w);
+      if (meaningful && weekSummaryEnabled && !gameState?.showDeathPopup) setResultWeek(w);
     } else {
       prevWeekRef.current = w;
     }
-  }, [gameState?.weeksLived, gameState?.weekResult, gameState?.showDeathPopup]);
+  }, [gameState?.weeksLived, gameState?.weekResult, gameState?.showDeathPopup, weekSummaryEnabled]);
 
   // Non-blocking weekly-event inbox: events queue but never auto-pop. The
   // player opens them from a pill; the modal walks the queue on demand.
@@ -74,7 +77,7 @@ export default function TabLayout() {
     gameState?.showDeathPopup || gameState?.showWeddingPopup ||
     gameState?.lifeMoments?.pendingMoment || eventInboxOpen
   );
-  const showWeekResult = resultWeek !== null && !higherModalUp;
+  const showWeekResult = resultWeek !== null && !higherModalUp && weekSummaryEnabled;
   // The inbox pill shows when decisions are waiting and nothing else is up.
   const showEventPill = pendingEventCount > 0 && !higherModalUp && !showWeekResult && !isInPrison;
 

@@ -6,8 +6,8 @@
  *
  *   - 2.7-C runs at the START of the tick — if a pending cliffhanger was
  *     SET LAST WEEK, inject its resolve event into pendingEvents.
- *   - 2.10 runs at the END of the tick — roll ~12% chance to SET a new
- *     teaser that will resolve next week.
+ *   - 2.10 runs at the END of the tick — small chance (~7%, ~10% in the first
+ *     12 weeks) to SET a new teaser that will resolve next week.
  *
  * Calls `rollCliffhanger(syntheticState, nextWeeksLived)` (the seed is
  * the absolute week so re-runs are deterministic per week). On hit,

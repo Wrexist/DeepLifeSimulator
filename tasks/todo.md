@@ -1,5 +1,45 @@
 # Task Tracker
 
+## 🎨 Vitals symmetry + Week Summary toggle + Heads Up Liquid Glass redesign (2026-07-09)
+
+Branch: `claude/vitals-ui-notifications-redesign-e3262m`. User screenshots showed
+(1) vitals text wrapping ("Happine ss", "10 0"); (2) a Week Summary popping up every
+week with no way to turn it off; (3) frequent, plain "Heads Up" event popups.
+
+### 1. Vitals — symmetrical & scale to all resolutions
+- [x] `app/(tabs)/health.tsx`: label now `numberOfLines={1}` + `adjustsFontSizeToFit`
+      (never wraps "Happiness"); value column widened scale(30)→scale(38) with
+      `numberOfLines={1}` (holds a 3-digit "100"). Row stays symmetric everywhere.
+
+### 2. Week Summary — on/off switch in Settings
+- [x] `app/(tabs)/_layout.tsx`: weekly result sheet now gated on
+      `settings.weeklySummaryEnabled` (both where `resultWeek` is set and on
+      `showWeekResult`). Was unchecked → showed every week.
+- [x] `components/SettingsModal.tsx`: relabelled "Monthly Summary / every 4 weeks"
+      → "Week Summary" / "Show the weekly recap after each week. Turn off to skip
+      it." (reuses the existing `weeklySummaryEnabled` flag — no schema change).
+
+### 3. Heads Up popups — Liquid Glass redesign + far less frequent
+- [x] `components/WeeklyEventModal.tsx`: rebuilt with the game's Liquid Glass look
+      (BlurViewFallback frosted-dark card, accent icon chip + soft top glow + top
+      highlight, full accent border per Hard Rule 7 — no side stripes,
+      `getPlatformShadows` from the glass design system). ALL resolve logic
+      preserved verbatim. Also fixed the wrong "Error" title on bad events → "Bad
+      News".
+- [x] `lib/events/cliffhangerEvents.ts`: roll chance 0.32/0.22 → 0.10/0.07 (+ doc
+      comments corrected).
+- [x] `lib/config/gameConstants.ts`: event gaps early 3→4, mid 6→8 (late kept 8 so
+      `engine.test.ts` rate bounds hold); `engine.ts` mid-game chance 0.15-0.20 →
+      0.10-0.13. Combined cadence now ~1 popup / 10–15 weeks.
+
+### Verify
+- [x] `npx tsc -p tsconfig.typecheck.json` → **0 errors**.
+- [x] `jest lib/events/__tests__/engine.test.ts` (7/7) + cliffhanger equivalence
+      (11/11, snapshots green) + `__tests__/render/` incl. new
+      `WeeklyEventModal.render.test.tsx` (64/64) + criticalPaths (44/44).
+- [x] ESLint on all touched files → 0 errors (added the modal's icons to the
+      jest.setup.js lucide mock, matching the CommunityRewardPopup precedent).
+
 ## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
 
 User spammed the green "Next Week" button → screen covered in overlapping blue

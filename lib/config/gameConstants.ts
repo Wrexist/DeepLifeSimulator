@@ -80,9 +80,9 @@ export const EARLY_GAME_PITY_THRESHOLD = 16; // Force event only after 16 dry we
 // every tick; without a shared floor they stack and a popup can appear almost
 // every "Next Week". The pity system can still force an event after a long
 // drought, so progression never goes fully silent.
-export const EVENT_MIN_GAP_EARLY = 3; // weeks 1-8: at least 3 quiet weeks between popups
-export const EVENT_MIN_GAP_MID = 6; // weeks 9-49: at most ~1 popup / 6 weeks
-export const EVENT_MIN_GAP_LATE = 8; // week 50+: calm — at most ~1 popup / 8 weeks
+export const EVENT_MIN_GAP_EARLY = 4; // weeks 1-8: at least 4 quiet weeks between popups
+export const EVENT_MIN_GAP_MID = 8; // weeks 9-49: at most ~1 popup / 8 weeks
+export const EVENT_MIN_GAP_LATE = 8; // week 50+: calm — with the ~12% gate, ~1 popup / 15 weeks
 
 // ── Economic Events (global macro banner) ────────────────
 // Economic events drive the recession/boom/crash banner AND an "Economic Event"

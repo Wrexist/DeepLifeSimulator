@@ -420,6 +420,16 @@ jest.mock('lucide-react-native', () => ({
   Home: 'Home',
   Download: 'Download',
   FileText: 'FileText',
+  // WeeklyEventModal (Heads Up) + seasonal/economic event icons
+  AlertCircle: 'AlertCircle',
+  CheckCircle: 'CheckCircle',
+  TrendingUp: 'TrendingUp',
+  TrendingDown: 'TrendingDown',
+  ArrowUp: 'ArrowUp',
+  ArrowDown: 'ArrowDown',
+  Leaf: 'Leaf',
+  Sun: 'Sun',
+  Snowflake: 'Snowflake',
   // Add other icons as needed
 }));
 

@@ -3344,11 +3344,11 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // Early game: high (hook the player with narrative). Mid-game: frequent (content variety). Late game: moderate.
   let baseEventChance: number;
   if (currentWeeksLived < EARLY_GAME_THRESHOLD_WEEKS) {
-    baseEventChance = EARLY_GAME_EVENT_CHANCE; // 45% — hook player with events early
+    baseEventChance = EARLY_GAME_EVENT_CHANCE; // ~8% — occasional surprise, not a constant interruption
   } else if (currentWeeksLived < 50) {
-    baseEventChance = 0.15 + Math.min(0.05, currentWeeksLived * 0.001); // 15-20% — mid-game variety
+    baseEventChance = 0.10 + Math.min(0.03, currentWeeksLived * 0.001); // 10-13% — with the 8-week gap, ~1 event/13 weeks
   } else {
-    baseEventChance = 0.12; // 12% — with the min-gap cooldown this lands ~1 event/12 weeks late game
+    baseEventChance = 0.12; // 12% — with the 8-week min-gap cooldown this lands ~1 event/15 weeks late game
   }
   baseEventChance += seededRandom(weekSeed) * 0.01; // Small deterministic jitter
 
