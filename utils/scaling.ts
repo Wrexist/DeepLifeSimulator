@@ -160,6 +160,15 @@ export const TAB_BAR_HEIGHT = scale(70);
 export const getTabBarSafePadding = (bottomInset = 0): number =>
   TAB_BAR_HEIGHT + scale(30) + bottomInset;
 
+// In-phone / in-computer apps run full-screen (see utils/fullscreenAppStore):
+// while an app is open the game's floating tab bar is HIDDEN, so those screens
+// must NOT reserve TAB_BAR_HEIGHT for a bar that isn't there — doing so leaves
+// a ~100pt dead strip at the bottom. This gives just the device's home-indicator
+// inset plus a small breathing gap, which also lets sticky composers (chat,
+// post detail) sit right above the home indicator instead of floating up.
+export const getAppScreenBottomPadding = (bottomInset = 0): number =>
+  scale(24) + bottomInset;
+
 // Responsive spacing with safe fallbacks
 export const responsiveSpacing = {
   xs: scale(4),

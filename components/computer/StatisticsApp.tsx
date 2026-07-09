@@ -47,7 +47,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
-  getTabBarSafePadding,
+  getAppScreenBottomPadding,
 } from '@/utils/scaling';
 
 type TabType = 'overview' | 'systems' | 'milestones' | 'planning';
@@ -95,7 +95,7 @@ export default function StatisticsApp({ onBack }: Props) {
   const retirementOnTrack = retirement.savingsGap <= 0;
 
   const renderOverview = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Net worth</Text>
         <Text style={[styles.heroValue, { color: theme.text }]}>
@@ -187,7 +187,7 @@ export default function StatisticsApp({ onBack }: Props) {
   );
 
   const renderSystems = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {summary.cards.length === 0 ? (
         <View style={styles.empty}>
           <Layers size={scale(48)} color={theme.textSecondary} />
@@ -203,7 +203,7 @@ export default function StatisticsApp({ onBack }: Props) {
   );
 
   const renderMilestones = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {milestones.length === 0 ? (
         <View style={styles.empty}>
           <Trophy size={scale(48)} color={theme.textSecondary} />
@@ -237,7 +237,7 @@ export default function StatisticsApp({ onBack }: Props) {
   );
 
   const renderPlanning = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Life expectancy</Text>
         <View style={styles.statsRow}>

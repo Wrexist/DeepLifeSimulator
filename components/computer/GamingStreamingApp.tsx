@@ -47,7 +47,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
-  getTabBarSafePadding,
+  getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { GamingStreamingState } from '@/contexts/game/types';
 
@@ -163,7 +163,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
   );
 
   const renderDashboard = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.heroRow}>
           <View>
@@ -225,7 +225,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
   );
 
   const renderLive = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Pick a stream</Text>
         {GAME_OPTIONS.map((g) => (
@@ -289,7 +289,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
   );
 
   const renderHistory = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {streamHistory.length === 0 ? (
         <View style={styles.empty}>
           <History size={scale(48)} color={theme.textSecondary} />
@@ -334,7 +334,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
   );
 
   const renderShop = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Accessories</Text>
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
@@ -431,7 +431,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
       {activeTab === 'shop' && renderShop()}
 
       {feedback ? (
-        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info, bottom: getTabBarSafePadding(insets.bottom) }]}>
+        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info, bottom: getAppScreenBottomPadding(insets.bottom) }]}>
           <Text style={{ color: theme.text }}>{feedback}</Text>
         </View>
       ) : null}

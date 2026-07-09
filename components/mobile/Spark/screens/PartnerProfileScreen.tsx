@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import { unmatch, reportProfile } from '@/contexts/game/actions/SparkActions';
 import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
@@ -107,7 +107,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <Header theme={theme} title="Profile" onBack={onBack} />
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         {/* Hero */}
         <View style={styles.hero}>
           <LinearGradient

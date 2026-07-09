@@ -61,7 +61,7 @@ import {
   responsiveBorderRadius as br,
   scale,
   fontScale,
-  getTabBarSafePadding,
+  getAppScreenBottomPadding,
 } from '@/utils/scaling';
 
 type TabType = 'personal' | 'network' | 'favors' | 'attention';
@@ -490,7 +490,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   };
 
   const renderPersonal = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {personalContacts.length === 0 ? (
         <EmptyHero
           Icon={Users}
@@ -505,7 +505,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderNetwork = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.statsTitle, { color: theme.text }]}>Your network</Text>
         <View style={styles.statsRow}>
@@ -529,7 +529,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderFavors = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.statsTitle, { color: theme.text }]}>IOU position</Text>
         <View style={styles.statsRow}>
@@ -592,7 +592,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   const renderAttention = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {needAttention.length === 0 ? (
         <EmptyHero
           Icon={Heart}
@@ -660,7 +660,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       {activeTab === 'attention' && renderAttention()}
 
       {feedback && !feedback.id ? (
-        <View style={[styles.toast, { bottom: getTabBarSafePadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.info }]}>
+        <View style={[styles.toast, { bottom: getAppScreenBottomPadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.info }]}>
           <Text style={{ color: theme.text }}>{feedback.message}</Text>
         </View>
       ) : null}

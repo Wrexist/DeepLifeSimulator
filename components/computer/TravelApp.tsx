@@ -64,7 +64,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
-  getTabBarSafePadding,
+  getAppScreenBottomPadding,
 } from '@/utils/scaling';
 
 type TabType = 'destinations' | 'trip' | 'business' | 'history';
@@ -217,7 +217,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
   };
 
   const renderDestinations = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <EconomyEventBanner context="travel" />
       {renderTransportationCard()}
       {!ownsPassport && (
@@ -345,7 +345,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const effectiveReturn = returnWeek <= 8 && week > 8 ? week : returnWeek;
     const remaining = Math.max(0, effectiveReturn - week);
     return (
-      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         <View style={[styles.tripCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={[styles.tripIcon, { backgroundColor: accent.info }]}>
             <Plane size={scale(28)} color="white" />
@@ -392,7 +392,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       );
     }
     return (
-      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         {opps.map((opp) => (
           <View
             key={opp.id}
@@ -437,7 +437,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       );
     }
     return (
-      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+      <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         {[...history].reverse().map((entry, idx) => {
           const dest = DESTINATIONS.find((d) => d.id === entry.destinationId);
           if (!dest) return null;

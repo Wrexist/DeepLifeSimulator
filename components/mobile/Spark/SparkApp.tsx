@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { SPARK_GRADIENT, SPARK_COLORS } from './styles/sparkTheme';
 import SwipeScreen from './screens/SwipeScreen';
 import MatchesScreen from './screens/MatchesScreen';
@@ -155,7 +155,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
       </View>
 
       {/* Bottom tab bar — padded so it clears the floating phone tab bar. */}
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         <TabBtn
           icon={Flame}
           label="Swipe"

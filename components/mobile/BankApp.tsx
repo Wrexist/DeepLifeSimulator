@@ -22,7 +22,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { initialGameState } from '@/contexts/game/initialState';
 
@@ -154,7 +154,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           padding: responsiveSpacing.md,
           // Reserve space for the floating glass tab bar (cb5e306 sweep --
           // BankApp was the one sub-app still computing its own padding).
-          paddingBottom: getTabBarSafePadding(insets.bottom),
+          paddingBottom: getAppScreenBottomPadding(insets.bottom),
           gap: responsiveSpacing.md,
         }}
       >

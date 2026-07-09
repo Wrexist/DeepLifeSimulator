@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, getTabBarSafePadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveIconSize, getAppScreenBottomPadding } from '@/utils/scaling';
 import { Calendar, Link2, MapPin } from 'lucide-react-native';
 import PostCard from '../components/PostCard';
 import CommentItem from '../components/CommentItem';
@@ -102,7 +102,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
   }, [sm?.commentThreads]);
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {/* Cover photo */}
       <View style={styles.cover}>
         {profile.headerPhoto ? (

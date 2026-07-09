@@ -26,7 +26,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { initialGameState } from '@/contexts/game/initialState';
 import { DarkWebMixerTier, DarkWebSkillId } from '@/contexts/game/types';
@@ -392,7 +392,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
         style={{ flex: 1 }}
         // Clear the floating tab bar — a short padding left the bottom
         // buttons (Run Stage, cash-out) untappable underneath it.
-        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getTabBarSafePadding(insets.bottom) }}
+        contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom) }}
       >
         {activeTab === 'market' && renderMarket()}
         {activeTab === 'jobs' && renderJobs()}

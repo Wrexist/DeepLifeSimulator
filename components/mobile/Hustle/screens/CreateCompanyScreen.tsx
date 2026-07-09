@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { HUSTLE_GRADIENT, industryColor } from '../styles/hustleTheme';
@@ -46,9 +46,9 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
   const [selected, setSelected] = useState<HustleIndustry | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Tab bar (in app/(tabs)/_layout.tsx) is absolute-positioned and floats over
-  // this screen; getTabBarSafePadding reserves its height + inset + breathing room
+  // this screen; getAppScreenBottomPadding reserves its height + inset + breathing room
   // on BOTH platforms (the old Android-only offset left the CTA covered on iOS).
-  const tabBarOffset = getTabBarSafePadding(insets.bottom);
+  const tabBarOffset = getAppScreenBottomPadding(insets.bottom);
 
   const playerMoney = gameState.stats?.money ?? 0;
 

@@ -66,7 +66,7 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
-  getTabBarSafePadding,
+  getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { Pet } from '@/contexts/game/types';
 
@@ -193,7 +193,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   const selectedPet = pets.find((p) => p.id === selectedPetId) ?? pets[0];
 
   const renderPets = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.bondCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.bondTitle, { color: theme.text }]}>Companion bonus</Text>
         <View style={styles.bondRow}>
@@ -294,7 +294,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   };
 
   const renderShop = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Feed your pets</Text>
         {selectedPet ? (
@@ -404,7 +404,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   );
 
   const renderVet = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {selectedPet ? (
         <View style={[styles.miniCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
@@ -445,7 +445,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   );
 
   const renderCompete = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {selectedPet ? (
         <View style={[styles.miniCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
@@ -573,7 +573,7 @@ export default function PetApp({ onBack }: PetAppProps) {
       </Modal>
 
       {feedback ? (
-        <View style={[styles.toast, { bottom: getTabBarSafePadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.info }]}>
+        <View style={[styles.toast, { bottom: getAppScreenBottomPadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.info }]}>
           <Text style={{ color: theme.text }}>{feedback}</Text>
         </View>
       ) : null}

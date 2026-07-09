@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import KPICard from '../components/KPICard';
 import CompanyTile from '../components/CompanyTile';
@@ -93,7 +93,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getTabBarSafePadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
         {/* Hero strip */}
         <LinearGradient
           colors={HUSTLE_GRADIENT_SOFT as unknown as string[]}
@@ -134,7 +134,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
         style={({ pressed }) => [
           styles.fabTouch,
           // Lift the FAB above the floating phone tab bar (was hidden under it).
-          { bottom: getTabBarSafePadding(insets.bottom) },
+          { bottom: getAppScreenBottomPadding(insets.bottom) },
           pressed && { transform: [{ scale: 0.94 }] },
         ]}
       >
