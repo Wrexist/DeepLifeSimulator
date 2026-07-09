@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { scale } from '@/utils/scaling';
+import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTheme } from '@/hooks/useTheme';
 import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
@@ -37,6 +38,8 @@ export default function TabLayout() {
   const { changes, clearChange } = useStatChanges();
 
   const isInPrison = (gameState?.jailWeeks ?? 0) > 0;
+  // Hide the floating tab bar while an in-phone app runs full-screen.
+  const fullscreenApp = useFullscreenApp();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
   const items = gameState?.items ?? [];
 
@@ -125,7 +128,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: isDark ? '#60A5FA' : '#3B82F6',
         tabBarInactiveTintColor: isDark ? '#9CA3AF' : '#6B7280',
         // Hide tab bar completely when in prison
-        tabBarStyle: isInPrison ? { display: 'none' } : {
+        tabBarStyle: (isInPrison || fullscreenApp) ? { display: 'none' } : {
           position: 'absolute',
           bottom: 0,
           left: 0,

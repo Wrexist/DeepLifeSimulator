@@ -48,6 +48,7 @@ import {
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
 
@@ -74,6 +75,14 @@ function MobileScreenContent() {
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
+
+  // Run in-phone apps full-screen (hide the game TopStatsBar + floating tab bar)
+  // so they don't feel sandwiched. Reset on unmount so the chrome always returns.
+  useEffect(() => {
+    setFullscreenApp(!!activeApp);
+    return () => setFullscreenApp(false);
+  }, [activeApp]);
+
   // P3-3: dead scroll state — same pattern as work.tsx / market.tsx (P1-8).
 
   // Prevent staying on mobile screen when in prison - redirect to work tab
@@ -231,12 +240,16 @@ function MobileScreenContent() {
       setActiveApp(null);
       return null;
     }
+    // Full-screen host: the game chrome is hidden while an app is open, so the
+    // host supplies the top safe-area inset (notch) the TopStatsBar used to.
     return (
-      <AppComponent onBack={() => {
-        buttonPress();
-        haptic('light');
-        setActiveApp(null);
-      }} />
+      <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: '#0F172A' }}>
+        <AppComponent onBack={() => {
+          buttonPress();
+          haptic('light');
+          setActiveApp(null);
+        }} />
+      </View>
     );
   }
 

@@ -42,6 +42,7 @@ import { useGameState } from '@/contexts/GameContext';
 import { initializeDebugContext, setStateGetter } from '@/src/debug/aiDebugConfig';
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import TopStatsBar from '@/components/TopStatsBar';
+import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import TutorialManager from '@/components/TutorialManager';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineIndicator from '@/components/OfflineIndicator';
@@ -1244,6 +1245,10 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // This component only needs gameState, not actions
   // Add defensive check - if hook fails, ErrorBoundary will catch it
   const { gameState, setGameState } = useGameState();
+  // Hide the top chrome (notch spacer + TopStatsBar) while a phone app runs
+  // full-screen — but NOT the critical popups below, which keep `showStatsBar`.
+  const fullscreenApp = useFullscreenApp();
+  const showTopChrome = showStatsBar && !fullscreenApp;
 
   // P1-14: keep a ref of the latest gameState so the AI debug getter doesn't
   // need to re-register on every state change (the previous useEffect with
@@ -1280,11 +1285,12 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   }, []);
   return (
     <SafeAreaView style={[styles.safeArea, gameState?.settings?.darkMode !== false && styles.safeAreaDark]} edges={['left', 'right', 'bottom']}>
-      {/* Only show status bar space and TopStatsBar when in main game */}
-      {showStatsBar && <View style={[styles.statusBar, gameState?.settings?.darkMode !== false && styles.statusBarDark, { height: insets.top }]} />}
+      {/* Only show status bar space and TopStatsBar when in main game (and not
+          while a phone app is full-screen). */}
+      {showTopChrome && <View style={[styles.statusBar, gameState?.settings?.darkMode !== false && styles.statusBarDark, { height: insets.top }]} />}
       {/* Show TopStatsBar only in main game, not in onboarding */}
       {/* TopStatsBar is wrapped in ErrorBoundary via AppProviders, so it's safe to render */}
-      {showStatsBar && gameState?.stats && (
+      {showTopChrome && gameState?.stats && (
         <ErrorBoundary
           fallback={null}
           onError={(error) => {

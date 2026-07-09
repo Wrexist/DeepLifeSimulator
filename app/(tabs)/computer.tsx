@@ -76,6 +76,7 @@ import {
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -99,6 +100,14 @@ function ComputerScreenContent() {
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [appCategory, setAppCategory] = useState<'desktop' | 'mobile'>('desktop');
+
+  // Run in-phone apps full-screen (hide the game TopStatsBar + floating tab bar)
+  // so they don't feel sandwiched between the game chrome. Reset on unmount so
+  // the chrome always returns even if the app is left abruptly.
+  useEffect(() => {
+    setFullscreenApp(!!activeApp);
+    return () => setFullscreenApp(false);
+  }, [activeApp]);
   const { gameState } = useGame();
   const { highlightedItem } = useTutorialHighlight();
   const { settings } = gameState;
@@ -366,7 +375,13 @@ function ComputerScreenContent() {
       return null;
     }
 
-    return <AppComponent onBack={() => setActiveApp(null)} />;
+    // Full-screen host: the game chrome is hidden while an app is open, so the
+    // host supplies the top safe-area inset (notch) the TopStatsBar used to.
+    return (
+      <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: '#0F172A' }}>
+        <AppComponent onBack={() => setActiveApp(null)} />
+      </View>
+    );
   }
 
   // Mirror mobile.tsx's responsive column count so both app-grid tabs scale

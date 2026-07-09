@@ -16,6 +16,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
+import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 import { PULSE_GRADIENT } from './styles/pulseTheme';
 import PulseFAB from './components/PulseFAB';
@@ -54,6 +55,10 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const { gameState, setGameState } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  // When the app runs full-screen the game tab bar is hidden, so only the home
+  // indicator needs clearing at the bottom — not the (now absent) tab bar.
+  const fullscreenApp = useFullscreenApp();
+  const bottomInset = fullscreenApp ? insets.bottom : getTabBarSafePadding(insets.bottom);
   const [activeTab, setActiveTab] = useState<PulseTab>('home');
   const [overlay, setOverlay] = useState<PulseOverlay>(null);
   const [detailPostId, setDetailPostId] = useState<string | null>(null);
@@ -176,7 +181,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   return (
     // Bottom padding keeps the internal tab bar (and the bottom-anchored FAB /
     // deal chip) above the floating phone tab bar.
-    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getTabBarSafePadding(insets.bottom) }]}>
+    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: bottomInset }]}>
       {/* ── Header ──────────────────────────────────────────── */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable
