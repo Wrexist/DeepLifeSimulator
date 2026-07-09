@@ -176,11 +176,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const { gameState, setGameState, currentSlot } = useGameState();
  const { setIsLoading, setLoadingProgress, setLoadingMessage } = useGameUI();
  const { updateMoney } = useMoneyActions();
- // NOTE: gameplay notifications use `showInfo` (friendly, auto-dismissing) — not
+ // NOTE: gameplay notifications use `showInfoBanner` (friendly, auto-dismissing) — not
  // `showWarning`, whose orange AlertTriangle banner never auto-dismissed and piled
  // up after week/job actions (the "old warning symbols" players were seeing).
  // `showWarning` is reserved for genuinely actionable problems.
- const { showError, showWarning, showInfo } = useUIUX();
+ const { showError, showWarning, showInfoBanner } = useUIUX();
 
  // Refs for AppState listener (prevents stale closures)
  const gameStateRef = useRef<GameState | null>(null);
@@ -677,6 +677,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    pulseEarnings: pulseTickResult?.pulseEarnings ?? 0,
    weeksLivedNow,
    unlockedBonuses,
+   // Macro teeth: recession/crash/boom now moves the paycheck (was a dead field).
+   economyIncomeMultiplier: prevState.economy?.economyEvents?.modifiers?.incomeMultiplier,
  });
  const { partnerIncome, baseTotalIncome, totalIncome } = incomeResult;
 
@@ -1044,16 +1046,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  updatedPendingChainedEvents = stillPending.length > 100 ? stillPending.slice(-100): stillPending;
  }
 
- // Weekly event "Heads Up" pop-ups are disabled by default (player feedback:
- // they interrupted the Next Week flow on nearly every tick). Drop everything
- // queued this tick AND any backlog carried in old saves so the
- // WeeklyEventModal never appears. The economy simulation itself is unaffected
- // — only the interrupting notification is suppressed. Re-enable with
- // EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS=true.
- if (!FEATURE_FLAGS.weeklyEvents) {
- updatedPendingEvents = [];
- updatedPendingChainedEvents = [];
- }
+ // Weekly events now use a NON-BLOCKING inbox instead of an interrupting
+ // auto-pop modal (that was the original complaint that got them disabled).
+ // Events queue and the player opens them from a "decisions waiting" pill on
+ // their own time — see app/(tabs)/_layout.tsx. Cap the visible inbox so it
+ // reads as an inbox, not a firehose; chained follow-ups stay queued (already
+ // capped above) so life-moment / cliffhanger ripples can still resolve.
+ updatedPendingEvents = updatedPendingEvents.slice(-12);
 
  // R7 Phase 2 step 2.7-D: life moment generation extracted into
  // ./actions/weekly/applyLifeMoment.ts. Same generator call, same merge
@@ -1448,6 +1447,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  currentWeek: nextWeeksLived,
  // Gate buy-order fills on actual cash (anti free-fill exploit).
  cashIn: newStats.money,
+ // Macro teeth: a recession/crash/boom now drives a broad-market drift on
+ // equities (crypto already reacts via forced regimes).
+ economyState: prevState.economy?.economyEvents?.currentState,
  rollFor: weeklyRoll,
  });
  if (stocksTickResult.cashDelta!== 0) {
@@ -1485,9 +1487,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  for (const note of politicsTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
  }
- // Forced resignation: drop careerLevel back to 0 and clear nextElectionWeek.
+ // Forced resignation OR lost re-election: drop careerLevel to 0 and clear the
+ // election countdown. The political salary is gated on politics.careerLevel > 0
+ // (lib/economy/passiveIncome.ts), so zeroing it here stops the paycheck. The
+ // re-election-loss path in the tick already sets careerLevel:0; this also covers
+ // the scandal-resignation flag.
  let nextPolitics = politicsTick.politics;
- if (politicsTick.forcedResignation) {
+ if (politicsTick.forcedResignation || politicsTick.lostOffice) {
  nextPolitics = {
 ...nextPolitics,
  careerLevel: 0,
@@ -1582,6 +1588,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  weeklyStreetJobs: {}, // Always reset when advancing week
  weeklyJailActivities: {}, // Always reset when advancing week
  weeklyStudySessions: {}, // Always reset when advancing week
+ weeklyPursuitPractice: {}, // Hobby mastery: reset weekly practice caps
  // Decrease jail time by 1 week when advancing, or add police encounter jail time
  jailWeeks: (() => {
  // Base: either an encounter triggered, or decay the prior sentence.
@@ -1619,6 +1626,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  watchlist: prevState.stocks?.watchlist ?? [],
  realizedGains: (prevState.stocks?.realizedGains ?? 0) + stocksTickResult.realizedGains,
  savedMarketPrices: getStockPricesSnapshot(),
+ // Keep last week's snapshot so the market board can show ▲/▼ weekly change.
+ lastWeekPrices: prevState.stocks?.savedMarketPrices,
  openOrders: stocksTickResult.openOrders,
  orderHistory: stocksTickResult.orderHistory,
  sectorSnapshots: stocksTickResult.sectorSnapshots,
@@ -1640,6 +1649,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  watchlist: prevState.stocks?.watchlist || [],
  realizedGains: prevState.stocks?.realizedGains || 0,
  savedMarketPrices: getStockPricesSnapshot(),
+ lastWeekPrices: prevState.stocks?.savedMarketPrices,
  };
  })(),
  // Process weddings, pregnancy, and relationship health
@@ -1789,8 +1799,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  seenIds.has(n.id) ? false: (seenIds.add(n.id), true)
  );
  setTimeout(() => {
+ // NOISE: if this tick killed the character, the DeathPopup owns the
+ // screen — routine subsystem banners on top of it are pure clutter.
+ // (deathTriggered is assigned by the updater, well before this 100ms
+ // callback runs.)
+ if (deathTriggered) return;
+ // NOISE: a busy mid/late-game week can emit 5-10 subsystem messages
+ // (crypto, banking, stocks, politics, relationships…). Showing each as
+ // its own banner flooded the screen every "Next Week". Two or fewer
+ // show as-is; more collapse into ONE "This week" summary banner (fixed
+ // id, so consecutive weeks replace rather than stack).
+ if (uniqueNotifications.length <= 2) {
  for (const n of uniqueNotifications) {
- showInfo(n.id, n.message, n.title);
+ showInfoBanner(n.id, n.message, n.title);
+ }
+ } else {
+ const shown = uniqueNotifications.slice(0, 3);
+ const more = uniqueNotifications.length - shown.length;
+ const summary = shown.map(n => n.message).join('\n')
+ + (more > 0 ? `\n+${more} more this week` : '');
+ showInfoBanner('weekly-summary', summary, 'This week');
  }
  }, 100);
  }
@@ -1942,7 +1970,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ANTI-EXPLOIT: Release the week progression guard
  nextWeekInProgressRef.current = false;
  }
- }, [setGameState, setIsLoading, setLoadingMessage, setLoadingProgress, showError, showWarning, showInfo, saveGame]);
+ }, [setGameState, setIsLoading, setLoadingMessage, setLoadingProgress, showError, showWarning, showInfoBanner, saveGame]);
 
  // Ref to track resolving events (prevent duplicates)
  const resolvingEventsRef = useRef<Set<string>>(new Set());
@@ -2317,6 +2345,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  );
  }
 
+ // Politics event effects: approval rating + policy influence. These were
+ // previously DROPPED — the resolver only applied money/stats/relationship/pet,
+ // so every political event that promised an approval or influence swing did
+ // nothing. Also catch legacy events that mistakenly nested `approvalRating`
+ // inside `stats` (the stats loop skips it since it isn't a GameStats key).
+ let updatedPolitics: GameState['politics'] | undefined;
+ const approvalDelta = (effects.approvalRating ?? 0) + ((effects.stats as Record<string, number> | undefined)?.approvalRating ?? 0);
+ const influenceDelta = effects.policyInfluence ?? 0;
+ if ((approvalDelta !== 0 || influenceDelta !== 0) && prevState.politics && effectsAffordable) {
+ updatedPolitics = {
+...prevState.politics,
+ approvalRating: Math.max(0, Math.min(100, (prevState.politics.approvalRating ?? 50) + approvalDelta)),
+ policyInfluence: Math.max(0, Math.min(100, (prevState.politics.policyInfluence ?? 0) + influenceDelta)),
+ };
+ }
+
  // CRITICAL: Return complete state with all properties preserved
  // Use spread operator to ensure we don't lose any properties
  const newState: GameState = {
@@ -2332,6 +2376,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 ...(updatedConsequenceState && { consequenceState: updatedConsequenceState }), // Add consequence state if updated
 ...(updatedMemories && { memories: updatedMemories }), // Add memories if created
 ...(updatedKarma && { karma: updatedKarma }), // Update karma if changed
+...(updatedPolitics && { politics: updatedPolitics }), // Approval/influence event effects
  diseases: updatedDiseases, // Update diseases if event triggered one
  showSicknessModal: showSicknessModal, // Show modal if new disease
  diseaseHistory: updatedDiseaseHistory, // Update disease history

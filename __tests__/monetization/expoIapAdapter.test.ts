@@ -83,6 +83,30 @@ describe('expoIapAdapter', () => {
     expect(res.results[0].transactionReceipt).toBe('JWS_TOKEN');
   });
 
+  it('fetches one-time products under type "in-app" by default', async () => {
+    const adapter = await freshAdapter();
+    await adapter.getProductsAsync(['deeplife_gems_100']);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.objectContaining({ skus: ['deeplife_gems_100'], type: 'in-app' }),
+    );
+  });
+
+  it('fetches subscriptions under type "subs" when asked', async () => {
+    const adapter = await freshAdapter();
+    await adapter.getProductsAsync(['deeplife_premium_monthly'], 'subs');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.objectContaining({ skus: ['deeplife_premium_monthly'], type: 'subs' }),
+    );
+  });
+
+  it('requests a subscription purchase under type "subs"', async () => {
+    const adapter = await freshAdapter();
+    adapter.purchaseItemAsync('deeplife_premium_yearly', 'subs');
+    expect(requestPurchaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'subs' }),
+    );
+  });
+
   it('maps a user cancellation to USER_CANCELED', async () => {
     const adapter = await freshAdapter();
     const p = adapter.purchaseItemAsync('deeplife_money_boost');

@@ -33,7 +33,9 @@ const PERSONALITY_GIFT_MAP: Record<string, { likes: string[]; dislikes: string[]
  * Returns default middle-ground if personality unknown.
  */
 export function getGiftPreferences(personality: string): { likes: string[]; dislikes: string[] } {
- const key = personality.toLowerCase().split('')[0]; // Take first word
+ // Take the first WORD (split on space). Was split('') which returns the first
+ // CHARACTER, so no key ever matched and every NPC got the default preferences.
+ const key = (personality || '').toLowerCase().split(' ')[0];
  return PERSONALITY_GIFT_MAP[key] || { likes: ['surprise'], dislikes: [] };
 }
 

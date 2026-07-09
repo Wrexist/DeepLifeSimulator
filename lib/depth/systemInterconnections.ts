@@ -406,11 +406,15 @@ function getSystemFromAction(actionId: string): string | null {
   if (actionId.includes('health') || actionId.includes('gym') || actionId.includes('diet')) {
     return 'health';
   }
-  if (actionId.includes('hobby') || actionId.includes('train')) {
+  // The 'hobbies' commitment axis is relabeled "Skills" in the UI (hobbies were
+  // removed). Route learning/self-improvement actions here so the committable
+  // axis has a real effect: studying, education, skill practice and training.
+  if (
+    actionId.includes('hobby') || actionId.includes('train') ||
+    actionId.includes('education') || actionId.includes('study') ||
+    actionId.includes('skill') || actionId.includes('practice')
+  ) {
     return 'hobbies';
-  }
-  if (actionId.includes('education') || actionId.includes('study')) {
-    return 'education';
   }
   if (actionId.includes('travel')) {
     return 'travel';

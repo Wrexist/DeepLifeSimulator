@@ -271,11 +271,16 @@ export function buyAccessory(
   if (safe(gameState.stats?.money, 0) < price) {
     return { success: false, message: `Need $${price.toLocaleString()}.` };
   }
-  deps.updateMoney(setGameState, -price, `Bought ${String(id)}`);
+  // Atomic gate→debit→grant: the old split (updateMoney dispatch + separate
+  // flag setGameState) let a same-batch double-tap charge twice for one item.
   setGameState((prev) => {
     const ch = ensureChannel(prev);
+    if (ch.equipment[id]) return prev;
+    const spend = applyMoneyDelta(prev, -price, `Bought ${String(id)}`);
+    if (!spend) return prev;
     return {
       ...prev,
+      ...spend,
       gamingStreaming: { ...ch, equipment: { ...ch.equipment, [id]: true } },
     };
   });
@@ -296,11 +301,17 @@ export function upgradePCComponent(
   if (safe(gameState.stats?.money, 0) < cost) {
     return { success: false, message: `Need $${cost.toLocaleString()}.` };
   }
-  deps.updateMoney(setGameState, -cost, `Upgraded ${String(id)} tier ${nextTier}`);
+  // Atomic: re-derive the tier and cost from prev so a same-batch double-tap
+  // can't charge tier-N price twice for one upgrade.
   setGameState((prev) => {
     const ch = ensureChannel(prev);
+    const prevTier = ch.pcUpgradeLevels[id] || 0;
+    if (prevTier !== currentTier) return prev;
+    const spend = applyMoneyDelta(prev, -cost, `Upgraded ${String(id)} tier ${nextTier}`);
+    if (!spend) return prev;
     return {
       ...prev,
+      ...spend,
       gamingStreaming: {
         ...ch,
         pcComponents: { ...ch.pcComponents, [id]: true },

@@ -11,7 +11,12 @@
  * The transport (store products, receipt verification) is handled by
  * SubscriptionService + IAPService; this module is pure config + helpers.
  */
-import { SUBSCRIPTION_PRODUCTS, SUBSCRIPTION_CONFIGS } from '@/utils/iapConfig';
+import {
+  SUBSCRIPTION_PRODUCTS,
+  SUBSCRIPTION_CONFIGS,
+  IAP_PRODUCTS,
+  getProductConfig,
+} from '@/utils/iapConfig';
 import { subscriptionService } from '@/services/SubscriptionService';
 
 export type BillingPeriod = 'monthly' | 'yearly';
@@ -43,6 +48,19 @@ export const DEEP_LIFE_PLUS_PLANS: DeepLifePlusPlan[] = [
   },
 ];
 
+/**
+ * The one-time "unlock forever" alternative to subscribing — a pricier
+ * non-consumable that grants the same premium entitlements permanently, for
+ * players who'd rather pay once than subscribe. Read via
+ * subscriptionService.hasLifetimePremium().
+ */
+export const DEEP_LIFE_PLUS_LIFETIME = {
+  productId: IAP_PRODUCTS.LIFETIME_PREMIUM,
+  price: getProductConfig(IAP_PRODUCTS.LIFETIME_PREMIUM)?.price ?? '$79.99',
+  unit: 'one-time',
+  label: 'Unlock forever',
+};
+
 export interface DeepLifePlusBenefit {
   id: string;
   title: string;
@@ -71,7 +89,10 @@ export function isDeepLifePlusProduct(productId: string): boolean {
     || productId === SUBSCRIPTION_PRODUCTS.PREMIUM_YEARLY;
 }
 
-/** True if DeepLife+ is currently active (any premium-tier subscription). */
+/**
+ * True if the player has premium access right now — via an active subscription
+ * OR the one-time lifetime unlock. Every premium gate should use this.
+ */
 export function isDeepLifePlusActive(): boolean {
-  return subscriptionService.getSubscriptionTier() !== 'free';
+  return subscriptionService.hasPremiumAccess();
 }

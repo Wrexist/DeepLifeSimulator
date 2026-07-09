@@ -164,16 +164,32 @@ function EducationAppInner({ onBack }: EducationAppProps) {
               }}
             />
             <View style={styles.actionRow}>
-              <TouchableOpacity
-                disabled={e.paused}
-                onPress={() => {
-                  studyExtra(setGameState, e.id);
-                  queueSave();
-                }}
-                style={[styles.actionBtn, { backgroundColor: e.paused ? theme.border : accent.info }]}
-              >
-                <Text style={styles.actionBtnText}>Study (−15 energy)</Text>
-              </TouchableOpacity>
+              {(() => {
+                // Mirror studyExtra's real gates so the button can't silently
+                // no-op: it rejects (with only a logger.warn) below 15 energy
+                // or past 3 sessions/week.
+                const sessionsThisWeek = gameState.weeklyStudySessions?.[e.id] ?? 0;
+                const capReached = sessionsThisWeek >= 3;
+                const lowEnergy = (gameState.stats?.energy ?? 0) < 15;
+                const studyDisabled = e.paused || capReached || lowEnergy;
+                const label = capReached
+                  ? 'Studied 3/3 this week'
+                  : lowEnergy
+                    ? 'Too tired (−15 energy)'
+                    : `Study ${sessionsThisWeek}/3 (−15 energy)`;
+                return (
+                  <TouchableOpacity
+                    disabled={studyDisabled}
+                    onPress={() => {
+                      studyExtra(setGameState, e.id);
+                      queueSave();
+                    }}
+                    style={[styles.actionBtn, { backgroundColor: studyDisabled ? theme.border : accent.info }]}
+                  >
+                    <Text style={styles.actionBtnText}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })()}
               <TouchableOpacity
                 onPress={() => {
                   withdrawFromProgram(setGameState, e.id);

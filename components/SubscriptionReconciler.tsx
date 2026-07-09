@@ -33,7 +33,9 @@ export function SubscriptionReconciler(): null {
     runningRef.current = true;
     try {
       await subscriptionService.waitForInitialization();
-      const plusActive = subscriptionService.getSubscriptionTier() !== 'free';
+      // Premium access via subscription OR the one-time lifetime unlock — both
+      // keep ad-free + the Legacy Pass premium track.
+      const plusActive = subscriptionService.hasPremiumAccess();
       const ownsRemoveAds =
         typeof iapService.isAdsRemoved === 'function' ? iapService.isAdsRemoved() : false;
       setGameState((prev) => {

@@ -480,7 +480,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  case'quest':
  return { icon: Star, color: '#EAB308', label: 'Quest'};
  default:
- return { icon: MessageCircle, color:'#6B7280', label: 'Message'};
+ return { icon: MessageCircle, color:'#9CA3AF', label: 'Message'};
  }
  };
 
@@ -516,11 +516,11 @@ export default function DMSystem({ onBack }: DMSystemProps) {
 
  {/* Search */}
  <View style={styles.searchContainer}>
- <Search size={scale(18)} color="#6B7280" />
+ <Search size={scale(18)} color="#9CA3AF" />
  <TextInput
  style={styles.searchInput}
  placeholder="Search messages..."
- placeholderTextColor="#6B7280"
+ placeholderTextColor="#9CA3AF"
  value={searchQuery}
  onChangeText={setSearchQuery}
  />
@@ -530,7 +530,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <ScrollView style={styles.conversationsScroll} showsVerticalScrollIndicator={false}>
  {filteredConversations.length === 0 ? (
  <View style={styles.emptyState}>
- <Mail size={scale(48)} color="#4B5563" />
+ <Mail size={scale(48)} color="#9CA3AF" />
  <Text style={styles.emptyStateText}>No messages yet</Text>
  <Text style={styles.emptyStateSubtext}>
  Mysterious contacts will reach out with tips and secrets...
@@ -689,7 +689,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <TextInput
  style={styles.messageInput}
  placeholder="Reply..."
- placeholderTextColor="#6B7280"
+ placeholderTextColor="#9CA3AF"
  value={messageInput}
  onChangeText={setMessageInput}
  multiline
@@ -699,7 +699,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  onPress={handleSendMessage}
  disabled={!messageInput.trim()}
  >
- <Send size={scale(20)} color={messageInput.trim() ?'#1D9BF0': '#4B5563'} />
+ <Send size={scale(20)} color={messageInput.trim() ?'#1D9BF0': '#9CA3AF'} />
  </TouchableOpacity>
  </View>
  </View>
@@ -892,7 +892,7 @@ const styles = StyleSheet.create({
  },
  conversationHandle: {
  fontSize: fontScale(13),
- color: '#6B7280',
+ color: '#9CA3AF',
  marginTop: scale(2),
  },
  conversationPreview: {
@@ -911,7 +911,7 @@ const styles = StyleSheet.create({
  },
  conversationTime: {
  fontSize: fontScale(12),
- color: '#6B7280',
+ color: '#9CA3AF',
  },
  unreadDot: {
  backgroundColor: '#1D9BF0',
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
  },
  emptyStateSubtext: {
  fontSize: fontScale(14),
- color: '#6B7280',
+ color: '#9CA3AF',
  textAlign: 'center',
  marginTop: scale(8),
  },
@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
  },
  threadHeaderHandle: {
  fontSize: fontScale(13),
- color: '#6B7280',
+ color: '#9CA3AF',
  },
  mysteriousTag: {
  flexDirection: 'row',
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
  },
  messageTime: {
  fontSize: fontScale(11),
- color: '#6B7280',
+ color: '#9CA3AF',
  marginTop: scale(6),
  },
  playerMessageTime: {

@@ -42,7 +42,40 @@ export interface StocksTickInput {
   currentWeek: number;
   /** Player's cash on hand entering the tick — gates buy-order fills. */
   cashIn?: number;
+  /**
+   * Current macro economy state. Crypto already reacts to this via forced
+   * regimes; stocks previously ignored it, so a recession/crash/boom rotated
+   * sectors but never moved the whole market. When set, a broad directional
+   * drift is applied to every price — this is what gives economy events real
+   * teeth on equities.
+   */
+  economyState?: 'normal' | 'recession' | 'boom' | 'crash';
   rollFor: (key: string) => number;
+}
+
+/**
+ * Broad-market weekly drift from the macro economy event, applied on TOP of the
+ * per-sector tilt. A small per-symbol jitter (seeded, deterministic) makes a
+ * crash feel volatile rather than a uniform haircut — matching the crash event's
+ * 2.5× volatility modifier. Compounds over the multi-week event: a crash (3-6wk)
+ * runs roughly -16%..-29%, a recession (6-12wk) -10%..-20%, a boom (4-8wk)
+ * +12%..+25%. Meaningful but recoverable.
+ */
+function macroDriftFor(
+  economyState: StocksTickInput['economyState'],
+  jitter: number,
+): number {
+  const j = (jitter - 0.5) * 2; // [-1, 1)
+  switch (economyState) {
+    case 'crash':
+      return -0.055 + j * 0.03;
+    case 'recession':
+      return -0.018 + j * 0.012;
+    case 'boom':
+      return 0.028 + j * 0.012;
+    default:
+      return 0; // normal / inflation / undefined — no broad drift
+  }
 }
 
 export interface StocksTickResult {
@@ -81,11 +114,16 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     });
   }
 
-  // 2) Apply sector tilt to prices (multiplicative).
+  // 2) Apply sector tilt to prices (multiplicative), then the macro drift.
   const prices = { ...input.prices };
+  const macroActive = input.economyState != null && input.economyState !== 'normal';
   for (const sym of Object.keys(prices)) {
     const tilt = sectorTiltFor(sym, ticked.snapshots);
     if (tilt !== 0) prices[sym] = Math.max(0.0001, prices[sym] * (1 + tilt));
+    if (macroActive) {
+      const drift = macroDriftFor(input.economyState, input.rollFor(`stocks.macro.${sym}`));
+      if (drift !== 0) prices[sym] = Math.max(0.0001, prices[sym] * (1 + drift));
+    }
   }
 
   // Refresh holdings' currentPrice with sector-adjusted prices.

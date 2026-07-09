@@ -176,8 +176,11 @@ export function swipesRemaining(state: GameState): number {
 export function superLikesRemaining(state: GameState): number {
   const sp = state.sparkApp;
   if (!sp) return 0;
-  const cap = sp.premium.perks.superLikesPerDay;
-  return Math.max(0, cap - sp.superLikesUsedThisWeek);
+  // Optional-chain: a save from before `premium`/`perks` existed would throw
+  // here on every SwipeScreen render (swipesRemaining above already guards).
+  // Fall back to the free-tier allowance (1).
+  const cap = sp.premium?.perks?.superLikesPerDay ?? 1;
+  return Math.max(0, cap - (sp.superLikesUsedThisWeek ?? 0));
 }
 
 // ── Jealousy risk ─────────────────────────────────────────────────────────

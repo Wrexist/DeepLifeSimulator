@@ -30,6 +30,8 @@ import {
   Video,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { useFeedback } from '@/utils/feedbackSystem';
+import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
@@ -71,15 +73,14 @@ import {
   isTablet,
   getTabBarSafePadding,
 } from '@/utils/scaling';
-import { 
-  getGlassHeader, 
-  getGlassIconContainer, 
-  getGlassAppCard,
-} from '@/utils/glassmorphismStyles';
+import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import { ClaimableBadge } from '@/components/ClaimableBadge';
+import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -101,6 +102,9 @@ function ComputerScreenContent() {
   const { gameState } = useGame();
   const { highlightedItem } = useTutorialHighlight();
   const { settings } = gameState;
+  // Haptic parity with the phone grid — opening an app on mobile buzzed,
+  // opening one on the computer was silent.
+  const { buttonPress } = useFeedback(settings?.hapticFeedback ?? false);
   const router = useRouter();
   const segments = useSegments();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
@@ -114,7 +118,7 @@ function ComputerScreenContent() {
 
   // Redirect away from computer screen if computer is sold
   useEffect(() => {
-    const ownsComputer = gameState.items.find(item => item.id === 'computer')?.owned;
+    const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
     if (!ownsComputer && currentRoute === 'computer') {
       // Redirect to home tab if computer is sold
       router.replace('/(tabs)/home');
@@ -131,10 +135,6 @@ function ComputerScreenContent() {
   }, [navigation]);
 
   // Memoize apps list - must be called before any early returns (Rules of Hooks)
-  // R10-perf: hoist the only career-dependent flag to a primitive so the 17-app
-  // list (and its 3 derived filtered lists) don't rebuild every decay tick just
-  // because `gameState.careers` got a new array identity.
-  const canRunPolitical = gameState.careers.some(c => c.id === 'political' && c.accepted);
   const appsList = useMemo(() => [
     {
       id: 'bitcoin',
@@ -265,11 +265,14 @@ function ComputerScreenContent() {
     {
       id: 'political',
       name: 'Political Office',
-      description: 'Manage your political career',
+      description: 'Run for office, campaign, and govern',
       icon: Vote,
       gradient: ['#DC2626', '#B91C1C'], // Red gradient for politics
       iconGradient: ['#DC2626', '#B91C1C'],
-      available: canRunPolitical,
+      // Always reachable: politics is a life path you enter FROM this app (Run
+      // for Office). Gating it on already holding office made it a locked door
+      // nobody could open. The Office tab enforces age/reputation/education.
+      available: true,
     },
     {
       id: 'statistics',
@@ -289,11 +292,11 @@ function ComputerScreenContent() {
       iconGradient: ['#6366F1', '#8B5CF6'],
       available: true,
     },
-  ], [t, canRunPolitical]);
+  ], [t]);
 
   // Separate apps into categories
   const desktopApps = useMemo(() => appsList.filter(app => 
-    ['bitcoin', 'realestate', 'onion', 'gaming', 'travel', 'political', 'statistics', 'vehicle', 'company', 'education'].includes(app.id)
+    ['bitcoin', 'realestate', 'onion', 'gaming', 'streaming', 'travel', 'political', 'statistics', 'vehicle', 'company', 'education'].includes(app.id)
   ), [appsList]);
   
   const mobileApps = useMemo(() => appsList.filter(app => 
@@ -306,7 +309,13 @@ function ComputerScreenContent() {
     return apps.filter(app => app.available !== false);
   }, [appCategory, desktopApps, mobileApps]);
 
-  if (!gameState.items.find(item => item.id === 'computer')?.owned) {
+  // Per-app "needs attention" badge counts — computed before any early return.
+  const appBadges = useMemo(
+    () => getAppBadgeCounts(gameState),
+    [gameState.sparkApp, gameState.socialMedia?.activeScandal, gameState.pets, gameState.companies],
+  );
+
+  if (!(gameState.items || []).find(item => item.id === 'computer')?.owned) {
     return (
       <LinearGradient
         colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
@@ -373,76 +382,16 @@ function ComputerScreenContent() {
       colors={settings.darkMode ? ['#0F172A', '#1E293B', '#334155'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
-      {/* Category Tabs - Glassmorphism */}
+      {/* Category segmented control */}
       <View style={styles.categoryTabsWrapper}>
-        <View style={[styles.categoryTabsGlassContainer, settings.darkMode && styles.categoryTabsGlassContainerDark]}>
-          <TouchableOpacity
-            style={styles.categoryTabButton}
-            onPress={() => setAppCategory('desktop')}
-            activeOpacity={0.7}
-            accessibilityRole="tab"
-            accessibilityLabel="Desktop apps"
-            accessibilityState={{ selected: appCategory === 'desktop' }}
-          >
-            {appCategory === 'desktop' ? (
-              <LinearGradient
-                colors={settings.darkMode ? ['#3B82F6', '#2563EB'] : ['#3B82F6', '#2563EB']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.categoryTabGlassActiveGradient}
-              >
-                <Text style={styles.categoryTabTextActive}>
-                  Desktop Apps
-                </Text>
-              </LinearGradient>
-            ) : (
-              <View style={[
-                styles.categoryTabGlass,
-                settings.darkMode && styles.categoryTabGlassDark
-              ]}>
-                <Text style={[
-                  styles.categoryTabText,
-                  settings.darkMode && styles.categoryTabTextDark
-                ]}>
-                  Desktop Apps
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.categoryTabButton}
-            onPress={() => setAppCategory('mobile')}
-            activeOpacity={0.7}
-            accessibilityRole="tab"
-            accessibilityLabel="Mobile apps"
-            accessibilityState={{ selected: appCategory === 'mobile' }}
-          >
-            {appCategory === 'mobile' ? (
-              <LinearGradient
-                colors={settings.darkMode ? ['#3B82F6', '#2563EB'] : ['#3B82F6', '#2563EB']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.categoryTabGlassActiveGradient}
-              >
-                <Text style={styles.categoryTabTextActive}>
-                  Mobile Apps
-                </Text>
-              </LinearGradient>
-            ) : (
-              <View style={[
-                styles.categoryTabGlass,
-                settings.darkMode && styles.categoryTabGlassDark
-              ]}>
-                <Text style={[
-                  styles.categoryTabText,
-                  settings.darkMode && styles.categoryTabTextDark
-                ]}>
-                  Mobile Apps
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+        <SegmentedControl
+          segments={[
+            { key: 'desktop', label: 'Desktop Apps' },
+            { key: 'mobile', label: 'Mobile Apps' },
+          ]}
+          value={appCategory}
+          onChange={setAppCategory}
+        />
       </View>
 
       <ScrollView
@@ -450,6 +399,8 @@ function ComputerScreenContent() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={true}
       >
+        {/* Macro economy strip — visible where the money apps live; null in normal times. */}
+        <EconomyEventBanner context="generic" />
         <View style={styles.appsGrid}>
           {displayedApps.map((app) => {
             const isHighlighted = highlightedItem === 'stock-app' && app.id === 'stocks';
@@ -461,7 +412,7 @@ function ComputerScreenContent() {
                   { width: cardWidth },
                   isHighlighted && styles.highlightedCardGlass
                 ]}
-                onPress={() => setActiveApp(app.id)}
+                onPress={() => { buttonPress(); setActiveApp(app.id); }}
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${app.name}`}
@@ -493,6 +444,7 @@ function ComputerScreenContent() {
                     {app.description}
                   </Text>
                 </View>
+                <ClaimableBadge count={appBadges[app.id] ?? 0} />
               </TouchableOpacity>
             );
           })}
@@ -522,49 +474,6 @@ const styles = StyleSheet.create({
   },
   loadingTextDark: {
     color: '#D1D5DB',
-  },
-  header: {
-    paddingTop: responsivePadding.vertical,
-    paddingBottom: responsiveSpacing.md,
-    paddingHorizontal: responsivePadding.horizontal,
-  },
-  headerGlass: {
-    ...getGlassHeader(false),
-  },
-  headerGlassDark: {
-    ...getGlassHeader(true),
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: responsiveSpacing.md,
-  },
-  headerIconGlass: {
-    ...getGlassIconContainer(false, 48),
-  },
-  headerIconGlassDark: {
-    ...getGlassIconContainer(true, 48),
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: responsiveFontSize['3xl'],
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: scale(4),
-    letterSpacing: -0.5,
-  },
-  headerTitleDark: {
-    color: '#F9FAFB',
-  },
-  headerSubtitle: {
-    fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  headerSubtitleDark: {
-    color: '#9CA3AF',
   },
   scrollView: {
     flex: 1,
@@ -648,7 +557,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   appName: {
-    fontSize: responsiveFontSize.xs,
+    fontSize: responsiveFontSize.sm,
     fontWeight: '700',
     color: '#1F2937',
     marginBottom: responsiveSpacing.xs / 2,
@@ -658,12 +567,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   appDescription: {
-    fontSize: fontScale(9),
+    fontSize: fontScale(10.5),
     color: '#4B5563',
     textAlign: 'center',
-    lineHeight: fontScale(9) * 1.4,
+    lineHeight: fontScale(10.5) * 1.35,
     fontWeight: '500',
-    maxWidth: '90%',
+    maxWidth: '95%',
   },
   appDescriptionDark: {
     color: 'rgba(255, 255, 255, 0.8)',
@@ -715,104 +624,8 @@ const styles = StyleSheet.create({
   },
   categoryTabsWrapper: {
     paddingHorizontal: responsivePadding.horizontal,
+    paddingTop: responsivePadding.vertical,
     paddingBottom: responsiveSpacing.md,
-  },
-  categoryTabsGlassContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: responsiveBorderRadius.xl,
-    padding: scale(4),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    gap: scale(4),
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: scale(4) },
-        shadowOpacity: 0.1,
-        shadowRadius: scale(12),
-      },
-      android: {
-        elevation: 4,
-      },
-      web: {
-        boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.1)',
-      },
-    }),
-  },
-  categoryTabsGlassContainerDark: {
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  categoryTabButton: {
-    flex: 1,
-    minHeight: scale(44),
-  },
-  categoryTabGlass: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    borderRadius: responsiveBorderRadius.lg,
-    paddingVertical: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: scale(44),
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: scale(2) },
-        shadowOpacity: 0.1,
-        shadowRadius: scale(4),
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-      },
-    }),
-  },
-  categoryTabGlassDark: {
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  categoryTabGlassActiveGradient: {
-    borderRadius: responsiveBorderRadius.lg,
-    paddingVertical: responsiveSpacing.md,
-    paddingHorizontal: responsiveSpacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: scale(44),
-    ...Platform.select({
-      ios: {
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: scale(2) },
-        shadowOpacity: 0.4,
-        shadowRadius: scale(8),
-      },
-      android: {
-        elevation: 6,
-      },
-      web: {
-        boxShadow: '0px 2px 12px rgba(59, 130, 246, 0.4)',
-      },
-    }),
-  },
-  categoryTabText: {
-    fontSize: responsiveFontSize.base,
-    fontWeight: '600',
-    color: '#374151',
-    letterSpacing: 0.2,
-  },
-  categoryTabTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: responsiveFontSize.base,
-    letterSpacing: 0.2,
-  },
-  categoryTabTextDark: {
-    color: '#D1D5DB',
   },
 });
 

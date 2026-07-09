@@ -159,7 +159,10 @@ export function ToastProvider({ children }: ToastProviderProps) {
             duration={toast.duration}
             onDismiss={dismissToast}
             position={toast.position}
-            hapticEnabled={true}
+            // Only problems buzz. Buzzing on every success/info toast meant a
+            // burst of purchases became a burst of vibrations — action handlers
+            // already give their own press haptics.
+            hapticEnabled={toast.type === 'error' || toast.type === 'warning'}
             action={toast.action}
             persistent={toast.persistent}
             stackIndex={index}

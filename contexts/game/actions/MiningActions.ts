@@ -487,12 +487,18 @@ export function claimStakingRewards(
         return;
       }
 
-      const rewardForClaim = position.amount * position.rewardRate * claimableWeeks;
+      // NaN GUARD: a legacy StakingPosition (pre-rewardRate-retune save) can
+      // lack amount/rewardRate. Unguarded, `undefined * n = NaN` slips past the
+      // `totalRewards === 0` no-op (NaN !== 0) and permanently poisons the
+      // coin's `owned` balance below. Treat missing fields as 0.
+      const safeAmount = typeof position.amount === 'number' && isFinite(position.amount) ? position.amount : 0;
+      const safeRate = typeof position.rewardRate === 'number' && isFinite(position.rewardRate) ? position.rewardRate : 0;
+      const rewardForClaim = safeAmount * safeRate * claimableWeeks;
       const completedThisClaim = weeksPassedTotal >= position.lockWeeks && previousClaimedWeeks < position.lockWeeks;
 
       let payout = rewardForClaim;
       if (completedThisClaim) {
-        payout += position.amount;
+        payout += safeAmount;
       } else {
         activePositions.push({
           ...position,
@@ -551,12 +557,19 @@ export function upgradeEnergySystem(
 
   setGameState(prev => {
     if (!prev.warehouse) return prev;
+    // Same-batch double-tap safety (mirrors buyMinerUpgrade): the outer
+    // affordability gate read the stale render-time snapshot, so two queued
+    // updaters could both pass it and subtract the cost twice — driving money
+    // negative. Re-check against prev, and no-op if this energy type is
+    // already installed (it's a one-time switch, not a stackable purchase).
+    if (prev.warehouse.energyType === energyType) return prev;
+    if ((prev.stats?.money ?? 0) < cost) return prev;
 
     return {
       ...prev,
       stats: {
         ...prev.stats,
-        money: prev.stats.money - cost,
+        money: Math.max(0, prev.stats.money - cost),
       },
       warehouse: {
         ...prev.warehouse,
@@ -601,16 +614,24 @@ export function upgradeAutomation(
 
   setGameState(prev => {
     if (!prev.warehouse) return prev;
+    // Same-batch double-tap safety: re-derive the level from prev (the outer
+    // `currentLevel` is a stale snapshot — two queued taps both saw the same
+    // level, charging twice while advancing once) and re-check affordability
+    // so money can't go negative. A second tap this batch sees the bumped
+    // level ≠ snapshot level and no-ops.
+    const prevLevel = prev.warehouse.automationLevel || 0;
+    if (prevLevel !== currentLevel || prevLevel >= 5) return prev;
+    if ((prev.stats?.money ?? 0) < inflatedCost) return prev;
 
     return {
       ...prev,
       stats: {
         ...prev.stats,
-        money: prev.stats.money - inflatedCost,
+        money: Math.max(0, prev.stats.money - inflatedCost),
       },
       warehouse: {
         ...prev.warehouse,
-        automationLevel: currentLevel + 1,
+        automationLevel: prevLevel + 1,
       },
     };
   });

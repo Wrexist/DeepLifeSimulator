@@ -208,8 +208,15 @@ export async function disconnectAsync(): Promise<void> {
   }
 }
 
-export async function getProductsAsync(skus: string[]): Promise<LegacyResult> {
-  const products = await requireIap().fetchProducts({ skus, type: 'in-app' });
+export async function getProductsAsync(
+  skus: string[],
+  type: 'in-app' | 'subs' = 'in-app',
+): Promise<LegacyResult> {
+  // expo-iap requires the correct product type: 'in-app' for one-time products,
+  // 'subs' for auto-renewing subscriptions. Querying subs under 'in-app' (or
+  // vice-versa) returns an empty catalog, which is why subscriptions never
+  // loaded before — the caller now passes the right type per SKU group.
+  const products = await requireIap().fetchProducts({ skus, type });
   const list = Array.isArray(products) ? products : [];
   return { responseCode: IAPResponseCode.OK, results: list.map(normalizeProduct) };
 }
@@ -220,7 +227,10 @@ export async function getPurchaseHistoryAsync(): Promise<LegacyResult> {
   return { responseCode: IAPResponseCode.OK, results: list.map(normalizePurchase) };
 }
 
-export function purchaseItemAsync(sku: string): Promise<LegacyResult> {
+export function purchaseItemAsync(
+  sku: string,
+  type: 'in-app' | 'subs' = 'in-app',
+): Promise<LegacyResult> {
   attachListeners();
   // The store only echoes a product id, so two concurrent purchases of the same
   // SKU can't be told apart — reject the duplicate rather than misroute events.
@@ -245,6 +255,9 @@ export function purchaseItemAsync(sku: string): Promise<LegacyResult> {
     pending.push(entry);
 
     Promise.resolve(
+      // 'subs' routes to the auto-renewing subscription purchase sheet; 'in-app'
+      // to the one-time product sheet. StoreKit / Play Billing reject a SKU
+      // requested under the wrong type, so the caller passes the SKU's type.
       requireIap().requestPurchase({
         request: {
           ios: { sku },
@@ -252,7 +265,7 @@ export function purchaseItemAsync(sku: string): Promise<LegacyResult> {
           android: { skus: [sku] },
           google: { skus: [sku] },
         },
-        type: 'in-app',
+        type,
       }),
     ).catch((e: any) => {
       // requestPurchase rejected before any listener fired.

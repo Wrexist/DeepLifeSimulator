@@ -128,6 +128,19 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     [tradeTarget, setGameState, queueSave]
   );
 
+  // Week-over-week change per symbol. The engine walks every price weekly, but
+  // the board used to render only the current quote — the most alive system in
+  // the game looked frozen. lastWeekPrices is written by the weekly tick.
+  const lastWeekPrices = stocks?.lastWeekPrices;
+  const changeFor = useCallback(
+    (symbol: string, price: number): number | undefined => {
+      const prev = lastWeekPrices?.[symbol.toUpperCase()]?.price;
+      if (typeof prev !== 'number' || !isFinite(prev) || prev <= 0 || !isFinite(price)) return undefined;
+      return (price - prev) / prev;
+    },
+    [lastWeekPrices]
+  );
+
   const renderMarket = () => (
     <View style={{ gap: responsiveSpacing.md }}>
       <EconomyEventBanner context="generic" />
@@ -139,6 +152,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
             key={s.symbol}
             symbol={s.symbol}
             price={s.price}
+            changePct={changeFor(s.symbol, s.price)}
             dividendYield={s.dividendYield}
             shares={holding?.shares}
             averagePrice={holding?.averagePrice}

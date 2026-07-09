@@ -92,6 +92,12 @@ export const buyStockMarket = (
       log.warn(`Buy failed: ${result.error}`);
       return prev;
     }
+    // NaN GUARD: a non-finite fill (bad midPrice upstream) would poison money —
+    // Math.max(0, NaN) is NaN. Reject the whole trade rather than fill it.
+    if (!isFinite(result.notionalUSD) || !isFinite(result.shares) || !isFinite(result.order.filledPrice ?? NaN)) {
+      log.warn(`Buy rejected: non-finite fill for ${symbol}`);
+      return prev;
+    }
     const fee = result.notionalUSD * STOCK_FEE;
     const stocks = ensureStocks(prev);
     const newHoldings = updateHoldingsOnBuy(stocks.holdings ?? [], symbol, result.shares, result.order.filledPrice!);
@@ -121,6 +127,11 @@ export const sellStockMarket = (
     const result = executeMarket(symbol, 'sell', shares, midPrice, prev.weeksLived);
     if ('error' in result) {
       log.warn(`Sell failed: ${result.error}`);
+      return prev;
+    }
+    // NaN GUARD: mirror the buy path — a non-finite fill would write NaN money.
+    if (!isFinite(result.notionalUSD) || !isFinite(result.order.filledPrice ?? NaN)) {
+      log.warn(`Sell rejected: non-finite fill for ${symbol}`);
       return prev;
     }
     const proceeds = result.notionalUSD * (1 - STOCK_FEE);

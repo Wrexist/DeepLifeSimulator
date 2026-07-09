@@ -414,6 +414,12 @@ jest.mock('lucide-react-native', () => ({
   MessageCircle: 'MessageCircle',
   DollarSign: 'DollarSign',
   Gift: 'Gift',
+  // ErrorBoundary crash-screen icons
+  AlertTriangle: 'AlertTriangle',
+  RefreshCw: 'RefreshCw',
+  Home: 'Home',
+  Download: 'Download',
+  FileText: 'FileText',
   // Add other icons as needed
 }));
 

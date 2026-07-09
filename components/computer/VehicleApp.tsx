@@ -194,8 +194,13 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         </EmptyText>
       ) : (
         vehicles.map((v) => {
-          // Try to match a corresponding auto loan by name to display debt per vehicle.
-          const matchingLoan = autoLoans.find((l) => l.name.includes(v.name));
+          // Match the auto loan to this vehicle by id (reliable). Fall back to
+          // the legacy name-substring match for loans created before vehicleId
+          // existed. Guard the fallback so a legacy loan already claimed by its
+          // own vehicle-id match isn't double-attributed here.
+          const matchingLoan =
+            autoLoans.find((l) => l.vehicleId === v.id) ??
+            autoLoans.find((l) => !l.vehicleId && l.name.includes(v.name));
           return (
             <View key={v.id} style={{ gap: responsiveSpacing.xs }}>
               <VehicleRow
@@ -307,7 +312,10 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             </View>
 
             <View style={styles.plansRow}>
-              {INSURANCE_PLANS.map((p) => (
+              {/* Hide the buy buttons while a policy is active — the action
+                  rejects the purchase anyway; offering three always-blue Buy
+                  buttons next to an active policy just invited error taps. */}
+              {!v.insurance?.active && INSURANCE_PLANS.map((p) => (
                 <TouchableOpacity
                   key={p.type}
                   onPress={() => {
@@ -392,7 +400,9 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               term,
               weeklyIncome,
             });
-            if (!result.success) Alert.alert('Purchase', result.message);
+            // Celebrate the win too — buying a car is one of the game's most
+            // aspirational purchases and used to complete in total silence.
+            Alert.alert(result.success ? '🚗 New Ride!' : 'Purchase', result.message);
             queueSave();
             setActiveTab('garage');
           }

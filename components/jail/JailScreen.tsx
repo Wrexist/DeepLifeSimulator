@@ -31,7 +31,7 @@ interface JailScreenProps {
 }
 
 export default function JailScreen({ onClose }: JailScreenProps) {
-  const { gameState, performJailActivity, payBail, updateStats, nextWeek } = useGame();
+  const { gameState, performJailActivity, payBail, setGameState, nextWeek } = useGame();
   const { jailActivities, jailWeeks, stats, foods, economy } = gameState;
   const insets = useSafeAreaInsets();
   const [_selectedActivity, _setSelectedActivity] = useState<string | null>(null);
@@ -394,15 +394,25 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         Alert.alert('Insufficient Funds', `You need $${price} to buy ${food.name}.`);
                         return;
                       }
-                      // Use custom prison food handler with reduced benefits
+                      // Use custom prison food handler with reduced benefits.
+                      // Atomic: re-check affordability against prev — the old
+                      // updateStats path clamped money at 0, so a same-batch
+                      // double-tap bought a second meal effectively free.
                       const foodItem = foods.find(f => f.id === food.id);
                       if (foodItem) {
-                        updateStats({
-                          money: -price,
-                          health: healthRestore,
-                          energy: foodItem.energyRestore,
-                          happiness: happinessRestore,
-                        }, false);
+                        setGameState(prev => {
+                          if ((prev.stats?.money ?? 0) < price) return prev;
+                          return {
+                            ...prev,
+                            stats: {
+                              ...prev.stats,
+                              money: (prev.stats.money ?? 0) - price,
+                              health: Math.min(100, (prev.stats.health ?? 0) + healthRestore),
+                              happiness: Math.min(100, (prev.stats.happiness ?? 0) + happinessRestore),
+                              energy: Math.min(100, (prev.stats.energy ?? 0) + foodItem.energyRestore),
+                            },
+                          };
+                        });
                         Alert.alert(
                           'Food Purchased',
                           `You ate ${food.name}!\n+${healthRestore} Health\n+${happinessRestore} Happiness\n+${foodItem.energyRestore} Energy`

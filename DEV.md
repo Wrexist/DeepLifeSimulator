@@ -5,7 +5,7 @@
 - **Stack:** React Native 0.81.5 / Expo SDK 54 / React 19.1.0
 - **Platforms:** iOS (App Store) + Android (Google Play)
 - **Build system:** EAS Build — bundle ID: `com.deeplife.simulator`
-- **Save format:** AsyncStorage + CRC32 checksums — `STATE_VERSION = 20` (canonical in `contexts/game/initialState.ts`)
+- **Save format:** AsyncStorage + CRC32 checksums — `STATE_VERSION = 21` (canonical in `contexts/game/initialState.ts`)
 
 ---
 
@@ -54,6 +54,7 @@ Priority order — when they conflict, higher wins:
 - **Theme:** `useTheme()` hook or `getThemeColors(darkMode)` from `lib/config/theme.ts`
 - **Glassmorphism:** helpers in `utils/glassmorphismStyles.ts` accept `darkMode` param
 - **Scaling:** always use `scale()`, `fontScale()` from `utils/scaling.ts`
+- **Borders:** no side accent bars / one-sided colored borders — use a full border (`borderWidth` + `borderColor`) instead. See Hard Rule 7
 
 ---
 
@@ -85,6 +86,27 @@ Priority order — when they conflict, higher wins:
 ### 6. Preflight Before Release
 - Run `npm run preflight` before any release build
 - Do not skip checks, do not use `--force` flags
+
+### 7. NEVER: side accent bars / one-sided borders on cards
+- **Do NOT** use a colored one-sided border as a decorative accent stripe
+  (`borderLeftWidth` / `borderRightWidth` / `borderTopWidth` / `borderBottomWidth`
+  paired with a `border*Color`). The side accent-bar / "stripe" callout look is
+  **banned app-wide** — the product owner explicitly rejected it.
+  - It also renders a crescent/parenthesis `(` artifact when combined with
+    `borderRadius` (RN curls the one-sided border around the rounded corner).
+- **Instead:** use a **plain full border** — `borderWidth: 1` + `borderColor: <color>`
+  (all four sides) with a normal `borderRadius`. Keep the color for meaning
+  (green=success, amber=warning, red=danger, blue=info); just no stripe.
+- Also fine: a tinted `backgroundColor` with no border at all.
+- **Allowed exceptions (structural selection/separation, NOT decorative accents):**
+  a row/section divider (`borderBottomColor`/`borderTopColor` on a `View`), an
+  **active-tab underline** (`borderBottomColor: accent.x` + `borderBottomWidth: 2` on
+  the selected tab), a hairline thread-indent guide line, or a continuous hairline
+  border wrapping a bottom-sheet's rounded top. These convey structure/selection —
+  they are not a colored accent stripe on a card.
+- Applies to every surface — mobile apps, desktop apps, popups, tooltips, the crash
+  screen. If you catch yourself adding `borderLeftColor`/`borderTopColor` etc. as an
+  accent, convert it to a full border.
 
 ---
 

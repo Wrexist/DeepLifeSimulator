@@ -9,7 +9,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Moon, Sun, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, Shield, Code, DollarSign } from 'lucide-react-native';
+import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, HardDrive, Shield, Code, DollarSign } from 'lucide-react-native';
 import BackupRecoveryModal from './BackupRecoveryModal';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
@@ -160,15 +160,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   // The previous list also included notificationsEnabled, showDecimalsInStats,
   // autoProgression, showStatArrows, and a language picker — all of those
   // saved to state but had no consumers, so the UI was misleading.
+  // Dark Mode toggle removed: light mode was never fully implemented (the game
+  // is dark-first and immersive) and produced a broken half-themed look. Saves
+  // are coerced back to dark on load (utils/saveValidation.ts).
   const settingItems = [
-    {
-      id: 'darkMode',
-      title: 'Dark Mode',
-      description: 'Switch between dark and light theme',
-      icon: settings.darkMode ? Moon : Sun,
-      type: 'toggle' as const,
-      value: settings.darkMode !== false,
-    },
     {
       id: 'soundEnabled',
       title: t('settings.soundEffects'),

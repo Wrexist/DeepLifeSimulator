@@ -102,7 +102,22 @@ export function applyDiseasesForWeek(
   const { nextWeeksLived } = ctx;
 
   let updatedDiseases: Disease[] = [...(input.prevDiseases || [])];
-  let updatedDiseaseHistory: DiseaseHistory = input.prevDiseaseHistory || DEFAULT_DISEASE_HISTORY;
+  // CRASH GUARD: normalize the history shape, not just its presence. A save can
+  // carry a diseaseHistory OBJECT that lacks `.diseases` (or has NaN counters) —
+  // the || fallback only catches null/undefined, and the spread/`.map` on the
+  // missing array below would throw inside the weekly updater, bricking
+  // "Next Week" for that save on every attempt.
+  const rawHistory = input.prevDiseaseHistory || DEFAULT_DISEASE_HISTORY;
+  let updatedDiseaseHistory: DiseaseHistory = {
+    ...rawHistory,
+    diseases: Array.isArray(rawHistory.diseases) ? rawHistory.diseases : [],
+    totalDiseases: typeof rawHistory.totalDiseases === 'number' && isFinite(rawHistory.totalDiseases)
+      ? rawHistory.totalDiseases : 0,
+    totalCured: typeof rawHistory.totalCured === 'number' && isFinite(rawHistory.totalCured)
+      ? rawHistory.totalCured : 0,
+    deathsFromDisease: typeof rawHistory.deathsFromDisease === 'number' && isFinite(rawHistory.deathsFromDisease)
+      ? rawHistory.deathsFromDisease : 0,
+  };
   // The health popup must NEVER auto-open or persist across a week advance — it
   // interrupted the Next Week flow. Health is surfaced passively on the player
   // card ("Health Issues") and on demand via the TopStatsBar disease badge.

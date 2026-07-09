@@ -36,7 +36,7 @@ function applyStreetJobXp(
     }
   }
   const skillId = job.skill;
-  if (skillId && prev.crimeSkills[skillId]) {
+  if (skillId && prev.crimeSkills?.[skillId]) {
     const skill = prev.crimeSkills[skillId];
     const newXp = skill.xp + (success ? 15 : 5);
     const nextLevelXp = skill.level * 100;
@@ -156,7 +156,7 @@ export const performStreetJob = (
 
   // Calculate success chance (karma affects crime success for experienced criminals)
   const baseSuccess = job.baseSuccessRate;
-  const skillBonus = job.skill ? (gameState.crimeSkills[job.skill]?.level || 0) * 5 : 0;
+  const skillBonus = job.skill ? (gameState.crimeSkills?.[job.skill]?.level || 0) * 5 : 0;
   let karmaBonus = 0;
   if (gameState.karma) {
     const { getKarmaModifiers } = require('@/lib/karma/karmaSystem');
@@ -566,7 +566,7 @@ export const applyForJob = (
   const blocked = rejectIfBlocked(gameState);
   if (blocked) return blocked;
 
-  const career = gameState.careers.find(c => c.id === careerId);
+  const career = (gameState.careers || []).find(c => c.id === careerId);
   if (!career) {
     log.error(`Career not found: ${careerId}`);
     return { success: false, message: 'Career not found' };
@@ -583,7 +583,7 @@ export const applyForJob = (
   }
 
   // Check if there's a pending application
-  const pendingApplication = gameState.careers.some(c => c.applied && !c.accepted);
+  const pendingApplication = (gameState.careers || []).some(c => c.applied && !c.accepted);
   if (pendingApplication) {
     return { success: false, message: 'You have a pending application. Wait for a response first.' };
   }
@@ -757,7 +757,7 @@ export const promoteCareer = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   careerId: string
 ): { success: boolean; message: string } => {
-  const career = gameState.careers.find(c => c.id === careerId);
+  const career = (gameState.careers || []).find(c => c.id === careerId);
   if (!career) {
     log.error(`Career not found: ${careerId}`);
     return { success: false, message: 'Career not found' };
@@ -816,9 +816,107 @@ export const promoteCareer = (
   });
 
   log.info(`Career promoted: ${careerId} to level ${newLevel} (${levelData.name})`);
-  return { 
-    success: true, 
-    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${levelData.salary}/week.` 
+  return {
+    success: true,
+    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${levelData.salary}/week.`
+  };
+};
+
+// --- Ask for a raise --------------------------------------------------------
+// Player-driven career verb (beyond "work"/"quit"/"promote"): negotiate a
+// permanent salary premium. Gated on job performance (a live signal of how
+// well-kept your stats are) + a cooldown. Real risk: a denial bruises your
+// standing (happiness) and can draw a formal warning (3 = fired).
+export const RAISE_COOLDOWN_WEEKS = 8;
+const RAISE_STEP = 0.08; // +8% of base salary per successful raise
+const RAISE_CAP = 2.0; // negotiated premium tops out at +100%
+const RAISE_MIN_PERFORMANCE = 45;
+
+export const requestRaise = (
+  gameState: GameState,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  careerId: string
+): { success: boolean; message: string; approved?: boolean } => {
+  const career = (gameState.careers || []).find(c => c.id === careerId);
+  if (!career || !career.accepted || gameState.currentJob !== careerId) {
+    return { success: false, message: 'You must be working this job to ask for a raise.' };
+  }
+
+  const ws = gameState.weeksLived ?? 0;
+  const lastRequest = career.lastRaiseWeeksLived ?? career.startedWeeksLived ?? -Infinity;
+  const weeksSince = ws - lastRequest;
+  if (weeksSince < RAISE_COOLDOWN_WEEKS) {
+    const wait = RAISE_COOLDOWN_WEEKS - weeksSince;
+    return { success: false, message: `Too soon — wait ${wait} more week${wait === 1 ? '' : 's'} before asking again.` };
+  }
+
+  const premium = career.raiseMultiplier ?? 1;
+  if (premium >= RAISE_CAP) {
+    return { success: false, message: "You're already at the top of this role's pay band." };
+  }
+
+  const performance = typeof career.performance === 'number' ? career.performance : 50;
+  if (performance < RAISE_MIN_PERFORMANCE) {
+    return { success: false, message: `Your performance (${performance}) is too low to justify a raise. Keep your energy, health and happiness up.` };
+  }
+
+  // Deterministic (save-reload-proof) rolls: approval + a possible warning.
+  const approveKey = `raise_request:${ws}:${careerId}`;
+  const warnKey = `raise_warning:${ws}:${careerId}`;
+  const approveRoll = getDeterministicRoll(gameState, approveKey);
+  const warnRoll = getDeterministicRoll(gameState, warnKey);
+  const approveChance = Math.min(0.9, Math.max(0.1, 0.2 + (performance - 50) * 0.012));
+  const approved = (approveRoll ?? 0) < approveChance;
+  const drawsWarning = !approved && (warnRoll ?? 1) < 0.3;
+
+  setGameState(prev => {
+    // Atomic re-check: still employed here AND cooldown still elapsed vs prev.
+    const cur = (prev.careers || []).find(c => c.id === careerId);
+    if (!cur || !cur.accepted || prev.currentJob !== careerId) return prev;
+    const prevWs = prev.weeksLived ?? 0;
+    const prevLast = cur.lastRaiseWeeksLived ?? cur.startedWeeksLived ?? -Infinity;
+    if (prevWs - prevLast < RAISE_COOLDOWN_WEEKS) return prev;
+    if ((cur.raiseMultiplier ?? 1) >= RAISE_CAP) return prev;
+
+    const updatedCareers = (prev.careers || []).map(c => {
+      if (c.id !== careerId) return c;
+      if (approved) {
+        return {
+          ...c,
+          raiseMultiplier: Math.min(RAISE_CAP, (c.raiseMultiplier ?? 1) + RAISE_STEP),
+          lastRaiseWeeksLived: prevWs,
+        };
+      }
+      return {
+        ...c,
+        warningsReceived: drawsWarning ? (c.warningsReceived ?? 0) + 1 : (c.warningsReceived ?? 0),
+        lastRaiseWeeksLived: prevWs,
+      };
+    });
+
+    // Denial stings: -5 happiness (feeds back into performance next tick).
+    const nextStats = approved
+      ? prev.stats
+      : { ...prev.stats, happiness: Math.max(0, (prev.stats.happiness ?? 0) - 5) };
+
+    const nextRngCommitLog = commitDeterministicRolls(prev, [approveKey, warnKey], prevWs);
+
+    return { ...prev, careers: updatedCareers, stats: nextStats, rngCommitLog: nextRngCommitLog };
+  });
+
+  if (approved) {
+    const newPremium = Math.min(RAISE_CAP, premium + RAISE_STEP);
+    const pct = Math.round((newPremium - 1) * 100);
+    log.info(`Raise approved for ${careerId}: premium now +${pct}%`);
+    return { success: true, approved: true, message: `Raise approved! Your salary premium is now +${pct}%.` };
+  }
+  log.info(`Raise denied for ${careerId}${drawsWarning ? ' (formal warning issued)' : ''}`);
+  return {
+    success: true,
+    approved: false,
+    message: drawsWarning
+      ? "Denied — and your manager logged a formal warning. Watch your step."
+      : 'Denied. Your manager wasn\'t convinced this time. (-5 happiness)',
   };
 };
 

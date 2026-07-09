@@ -91,7 +91,7 @@ function TopStatsBarComponent() {
 
  const showStatArrows = settings?.showStatArrows!== false; // Default to true
 
- const { success, buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
+ const { success, info, buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
  const { logRender } = usePerformanceMonitor();
 
  // Single modal state — only one modal open at a time, reduces re-renders
@@ -144,25 +144,50 @@ function TopStatsBarComponent() {
  buttonPress();
  setShowQuickActions(null);
 
+ const clamp = (v: number) => Math.max(0, Math.min(100, v));
+ // Each action is a self-limiting trade (spends a resource) so none is a
+ // free, spammable win — and, crucially, they actually change stats now.
+ const apply = (
+ deltas: Partial<{ health: number; happiness: number; energy: number; fitness: number; money: number }>,
+ msg: string,
+ ) => {
+ setGameState(prev => {
+ const st = prev.stats;
+ return {
+ ...prev,
+ stats: {
+ ...st,
+ health: deltas.health != null ? clamp((st.health ?? 0) + deltas.health) : st.health,
+ happiness: deltas.happiness != null ? clamp((st.happiness ?? 0) + deltas.happiness) : st.happiness,
+ energy: deltas.energy != null ? clamp((st.energy ?? 0) + deltas.energy) : st.energy,
+ fitness: deltas.fitness != null ? clamp((st.fitness ?? 0) + deltas.fitness) : st.fitness,
+ money: deltas.money != null ? Math.max(0, (st.money ?? 0) + deltas.money) : st.money,
+ },
+ };
+ });
+ haptic('success');
+ success(msg);
+ };
+
+ const s = stats ?? { money: 0, energy: 0 };
  switch (action) {
  case 'eat':
- haptic('success');
- success('You feel refreshed after eating something healthy!');
+ if ((s.money ?? 0) < 12) { haptic('warning'); info('Need $12 to grab a healthy meal.'); return; }
+ apply({ money: -12, health: 7, happiness: 4 }, 'Healthy meal — +7 health, +4 happiness.');
  break;
  case 'rest':
- haptic('success');
- success('You feel more energized after taking a break.');
+ apply({ happiness: -5, energy: 14 }, 'You rest up — +14 energy (−5 happiness).');
  break;
  case 'social':
- haptic('success');
- success('Spending time with others lifts your mood.');
+ if ((s.energy ?? 0) < 8) { haptic('warning'); info('Too tired to socialize right now.'); return; }
+ apply({ energy: -8, happiness: 10 }, 'Good company — +10 happiness.');
  break;
  case 'exercise':
- haptic('success');
- success('You feel stronger and happier after working out.');
+ if ((s.energy ?? 0) < 12) { haptic('warning'); info('Too tired to work out right now.'); return; }
+ apply({ energy: -12, fitness: 6, health: 5 }, 'Great workout — +6 fitness, +5 health.');
  break;
  }
- }, [buttonPress, haptic, success]);
+ }, [buttonPress, haptic, success, info, setGameState, stats]);
 
  // Optimized stat colors with better memoization
  const statColors = useMemo(
@@ -242,6 +267,9 @@ function TopStatsBarComponent() {
  // the UI thread and no longer touches the JS thread every frame — it stopped
  // janking the already-busy post-tick window.
  if (shouldGlow(value)) {
+ // NOISE: pulse a few cycles as an attention cue, then rest. The old
+ // unbounded loop kept the HUD pulsing for as long as the stat stayed
+ // low — which early-game is basically always.
  const glowLoop = Animated.loop(
  Animated.sequence([
  Animated.timing(glowAnimations[key], {
@@ -256,7 +284,8 @@ function TopStatsBarComponent() {
  useNativeDriver: true,
  easing: Easing.inOut(Easing.ease)
  }),
- ])
+ ]),
+ { iterations: 3 }
  );
  glowLoop.start();
  return glowLoop;

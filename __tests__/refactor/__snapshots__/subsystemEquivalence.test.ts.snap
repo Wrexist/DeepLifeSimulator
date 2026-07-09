@@ -4078,14 +4078,14 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects no-op when no pets 1
 
 exports[`pre-tick equivalence — applyPregnancyProgression birth: money clamped at 0 when below $5000 1`] = `
 {
-  "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Baby!",
+  "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Kai!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
     "id": "child_1234567890_abc",
-    "name": "Baby",
+    "name": "Kai",
     "personality": "Playful",
     "relationshipScore": 100,
     "type": "child",
@@ -4105,14 +4105,14 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: money clamped
 
 exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChildGender override wins over preRolls.childGender 1`] = `
 {
-  "birthMessage": "Beth gave birth to a beautiful baby boy named Baby!",
+  "birthMessage": "Beth gave birth to a beautiful baby boy named Kai!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
     "id": "child_1234567890_abc",
-    "name": "Baby",
+    "name": "Kai",
     "personality": "Playful",
     "relationshipScore": 100,
     "type": "child",
@@ -4169,14 +4169,14 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyWeek
     "reputation": 50,
   },
   "result": {
-    "birthMessage": "Alice gave birth to a beautiful baby girl named Baby!",
+    "birthMessage": "Alice gave birth to a beautiful baby girl named Mia!",
     "newborn": {
       "age": 0,
       "birthWeeksLived": 100,
       "datesCount": 0,
       "gender": "female",
       "id": "child_99_sfx",
-      "name": "Baby",
+      "name": "Mia",
       "personality": "Energetic",
       "relationshipScore": 100,
       "type": "child",
@@ -4197,14 +4197,14 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyWeek
 
 exports[`pre-tick equivalence — applyPregnancyProgression birth: spouse (not just partner) fires the same path 1`] = `
 {
-  "birthMessage": "Diane gave birth to a beautiful baby boy named Baby!",
+  "birthMessage": "Diane gave birth to a beautiful baby boy named Kai!",
   "newborn": {
     "age": 0,
     "birthWeeksLived": 100,
     "datesCount": 0,
     "gender": "male",
     "id": "child_1234567890_abc",
-    "name": "Baby",
+    "name": "Kai",
     "personality": "Playful",
     "relationshipScore": 100,
     "type": "child",
@@ -5149,8 +5149,8 @@ exports[`pre-tick equivalence — computeSavingsInterest NaN savings: clamped to
 
 exports[`pre-tick equivalence — computeSavingsInterest all perks + high-yield + above soft cap (max-stack scenario) 1`] = `
 {
-  "newBankSavings": 250540.86538461538,
-  "savingsInterest": 540.8653846153846,
+  "newBankSavings": 250264.42307692306,
+  "savingsInterest": 264.4230769230769,
 }
 `;
 
@@ -5177,8 +5177,8 @@ exports[`pre-tick equivalence — computeSavingsInterest base APR, well above so
 
 exports[`pre-tick equivalence — computeSavingsInterest both gold + perk: 2.25× (1.5 × 1.5) interest, multiplicative stack 1`] = `
 {
-  "newBankSavings": 10012.98076923077,
-  "savingsInterest": 12.98076923076923,
+  "newBankSavings": 10010.576923076924,
+  "savingsInterest": 10.576923076923077,
 }
 `;
 
@@ -5384,9 +5384,9 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
 [
   {
     "age": 51,
-    "happiness": 80,
-    "health": 90,
-    "hunger": 28,
+    "happiness": 75,
+    "health": 87,
+    "hunger": 12,
     "id": "p1",
     "name": "Rex",
     "type": "dog",
@@ -5394,9 +5394,9 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
   },
   {
     "age": 101,
-    "happiness": 55,
+    "happiness": 60,
     "health": 70,
-    "hunger": 78,
+    "hunger": 62,
     "id": "p2",
     "name": "Whiskers",
     "type": "cat",
@@ -5404,9 +5404,9 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
   },
   {
     "age": 31,
-    "happiness": 35,
-    "health": 57,
-    "hunger": 93,
+    "happiness": 40,
+    "health": 60,
+    "hunger": 77,
     "id": "p3",
     "name": "Goldie",
     "type": "fish",
@@ -5414,9 +5414,9 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
   },
   {
     "age": 81,
-    "happiness": 50,
+    "happiness": 45,
     "health": 45,
-    "hunger": 38,
+    "hunger": 22,
     "id": "p4",
     "isSick": true,
     "name": "Tweety",
@@ -5428,7 +5428,7 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
     "age": 201,
     "happiness": 50,
     "health": 0,
-    "hunger": 58,
+    "hunger": 42,
     "id": "p5",
     "isDead": true,
     "name": "Slow",
@@ -5447,9 +5447,9 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
   },
   {
     "age": 5001,
-    "happiness": 100,
-    "health": 100,
-    "hunger": 8,
+    "happiness": 95,
+    "health": 97,
+    "hunger": 0,
     "id": "p7",
     "isDead": true,
     "name": "Methuselah",
@@ -8573,6 +8573,7 @@ exports[`subsystem tick equivalence — runDarkWebWeeklyTick wealthyGame 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick earlyCareer 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8591,6 +8592,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick earlyCareer 1`] = 
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick freshGame 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8609,6 +8611,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick freshGame 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick inPrison 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8627,6 +8630,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick inPrison 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick midGame 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8645,6 +8649,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick midGame 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick nearDeath 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,
@@ -8663,6 +8668,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick nearDeath 1`] = `
 exports[`subsystem tick equivalence — runPoliticsWeeklyTick wealthyGame 1`] = `
 {
   "forcedResignation": false,
+  "lostOffice": false,
   "notifications": [],
   "politics": {
     "activePolicyEffects": undefined,

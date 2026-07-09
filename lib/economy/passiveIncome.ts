@@ -537,53 +537,13 @@ export function calcWeeklyPassiveIncome(
     }
   });
 
-  // Warehouse miners (with difficulty multiplier for crypto type + network difficulty)
-  const warehouseMinerEarnings: Record<string, number> = {
-    basic: 22,
-    advanced: 105,
-    pro: 438,
-    industrial: 1575,
-    quantum: 7000,
-    mega: 35000,
-    giga: 140000,
-    tera: 700000,
-  };
+  // NOTE (double-pay fix): warehouse miners are intentionally NOT counted here.
+  // They mint the player's SELECTED crypto directly in `applyMiningCryptos.ts`
+  // (per-crypto difficulty, BTC halving, electricity cost, upgrades, pools) — that
+  // is the canonical, richer representation of warehouse mining. Crediting cash here
+  // too paid the same hardware twice (capped cash AND uncapped crypto). The split is
+  // now clean: company miners → cash (above); warehouse miners → crypto (elsewhere).
 
-  // Crypto mining difficulty multipliers (per-crypto)
-  const cryptoMiningMultipliers: Record<string, number> = {
-    'btc': 1.0,
-    'eth': 0.8,
-    'sol': 0.6,
-    'link': 0.5,
-    'dot': 0.4,
-    'matic': 0.3,
-    'ada': 0.2,
-    'xrp': 0.1,
-  };
-
-  if (state.warehouse && state.warehouse.miners && Object.keys(state.warehouse.miners).length > 0) {
-    const selectedCrypto = state.warehouse.selectedCrypto || 'btc';
-    const difficultyMultiplier = typeof cryptoMiningMultipliers[selectedCrypto] === 'number' && isFinite(cryptoMiningMultipliers[selectedCrypto]) && cryptoMiningMultipliers[selectedCrypto] > 0
-      ? cryptoMiningMultipliers[selectedCrypto]
-      : 1.0;
-
-    const weeklyMiningEarnings = Object.entries(state.warehouse.miners).reduce(
-      (sum, [id, count]) => {
-        const minerEarning = warehouseMinerEarnings[id] || 0;
-        const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
-        // ANTI-EXPLOIT: Apply both crypto difficulty AND network difficulty
-        const earnings = minerEarning * minerCount * difficultyMultiplier * safeNetworkDifficulty;
-        if (isFinite(earnings) && earnings > 0) {
-          return sum + earnings;
-        }
-        return sum;
-      },
-      0
-    ) * safeMiningBonusMultiplier;
-    if (isFinite(weeklyMiningEarnings) && weeklyMiningEarnings > 0) {
-      cryptoMiningIncome += Math.round(weeklyMiningEarnings);
-    }
-  }
   // ANTI-EXPLOIT: Hard cap on total mining income to prevent it from dominating all other income
   const MINING_INCOME_CAP = 100000; // $100K/week maximum from all mining combined
   if (cryptoMiningIncome > MINING_INCOME_CAP) {

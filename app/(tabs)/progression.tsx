@@ -1,10 +1,25 @@
-import React, { useState } from 'react';
-import { Platform, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
-import { Trophy, Target, Star, TrendingUp, Award, Crown, Zap, BarChart3, Bell, BookOpen, Brain } from 'lucide-react-native';
+import {
+  Trophy,
+  Target,
+  Star,
+  TrendingUp,
+  Crown,
+  Zap,
+  Bell,
+  BookOpen,
+  Brain,
+  Palette,
+  ChevronRight,
+  Sparkles,
+  CalendarDays,
+} from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
-import EnhancedDataVisualization from '@/components/EnhancedDataVisualization';
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
@@ -13,11 +28,19 @@ import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LifeStoryModal from '@/components/LifeStoryModal';
 import SkillTreeModal from '@/components/SkillTreeModal';
+import HobbiesModal from '@/components/HobbiesModal';
 import LegacyPassModal from '@/components/LegacyPassModal';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
-import { getClaimableCount } from '@/lib/legacyPass/legacyPass';
-import EmptyState from '@/components/ui/EmptyState';
+import {
+  getClaimableCount,
+  getTierForXp,
+  xpIntoCurrentTier,
+  XP_PER_TIER,
+  MAX_TIER,
+} from '@/lib/legacyPass/legacyPass';
+import { getThemeColors, accent } from '@/lib/config/theme';
+import { fontScale, scale, verticalScale, responsiveSpacing, responsiveBorderRadius, getTabBarSafePadding } from '@/utils/scaling';
 
 function ProgressionScreen() {
   return (
@@ -30,18 +53,28 @@ function ProgressionScreen() {
 function ProgressionScreenContent() {
   const { gameState, checkAchievements } = useGame();
   const { settings } = gameState;
+  const insets = useSafeAreaInsets();
   const legacyClaimable = getClaimableCount(gameState.legacyPass);
   // Screen defaults to dark unless darkMode is explicitly false.
   const isDark = settings?.darkMode !== false;
-  const [showDataVisualization, setShowDataVisualization] = useState(false);
+  const theme = getThemeColors(isDark);
+
   const [showSmartNotifications, setShowSmartNotifications] = useState(false);
   const [showPrestigeHistory, setShowPrestigeHistory] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
   const [showCommitments, setShowCommitments] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
+  const [showHobbies, setShowHobbies] = useState(false);
   const [showLegacyPass, setShowLegacyPass] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
+
+  // Deep link: the premium-pass promo popup routes here with ?openPass=1 to open
+  // the Legacy Pass directly, so the upsell is a single tap, not a scavenger hunt.
+  const params = useLocalSearchParams<{ openPass?: string }>();
+  useEffect(() => {
+    if (params?.openPass === '1') setShowLegacyPass(true);
+  }, [params?.openPass]);
 
   // P2-7: depend on PRIMITIVES, not object/array references. Under the current
   // provider, `gameState.stats`/`relationships`/`items` get a fresh identity on
@@ -63,226 +96,189 @@ function ProgressionScreenContent() {
   }, [achievementSignal]);
 
   const achievements = (gameState.achievements || []).filter(a => a.category !== 'secret');
-  const categories = ['money', 'career', 'education', 'relationships', 'health', 'items', 'special'];
-
   const completedAchievements = achievements.filter(a => a.completed).length;
   const totalAchievements = achievements.length;
+  const completionPct = totalAchievements > 0 ? Math.round((completedAchievements / totalAchievements) * 100) : 0;
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'money': return { icon: TrendingUp, color: '#10B981' };
-      case 'career': return { icon: Trophy, color: '#F59E0B' };
-      case 'education': return { icon: Star, color: '#8B5CF6' };
-      case 'relationships': return { icon: Award, color: '#EF4444' };
-      case 'health': return { icon: Zap, color: '#06B6D4' };
-      case 'items': return { icon: Target, color: '#3B82F6' };
-      case 'special': return { icon: Crown, color: '#7C2D12' };
-      default: return { icon: Trophy, color: settings?.darkMode ? '#FFFFFF' : '#6B7280' };
-    }
-  };
+  // Prestige + Legacy Pass hero data.
+  const prestige = gameState.prestige;
+  const prestigeLevel = prestige?.prestigeLevel ?? 0;
+  const prestigePoints = prestige?.prestigePoints ?? 0;
+  const prestigeAvailable = gameState.prestigeAvailable === true;
+
+  const legacyXp = gameState.legacyPass?.xp ?? 0;
+  const legacyTier = getTierForXp(legacyXp);
+  const legacyInto = xpIntoCurrentTier(legacyXp);
+  const legacyTierPct = legacyTier >= MAX_TIER ? 100 : Math.round((legacyInto / XP_PER_TIER) * 100);
+
+  // Compact launcher entries (kept as clean glass tiles, not a wall of buttons).
+  const tools: { key: string; label: string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string; onPress: () => void; badge?: number }[] = [
+    { key: 'skills', label: 'Life Skills', icon: Brain, color: accent.success, onPress: () => setShowSkillTree(true) },
+    { key: 'hobbies', label: 'Hobbies', icon: Palette, color: accent.purple, onPress: () => setShowHobbies(true) },
+    { key: 'story', label: 'Life Story', icon: BookOpen, color: '#8B5CF6', onPress: () => setShowLifeStory(true) },
+    { key: 'commit', label: 'Commitments', icon: Target, color: accent.warning, onPress: () => setShowCommitments(true) },
+    { key: 'notif', label: 'Notifications', icon: Bell, color: accent.info, onPress: () => setShowSmartNotifications(true) },
+    { key: 'legacy', label: 'Legacy Pass', icon: Crown, color: accent.gold, onPress: () => setShowLegacyPass(true), badge: legacyClaimable },
+    { key: 'plus', label: 'DeepLife+', icon: Star, color: accent.gold, onPress: () => setShowSubscription(true) },
+  ];
+
   return (
-    <View style={[styles.container, settings?.darkMode !== false && styles.containerDark]}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
         <View style={styles.header}>
-          <Trophy size={32} color="#F59E0B" />
-          <Text style={[styles.title, settings?.darkMode !== false && styles.titleDark]}>Your Progress</Text>
+          <View style={[styles.headerIcon, { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: 'rgba(245, 158, 11, 0.35)' }]}>
+            <Trophy size={scale(18)} color={accent.warning} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: theme.text }]}>Your Progress</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Achievements, prestige & lifetime stats</Text>
+          </View>
         </View>
 
-        {/* Prestige Section */}
-        {gameState.prestige && gameState.prestige.prestigeLevel > 0 && (
+        {/* Hero: Prestige + Legacy Pass */}
+        <View style={styles.heroRow}>
+          {/* Prestige */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => (prestigeLevel > 0 ? setShowPrestigeHistory(true) : setShowPrestigeShop(true))}
+            style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          >
+            <View style={styles.heroCardHead}>
+              <Sparkles size={scale(14)} color={accent.purple} />
+              <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Prestige</Text>
+            </View>
+            <Text style={[styles.heroValue, { color: theme.text }]}>Lv {prestigeLevel}</Text>
+            <Text style={[styles.heroMeta, { color: theme.textMuted }]}>
+              {prestigeAvailable && prestigeLevel === 0 ? 'Ready to prestige' : `${prestigePoints} points`}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Legacy Pass */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setShowLegacyPass(true)}
+            style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          >
+            <View style={styles.heroCardHead}>
+              <Crown size={scale(14)} color={accent.gold} />
+              <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Legacy Pass</Text>
+              <ClaimableBadge count={legacyClaimable} />
+            </View>
+            <Text style={[styles.heroValue, { color: theme.text }]}>Tier {legacyTier}<Text style={[styles.heroValueDim, { color: theme.textMuted }]}>/{MAX_TIER}</Text></Text>
+            <View style={[styles.heroBar, { backgroundColor: theme.surfaceElevated }]}>
+              <View style={[styles.heroBarFill, { width: `${legacyTierPct}%`, backgroundColor: accent.gold }]} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Full prestige card when the player has prestiged. */}
+        {prestigeLevel > 0 && (
           <PrestigeStatsCard
             onPress={() => setShowPrestigeHistory(true)}
             onShopPress={() => setShowPrestigeShop(true)}
           />
         )}
 
-        {/* Enhanced Features Section */}
-        <View style={[styles.enhancedFeaturesSection, settings?.darkMode !== false && styles.enhancedFeaturesSectionDark]}>
-          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Enhanced Features</Text>
-          <View style={styles.featureButtons}>
-            <TouchableOpacity
-              style={[styles.featureButton, isDark && styles.featureButtonDark]}
-              onPress={() => setShowDataVisualization(true)}
-            >
-              <BarChart3 size={24} color="#3B82F6" />
-              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Data Analytics</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.featureButton, isDark && styles.featureButtonDark]}
-              onPress={() => setShowSmartNotifications(true)}
-            >
-              <Bell size={24} color="#10B981" />
-              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Smart Notifications</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.featureButton, isDark && styles.featureButtonDark]}
-              onPress={() => setShowCommitments(true)}
-            >
-              <Target size={24} color="#F59E0B" />
-              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Activity Commitments</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.featureButton, isDark && styles.featureButtonDark]}
-              onPress={() => setShowLifeStory(true)}
-            >
-              <BookOpen size={24} color="#8B5CF6" />
-              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>My Life Story</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.featureButton, isDark && styles.featureButtonDark]}
-              onPress={() => setShowSkillTree(true)}
-            >
-              <Brain size={24} color="#10B981" />
-              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Life Skills</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.featureButton, isDark && styles.featureButtonDark]}
-              onPress={() => setShowLegacyPass(true)}
-            >
-              <Crown size={24} color="#F59E0B" />
-              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>Legacy Pass</Text>
-              <ClaimableBadge count={legacyClaimable} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.featureButton, isDark && styles.featureButtonDark]}
-              onPress={() => setShowSubscription(true)}
-            >
-              <Star size={24} color="#F59E0B" />
-              <Text style={[styles.featureButtonText, isDark && styles.featureButtonTextDark]}>DeepLife+</Text>
-            </TouchableOpacity>
+        {/* Overall achievement progress */}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.progressRow}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Achievements</Text>
+            <Text style={[styles.progressCount, { color: theme.textSecondary }]}>
+              {completedAchievements}/{totalAchievements}
+            </Text>
           </View>
+          <View style={[styles.progressBar, { backgroundColor: theme.surfaceElevated }]}>
+            <View style={[styles.progressFill, { width: `${completionPct}%`, backgroundColor: accent.warning }]} />
+          </View>
+          <Text style={[styles.progressPct, { color: accent.warning }]}>{completionPct}% complete</Text>
         </View>
 
+        {/* Life Stats */}
+        <View style={styles.statsGrid}>
+          <StatCard theme={theme} icon={TrendingUp} color={accent.info} value={String(Math.floor(gameState.date?.age ?? 18))} label="Age" />
+          <StatCard theme={theme} icon={CalendarDays} color={accent.success} value={String(gameState.weeksLived)} label="Weeks Lived" />
+          <StatCard theme={theme} icon={Star} color={accent.purple} value={String((gameState.relationships || []).length)} label="Relationships" />
+          <StatCard theme={theme} icon={Zap} color={accent.gold} value={String((gameState.items || []).filter(i => i.owned).length)} label="Items Owned" />
+        </View>
+
+        {/* Achievement browser (searchable, by category) */}
         <ProgressOverview />
+
+        {/* Life diary */}
         <Journal />
 
-        {/* Hobbies removed - minigames section no longer available */}
-
-        <View style={[styles.overallProgress, settings?.darkMode !== false && styles.overallProgressDark]}>
-          <Text style={[styles.progressTitle, isDark && styles.progressTitleDark]}>Overall Achievement Progress</Text>
-          <View style={styles.progressStats}>
-            <Text style={styles.progressText}>
-              {completedAchievements} / {totalAchievements} Completed
-            </Text>
-            <Text style={styles.progressPercent}>
-              {totalAchievements > 0 ? Math.round((completedAchievements / totalAchievements) * 100) : 0}%
-            </Text>
-          </View>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${totalAchievements > 0 ? (completedAchievements / totalAchievements) * 100 : 0}%` }
-              ]}
-            />
-          </View>
-        </View>
-
-        <View style={styles.achievementsSection}>
-          <Text style={styles.sectionTitle}>Achievements ({completedAchievements}/{totalAchievements})</Text>
-
-          {achievements.length === 0 ? (
-            <EmptyState
-              icon="🏆"
-              title="No Achievements Yet"
-              description="Keep playing and complete challenges to earn achievements."
-              darkMode={settings?.darkMode !== false}
-            />
-          ) : (
-            categories.map(category => {
-              const categoryAchievements = achievements.filter(a => a.category === category);
-              const categoryCompleted = categoryAchievements.filter(a => a.completed).length;
-              const { icon: CategoryIcon, color } = getCategoryIcon(category);
-
+        {/* Tools & More — compact launcher tiles */}
+        <View style={styles.toolsSection}>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Tools & More</Text>
+          <View style={styles.toolsGrid}>
+            {tools.map(tool => {
+              const ToolIcon = tool.icon;
               return (
-                <View key={category} style={styles.categorySection}>
-                  <View style={styles.categoryHeader}>
-                    <CategoryIcon size={20} color={color} />
-                    <Text style={styles.categoryTitle}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)} ({categoryCompleted}/{categoryAchievements.length})
-                    </Text>
+                <TouchableOpacity
+                  key={tool.key}
+                  activeOpacity={0.8}
+                  onPress={tool.onPress}
+                  style={[styles.toolTile, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                >
+                  <View style={[styles.toolIcon, { backgroundColor: tool.color + '1F' }]}>
+                    <ToolIcon size={scale(16)} color={tool.color} />
+                    <ClaimableBadge count={tool.badge ?? 0} />
                   </View>
-
-                  {categoryAchievements.map(achievement => (
-                    <View key={achievement.id} style={styles.achievementCard}>
-                      <View style={styles.achievementIcon}>
-                        {achievement.completed ? (
-                          <Star size={20} color="#F59E0B" fill="#F59E0B" />
-                        ) : (
-                          <Target size={20} color="#9CA3AF" />
-                        )}
-                      </View>
-                      <View style={styles.achievementInfo}>
-                        <Text style={[
-                          styles.achievementName,
-                          achievement.completed && styles.completedAchievement,
-                          settings?.darkMode && !achievement.completed && { color: '#FFFFFF' }
-                        ]}>
-                          {achievement.name}
-                        </Text>
-                        <Text style={[styles.achievementDescription, settings?.darkMode && styles.achievementDescriptionDark]}>
-                          {achievement.description}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
+                  <Text style={[styles.toolLabel, { color: theme.text }]} numberOfLines={1}>{tool.label}</Text>
+                  <ChevronRight size={scale(14)} color={theme.textMuted} />
+                </TouchableOpacity>
               );
-            })
-          )}
-        </View>
-
-        {/* Hobbies removed - minigames section no longer available */}
-
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Life Stats</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <TrendingUp size={20} color="#3B82F6" />
-              <Text style={styles.statValue}>{Math.floor(gameState.date?.age ?? 18)}</Text>
-              <Text style={[styles.statLabel, settings?.darkMode && styles.statLabelDark]}>Age</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{gameState.weeksLived}</Text>
-              <Text style={styles.statLabel}>Weeks Lived</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{(gameState.relationships || []).length}</Text>
-              <Text style={styles.statLabel}>Relationships</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{(gameState.items || []).filter(i => i.owned).length}</Text>
-              <Text style={styles.statLabel}>Items Owned</Text>
-            </View>
+            })}
           </View>
         </View>
       </ScrollView>
-      
-      {/* Enhanced Components */}
-        {showDataVisualization && (
-          <EnhancedDataVisualization darkMode={gameState.settings?.darkMode} compact={false} />
-        )}
-        <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
-        <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
-        <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
-        <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
-        <LegacyPassModal
-          visible={showLegacyPass}
-          onClose={() => setShowLegacyPass(false)}
-          onSubscribe={() => {
-            setShowLegacyPass(false);
-            setShowSubscription(true);
-          }}
-        />
-        <SubscriptionModal visible={showSubscription} onClose={() => setShowSubscription(false)} />
-        <PrestigeHistoryModal visible={showPrestigeHistory} onClose={() => setShowPrestigeHistory(false)} />
-        <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
+
+      {/* Modals */}
+      <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
+      <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
+      <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
+      <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
+      <HobbiesModal visible={showHobbies} onClose={() => setShowHobbies(false)} />
+      <LegacyPassModal
+        visible={showLegacyPass}
+        onClose={() => setShowLegacyPass(false)}
+        onSubscribe={() => {
+          setShowLegacyPass(false);
+          setShowSubscription(true);
+        }}
+      />
+      <SubscriptionModal visible={showSubscription} onClose={() => setShowSubscription(false)} />
+      <PrestigeHistoryModal visible={showPrestigeHistory} onClose={() => setShowPrestigeHistory(false)} />
+      <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
+    </View>
+  );
+}
+
+function StatCard({
+  theme,
+  icon: Icon,
+  color,
+  value,
+  label,
+}: {
+  theme: ReturnType<typeof getThemeColors>;
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  color: string;
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={[styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[styles.statIcon, { backgroundColor: color + '1F' }]}>
+        <Icon size={scale(16)} color={color} />
+      </View>
+      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{label}</Text>
     </View>
   );
 }
@@ -290,298 +286,182 @@ function ProgressionScreenContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  containerDark: {
-    backgroundColor: '#0F172A',
-  },
-  // R10-UX: dark-mode card surfaces. The screen defaults to dark
-  // (darkMode !== false), but these two cards were hardcoded white — jarring
-  // bright panels on the #0F172A background.
-  overallProgressDark: {
-    backgroundColor: '#1E293B',
-  },
-  enhancedFeaturesSectionDark: {
-    backgroundColor: '#1E293B',
   },
   content: {
     flex: 1,
-    padding: 20,
+  },
+  contentInner: {
+    padding: responsiveSpacing.md,
+    gap: verticalScale(16),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    gap: scale(12),
+  },
+  headerIcon: {
+    width: scale(38),
+    height: scale(38),
+    borderRadius: scale(11),
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginLeft: 12,
+    fontSize: fontScale(24),
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
-  titleDark: {
-    color: '#F9FAFB',
+  subtitle: {
+    fontSize: fontScale(12),
+    marginTop: scale(2),
   },
-  overallProgress: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
-    borderRadius: 16,
-    marginBottom: 30,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-    }),
-    elevation: 3,
-  },
-  progressTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 15,
-  },
-  progressStats: {
+  // Hero
+  heroRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: scale(12),
+  },
+  heroCard: {
+    flex: 1,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: responsiveSpacing.md,
+    gap: verticalScale(6),
+  },
+  heroCardHead: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: scale(6),
   },
-  progressText: {
-    fontSize: 16,
-    color: '#6B7280',
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
+  heroLabel: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    flex: 1,
   },
-  progressTextDark: {
-    color: '#FFFFFF',
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
+  heroValue: {
+    fontSize: fontScale(22),
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
-  progressPercent: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#F59E0B',
+  heroValueDim: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+  },
+  heroMeta: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
+  },
+  heroBar: {
+    height: scale(6),
+    borderRadius: scale(3),
+    overflow: 'hidden',
+    marginTop: scale(2),
+  },
+  heroBarFill: {
+    height: '100%',
+    borderRadius: scale(3),
+  },
+  // Generic card
+  card: {
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: responsiveSpacing.md,
+    gap: verticalScale(8),
+  },
+  cardTitle: {
+    fontSize: fontScale(16),
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  progressCount: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
+    height: scale(8),
+    borderRadius: scale(4),
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#F59E0B',
-    borderRadius: 4,
+    borderRadius: scale(4),
   },
-  achievementsSection: {
-    marginBottom: 30,
+  progressPct: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 20,
-  },
-  categorySection: {
-    marginBottom: 25,
-  },
-  categoryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginLeft: 8,
-  },
-  achievementCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-    }),
-    elevation: 2,
-  },
-  achievementIcon: {
-    marginRight: 12,
-  },
-  achievementInfo: {
-    flex: 1,
-  },
-  achievementName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 2,
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
-  },
-  completedAchievement: {
-    color: '#1F2937',
-  },
-  achievementDescription: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    lineHeight: 16,
-  },
-  achievementDescriptionDark: {
-    color: '#6B7280',
-  },
-  statsSection: {
-    marginBottom: 30,
-  },
+  // Stats
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: scale(12),
   },
   statCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 12,
-    width: '48%',
-    minHeight: 110,
+    flexGrow: 1,
+    flexBasis: '46%',
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: responsiveSpacing.md,
+    alignItems: 'center',
+    gap: verticalScale(6),
+  },
+  statIcon: {
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(10),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-    }),
-    elevation: 2,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-    marginTop: 8,
-    marginBottom: 4,
+    fontSize: fontScale(22),
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: fontScale(11),
+    fontWeight: '600',
     textAlign: 'center',
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
   },
-  statLabelDark: {
-    color: '#FFFFFF',
-    ...Platform.select({
-      web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
-      default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 2,
-      },
-    }),
+  // Tools
+  toolsSection: {
+    gap: verticalScale(10),
   },
-  minigamesSection: {
-    marginBottom: 30,
+  sectionLabel: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  minigameButton: {
-    padding: 12,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 8,
-    marginBottom: 10,
+  toolsGrid: {
+    gap: scale(8),
+  },
+  toolTile: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: scale(12),
+    borderRadius: responsiveBorderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: verticalScale(11),
+    paddingHorizontal: responsiveSpacing.md,
   },
-  enhancedFeaturesSection: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' } as any,
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-    }),
-  },
-  featureButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-  },
-  featureButton: {
-    flex: 1,
-    minWidth: '45%',
-    flexDirection: 'row',
+  toolIcon: {
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(10),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 8,
   },
-  featureButtonText: {
-    fontSize: 14,
+  toolLabel: {
+    flex: 1,
+    fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
   },
-  // R10-UX: dark-mode text/button variants so the now-dark cards stay legible.
-  progressTitleDark: { color: '#F1F5F9' },
-  sectionTitleDark: { color: '#F1F5F9' },
-  featureButtonDark: { backgroundColor: '#0F172A', borderColor: '#334155' },
-  featureButtonTextDark: { color: '#E2E8F0' },
 });
 
 export default React.memo(ProgressionScreen);

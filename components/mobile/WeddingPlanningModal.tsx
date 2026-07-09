@@ -241,7 +241,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                     onChangeText={setGuestCount}
                     keyboardType="numeric"
                     placeholder="Enter number of guests"
-                    placeholderTextColor={isDarkMode ? '#6B7280' : '#9CA3AF'}
+                    placeholderTextColor={isDarkMode ? '#9CA3AF' : '#6B7280'}
                     maxLength={3}
                   />
                   <Text style={[styles.guestHint, isDarkMode && styles.guestHintDark]}>

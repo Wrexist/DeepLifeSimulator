@@ -373,8 +373,24 @@ export const purchaseInsurance = (
     : 'Insurance';
   
   // Atomic: merge insurance cost + insurance creation into single update
+  // Reject buying over an active, unexpired policy — the old path silently
+  // overwrote it, discarding the remaining prepaid premium with no refund.
+  const existingPolicy = vehicle.insurance;
+  const nowWeek = gameState.weeksLived ?? 0;
+  if (existingPolicy?.active && (existingPolicy.expiresWeek ?? 0) > nowWeek) {
+    return { success: false, message: 'This vehicle already has an active policy. Cancel it first (you get a prorated refund).' };
+  }
+
   setGameState(prev => {
     const currentWeeksLived = typeof prev.weeksLived === 'number' && !isNaN(prev.weeksLived) && isFinite(prev.weeksLived) && prev.weeksLived >= 0 ? prev.weeksLived : 0;
+
+    // Atomic re-checks against prev: policy still absent AND funds still
+    // sufficient (the old Math.max(0, ...) clamp let a same-batch double-tap
+    // charge a second premium the player couldn't afford).
+    const prevVehicle = (prev.vehicles || []).find(v => v.id === vehicleId);
+    if (!prevVehicle) return prev;
+    if (prevVehicle.insurance?.active && (prevVehicle.insurance.expiresWeek ?? 0) > currentWeeksLived) return prev;
+    if ((prev.stats?.money ?? 0) < premiumCost) return prev;
 
     const insurance: VehicleInsurance = {
       id: `${vehicleId}_${insuranceType}`,
@@ -393,7 +409,7 @@ export const purchaseInsurance = (
         : prev.banking,
       stats: {
         ...prev.stats,
-        money: Math.max(0, prev.stats.money - premiumCost),
+        money: prev.stats.money - premiumCost,
       },
       vehicles: (prev.vehicles || []).map(v =>
         v.id === vehicleId ? { ...v, insurance } : v
@@ -821,6 +837,10 @@ export const purchaseVehicleWithAutoLoan = (
       const loan: Loan = {
         id: newLoanId(),
         name: `Auto Loan: ${template.name}`,
+        // Link the loan to its vehicle by id (createVehicleFromTemplate sets the
+        // new vehicle's id to template.id === spec.templateId). The UI matches on
+        // this instead of a fragile name substring.
+        vehicleId: spec.templateId,
         principal: quote.loanPrincipal!,
         remaining: quote.loanPrincipal!,
         rateAPR: quote.offeredAPR!,

@@ -1,0 +1,12 @@
+{
+  "name": "deeplife-iap-verify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Receipt-verification endpoint for DeepLife in-app purchases (EXPO_PUBLIC_IAP_VERIFY_URL).",
+  "type": "commonjs",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@apple/app-store-server-library": "^1.4.0",
+    "googleapis": "^140.0.0"
+  }
+}

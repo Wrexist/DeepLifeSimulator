@@ -274,8 +274,9 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
     backgroundColor: 'rgba(16, 185, 129, 0.1)',
     borderRadius: responsiveBorderRadius.md,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
+    // Plain full border, no side stripe (DEV.md Hard Rule 7).
+    borderWidth: 1,
+    borderColor: '#10B981',
   },
   goalHeader: {
     flexDirection: 'row',
@@ -304,8 +305,9 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
     borderRadius: responsiveBorderRadius.md,
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+    // Plain full border, no side stripe (DEV.md Hard Rule 7).
+    borderWidth: 1,
+    borderColor: '#F59E0B',
   },
   rewardLabel: {
     fontSize: responsiveFontSize.sm,
@@ -341,8 +343,9 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
     backgroundColor: 'rgba(59, 130, 246, 0.1)',
     borderRadius: responsiveBorderRadius.md,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
+    // Plain full border, no side stripe (DEV.md Hard Rule 7).
+    borderWidth: 1,
+    borderColor: '#3B82F6',
   },
   nextGoalHeader: {
     flexDirection: 'row',

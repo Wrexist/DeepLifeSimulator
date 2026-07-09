@@ -16,12 +16,13 @@ import {
   Wallet,
   PiggyBank,
   TrendingUp,
+  LineChart,
   Plus,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getTabBarSafePadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { initialGameState } from '@/contexts/game/initialState';
 
@@ -78,7 +79,7 @@ function BankAppInner({ onBack }: BankAppProps) {
   const [showLoanQuote, setShowLoanQuote] = useState(false);
   const [showApplyCard, setShowApplyCard] = useState(false);
   const [showAddBill, setShowAddBill] = useState(false);
-  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
@@ -88,6 +89,16 @@ function BankAppInner({ onBack }: BankAppProps) {
   const totalDebt =
     banking.creditCards.reduce((s, c) => s + c.balance, 0) +
     (gameState.loans ?? []).reduce((s, l) => s + l.remaining, 0);
+
+  // Cross-app tile: what the player has working in the market apps (Stocks +
+  // Crypto holdings at current prices), so the Bank is the one money overview.
+  const investedValue = useMemo(() => {
+    const stocksValue = (gameState.stocks?.holdings ?? []).reduce(
+      (s, h) => s + (h.shares ?? 0) * (h.currentPrice ?? 0), 0);
+    const cryptoValue = (gameState.cryptos ?? []).reduce(
+      (s, c) => s + (c.owned ?? 0) * (c.price ?? 0), 0);
+    return stocksValue + cryptoValue;
+  }, [gameState.stocks?.holdings, gameState.cryptos]);
 
   const weeklyIncome = useMemo(() => {
     let income = 0;
@@ -141,7 +152,9 @@ function BankAppInner({ onBack }: BankAppProps) {
         style={{ flex: 1 }}
         contentContainerStyle={{
           padding: responsiveSpacing.md,
-          paddingBottom: insets.bottom + responsiveSpacing['2xl'],
+          // Reserve space for the floating glass tab bar (cb5e306 sweep --
+          // BankApp was the one sub-app still computing its own padding).
+          paddingBottom: getTabBarSafePadding(insets.bottom),
           gap: responsiveSpacing.md,
         }}
       >
@@ -155,6 +168,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         <View style={styles.statRow}>
           <Stat theme={theme} icon={Wallet} label="Cash" value={formatMoney(cash)} />
           <Stat theme={theme} icon={PiggyBank} label="Bank" value={formatMoney(totalBank)} />
+          <Stat theme={theme} icon={LineChart} label="Invested" value={formatMoney(investedValue)} />
           <Stat theme={theme} icon={TrendingUp} label="Debt" value={formatMoney(totalDebt)} negative={totalDebt > 0} />
         </View>
 
@@ -189,7 +203,21 @@ function BankAppInner({ onBack }: BankAppProps) {
           ))
         )}
 
-        <SectionHeader theme={theme} title="Savings Goals" onAdd={() => setShowAddGoal(true)} addLabel="New" />
+        <SectionHeader theme={theme} title="Savings Goals" onAdd={() =>
+            Alert.alert('What are you saving for?', undefined, [
+              { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
+              { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
+              {
+                text: 'More…',
+                onPress: () =>
+                  Alert.alert('What are you saving for?', undefined, [
+                    { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
+                    { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
+                    { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
+                  ]),
+              },
+            ])
+          } addLabel="New" />
         {banking.savingsGoals.length === 0 ? (
           <EmptyText theme={theme}>No goals yet.</EmptyText>
         ) : (
@@ -322,21 +350,23 @@ function BankAppInner({ onBack }: BankAppProps) {
       />
 
       <AmountInputModal
-        visible={showAddGoal}
-        title="Set a savings goal"
+        visible={!!addGoalPick}
+        title={addGoalPick ? `Goal: ${addGoalPick.name}` : 'Set a savings goal'}
         subtitle="How much do you want to save?"
         confirmLabel="Create Goal"
         presets={[1000, 5000, 25000]}
         darkMode={darkMode}
-        onClose={() => setShowAddGoal(false)}
+        onClose={() => setAddGoalPick(null)}
         onConfirm={(amt) => {
-          createSavingsGoal(setGameState, {
-            name: 'Savings Goal',
-            targetAmount: amt,
-            category: 'other' as SavingsGoalCategory,
-          });
-          queueSave();
-          setShowAddGoal(false);
+          if (addGoalPick) {
+            createSavingsGoal(setGameState, {
+              name: addGoalPick.name,
+              targetAmount: amt,
+              category: addGoalPick.category,
+            });
+            queueSave();
+          }
+          setAddGoalPick(null);
         }}
       />
 
@@ -372,6 +402,8 @@ function BankAppInner({ onBack }: BankAppProps) {
           if (prepayLoanId && checking) {
             prepayLoan(setGameState, prepayLoanId, checking.id, amt);
             queueSave();
+          } else if (prepayLoanId && !checking) {
+            Alert.alert('No checking account', 'Open a checking account first — loan payments are drawn from checking.');
           }
           setPrepayLoanId(null);
         }}
@@ -391,6 +423,8 @@ function BankAppInner({ onBack }: BankAppProps) {
           if (payCardId && checking) {
             payDownCard(setGameState, payCardId, checking.id, amt);
             queueSave();
+          } else if (payCardId && !checking) {
+            Alert.alert('No checking account', 'Open a checking account first — card payments are drawn from checking.');
           }
           setPayCardId(null);
         }}

@@ -44,20 +44,23 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTimerManager } from '@/hooks/useTimerManager';
-import type { Relationship } from '@/contexts/game/types';
+import type { Relationship, GameState } from '@/contexts/game/types';
 import { aggregateContacts, ContactView, contactsNeedingAttention } from '@/lib/contacts/aggregator';
 import { netMoneyPosition, openFavors, FavorLedger } from '@/lib/contacts/favors';
 import { goOnDate, giveGift, proposeMarriage } from '@/contexts/game/actions/DatingActions';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { redeemFavor } from '@/contexts/game/actions/ContactsActions';
+import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { getRelationshipImage } from '@/utils/characterImages';
+import { getMoodEmoji, getMoodLabel } from '@/lib/social/npcDepth';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  fontScale,
   getTabBarSafePadding,
 } from '@/utils/scaling';
 
@@ -159,20 +162,112 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     (contactId: string, action: string, cost: number, bonus: number) => {
       const rel = gameState.relationships?.find((r) => r.id === contactId);
       if (!rel) return;
-      if (rel.actions?.[action] === gameState.weeksLived) {
+      const ws = gameState.weeksLived ?? 0;
+      // Pre-checks for immediate feedback; the authoritative re-check is inside
+      // the updater below.
+      if (rel.actions?.[action] === ws) {
         flash('Already used this week.', contactId);
         return;
       }
-      if (cost > 0 && gameState.stats.money < cost) {
+      if (cost > 0 && (gameState.stats?.money ?? 0) < cost) {
         flash(`Need $${cost.toLocaleString()}.`, contactId);
         return;
       }
-      if (cost > 0) updateMoney(-cost, `${action} with ${rel.name}`, false);
-      updateRelationship(contactId, bonus);
-      recordRelationshipAction(contactId, action);
-      flash(`+${bonus} with ${rel.name}.`, contactId);
+
+      // Single atomic updater — the once-per-week gate, the affordability check,
+      // the money leg, the relationship bump, and the action record all happen
+      // against `prev` so a same-batch double-tap can't charge/grant twice.
+      // (Previously three separate imperative updaters read a stale snapshot.)
+      let applied = false;
+      setGameState((prev) => {
+        const rels = prev.relationships ?? [];
+        const idx = rels.findIndex((r) => r.id === contactId);
+        if (idx === -1) return prev;
+        const target = rels[idx];
+        const prevWs = prev.weeksLived ?? 0;
+        if (target.actions?.[action] === prevWs) return prev; // already used this week
+        if (cost > 0 && (prev.stats?.money ?? 0) < cost) return prev; // can't afford
+
+        const updatedRel: Relationship = {
+          ...target,
+          relationshipScore: Math.max(0, Math.min(100, (target.relationshipScore ?? 0) + bonus)),
+          actions: { ...(target.actions ?? {}), [action]: prevWs },
+        };
+        const newRels = [...rels];
+        newRels[idx] = updatedRel;
+        let next: GameState = { ...prev, relationships: newRels };
+        if (cost > 0) {
+          const paid = applyMoneyDelta(next, -cost, `${action} with ${target.name}`);
+          if (!paid) return prev; // affordability failed inside the delta — abort
+          next = { ...next, ...paid };
+        }
+        applied = true;
+        return next;
+      });
+      if (applied) flash(`+${bonus} with ${rel.name}.`, contactId);
     },
-    [gameState, updateMoney, updateRelationship, recordRelationshipAction, flash]
+    [gameState, setGameState, flash]
+  );
+
+
+  // "Ask $" — the button previously cost 5 relationship points and granted
+  // NOTHING (the money leg was never wired; the pity-system fields on
+  // Relationship existed but were unused). Success scales with relationship
+  // score, with a guaranteed grant after 5 straight refusals. Gate re-check +
+  // relationship update + money grant happen in ONE updater; the roll is
+  // pre-rolled so the updater stays StrictMode-pure.
+  const askOutcome = useCallback((rel: Relationship, roll: number) => {
+    const score = rel.relationshipScore ?? 0;
+    const attempts = rel.moneyRequestAttempts ?? 0;
+    const granted = attempts >= 5 || roll < Math.min(0.85, score / 150);
+    const amount = granted ? Math.round(25 + score * 1.5) : 0;
+    return { granted, amount };
+  }, []);
+
+  const handleAskMoney = useCallback(
+    (contactId: string) => {
+      const rel = gameState.relationships?.find((r) => r.id === contactId);
+      if (!rel) return;
+      const ws = gameState.weeksLived ?? 0;
+      if (rel.actions?.['askmoney'] === ws) {
+        flash('Already asked this week.', contactId);
+        return;
+      }
+      const roll = Math.random();
+      setGameState((prev) => {
+        const rels = prev.relationships ?? [];
+        const idx = rels.findIndex((r) => r.id === contactId);
+        if (idx === -1) return prev;
+        const target = rels[idx];
+        const prevWs = prev.weeksLived ?? 0;
+        if (target.actions?.['askmoney'] === prevWs) return prev;
+        const { granted, amount } = askOutcome(target, roll);
+        const updatedRel: Relationship = {
+          ...target,
+          relationshipScore: Math.max(0, (target.relationshipScore ?? 0) + (granted ? -3 : -5)),
+          actions: { ...(target.actions ?? {}), askmoney: prevWs },
+          moneyRequestAttempts: granted ? 0 : (target.moneyRequestAttempts ?? 0) + 1,
+          lastMoneyRequest: prevWs,
+        };
+        const newRels = [...rels];
+        newRels[idx] = updatedRel;
+        if (!granted) return { ...prev, relationships: newRels };
+        const grant = applyMoneyDelta(prev, amount, `Borrowed from ${target.name}`);
+        if (!grant) return { ...prev, relationships: newRels };
+        return { ...prev, ...grant, relationships: newRels };
+      });
+      // Message from the snapshot + the same pre-rolled RNG (updater is
+      // authoritative for state; this only phrases the feedback).
+      const { granted, amount } = askOutcome(rel, roll);
+      flash(
+        granted
+          ? `${rel.name} lent you $${amount.toLocaleString()}. (-3)`
+          : `${rel.name} said no this time. (-5)`,
+        contactId
+      );
+      saveGame();
+    },
+    [gameState, setGameState, saveGame, flash, askOutcome]
   );
 
   const handleRedeemFavor = useCallback(
@@ -250,6 +345,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
             <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
               {c.subtitle} {r.personality ? `· ${r.personality}` : ''}
+              {r.npcMood ? ` · ${getMoodEmoji(r.npcMood)} ${getMoodLabel(r.npcMood)}` : ''}
             </Text>
             <View style={[styles.bar, { backgroundColor: theme.surfaceElevated }]}>
               <View
@@ -276,10 +372,48 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
         {expanded && (
           <View style={styles.actionsBox}>
+            {/* Inner life: the weekly NPC-depth tick evolves opinion (trust/
+                attraction/respect), goals, gift tastes, and memories — but none
+                of it was rendered, so relationships read as one static bar.
+                Surface it compactly here. */}
+            {r.npcOpinion ? (
+              <View style={styles.opinionRow}>
+                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                  🤝 Trust <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.trust ?? 0)}</Text>
+                </Text>
+                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                  💘 Attraction <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.attraction ?? 0)}</Text>
+                </Text>
+                <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
+                  🎖️ Respect <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.respect ?? 0)}</Text>
+                </Text>
+              </View>
+            ) : null}
+            {(() => {
+              const goal = (r.npcGoals ?? []).find((g) => !g.fulfilled);
+              return goal ? (
+                <Text style={[styles.innerLifeLine, { color: theme.textSecondary }]} numberOfLines={1}>
+                  🎯 Dreams of: {goal.label}
+                </Text>
+              ) : null;
+            })()}
+            {r.giftPreferences && r.giftPreferences.length > 0 ? (
+              <Text style={[styles.innerLifeLine, { color: theme.textSecondary }]} numberOfLines={1}>
+                🎁 Loves: {r.giftPreferences.slice(0, 3).join(', ')}
+              </Text>
+            ) : null}
+            {r.npcMemories && r.npcMemories.length > 0 ? (
+              <Text
+                style={{ fontSize: fontScale(11.5), color: theme.textSecondary, fontStyle: 'italic', marginBottom: scale(8) }}
+                numberOfLines={2}
+              >
+                Remembers: {r.npcMemories[r.npcMemories.length - 1].description}
+              </Text>
+            ) : null}
             <View style={styles.actionsRow}>
               <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} />
               <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} />
-              <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleSimple(c.id, 'askmoney', 0, -5)} />
+              <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleAskMoney(c.id)} />
             </View>
             {isPartner && (
               <>
@@ -715,6 +849,9 @@ const styles = StyleSheet.create({
   tagText: { fontSize: fs.xs, fontWeight: '700' },
   actionsBox: { gap: sp.sm, marginTop: sp.md },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  opinionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
+  opinionStat: { fontSize: fontScale(11) },
+  innerLifeLine: { fontSize: fontScale(11.5) },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -285,7 +285,7 @@ export default function PetApp({ onBack }: PetAppProps) {
         <StatBar label="Energy" value={p.energy ?? 0} color={accent.info} theme={theme} />
 
         <View style={styles.actionsRow}>
-          <ActionBtn label="Feed" Icon={Sparkles} color={accent.warning} onPress={() => setActiveTab('shop')} />
+          <ActionBtn label="Food" Icon={Sparkles} color={accent.warning} onPress={() => setActiveTab('shop')} />
           <ActionBtn label="Play" Icon={Heart} color={accent.danger} onPress={() => handlePlay(p.id)} />
           <ActionBtn label="Sleep" Icon={Activity} color={accent.info} onPress={() => handleSleep(p.id)} />
         </View>

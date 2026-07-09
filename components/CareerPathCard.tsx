@@ -458,8 +458,9 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     currentCareerCard: {
-        borderLeftWidth: 4,
-        borderLeftColor: '#10B981',
+        // Plain full border marks the active career, no side stripe (DEV.md Hard Rule 7).
+        borderWidth: 2,
+        borderColor: '#10B981',
     },
     careerHeader: {
         flexDirection: 'row',

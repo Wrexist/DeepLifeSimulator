@@ -6,8 +6,9 @@
  * active subscription (synced into the pass on open).
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
-import { X, Lock, Check, Crown, Gift } from 'lucide-react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated, Easing, ImageBackground } from 'react-native';
+import { X, Lock, Check, Crown, Gift, Sparkles, ArrowRight, CheckCircle2, Gem, Heart, Infinity as InfinityIcon } from 'lucide-react-native';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -36,6 +37,11 @@ import { toggleCosmetic } from '@/contexts/game/actions/CosmeticActions';
 import { resolveOwnedCosmetics, getCosmetic } from '@/lib/cosmetics/cosmetics';
 import { subscriptionService } from '@/services/SubscriptionService';
 
+// Hero lifestyle image for the premium card — the game's own neon-lit luxury
+// villa render (dark, immersive, on-theme). Swap this require to drop in a
+// bespoke hero later without touching the layout.
+const HERO_IMAGE = require('@/assets/images/Real Estate/Beach Villa.png');
+
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -59,6 +65,8 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const setGameState = useSetGameState();
   const { saveGame } = useGameActions();
   const [toast, setToast] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const ladderYRef = useRef(0);
 
   const seasonSummary = useGameSelector((s) => s.legacyPassSeasonSummary);
 
@@ -71,6 +79,28 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const claimedFree = useMemo(() => new Set(pass.claimedFreeTiers), [pass.claimedFreeTiers]);
   const claimedPremium = useMemo(() => new Set(pass.claimedPremiumTiers), [pass.claimedPremiumTiers]);
 
+  // Premium value framing — what the player is missing out on. Drives the
+  // upsell copy so "go premium" is a concrete offer, not a vague banner.
+  const premiumStats = useMemo(() => {
+    let total = 0;         // total premium rewards in the season
+    let earnedLocked = 0;  // premium rewards already earned but unclaimable (no sub)
+    let lockedGems = 0;    // gems sitting behind the paywall, already earned
+    let headline = '';     // the flashiest premium reward to name-drop
+    for (let tier = 1; tier <= MAX_TIER; tier++) {
+      const r = getLegacyPassReward('premium', tier);
+      if (!r) continue;
+      total += 1;
+      if (currentTier >= tier) {
+        earnedLocked += 1;
+        if (r.kind === 'gems') lockedGems += r.amount ?? 0;
+      }
+      // Prefer a non-gems, high-tier reward as the headline (cosmetics/items feel premium).
+      if (r.kind !== 'gems' && (!headline || tier > MAX_TIER / 2)) headline = r.label;
+    }
+    if (!headline) headline = 'exclusive rewards';
+    return { total, earnedLocked, lockedGems, headline };
+  }, [currentTier]);
+
   const equipped = useGameSelector((s) => s.equippedCosmetics);
   const ownedCosmetics = useMemo(() => resolveOwnedCosmetics(pass.ownedCosmetics), [pass.ownedCosmetics]);
   const equippedFrame = equipped?.frame ? getCosmetic(equipped.frame) : undefined;
@@ -80,6 +110,31 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const fillRatio = currentTier >= MAX_TIER ? 1 : intoTier / XP_PER_TIER;
   const fillAnim = useRef(new Animated.Value(fillRatio)).current;
   const toastAnim = useRef(new Animated.Value(0)).current;
+
+  // Premium upsell juice: a breathing glow, a shimmer sweep, and a crown pulse —
+  // makes the "Go Premium" card feel alive and draws the eye. All looped &
+  // reduced-motion aware; the shimmer uses translateX so it can stay native.
+  const showUpsell = !pass.premiumOwned;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const crownAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!visible || !showUpsell || reducedMotion) {
+      glowAnim.setValue(0); shimmerAnim.setValue(0); crownAnim.setValue(0);
+      return;
+    }
+    const glow = Animated.loop(Animated.sequence([
+      Animated.timing(glowAnim, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(glowAnim, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    const shimmer = Animated.loop(Animated.timing(shimmerAnim, { toValue: 1, duration: 2200, easing: Easing.linear, useNativeDriver: true }));
+    const crown = Animated.loop(Animated.sequence([
+      Animated.timing(crownAnim, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(crownAnim, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    glow.start(); shimmer.start(); crown.start();
+    return () => { glow.stop(); shimmer.stop(); crown.stop(); };
+  }, [visible, showUpsell, reducedMotion, glowAnim, shimmerAnim, crownAnim]);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -116,7 +171,8 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   // no silent loss) and re-derives the premium flag from the live subscription.
   useEffect(() => {
     if (!visible) return;
-    const subscribed = subscriptionService.getSubscriptionTier() !== 'free';
+    // Premium access via an active subscription OR the one-time lifetime unlock.
+    const subscribed = subscriptionService.hasPremiumAccess();
     setGameState((prev) => reconcileLegacyPassSeason(prev, subscribed));
   }, [visible, setGameState]);
 
@@ -203,144 +259,169 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
     );
   };
 
+  const valueCopy = premiumStats.earnedLocked > 0
+    ? `${premiumStats.earnedLocked} premium reward${premiumStats.earnedLocked === 1 ? '' : 's'} already waiting${premiumStats.lockedGems > 0 ? ` · +${premiumStats.lockedGems} gems` : ''} — incl. ${premiumStats.headline}`
+    : `Unlock all ${premiumStats.total} premium rewards — incl. ${premiumStats.headline}`;
+
   return (
     <Modal visible={visible} transparent animationType={reducedMotion ? 'fade' : 'slide'} onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.border }]}>
-          {/* Header */}
+          {/* Header — crown + title + tagline + close */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
-              <Crown size={scale(20)} color={accent.warning} />
-              <Text style={[styles.title, { color: theme.text }]}>Legacy Pass</Text>
+              <Crown size={scale(26)} color={accent.warning} fill={accent.warning} />
+              <View>
+                <Text style={[styles.title, { color: theme.text }]}>Legacy Pass</Text>
+                <Text style={[styles.tagline, { color: theme.textSecondary }]}>Unlock more. Live more. Leave a legacy.</Text>
+              </View>
             </View>
-            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close Legacy Pass">
-              <X size={scale(22)} color={theme.textSecondary} />
+            <TouchableOpacity onPress={onClose} style={[styles.closeCircle, { backgroundColor: theme.surfaceElevated }]} accessibilityRole="button" accessibilityLabel="Close Legacy Pass">
+              <X size={scale(18)} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Progress */}
-          <View style={[styles.progressBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.tierText, { color: theme.text }]}>Tier {currentTier} / {MAX_TIER}</Text>
-            <View style={[styles.progressTrack, { backgroundColor: theme.surfaceElevated }]}>
+          <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
+            {/* Progress card with a "View rewards" jump */}
+            <View style={[styles.progressBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={styles.progressTopRow}>
+                <View style={styles.progressStarChip}>
+                  <Sparkles size={scale(16)} color={colors.palette.white} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.tierText, { color: theme.text }]}>Tier {currentTier} / {MAX_TIER}</Text>
+                  <Text style={[styles.progressLabel, { color: theme.textSecondary }]}>
+                    {currentTier >= MAX_TIER ? 'Max tier reached' : `${intoTier}/${XP_PER_TIER} XP · ${toNext} XP to next tier`}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.viewRewardsPill, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+                  onPress={() => scrollRef.current?.scrollTo({ y: ladderYRef.current, animated: true })}
+                  accessibilityRole="button" accessibilityLabel="View rewards"
+                >
+                  <Gift size={scale(13)} color={accent.warning} />
+                  <Text style={[styles.viewRewardsText, { color: theme.text }]}>View rewards</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={[styles.progressTrack, { backgroundColor: theme.surfaceElevated }]}>
+                <Animated.View style={[styles.progressFill, { width: fillAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), backgroundColor: colors.palette.primary }]} />
+              </View>
+            </View>
+
+            {/* New-season summary */}
+            {hasSeasonSummary && seasonSummary && (
               <Animated.View
                 style={[
-                  styles.progressFill,
-                  {
-                    width: fillAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-                    backgroundColor: colors.palette.primary,
-                  },
+                  styles.seasonBanner,
+                  { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: accent.success },
+                  { opacity: bannerAnim, transform: [{ scale: bannerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] },
                 ]}
-              />
-            </View>
-            <Text style={[styles.progressLabel, { color: theme.textSecondary }]}>
-              {currentTier >= MAX_TIER ? 'Max tier reached' : `${intoTier}/${XP_PER_TIER} XP · ${toNext} to next tier`}
-            </Text>
-          </View>
+              >
+                <View style={styles.seasonBannerText}>
+                  <Text style={[styles.seasonBannerTitle, { color: theme.text }]}>New season started!</Text>
+                  <Text style={[styles.seasonBannerDesc, { color: theme.textSecondary }]}>
+                    Auto-collected {seasonSummary.collectedCount} reward
+                    {seasonSummary.collectedCount === 1 ? '' : 's'}
+                    {seasonSummary.collectedGems > 0 ? ` (+${seasonSummary.collectedGems} gems)` : ''} from last season.
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={dismissSeasonSummary} accessibilityRole="button" accessibilityLabel="Dismiss season summary">
+                  <Check size={scale(18)} color={accent.success} />
+                </TouchableOpacity>
+              </Animated.View>
+            )}
 
-          {/* New-season summary — shown once after a rollover auto-collected rewards */}
-          {hasSeasonSummary && seasonSummary && (
-            <Animated.View
-              style={[
-                styles.seasonBanner,
-                { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: accent.success },
-                { opacity: bannerAnim, transform: [{ scale: bannerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] },
-              ]}
-            >
-              <View style={styles.seasonBannerText}>
-                <Text style={[styles.seasonBannerTitle, { color: theme.text }]}>New season started!</Text>
-                <Text style={[styles.seasonBannerDesc, { color: theme.textSecondary }]}>
-                  Auto-collected {seasonSummary.collectedCount} reward
-                  {seasonSummary.collectedCount === 1 ? '' : 's'}
-                  {seasonSummary.collectedGems > 0 ? ` (+${seasonSummary.collectedGems} gems)` : ''} from last season.
-                </Text>
+            {/* ── HERO "Go Premium" card — lifestyle image + floating crown +
+                sparkles + shimmer, with a real value pitch and CTA. ── */}
+            {showUpsell && (
+              <Animated.View style={[styles.heroWrap, { transform: [{ scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.008] }) }] }]}>
+                {/* ── Image band: the neon villa, clearly visible ── */}
+                <ImageBackground source={HERO_IMAGE} style={styles.heroImageBand} imageStyle={styles.heroImg} resizeMode="cover">
+                  {/* Light top vignette + a strong fade into the content band below */}
+                  <LinearGradientFallback
+                    colors={['rgba(8,12,24,0.32)', 'rgba(8,12,24,0.04)', 'rgba(11,16,32,0.55)', 'rgba(11,16,32,1)']}
+                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  {/* Shimmer sweep across the villa */}
+                  <Animated.View pointerEvents="none" style={[styles.heroShimmer, { transform: [{ translateX: shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [-scale(200), scale(440)] }) }, { rotate: '18deg' }] }]} />
+                  {/* Floating crown + sparkles over the night sky */}
+                  <Animated.View style={[styles.heroCrown, { transform: [{ translateY: crownAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -scale(4)] }) }, { scale: crownAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }] }]}>
+                    <Crown size={scale(30)} color="#FCD34D" fill="#F59E0B" />
+                  </Animated.View>
+                  <Sparkles size={scale(15)} color="#FDE68A" style={styles.heroSpark1} />
+                  <Sparkles size={scale(11)} color="#FDE68A" style={styles.heroSpark2} />
+                  <View style={styles.bestValuePill}>
+                    <Sparkles size={scale(10)} color="#3B2F00" />
+                    <Text style={styles.bestValueText}>BEST VALUE</Text>
+                  </View>
+                </ImageBackground>
+
+                {/* ── Content band: solid dark, fully legible pitch ── */}
+                <View style={styles.heroContent}>
+                  <Text style={styles.heroTitle}>Go Premium</Text>
+                  <Text style={styles.heroSub} numberOfLines={3}>{valueCopy}</Text>
+                  <TouchableOpacity style={styles.heroCta} onPress={onSubscribe} accessibilityRole="button" accessibilityLabel="Upgrade to Premium">
+                    <Text style={styles.heroCtaText}>Upgrade to Premium</Text>
+                    <ArrowRight size={scale(16)} color="#1A1206" />
+                  </TouchableOpacity>
+                  <View style={styles.heroFootRow}>
+                    <CheckCircle2 size={scale(13)} color="#FCD34D" />
+                    <Text style={styles.heroFootText}>Subscribe monthly — or unlock forever.</Text>
+                  </View>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Cosmetics */}
+            {ownedCosmetics.length > 0 && (
+              <View style={[styles.cosmeticsBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <View style={styles.cosmeticsHeader}>
+                  <Text style={[styles.cosmeticsTitle, { color: theme.text }]}>Cosmetics</Text>
+                  <View style={[styles.cosmeticPreview, { backgroundColor: equippedTheme ? `${equippedTheme.color}33` : theme.surfaceElevated, borderColor: equippedFrame ? equippedFrame.color : theme.border }]} />
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.swatchRow}>
+                  {ownedCosmetics.map((c) => {
+                    const isEquipped = equipped?.[c.type] === c.id;
+                    return (
+                      <TouchableOpacity key={c.id} style={styles.swatchItem} onPress={() => handleToggleCosmetic(c.id)} accessibilityRole="button" accessibilityLabel={`${c.name}${isEquipped ? ', equipped' : ''}`}>
+                        <View style={[c.type === 'frame' ? styles.swatchFrame : styles.swatchTheme, c.type === 'frame' ? { borderColor: c.color } : { backgroundColor: c.color }, isEquipped && { borderColor: accent.success, borderWidth: 2 }]}>
+                          {isEquipped && <Check size={scale(12)} color={accent.success} />}
+                        </View>
+                        <Text numberOfLines={1} style={[styles.swatchLabel, { color: theme.textSecondary }]}>{c.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
-              <TouchableOpacity onPress={dismissSeasonSummary} accessibilityRole="button" accessibilityLabel="Dismiss season summary">
-                <Check size={scale(18)} color={accent.success} />
+            )}
+
+            {/* Claim all */}
+            {claimableCount > 0 && (
+              <TouchableOpacity style={[styles.claimAll, { backgroundColor: accent.success }]} onPress={handleClaimAll} accessibilityRole="button" accessibilityLabel={`Claim all ${claimableCount} rewards`}>
+                <Gift size={scale(16)} color={colors.palette.white} />
+                <Text style={styles.claimAllText}>Claim all ({claimableCount})</Text>
               </TouchableOpacity>
-            </Animated.View>
-          )}
+            )}
 
-          {/* Premium banner */}
-          {!pass.premiumOwned && (
-            <TouchableOpacity
-              style={[styles.premiumBanner, { borderColor: accent.warning }]}
-              onPress={onSubscribe}
-              accessibilityRole="button"
-              accessibilityLabel="Subscribe to unlock the premium track"
-            >
-              <Crown size={scale(16)} color={accent.warning} />
-              <Text style={[styles.premiumText, { color: theme.text }]}>Subscribe to unlock the premium track</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Cosmetics — owned items, tap to equip; live preview reflects the loadout */}
-          {ownedCosmetics.length > 0 && (
-            <View style={[styles.cosmeticsBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <View style={styles.cosmeticsHeader}>
-                <Text style={[styles.cosmeticsTitle, { color: theme.text }]}>Cosmetics</Text>
-                {/* Live preview: avatar tinted by the theme, ringed by the frame */}
-                <View
-                  style={[
-                    styles.cosmeticPreview,
-                    {
-                      backgroundColor: equippedTheme ? `${equippedTheme.color}33` : theme.surfaceElevated,
-                      borderColor: equippedFrame ? equippedFrame.color : theme.border,
-                    },
-                  ]}
-                />
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.swatchRow}>
-                {ownedCosmetics.map((c) => {
-                  const isEquipped = equipped?.[c.type] === c.id;
-                  return (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={styles.swatchItem}
-                      onPress={() => handleToggleCosmetic(c.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${c.name}${isEquipped ? ', equipped' : ''}`}
-                    >
-                      <View
-                        style={[
-                          c.type === 'frame' ? styles.swatchFrame : styles.swatchTheme,
-                          c.type === 'frame'
-                            ? { borderColor: c.color }
-                            : { backgroundColor: c.color },
-                          isEquipped && { borderColor: accent.success, borderWidth: 2 },
-                        ]}
-                      >
-                        {isEquipped && <Check size={scale(12)} color={accent.success} />}
-                      </View>
-                      <Text numberOfLines={1} style={[styles.swatchLabel, { color: theme.textSecondary }]}>{c.name}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+            {/* "See what you'll unlock" divider */}
+            <View style={styles.dividerRow} onLayout={(e) => { ladderYRef.current = e.nativeEvent.layout.y; }}>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+              <Text style={[styles.dividerText, { color: theme.textSecondary }]}>See what you&apos;ll unlock</Text>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
             </View>
-          )}
 
-          {/* Claim all */}
-          {claimableCount > 0 && (
-            <TouchableOpacity
-              style={[styles.claimAll, { backgroundColor: accent.success }]}
-              onPress={handleClaimAll}
-              accessibilityRole="button"
-              accessibilityLabel={`Claim all ${claimableCount} rewards`}
-            >
-              <Gift size={scale(16)} color={colors.palette.white} />
-              <Text style={styles.claimAllText}>Claim all ({claimableCount})</Text>
-            </TouchableOpacity>
-          )}
+            {/* Track headers — premium highlighted with a gold pill */}
+            <View style={styles.trackHeaderRow}>
+              <Text style={[styles.trackHeaderTier, { color: theme.textMuted }]}>Tier</Text>
+              <Text style={[styles.trackHeader, { color: theme.textSecondary }]}>Free</Text>
+              <View style={styles.premiumHeaderPill}>
+                <Crown size={scale(12)} color="#1A1206" fill="#1A1206" />
+                <Text style={styles.premiumHeaderText}>Premium</Text>
+              </View>
+            </View>
 
-          {/* Track headers */}
-          <View style={styles.trackHeaderRow}>
-            <Text style={[styles.trackHeaderTier, { color: theme.textMuted }]}>Tier</Text>
-            <Text style={[styles.trackHeader, { color: theme.textSecondary }]}>Free</Text>
-            <Text style={[styles.trackHeader, { color: accent.warning }]}>Premium</Text>
-          </View>
-
-          {/* Ladder */}
-          <ScrollView style={styles.ladder} contentContainerStyle={styles.ladderContent}>
+            {/* Ladder rows (flattened — parent scrolls) */}
             {Array.from({ length: MAX_TIER }, (_, i) => i + 1).map((tier) => (
               <View key={tier} style={styles.row}>
                 <View style={[styles.tierBadge, { backgroundColor: currentTier >= tier ? colors.palette.primary : theme.surfaceElevated }]}>
@@ -350,6 +431,32 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
                 {renderCell('premium', tier)}
               </View>
             ))}
+
+            {/* Value-prop strip */}
+            <View style={styles.featureStrip}>
+              {[
+                { Icon: Gem, title: 'More Rewards', desc: 'Way more gems & items.' },
+                { Icon: Crown, title: 'Exclusive Items', desc: 'Premium-only rewards.' },
+                { Icon: Heart, title: 'Legacy Trait', desc: 'Pass it to future lives.' },
+                { Icon: InfinityIcon, title: 'Yours Forever', desc: 'One-time. Always yours.' },
+              ].map(({ Icon, title, desc }) => (
+                <View key={title} style={styles.featureItem}>
+                  <View style={[styles.featureIcon, { backgroundColor: 'rgba(245,197,66,0.14)' }]}>
+                    <Icon size={scale(15)} color={accent.warning} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.featureTitle, { color: theme.text }]}>{title}</Text>
+                    <Text style={[styles.featureDesc, { color: theme.textSecondary }]}>{desc}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Supportive footer */}
+            <View style={styles.footerRow}>
+              <Heart size={scale(12)} color={accent.danger} fill={accent.danger} />
+              <Text style={[styles.footerText, { color: theme.textMuted }]}>Support the game and enjoy the best experience.</Text>
+            </View>
           </ScrollView>
 
           {/* Toast */}
@@ -385,13 +492,27 @@ const styles = StyleSheet.create({
     paddingBottom: scale(24),
   },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: scale(12) },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
-  title: { fontSize: fontScale(20), fontWeight: '700' },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10), flex: 1, paddingRight: scale(8) },
+  title: { fontSize: fontScale(20), fontWeight: '800' },
+  tagline: { fontSize: fontScale(11.5), fontWeight: '600', marginTop: scale(1) },
+  closeCircle: { width: scale(34), height: scale(34), borderRadius: scale(17), alignItems: 'center', justifyContent: 'center' },
+  scrollBody: { paddingBottom: scale(12) },
   progressBox: { borderWidth: 1, borderRadius: responsiveBorderRadius.lg, padding: scale(12), marginBottom: scale(12) },
-  tierText: { fontSize: fontScale(15), fontWeight: '700', marginBottom: scale(8) },
+  progressTopRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10), marginBottom: scale(10) },
+  progressStarChip: {
+    width: scale(34), height: scale(34), borderRadius: scale(17),
+    backgroundColor: colors.palette.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  tierText: { fontSize: fontScale(15), fontWeight: '700' },
   progressTrack: { height: scale(8), borderRadius: scale(4), overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: scale(4) },
-  progressLabel: { fontSize: fontScale(12), marginTop: scale(6) },
+  progressLabel: { fontSize: fontScale(12), marginTop: scale(2) },
+  viewRewardsPill: {
+    flexDirection: 'row', alignItems: 'center', gap: scale(5),
+    borderWidth: 1, borderRadius: scale(999),
+    paddingHorizontal: scale(11), paddingVertical: scale(6),
+  },
+  viewRewardsText: { fontSize: fontScale(11.5), fontWeight: '700' },
   seasonBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: scale(8),
     borderWidth: 1, borderRadius: responsiveBorderRadius.md,
@@ -400,12 +521,45 @@ const styles = StyleSheet.create({
   seasonBannerText: { flex: 1, paddingRight: scale(8) },
   seasonBannerTitle: { fontSize: fontScale(13), fontWeight: '700' },
   seasonBannerDesc: { fontSize: fontScale(12), marginTop: scale(2) },
-  premiumBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: scale(8),
-    borderWidth: 1, borderRadius: responsiveBorderRadius.md,
-    padding: scale(10), marginBottom: scale(12),
+
+  // ── HERO "Go Premium" card ──────────────────────────────────────────────
+  heroWrap: {
+    marginBottom: scale(14), borderRadius: responsiveBorderRadius.lg, overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(245,197,66,0.35)',
+    backgroundColor: '#0B1020',
+    shadowColor: '#F5C542', shadowOpacity: 0.45, shadowRadius: scale(16), shadowOffset: { width: 0, height: scale(4) }, elevation: 8,
   },
-  premiumText: { fontSize: fontScale(13), fontWeight: '600', flex: 1 },
+  heroImageBand: { height: scale(150), justifyContent: 'flex-end', overflow: 'hidden' },
+  heroImg: { borderTopLeftRadius: responsiveBorderRadius.lg, borderTopRightRadius: responsiveBorderRadius.lg },
+  heroShimmer: {
+    position: 'absolute', top: -scale(40), bottom: -scale(40), width: scale(70),
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  heroCrown: {
+    position: 'absolute', top: scale(12), right: scale(16),
+    alignItems: 'center', justifyContent: 'center',
+  },
+  heroSpark1: { position: 'absolute', top: scale(38), right: scale(54) },
+  heroSpark2: { position: 'absolute', top: scale(20), right: scale(68) },
+  heroContent: { padding: scale(16), paddingTop: scale(12) },
+  bestValuePill: {
+    flexDirection: 'row', alignItems: 'center', gap: scale(4), alignSelf: 'flex-start',
+    backgroundColor: '#FCD34D', borderRadius: scale(999),
+    paddingHorizontal: scale(9), paddingVertical: scale(3), margin: scale(12),
+  },
+  bestValueText: { fontSize: fontScale(9.5), fontWeight: '900', color: '#3B2F00', letterSpacing: 0.6 },
+  heroTitle: { fontSize: fontScale(24), fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.2 },
+  heroSub: { fontSize: fontScale(12.5), fontWeight: '600', color: 'rgba(241,245,249,0.92)', marginTop: scale(4), lineHeight: fontScale(18) },
+  heroCta: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(6),
+    backgroundColor: '#FCD34D', borderRadius: scale(999),
+    paddingVertical: scale(11), paddingHorizontal: scale(18), marginTop: scale(14), alignSelf: 'flex-start',
+    shadowColor: '#F59E0B', shadowOpacity: 0.5, shadowRadius: scale(10), shadowOffset: { width: 0, height: scale(2) }, elevation: 4,
+  },
+  heroCtaText: { fontSize: fontScale(14), fontWeight: '900', color: '#1A1206' },
+  heroFootRow: { flexDirection: 'row', alignItems: 'center', gap: scale(6), marginTop: scale(10) },
+  heroFootText: { fontSize: fontScale(11), fontWeight: '600', color: 'rgba(253,230,138,0.95)' },
+
   cosmeticsBox: { borderWidth: 1, borderRadius: responsiveBorderRadius.md, padding: scale(10), marginBottom: scale(12) },
   cosmeticsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: scale(8) },
   cosmeticsTitle: { fontSize: fontScale(13), fontWeight: '700' },
@@ -426,11 +580,17 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.md, paddingVertical: scale(10), marginBottom: scale(12),
   },
   claimAllText: { color: '#FFFFFF', fontSize: fontScale(14), fontWeight: '800' },
-  trackHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: scale(6) },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10), marginTop: scale(4), marginBottom: scale(12) },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth * 2 },
+  dividerText: { fontSize: fontScale(11.5), fontWeight: '700', letterSpacing: 0.3 },
+  trackHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: scale(8), gap: scale(8) },
   trackHeaderTier: { width: scale(36), fontSize: fontScale(11), fontWeight: '600' },
   trackHeader: { flex: 1, textAlign: 'center', fontSize: fontScale(12), fontWeight: '700' },
-  ladder: { flexGrow: 0 },
-  ladderContent: { paddingBottom: scale(8) },
+  premiumHeaderPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(4),
+    backgroundColor: '#FCD34D', borderRadius: scale(999), paddingVertical: scale(5),
+  },
+  premiumHeaderText: { fontSize: fontScale(12), fontWeight: '900', color: '#1A1206', letterSpacing: 0.2 },
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: scale(8), gap: scale(8) },
   tierBadge: { width: scale(28), height: scale(28), borderRadius: scale(14), alignItems: 'center', justifyContent: 'center' },
   tierBadgeText: { fontSize: fontScale(12), fontWeight: '700' },
@@ -440,6 +600,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: scale(6),
   },
   cellLabel: { fontSize: fontScale(11), fontWeight: '600', flexShrink: 1 },
+
+  // ── Value-prop strip + footer ───────────────────────────────────────────
+  featureStrip: {
+    flexDirection: 'row', flexWrap: 'wrap', marginTop: scale(16),
+    rowGap: scale(12), columnGap: scale(10),
+  },
+  featureItem: { flexDirection: 'row', alignItems: 'center', gap: scale(8), width: '47%' },
+  featureIcon: { width: scale(30), height: scale(30), borderRadius: scale(9), alignItems: 'center', justifyContent: 'center' },
+  featureTitle: { fontSize: fontScale(12), fontWeight: '800' },
+  featureDesc: { fontSize: fontScale(10.5), fontWeight: '500', marginTop: scale(1) },
+  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(6), marginTop: scale(18) },
+  footerText: { fontSize: fontScale(11), fontWeight: '600', textAlign: 'center' },
   toast: {
     position: 'absolute', bottom: scale(28), alignSelf: 'center',
     borderWidth: 1, borderRadius: responsiveBorderRadius['2xl'],

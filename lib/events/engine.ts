@@ -2415,7 +2415,151 @@ const parkingTicket: EventTemplate = {
   },
 };
 
+// ── Life-Moment Payoff Events ──────────────────────────────────────────────
+// Resolutions to setup choices made in the Life Moments system
+// (lib/lifeMoments/lifeMomentGenerator.ts). Picking a "risky" or "kind" branch
+// there attaches a HiddenConsequence that, after a delay, unlocks the matching
+// payoff id below — via consequenceState.unlockedEvents (for `unlock_event`) or
+// consequenceState.eventWeightModifiers (for `modify_weight`). Each self-gates
+// on choiceHistory so it fires EXACTLY ONCE: resolving it records the choice,
+// which flips the condition false. Without these templates the unlock flags
+// were set but never consumed (the promised payoff never arrived).
+
+/** True when a life-moment `unlock_event` fired for `id` and it's unresolved. */
+const payoffReady = (state: GameState, id: string): boolean => {
+  const cs = state.consequenceState;
+  if (!cs) return false;
+  const unlocked = (cs.unlockedEvents ?? []).includes(id);
+  const resolved = (cs.choiceHistory ?? []).some(c => c.eventId === id);
+  return unlocked && !resolved;
+};
+
+/** True when a `modify_weight` life-moment fired for `id` and it's unresolved. */
+const weightPayoffReady = (state: GameState, id: string): boolean => {
+  const cs = state.consequenceState;
+  if (!cs) return false;
+  const triggered = (cs.eventWeightModifiers?.[id] ?? 0) > 0;
+  const resolved = (cs.choiceHistory ?? []).some(c => c.eventId === id);
+  return triggered && !resolved;
+};
+
+/** Deterministic 0..1 roll seeded on the absolute week + a per-event salt. */
+const payoffRoll = (state: GameState, salt: number): number => {
+  const x = Math.sin((state.weeksLived || 0) * 1013 + salt) * 10000;
+  return x - Math.floor(x);
+};
+
+// Payoff to: tipping a street musician $5 (unlock_event, +5 weeks). A warm,
+// low-stakes callback that rewards a small act of kindness.
+const streetMusicianFriend: EventTemplate = {
+  id: 'street_musician_friend',
+  category: 'general',
+  weight: 1.2, // gated by condition; high so the unlocked payoff surfaces promptly
+  condition: state => payoffReady(state, 'street_musician_friend'),
+  generate: () => ({
+    id: 'street_musician_friend',
+    description: 'You round a corner and there they are — the street musician you tipped weeks ago. Their face lights up in recognition. "You! This one\'s for you," they say, and start playing your favorite song right there on the sidewalk.',
+    choices: [
+      { id: 'listen', text: 'Stop and take it all in', effects: { stats: { happiness: 12, energy: 3 } } },
+      { id: 'tip_again', text: 'Drop another $10 in the case', effects: { money: -10, stats: { happiness: 15, reputation: 3 }, karma: { dimension: 'generosity', amount: 3, reason: 'Tipped the street musician again' } } },
+    ],
+  }),
+};
+
+// Payoff to: going all-in on a friend's startup with a $5,000 windfall
+// (unlock_event, +8 weeks). Seeded three-way outcome: big win / modest / bust.
+const startupPayout: EventTemplate = {
+  id: 'startup_payout',
+  category: 'economy',
+  weight: 1.2,
+  condition: state => payoffReady(state, 'startup_payout'),
+  generate: (state) => {
+    const roll = payoffRoll(state, 271);
+    if (roll < 0.4) {
+      return {
+        id: 'startup_payout',
+        description: 'Your phone buzzes: the startup you bet $5,000 on just got acquired. Your stake is worth $25,000. The founder is texting you champagne emojis.',
+        choices: [
+          { id: 'cash_out', text: 'Cash out — take the $25,000', effects: { money: 25000, stats: { happiness: 20 } } },
+          { id: 'reinvest', text: 'Roll it into their next round', effects: { money: 5000, stats: { happiness: 10, reputation: 6 } } },
+        ],
+      };
+    }
+    if (roll < 0.65) {
+      return {
+        id: 'startup_payout',
+        description: 'The startup didn\'t moon, but it didn\'t die either. They buy out early backers at a small premium — you get $7,000 back on your $5,000.',
+        choices: [
+          { id: 'take', text: 'Take the $7,000 and move on', effects: { money: 7000, stats: { happiness: 6 } } },
+          { id: 'gripe', text: 'Grumble it wasn\'t the moonshot promised', effects: { money: 7000, stats: { happiness: -2 } } },
+        ],
+      };
+    }
+    return {
+      id: 'startup_payout',
+      description: 'The email is short: "We\'ve made the difficult decision to wind down." Your $5,000 is gone. The founder is already "moving on to the next thing."',
+      choices: [
+        { id: 'shrug', text: 'Chalk it up to experience', effects: { stats: { happiness: -8, reputation: 2 } } },
+        { id: 'bitter', text: 'Vow never to gamble on a pitch again', effects: { stats: { happiness: -4 }, karma: { dimension: 'honesty', amount: 1, reason: 'Took a loss with grace' } } },
+      ],
+    };
+  },
+};
+
+// Payoff to: handing $1,000 to an acquaintance's "guaranteed" stock tip
+// (unlock_event, +4 weeks). Mostly a scam — thematically, guaranteed rarely is.
+const hotTipOutcome: EventTemplate = {
+  id: 'hot_tip_outcome',
+  category: 'economy',
+  weight: 1.2,
+  condition: state => payoffReady(state, 'hot_tip_outcome'),
+  generate: (state) => {
+    const roll = payoffRoll(state, 613);
+    if (roll < 0.25) {
+      return {
+        id: 'hot_tip_outcome',
+        description: 'Against all odds, the "guaranteed" tip actually hit. Your acquaintance wires you $2,400 on your $1,000 in. "Told you," he says.',
+        choices: [
+          { id: 'take', text: 'Take the winnings and thank your luck', effects: { money: 2400, stats: { happiness: 12 } } },
+          { id: 'double', text: 'Ask to ride his next "sure thing"', effects: { money: 2400, stats: { happiness: 4, reputation: -2 } } },
+        ],
+      };
+    }
+    return {
+      id: 'hot_tip_outcome',
+      description: 'Your calls go to voicemail. The "guaranteed" stock cratered — or never existed. Your $1,000 is gone, and so is your slick acquaintance.',
+      choices: [
+        { id: 'learn', text: 'Take the lesson: guaranteed returns never are', effects: { stats: { happiness: -6, reputation: 3 } } },
+        { id: 'chase', text: 'Waste an afternoon trying to track him down', effects: { stats: { happiness: -10, energy: -8 } } },
+      ],
+    };
+  },
+};
+
+// Payoff to: "rounding up" the numbers when a manager pressured you
+// (modify_weight, +0.15). Gated by the weight flag; the fudge comes back around.
+const auditScandal: EventTemplate = {
+  id: 'audit_scandal',
+  category: 'general',
+  weight: 1.2, // condition is the real gate (only fires once the fudge is flagged)
+  condition: state => weightPayoffReady(state, 'audit_scandal'),
+  generate: () => ({
+    id: 'audit_scandal',
+    description: 'An internal auditor flags the quarter you "rounded up." The numbers don\'t reconcile, and your name is on the report. She wants an explanation by Friday.',
+    choices: [
+      { id: 'come_clean', text: 'Come clean and take responsibility', effects: { stats: { reputation: -8, happiness: -5 }, karma: { dimension: 'honesty', amount: 5, reason: 'Owned up to falsified numbers' } } },
+      { id: 'blame', text: 'Blame a "spreadsheet error" and hope it sticks', effects: { stats: { reputation: -3, happiness: -3 }, karma: { dimension: 'honesty', amount: -4, reason: 'Covered up falsified numbers' } } },
+      { id: 'lawyer', text: 'Quietly lawyer up ($2,000)', effects: { money: -2000, stats: { reputation: 2 } } },
+    ],
+  }),
+};
+
 export const eventTemplates: EventTemplate[] = [
+  // Life-Moment Payoff Events (self-gated; fire once when their setup unlocks them)
+  streetMusicianFriend,
+  startupPayout,
+  hotTipOutcome,
+  auditScandal,
   // Personal Crisis Events (added first for priority)
   ...personalCrisisEventTemplates,
   // Economic Event Templates (for individual economic events, not global state)

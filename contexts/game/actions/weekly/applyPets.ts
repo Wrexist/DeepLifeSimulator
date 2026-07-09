@@ -54,18 +54,23 @@ export function tickPetsForWeek(prevPets: Pet[] | undefined | null, rolls: PetTi
     // Age: +1 week
     newPet.age = (newPet.age || 0) + 1;
 
-    // Hunger increases (needs feeding) — +8 per week
-    newPet.hunger = Math.min(100, (newPet.hunger || 0) + 8);
+    // Hunger is FULLNESS/satiety (100 = full, 0 = starving) — the convention
+    // used by feedPet (adds nutrition), buyPet (starts at 80), the shop UI, and
+    // bonding (critical at hunger <= 10). The tick previously treated it as a
+    // hunger LEVEL (raised it and penalized when HIGH), which meant a well-fed
+    // pet sat permanently in the penalty zone and feeding accelerated its death.
+    // Now fullness decays weekly and the player feeds to top it back up.
+    newPet.hunger = Math.max(0, (newPet.hunger ?? 100) - 8);
 
-    // Happiness decays if hungry or neglected — -5 if hunger > 60
-    // BUGFIX: use ?? so a happiness of 0 is preserved (not replaced
-    // with the 50 fallback). Same fix below for health.
-    if (newPet.hunger > 60) {
+    // Happiness decays when the pet is getting hungry (low fullness).
+    // BUGFIX: use ?? so a happiness of 0 is preserved (not replaced with the 50
+    // fallback). Same fix below for health.
+    if (newPet.hunger < 40) {
       newPet.happiness = Math.max(0, (newPet.happiness ?? 50) - 5);
     }
 
-    // Health decays if very hungry — -3 if hunger > 80
-    if (newPet.hunger > 80) {
+    // Health decays when the pet is starving (very low fullness).
+    if (newPet.hunger < 20) {
       newPet.health = Math.max(0, (newPet.health ?? 50) - 3);
     }
 

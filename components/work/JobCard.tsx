@@ -1,10 +1,9 @@
 import React from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Lock } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-// expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
-const LinearGradient = LinearGradientFallback;
+import ProgressRing from '@/components/ui/ProgressRing';
+import GradientButton from '@/components/ui/GradientButton';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
 export type JobCardAccent = 'street' | 'career' | 'crime';
@@ -30,23 +29,32 @@ interface JobCardProps {
   feedback?: string;
   feedbackOpacity?: Animated.Value;
   footer?: React.ReactNode;
+  /**
+   * When set (0–100), a compact leading ProgressRing renders in the header —
+   * used by street/crime jobs to show weekly-usage against the 3×/week cap.
+   */
+  progress?: number;
+  progressState?: 'active' | 'done';
+  /** Small content shown in the ring's center (e.g. "1/3"). */
+  ringCenter?: React.ReactNode;
+  ringLabel?: string;
 }
 
-const ACCENTS: Record<JobCardAccent, { reward: string; button: [string, string, string]; disabled: [string, string] }> = {
+const ACCENTS: Record<JobCardAccent, { reward: string; button: [string, string, string]; glow: string }> = {
   street: {
     reward: '#60A5FA',
-    button: ['#3B82F6', '#2563EB', '#1D4ED8'],
-    disabled: ['#1F2937', '#111827'],
+    button: ['#60A5FA', '#3B82F6', '#1D4ED8'], // light top → deep bottom for depth
+    glow: '#3B82F6',
   },
   career: {
     reward: '#34D399',
-    button: ['#10B981', '#059669', '#047857'],
-    disabled: ['#1F2937', '#111827'],
+    button: ['#34D399', '#10B981', '#047857'],
+    glow: '#10B981',
   },
   crime: {
     reward: '#F87171',
-    button: ['#DC2626', '#B91C1C', '#991B1B'],
-    disabled: ['#1F2937', '#111827'],
+    button: ['#F87171', '#DC2626', '#991B1B'],
+    glow: '#DC2626',
   },
 };
 
@@ -70,12 +78,13 @@ export default function JobCard({
   feedback,
   feedbackOpacity,
   footer,
+  progress,
+  progressState = 'active',
+  ringCenter,
+  ringLabel,
 }: JobCardProps) {
   const palette = ACCENTS[accent];
   const buttonPalette = ACCENTS[buttonAccent ?? accent];
-  const buttonGradient: [string, string, ...string[]] = locked
-    ? [buttonPalette.disabled[0], buttonPalette.disabled[1]]
-    : [buttonPalette.button[0], buttonPalette.button[1], buttonPalette.button[2]];
   const descLine = locked && lockReason ? lockReason : description;
 
   return (
@@ -84,6 +93,20 @@ export default function JobCard({
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
+          {typeof progress === 'number' ? (
+            <ProgressRing
+              value={progress}
+              size={46}
+              strokeWidth={5}
+              showPill={false}
+              ambient={false}
+              state={progressState}
+              accentColor={palette.reward}
+              label={ringLabel}
+            >
+              {ringCenter}
+            </ProgressRing>
+          ) : null}
           <Text style={styles.title} numberOfLines={2}>
             {title}
           </Text>
@@ -117,26 +140,14 @@ export default function JobCard({
           </>
         ) : null}
 
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={buttonText}
-          accessibilityState={{ disabled: locked }}
-          activeOpacity={0.85}
-          disabled={locked || !onPress}
+        <GradientButton
+          label={buttonText}
           onPress={onPress}
-          style={styles.buttonWrap}
-        >
-          <LinearGradient
-            colors={buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.button}
-          >
-            <Text style={[styles.buttonText, locked && styles.buttonTextLocked]}>
-              {buttonText}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          disabled={locked || !onPress}
+          colors={buttonPalette.button}
+          glow={buttonPalette.glow}
+          style={styles.buttonSpacing}
+        />
 
         {feedback ? (
           <Animated.View style={[styles.feedback, feedbackOpacity ? { opacity: feedbackOpacity } : undefined]}>
@@ -165,7 +176,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: scale(12),
   },
@@ -224,25 +235,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
-  buttonWrap: {
+  buttonSpacing: {
     marginTop: verticalScale(4),
-    borderRadius: responsiveBorderRadius.sm,
-    overflow: 'hidden',
-  },
-  button: {
-    paddingVertical: verticalScale(11),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    fontSize: fontScale(14),
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  buttonTextLocked: {
-    color: 'rgba(226, 232, 240, 0.5)',
   },
   feedback: {
     alignSelf: 'center',

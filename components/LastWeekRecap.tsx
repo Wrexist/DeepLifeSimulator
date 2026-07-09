@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { TrendingUp, TrendingDown, Sparkles, Flame } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Sparkles, Flame, Briefcase, Mail } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -22,12 +22,14 @@ function LastWeekRecap() {
       weekResult: s?.weekResult,
       playStreak: s?.playStreak,
       weeksLived: s?.weeksLived,
+      pendingEventCount: s?.pendingEvents?.length ?? 0,
     }),
     shallowEqual,
   ) as {
     weekResult?: import('@/contexts/game/types').GameState['weekResult'];
     playStreak?: import('@/contexts/game/types').GameState['playStreak'];
     weeksLived?: number;
+    pendingEventCount?: number;
   };
 
   const wr = data?.weekResult;
@@ -62,10 +64,14 @@ function LastWeekRecap() {
   const expenses = wr.expensesPaid ?? 0;
   const streakBonus = wr.streakBonus ?? 0;
   const streakCount = data?.playStreak?.count ?? 0;
+  const careerProgress = Math.round(wr.careerProgressPercent ?? 0);
+  const pendingEvents = data?.pendingEventCount ?? 0;
 
-  // A truly empty week (no money movement at all) stays silent rather than
-  // showing a hollow "$0" recap.
-  if (income === 0 && expenses === 0 && net === 0 && lucky === 0) return null;
+  // Only go silent when there is truly NOTHING to say. Previously any
+  // money-flat week returned null — which also swallowed career progress and
+  // even the "decisions waiting" badge, making those weeks feel dead.
+  const moneyMoved = income !== 0 || expenses !== 0 || net !== 0 || lucky !== 0;
+  if (!moneyMoved && careerProgress === 0 && pendingEvents === 0) return null;
 
   const positive = net >= 0;
   const netColor = positive ? '#34D399' : '#F87171';
@@ -82,17 +88,21 @@ function LastWeekRecap() {
     >
       <View style={styles.topRow}>
         <Text style={[styles.label, { color: subColor }]}>LAST WEEK</Text>
-        <View style={styles.netCluster}>
-          {positive ? (
-            <TrendingUp size={scale(15)} color={netColor} />
-          ) : (
-            <TrendingDown size={scale(15)} color={netColor} />
-          )}
-          <Text style={[styles.netValue, { color: netColor }]}>
-            {positive ? '+' : '-'}
-            {fmt(net)}
-          </Text>
-        </View>
+        {moneyMoved ? (
+          <View style={styles.netCluster}>
+            {positive ? (
+              <TrendingUp size={scale(15)} color={netColor} />
+            ) : (
+              <TrendingDown size={scale(15)} color={netColor} />
+            )}
+            <Text style={[styles.netValue, { color: netColor }]}>
+              {positive ? '+' : '-'}
+              {fmt(net)}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[styles.chip, { color: subColor }]}>A quiet week for your wallet</Text>
+        )}
       </View>
 
       <View style={styles.chipRow}>
@@ -117,6 +127,20 @@ function LastWeekRecap() {
             <Flame size={scale(11)} color="#A78BFA" />
             <Text style={styles.badgeStreak}>
               {streakCount}d streak +{fmt(streakBonus)}
+            </Text>
+          </View>
+        )}
+        {careerProgress > 0 && (
+          <View style={styles.badge}>
+            <Briefcase size={scale(11)} color="#60A5FA" />
+            <Text style={styles.badgeCareer}>Career +{careerProgress}%</Text>
+          </View>
+        )}
+        {pendingEvents > 0 && (
+          <View style={styles.badge}>
+            <Mail size={scale(11)} color="#F59E0B" />
+            <Text style={styles.badgeDecision}>
+              {pendingEvents === 1 ? 'A decision is waiting' : `${pendingEvents} decisions waiting`}
             </Text>
           </View>
         )}
@@ -194,6 +218,16 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     fontWeight: '700',
     color: '#A78BFA',
+  },
+  badgeCareer: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: '#60A5FA',
+  },
+  badgeDecision: {
+    fontSize: fontScale(11),
+    fontWeight: '700',
+    color: '#F59E0B',
   },
 });
 

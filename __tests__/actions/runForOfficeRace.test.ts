@@ -94,7 +94,10 @@ describe('runForOffice same-batch race regression (weekly audit 2026-07-02)', ()
 
     expect(res.success).toBe(true);
     expect(get().stats.money).toBe(10000);
-    expect(get().politics?.careerLevel).toBe(0);
+    // Council Member is office RANK 1 (careerLevel is 1-based: 0=Citizen … 6=President).
+    // This was previously 0, which mislabeled a winner as "Citizen" and left the
+    // scandal engine + political events (all gated on careerLevel > 0) switched off.
+    expect(get().politics?.careerLevel).toBe(1);
     expect(get().politics?.electionsWon).toBe(1);
   });
 });

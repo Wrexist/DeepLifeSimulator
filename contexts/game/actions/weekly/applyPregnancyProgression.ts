@@ -49,6 +49,11 @@ import type { WeekContext } from './weekContext';
 
 const CHILD_PERSONALITIES = ['Playful', 'Curious', 'Energetic', 'Sweet', 'Adventurous'];
 
+// Gendered newborn name pools — previously every child was named "Baby".
+// Picked deterministically from a pre-roll so StrictMode double-invoke agrees.
+const MALE_BABY_NAMES = ['Liam', 'Noah', 'Ethan', 'Oliver', 'Lucas', 'Leo', 'Kai', 'Milo', 'Owen', 'Caleb', 'Aiden', 'Elias'];
+const FEMALE_BABY_NAMES = ['Emma', 'Olivia', 'Ava', 'Mia', 'Sophia', 'Isla', 'Luna', 'Nora', 'Ivy', 'Elena', 'Zoe', 'Aria'];
+
 export interface PregnancyProgressionResult {
   rel: Relationship;
   newborn: Relationship | null;
@@ -70,7 +75,9 @@ export function applyPregnancyProgression(
   if (pregnancyWeeks >= PREGNANCY_DURATION_WEEKS) {
     // Birth! Create the child.
     const childGender = rel.pregnancyChildGender || preRolls.childGender;
-    const childName = rel.pregnancyChildName || (childGender === 'male' ? 'Baby' : 'Baby');
+    const namePool = childGender === 'male' ? MALE_BABY_NAMES : FEMALE_BABY_NAMES;
+    const pickedName = namePool[Math.abs(Math.floor(preRolls.timestamp)) % namePool.length];
+    const childName = rel.pregnancyChildName || pickedName;
     const childId = `child_${preRolls.timestamp}_${preRolls.childIdSuffix}`;
 
     const newChild: Relationship = {

@@ -48,12 +48,43 @@ import {
   spendPACOnCampaign,
   suppressPoliticalScandal,
   enactPolicy,
+  runForOffice,
+  campaign,
+  joinParty,
 } from '@/contexts/game/actions/PoliticalActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { ensurePoliticsHasNewFields } from '@/lib/politics/operations';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
+import { getPolicyById } from '@/lib/politics/policies';
 import EnactPolicyModal from '@/components/politics/EnactPolicyModal';
+
+// Office rank (careerLevel) → the office you run for NEXT. careerLevel is the
+// 1-based rank (0=Citizen … 6=President); index N is the next step up.
+const NEXT_OFFICE_KEYS = [
+  'council_member', 'mayor', 'state_representative', 'governor', 'senator', 'president',
+] as const;
+const OFFICE_TITLE: Record<string, string> = {
+  council_member: 'Council Member',
+  mayor: 'Mayor',
+  state_representative: 'State Representative',
+  governor: 'Governor',
+  senator: 'Senator',
+  president: 'President',
+};
+const CAMPAIGN_COST: Record<string, number> = {
+  council_member: 5_000,
+  mayor: 20_000,
+  state_representative: 50_000,
+  governor: 200_000,
+  senator: 500_000,
+  president: 2_000_000,
+};
+const PARTIES: { id: 'democratic' | 'republican' | 'independent'; label: string }[] = [
+  { id: 'democratic', label: 'Democratic' },
+  { id: 'republican', label: 'Republican' },
+  { id: 'independent', label: 'Independent' },
+];
 
 interface PoliticalAppProps {
   onBack: () => void;
@@ -102,14 +133,15 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   const [showPACSpend, setShowPACSpend] = useState(false);
   const [suppressTargetId, setSuppressTargetId] = useState<string | null>(null);
   const [showEnactPolicy, setShowEnactPolicy] = useState(false);
+  const [showCampaign, setShowCampaign] = useState(false);
 
   const cash = gameState.stats?.money ?? 0;
   const btcOwned = useMemo(
-    () => gameState.cryptos.find((c) => c.id === 'btc')?.owned ?? 0,
+    () => (gameState.cryptos ?? []).find((c) => c.id === 'btc')?.owned ?? 0,
     [gameState.cryptos]
   );
   const btcPrice = useMemo(
-    () => gameState.cryptos.find((c) => c.id === 'btc')?.price ?? 0,
+    () => (gameState.cryptos ?? []).find((c) => c.id === 'btc')?.price ?? 0,
     [gameState.cryptos]
   );
 
@@ -125,6 +157,23 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   const weeksToElection = politics.nextElectionWeek != null
     ? Math.max(0, politics.nextElectionWeek - gameState.weeksLived)
     : null;
+  // Next office up: careerLevel is the 1-based rank, indexing directly into the
+  // "run for" list (0 → council, 5 → president). At rank 6 there's nothing higher.
+  const nextOfficeKey: string | null = careerLevel < NEXT_OFFICE_KEYS.length
+    ? NEXT_OFFICE_KEYS[careerLevel]
+    : null;
+
+  const handleRunForOffice = useCallback(() => {
+    if (!nextOfficeKey) return;
+    const result = runForOffice(gameState, setGameState, nextOfficeKey as Parameters<typeof runForOffice>[2], { updateMoney });
+    Alert.alert(result.success ? '🗳️ Election Night' : 'Cannot run yet', result.message);
+    if (result.success) queueSave();
+  }, [gameState, setGameState, nextOfficeKey, queueSave]);
+
+  const handleJoinParty = useCallback((party: 'democratic' | 'republican' | 'independent') => {
+    const result = joinParty(gameState, setGameState, party);
+    if (result.success) queueSave();
+  }, [gameState, setGameState, queueSave]);
 
   // --- Render helpers ----------------------------------------------------
   const renderOffice = () => (
@@ -167,9 +216,54 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         <StatCard theme={theme} icon={ClipboardList} label="Policies" value={String((politics.policiesEnacted ?? []).length)} />
       </View>
 
-      <Text style={[styles.helperText, { color: theme.textMuted }]}>
-        Use the legacy career/lobby/alliance flows from the original app for now; running for office, joining a party, hiring lobbyists, and enacting policies remain on the existing surface.
-      </Text>
+      {/* Primary action: run for the next office up (or the first office as a
+          citizen). runForOffice enforces age / reputation / education / cash and
+          rolls the election; its message explains any gate. */}
+      {nextOfficeKey ? (
+        <TouchableOpacity onPress={handleRunForOffice} style={[styles.enactCta, { backgroundColor: accent.info }]}>
+          <Vote size={scale(16)} color="white" />
+          <Text style={styles.enactCtaText}>
+            Run for {OFFICE_TITLE[nextOfficeKey]} · {formatMoney(CAMPAIGN_COST[nextOfficeKey])}
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={[styles.electionCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+          <Trophy size={scale(16)} color={accent.warning} />
+          <Text style={[styles.electionText, { color: theme.text }]}>You hold the highest office in the land.</Text>
+        </View>
+      )}
+
+      {/* Campaign: spend cash to lift approval between elections — the lever that
+          protects your seat when re-election comes around. */}
+      <TouchableOpacity
+        onPress={() => setShowCampaign(true)}
+        style={[styles.secondaryCta, { borderColor: accent.info }]}
+      >
+        <TrendingUp size={scale(15)} color={accent.info} />
+        <Text style={[styles.secondaryCtaText, { color: accent.info }]}>Fund a campaign push (raise approval)</Text>
+      </TouchableOpacity>
+
+      {/* Party affiliation — unlocks party events and a small approval bump. */}
+      {politics.party ? (
+        <Text style={[styles.helperText, { color: theme.textMuted }]}>
+          Registered with the {politics.party.charAt(0).toUpperCase() + politics.party.slice(1)} Party.
+        </Text>
+      ) : (
+        <View style={{ gap: responsiveSpacing.xs }}>
+          <SectionTitle theme={theme}>Choose a party</SectionTitle>
+          <View style={styles.partyRow}>
+            {PARTIES.map((p) => (
+              <TouchableOpacity
+                key={p.id}
+                onPress={() => handleJoinParty(p.id)}
+                style={[styles.partyBtn, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+              >
+                <Text style={[styles.partyBtnText, { color: theme.text }]}>{p.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 
@@ -208,11 +302,17 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
             No policies enacted yet.
           </EmptyText>
         ) : (
-          enacted.map((pid: string) => (
-            <View key={pid} style={[styles.policyRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-              <Text style={[styles.policyLabel, { color: theme.text }]}>{pid}</Text>
-            </View>
-          ))
+          enacted.map((pid: string) => {
+            const policy = getPolicyById(pid);
+            return (
+              <View key={pid} style={[styles.policyRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                <Text style={[styles.policyLabel, { color: theme.text }]}>{policy?.name ?? pid}</Text>
+                {policy?.description ? (
+                  <Text style={[styles.policyDesc, { color: theme.textMuted }]} numberOfLines={2}>{policy.description}</Text>
+                ) : null}
+              </View>
+            );
+          })
         )}
         <Text style={[styles.helperText, { color: theme.textMuted }]}>
           Each contentious policy you enact slightly raises your scandal risk. Look in Influence tab to see suppression options.
@@ -382,6 +482,23 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         }}
       />
 
+      <AmountInputModal
+        visible={showCampaign}
+        title="Fund a campaign push"
+        subtitle={`Spend from cash to raise your approval rating (diminishing returns). Cash on hand: ${formatMoney(cash)}`}
+        confirmLabel="Spend"
+        maxAmount={cash}
+        presets={[5_000, 25_000, 100_000]}
+        darkMode={darkMode}
+        onClose={() => setShowCampaign(false)}
+        onConfirm={(amt) => {
+          const result = campaign(gameState, setGameState, amt, { updateMoney });
+          if (result.success) queueSave();
+          else Alert.alert('Campaign', result.message);
+          setShowCampaign(false);
+        }}
+      />
+
       <EnactPolicyModal
         visible={showEnactPolicy}
         darkMode={darkMode}
@@ -434,6 +551,9 @@ export default function PoliticalApp(props: PoliticalAppProps) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   enactCta: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: responsiveSpacing.xs,
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.md,
@@ -444,6 +564,27 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.md,
     fontWeight: '700',
   },
+  secondaryCta: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.md,
+    borderWidth: 1,
+  },
+  secondaryCtaText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  partyRow: { flexDirection: 'row', gap: responsiveSpacing.sm },
+  partyBtn: {
+    flex: 1,
+    paddingVertical: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  partyBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  policyDesc: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

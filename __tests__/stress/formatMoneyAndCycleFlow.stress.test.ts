@@ -117,25 +117,8 @@ describe('IAPHandler require-cycle fix — BUGFIX #35', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Animation cleanup — BUGFIX #38 (source-level invariant)
+// Animation cleanup — BUGFIX #38: both components this guarded
+// (SeasonalEventModal, InteractiveTutorial) were later removed as dead code —
+// SeasonalEventModal's live path is WeeklyEventModal, and InteractiveTutorial's
+// TutorialProvider was never mounted. No source-level invariant remains.
 // ---------------------------------------------------------------------------
-describe('Animated.loop cleanup — BUGFIX #38', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const fs = require('fs');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const path = require('path');
-
-  it('SeasonalEventModal: every Animated.loop is stopped on cleanup', () => {
-    const file = path.resolve(__dirname, '../../components/events/SeasonalEventModal.tsx');
-    const src = fs.readFileSync(file, 'utf8');
-    expect(src).toContain('sparkleLoop?.stop()');
-    expect(src).toContain('pulseLoop?.stop()');
-  });
-
-  it('InteractiveTutorial: every Animated.loop is stopped on cleanup', () => {
-    const file = path.resolve(__dirname, '../../components/InteractiveTutorial.tsx');
-    const src = fs.readFileSync(file, 'utf8');
-    expect(src).toContain('pulseLoop?.stop()');
-    expect(src).toContain('arrowLoop?.stop()');
-  });
-});

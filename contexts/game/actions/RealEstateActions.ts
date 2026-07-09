@@ -126,19 +126,25 @@ export const buyPropertyWithMortgage = (
     weeklyIncome: number;
     asResidence?: boolean;
   }
-) => {
+): { success: boolean; message: string } => {
+  // Result captured from inside the updater (same pattern as
+  // purchaseVehicleWithAutoLoan) so the UI can celebrate success or explain a
+  // rejection — previously this returned void and failures were silent.
+  let result: { success: boolean; message: string } = { success: false, message: 'Purchase failed' };
   setGameState((prev) => {
     const catalog = spec.property;
     const existingIdx = (prev.realEstate ?? []).findIndex((p) => p.id === catalog.id);
     const existing = existingIdx === -1 ? undefined : prev.realEstate![existingIdx];
     if (existing && existing.owned) {
       log.warn(`Buy rejected: property already owned`);
+      result = { success: false, message: 'You already own this property.' };
       return prev;
     }
     // Use the catalog property for the quote (gives correct price even if not yet in state).
     const quote = quotePropertyPurchase(prev, catalog, spec.tier, spec.term, spec.weeklyIncome);
     if (quote.rejected) {
       log.info(`Purchase rejected: ${quote.reason}`);
+      result = { success: false, message: quote.reason ?? 'The lender rejected this purchase.' };
       return prev;
     }
     const cash = prev.stats?.money ?? 0;
@@ -149,6 +155,7 @@ export const buyPropertyWithMortgage = (
     // instead of silently flooring.
     if (cash < downPayment) {
       log.info(`Purchase rejected: insufficient cash for down payment (need ${downPayment}, have ${cash})`);
+      result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
       return prev;
     }
     const newMoney = cash - downPayment;
@@ -218,6 +225,13 @@ export const buyPropertyWithMortgage = (
       ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', downPayment)
       : prev.banking;
 
+    result = {
+      success: true,
+      message: spec.tier === 'cash'
+        ? `You bought ${catalog.name} outright for $${catalog.price.toLocaleString()}!`
+        : `You bought ${catalog.name} — $${Math.round(downPayment).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk mortgage.`,
+    };
+
     return {
       ...prev,
       banking,
@@ -226,6 +240,8 @@ export const buyPropertyWithMortgage = (
       loans: updatedLoans,
     };
   });
+
+  return result;
 };
 
 /**

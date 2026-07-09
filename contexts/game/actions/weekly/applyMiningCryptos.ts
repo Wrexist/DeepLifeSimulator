@@ -116,6 +116,19 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
   result.cryptoEarned = result.cryptoEarned * halvingMultiplier;
   result.totalEarnings = result.totalEarnings * halvingMultiplier;
 
+  // ANTI-EXPLOIT (double-pay fix): warehouse mining is now the ONLY payout for
+  // warehouse miners (removed from the cash passive-income path). To keep the same
+  // balance the old cash path enforced, cap the minted crypto's realizable USD value
+  // at $100K/week — the identical MINING_INCOME_CAP the cash side used. `totalEarnings`
+  // is the USD value (cryptoEarned × price); scale both down together when over cap so
+  // a tera fleet (16 BTC/wk ≈ $700K) can't dwarf every other income stream.
+  const MINING_USD_CAP = 100000;
+  if (result.totalEarnings > MINING_USD_CAP && result.cryptoEarned > 0) {
+    const scale = MINING_USD_CAP / result.totalEarnings;
+    result.cryptoEarned = result.cryptoEarned * scale;
+    result.totalEarnings = MINING_USD_CAP;
+  }
+
   // EXPLOIT FIX (H-2): the weekly electricity cost was computed but never
   // charged, making mining free/infinite profit. Charge it out of the mined
   // crypto (you pay the power bill from what you mine) — this keeps the fix

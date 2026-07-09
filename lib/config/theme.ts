@@ -76,8 +76,13 @@ export const colors = {
     border: 'rgba(255, 255, 255, 0.1)',
     borderStrong: 'rgba(255, 255, 255, 0.2)',
     text: palette.white,
-    textSecondary: palette.dark500,
-    textMuted: palette.dark600,
+    // Dark-mode secondary/muted text on dark800 cards. The previous
+    // dark500/dark600 grays were ~3.0:1 and ~1.9:1 contrast — muted labels
+    // (Bank's "Cash/Bank/Debt", credit-score scale, account subtitles) were
+    // nearly invisible. light300/light400 pass WCAG AA (~9.4:1 / ~5.9:1)
+    // while keeping the secondary > muted hierarchy.
+    textSecondary: palette.light300,
+    textMuted: palette.light400,
     overlay: 'rgba(0, 0, 0, 0.6)',
     glassBg: 'rgba(15, 23, 42, 0.3)',
     glassBorder: 'rgba(255, 255, 255, 0.15)',

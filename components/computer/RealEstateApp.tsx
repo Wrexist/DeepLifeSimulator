@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import {
   ArrowLeft,
   Home,
@@ -290,13 +290,16 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         onClose={() => setBuyTarget(null)}
         onConfirm={(spec) => {
           if (buyTarget) {
-            buyPropertyWithMortgage(setGameState, {
+            const result = buyPropertyWithMortgage(setGameState, {
               property: buyTarget,
               tier: spec.tier,
               term: spec.term,
               weeklyIncome,
               asResidence: spec.asResidence,
             });
+            // Signing a mortgage is a life milestone — celebrate it (and explain
+            // rejections, which previously vanished into the log).
+            Alert.alert(result.success ? '🏠 Sold!' : 'Purchase', result.message);
             queueSave();
           }
           setBuyTarget(null);

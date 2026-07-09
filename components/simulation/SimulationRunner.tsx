@@ -640,8 +640,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 12,
     marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#EF4444',
+    // Plain full border, no side stripe (DEV.md Hard Rule 7).
+    borderWidth: 1,
+    borderColor: '#EF4444',
   },
   detailedFailureApp: {
     fontSize: responsiveFontSize.base,

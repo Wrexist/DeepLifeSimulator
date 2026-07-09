@@ -18,25 +18,25 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     levels: [
       {
         name: 'Junior Executive',
-        salary: 200000,
+        salary: 3850, // ~$200k/yr
         experienceRequired: 0,
         description: 'Entry-level executive position',
       },
       {
         name: 'Senior Executive',
-        salary: 350000,
+        salary: 6725, // ~$350k/yr
         experienceRequired: 104, // 2 years
         description: 'Senior management role',
       },
       {
         name: 'Vice President',
-        salary: 500000,
+        salary: 9625, // ~$500k/yr
         experienceRequired: 260, // 5 years
         description: 'VP of operations',
       },
       {
         name: 'CEO',
-        salary: 1000000,
+        salary: 19225, // ~$1M/yr
         experienceRequired: 520, // 10 years
         description: 'Chief Executive Officer',
       },
@@ -62,25 +62,25 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     levels: [
       {
         name: 'Research Assistant',
-        salary: 60000,
+        salary: 1150, // ~$60k/yr
         experienceRequired: 0,
         description: 'Assist with research projects',
       },
       {
         name: 'Research Associate',
-        salary: 85000,
+        salary: 1625, // ~$85k/yr
         experienceRequired: 104, // 2 years
         description: 'Lead research projects',
       },
       {
         name: 'Senior Researcher',
-        salary: 120000,
+        salary: 2300, // ~$120k/yr
         experienceRequired: 260, // 5 years
         description: 'Senior research position',
       },
       {
         name: 'Principal Investigator',
-        salary: 180000,
+        salary: 3450, // ~$180k/yr
         experienceRequired: 520, // 10 years
         description: 'Lead major research initiatives',
       },
@@ -105,25 +105,25 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     levels: [
       {
         name: 'Junior Designer',
-        salary: 55000,
+        salary: 1050, // ~$55k/yr
         experienceRequired: 0,
         description: 'Entry-level design position',
       },
       {
         name: 'Senior Designer',
-        salary: 80000,
+        salary: 1550, // ~$80k/yr
         experienceRequired: 104, // 2 years
         description: 'Senior design role',
       },
       {
         name: 'Art Director',
-        salary: 110000,
+        salary: 2125, // ~$110k/yr
         experienceRequired: 260, // 5 years
         description: 'Lead design teams',
       },
       {
         name: 'Creative Director',
-        salary: 150000,
+        salary: 2875, // ~$150k/yr
         experienceRequired: 416, // 8 years
         description: 'Oversee all creative direction',
       },
@@ -149,25 +149,25 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     levels: [
       {
         name: 'Analyst',
-        salary: 100000,
+        salary: 1925, // ~$100k/yr
         experienceRequired: 0,
         description: 'Financial analysis and research',
       },
       {
         name: 'Associate',
-        salary: 150000,
+        salary: 2875, // ~$150k/yr
         experienceRequired: 104, // 2 years
         description: 'Deal execution and client relations',
       },
       {
         name: 'Vice President',
-        salary: 250000,
+        salary: 4800, // ~$250k/yr
         experienceRequired: 260, // 5 years
         description: 'Lead deal teams',
       },
       {
         name: 'Managing Director',
-        salary: 500000,
+        salary: 9625, // ~$500k/yr
         experienceRequired: 520, // 10 years
         description: 'Top-level investment banking',
       },
@@ -192,25 +192,25 @@ export const ADVANCED_CAREERS: AdvancedCareer[] = [
     levels: [
       {
         name: 'Resident',
-        salary: 60000,
+        salary: 1150, // ~$60k/yr
         experienceRequired: 0,
         description: 'Medical residency training',
       },
       {
         name: 'Fellow',
-        salary: 80000,
+        salary: 1550, // ~$80k/yr
         experienceRequired: 156, // 3 years
         description: 'Specialized surgical training',
       },
       {
         name: 'Attending Surgeon',
-        salary: 300000,
+        salary: 5775, // ~$300k/yr
         experienceRequired: 312, // 6 years
         description: 'Independent surgical practice',
       },
       {
         name: 'Chief of Surgery',
-        salary: 500000,
+        salary: 9625, // ~$500k/yr
         experienceRequired: 520, // 10 years
         description: 'Lead surgical department',
       },

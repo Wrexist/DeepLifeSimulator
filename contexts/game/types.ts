@@ -15,7 +15,6 @@ import type { PrestigeData } from '@/lib/prestige/prestigeTypes';
 import type { SocialState } from '@/lib/social/relations';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import type { DiscoveredSystem } from '@/lib/depth/discoverySystem';
-import type { SystemStatistics } from '@/lib/statistics/enhancedStatistics';
 import type { KarmaState } from '@/lib/karma/karmaSystem';
 import type { AutomationState } from '@/lib/automation/automationTypes';
 
@@ -156,6 +155,15 @@ export interface Career {
   performance?: number; // 0-100 job performance rating (affects progress speed, firing risk, raises)
   warningsReceived?: number; // Number of formal warnings (3 = auto-fired)
   currentLevel?: number; // Current level index (alias for level, used by some components)
+  raiseMultiplier?: number; // Negotiated salary premium (1 = base). Applied to paid salary; persists across promotions.
+  lastRaiseWeeksLived?: number; // weeksLived of the last raise REQUEST (approved OR denied) — gates the cooldown.
+}
+
+/** A practiced hobby/skill (v21 mastery loop). Level is derived from xp but
+ *  cached for cheap reads. */
+export interface PlayerPursuit {
+  xp: number;
+  level: number;
 }
 
 export interface Hobby {
@@ -1561,6 +1569,13 @@ export interface Loan {
   lastPaidWeek?: number;
   /** Original APR offered (may differ from rateAPR if refinanced). */
   originalAPR?: number;
+  /**
+   * For `type: 'auto'` loans — the id of the financed vehicle. Lets the UI link
+   * a loan to its vehicle reliably (matching by name substring mismatched
+   * duplicate models and collided on names that were substrings of others).
+   * Optional: legacy auto loans predate this field and fall back to name match.
+   */
+  vehicleId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -2015,7 +2030,6 @@ export interface GameState {
     reputationBonus: number;
   };
   familyBusinesses?: FamilyBusiness[];
-  hasFamilyBusinessLegacy?: boolean; // Prestige legacy_business bonus flag
   mindset?: {
     activeTraitId?: string;
     [key: string]: any;
@@ -2073,6 +2087,8 @@ export interface GameState {
     watchlist: string[];
     realizedGains?: number; // Total realized gains from sold shares
     savedMarketPrices?: Record<string, { price: number; dividendYield: number }>; // Persisted market prices to prevent save/reload exploit
+    /** Previous week's price snapshot — powers the ▲/▼ week-over-week change on the market board. */
+    lastWeekPrices?: Record<string, { price: number; dividendYield: number }>;
 
     // -----------------------------------------------------------------------
     // StocksApp Remake 6: sectors, order book, dividends. All optional so
@@ -2232,17 +2248,11 @@ export interface GameState {
   goals: Goal[];
   goalProgress: Record<string, GoalProgress>;
   completedGoals: string[];
-  socialEvents: SocialEvent[];
-  socialGroups: SocialGroup[];
-  socialInteractions: SocialInteraction[];
-  lastEventTimes: Record<string, number>;
-  dailyChallenges?: {
-    easy: DailyChallengeState;
-    medium: DailyChallengeState;
-    hard: DailyChallengeState;
-    lastRefresh: number;
-    lastRefreshDayKey?: string;
-  };
+  // DEAD-CODE CLEANUP: the "Enhanced Social System" block (socialEvents,
+  // socialGroups, socialInteractions, lastEventTimes) and the old
+  // dailyChallenges shape were write-only orphans — declared + initialized but
+  // never read or updated by any gameplay code. Removed; old saves carrying
+  // the keys are unaffected (unknown keys are ignored on load).
   rngCommitLog?: RngCommitLog;
   prestige?: PrestigeData;
   prestigeAvailable?: boolean; // True when net worth >= $100M
@@ -2344,15 +2354,10 @@ export interface GameState {
       health: number; // 0-100, increases with health activities, decays when neglected
     };
   };
-  // Depth Enhancement System - tracks discovered systems and depth metrics
+  // Depth Enhancement System - tracks discovered systems
+  // (depthMetrics / progressiveDisclosureLevel / systemStatistics removed:
+  // write-only orphans with no reader anywhere in gameplay code.)
   discoveredSystems?: DiscoveredSystem[];
-  depthMetrics?: {
-    depthScore: number; // 0-100 score of game depth engagement
-    systemsEngaged: number;
-    lastCalculated: number; // timestamp
-  };
-  progressiveDisclosureLevel?: 'simple' | 'standard' | 'advanced';
-  systemStatistics?: Record<string, SystemStatistics>;
   // Life Moments & Consequence System
   consequenceState?: import('@/lib/lifeMoments/types').ConsequenceState;
   lifeMoments?: {
@@ -2364,10 +2369,6 @@ export interface GameState {
   // B-4: IAP processed transaction IDs stored in save envelope for cross-device resilience
   // Belt-and-suspenders: also stored in separate AsyncStorage key for cross-slot persistence
   processedIAPTransactions?: string[];
-  // IDs of EnhancedAchievement entries the player has already claimed —
-  // used by the achievement screen to gate the Claim button and avoid
-  // double-paying rewards.
-  claimedEnhancedAchievements?: string[];
   // Education System — campus event pending for UI display
   pendingCampusEventEducationId?: string;
 
@@ -2405,6 +2406,13 @@ export interface GameState {
   /** Life chapters — themed goal groups that unlock based on weeksLived */
   activeChapterId?: string;
   completedChapters?: string[];
+  /**
+   * Hobby mastery (v21) — pursuits you practice weekly to level up, each with a
+   * compounding perk. `pursuits[id]` accrues xp; `weeklyPursuitPractice` caps
+   * practices per week and is reset on week advance (like weeklyStudySessions).
+   */
+  pursuits?: Record<string, PlayerPursuit>;
+  weeklyPursuitPractice?: Record<string, number>;
   /** Tutorial step completion tracking for rewards */
   completedTutorialSteps?: string[];
 
@@ -2615,45 +2623,12 @@ export interface GoalProgress {
   lastUpdated: number;
 }
 
-export interface SocialEvent {
-  id: string;
-  type: 'party' | 'wedding' | 'funeral' | 'graduation' | 'birthday';
-  date: number;
-  attendees: string[];
-  cost: number;
-  reputationImpact: number;
-}
-
-export interface SocialGroup {
-  id: string;
-  name: string;
-  members: string[];
-  reputation: number;
-  type: 'friends' | 'colleagues' | 'club' | 'gang';
-}
-
-export interface SocialInteraction {
-  id: string;
-  targetId: string;
-  type: string;
-  date: number;
-  outcome: 'positive' | 'negative' | 'neutral';
-  impact: number;
-}
-
 export interface RngCommitLog {
   seed: number;
   sequence: number;
   entries: Record<string, number>;
   order: string[];
   lastCommittedWeek?: number;
-}
-
-export interface DailyChallengeState {
-  id: string;
-  progress: number;
-  claimed: boolean;
-  initialState: number; // Changed from any to number for tracking initial value
 }
 
 // ============================================

@@ -45,17 +45,16 @@ import {
   scale,
   getTabBarSafePadding,
 } from '@/utils/scaling';
-import { 
-  getGlassHeader, 
-  getGlassIconContainer, 
-  getGlassAppCard,
-} from '@/utils/glassmorphismStyles';
+import { getGlassAppCard } from '@/utils/glassmorphismStyles';
 import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { ClaimableBadge } from '@/components/ClaimableBadge';
+import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
+import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 const LinearGradient = LinearGradientFallback;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -185,7 +184,14 @@ function MobileScreenContent() {
     },
   ], [t]);
 
-  if (!gameState.items.find(item => item.id === 'smartphone')?.owned) {
+  // Per-app "needs attention" badge counts (unread matches, scandals, critical
+  // pets, company alerts) — computed before any early return (Rules of Hooks).
+  const appBadges = useMemo(
+    () => getAppBadgeCounts(gameState),
+    [gameState.sparkApp, gameState.socialMedia?.activeScandal, gameState.pets, gameState.companies],
+  );
+
+  if (!(gameState.items ?? []).find(item => item.id === 'smartphone')?.owned) {
     return (
       <LinearGradient
         colors={settings.darkMode ? ['#1E3A8A', '#1F2937'] : ['#FFFFFF', '#F8FAFC']}
@@ -245,21 +251,10 @@ function MobileScreenContent() {
       style={styles.container}
     >
       <View style={styles.header}>
-        <View style={[styles.headerGlass, settings.darkMode && styles.headerGlassDark]}>
-          <View style={styles.headerContent}>
-            <View style={[styles.headerIconGlass, settings.darkMode && styles.headerIconGlassDark]}>
-              <Smartphone size={32} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
-            </View>
-            <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
-                {t('mobile.mobileApps')}
-              </Text>
-              <Text style={[styles.headerSubtitle, settings.darkMode && styles.headerSubtitleDark]}>
-                {t('mobile.accessSmartphoneApplications')}
-              </Text>
-            </View>
-          </View>
-        </View>
+        <Smartphone size={scale(18)} color={settings.darkMode ? '#F9FAFB' : '#111827'} />
+        <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
+          {t('mobile.mobileApps')}
+        </Text>
       </View>
 
       <ScrollView
@@ -267,6 +262,8 @@ function MobileScreenContent() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={true}
       >
+        {/* Macro economy strip — null in normal times. */}
+        <EconomyEventBanner context="generic" />
         <View style={styles.appsGrid}>
           {appsList.map((app) => (
             <TouchableOpacity
@@ -308,6 +305,7 @@ function MobileScreenContent() {
                   {app.description}
                 </Text>
               </View>
+              <ClaimableBadge count={appBadges[app.id] ?? 0} />
             </TouchableOpacity>
           ))}
         </View>
@@ -338,47 +336,21 @@ const styles = StyleSheet.create({
     color: '#D1D5DB',
   },
   header: {
-    paddingTop: responsivePadding.vertical,
-    paddingBottom: responsiveSpacing.md,
-    paddingHorizontal: responsivePadding.horizontal,
-  },
-  headerGlass: {
-    ...getGlassHeader(false),
-  },
-  headerGlassDark: {
-    ...getGlassHeader(true),
-  },
-  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: responsiveSpacing.md,
-  },
-  headerIconGlass: {
-    ...getGlassIconContainer(false, 48),
-  },
-  headerIconGlassDark: {
-    ...getGlassIconContainer(true, 48),
-  },
-  headerTextContainer: {
-    flex: 1,
+    gap: scale(8),
+    paddingTop: responsivePadding.vertical,
+    paddingBottom: responsiveSpacing.sm,
+    paddingHorizontal: responsivePadding.horizontal,
   },
   headerTitle: {
-    fontSize: responsiveFontSize['3xl'],
-    fontWeight: '700',
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '800',
     color: '#111827',
-    marginBottom: scale(4),
     letterSpacing: -0.5,
   },
   headerTitleDark: {
     color: '#F9FAFB',
-  },
-  headerSubtitle: {
-    fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  headerSubtitleDark: {
-    color: '#9CA3AF',
   },
   scrollView: {
     flex: 1,

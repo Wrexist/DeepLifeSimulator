@@ -1108,11 +1108,17 @@ export const watchAdForFollowerBoost = (
   const gained = proActive ? 150 : 50;
 
   setGameState((prev) => {
+    // Atomic gate: re-check the weekly cooldown against prev. Two same-batch
+    // taps both pass the stale outer check; without this, both add followers
+    // (the only non-atomic gate→grant left in Pulse).
+    const prevWs = prev.weeksLived ?? 0;
+    const prevLast = prev.socialMedia?.lastAdBoostWeek ?? -Infinity;
+    if (prevWs - prevLast < 1) return prev;
     const sm = { ...ensureSocial(prev) };
     sm.followers = (sm.followers ?? 0) + gained;
     sm.influenceLevel = getInfluenceLevel(sm.followers);
-    sm.lastAdBoostWeek = ws;
-    pushNotification(sm, 'milestone', `Watched ad → +${gained} followers`, ws);
+    sm.lastAdBoostWeek = prevWs;
+    pushNotification(sm, 'milestone', `Watched ad → +${gained} followers`, prevWs);
     return { ...prev, socialMedia: sm };
   });
 

@@ -4,7 +4,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
-import { Briefcase, ChevronRight } from 'lucide-react-native';
+import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp } from 'lucide-react-native';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = LinearGradientFallback;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
 import { checkGoalCompletion, Goal } from '@/utils/goalSystem';
 import { ActiveGoalsCard } from '@/components/ActiveGoalsCard';
+import LifeChapterCard from '@/components/LifeChapterCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -114,6 +115,8 @@ function HomeScreenContent() {
       jailWeeks: s?.jailWeeks,
       date: s?.date,
       showWelcomePopup: s?.showWelcomePopup,
+      showDeathPopup: s?.showDeathPopup,
+      showWeddingPopup: s?.showWeddingPopup,
       showDailyRewardPopup: s?.showDailyRewardPopup,
       dailyRewardAmount: s?.dailyRewardAmount,
       lastLoginRewardDate: s?.lastLoginRewardDate,
@@ -142,6 +145,12 @@ function HomeScreenContent() {
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
   const [showPrestigeInfo, setShowPrestigeInfo] = useState(false);
+  // Collapses the secondary tail of the home feed so it doesn't grow unbounded.
+  const [showMore, setShowMore] = useState(false);
+
+  // Root-level blocking modals (death/wedding) own the screen — every
+  // celebration/reward popup below defers to them.
+  const blockingModalUp = !!(gameState.showDeathPopup || gameState.showWeddingPopup);
 
   // Contextual tips hook for showing help when player is stuck
   const { activeTip, dismissTip } = useContextualTip(gameState);
@@ -449,23 +458,66 @@ function HomeScreenContent() {
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
 
+        {/* Life Chapter — the chunked-goal spine (was built but had no UI). */}
+        <FadeInUp delay={50}>
+          <LifeChapterCard />
+        </FadeInUp>
+
         {/* Active Goals Section */}
         <FadeInUp delay={60}>
           <ActiveGoalsCard compact={false} />
         </FadeInUp>
 
-        {/* Discovery Progress Indicator. Hidden in the first few weeks. */}
-        {(gameState.weeksLived || 0) > 5 && (
-          <DiscoveryIndicator
-            gameState={gameState}
-            compact={false}
-            darkMode={isDark}
-          />
+        {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
+            skill tree, lifetime stats) was hidden from the tab bar with no
+            other entry point — this card is its front door. Always visible. */}
+        <FadeInUp delay={110}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/progression')}
+            activeOpacity={0.85}
+            style={styles.progressLinkCard}
+          >
+            <View style={styles.progressLinkIcon}>
+              <Trophy size={scale(20)} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.progressLinkTitle}>Your Progress</Text>
+              <Text style={styles.progressLinkSub}>
+                Prestige, Legacy Pass, life story & lifetime stats
+              </Text>
+            </View>
+            <ChevronRight size={scale(18)} color="#94A3B8" />
+          </TouchableOpacity>
+        </FadeInUp>
+
+        {/* Secondary detail modules collapse behind "Show more" so the feed
+            doesn't grow unbounded on an established save. */}
+        {showMore && (
+          <>
+            {(gameState.weeksLived || 0) > 5 && (
+              <DiscoveryIndicator
+                gameState={gameState}
+                compact={false}
+                darkMode={isDark}
+              />
+            )}
+            <FadeInUp delay={0}>
+              <AchievementsProgress />
+            </FadeInUp>
+          </>
         )}
 
-        <FadeInUp delay={120}>
-          <AchievementsProgress />
-        </FadeInUp>
+        <TouchableOpacity
+          onPress={() => setShowMore(v => !v)}
+          activeOpacity={0.8}
+          style={styles.showMoreBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.showMoreText}>{showMore ? 'Show less' : 'Show more'}</Text>
+          {showMore
+            ? <ChevronUp size={scale(15)} color="#94A3B8" />
+            : <ChevronDown size={scale(15)} color="#94A3B8" />}
+        </TouchableOpacity>
 
         {/* First Week Guide — leave space so the overlay doesn't clip cards. */}
         {(gameState.weeksLived || 0) <= 3 && !hasCompletedTutorial && (
@@ -478,9 +530,14 @@ function HomeScreenContent() {
         <FirstWeekGuide currentWeek={gameState.weeksLived ?? 0} />
       )}
 
+      {/* NOISE: light popup coordination. The root layout owns blocking modals
+          (death/wedding) — no celebration/reward popup may present on top of
+          them. Within this screen, popups present strictly one at a time in
+          priority order (goal > daily reward > welcome back > community)
+          instead of whichever setTimeout won the race. */}
       <Suspense fallback={null}>
         <GoalCompletionPopup
-          visible={showGoalCompletion}
+          visible={showGoalCompletion && !blockingModalUp}
           completedGoal={completedGoal}
           nextGoal={nextGoal}
           onClose={() => setShowGoalCompletion(false)}
@@ -489,7 +546,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <DailyRewardPopup
-          visible={gameState.showDailyRewardPopup || false}
+          visible={(gameState.showDailyRewardPopup || false) && !blockingModalUp && !showGoalCompletion}
           rewardAmount={gameState.dailyRewardAmount || 0}
           onClose={() => setGameState(prev => ({
             ...prev,
@@ -500,7 +557,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <WelcomeBackPopup
-          visible={showWelcomeBack}
+          visible={showWelcomeBack && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup}
           onClose={() => {
             setShowWelcomeBack(false);
             // Actually GRANT the welcome-back bonus the popup advertised (it was
@@ -522,7 +579,7 @@ function HomeScreenContent() {
       </Suspense>
       <Suspense fallback={null}>
         <CommunityRewardPopup
-          visible={showCommunityReward}
+          visible={showCommunityReward && !blockingModalUp && !showGoalCompletion && !gameState.showDailyRewardPopup && !showWelcomeBack}
           rewardAmount={DISCORD_JOIN_REWARD_MONEY}
           onJoin={handleJoinCommunity}
           onDismiss={handleDismissCommunity}
@@ -538,6 +595,52 @@ function HomeScreenContent() {
 }
 
 const styles = StyleSheet.create({
+  progressLinkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(12),
+    marginHorizontal: responsivePadding.horizontal,
+    marginBottom: verticalScale(12),
+    padding: scale(14),
+    borderRadius: responsiveBorderRadius.lg,
+    backgroundColor: 'rgba(30, 41, 59, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  progressLinkIcon: {
+    width: scale(38),
+    height: scale(38),
+    borderRadius: scale(19),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  progressLinkTitle: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  progressLinkSub: {
+    fontSize: fontScale(11.5),
+    color: '#94A3B8',
+    marginTop: scale(2),
+  },
+  showMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
+    alignSelf: 'center',
+    marginTop: verticalScale(4),
+    marginBottom: verticalScale(8),
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: scale(16),
+  },
+  showMoreText: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
   container: {
     flex: 1,
     backgroundColor: '#020617',

@@ -5,7 +5,7 @@ import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
-import { X, Target, Briefcase, Heart, Dumbbell, Music, Clock, TrendingUp, AlertCircle } from 'lucide-react-native';
+import { X, Target, Briefcase, Heart, Dumbbell, GraduationCap, Clock, TrendingUp, AlertCircle } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
 const LinearGradient = LinearGradientFallback;
@@ -23,11 +23,14 @@ const AREA_CONFIG: Record<CommitmentArea, { label: string; icon: typeof Briefcas
     color: '#3B82F6',
     description: 'Focus on work and career advancement',
   },
+  // Internal key stays 'hobbies' (avoids a save migration), but hobbies were
+  // removed — this axis is now "Skills": committing here boosts studying /
+  // education / self-improvement (see getSystemFromAction routing).
   hobbies: {
-    label: 'Hobbies',
-    icon: Music,
+    label: 'Skills',
+    icon: GraduationCap,
     color: '#8B5CF6',
-    description: 'Focus on hobbies and creative pursuits',
+    description: 'Focus on learning, education and self-improvement',
   },
   relationships: {
     label: 'Relationships',

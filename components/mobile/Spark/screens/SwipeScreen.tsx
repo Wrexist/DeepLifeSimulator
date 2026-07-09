@@ -101,7 +101,10 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
       } else {
         sparkHaptics.error();
       }
-      setCursor((c) => c + 1);
+      // Do NOT advance the cursor: the `queue` memo already drops swiped ids, so
+      // a successful swipe removes this profile and queue[cursor] becomes the
+      // next one. Incrementing here as well skipped every other profile. On a
+      // rejected swipe (out of swipes), nothing changes and the card snaps back.
       pan.setValue({ x: 0, y: 0 });
     },
     [setGameState, gameState, onMatch, saveGame, pan],
@@ -153,10 +156,16 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
         sparkHaptics.error();
         return;
       }
+      // Pass/Like also cost a daily swipe — block them (not just Super-like)
+      // when the player is out, instead of animating the card away for nothing.
+      if (direction !== 'super' && remaining <= 0) {
+        sparkHaptics.error();
+        return;
+      }
       sparkHaptics.tap();
       animateOff(direction, top);
     },
-    [top, remainingSuper, animateOff],
+    [top, remaining, remainingSuper, animateOff],
   );
 
   const handleRewind = useCallback(() => {
