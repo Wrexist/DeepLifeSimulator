@@ -179,9 +179,10 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   }
 
   return (
-    // Bottom padding keeps the internal tab bar (and the bottom-anchored FAB /
-    // deal chip) above the floating phone tab bar.
-    <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: bottomInset }]}>
+    // Full-screen: the tab bar owns the bottom safe-area inset (see its style
+    // below) so its surface reaches the screen edge with no dead strip. The
+    // FAB / deal chip are lifted by the same inset to hold their gap above it.
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
       {/* ── Header ──────────────────────────────────────────── */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable
@@ -268,10 +269,20 @@ export default function PulseApp({ onBack }: PulseAppProps) {
       </View>
 
       {/* ── Compose FAB ──────────────────────────────────────── */}
-      <PulseFAB onPress={handleComposePress} />
+      <PulseFAB onPress={handleComposePress} bottomOffset={bottomInset} />
 
       {/* ── Bottom tab bar ──────────────────────────────────── */}
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+      <View
+        style={[
+          styles.tabBar,
+          {
+            backgroundColor: theme.surface,
+            borderTopColor: theme.border,
+            // Absorb the safe-area inset here so the bar reaches the screen edge.
+            paddingBottom: responsiveSpacing.sm + bottomInset,
+          },
+        ]}
+      >
         <TabButton tab="home" Icon={Home} label="Home" active={activeTab === 'home'} onPress={() => setActiveTab('home')} color={theme.text} mutedColor={theme.textSecondary} />
         <TabButton tab="trending" Icon={Flame} label="Trending" active={activeTab === 'trending'} onPress={() => setActiveTab('trending')} color={theme.text} mutedColor={theme.textSecondary} />
         <View style={styles.tabSpacer} />{/* room for the raised FAB */}
@@ -285,7 +296,10 @@ export default function PulseApp({ onBack }: PulseAppProps) {
           onPress={openBrandDeals}
           accessibilityRole="button"
           accessibilityLabel={`Brand deals, ${sm?.brandInbox?.pending?.length ?? 0} pending`}
-          style={[styles.dealChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          style={[
+            styles.dealChip,
+            { backgroundColor: theme.surface, borderColor: theme.border, bottom: scale(80) + bottomInset },
+          ]}
         >
           <Briefcase size={fontScale(14)} color={PULSE_GRADIENT[0]} />
           <Text style={[styles.dealChipText, { color: theme.text }]}>

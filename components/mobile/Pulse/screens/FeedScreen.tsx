@@ -1,7 +1,12 @@
 /**
  * FeedScreen — home tab of the Pulse app.
  *
- * Renders the player's `socialMedia.recentPosts` as a FlatList of PostCards.
+ * Renders a single timeline that interleaves the player's own
+ * `socialMedia.recentPosts` with ambient content — posts from relationships
+ * the player knows plus trending posts from unknown profiles — so the feed
+ * feels alive instead of showing one lonely post. Ambient posts regenerate
+ * once per game week and their like/repost toggles are optimistic-only.
+ *
  * Above the list: a real inline composer (text input + gradient Post button)
  * for quick text posts, with a chevron to escalate to the full ComposeModal
  * for content-type pickers, hashtags, and sponsor selection.
@@ -10,8 +15,8 @@
  * actually fetch.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ChevronRight, Send } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
@@ -19,12 +24,63 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { composePost } from '@/contexts/game/actions/PulseActions';
+import { generateNpcPostsForFeed } from '@/lib/social/npcPosts';
+import { generateRandomProfilePosts } from '@/lib/social/randomProfiles';
 import PostCard from '../components/PostCard';
 import EmptyState from '../components/EmptyState';
 import StoriesRail from '../components/StoriesRail';
 import { PULSE_COLORS, PULSE_GRADIENT } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
-import type { PulseRecentPost } from '@/contexts/game/types';
+import type { PulseRecentPost, SocialPost } from '@/contexts/game/types';
+
+/**
+ * A single row in the feed — either the player's own post or an ambient
+ * NPC/trending post. Both are rendered through `PostCard`; the discriminant
+ * `isPlayerPost` decides whether taps route to global game state (player) or
+ * to the local optimistic toggler (ambient).
+ */
+interface FeedEntry {
+  key: string;
+  post: PulseRecentPost;
+  authorHandle: string;
+  authorPhoto?: string;
+  isPlayerPost: boolean;
+}
+
+/** Local like/repost toggles for ambient posts (not persisted — the feed
+ *  refreshes every game week anyway). */
+type AmbientEngagement = Record<string, { liked?: boolean; reposted?: boolean }>;
+
+/**
+ * Map an NPC-authored `SocialPost` onto the `PulseRecentPost` shape `PostCard`
+ * renders, folding in the viewer's local like/repost toggle so the counts and
+ * filled icons respond to taps.
+ */
+function ambientToEntry(sp: SocialPost, engagement?: { liked?: boolean; reposted?: boolean }): FeedEntry {
+  const liked = engagement?.liked ?? false;
+  const reposted = engagement?.reposted ?? false;
+  const post: PulseRecentPost = {
+    id: sp.id,
+    content: sp.content,
+    likes: (sp.likes ?? 0) + (liked ? 1 : 0),
+    comments: sp.replies ?? 0,
+    timestamp: sp.timestamp,
+    gameWeek: sp.gameWeek,
+    contentType: (sp.contentType as PulseRecentPost['contentType']) ?? 'text',
+    photo: sp.photo,
+    isViral: sp.isViral,
+    isLiked: liked,
+    isReposted: reposted,
+    reposts: (sp.reposts ?? 0) + (reposted ? 1 : 0),
+  };
+  return {
+    key: sp.id,
+    post,
+    authorHandle: sp.authorHandle,
+    authorPhoto: sp.authorPhoto,
+    isPlayerPost: false,
+  };
+}
 
 const LinearGradient = LinearGradientFallback;
 
@@ -72,10 +128,58 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
     onCompose();
   }, [onCompose]);
 
-  const posts: PulseRecentPost[] = useMemo(
+  const weeksLived = gameState.weeksLived ?? 0;
+  const playerPhoto = gameState.userProfile?.profilePhoto;
+
+  // Fresh game state for the ambient generators, read through a ref so they
+  // refresh on the WEEK boundary rather than on every unrelated state change
+  // (which would reshuffle the whole feed on each render).
+  const gsRef = useRef(gameState);
+  gsRef.current = gameState;
+
+  const playerPosts: PulseRecentPost[] = useMemo(
     () => gameState.socialMedia?.recentPosts ?? [],
     [gameState.socialMedia?.recentPosts],
   );
+
+  // Ambient feed: posts from relationships the player actually knows, plus
+  // trending posts from unknown profiles so the timeline feels alive even for
+  // a brand-new player with a single post. Regenerated once per game week.
+  const ambientRaw: SocialPost[] = useMemo(() => {
+    const npc = generateNpcPostsForFeed(gsRef.current, weeksLived, 4);
+    const trending = generateRandomProfilePosts(weeksLived, 7);
+    return [...npc, ...trending];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weeksLived]);
+
+  // Local optimistic like/repost toggles for ambient posts — they aren't in
+  // the player's persisted `recentPosts`, so the global actions would no-op.
+  const [ambientEngagement, setAmbientEngagement] = useState<AmbientEngagement>({});
+  const toggleAmbientLike = useCallback((id: string) => {
+    setAmbientEngagement((prev) => ({ ...prev, [id]: { ...prev[id], liked: !prev[id]?.liked } }));
+  }, []);
+  const toggleAmbientRepost = useCallback((id: string) => {
+    setAmbientEngagement((prev) => ({ ...prev, [id]: { ...prev[id], reposted: !prev[id]?.reposted } }));
+  }, []);
+
+  // Merge player + ambient into one timeline, newest game week first. Player
+  // posts win ties so the player always sees their own latest post up top.
+  const entries: FeedEntry[] = useMemo(() => {
+    const playerEntries: FeedEntry[] = playerPosts.map((p) => ({
+      key: p.id,
+      post: p,
+      authorHandle: handle,
+      authorPhoto: playerPhoto,
+      isPlayerPost: true,
+    }));
+    const ambientEntries: FeedEntry[] = ambientRaw.map((sp) => ambientToEntry(sp, ambientEngagement[sp.id]));
+    return [...playerEntries, ...ambientEntries].sort((a, b) => {
+      const diff = (b.post.gameWeek ?? 0) - (a.post.gameWeek ?? 0);
+      if (diff !== 0) return diff;
+      if (a.isPlayerPost !== b.isPlayerPost) return a.isPlayerPost ? -1 : 1;
+      return 0;
+    });
+  }, [playerPosts, ambientRaw, ambientEngagement, handle, playerPhoto]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -85,22 +189,25 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: PulseRecentPost }) => (
+    ({ item }: { item: FeedEntry }) => (
       <PostCard
-        post={item}
-        authorHandle={handle}
-        authorPhoto={gameState.userProfile?.profilePhoto}
-        currentWeeksLived={gameState.weeksLived ?? 0}
-        onOpenDetail={onOpenPostDetail}
-        onBoost={onBoostPost}
-        // recentPosts only contains the player's own posts, so isPlayerPost is always true here.
-        isPlayerPost
+        post={item.post}
+        authorHandle={item.authorHandle}
+        authorPhoto={item.authorPhoto}
+        currentWeeksLived={weeksLived}
+        // Only the player's own posts route to global state + detail/boost.
+        onOpenDetail={item.isPlayerPost ? onOpenPostDetail : undefined}
+        onBoost={item.isPlayerPost ? onBoostPost : undefined}
+        isPlayerPost={item.isPlayerPost}
+        // Ambient posts toggle like/repost locally so their icons still respond.
+        onLike={item.isPlayerPost ? undefined : toggleAmbientLike}
+        onRepost={item.isPlayerPost ? undefined : toggleAmbientRepost}
       />
     ),
-    [handle, gameState.userProfile?.profilePhoto, gameState.weeksLived, onOpenPostDetail, onBoostPost],
+    [weeksLived, onOpenPostDetail, onBoostPost, toggleAmbientLike, toggleAmbientRepost],
   );
 
-  const keyExtractor = useCallback((p: PulseRecentPost) => p.id, []);
+  const keyExtractor = useCallback((e: FeedEntry) => e.key, []);
 
   // Inline composer: a real text input for quick text posts. The chevron at
   // the right escalates to the full ComposeModal for content-type picker,
@@ -165,7 +272,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
     </>
   );
 
-  if (posts.length === 0) {
+  if (entries.length === 0) {
     return (
       <View style={styles.emptyWrap}>
         {header}
@@ -183,7 +290,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
 
   return (
     <FlatList
-      data={posts}
+      data={entries}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
       ListHeaderComponent={header}
