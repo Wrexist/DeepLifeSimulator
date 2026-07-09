@@ -159,7 +159,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
             onUpsell={onUpgradePro}
           />
         </View>
-        <Text style={[styles.handle, { color: theme.textSecondary }]}>@{handle}</Text>
+        <Text style={[styles.handle, { color: theme.textSecondary }]}>@{String(handle ?? '').replace(/^@+/, '')}</Text>
 
         <Text style={[styles.bio, { color: theme.text }]}>{bio}</Text>
 

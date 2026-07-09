@@ -127,7 +127,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
               placeholderTextColor="#FFFFFF"
             />
             <View style={styles.authorMeta}>
-              <Text style={[styles.handle, { color: theme.text }]}>@{handle}</Text>
+              <Text style={[styles.handle, { color: theme.text }]}>@{String(handle ?? '').replace(/^@+/, '')}</Text>
               <Text style={[styles.timeAgo, { color: theme.textSecondary }]}>
                 {formatRelativeWeek(post.gameWeek, gameState.weeksLived ?? 0)}
               </Text>

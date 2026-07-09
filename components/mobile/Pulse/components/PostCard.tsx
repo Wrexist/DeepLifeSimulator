@@ -77,7 +77,7 @@ export default function PostCard({
         />
         <View style={styles.authorMeta}>
           <Text style={[styles.handle, { color: theme.text }]} numberOfLines={1}>
-            @{authorHandle}
+            @{String(authorHandle ?? '').replace(/^@+/, '')}
           </Text>
           <Text style={[styles.timeAgo, { color: theme.textSecondary }]}>
             {formatRelativeWeek(post.gameWeek, currentWeeksLived)}

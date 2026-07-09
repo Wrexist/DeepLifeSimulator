@@ -50,7 +50,7 @@ export default function CommentItem({ comment, currentWeeksLived, depth = 0 }: C
         <View style={[styles.bubble, { backgroundColor: theme.surfaceElevated }]}>
           <View style={styles.headerRow}>
             <Text style={[styles.handle, { color: theme.text }]} numberOfLines={1}>
-              @{comment.authorHandle}
+              @{String(comment.authorHandle ?? '').replace(/^@+/, '')}
             </Text>
             {comment.isPlayerComment ? (
               <View style={[styles.youBadge, { backgroundColor: accentColor }]}>

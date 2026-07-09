@@ -14,6 +14,7 @@ import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/
 import type { GameState } from '@/contexts/game/types';
 import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsProgress from '@/components/AchievementsProgress';
+import AdRewardOrb from '@/components/AdRewardOrb';
 import IdentityCard from '@/components/IdentityCard';
 import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
@@ -590,6 +591,9 @@ function HomeScreenContent() {
       <PrestigeModal visible={showPrestigeModal} onClose={() => setShowPrestigeModal(false)} />
       <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
       <PrestigeInfoModal visible={showPrestigeInfo} onClose={() => setShowPrestigeInfo(false)} />
+
+      {/* Floating "watch ad → cash" reward orb (drifts in from the left at random). */}
+      <AdRewardOrb />
     </View>
   );
 }
