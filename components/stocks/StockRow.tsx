@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Minus, Briefcase } from 'lucide-react-native'
 import { Sector, sectorForSymbol } from '@/lib/stocks/sectors';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 
 interface Props {
   symbol: string;
@@ -70,16 +71,16 @@ export default function StockRow({
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={onPress ? 0.7 : 1}
-      style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+      activeOpacity={onPress ? 0.85 : 1}
+      style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
     >
-      <View style={[styles.symbolBubble, { backgroundColor: sectorColor }]}>
-        <Text style={styles.symbolText}>{symbol.slice(0, 4)}</Text>
+      <View style={[styles.symbolBubble, { backgroundColor: `${sectorColor}26`, borderColor: `${sectorColor}4D` }]}>
+        <Text style={[styles.symbolText, { color: sectorColor }]}>{symbol.slice(0, 4)}</Text>
       </View>
       <View style={{ flex: 1 }}>
         <View style={styles.headerRow}>
           <Text style={[styles.symbolHeader, { color: theme.text }]}>{symbol}</Text>
-          <View style={[styles.sectorChip, { borderColor: sectorColor }]}>
+          <View style={[styles.sectorChip, { backgroundColor: `${sectorColor}26` }]}>
             <Text style={[styles.sectorText, { color: sectorColor }]}>
               {SECTOR_LABEL[sector]}{sectorState && sectorState !== 'neutral' ? ` · ${STATE_LABEL[sectorState]}` : ''}
             </Text>
@@ -108,8 +109,8 @@ export default function StockRow({
         )}
         {owned && (
           <View style={styles.ownedBadge}>
-            <Briefcase size={scale(10)} color={accent.info} />
-            <Text style={[styles.ownedText, { color: accent.info }]}>Owned</Text>
+            <Briefcase size={scale(10)} color={accent.purple} />
+            <Text style={[styles.ownedText, { color: accent.purple }]}>Owned</Text>
           </View>
         )}
       </View>
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     gap: responsiveSpacing.sm,
   },
@@ -131,17 +132,17 @@ const styles = StyleSheet.create({
     width: scale(40),
     height: scale(40),
     borderRadius: scale(20),
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  symbolText: { color: 'white', fontSize: responsiveFontSize.xs, fontWeight: '800' },
+  symbolText: { fontSize: responsiveFontSize.xs, fontWeight: '800' },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
   symbolHeader: { fontSize: responsiveFontSize.md, fontWeight: '700' },
   sectorChip: {
     paddingHorizontal: responsiveSpacing.xs,
-    paddingVertical: 1,
+    paddingVertical: 2,
     borderRadius: responsiveBorderRadius.sm,
-    borderWidth: 1,
   },
   sectorText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
   holdingText: { fontSize: responsiveFontSize.xs, marginTop: 2 },

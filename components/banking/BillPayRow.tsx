@@ -4,6 +4,7 @@ import { Receipt, Trash2, Repeat, AlertTriangle } from 'lucide-react-native';
 import { BillPayRule } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
 interface Props {
   rule: BillPayRule;
@@ -29,9 +30,9 @@ export default function BillPayRow({ rule, currentWeek, darkMode, onToggle, onDe
         : `Due in ${weeksUntilDue} weeks`;
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-      <View style={[styles.iconBubble, { backgroundColor: theme.surface }]}>
-        <Receipt size={scale(18)} color={theme.text} />
+    <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl }]}>
+      <View style={[getGlassIconContainer(darkMode, 36), { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.30)' }]}>
+        <Receipt size={scale(18)} color={accent.info} />
       </View>
       <View style={styles.body}>
         <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
@@ -72,16 +73,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
     gap: responsiveSpacing.md,
-  },
-  iconBubble: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   body: {
     flex: 1,
@@ -117,6 +109,7 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: responsiveFontSize.md,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   actions: {
     flexDirection: 'row',

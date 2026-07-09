@@ -4,6 +4,7 @@ import { Wallet, PiggyBank, Lock, ChevronRight, TrendingUp } from 'lucide-react-
 import { BankAccount } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard, getGlassIconContainer, getGlassButton } from '@/utils/glassmorphismStyles';
 import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
 
 interface Props {
@@ -46,16 +47,21 @@ export default function AccountRow({ account, currentWeek, darkMode, onPress, on
   // withdraw/close are rejected by the action layer, so don't offer them at all.
   const isMirrored = MIRRORED_ACCOUNT_IDS.has(account.id);
   const showActions = !isMirrored && (!!onWithdraw || !!onClose);
+  // Recipe C tinted bubble: checking = identity info, savings variants get a
+  // small semantic success tint (matches the green APR chip they carry).
+  const isChecking = account.type === 'checking';
+  const bubbleRGB = isChecking ? '59, 130, 246' : '16, 185, 129';
+  const bubbleColor = isChecking ? accent.info : accent.success;
 
   return (
     <TouchableOpacity
       activeOpacity={onPress ? 0.7 : 1}
       onPress={onPress}
-      style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+      style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl }]}
     >
       <View style={styles.mainRow}>
-        <View style={[styles.iconBubble, { backgroundColor: theme.surface }]}>
-          <Icon size={scale(20)} color={theme.text} />
+        <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: `rgba(${bubbleRGB}, 0.15)`, borderWidth: 1, borderColor: `rgba(${bubbleRGB}, 0.30)` }]}>
+          <Icon size={scale(20)} color={bubbleColor} />
         </View>
         <View style={styles.body}>
           <View style={styles.row}>
@@ -91,7 +97,7 @@ export default function AccountRow({ account, currentWeek, darkMode, onPress, on
           {onPress && (
             <TouchableOpacity
               onPress={onPress}
-              style={[styles.actionBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              style={[getGlassButton(darkMode), styles.actionBtn]}
             >
               <Text style={[styles.actionText, { color: theme.text }]}>Deposit</Text>
             </TouchableOpacity>
@@ -100,11 +106,7 @@ export default function AccountRow({ account, currentWeek, darkMode, onPress, on
             <TouchableOpacity
               onPress={onWithdraw}
               disabled={isLocked}
-              style={[
-                styles.actionBtn,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-                isLocked && styles.actionDisabled,
-              ]}
+              style={[getGlassButton(darkMode), styles.actionBtn, isLocked && styles.actionDisabled]}
             >
               <Text style={[styles.actionText, { color: theme.text }]}>Withdraw</Text>
             </TouchableOpacity>
@@ -113,11 +115,7 @@ export default function AccountRow({ account, currentWeek, darkMode, onPress, on
             <TouchableOpacity
               onPress={onClose}
               disabled={isLocked}
-              style={[
-                styles.actionBtn,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-                isLocked && styles.actionDisabled,
-              ]}
+              style={[getGlassButton(darkMode), styles.actionBtn, isLocked && styles.actionDisabled]}
             >
               <Text style={[styles.actionText, { color: accent.danger }]}>Close</Text>
             </TouchableOpacity>
@@ -131,21 +129,12 @@ export default function AccountRow({ account, currentWeek, darkMode, onPress, on
 const styles = StyleSheet.create({
   card: {
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
     gap: responsiveSpacing.sm,
   },
   mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: responsiveSpacing.md,
-  },
-  iconBubble: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   body: {
     flex: 1,
@@ -194,6 +183,7 @@ const styles = StyleSheet.create({
   balance: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   actionsRow: {
     flexDirection: 'row',
@@ -204,7 +194,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
   },
   actionDisabled: {
     opacity: 0.4,

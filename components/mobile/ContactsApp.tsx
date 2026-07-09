@@ -56,13 +56,23 @@ import { getRelationshipImage } from '@/utils/characterImages';
 import { getMoodLabel } from '@/lib/social/npcDepth';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
+  getGlassCard,
+  getGlassIconContainer,
+  getGlassButton,
+  getPlatformShadows,
+} from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
   fontScale,
+  touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+
+const LinearGradient = LinearGradientFallback;
 
 type TabType = 'personal' | 'network' | 'favors' | 'attention';
 
@@ -88,6 +98,45 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
+
+  // Recipe A — the standard elevated card surface shared by every contact row:
+  // solid fill (contrast + Android elevation), one thin border, friendly 16pt radius.
+  const cardSurface = [
+    styles.card,
+    getGlassCard(darkMode, 6),
+    { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: br.xl },
+  ];
+
+  // Recipe B — the single focal amber hero per tab-view (Network / Favors). Depth is
+  // faked with a flat tint wash + one glow blob (the LinearGradient fallback renders
+  // only colors[0]); the passed-in stat row is the hero content, unchanged.
+  const statsHero = (title: string, children: React.ReactNode) => (
+    <View
+      style={[
+        getGlassCard(darkMode, 12),
+        {
+          backgroundColor: theme.surface,
+          borderColor: darkMode ? theme.glassBorder : theme.border,
+          borderWidth: 1,
+          borderRadius: br['2xl'],
+        },
+      ]}
+    >
+      <View style={styles.heroInner}>
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(249, 115, 22, 0.14)', 'rgba(249, 115, 22, 0.03)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View pointerEvents="none" style={styles.heroGlow} />
+        {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+        <Text style={[styles.statsTitle, { color: theme.textMuted }]}>{title}</Text>
+        {children}
+      </View>
+    </View>
+  );
 
   const [activeTab, setActiveTab] = useState<TabType>('personal');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -328,10 +377,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     const expanded = expandedId === c.id;
     const isPartner = c.kind === 'partner';
     return (
-      <View
-        key={c.id}
-        style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-      >
+      <View key={c.id} style={cardSurface}>
         <TouchableOpacity
           style={styles.cardHeader}
           onPress={() => setExpandedId(expanded ? null : c.id)}
@@ -339,7 +385,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         >
           <Image
             source={getRelationshipImage(r.age || 25, r.gender || 'male', r.type)}
-            style={styles.avatar}
+            style={[styles.avatar, { borderColor: theme.glassBorder }]}
           />
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
@@ -370,7 +416,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         </TouchableOpacity>
 
         {feedback?.id === c.id ? (
-          <Text style={[styles.feedback, { color: accent.info }]}>{feedback.message}</Text>
+          <Text style={[styles.feedback, { color: accent.amber }]}>{feedback.message}</Text>
         ) : null}
 
         {expanded && (
@@ -414,37 +460,37 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
               </Text>
             ) : null}
             <View style={styles.actionsRow}>
-              <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} />
-              <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} />
-              <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleAskMoney(c.id)} />
+              <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} darkMode={darkMode} />
+              <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} darkMode={darkMode} />
+              <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleAskMoney(c.id)} darkMode={darkMode} />
             </View>
             {isPartner && (
               <>
                 <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Dating</Text>
                 <View style={styles.actionsRow}>
-                  <ActionBtn label="Coffee $20" Icon={Coffee} color={accent.info} onPress={() => handleDate(c.id, 'coffee')} />
-                  <ActionBtn label="Dinner $80" Icon={Heart} color={accent.danger} onPress={() => handleDate(c.id, 'dinner')} />
-                  <ActionBtn label="Luxury $300" Icon={Star} color={accent.gold} onPress={() => handleDate(c.id, 'luxury')} />
+                  <ActionBtn label="Coffee $20" Icon={Coffee} color={accent.info} onPress={() => handleDate(c.id, 'coffee')} darkMode={darkMode} />
+                  <ActionBtn label="Dinner $80" Icon={Heart} color={accent.danger} onPress={() => handleDate(c.id, 'dinner')} darkMode={darkMode} />
+                  <ActionBtn label="Luxury $300" Icon={Star} color={accent.gold} onPress={() => handleDate(c.id, 'luxury')} darkMode={darkMode} />
                 </View>
                 <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Gifts</Text>
                 <View style={styles.actionsRow}>
-                  <ActionBtn label="Flowers" Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} />
-                  <ActionBtn label="Jewelry" Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} />
+                  <ActionBtn label="Flowers" Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} darkMode={darkMode} />
+                  <ActionBtn label="Jewelry" Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} darkMode={darkMode} />
                 </View>
                 {!r.livingTogether && (
-                  <ActionBtn label="Move in together" Icon={Handshake} color={accent.success} onPress={() => handleSpecial(c.id, 'movein')} wide />
+                  <ActionBtn label="Move in together" Icon={Handshake} color={accent.success} onPress={() => handleSpecial(c.id, 'movein')} darkMode={darkMode} wide />
                 )}
                 {!r.engagementWeek && r.livingTogether && (
-                  <ActionBtn label="Propose" Icon={Heart} color={accent.gold} onPress={() => handleSpecial(c.id, 'propose')} wide />
+                  <ActionBtn label="Propose" Icon={Heart} color={accent.gold} onPress={() => handleSpecial(c.id, 'propose')} darkMode={darkMode} wide />
                 )}
                 {r.engagementWeek != null && !r.weddingPlanned && (
-                  <ActionBtn label="Plan Wedding" Icon={Heart} color={accent.purple} onPress={() => setWeddingTargetId(c.id)} wide />
+                  <ActionBtn label="Plan Wedding" Icon={Heart} color={accent.purple} onPress={() => setWeddingTargetId(c.id)} darkMode={darkMode} wide />
                 )}
-                <ActionBtn label="Break up" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'breakup')} wide subtle />
+                <ActionBtn label="Break up" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'breakup')} darkMode={darkMode} wide subtle />
               </>
             )}
             {r.type === 'spouse' && (
-              <ActionBtn label="File for divorce" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'divorce')} wide subtle />
+              <ActionBtn label="File for divorce" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'divorce')} darkMode={darkMode} wide subtle />
             )}
           </View>
         )}
@@ -455,13 +501,10 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   const renderNetworkCard = (c: ContactView) => {
     const { Icon, color } = kindMeta(c.kind);
     return (
-      <View
-        key={c.id}
-        style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-      >
+      <View key={c.id} style={cardSurface}>
         <View style={styles.cardHeader}>
-          <View style={[styles.networkIcon, { backgroundColor: color }]}>
-            <Icon size={scale(18)} color="white" />
+          <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: hexToRgba(color, 0.15), borderWidth: 1, borderColor: hexToRgba(color, 0.3) }]}>
+            <Icon size={scale(20)} color={color} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
@@ -476,7 +519,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             </View>
             <View style={styles.tagRow}>
               {c.tags.slice(0, 3).map((t) => (
-                <View key={t} style={[styles.tag, { borderColor: color }]}>
+                <View key={t} style={[styles.tag, { backgroundColor: hexToRgba(color, 0.12) }]}>
                   <Text style={[styles.tagText, { color }]}>{t}</Text>
                 </View>
               ))}
@@ -500,6 +543,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           title="No relationships yet"
           subtitle="Date, befriend, or build family ties to populate this list."
           theme={theme}
+          darkMode={darkMode}
         />
       ) : (
         personalContacts.map(renderPersonalCard)
@@ -509,21 +553,21 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   const renderNetwork = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.statsTitle, { color: theme.text }]}>Your network</Text>
+      {statsHero('Your network', (
         <View style={styles.statsRow}>
           <Stat label="Lobbyists" value={countByKind(networkContacts, 'lobbyist')} color={accent.purple} theme={theme} />
           <Stat label="Allies" value={countByKind(networkContacts, 'alliance')} color={accent.info} theme={theme} />
           <Stat label="Vendors" value={countByKind(networkContacts, 'vendor')} color={accent.warning} theme={theme} />
           <Stat label="Business" value={countByKind(networkContacts, 'business')} color={accent.success} theme={theme} />
         </View>
-      </View>
+      ))}
       {networkContacts.length === 0 ? (
         <EmptyHero
           Icon={Briefcase}
           title="No network contacts yet"
           subtitle="Hire lobbyists, invest in travel businesses, or buy from dark-web vendors to build your network."
           theme={theme}
+          darkMode={darkMode}
         />
       ) : (
         networkContacts.map(renderNetworkCard)
@@ -533,8 +577,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   const renderFavors = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.statsTitle, { color: theme.text }]}>IOU position</Text>
+      {statsHero('IOU position', (
         <View style={styles.statsRow}>
           <Stat label="Owed to you" value={`$${moneyPos.owedToPlayer.toLocaleString()}`} color={accent.success} theme={theme} />
           <Stat label="You owe" value={`$${moneyPos.owedByPlayer.toLocaleString()}`} color={accent.danger} theme={theme} />
@@ -545,20 +588,21 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             theme={theme}
           />
         </View>
-      </View>
+      ))}
       {open.length === 0 ? (
         <EmptyHero
           Icon={Handshake}
           title="No open favors"
           subtitle="Favors get added when you lend, owe, or do business with contacts. Redeem them here when you call them in."
           theme={theme}
+          darkMode={darkMode}
         />
       ) : (
         open.map((f) => (
-          <View key={f.id} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View key={f.id} style={cardSurface}>
             <View style={styles.cardHeader}>
-              <View style={[styles.networkIcon, { backgroundColor: favorColor(f.kind) }]}>
-                <Handshake size={scale(18)} color="white" />
+              <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: hexToRgba(favorColor(f.kind), 0.15), borderWidth: 1, borderColor: hexToRgba(favorColor(f.kind), 0.3) }]}>
+                <Handshake size={scale(20)} color={favorColor(f.kind)} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.cardName, { color: theme.text }]}>
@@ -572,7 +616,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
                   <Text style={[styles.cardSub, { color: theme.textSecondary }]}>{f.note}</Text>
                 ) : null}
                 <View style={styles.tagRow}>
-                  <View style={[styles.tag, { borderColor: favorColor(f.kind) }]}>
+                  <View style={[styles.tag, { backgroundColor: hexToRgba(favorColor(f.kind), 0.12) }]}>
                     <Text style={[styles.tagText, { color: favorColor(f.kind) }]}>
                       {f.kind === 'money' ? `$${f.value.toLocaleString()}` : `${f.value} pts`}
                     </Text>
@@ -581,10 +625,12 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
               </View>
               {f.direction === 'owed-to-player' ? (
                 <TouchableOpacity
-                  style={[styles.redeemBtn, { backgroundColor: accent.success }]}
+                  style={[styles.redeemBtn, { backgroundColor: hexToRgba(accent.success, 0.16) }]}
                   onPress={() => handleRedeemFavor(f.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Redeem favor"
                 >
-                  <Text style={styles.redeemText}>Redeem</Text>
+                  <Text style={[styles.redeemText, { color: accent.success }]}>Redeem</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -602,13 +648,14 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
           title="Everyone's content"
           subtitle="No stale or struggling contacts. Keep it up."
           theme={theme}
+          darkMode={darkMode}
         />
       ) : (
         needAttention.map((c) => (
-          <View key={c.id} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View key={c.id} style={cardSurface}>
             <View style={styles.cardHeader}>
-              <View style={[styles.networkIcon, { backgroundColor: accent.warning }]}>
-                <AlertTriangle size={scale(18)} color="white" />
+              <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: hexToRgba(accent.warning, 0.15), borderWidth: 1, borderColor: hexToRgba(accent.warning, 0.3) }]}>
+                <AlertTriangle size={scale(20)} color={accent.warning} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
@@ -625,7 +672,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
           <ArrowLeft size={scale(18)} color={theme.text} />
         </TouchableOpacity>
@@ -640,13 +687,13 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
             onPress={() => setActiveTab(tab)}
             style={[
               styles.tabBtn,
-              activeTab === tab && { borderBottomColor: accent.info, borderBottomWidth: 2 },
+              activeTab === tab && { borderBottomColor: accent.amber, borderBottomWidth: 2 },
             ]}
           >
             <Text
               style={[
                 styles.tabText,
-                { color: activeTab === tab ? accent.info : theme.textSecondary },
+                { color: activeTab === tab ? accent.amber : theme.textMuted },
               ]}
             >
               {tab[0].toUpperCase() + tab.slice(1)}
@@ -663,7 +710,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       {activeTab === 'attention' && renderAttention()}
 
       {feedback && !feedback.id ? (
-        <View style={[styles.toast, { bottom: getAppScreenBottomPadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.info }]}>
+        <View style={[styles.toast, getPlatformShadows(8, 0.2, 0, 16), { bottom: getAppScreenBottomPadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.amber }]}>
           <Text style={{ color: theme.text }}>{feedback.message}</Text>
         </View>
       ) : null}
@@ -706,6 +753,7 @@ function ActionBtn({
   Icon,
   color,
   onPress,
+  darkMode,
   wide,
   subtle,
 }: {
@@ -713,21 +761,61 @@ function ActionBtn({
   Icon: React.ComponentType<{ size: number; color: string }>;
   color: string;
   onPress: () => void;
+  darkMode: boolean;
   wide?: boolean;
   subtle?: boolean;
 }) {
+  // Destructive (Break up / File for divorce): a quiet glass button with a
+  // danger-colored LABEL only — never a filled red button.
+  if (subtle) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[styles.actionGlassBtn, getGlassButton(darkMode), { flexBasis: '100%' }]}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <Icon size={scale(14)} color={color} />
+        <Text style={[styles.actionBtnText, { color }]}>{label}</Text>
+      </TouchableOpacity>
+    );
+  }
+  // The single loud action per expanded card (Move in / Propose / Plan Wedding):
+  // one solid amber identity CTA (Recipe D). Shadow rides the outer Touchable;
+  // the gradient inner clips to the pill.
+  if (wide) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[styles.ctaWrap, getPlatformShadows(5, 0.3, 2, 8)]}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <LinearGradient
+          colors={[accent.amber, accent.amber]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.ctaInner}
+        >
+          <Icon size={scale(16)} color="white" />
+          <Text style={styles.ctaLabel}>{label}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+  // Standard action: a soft same-hue tinted chip — saturated glyph + label, no border.
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[
-        styles.actionBtn,
-        wide && { flexBasis: '100%' },
-        subtle ? { backgroundColor: 'transparent', borderColor: color, borderWidth: 1 } : { backgroundColor: color },
-      ]}
+      style={[styles.actionChip, { backgroundColor: hexToRgba(color, 0.14) }]}
       activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
-      <Icon size={scale(14)} color={subtle ? color : 'white'} />
-      <Text style={[styles.actionBtnText, { color: subtle ? color : 'white' }]}>{label}</Text>
+      <Icon size={scale(14)} color={color} />
+      <Text style={[styles.actionBtnText, { color }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -763,17 +851,27 @@ function EmptyHero({
   title,
   subtitle,
   theme,
+  darkMode,
 }: {
   Icon: React.ComponentType<{ size: number; color: string }>;
   title: string;
   subtitle: string;
   theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
 }) {
   return (
-    <View style={styles.empty}>
-      <Icon size={scale(48)} color={theme.textSecondary} />
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.emptySub, { color: theme.textSecondary }]}>{subtitle}</Text>
+    <View
+      style={[
+        getGlassCard(darkMode, 6),
+        styles.emptyCard,
+        { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: br.xl },
+      ]}
+    >
+      <View style={styles.emptyContent}>
+        <Icon size={scale(44)} color={theme.textSecondary} />
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>{title}</Text>
+        <Text style={[styles.emptySub, { color: theme.textSecondary }]}>{subtitle}</Text>
+      </View>
     </View>
   );
 }
@@ -822,76 +920,118 @@ function strengthColor(s: number): string {
   return accent.danger;
 }
 
+/** #RRGGBB → rgba(). Every accent token fed here is a 6-digit hex, so a simple parse is safe. */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
-  scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
+  scrollPad: { padding: sp.md, gap: sp.lg, paddingBottom: sp['3xl'] },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: sp.md,
     paddingVertical: sp.sm,
-    borderBottomWidth: 1,
   },
   headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: fs.xl, fontWeight: '800' },
+  headerTitle: { fontSize: fs.lg, fontWeight: '700' },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center' },
   tabText: { fontSize: fs.sm, fontWeight: '700' },
-  card: { padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
+  card: { padding: sp.md },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
   cardName: { fontSize: fs.md, fontWeight: '800' },
   cardSub: { fontSize: fs.sm, marginTop: 2 },
   cardScore: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  avatar: { width: scale(48), height: scale(48), borderRadius: scale(24) },
-  networkIcon: { width: scale(40), height: scale(40), borderRadius: scale(20), alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: scale(48), height: scale(48), borderRadius: scale(24), borderWidth: 1 },
   bar: { height: scale(6), borderRadius: br.full, marginTop: sp.xs, overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: br.full },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: sp.xs, marginTop: sp.xs },
-  tag: { paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, borderWidth: 1 },
+  tag: { paddingHorizontal: sp.sm, paddingVertical: 2, borderRadius: br.full },
   tagText: { fontSize: fs.xs, fontWeight: '700' },
   actionsBox: { gap: sp.sm, marginTop: sp.md },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   opinionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
   opinionStat: { fontSize: fontScale(11) },
   innerLifeLine: { fontSize: fontScale(11.5) },
-  actionBtn: {
+  // Standard tinted action chip: same-hue soft fill, no border (de-noise).
+  actionChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: sp.xs,
-    paddingHorizontal: sp.sm,
-    paddingVertical: sp.xs,
-    borderRadius: br.md,
+    paddingHorizontal: sp.md,
+    paddingVertical: sp.sm,
+    borderRadius: br.full,
     flex: 1,
     minWidth: scale(90),
-    justifyContent: 'center',
   },
+  // Destructive glass button (danger label rides on top, set inline).
+  actionGlassBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: sp.xs,
+    paddingHorizontal: sp.md,
+    paddingVertical: sp.sm,
+  },
+  // Recipe D primary CTA: outer carries shadow + solid fill; inner gradient clips.
+  ctaWrap: { flexBasis: '100%', borderRadius: br.full, backgroundColor: accent.amber },
+  ctaInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: sp.xs,
+    minHeight: touchTargets.minimum,
+    paddingHorizontal: sp.md,
+    borderRadius: br.full,
+    overflow: 'hidden',
+  },
+  ctaLabel: { color: 'white', fontSize: fs.md, fontWeight: '700' },
   actionBtnText: { fontSize: fs.xs, fontWeight: '700' },
-  sectionLabel: { fontSize: fs.xs, fontWeight: '700', textTransform: 'uppercase' },
+  sectionLabel: { fontSize: fs.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: sp.xs },
   feedback: { fontSize: fs.xs, fontStyle: 'italic', marginTop: sp.xs },
-  statsCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
-  statsTitle: { fontSize: fs.sm, fontWeight: '800', marginBottom: sp.sm },
+  // Recipe B hero interior: clipped so the tint wash + glow blob stay inside the radius.
+  heroInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg },
+  heroGlow: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: 'rgba(249, 115, 22, 0.10)',
+  },
+  heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+  statsTitle: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: sp.sm },
   // Wrap to handle 4-up Network row (cramped at ~85pt each) and 3-up Favors row
   // with long $-formatted values. flexBasis: 22% keeps the 4-up Network row on a
   // single line on larger phones but lets it drop to 2x2 on narrow screens; the
   // 3-up Favors row stays in one line until values get long.
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
   stat: { alignItems: 'center', flexBasis: '22%', flexGrow: 1, minWidth: scale(72) },
-  statValue: { fontSize: fs.lg, fontWeight: '800' },
+  statValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
   statLabel: { fontSize: fs.xs, marginTop: 2 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
+  emptyCard: { paddingVertical: sp['2xl'], paddingHorizontal: sp.lg, alignItems: 'center' },
+  emptyContent: { alignItems: 'center', gap: sp.sm, opacity: 0.6 },
   emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
   emptySub: { fontSize: fs.sm, textAlign: 'center' },
-  redeemBtn: { paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.md },
-  redeemText: { color: 'white', fontSize: fs.sm, fontWeight: '700' },
+  redeemBtn: { paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.full },
+  redeemText: { fontSize: fs.sm, fontWeight: '700' },
   toast: {
     position: 'absolute',
     bottom: sp.lg,
     left: sp.md,
     right: sp.md,
     padding: sp.md,
-    borderRadius: br.lg,
+    borderRadius: br.xl,
     borderWidth: 1,
   },
 });

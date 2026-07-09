@@ -13,7 +13,8 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { MapPin, Briefcase, GraduationCap, AlertCircle } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { SPARK_COLORS, SPARK_GRADIENT } from '../styles/sparkTheme';
 import type { DatingProfile } from '@/lib/dating/datingProfiles';
 import { getDatingProfileImage } from '@/lib/dating/datingProfiles';
@@ -42,86 +43,107 @@ const WEALTH_LABEL: Record<string, string> = {
 export default function ProfileCard({
   profile, likeOpacity = 0, nopeOpacity = 0, superOpacity = 0, catfishSuspected,
 }: ProfileCardProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const photo = useMemo(() => getDatingProfileImage(profile.gender), [profile.gender]);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
-      <Image source={photo} style={styles.photo} resizeMode="cover" />
+    // Anatomy: outer carries the L2 glass shadow + radius + border + solid fill;
+    // inner clips the photo/overlays (never put overflow:hidden on the shadow view).
+    <View
+      style={[
+        getGlassCard(isDark, 12),
+        styles.card,
+        {
+          backgroundColor: theme.surface,
+          borderColor: isDark ? theme.glassBorder : theme.border,
+        },
+      ]}
+    >
+      <View style={styles.cardInner}>
+        <Image source={photo} style={styles.photo} resizeMode="cover" />
 
-      {/* Dark gradient under the text */}
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.85)'] as unknown as string[]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+        {/* Bottom scrim so identity text stays legible on any photo. The gradient
+            fallback only renders colors[0], so depth is faked with stacked
+            translucent Views that darken toward the bottom. */}
+        <View pointerEvents="none" style={styles.scrimSoft} />
+        <View pointerEvents="none" style={styles.scrimMid} />
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)'] as unknown as string[]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.scrimStrong}
+        />
 
-      {/* Catfish suspicion chip */}
-      {catfishSuspected ? (
-        <View style={styles.catfishChip}>
-          <AlertCircle size={fontScale(12)} color="#FFFFFF" strokeWidth={2.4} />
-          <Text style={styles.catfishChipText}>Suspicious profile</Text>
-        </View>
-      ) : null}
+        {/* Lit top edge — hero-only highlight (dark mode). */}
+        {isDark ? <View pointerEvents="none" style={styles.topHairline} /> : null}
 
-      {/* LIKE stamp */}
-      {likeOpacity > 0 ? (
-        <View style={[styles.stamp, styles.stampLike, { opacity: likeOpacity }]}>
-          <Text style={[styles.stampText, { color: SPARK_COLORS.success }]}>LIKE</Text>
-        </View>
-      ) : null}
-      {/* NOPE stamp */}
-      {nopeOpacity > 0 ? (
-        <View style={[styles.stamp, styles.stampNope, { opacity: nopeOpacity }]}>
-          <Text style={[styles.stampText, { color: SPARK_COLORS.danger }]}>NOPE</Text>
-        </View>
-      ) : null}
-      {/* SUPER stamp */}
-      {superOpacity > 0 ? (
-        <View style={[styles.stamp, styles.stampSuper, { opacity: superOpacity }]}>
-          <Text style={[styles.stampText, { color: SPARK_COLORS.superLike }]}>SUPER</Text>
-        </View>
-      ) : null}
-
-      {/* Identity */}
-      <View style={styles.identityBlock}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {profile.name}
-          </Text>
-          <Text style={styles.age}>{profile.age}</Text>
-        </View>
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <MapPin size={fontScale(12)} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.metaText}>{profile.distance} mi</Text>
+        {/* Catfish suspicion chip */}
+        {catfishSuspected ? (
+          <View style={styles.catfishChip}>
+            <AlertCircle size={fontScale(12)} color="#FFFFFF" strokeWidth={2.4} />
+            <Text style={styles.catfishChipText}>Suspicious profile</Text>
           </View>
-          <View style={styles.metaItem}>
-            <Briefcase size={fontScale(12)} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.metaText} numberOfLines={1}>{profile.job}</Text>
-          </View>
-        </View>
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <GraduationCap size={fontScale(12)} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.metaText}>{profile.education}</Text>
-          </View>
-          <View style={styles.wealthChip}>
-            <Text style={styles.wealthChipText}>{WEALTH_LABEL[profile.wealth] ?? profile.wealth}</Text>
-          </View>
-        </View>
+        ) : null}
 
-        <Text style={styles.bio} numberOfLines={3}>
-          {profile.bio}
-        </Text>
+        {/* LIKE stamp */}
+        {likeOpacity > 0 ? (
+          <View style={[styles.stamp, styles.stampLike, { opacity: likeOpacity }]}>
+            <Text style={[styles.stampText, { color: SPARK_COLORS.success }]}>LIKE</Text>
+          </View>
+        ) : null}
+        {/* NOPE stamp */}
+        {nopeOpacity > 0 ? (
+          <View style={[styles.stamp, styles.stampNope, { opacity: nopeOpacity }]}>
+            <Text style={[styles.stampText, { color: SPARK_COLORS.danger }]}>NOPE</Text>
+          </View>
+        ) : null}
+        {/* SUPER stamp */}
+        {superOpacity > 0 ? (
+          <View style={[styles.stamp, styles.stampSuper, { opacity: superOpacity }]}>
+            <Text style={[styles.stampText, { color: SPARK_COLORS.superLike }]}>SUPER</Text>
+          </View>
+        ) : null}
 
-        <View style={styles.interests}>
-          {profile.interests.slice(0, 4).map((interest) => (
-            <View key={interest} style={styles.interestPill}>
-              <Text style={styles.interestText}>{interest}</Text>
+        {/* Identity */}
+        <View style={styles.identityBlock}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>
+              {profile.name}
+            </Text>
+            <Text style={styles.age}>{profile.age}</Text>
+          </View>
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <MapPin size={fontScale(12)} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.metaText}>{profile.distance} mi</Text>
             </View>
-          ))}
+            <View style={styles.metaItem}>
+              <Briefcase size={fontScale(12)} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.metaText} numberOfLines={1}>{profile.job}</Text>
+            </View>
+          </View>
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <GraduationCap size={fontScale(12)} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.metaText}>{profile.education}</Text>
+            </View>
+            <View style={styles.wealthChip}>
+              <Text style={styles.wealthChipText}>{WEALTH_LABEL[profile.wealth] ?? profile.wealth}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.bio} numberOfLines={3}>
+            {profile.bio}
+          </Text>
+
+          <View style={styles.interests}>
+            {profile.interests.slice(0, 4).map((interest) => (
+              <View key={interest} style={styles.interestPill}>
+                <Text style={styles.interestText}>{interest}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       </View>
     </View>
@@ -131,19 +153,49 @@ export default function ProfileCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: scale(20),
+    borderRadius: responsiveBorderRadius['2xl'],
+    borderWidth: 1,
+  },
+  cardInner: {
+    flex: 1,
+    borderRadius: responsiveBorderRadius['2xl'],
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
   },
   photo: {
     width: '100%',
     height: '100%',
+  },
+  // Stacked scrim layers (fallback gradient renders flat, so we fake the fade).
+  scrimSoft: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '68%',
+    backgroundColor: 'rgba(0,0,0,0.26)',
+  },
+  scrimMid: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '46%',
+    backgroundColor: 'rgba(0,0,0,0.30)',
+  },
+  scrimStrong: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '26%',
+  },
+  topHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   catfishChip: {
     position: 'absolute',
@@ -214,6 +266,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     fontSize: fontScale(22),
     fontWeight: '300',
+    fontVariant: ['tabular-nums'],
   },
   metaRow: {
     flexDirection: 'row',

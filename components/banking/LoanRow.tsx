@@ -4,6 +4,7 @@ import { CreditCard, ChevronRight, AlertTriangle } from 'lucide-react-native';
 import { Loan } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
 interface Props {
   loan: Loan;
@@ -39,11 +40,11 @@ export default function LoanRow({ loan, darkMode, onPress }: Props) {
     <TouchableOpacity
       activeOpacity={onPress ? 0.7 : 1}
       onPress={onPress}
-      style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+      style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl }]}
     >
       <View style={styles.headerRow}>
-        <View style={[styles.iconBubble, { backgroundColor: theme.surface }]}>
-          <CreditCard size={scale(18)} color={theme.text} />
+        <View style={[getGlassIconContainer(darkMode, 36), { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.30)' }]}>
+          <CreditCard size={scale(18)} color={accent.info} />
         </View>
         <View style={styles.body}>
           <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
@@ -60,7 +61,7 @@ export default function LoanRow({ loan, darkMode, onPress }: Props) {
         {onPress && <ChevronRight size={scale(16)} color={theme.textMuted} />}
       </View>
 
-      <View style={[styles.track, { backgroundColor: theme.border }]}>
+      <View style={[styles.track, { backgroundColor: theme.surfaceElevated }]}>
         <View style={[styles.fill, { width: `${fillPct * 100}%`, backgroundColor: accent.info }]} />
       </View>
 
@@ -86,21 +87,12 @@ export default function LoanRow({ loan, darkMode, onPress }: Props) {
 const styles = StyleSheet.create({
   card: {
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
     gap: responsiveSpacing.sm,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: responsiveSpacing.sm,
-  },
-  iconBubble: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   body: {
     flex: 1,
@@ -119,6 +111,7 @@ const styles = StyleSheet.create({
   remaining: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   tailSub: {
     fontSize: responsiveFontSize.xs,
@@ -138,6 +131,7 @@ const styles = StyleSheet.create({
   },
   foot: {
     fontSize: responsiveFontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   warningRow: {
     flexDirection: 'row',

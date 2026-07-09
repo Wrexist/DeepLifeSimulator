@@ -23,6 +23,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
   swipeOnProfile,
   rewindLastSwipe,
@@ -37,6 +38,15 @@ import { useTimerManager } from '@/hooks/useTimerManager';
 
 const LinearGradient = LinearGradientFallback;
 
+/** Compose an rgba() string from a #RRGGBB hex + alpha — for Recipe C tint fills/rims. */
+function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const SUPER_THRESHOLD = -SCREEN_HEIGHT * 0.15;
@@ -49,7 +59,7 @@ interface SwipeScreenProps {
 
 export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: SwipeScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   // Auto-cleaned timers so the post-match callback can't fire after unmount.
   const timers = useTimerManager();
 
@@ -251,6 +261,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           size={touchTargets.medium}
           onPress={handleRewind}
           label="Rewind last swipe"
+          darkMode={isDark}
         />
         <ActionBtn
           icon={X}
@@ -258,6 +269,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           size={touchTargets.large}
           onPress={() => handleButton('left')}
           label="Pass"
+          darkMode={isDark}
         />
         <ActionBtn
           icon={Star}
@@ -266,6 +278,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           onPress={() => handleButton('super')}
           label="Super-like"
           disabled={remainingSuper <= 0}
+          darkMode={isDark}
         />
         <ActionBtn
           icon={Heart}
@@ -274,6 +287,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           onPress={() => handleButton('right')}
           label="Like"
           gradient
+          darkMode={isDark}
         />
         <ActionBtn
           icon={Zap}
@@ -281,6 +295,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           size={touchTargets.medium}
           onPress={onOpenBoost}
           label="Boost"
+          darkMode={isDark}
         />
       </View>
     </View>
@@ -288,7 +303,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
 }
 
 function ActionBtn({
-  icon: Icon, color, size, onPress, label, disabled, gradient,
+  icon: Icon, color, size, onPress, label, disabled, gradient, darkMode,
 }: {
   icon: any;
   color: string;
@@ -297,13 +312,19 @@ function ActionBtn({
   label: string;
   disabled?: boolean;
   gradient?: boolean;
+  darkMode?: boolean;
 }) {
+  // Primary (Like) keeps the solid rose gradient — the one loud action.
+  // Everything else is a Recipe C tinted glass bubble in its own action hue.
+  const disabledFill = darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)';
+  const disabledRim = darkMode ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.12)';
+  const disabledGlyph = darkMode ? 'rgba(255,255,255,0.3)' : 'rgba(15,23,42,0.3)';
   const body = gradient ? (
     <LinearGradient
       colors={SPARK_GRADIENT as unknown as string[]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={[styles.btnFill, { width: size, height: size, borderRadius: size / 2 }]}
+      style={[styles.btnFill, getPlatformShadows(5, 0.3, 2, 8), { width: size, height: size, borderRadius: size / 2 }]}
     >
       <Icon size={fontScale(size * 0.4)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />
     </LinearGradient>
@@ -311,17 +332,18 @@ function ActionBtn({
     <View
       style={[
         styles.btnFill,
+        getPlatformShadows(4, 0.15, 2, 8),
         {
           width: size,
           height: size,
           borderRadius: size / 2,
-          borderWidth: 2,
-          borderColor: disabled ? 'rgba(255,255,255,0.2)' : color,
-          backgroundColor: 'rgba(15,23,42,0.6)',
+          borderWidth: 1,
+          borderColor: disabled ? disabledRim : withAlpha(color, 0.3),
+          backgroundColor: disabled ? disabledFill : withAlpha(color, 0.15),
         },
       ]}
     >
-      <Icon size={fontScale(size * 0.4)} color={disabled ? 'rgba(255,255,255,0.3)' : color} strokeWidth={2.4} />
+      <Icon size={fontScale(size * 0.4)} color={disabled ? disabledGlyph : color} strokeWidth={2.4} />
     </View>
   );
   return (
@@ -403,10 +425,5 @@ const styles = StyleSheet.create({
   btnFill: {
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
   },
 });

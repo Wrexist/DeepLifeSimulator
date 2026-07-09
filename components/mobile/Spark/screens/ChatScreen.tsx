@@ -16,6 +16,7 @@ import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallbac
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
   sendSparkMessage,
   generateNpcReply,
@@ -103,7 +104,10 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
         <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
           <ArrowLeft size={fontScale(22)} color={theme.text} />
         </Pressable>
-        <Image source={getDatingProfileImage(profile.gender)} style={styles.headerAvatar} />
+        <Image
+          source={getDatingProfileImage(profile.gender)}
+          style={[styles.headerAvatar, { borderColor: theme.glassBorder }]}
+        />
         <View style={styles.headerText}>
           <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
             {profile.name}
@@ -187,22 +191,25 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
 function Bubble({ msg, theme }: { msg: SparkMessage; theme: any }) {
   const isPlayer = msg.from === 'player';
   if (isPlayer) {
+    // Own messages: soft rose tint (not a loud solid fill) with adaptive text.
     return (
       <View style={[styles.bubbleRow, styles.bubbleRowRight]}>
-        <LinearGradient
-          colors={SPARK_GRADIENT as unknown as string[]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.bubble, styles.bubbleRight]}
-        >
-          <Text style={styles.bubbleTextPlayer}>{msg.text}</Text>
-        </LinearGradient>
+        <View style={[styles.bubble, styles.bubbleRight, styles.bubbleOwn]}>
+          <Text style={[styles.bubbleText, { color: theme.text }]}>{msg.text}</Text>
+        </View>
       </View>
     );
   }
   return (
     <View style={[styles.bubbleRow, styles.bubbleRowLeft]}>
-      <View style={[styles.bubble, styles.bubbleLeft, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View
+        style={[
+          styles.bubble,
+          styles.bubbleLeft,
+          getPlatformShadows(4, 0.12, 1, 6),
+          { backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
+      >
         <Text style={[styles.bubbleText, { color: theme.text }]}>{msg.text}</Text>
       </View>
     </View>
@@ -241,6 +248,7 @@ const styles = StyleSheet.create({
     width: scale(36),
     height: scale(36),
     borderRadius: scale(18),
+    borderWidth: 1,
   },
   headerText: { flex: 1 },
   headerName: {
@@ -283,12 +291,12 @@ const styles = StyleSheet.create({
   bubbleRight: {
     borderBottomRightRadius: scale(6),
   },
-  bubbleText: {
-    fontSize: fontScale(14),
-    lineHeight: fontScale(19),
+  bubbleOwn: {
+    backgroundColor: 'rgba(244,63,94,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(244,63,94,0.30)',
   },
-  bubbleTextPlayer: {
-    color: '#FFFFFF',
+  bubbleText: {
     fontSize: fontScale(14),
     lineHeight: fontScale(19),
   },

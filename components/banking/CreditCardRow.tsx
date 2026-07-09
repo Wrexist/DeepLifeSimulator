@@ -4,6 +4,7 @@ import { CreditCard as CardIcon, Gift } from 'lucide-react-native';
 import { CreditCard } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 
 interface Props {
   card: CreditCard;
@@ -33,39 +34,43 @@ export default function CreditCardRow({ card, darkMode, onPress }: Props) {
     <TouchableOpacity
       activeOpacity={onPress ? 0.7 : 1}
       onPress={onPress}
-      style={[styles.card, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+      // Recipe A depth: shadow + border live on the outer view (no overflow:hidden
+      // here or the shadow clips on iOS); the inner view clips the tier stripe.
+      style={[getGlassCard(darkMode, 6), { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl }]}
     >
-      <View style={[styles.tierStripe, { backgroundColor: c1 }]}>
-        <View style={[styles.tierStripeAccent, { backgroundColor: c2 }]} />
-      </View>
-      <View style={styles.body}>
-        <View style={styles.headerRow}>
-          <CardIcon size={scale(16)} color={c1} />
-          <Text style={[styles.name, { color: theme.text }]}>{card.name}</Text>
+      <View style={styles.inner}>
+        <View style={[styles.tierStripe, { backgroundColor: c1 }]}>
+          <View style={[styles.tierStripeAccent, { backgroundColor: c2 }]} />
         </View>
-        <Text style={[styles.sub, { color: theme.textMuted }]}>
-          {(card.baseAPR * 100).toFixed(2)}% APR · Limit {formatMoney(card.creditLimit)}
-        </Text>
-
-        <View style={[styles.track, { backgroundColor: theme.border }]}>
-          <View
-            style={[
-              styles.fill,
-              { width: `${utilizationPct * 100}%`, backgroundColor: utilization > 0.7 ? accent.danger : c1 },
-            ]}
-          />
-        </View>
-
-        <View style={styles.footRow}>
-          <Text style={[styles.foot, { color: theme.textMuted }]}>
-            Balance: {formatMoney(card.balance)} ({Math.round(utilizationPct * 100)}%)
+        <View style={styles.body}>
+          <View style={styles.headerRow}>
+            <CardIcon size={scale(16)} color={c1} />
+            <Text style={[styles.name, { color: theme.text }]}>{card.name}</Text>
+          </View>
+          <Text style={[styles.sub, { color: theme.textMuted }]}>
+            {(card.baseAPR * 100).toFixed(2)}% APR · Limit {formatMoney(card.creditLimit)}
           </Text>
-          {card.pendingRewards > 0 && (
-            <View style={styles.rewardsChip}>
-              <Gift size={scale(10)} color={accent.success} />
-              <Text style={styles.rewardsText}>{formatMoney(card.pendingRewards)}</Text>
-            </View>
-          )}
+
+          <View style={[styles.track, { backgroundColor: theme.surfaceElevated }]}>
+            <View
+              style={[
+                styles.fill,
+                { width: `${utilizationPct * 100}%`, backgroundColor: utilization > 0.7 ? accent.danger : c1 },
+              ]}
+            />
+          </View>
+
+          <View style={styles.footRow}>
+            <Text style={[styles.foot, { color: theme.textMuted }]}>
+              Balance: {formatMoney(card.balance)} ({Math.round(utilizationPct * 100)}%)
+            </Text>
+            {card.pendingRewards > 0 && (
+              <View style={styles.rewardsChip}>
+                <Gift size={scale(10)} color={accent.success} />
+                <Text style={styles.rewardsText}>{formatMoney(card.pendingRewards)}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -73,10 +78,9 @@ export default function CreditCardRow({ card, darkMode, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: {
+  inner: {
     flexDirection: 'row',
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.xl,
     overflow: 'hidden',
   },
   tierStripe: {
@@ -103,6 +107,7 @@ const styles = StyleSheet.create({
   },
   sub: {
     fontSize: responsiveFontSize.sm,
+    fontVariant: ['tabular-nums'],
   },
   track: {
     height: scale(4),
@@ -121,6 +126,7 @@ const styles = StyleSheet.create({
   },
   foot: {
     fontSize: responsiveFontSize.xs,
+    fontVariant: ['tabular-nums'],
   },
   rewardsChip: {
     flexDirection: 'row',

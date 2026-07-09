@@ -24,6 +24,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { initialGameState } from '@/contexts/game/initialState';
 
 import CreditScoreGauge from '@/components/banking/CreditScoreGauge';
@@ -53,6 +55,8 @@ import {
   createSavingsGoal,
 } from '@/contexts/game/actions/BankingActions';
 import { acceptLoan, prepayLoan } from '@/contexts/game/actions/LoanActions';
+
+const LinearGradient = LinearGradientFallback;
 
 interface BankAppProps {
   onBack: () => void;
@@ -138,12 +142,12 @@ function BankAppInner({ onBack }: BankAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
+      <View style={styles.topBar}>
         <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
           <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.appTitle, { color: theme.text }]}>Bank</Text>
-        <View style={[styles.scoreChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={[styles.scoreChip, { backgroundColor: 'rgba(59, 130, 246, 0.14)', borderColor: 'rgba(59, 130, 246, 0.30)' }]}>
           <Text style={[styles.scoreChipText, { color: theme.text }]}>{banking.creditScore.score}</Text>
         </View>
       </View>
@@ -155,22 +159,69 @@ function BankAppInner({ onBack }: BankAppProps) {
           // Reserve space for the floating glass tab bar (cb5e306 sweep --
           // BankApp was the one sub-app still computing its own padding).
           paddingBottom: getAppScreenBottomPadding(insets.bottom),
-          gap: responsiveSpacing.md,
+          gap: responsiveSpacing.sm,
         }}
       >
+        <View
+          style={[
+            getGlassCard(darkMode, 12),
+            {
+              backgroundColor: theme.surface,
+              borderColor: darkMode ? theme.glassBorder : theme.border,
+              borderWidth: 1,
+              borderRadius: responsiveBorderRadius['2xl'],
+            },
+          ]}
+        >
+          <View style={styles.heroInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(59, 130, 246, 0.14)', 'rgba(59, 130, 246, 0.03)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: -scale(48),
+                right: -scale(36),
+                width: scale(150),
+                height: scale(150),
+                borderRadius: scale(75),
+                backgroundColor: 'rgba(59, 130, 246, 0.10)',
+              }}
+            />
+            {darkMode && (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 1,
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                }}
+              />
+            )}
+            <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>OVERVIEW</Text>
+            <View style={styles.statRow}>
+              <Stat theme={theme} icon={Wallet} label="Cash" value={formatMoney(cash)} />
+              <Stat theme={theme} icon={PiggyBank} label="Bank" value={formatMoney(totalBank)} />
+              <Stat theme={theme} icon={LineChart} label="Invested" value={formatMoney(investedValue)} />
+              <Stat theme={theme} icon={TrendingUp} label="Debt" value={formatMoney(totalDebt)} negative={totalDebt > 0} />
+            </View>
+          </View>
+        </View>
+
         <CreditScoreGauge
           score={banking.creditScore.score}
           band={banking.creditScore.band}
           darkMode={darkMode}
           compact
         />
-
-        <View style={styles.statRow}>
-          <Stat theme={theme} icon={Wallet} label="Cash" value={formatMoney(cash)} />
-          <Stat theme={theme} icon={PiggyBank} label="Bank" value={formatMoney(totalBank)} />
-          <Stat theme={theme} icon={LineChart} label="Invested" value={formatMoney(investedValue)} />
-          <Stat theme={theme} icon={TrendingUp} label="Debt" value={formatMoney(totalDebt)} negative={totalDebt > 0} />
-        </View>
 
         <SectionHeader theme={theme} title="Accounts" onAdd={() => setShowOpenAccount(true)} addLabel="Open" />
         {banking.accounts.map((acct) => (
@@ -187,7 +238,7 @@ function BankAppInner({ onBack }: BankAppProps) {
 
         <SectionHeader theme={theme} title="Loans" onAdd={() => setShowLoanQuote(true)} addLabel="Apply" />
         {(gameState.loans ?? []).length === 0 ? (
-          <EmptyText theme={theme}>No active loans.</EmptyText>
+          <EmptyText theme={theme} darkMode={darkMode}>No active loans.</EmptyText>
         ) : (
           (gameState.loans ?? []).map((loan) => (
             <LoanRow key={loan.id} loan={loan} darkMode={darkMode} onPress={() => setPrepayLoanId(loan.id)} />
@@ -196,7 +247,7 @@ function BankAppInner({ onBack }: BankAppProps) {
 
         <SectionHeader theme={theme} title="Credit Cards" onAdd={() => setShowApplyCard(true)} addLabel="Apply" />
         {banking.creditCards.length === 0 ? (
-          <EmptyText theme={theme}>No cards yet.</EmptyText>
+          <EmptyText theme={theme} darkMode={darkMode}>No cards yet.</EmptyText>
         ) : (
           banking.creditCards.map((c) => (
             <CreditCardRow key={c.id} card={c} darkMode={darkMode} onPress={() => setPayCardId(c.id)} />
@@ -219,7 +270,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             ])
           } addLabel="New" />
         {banking.savingsGoals.length === 0 ? (
-          <EmptyText theme={theme}>No goals yet.</EmptyText>
+          <EmptyText theme={theme} darkMode={darkMode}>No goals yet.</EmptyText>
         ) : (
           banking.savingsGoals.map((g) => (
             <SavingsGoalCard
@@ -233,7 +284,7 @@ function BankAppInner({ onBack }: BankAppProps) {
 
         <SectionHeader theme={theme} title="Auto-Pay" onAdd={() => setShowAddBill(true)} addLabel="Add" />
         {banking.billPayRules.length === 0 ? (
-          <EmptyText theme={theme}>No bills set up.</EmptyText>
+          <EmptyText theme={theme} darkMode={darkMode}>No bills set up.</EmptyText>
         ) : (
           banking.billPayRules.map((rule) => (
             <BillPayRow
@@ -447,9 +498,11 @@ function Stat({
   negative?: boolean;
 }) {
   return (
-    <View style={[styles.statCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-      <Icon size={scale(14)} color={theme.textMuted} />
-      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
+    <View style={styles.statCell}>
+      <View style={styles.statTop}>
+        <Icon size={scale(14)} color={negative ? accent.danger : accent.info} />
+        <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
+      </View>
       <Text
         style={[styles.statValue, { color: negative ? accent.danger : theme.text }]}
         numberOfLines={1}
@@ -477,20 +530,28 @@ function SectionHeader({
     <View style={styles.sectionHeader}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
       {onAdd && (
-        <TouchableOpacity onPress={onAdd} style={[styles.addBtn, { backgroundColor: accent.info }]}>
-          <Plus size={scale(12)} color="white" />
-          <Text style={styles.addBtnText}>{addLabel ?? 'Add'}</Text>
+        <TouchableOpacity onPress={onAdd} style={styles.addChip}>
+          <Plus size={scale(12)} color={accent.info} />
+          <Text style={styles.addChipText}>{addLabel ?? 'Add'}</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
+function EmptyText({
+  theme,
+  darkMode,
+  children,
+}: {
+  theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
+  children: React.ReactNode;
+}) {
   // Give empty sections a card so they share the same rhythm as populated ones
-  // instead of floating as bare text between bordered rows.
+  // instead of floating as bare text between elevated rows.
   return (
-    <View style={[styles.emptyCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
     </View>
   );
@@ -511,7 +572,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 1,
     gap: responsiveSpacing.sm,
   },
   backBtn: { padding: responsiveSpacing.xs },
@@ -522,20 +582,33 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  scoreChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  scoreChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+  },
+  heroEyebrow: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    marginBottom: responsiveSpacing.sm,
+  },
   statRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: responsiveSpacing.sm,
   },
-  statCard: {
-    // 2-per-row wrap: money labels like "$1,234,567" don't fit at ~95pt (3-up).
+  statCell: {
+    // Keep the 2-per-row wrap: money labels like "$1,234,567" don't fit at ~95pt (3-up).
     flexBasis: '48%',
     flexGrow: 1,
-    padding: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-    gap: 2,
+    gap: scale(4),
+  },
+  statTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
   },
   statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   statValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
@@ -548,18 +621,20 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: responsiveFontSize.md,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  addBtn: {
+  addChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,
+    backgroundColor: 'rgba(59, 130, 246, 0.14)',
   },
-  addBtnText: { color: 'white', fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  addChipText: { color: accent.info, fontSize: responsiveFontSize.xs, fontWeight: '700' },
   emptyCard: {
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -568,5 +643,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: responsiveFontSize.sm,
     textAlign: 'center',
+    opacity: 0.6,
   },
 });
