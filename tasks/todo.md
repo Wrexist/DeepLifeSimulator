@@ -55,6 +55,24 @@ week with no way to turn it off; (3) frequent, plain "Heads Up" event popups.
 - [x] **Visual preview** of the redesigned reservation-fee Heads Up card delivered
       as a published artifact for the user to eyeball before rebuilding.
 
+### Follow-up (2026-07-09, round 3)
+- [x] **Work tab is now one page-scroll** (`app/(tabs)/work.tsx`): the Current Job
+      hero card + the Street/Career/Crime sub-tabs used to be pinned above a small,
+      cramped inner ScrollView (only ~1 job visible, "Janitor" cut off behind the
+      tab bar). Wrapped the whole thing in a single page-level `ScrollView` (hero +
+      tabs + list scroll together); moved `SkillTalentTree` (an overlay) out of the
+      scroll; added `local.tabContent` for the list's horizontal padding. Verified:
+      type-check + lint clean, work screen render green.
+- [x] **Treatment-Successful popup redesigned** (`components/CureSuccessModal.tsx`):
+      rebuilt in Liquid Glass (frosted dark card, green success accent, icon chip +
+      top glow + highlight — same family as the event card). Fixed the real layout
+      bug where the fixed "Great!" button rendered ON TOP of the content: header
+      and button are now fixed, only the cured list scrolls (bounded via
+      `flexShrink`), so the button can never overlap. Cut the noise — dropped the
+      generic 4-item "Health Benefits" list and the "Health Tips" box (whose
+      bullets rendered as corrupt `�`); kept the essentials (what was cured) + one
+      concise reassurance line. New render test (2/2). `Check` added to jest mock.
+
 ## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
 
 User spammed the green "Next Week" button → screen covered in overlapping blue

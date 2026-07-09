@@ -423,6 +423,7 @@ jest.mock('lucide-react-native', () => ({
   // WeeklyEventModal (Heads Up) + seasonal/economic event icons
   AlertCircle: 'AlertCircle',
   CheckCircle: 'CheckCircle',
+  Check: 'Check',
   TrendingUp: 'TrendingUp',
   TrendingDown: 'TrendingDown',
   ArrowUp: 'ArrowUp',

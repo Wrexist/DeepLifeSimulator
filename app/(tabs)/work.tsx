@@ -753,7 +753,14 @@ function WorkScreenContent() {
                 <JailScreen />
             ) : (
                 <>
-                    <View style={styles.container}>
+                    {/* One page-level scroll: the Current Job card and the
+                        Street/Career/Crime sub-tabs scroll away with the list
+                        instead of pinning a cramped inner scroll region. */}
+                    <ScrollView
+                        style={styles.container}
+                        contentContainerStyle={{ paddingBottom: getTabBarSafePadding(insets.bottom) }}
+                        showsVerticalScrollIndicator={true}
+                    >
                         {currentJob && currentJobLevel && (
                             <View style={local.heroCard}>
                                 <ProgressRing
@@ -803,11 +810,7 @@ function WorkScreenContent() {
                             onChange={setActiveTab}
                         />
 
-                        <ScrollView
-                            style={styles.content}
-                            contentContainerStyle={{ paddingTop: 0, paddingBottom: getTabBarSafePadding(insets.bottom) }}
-                            showsVerticalScrollIndicator={true}
-                        >
+                        <View style={local.tabContent}>
                             {activeTab === 'street' && (
                                 <View>
                                     <View style={styles.sectionHeader}>
@@ -954,15 +957,16 @@ function WorkScreenContent() {
                                 </View>
                             )}
 
-                            {selectedSkillTree && (
-                                <SkillTalentTree
-                                    skillId={selectedSkillTree}
-                                    visible={!!selectedSkillTree}
-                                    onClose={() => setSelectedSkillTree(null)}
-                                />
-                            )}
-                        </ScrollView>
-                    </View>
+                        </View>
+                    </ScrollView>
+
+                    {selectedSkillTree && (
+                        <SkillTalentTree
+                            skillId={selectedSkillTree}
+                            visible={!!selectedSkillTree}
+                            onClose={() => setSelectedSkillTree(null)}
+                        />
+                    )}
                 </>
             )}
 
@@ -1042,6 +1046,14 @@ const local = StyleSheet.create({
         marginHorizontal: scale(16),
         marginTop: scale(12),
         marginBottom: scale(4),
+    },
+    // Horizontal padding for the tab content, now that the whole page (hero +
+    // sub-tabs + list) lives in one ScrollView. Matches the old inner-scroll
+    // padding (responsiveSpacing.lg == scale(24)); the page ScrollView owns the
+    // bottom safe-area padding.
+    tabContent: {
+        paddingHorizontal: scale(24),
+        paddingTop: scale(8),
     },
     // Current Job hero — reference-style ring card.
     heroCard: {
