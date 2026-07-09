@@ -503,7 +503,12 @@ export function trackBudgetSpend(
   const amt = Math.max(0, safe(amount));
   if (amt === 0) return banking;
 
-  const buckets = [...banking.budgetSpend];
+  // Defend against a partial/older banking slice with no budgetSpend array.
+  // The weekly-tick spendEvents loop (lib/banking/weeklyTick.ts) calls this
+  // EVERY tick, so an unguarded `[...undefined]` here would throw inside the
+  // tick updater and soft-lock "Next Week". Every other caller guards this;
+  // defaulting at the source covers them all.
+  const buckets = [...(banking.budgetSpend || [])];
   let bucket = buckets.find((b) => b.weeksLived === currentWeek);
   if (!bucket) {
     bucket = { weeksLived: currentWeek, byCategory: {} };

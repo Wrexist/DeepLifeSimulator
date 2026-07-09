@@ -29,6 +29,7 @@ import {
 import type { Dispatch, SetStateAction } from 'react';
 import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
+import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
 import { formatMoney } from '@/utils/moneyFormatting';
 
 const log = logger.scope('DatingActions');
@@ -505,6 +506,10 @@ export const planWedding = (
       r => r.id !== partnerId && (r.type === 'spouse' || r.weddingPlanned)
     );
     if (prevOtherCommitted) return prev;
+    // Re-check affordability inside the updater (matches proposeMarriage /
+    // executeWedding) so a same-batch double-tap can't double-charge the
+    // 25% deposit.
+    if ((prev.stats?.money ?? 0) < deposit) return prev;
     return {
       ...prev,
       relationships: (prev.relationships || []).map(r =>
@@ -577,15 +582,11 @@ export const executeWedding = (
     const updatedRelationships = relationships.map(r =>
       r.id === partnerId
         ? {
-            ...r,
-            type: 'spouse' as const,
-            marriageWeek: prev.weeksLived || 0,
-            anniversaryWeek: prev.weeksLived || 0,
-            // RELATIONSHIP STATE FIX: Clear all engagement properties when becoming spouse
-            engagementWeek: undefined,
-            engagementRing: undefined,
-            weddingPlanned: undefined,
-            livingTogether: true, // RELATIONSHIP STATE FIX: Spouses automatically live together
+            // Shared spouse-record factory — keeps this manual path identical to
+            // the weekly-tick auto path (applyScheduledWedding). Sets type,
+            // marriageWeek/anniversaryWeek, clears engagement fields, and sets
+            // livingTogether.
+            ...buildSpouseRecord(r, prev.weeksLived || 0),
           }
         : r
     );

@@ -4570,7 +4570,12 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: can afford → 
   "money": 35000,
   "result": {
     "familySpouse": {
+      "anniversaryWeek": 100,
+      "engagementRing": undefined,
+      "engagementWeek": undefined,
       "id": "r1",
+      "livingTogether": true,
+      "marriageWeek": 100,
       "name": "Alice",
       "relationshipScore": 90,
       "type": "spouse",
@@ -4578,7 +4583,12 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: can afford → 
       "weeksAtLowRelationship": 0,
     },
     "rel": {
+      "anniversaryWeek": 100,
+      "engagementRing": undefined,
+      "engagementWeek": undefined,
       "id": "r1",
+      "livingTogether": true,
+      "marriageWeek": 100,
       "name": "Alice",
       "relationshipScore": 90,
       "type": "spouse",
@@ -4595,7 +4605,12 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: can afford → 
 exports[`pre-tick equivalence — applyScheduledWedding execute: relationshipScore clamped at 100 even with +20 bonus 1`] = `
 {
   "familySpouse": {
+    "anniversaryWeek": 100,
+    "engagementRing": undefined,
+    "engagementWeek": undefined,
     "id": "r1",
+    "livingTogether": true,
+    "marriageWeek": 100,
     "name": "Dave",
     "relationshipScore": 100,
     "type": "spouse",
@@ -4603,7 +4618,12 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: relationshipSco
     "weeksAtLowRelationship": 0,
   },
   "rel": {
+    "anniversaryWeek": 100,
+    "engagementRing": undefined,
+    "engagementWeek": undefined,
     "id": "r1",
+    "livingTogether": true,
+    "marriageWeek": 100,
     "name": "Dave",
     "relationshipScore": 100,
     "type": "spouse",
@@ -4619,7 +4639,12 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: relationshipSco
 exports[`pre-tick equivalence — applyScheduledWedding execute: weeksAtLowRelationship reset to 0 even if it was high 1`] = `
 {
   "familySpouse": {
+    "anniversaryWeek": 100,
+    "engagementRing": undefined,
+    "engagementWeek": undefined,
     "id": "r1",
+    "livingTogether": true,
+    "marriageWeek": 100,
     "name": "Carol",
     "relationshipScore": 70,
     "type": "spouse",
@@ -4627,7 +4652,12 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: weeksAtLowRelat
     "weeksAtLowRelationship": 0,
   },
   "rel": {
+    "anniversaryWeek": 100,
+    "engagementRing": undefined,
+    "engagementWeek": undefined,
     "id": "r1",
+    "livingTogether": true,
+    "marriageWeek": 100,
     "name": "Carol",
     "relationshipScore": 70,
     "type": "spouse",
@@ -4645,7 +4675,12 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: zero budget →
   "money": 0,
   "result": {
     "familySpouse": {
+      "anniversaryWeek": 100,
+      "engagementRing": undefined,
+      "engagementWeek": undefined,
       "id": "r1",
+      "livingTogether": true,
+      "marriageWeek": 100,
       "name": "Bob",
       "relationshipScore": 80,
       "type": "spouse",
@@ -4653,7 +4688,12 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: zero budget →
       "weeksAtLowRelationship": 0,
     },
     "rel": {
+      "anniversaryWeek": 100,
+      "engagementRing": undefined,
+      "engagementWeek": undefined,
       "id": "r1",
+      "livingTogether": true,
+      "marriageWeek": 100,
       "name": "Bob",
       "relationshipScore": 80,
       "type": "spouse",

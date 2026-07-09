@@ -1357,7 +1357,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // so the AdvancedBankApp rewrite (Phase C) reads consistent state.
  // Any user-added bill-pay rules also fire here; for existing players the rule
  // list is empty, so this is effectively a no-op until the new UI ships.
- const bankingTick = runWeeklyBankingTick({
+ // Wrapped in try/catch like the other subsystem ticks (pulse/spark/stocks):
+ // this tick's crash surface grew (account-interest accrual + per-tick
+ // budgetSpend tracking), and an unhandled throw here would abort the whole
+ // week (soft-lock "Next Week"). On failure, preserve the prior banking slice
+ // and processed loans so progression still completes.
+ let bankingTick: ReturnType<typeof runWeeklyBankingTick>;
+ try {
+ bankingTick = runWeeklyBankingTick({
  banking: bankingAfterCrypto,
  prevLoans: prevState.loans ?? [],
  processedLoans,
@@ -1379,6 +1386,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },
  ],
  });
+ } catch (bankingErr) {
+ logger.error('[BANKING TICK] Failed:', bankingErr);
+ bankingTick = {
+ banking: bankingAfterCrypto,
+ loansWithTrackers: processedLoans,
+ notifications: [],
+ lateFeesDeducted: 0,
+ };
+ }
  if (bankingTick.lateFeesDeducted > 0) {
  newStats.money = Math.max(0, newStats.money - bankingTick.lateFeesDeducted);
  }

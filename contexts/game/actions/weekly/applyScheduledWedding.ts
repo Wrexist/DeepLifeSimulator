@@ -34,6 +34,7 @@ import type { Relationship } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
+import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
 import type { WeekContext } from './weekContext';
 
 export interface ScheduledWeddingResult {
@@ -80,10 +81,16 @@ export function applyScheduledWedding(
       logger.info(
         `[WEDDING] Wedding happening for ${rel.name} in week ${nextWeeksLived}! Charged $${remainingBalance} remaining balance.`,
       );
+      // Build the spouse record via the shared factory so this auto path and
+      // the manual executeWedding (DatingActions.ts) can never drift — the two
+      // are reached purely by timing, so they must produce identical spouse
+      // shapes. (The auto path previously set only type/score, leaving
+      // marriageWeek + anniversaryWeek undefined, which permanently disabled
+      // anniversaries and left stale engagement flags on a married partner.)
+      // The +20 score / weeksAtLowRelationship reset are this path's own reward,
+      // layered on top of the shared shape.
       const marriedRel: Relationship = {
-        ...rel,
-        type: 'spouse' as const,
-        weddingPlanned: undefined,
+        ...buildSpouseRecord(rel, nextWeeksLived),
         relationshipScore: clampRelationshipScore(rel.relationshipScore + 20),
         weeksAtLowRelationship: 0,
       };
