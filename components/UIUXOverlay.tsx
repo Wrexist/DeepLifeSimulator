@@ -70,8 +70,17 @@ export default function UIUXOverlay() {
         />
       )}
 
-      {/* Error Messages */}
-      {errorStates.map((error, index) => (
+      {/* Error Messages.
+          `info`-severity advisories are intentionally NOT rendered as top
+          banners. They were the full-width blue "ⓘ … ✕" bar that covered the
+          header on the home screen every week (weekly subsystem updates flush
+          through here, and social actions like dating/gifts also used it).
+          Those updates are still reflected in the game state and the in-game
+          notification center — only the intrusive banner is suppressed. Real,
+          actionable problems (warning/error/critical) still surface here. */}
+      {errorStates
+        .filter((error) => error.severity !== 'info')
+        .map((error, index) => (
         <ErrorMessage
           key={error.id}
           visible={true}

@@ -40,6 +40,21 @@ week with no way to turn it off; (3) frequent, plain "Heads Up" event popups.
 - [x] ESLint on all touched files → 0 errors (added the modal's icons to the
       jest.setup.js lucide mock, matching the CommunityRewardPopup precedent).
 
+### Follow-up (2026-07-09, round 2)
+- [x] **Blue info banner removed** (`components/UIUXOverlay.tsx`): the full-width
+      blue "ⓘ … ✕" bar covering the header every week was `ErrorMessage` at
+      `severity: 'info'` (weekly subsystem-notification flush + social actions).
+      UIUXOverlay now skips `info`-severity banners entirely — warning/error/
+      critical still surface; weekly/social updates remain in game state + the
+      notification center. Never renders that bar again.
+- [x] **Bottom tab bar lowered/tightened** (`app/(tabs)/_layout.tsx`): trimmed the
+      oversized inset padding (−scale(10), keeps ~24pt home-indicator clearance)
+      and dropped the base height scale(70)→scale(56) + paddingTop 12→8, so the
+      icon row sits lower with no dead space beneath. Verified: banner-cap test +
+      screens render (home/_layout mount) green, type-check + lint clean.
+- [x] **Visual preview** of the redesigned reservation-fee Heads Up card delivered
+      as a published artifact for the user to eyeball before rebuilding.
+
 ## 🔵 Fix: spamming "Next Week" floods screen with stacked blue info banners (2026-06-21)
 
 User spammed the green "Next Week" button → screen covered in overlapping blue

@@ -131,12 +131,14 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           ...getGlassTabBar(isDark),
-          paddingTop: scale(12),
-          // Account for the bottom safe area (Android navigation bar / iOS
-          // home indicator). Both platforms need the inset — omitting it on
-          // iOS left the bar short on notched iPhones.
-          paddingBottom: Math.max(scale(12), insets.bottom || 0),
-          height: scale(70) + (insets.bottom || 0),
+          paddingTop: scale(8),
+          // Sit the icon row lower and tighter. Still clears the home indicator /
+          // Android nav bar, but trims the oversized inset padding + tall base
+          // height that left the labels floating high with dead space beneath.
+          // ~scale(10) is shaved off the inset (24pt clearance on a notched
+          // iPhone — plenty), and the base height drops scale(70) → scale(56).
+          paddingBottom: Math.max(scale(8), (insets.bottom || 0) - scale(10)),
+          height: scale(56) + Math.max(scale(8), (insets.bottom || 0) - scale(10)),
         },
         tabBarBackground: () => (
           <View style={{
