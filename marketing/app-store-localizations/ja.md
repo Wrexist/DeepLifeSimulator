@@ -1,4 +1,4 @@
-# ja — Japanese (Japan) App Store / Google Play Listing
+# ja - Japanese (Japan) App Store / Google Play Listing
 
 ## app_name
 
@@ -124,7 +124,7 @@ v2.3.1 ― 安定性・快適性 大型アップデート
 
 レビューで多かった週進行のバグ、病気の頻度、課金の不具合を重点的に修正しました。強制広告なし、Pay to Winなし。フェアで戦略的な人生シミュレーションを、これからも。
 
-ご意見・ご感想はDiscordへ：discord.gg/deeplifesim
+ご意見・ご感想はDiscordへ：discord.gg/invite/rzktazdX8v
 ```
 
 ## gp_short_description
@@ -222,16 +222,16 @@ BitLifeは楽しい、けれどランダム。『Deep Life Simulator』はリア
 
 今すぐ『Deep Life Simulator』をダウンロード。無一文から始めて、世代を超える大富豪を目指すか、すべてが崩れ落ちるのを見届けるか。あなたの物語は、あなただけのもの。
 
-Discordコミュニティはこちら：discord.gg/deeplifesim
+Discordコミュニティはこちら：discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-• Subtitle packs the two highest-volume JP genre queries in one line: 人生シミュレーション (life simulation) plus the aspiration hook 億万長者 (billionaire) and 無一文 (penniless) — reads as native ad copy, not a keyword string, and stays at 24/30 chars.
-• Keyword field leads with 人生ゲーム (huge volume — JP users search the Game of Life board-game term for this genre) and the extremely common misspelling シュミレーション, which Apple indexes separately from the correctly spelled term in the subtitle; シミュレーター covers the 人生シミュレーター query via combination with 人生 in the subtitle. Japanese tokenization is unreliable on Apple, so full compounds are kept where volume justifies it.
+• Subtitle packs the two highest-volume JP genre queries in one line: 人生シミュレーション (life simulation) plus the aspiration hook 億万長者 (billionaire) and 無一文 (penniless) - reads as native ad copy, not a keyword string, and stays at 24/30 chars.
+• Keyword field leads with 人生ゲーム (huge volume - JP users search the Game of Life board-game term for this genre) and the extremely common misspelling シュミレーション, which Apple indexes separately from the correctly spelled term in the subtitle; シミュレーター covers the 人生シミュレーター query via combination with 人生 in the subtitle. Japanese tokenization is unreliable on Apple, so full compounds are kept where volume justifies it.
 • English terms were deliberately excluded from keywords: "life simulator/simulation" are already indexed via the Latin-script app name, so all 98 chars go to native Japanese terms (money/investing: お金持ち,投資,株,不動産,仮想通貨,資産運用; life-stage: 就職,出世,結婚,恋愛,転生,やり直し; edge: 犯罪,刑務所,借金,破産; genre-adjacent: 経営,放置,育成).
-• 転生 (reincarnation) is a high-volume term in JP thanks to isekai culture and maps perfectly onto the prestige system — featured in keywords and both descriptions.
+• 転生 (reincarnation) is a high-volume term in JP thanks to isekai culture and maps perfectly onto the prestige system - featured in keywords and both descriptions.
 • Descriptions use JP mobile-game store conventions: 【】section headers, ― dashes, full-width punctuation, corner brackets for the app name (『』), and です/ます base tone with punchy sentence fragments in hooks.
 • BitLife comparison kept in body copy only (App Store description + Google Play), never in metadata, per brief.
 • A/B test suggestion: subtitle variant 「お金で人生は変わる 人生シミュレーション」 (softer, curiosity-led) vs the current aspiration-led one; also test gp_short_description with 人生ゲーム instead of 人生シミュレーションゲーム.

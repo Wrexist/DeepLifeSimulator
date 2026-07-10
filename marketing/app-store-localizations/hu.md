@@ -1,4 +1,4 @@
-# hu — Hungarian (Magyar)
+# hu - Hungarian (Magyar)
 
 ## app_name
 
@@ -15,7 +15,7 @@ Deep Life Simulator
 ## promotional_text
 
 ```text
-Kezdj 18 évesen a semmiből. Hitelek, részvények, ingatlanok, bűnözés, dinasztiák. Építs generációkon átívelő vagyont — vagy menj csődbe útközben. Minden döntésed számít.
+Kezdj 18 évesen a semmiből. Hitelek, részvények, ingatlanok, bűnözés, dinasztiák. Építs generációkon átívelő vagyont - vagy menj csődbe útközben. Minden döntésed számít.
 ```
 
 ## keywords
@@ -27,7 +27,7 @@ pénz,karrier,befektetés,üzlet,gazdag,tőzsde,tycoon,csőd,döntés,börtön,i
 ## description
 
 ```text
-A Deep Life Simulator más, mint a többi életszimulátor: valódi gazdasági motor hajtja. Nincs véletlenszerű gombnyomkodás. A pénzed tényleg számít. Vegyél fel hitelt. Fizess kamatot. Építs vagyont — vagy nézd végig, ahogy összeomlik. Minden pénzügyi döntésed az egész életedet formálja.
+A Deep Life Simulator más, mint a többi életszimulátor: valódi gazdasági motor hajtja. Nincs véletlenszerű gombnyomkodás. A pénzed tényleg számít. Vegyél fel hitelt. Fizess kamatot. Építs vagyont - vagy nézd végig, ahogy összeomlik. Minden pénzügyi döntésed az egész életedet formálja.
 
 KEZDJ A SEMMIBŐL. ÉPÍTS FEL MINDENT.
 
@@ -35,18 +35,18 @@ KEZDJ A SEMMIBŐL. ÉPÍTS FEL MINDENT.
 
 20+ KARRIERÚT
 
-Celeb, politikus, sportoló, orvos, mérnök, programozó, vállalkozó — vagy merülj el az alvilágban hackerként, csempészként vagy tolvajként. Minden karriernek saját előmeneteli útja, jövedelme és következményei vannak. A munkád határozza meg a fizetésed, a hírneved — és néha a büntetett előéleted is.
+Celeb, politikus, sportoló, orvos, mérnök, programozó, vállalkozó - vagy merülj el az alvilágban hackerként, csempészként vagy tolvajként. Minden karriernek saját előmeneteli útja, jövedelme és következményei vannak. A munkád határozza meg a fizetésed, a hírneved - és néha a büntetett előéleted is.
 
 VALÓDI GAZDASÁGI MECHANIKÁK
 
 Ez nem BitLife. Valódi gazdasági szimulációt építettünk:
 
-• Hitelek és adósság — Vegyél fel pénzt kamatra. Ha kihagysz egy törlesztőt, zuhan a hitelképességed. A kamatos kamat ellened dolgozik, pont mint a való életben.
-• Tőzsde és kripto — Kereskedj hetente. Az árfolyamok ingadoznak. Meggazdagodhatsz, vagy mindent elveszíthetsz. Az időzítés számít.
-• Ingatlan — Vásárolj lakást, szedj bérleti díjat, építs portfóliót. Az ingatlan értéke nő. A jelzáloghitelnek feltételei vannak.
-• Járművek — Vegyél autót és motort. Karbantartási költségek. Viszonteladási érték. Az értékcsökkenés valódi.
-• Csőd — Túl sok rossz döntés, és mindent elveszíthetsz. A talpra állás lehetséges, de fájdalmas.
-• Kamatos kamat — Fektess be korán, és nézd, hogyan nő a pénzed. Ez a játék lényege. Ez a győzelem feltétele.
+• Hitelek és adósság - Vegyél fel pénzt kamatra. Ha kihagysz egy törlesztőt, zuhan a hitelképességed. A kamatos kamat ellened dolgozik, pont mint a való életben.
+• Tőzsde és kripto - Kereskedj hetente. Az árfolyamok ingadoznak. Meggazdagodhatsz, vagy mindent elveszíthetsz. Az időzítés számít.
+• Ingatlan - Vásárolj lakást, szedj bérleti díjat, építs portfóliót. Az ingatlan értéke nő. A jelzáloghitelnek feltételei vannak.
+• Járművek - Vegyél autót és motort. Karbantartási költségek. Viszonteladási érték. Az értékcsökkenés valódi.
+• Csőd - Túl sok rossz döntés, és mindent elveszíthetsz. A talpra állás lehetséges, de fájdalmas.
+• Kamatos kamat - Fektess be korán, és nézd, hogyan nő a pénzed. Ez a játék lényege. Ez a győzelem feltétele.
 
 A TE ÉLETED, A TE DÖNTÉSEID
 
@@ -54,7 +54,7 @@ Minden hét új lehetőségeket és kihívásokat hoz. Házasodj meg. Vállalj g
 
 A kapcsolatok számítanak. Hanyagold el a házastársad, és elválik tőled. Hagyd figyelmen kívül a gyerekeidet, és a saját életükben neheztelni fognak rád. Minden kapcsolatnak következménye van.
 
-A bűnözés kifizetődő — de ára van. Lopj, árulj drogot, törj fel cégeket. Fejleszd az alvilági képességeidet. Vagy bukj le, ülj börtönben, és kezdd elölről.
+A bűnözés kifizetődő - de ára van. Lopj, árulj drogot, törj fel cégeket. Fejleszd az alvilági képességeidet. Vagy bukj le, ülj börtönben, és kezdd elölről.
 
 PRESZTÍZSRENDSZER ÉS GENERÁCIÓS VAGYON
 
@@ -89,23 +89,23 @@ Kezdd el még ma. Építsd fel a vagyonod. Vagy bukj el látványosan. Így is, 
 ## whats_new
 
 ```text
-v2.3.1 — Stabilitás és hibajavítások
+v2.3.1 - Stabilitás és hibajavítások
 
 Meghallgattunk titeket. Ez a frissítés a stabilitásról és a tisztességes játékélményről szól:
 
-✅ 70+ hibajavítás
+70+ hibajavítás
 Megerősített mentési rendszer, teljesen átdolgozott vásárlási rendszer (minden IAP-előny mostantól helyesen érvényesül), gazdasági javítások, indítási összeomlások megszüntetve.
 
-✅ Méltányossági rendszer
+Méltányossági rendszer
 Garantált gyermek 15 próbálkozás után, garantált sikeres lánykérés 95%+ kapcsolatnál, garantált heti esemény 6 eseménytelen hét után, legfeljebb 1 betegség 4 hetente (ti kértétek!).
 
-✅ Kapcsolati következmények
+Kapcsolati következmények
 A partnerek 8 hét elhanyagolás után elhagynak, a házastársak 12 hét után beadják a válókeresetet. Reális vagyonmegosztás. A kapcsolatoknak újra tétje van.
 
-✅ Teljesítmény
+Teljesítmény
 90%-kal gyorsabb jövedelemszámítás, 50%-kal gyorsabb családi kiadások, 80%-kal kisebb mentésfájlok, gördülékeny játék 1000+ hét után is.
 
-Köszönjük, hogy játszol! Mondd el a véleményed a Discordon: discord.gg/deeplifesim
+Köszönjük, hogy játszol! Mondd el a véleményed a Discordon: discord.gg/invite/rzktazdX8v
 
 Nincsenek kényszerített reklámok. Nincs pay-to-win. Csak egy tisztességes, stratégiai életszimulátor.
 ```
@@ -125,29 +125,29 @@ A Deep Life Simulator stratégiai életszimulátor, amelyben a gazdaság tényle
 
 KEZDJ A SEMMIBŐL.
 
-18 éves vagy, egy fillér nélkül. Válaszd ki az utad: gazdagnak születsz, a szegénységből küzdöd fel magad, vagy a mélypontról indulsz újra. Válassz a 20+ karrier közül: orvos, programozó, sportoló, vállalkozó, bűnöző — vagy valami a kettő között. A karriered határozza meg a jövedelmed és a lehetőségeid.
+18 éves vagy, egy fillér nélkül. Válaszd ki az utad: gazdagnak születsz, a szegénységből küzdöd fel magad, vagy a mélypontról indulsz újra. Válassz a 20+ karrier közül: orvos, programozó, sportoló, vállalkozó, bűnöző - vagy valami a kettő között. A karriered határozza meg a jövedelmed és a lehetőségeid.
 
 KERESS PÉNZT. FEKTESD BE. NÉZD, AHOGY NŐ.
 
 Itt tér el a Deep Life Simulator a többi életszimulátortól:
 
-HITELEK ÉS ADÓSSÁG — Vegyél fel hitelt, ha kell. Fizess kamatot havonta. A hitelképességed számít. Ha kihagyod a törlesztőt, bajban vagy.
+HITELEK ÉS ADÓSSÁG - Vegyél fel hitelt, ha kell. Fizess kamatot havonta. A hitelképességed számít. Ha kihagyod a törlesztőt, bajban vagy.
 
-TŐZSDE ÉS KRIPTO — Kereskedj minden héten. Az árfolyamokat piaci szimuláció mozgatja. Gazdagodj meg gyorsan, vagy veszíts el mindent. Az időzítés és a stratégia dönt.
+TŐZSDE ÉS KRIPTO - Kereskedj minden héten. Az árfolyamokat piaci szimuláció mozgatja. Gazdagodj meg gyorsan, vagy veszíts el mindent. Az időzítés és a stratégia dönt.
 
-INGATLAN — Vásárolj házakat és lakásokat. Szedj bérleti díjat. Az ingatlan értéke nő. Add el haszonnal, vagy tartsd meg hosszú távra.
+INGATLAN - Vásárolj házakat és lakásokat. Szedj bérleti díjat. Az ingatlan értéke nő. Add el haszonnal, vagy tartsd meg hosszú távra.
 
-KAMATOS KAMAT — Fektess be korán, és hagyd nőni. A gazdag még gazdagabb lesz. Ez a játék szívében dolgozó gazdasági motor.
+KAMATOS KAMAT - Fektess be korán, és hagyd nőni. A gazdag még gazdagabb lesz. Ez a játék szívében dolgozó gazdasági motor.
 
-A CSŐD VALÓDI — Túl sok rossz döntés, és mindened odavész. A talpra állás lehetséges, de brutális. Ettől érződik kiérdemeltnek a győzelem.
+A CSŐD VALÓDI - Túl sok rossz döntés, és mindened odavész. A talpra állás lehetséges, de brutális. Ettől érződik kiérdemeltnek a győzelem.
 
 A DÖNTÉSEIDNEK KÖVETKEZMÉNYEI VANNAK
 
 Minden hét új életeseményeket hoz: előléptetés, családi vészhelyzet, romantika, egészségügyi ijedtség, botrány és még sok más. 80+ különböző esemény teszi kiszámíthatatlanná a játékot.
 
-A KAPCSOLATOK SZÁMÍTANAK — Házasodj meg. Vállalj gyerekeket. Ha elhanyagolod őket, elhagynak. A családfád generációkon át él tovább.
+A KAPCSOLATOK SZÁMÍTANAK - Házasodj meg. Vállalj gyerekeket. Ha elhanyagolod őket, elhagynak. A családfád generációkon át él tovább.
 
-A BŰNÖZÉS KIFIZETŐDŐ (DE ÁRA VAN) — Lopj, hackelj, árulj drogot. Fejleszd a bűnözői képességeid. Vagy bukj le, és irány a börtön. A döntéseid határoznak meg téged.
+A BŰNÖZÉS KIFIZETŐDŐ (DE ÁRA VAN) - Lopj, hackelj, árulj drogot. Fejleszd a bűnözői képességeid. Vagy bukj le, és irány a börtön. A döntéseid határoznak meg téged.
 
 GENERÁCIÓS VAGYON ÉS PRESZTÍZS
 
@@ -197,17 +197,17 @@ FUNKCIÓK:
 ✓ Nincsenek kényszerített reklámok (végleges eltávolítás elérhető)
 ✓ Tisztességes gazdaság, nincs pay-to-win
 
-Töltsd le a Deep Life Simulatort még ma. Kezdj a semmiből. Derítsd ki, tudsz-e generációs vagyont építeni — vagy végignézed, ahogy minden összeomlik. A történeted egyedi. A döntéseid számítanak.
+Töltsd le a Deep Life Simulatort még ma. Kezdj a semmiből. Derítsd ki, tudsz-e generációs vagyont építeni - vagy végignézed, ahogy minden összeomlik. A történeted egyedi. A döntéseid számítanak.
 
-Csatlakozz a Discord-közösségünkhöz: discord.gg/deeplifesim
+Csatlakozz a Discord-közösségünkhöz: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle "Életszimulátor igazi téttel" leads with "életszimulátor" — the highest-volume Hungarian genre query (Hungarians search the compound word, not "élet szimulátor") — plus a stakes-based hook ("with real stakes").
+- Subtitle "Életszimulátor igazi téttel" leads with "életszimulátor" - the highest-volume Hungarian genre query (Hungarians search the compound word, not "élet szimulátor") - plus a stakes-based hook ("with real stakes").
 - English "life simulator" is already indexed via the app name, so keywords are spent on native terms: pénz (money), karrier, befektetés (investing), tőzsde (stock market), csőd (bankruptcy), ingatlan (real estate), milliárdos (billionaire).
-- Kept English "tycoon" — Hungarian players search tycoon games in English; "gazdag" (rich) covers the wealth intent natively.
+- Kept English "tycoon" - Hungarian players search tycoon games in English; "gazdag" (rich) covers the wealth intent natively.
 - All copy is in natural tegezés (informal you), the standard register for Hungarian mobile games; What's New uses plural "ti" when addressing the player community, which is idiomatic for patch notes.
 - Currency kept abstract (no $ amounts) since HUF figures would need rebalancing context; "egy fillér nélkül" is the idiomatic "without a penny".
 - A/B test suggestion: subtitle vs. "Építs vagyont a semmiből" (wealth hook without genre term) after ranking for "életszimulátor" stabilizes.

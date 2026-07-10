@@ -1,4 +1,4 @@
-# zh-Hant — Deep Life Simulator (Traditional Chinese, Taiwan / Hong Kong)
+# zh-Hant - Deep Life Simulator (Traditional Chinese, Taiwan / Hong Kong)
 
 ## app_name
 
@@ -27,7 +27,7 @@ Deep Life Simulator
 ## description
 
 ```text
-和其他人生模擬遊戲不同，《Deep Life Simulator》搭載一套真實的經濟引擎。這裡沒有無腦按按鈕——你的錢會真實運轉：貸款要繳利息，投資會複利成長，破產會讓你一無所有。每一個財務決定，都在改寫你的一生。
+和其他人生模擬遊戲不同，《Deep Life Simulator》搭載一套真實的經濟引擎。這裡沒有無腦按按鈕--你的錢會真實運轉：貸款要繳利息，投資會複利成長，破產會讓你一無所有。每一個財務決定，都在改寫你的一生。
 
 【一無所有開局，白手起家翻身】
 
@@ -35,18 +35,18 @@ Deep Life Simulator
 
 【20+ 種職業路線】
 
-明星、政治人物、運動員、醫生、工程師、程式設計師、創業家——或者走進地下世界，成為駭客、走私客、小偷。每條職業路線都有獨立的升遷體系、收入區間和後果。你的工作決定你的薪水、你的名聲，有時還有你的「法律狀態」。
+明星、政治人物、運動員、醫生、工程師、程式設計師、創業家--或者走進地下世界，成為駭客、走私客、小偷。每條職業路線都有獨立的升遷體系、收入區間和後果。你的工作決定你的薪水、你的名聲，有時還有你的「法律狀態」。
 
 【真實經濟系統】
 
 這不是 BitLife。我們打造的是一套貨真價實的經濟模擬：
 
-• 貸款與負債——借錢要付利息，逾期繳款信用崩盤。複利也會反過來吞噬你，和現實一模一樣。
-• 股票與加密貨幣——每週開盤，價格波動。可以一夜致富，也可能血本無歸。進場時機就是一切。
-• 房地產投資——買房收租、坐等增值，打造你的不動產版圖。房貸有年限，月付要準時。
-• 買車養車——轎車、重機隨你挑。保養要花錢，轉手會折舊，一切照現實規則來。
-• 破產機制——爛決定做太多，你會失去一切。東山再起有機會，但過程絕不輕鬆。
-• 複利成長——越早投資，錢滾錢越快。這就是這款遊戲的核心，也是唯一的贏法。
+• 貸款與負債--借錢要付利息，逾期繳款信用崩盤。複利也會反過來吞噬你，和現實一模一樣。
+• 股票與加密貨幣--每週開盤，價格波動。可以一夜致富，也可能血本無歸。進場時機就是一切。
+• 房地產投資--買房收租、坐等增值，打造你的不動產版圖。房貸有年限，月付要準時。
+• 買車養車--轎車、重機隨你挑。保養要花錢，轉手會折舊，一切照現實規則來。
+• 破產機制--爛決定做太多，你會失去一切。東山再起有機會，但過程絕不輕鬆。
+• 複利成長--越早投資，錢滾錢越快。這就是這款遊戲的核心，也是唯一的贏法。
 
 【你的人生，由你選擇】
 
@@ -54,7 +54,7 @@ Deep Life Simulator
 
 人際關係同樣重要。冷落另一半，對方會跟你離婚；忽視孩子，他們會記恨你一輩子。每一段關係都有後果。
 
-犯罪來錢快——但代價不小。偷竊、販毒、入侵企業系統，練滿你的地下技能；也可能當場被逮、鋃鐺入獄，從零開始。
+犯罪來錢快--但代價不小。偷竊、販毒、入侵企業系統，練滿你的地下技能；也可能當場被逮、鋃鐺入獄，從零開始。
 
 【轉生系統 & 家族傳承】
 
@@ -69,7 +69,7 @@ Deep Life Simulator
 
 【80+ 種人生事件】
 
-升遷加薪、家庭變故、樂透頭獎、飛來橫禍、醜聞纏身、戀愛、背叛……隨機事件讓每一局人生都新鮮。事件有真實後果：一場大病可能掏空積蓄，一次升遷可能改變一切。商機、健康危機、社交風波、愛與離別——每週都在考驗你的應對，而你的應對，決定你的人生走向。
+升遷加薪、家庭變故、樂透頭獎、飛來橫禍、醜聞纏身、戀愛、背叛……隨機事件讓每一局人生都新鮮。事件有真實後果：一場大病可能掏空積蓄，一次升遷可能改變一切。商機、健康危機、社交風波、愛與離別--每週都在考驗你的應對，而你的應對，決定你的人生走向。
 
 【雲端存檔 & 多存檔欄位】
 
@@ -87,52 +87,52 @@ Deep Life Simulator
 
 【公平至上，拒絕逼課】
 
-《Deep Life Simulator》為追求策略、深度與後果的玩家而生。沒有強制廣告（可一次付費永久移除），沒有破壞平衡的課金設計。經濟系統經過精心調校——好的決策，永遠比運氣更值錢。
+《Deep Life Simulator》為追求策略、深度與後果的玩家而生。沒有強制廣告（可一次付費永久移除），沒有破壞平衡的課金設計。經濟系統經過精心調校--好的決策，永遠比運氣更值錢。
 
 ---
 
 v2.3.0 更新速覽：我們認真聽取了玩家回饋。本次更新修復 70+ 個 Bug，全面重做內購系統確保每一分錢都正確生效，並加入保底機制，運氣再差也有下限。存檔更穩定，投資更可靠，關係更有分量。這是我們至今最大的一次穩定性更新。
 
-今天就開始。白手起家賺進你的第一桶金，或者轟轟烈烈地破產——無論結局如何，你都會擁有一段值得說嘴的人生。現在下載，看看你能不能打造世代相傳的財富帝國。
+今天就開始。白手起家賺進你的第一桶金，或者轟轟烈烈地破產--無論結局如何，你都會擁有一段值得說嘴的人生。現在下載，看看你能不能打造世代相傳的財富帝國。
 ```
 
 ## whats_new
 
 ```text
-v2.3.1 —— 穩定性與體驗大更新
+v2.3.1 -- 穩定性與體驗大更新
 
 我們認真聽取了大家的回饋。本次更新專注於穩定性，讓遊戲手感全面升級：
 
-✅ 70+ 項 Bug 修復
-• 存檔系統強化——修復舊存檔資料損毀問題
-• 內購系統全面重做——所有已購權益均正確生效
-• 經濟數值修正——股票手續費、房租、車輛價值恢復一致
-• 當機修復——解決啟動閃退及多種邊緣情況錯誤
+70+ 項 Bug 修復
+• 存檔系統強化--修復舊存檔資料損毀問題
+• 內購系統全面重做--所有已購權益均正確生效
+• 經濟數值修正--股票手續費、房租、車輛價值恢復一致
+• 當機修復--解決啟動閃退及多種邊緣情況錯誤
 
-✅ 保底機制上線，運氣再差也有下限
+保底機制上線，運氣再差也有下限
 • 生育：15 次嘗試內必定成功
 • 求婚：好感度 95% 以上必定成功
 • 求職：條件完全達標必定錄取
 • 每週事件：連續 6 週沒事件必定觸發
 • 生病冷卻：每 4 週最多生病 1 次（你們敲碗的，我們做到了）
 
-✅ 關係系統更有分量
+關係系統更有分量
 • 冷落戀人 8 週，對方會離你而去
 • 冷落配偶 12 週，將面臨離婚
 • 財產分配更貼近現實
 • 每段關係重新變得有意義
 
-✅ 效能大幅提升
+效能大幅提升
 • 收入結算加速 90%
 • 家庭開銷計算加速 50%
 • 存檔容量縮小 80%
 • 遊玩 1000+ 週後依然順暢
 
-✅ 關於你的回饋
+關於你的回饋
 本次更新針對評論區回報最多的問題：每週進程 Bug、生病太頻繁、內購異常，全部修復。存檔更穩，選擇更有分量。
 
 感謝你的支持。歡迎加入 Discord 和我們聊聊：
-discord.gg/deeplifesim
+discord.gg/invite/rzktazdX8v
 
 沒有強制廣告，沒有逼課。只有公平、有策略的人生模擬。
 ```
@@ -156,25 +156,25 @@ discord.gg/deeplifesim
 
 【賺錢、投資、錢滾錢】
 
-這正是《Deep Life Simulator》和其他人生模擬遊戲最大的不同——你的錢有真實規則：
+這正是《Deep Life Simulator》和其他人生模擬遊戲最大的不同--你的錢有真實規則：
 
-貸款與負債——需要就借，按月付息。信用評分很重要，一旦逾期，麻煩就上門了。
+貸款與負債--需要就借，按月付息。信用評分很重要，一旦逾期，麻煩就上門了。
 
-股票與加密貨幣——每週交易，價格隨市場模擬波動。快速致富或血本無歸，時機與策略決定一切。
+股票與加密貨幣--每週交易，價格隨市場模擬波動。快速致富或血本無歸，時機與策略決定一切。
 
-房地產投資——買公寓、買豪宅，收租金、等增值。高點獲利了結，或長期持有累積財富。
+房地產投資--買公寓、買豪宅，收租金、等增值。高點獲利了結，或長期持有累積財富。
 
-複利效應——越早投資，雪球滾得越大。富者越富——這就是遊戲核心的經濟引擎。
+複利效應--越早投資，雪球滾得越大。富者越富--這就是遊戲核心的經濟引擎。
 
-破產是玩真的——爛決定太多就會一無所有。東山再起有機會，但過程殘酷。正因如此，贏才贏得有滋味。
+破產是玩真的--爛決定太多就會一無所有。東山再起有機會，但過程殘酷。正因如此，贏才贏得有滋味。
 
 【你的選擇，都有後果】
 
 每週都有新事件：升遷、家庭變故、戀愛、健康危機、醜聞……80+ 種人生事件讓每一局都難以預料。
 
-關係很重要——結婚、生子，冷落他們，他們就會離開。你的家族樹將世代延續。
+關係很重要--結婚、生子，冷落他們，他們就會離開。你的家族樹將世代延續。
 
-犯罪來錢快（但有代價）——偷竊、駭客、販毒，練滿犯罪技能；或者被抓進監獄。你的選擇定義你是誰。
+犯罪來錢快（但有代價）--偷竊、駭客、販毒，練滿犯罪技能；或者被抓進監獄。你的選擇定義你是誰。
 
 【家族傳承 & 轉生聲望】
 
@@ -231,17 +231,17 @@ BitLife 好玩，但全憑隨機。《Deep Life Simulator》模擬的是真實�
 
 立即下載《Deep Life Simulator》。從一無所有開始，看看你能打造世代相傳的財富，還是看著它一夕崩塌。你的故事獨一無二，你的選擇舉足輕重。
 
-加入我們的 Discord 社群：discord.gg/deeplifesim
+加入我們的 Discord 社群：discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle leads with 人生模擬器 (top genre query in TW/HK) and packs 白手起家, 投資, 賺錢, 大亨 — all indexed via subtitle, freeing keyword-field characters for other terms. 翻身 is a native TW hook ("turn your life around"). 19/30 chars, reads as copy, not a keyword string.
+- Subtitle leads with 人生模擬器 (top genre query in TW/HK) and packs 白手起家, 投資, 賺錢, 大亨 - all indexed via subtitle, freeing keyword-field characters for other terms. 翻身 is a native TW hook ("turn your life around"). 19/30 chars, reads as copy, not a keyword string.
 - 重開 in keywords combines with subtitle's 人生 + 模擬器 to cover the 人生重開 / 重開模擬器 query family without spending characters on the full phrase.
 - Keyword field (99/100) targets the TW/HK money cluster: 股票, 理財, 買房, 買車, 創業, 破產, 致富, 發財, 富豪, 首富, 樂透, 老闆 (當老闆 tycoon intent), plus genre/RPG terms 養成, 經營 (combines with subtitle's 模擬 → 模擬經營), 放置, 重生, 家族, 豪門, 犯罪, 坐牢, 劇情, 戀愛, 結婚, 求職, 單機 and English "tycoon".
 - Genuinely Traditional vocabulary throughout, not converted Simplified: 駭客 (not 黑客), 程式設計師 (not 程序員), 樂透 (not 彩票), 資料損毀, 當機/閃退, 雲端存檔, 效能, 回饋, 逼課 / Pay to Win (not 逼氪), 敲碗 for "you asked for this".
 - No word repeated from app name or subtitle; 模擬市民 (The Sims trademark) never used; BitLife appears only in body-copy comparison, never in metadata fields.
-- Assumption: TW users search mostly in Chinese with occasional English genre terms; only "tycoon" earns its 6 chars — unlike zh-Hans, this field gets no US-storefront spillover.
+- Assumption: TW users search mostly in Chinese with occasional English genre terms; only "tycoon" earns its 6 chars - unlike zh-Hans, this field gets no US-storefront spillover.
 - A/B test suggestion: subtitle variant 真實經濟人生模擬器：白手起家億萬大亨 (differentiator-led) vs. current verb-led version; also test 破產 vs. 大亨 hook in the GP short description.
 ```

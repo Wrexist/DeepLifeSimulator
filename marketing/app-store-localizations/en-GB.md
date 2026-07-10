@@ -1,4 +1,4 @@
-# en-GB — Deep Life Simulator App Store / Google Play Listing
+# en-GB - Deep Life Simulator App Store / Google Play Listing
 
 ## app_name
 
@@ -15,7 +15,7 @@ Build Your Fortune Or Collapse
 ## promotional_text
 
 ```text
-Start at 18 without a penny. Take out loans, play the markets, climb the property ladder, break the law—build generational wealth or lose the lot. Fancy your chances?
+Start at 18 without a penny. Take out loans, play the markets, climb the property ladder, break the law-build generational wealth or lose the lot. Fancy your chances?
 ```
 
 ## keywords
@@ -35,18 +35,18 @@ You begin at age 18 without a penny to your name and unlimited potential. Choose
 
 20+ CAREER PATHS
 
-Celebrity, politician, athlete, doctor, engineer, programmer, entrepreneur—or dive into the underground economy as a hacker, smuggler, or thief. Each career has its own progression path, income range, and consequences. Your job determines your salary, your reputation, and sometimes your legal status.
+Celebrity, politician, athlete, doctor, engineer, programmer, entrepreneur-or dive into the underground economy as a hacker, smuggler, or thief. Each career has its own progression path, income range, and consequences. Your job determines your salary, your reputation, and sometimes your legal status.
 
 REAL ECONOMIC MECHANICS
 
 This isn't BitLife. We built a proper economic simulation:
 
-• Loans and Debt — Borrow money with interest. Miss payments and your credit rating tanks. Compound interest works against you just like real life.
-• Stock Market & Crypto — Trade weekly. Prices fluctuate. You can get rich or lose everything. Timing matters.
-• Property — Buy houses and flats, collect rent, climb the property ladder. Property appreciates. Mortgages have terms.
-• Vehicle Ownership — Buy cars and motorbikes. Maintenance costs. Resale values. Depreciation is real.
-• Bankruptcy — Make too many bad decisions and you can lose everything. Recovery is possible but painful.
-• Compound Growth — Invest early and watch your money grow. That's the game. That's the win condition.
+• Loans and Debt - Borrow money with interest. Miss payments and your credit rating tanks. Compound interest works against you just like real life.
+• Stock Market & Crypto - Trade weekly. Prices fluctuate. You can get rich or lose everything. Timing matters.
+• Property - Buy houses and flats, collect rent, climb the property ladder. Property appreciates. Mortgages have terms.
+• Vehicle Ownership - Buy cars and motorbikes. Maintenance costs. Resale values. Depreciation is real.
+• Bankruptcy - Make too many bad decisions and you can lose everything. Recovery is possible but painful.
+• Compound Growth - Invest early and watch your money grow. That's the game. That's the win condition.
 
 YOUR LIFE, YOUR CHOICES
 
@@ -54,7 +54,7 @@ Every week brings new opportunities and challenges. Get married. Have children. 
 
 Relationships matter. Neglect your spouse and they'll divorce you. Ignore your kids and they'll resent you in their own lives. Every relationship has a consequence.
 
-Crime pays—but there's a price. Steal, sell drugs, hack corporations. Build underworld skills. Or get caught, go to prison, and start again.
+Crime pays-but there's a price. Steal, sell drugs, hack corporations. Build underworld skills. Or get caught, go to prison, and start again.
 
 PRESTIGE SYSTEM & GENERATIONAL WEALTH
 
@@ -93,25 +93,25 @@ Deep Life Simulator is designed for players who want strategy, consequence, and 
 
 Start today. Build your fortune. Or crash spectacularly. Either way, you'll have a story to tell.
 
-Ready to play? Download now and see if you can build generational wealth—or go bankrupt trying.
+Ready to play? Download now and see if you can build generational wealth-or go bankrupt trying.
 ```
 
 ## whats_new
 
 ```text
-v2.3.1 — Quality of Life & Crash Fixes
+v2.3.1 - Quality of Life & Crash Fixes
 
 We listened to your feedback. This update is all about stability:
 
-• 70+ bug fixes — save system hardened, data corruption on older saves fixed, startup crashes resolved
-• Purchase system overhauled — every IAP perk now applies correctly, so every penny works the way it should
-• New fairness systems — guaranteed outcomes end endless bad-luck streaks: children, marriage proposals, job applications, and weekly events all have pity timers now (and disease is capped at 1 per 4 weeks—you asked for this)
-• Relationship consequences — neglected partners now leave, spouses file for divorce, and settlements are realistic
-• Performance — 90% faster income calculations, 80% smaller save files, smoother gameplay after 1000+ weeks
+• 70+ bug fixes - save system hardened, data corruption on older saves fixed, startup crashes resolved
+• Purchase system overhauled - every IAP perk now applies correctly, so every penny works the way it should
+• New fairness systems - guaranteed outcomes end endless bad-luck streaks: children, marriage proposals, job applications, and weekly events all have pity timers now (and disease is capped at 1 per 4 weeks-you asked for this)
+• Relationship consequences - neglected partners now leave, spouses file for divorce, and settlements are realistic
+• Performance - 90% faster income calculations, 80% smaller save files, smoother gameplay after 1000+ weeks
 
 This update tackles the top issues reported in your reviews. Thank you for playing.
 
-Join our Discord to share feedback: discord.gg/deeplifesim
+Join our Discord to share feedback: discord.gg/invite/rzktazdX8v
 
 No forced ads. No pay-to-win. Just a fair, strategic life sim.
 ```
@@ -119,7 +119,7 @@ No forced ads. No pay-to-win. Just a fair, strategic life sim.
 ## gp_short_description
 
 ```text
-Start skint at 18. Borrow, invest, build an empire—or lose the lot. Repeat.
+Start skint at 18. Borrow, invest, build an empire-or lose the lot. Repeat.
 ```
 
 ## gp_full_description
@@ -137,23 +137,23 @@ MAKE MONEY. INVEST IT. WATCH IT GROW.
 
 This is where Deep Life Simulator differs from other life simulators. Your money has real rules:
 
-LOANS & DEBT — Borrow when you need it. Pay interest monthly. Your credit rating matters. Miss payments and you're in trouble.
+LOANS & DEBT - Borrow when you need it. Pay interest monthly. Your credit rating matters. Miss payments and you're in trouble.
 
-STOCK MARKET & CRYPTO — Trade every week. Prices fluctuate based on market simulation. Get rich fast or lose everything. Timing and strategy matter.
+STOCK MARKET & CRYPTO - Trade every week. Prices fluctuate based on market simulation. Get rich fast or lose everything. Timing and strategy matter.
 
-PROPERTY — Buy houses and flats. Collect rent as a landlord. Property appreciates. Sell at a profit or hold for long-term wealth.
+PROPERTY - Buy houses and flats. Collect rent as a landlord. Property appreciates. Sell at a profit or hold for long-term wealth.
 
-COMPOUND INTEREST — Invest early, let it grow. The rich get richer. That's the economic engine at the heart of this game.
+COMPOUND INTEREST - Invest early, let it grow. The rich get richer. That's the economic engine at the heart of this game.
 
-BANKRUPTCY IS REAL — Make too many bad choices and lose everything. Recovery is possible but brutal. That's what makes winning feel earned.
+BANKRUPTCY IS REAL - Make too many bad choices and lose everything. Recovery is possible but brutal. That's what makes winning feel earned.
 
 YOUR CHOICES HAVE CONSEQUENCES
 
 Every week brings new life events: promotions, family emergencies, romance, health scares, scandals, and more. 80+ different events keep the game unpredictable.
 
-RELATIONSHIPS MATTER — Marry someone. Have kids. Neglect them and they leave. Your family tree lives on through generations.
+RELATIONSHIPS MATTER - Marry someone. Have kids. Neglect them and they leave. Your family tree lives on through generations.
 
-CRIME PAYS (BUT THERE'S A PRICE) — Steal, hack, sell drugs. Build criminal skills. Or get caught and go to prison. Your choices define you.
+CRIME PAYS (BUT THERE'S A PRICE) - Steal, hack, sell drugs. Build criminal skills. Or get caught and go to prison. Your choices define you.
 
 GENERATIONAL WEALTH & PRESTIGE
 
@@ -206,13 +206,13 @@ FEATURES:
 
 Download Deep Life Simulator today. Start with nothing. See if you can build generational wealth, or watch it all collapse. Your story is unique. Your choices matter.
 
-Join our Discord community: discord.gg/deeplifesim
+Join our Discord community: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-• Subtitle uses approved Option 2 ("Build Your Fortune Or Collapse") instead of the US subtitle so the UK storefront indexes "fortune"/"build"/"collapse" on top of the title's "life simulator" — and it frees "choices"-adjacent terms for other locales.
+• Subtitle uses approved Option 2 ("Build Your Fortune Or Collapse") instead of the US subtitle so the UK storefront indexes "fortune"/"build"/"collapse" on top of the title's "life simulator" - and it frees "choices"-adjacent terms for other locales.
 • Keyword string is deliberately 100% different from en-US to widen cross-indexed English coverage: billionaire, job, stocks, crypto, landlord, property, text game, idle, legacy, crime, interactive story. UK searchers say "property" and "landlord" far more than "real estate".
 • No word repeats the app name or subtitle; no competitor trademarks; "text game"/"interactive story" target the strong UK text-based life sim niche.
 • British English throughout: skint, without a penny, credit rating, property ladder, flats, motorbikes, "every penny", "lose the lot".

@@ -1,4 +1,4 @@
-# ro — Romanian (Română)
+# ro - Romanian (Română)
 
 ## app_name
 
@@ -15,7 +15,7 @@ Simulator de viață și avere
 ## promotional_text
 
 ```text
-Începi la 18 ani fără nimic. Credite, acțiuni, imobiliare, crimă, dinastii. Construiește avere pentru generații — sau dă faliment încercând. Fiecare decizie contează.
+Începi la 18 ani fără nimic. Credite, acțiuni, imobiliare, crimă, dinastii. Construiește avere pentru generații - sau dă faliment încercând. Fiecare decizie contează.
 ```
 
 ## keywords
@@ -27,7 +27,7 @@ bani,carieră,afacere,bogat,magnat,tycoon,faliment,alegeri,strategie,închisoare
 ## description
 
 ```text
-Spre deosebire de alte simulatoare de viață, Deep Life Simulator are un motor economic real. Fără apăsat butoane la întâmplare. Banii tăi chiar contează. Iei credite. Plătești dobândă. Construiești avere — sau o privești cum se prăbușește. Fiecare decizie financiară îți modelează întreaga viață.
+Spre deosebire de alte simulatoare de viață, Deep Life Simulator are un motor economic real. Fără apăsat butoane la întâmplare. Banii tăi chiar contează. Iei credite. Plătești dobândă. Construiești avere - sau o privești cum se prăbușește. Fiecare decizie financiară îți modelează întreaga viață.
 
 ÎNCEPI DE LA ZERO. CONSTRUIEȘTI TOTUL.
 
@@ -35,18 +35,18 @@ Pornești la 18 ani cu buzunarele goale și potențial nelimitat. Alege scenariu
 
 20+ CARIERE
 
-Vedetă, politician, sportiv, medic, inginer, programator, antreprenor — sau intră în economia subterană ca hacker, contrabandist sau hoț. Fiecare carieră are propriul parcurs, propriul venit și propriile consecințe. Jobul tău îți decide salariul, reputația și, uneori, cazierul.
+Vedetă, politician, sportiv, medic, inginer, programator, antreprenor - sau intră în economia subterană ca hacker, contrabandist sau hoț. Fiecare carieră are propriul parcurs, propriul venit și propriile consecințe. Jobul tău îți decide salariul, reputația și, uneori, cazierul.
 
 MECANICI ECONOMICE REALE
 
 Ăsta nu e BitLife. Am construit o simulare economică adevărată:
 
-• Credite și datorii — Împrumută bani cu dobândă. Ratele neplătite îți distrug scorul de credit. Dobânda compusă lucrează împotriva ta, exact ca în viața reală.
-• Bursă și crypto — Tranzacționează săptămânal. Prețurile fluctuează. Poți să te îmbogățești sau să pierzi tot. Momentul contează.
-• Imobiliare — Cumperi proprietăți, încasezi chirii, îți construiești portofoliul. Proprietățile se apreciază. Ipotecile au termene.
-• Mașini — Cumperi mașini și motociclete. Costuri de întreținere. Valori de revânzare. Deprecierea e reală.
-• Faliment — Iei prea multe decizii proaste și poți pierde tot. Recuperarea e posibilă, dar dureroasă.
-• Dobândă compusă — Investește devreme și privește cum îți cresc banii. Ăsta e jocul. Asta e condiția de victorie.
+• Credite și datorii - Împrumută bani cu dobândă. Ratele neplătite îți distrug scorul de credit. Dobânda compusă lucrează împotriva ta, exact ca în viața reală.
+• Bursă și crypto - Tranzacționează săptămânal. Prețurile fluctuează. Poți să te îmbogățești sau să pierzi tot. Momentul contează.
+• Imobiliare - Cumperi proprietăți, încasezi chirii, îți construiești portofoliul. Proprietățile se apreciază. Ipotecile au termene.
+• Mașini - Cumperi mașini și motociclete. Costuri de întreținere. Valori de revânzare. Deprecierea e reală.
+• Faliment - Iei prea multe decizii proaste și poți pierde tot. Recuperarea e posibilă, dar dureroasă.
+• Dobândă compusă - Investește devreme și privește cum îți cresc banii. Ăsta e jocul. Asta e condiția de victorie.
 
 VIAȚA TA, ALEGERILE TALE
 
@@ -54,7 +54,7 @@ Fiecare săptămână aduce oportunități și provocări noi. Te căsătorești
 
 Relațiile contează. Îți neglijezi partenerul și divorțează de tine. Îți ignori copiii și te vor purta pică în propriile lor vieți. Fiecare relație are o consecință.
 
-Crima aduce bani — dar are un preț. Furi, vinzi droguri, spargi corporații. Îți dezvolți abilitățile din lumea interlopă. Sau ești prins, ajungi la închisoare și o iei de la capăt.
+Crima aduce bani - dar are un preț. Furi, vinzi droguri, spargi corporații. Îți dezvolți abilitățile din lumea interlopă. Sau ești prins, ajungi la închisoare și o iei de la capăt.
 
 SISTEM DE PRESTIGIU ȘI AVERE GENERAȚIONALĂ
 
@@ -89,23 +89,23 @@ Deep Life Simulator e făcut pentru jucătorii care vor strategie, consecințe �
 ## whats_new
 
 ```text
-v2.3.1 — Stabilitate și remedieri
+v2.3.1 - Stabilitate și remedieri
 
 V-am ascultat feedbackul. Acest update e despre stabilitate și un joc mai corect:
 
-✅ 70+ buguri rezolvate
+70+ buguri rezolvate
 Sistem de salvare întărit, sistem de achiziții refăcut complet (toate avantajele IAP se aplică acum corect), corecții în economie, crash-uri la pornire eliminate.
 
-✅ Sistem de corectitudine
+Sistem de corectitudine
 Copil garantat după 15 încercări, cerere în căsătorie garantată la 95%+ relație, eveniment săptămânal garantat după 6 săptămâni fără evenimente, maximum 1 boală la 4 săptămâni (voi ați cerut asta!).
 
-✅ Consecințe în relații
+Consecințe în relații
 Partenerii pleacă după 8 săptămâni de neglijare, soții cer divorțul după 12. Partaje financiare realiste. Relațiile au din nou miză.
 
-✅ Performanță
+Performanță
 Calcule de venit cu 90% mai rapide, cheltuieli de familie cu 50% mai rapide, fișiere de salvare cu 80% mai mici, joc fluid și după 1000+ săptămâni.
 
-Mulțumim că joci! Spune-ne părerea ta pe Discord: discord.gg/deeplifesim
+Mulțumim că joci! Spune-ne părerea ta pe Discord: discord.gg/invite/rzktazdX8v
 
 Fără reclame forțate. Fără pay-to-win. Doar un simulator de viață corect și strategic.
 ```
@@ -131,23 +131,23 @@ FĂ BANI. INVESTEȘTE-I. PRIVEȘTE-I CUM CRESC.
 
 Aici se desparte Deep Life Simulator de celelalte simulatoare de viață:
 
-CREDITE ȘI DATORII — Împrumută când ai nevoie. Plătește dobândă lunar. Scorul tău de credit contează. Rate neplătite = probleme mari.
+CREDITE ȘI DATORII - Împrumută când ai nevoie. Plătește dobândă lunar. Scorul tău de credit contează. Rate neplătite = probleme mari.
 
-BURSĂ ȘI CRYPTO — Tranzacționează în fiecare săptămână. Prețurile se mișcă pe baza unei simulări de piață. Îmbogățește-te rapid sau pierde tot. Momentul și strategia decid.
+BURSĂ ȘI CRYPTO - Tranzacționează în fiecare săptămână. Prețurile se mișcă pe baza unei simulări de piață. Îmbogățește-te rapid sau pierde tot. Momentul și strategia decid.
 
-IMOBILIARE — Cumpără case și apartamente. Încasează chirii. Proprietățile se apreciază. Vinde cu profit sau păstrează pentru avere pe termen lung.
+IMOBILIARE - Cumpără case și apartamente. Încasează chirii. Proprietățile se apreciază. Vinde cu profit sau păstrează pentru avere pe termen lung.
 
-DOBÂNDĂ COMPUSĂ — Investește devreme și las-o să crească. Bogații devin mai bogați. Ăsta e motorul economic din inima jocului.
+DOBÂNDĂ COMPUSĂ - Investește devreme și las-o să crească. Bogații devin mai bogați. Ăsta e motorul economic din inima jocului.
 
-FALIMENTUL E REAL — Prea multe alegeri proaste și pierzi tot. Recuperarea e posibilă, dar brutală. De-asta victoria se simte meritată.
+FALIMENTUL E REAL - Prea multe alegeri proaste și pierzi tot. Recuperarea e posibilă, dar brutală. De-asta victoria se simte meritată.
 
 ALEGERILE TALE AU CONSECINȚE
 
 Fiecare săptămână aduce evenimente noi: promovări, urgențe în familie, romantism, sperieturi de sănătate, scandaluri și altele. 80+ evenimente diferite fac jocul imprevizibil.
 
-RELAȚIILE CONTEAZĂ — Căsătorește-te. Fă copii. Dacă îi neglijezi, pleacă. Arborele tău genealogic trăiește peste generații.
+RELAȚIILE CONTEAZĂ - Căsătorește-te. Fă copii. Dacă îi neglijezi, pleacă. Arborele tău genealogic trăiește peste generații.
 
-CRIMA ADUCE BANI (DAR CU UN PREȚ) — Fură, sparge sisteme, vinde droguri. Dezvoltă-ți abilitățile criminale. Sau lasă-te prins și ajungi la închisoare. Alegerile te definesc.
+CRIMA ADUCE BANI (DAR CU UN PREȚ) - Fură, sparge sisteme, vinde droguri. Dezvoltă-ți abilitățile criminale. Sau lasă-te prins și ajungi la închisoare. Alegerile te definesc.
 
 AVERE GENERAȚIONALĂ ȘI PRESTIGIU
 
@@ -197,17 +197,17 @@ CARACTERISTICI:
 ✓ Fără reclame forțate (eliminare permanentă disponibilă)
 ✓ Economie corectă, fără pay-to-win
 
-Descarcă Deep Life Simulator azi. Începe de la zero. Vezi dacă poți construi avere pentru generații — sau dacă privești cum se prăbușește tot. Povestea ta e unică. Alegerile tale contează.
+Descarcă Deep Life Simulator azi. Începe de la zero. Vezi dacă poți construi avere pentru generații - sau dacă privești cum se prăbușește tot. Povestea ta e unică. Alegerile tale contează.
 
-Intră în comunitatea noastră pe Discord: discord.gg/deeplifesim
+Intră în comunitatea noastră pe Discord: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle "Simulator de viață și avere" carries the top Romanian genre phrase "simulator de viață" plus "avere" (wealth/fortune — high-volume money intent); reads as a natural product tagline, not a translation of "Real Economics. Real Choices.".
+- Subtitle "Simulator de viață și avere" carries the top Romanian genre phrase "simulator de viață" plus "avere" (wealth/fortune - high-volume money intent); reads as a natural product tagline, not a translation of "Real Economics. Real Choices.".
 - English "life simulator" is already indexed via the app name, so the 100 keyword chars go to native terms: bani (money), carieră, afacere (business), faliment (bankruptcy), închisoare (jail), imobiliare (real estate), miliardar.
-- Kept English "tycoon" alongside native "magnat" — Romanian players search tycoon games in both languages.
+- Kept English "tycoon" alongside native "magnat" - Romanian players search tycoon games in both languages.
 - Romanians frequently type queries without diacritics (viata, cariera); Apple normalizes diacritics, so correctly-accented forms cover both.
 - Copy is in natural informal "tu" throughout, matching how sim/tycoon games address Romanian players; colloquial touches ("Ăsta nu e BitLife", "niciun leu în buzunar") localize the tone and the currency reference.
 - A/B test suggestion: subtitle vs. "Fă bani, trăiește-ți viața" (money-first hook) once "simulator de viață" ranking is established.

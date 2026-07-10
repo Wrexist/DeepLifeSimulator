@@ -1,4 +1,4 @@
-# zh-Hans — Deep Life Simulator (Simplified Chinese, mainland China)
+# zh-Hans - Deep Life Simulator (Simplified Chinese, mainland China)
 
 ## app_name
 
@@ -27,7 +27,7 @@ Deep Life Simulator
 ## description
 
 ```text
-和其他人生模拟游戏不同，《Deep Life Simulator》搭载一套真实的经济引擎。这里没有无脑点按钮——你的钱会真实运转：贷款要还利息，投资会复利增长，破产会让你一无所有。每一个财务决定，都在改写你的一生。
+和其他人生模拟游戏不同，《Deep Life Simulator》搭载一套真实的经济引擎。这里没有无脑点按钮--你的钱会真实运转：贷款要还利息，投资会复利增长，破产会让你一无所有。每一个财务决定，都在改写你的一生。
 
 【一无所有开局，白手起家逆袭】
 
@@ -35,18 +35,18 @@ Deep Life Simulator
 
 【20+ 种职业路线】
 
-明星、政客、运动员、医生、工程师、程序员、企业家——或者走进地下世界，成为黑客、走私犯、小偷。每条职业路线都有独立的晋升体系、收入区间和后果。你的工作决定你的薪水、你的名声，有时还有你的"法律状态"。
+明星、政客、运动员、医生、工程师、程序员、企业家--或者走进地下世界，成为黑客、走私犯、小偷。每条职业路线都有独立的晋升体系、收入区间和后果。你的工作决定你的薪水、你的名声，有时还有你的"法律状态"。
 
 【真实经济系统】
 
 这不是 BitLife。我们做的是一套真正的经济模拟：
 
-• 贷款与负债——借钱要付利息，逾期还款信用暴跌。复利也会反过来吞噬你，和现实一模一样。
-• 股票与加密货币——每周开盘，价格波动。可以一夜暴富，也可能血本无归。时机就是一切。
-• 房产投资——买房收租，坐等升值，打造你的不动产版图。房贷有期限，月供要按时。
-• 买车养车——轿车、摩托随你挑。保养要花钱，转手会折旧，一切照现实规则来。
-• 破产机制——烂决定做太多，你会失去一切。东山再起是可能的，但过程绝不轻松。
-• 复利增长——越早投资，钱生钱越快。这就是这款游戏的核心，也是唯一的赢法。
+• 贷款与负债--借钱要付利息，逾期还款信用暴跌。复利也会反过来吞噬你，和现实一模一样。
+• 股票与加密货币--每周开盘，价格波动。可以一夜暴富，也可能血本无归。时机就是一切。
+• 房产投资--买房收租，坐等升值，打造你的不动产版图。房贷有期限，月供要按时。
+• 买车养车--轿车、摩托随你挑。保养要花钱，转手会折旧，一切照现实规则来。
+• 破产机制--烂决定做太多，你会失去一切。东山再起是可能的，但过程绝不轻松。
+• 复利增长--越早投资，钱生钱越快。这就是这款游戏的核心，也是唯一的赢法。
 
 【你的人生，由你选择】
 
@@ -54,7 +54,7 @@ Deep Life Simulator
 
 人际关系同样重要。冷落伴侣，对方会跟你离婚；忽视孩子，他们会记恨你一生。每一段关系都有后果。
 
-犯罪来钱快——但代价不菲。偷窃、贩毒、入侵企业系统，修炼你的地下技能；也可能被当场抓获、锒铛入狱，从零重来。
+犯罪来钱快--但代价不菲。偷窃、贩毒、入侵企业系统，修炼你的地下技能；也可能被当场抓获、锒铛入狱，从零重来。
 
 【转生系统 & 家族传承】
 
@@ -69,7 +69,7 @@ Deep Life Simulator
 
 【80+ 种人生事件】
 
-升职加薪、家庭变故、中奖暴富、飞来横祸、绯闻缠身、恋爱、背叛……随机事件让每一局人生都新鲜。事件有真实后果：一场大病可能掏空积蓄，一次晋升可能改变一切。商机、健康危机、社交风波、爱与离别——每周都在考验你的应对，而你的应对，决定你的人生轨迹。
+升职加薪、家庭变故、中奖暴富、飞来横祸、绯闻缠身、恋爱、背叛……随机事件让每一局人生都新鲜。事件有真实后果：一场大病可能掏空积蓄，一次晋升可能改变一切。商机、健康危机、社交风波、爱与离别--每周都在考验你的应对，而你的应对，决定你的人生轨迹。
 
 【云存档 & 多存档位】
 
@@ -87,52 +87,52 @@ Deep Life Simulator
 
 【公平至上，拒绝逼氪】
 
-《Deep Life Simulator》为追求策略、深度与后果的玩家而生。没有强制广告（支持一次性永久去除），没有破坏平衡的逼氪设计。经济系统经过精心调校——好的决策，永远比运气更值钱。
+《Deep Life Simulator》为追求策略、深度与后果的玩家而生。没有强制广告（支持一次性永久去除），没有破坏平衡的逼氪设计。经济系统经过精心调校--好的决策，永远比运气更值钱。
 
 ---
 
 v2.3.0 更新速览：我们认真听取了玩家反馈。本次更新修复 70+ 个 Bug，全面重做内购系统确保每一分钱都正确生效，并加入保底机制告别无限脸黑。存档更稳定，投资更可靠，关系更有分量。这是我们迄今最大的一次稳定性更新。
 
-今天就开始。白手起家赚出你的第一桶金，或者轰轰烈烈地破产——无论结局如何，你都会拥有一段值得讲述的人生。现在下载，看看你能不能缔造世代传承的财富帝国。
+今天就开始。白手起家赚出你的第一桶金，或者轰轰烈烈地破产--无论结局如何，你都会拥有一段值得讲述的人生。现在下载，看看你能不能缔造世代传承的财富帝国。
 ```
 
 ## whats_new
 
 ```text
-v2.3.1 —— 稳定性与体验大更新
+v2.3.1 -- 稳定性与体验大更新
 
 我们认真听取了大家的反馈。本次更新专注于稳定性，让游戏手感全面升级：
 
-✅ 70+ 项 Bug 修复
-• 存档系统加固——修复旧存档数据损坏问题
-• 内购系统全面重做——所有已购权益均可正确生效
-• 经济数值修正——股票手续费、房租、车辆价值恢复一致
-• 崩溃修复——解决启动闪退及多种边缘情况报错
+70+ 项 Bug 修复
+• 存档系统加固--修复旧存档数据损坏问题
+• 内购系统全面重做--所有已购权益均可正确生效
+• 经济数值修正--股票手续费、房租、车辆价值恢复一致
+• 崩溃修复--解决启动闪退及多种边缘情况报错
 
-✅ 保底机制上线，告别无限脸黑
+保底机制上线，告别无限脸黑
 • 生育：15 次尝试内必定成功
 • 求婚：好感度 95% 以上必定成功
 • 求职：条件完全达标必定录取
 • 每周事件：连续 6 周无事件必定触发
 • 生病冷却：每 4 周最多生病 1 次（你们要求的，我们做到了）
 
-✅ 关系系统更有分量
+关系系统更有分量
 • 冷落恋人 8 周，对方会离你而去
 • 冷落配偶 12 周，将面临离婚
 • 财产分割更贴近现实
 • 每段关系重新变得有意义
 
-✅ 性能大幅提升
+性能大幅提升
 • 收入结算提速 90%
 • 家庭开支计算提速 50%
 • 存档体积缩小 80%
 • 游玩 1000+ 周后依然流畅
 
-✅ 关于你的反馈
+关于你的反馈
 本次更新针对评论区反馈最集中的问题：周进程 Bug、生病太频繁、内购异常，全部修复。存档更稳，选择更有分量。
 
 感谢你的支持。欢迎加入 Discord 与我们交流：
-discord.gg/deeplifesim
+discord.gg/invite/rzktazdX8v
 
 没有强制广告，没有逼氪。只有公平、有策略的人生模拟。
 ```
@@ -156,25 +156,25 @@ discord.gg/deeplifesim
 
 【赚钱、投资、钱生钱】
 
-这正是《Deep Life Simulator》与其他人生模拟游戏的最大区别——你的钱有真实规则：
+这正是《Deep Life Simulator》与其他人生模拟游戏的最大区别--你的钱有真实规则：
 
-贷款与负债——需要就借，按月付息。信用分很重要，一旦逾期，麻烦就来了。
+贷款与负债--需要就借，按月付息。信用分很重要，一旦逾期，麻烦就来了。
 
-股票与加密货币——每周交易，价格随市场模拟波动。快速暴富或血本无归，时机与策略决定一切。
+股票与加密货币--每周交易，价格随市场模拟波动。快速暴富或血本无归，时机与策略决定一切。
 
-房产投资——买公寓、买豪宅，收租金、等升值。高抛获利，或长线持有积累财富。
+房产投资--买公寓、买豪宅，收租金、等升值。高抛获利，或长线持有积累财富。
 
-复利效应——越早投资，雪球滚得越大。富者越富——这就是游戏核心的经济引擎。
+复利效应--越早投资，雪球滚得越大。富者越富--这就是游戏核心的经济引擎。
 
-破产是真的——烂决定太多就会一无所有。东山再起有可能，但过程残酷。正因如此，赢才赢得有滋味。
+破产是真的--烂决定太多就会一无所有。东山再起有可能，但过程残酷。正因如此，赢才赢得有滋味。
 
 【你的选择，都有后果】
 
 每周都有新事件：升职、家庭变故、恋爱、健康危机、丑闻……80+ 种人生事件让每一局都难以预料。
 
-关系很重要——结婚、生子，冷落他们，他们就会离开。你的家族树将世代延续。
+关系很重要--结婚、生子，冷落他们，他们就会离开。你的家族树将世代延续。
 
-犯罪来钱快（但有代价）——偷窃、黑客、贩毒，修炼犯罪技能；或者被抓进监狱。你的选择定义你是谁。
+犯罪来钱快（但有代价）--偷窃、黑客、贩毒，修炼犯罪技能；或者被抓进监狱。你的选择定义你是谁。
 
 【家族传承 & 转生声望】
 
@@ -231,18 +231,18 @@ BitLife 好玩，但全靠随机。《Deep Life Simulator》模拟的是真实�
 
 立即下载《Deep Life Simulator》。从一无所有开始，看看你能缔造世代传承的财富，还是看着它一夜崩塌。你的故事独一无二，你的选择举足轻重。
 
-加入我们的 Discord 社区：discord.gg/deeplifesim
+加入我们的 Discord 社区：discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle leads with 人生模拟器 (highest-volume genre query in CN) plus 白手起家 / 亿万大亨 — both real search phrases and strong conversion hooks; 真实经济 front-loads the differentiator. 20/30 chars keeps it readable, not stuffed.
+- Subtitle leads with 人生模拟器 (highest-volume genre query in CN) plus 白手起家 / 亿万大亨 - both real search phrases and strong conversion hooks; 真实经济 front-loads the differentiator. 20/30 chars keeps it readable, not stuffed.
 - 重开 in the keyword field combines with 人生 + 模拟器 from the subtitle so Apple can build 人生重开 / 重开模拟器 (the viral "life restart" query family) without wasting characters on the full phrase.
-- Keyword field (99/100) covers the money/tycoon cluster the market actually types: 赚钱, 投资, 股票, 炒股, 理财, 买房, 创业, 破产, 发财, 首富, 富豪 — plus lifestyle/RPG terms 养成, 经营 (combines with subtitle's 模拟 → 模拟经营), 重生, 家族, 豪门, 犯罪, 坐牢, 剧情, 单机.
-- The zh-Hans keyword field is ALSO indexed for the US storefront, so I spent 22 chars on English terms not already in the app name: tycoon, billionaire, money — free US coverage on top of CN.
+- Keyword field (99/100) covers the money/tycoon cluster the market actually types: 赚钱, 投资, 股票, 炒股, 理财, 买房, 创业, 破产, 发财, 首富, 富豪 - plus lifestyle/RPG terms 养成, 经营 (combines with subtitle's 模拟 → 模拟经营), 重生, 家族, 豪门, 犯罪, 坐牢, 剧情, 单机.
+- The zh-Hans keyword field is ALSO indexed for the US storefront, so I spent 22 chars on English terms not already in the app name: tycoon, billionaire, money - free US coverage on top of CN.
 - No word repeated from app name or subtitle; no 模拟人生 (The Sims trademark) or BitLife anywhere in metadata. BitLife comparison kept in body copy only, per brief.
-- Descriptions use 逼氪 / 保底 / 脸黑 — native CN mobile-gaming vocabulary — and 【】 headers, matching how top-grossing CN sim games write store copy.
+- Descriptions use 逼氪 / 保底 / 脸黑 - native CN mobile-gaming vocabulary - and 【】 headers, matching how top-grossing CN sim games write store copy.
 - A/B test suggestion: subtitle variant 白手起家人生模拟器：投资赚钱当大亨 (action verbs vs. 逆袭 narrative), and GP short description with 破产 hook vs. current 大亨 hook.
 - Assumption: CN users rarely search full English phrases like "life simulator"; budget went to Chinese terms plus the three short high-volume English words for US spillover.
 ```

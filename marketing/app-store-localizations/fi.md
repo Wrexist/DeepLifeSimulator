@@ -1,4 +1,4 @@
-# Deep Life Simulator — App Store / Google Play Listing (fi-FI)
+# Deep Life Simulator - App Store / Google Play Listing (fi-FI)
 
 ## app_name
 
@@ -15,7 +15,7 @@ Vihdoin aito elämäsimulaattori
 ## promotional_text
 
 ```text
-Aloitat 18-vuotiaana tyhjin taskuin. Ota lainaa, treidaa osakkeita, osta asuntoja – tai lähde rikoksen tielle. Rakenna sukudynastia tai aja itsesi konkurssiin matkalla.
+Aloitat 18-vuotiaana tyhjin taskuin. Ota lainaa, treidaa osakkeita, osta asuntoja - tai lähde rikoksen tielle. Rakenna sukudynastia tai aja itsesi konkurssiin matkalla.
 ```
 
 ## keywords
@@ -27,7 +27,7 @@ raha,ura,rikastu,sijoittaminen,osakkeet,talous,tycoon,bisnes,konkurssi,strategia
 ## description
 
 ```text
-Toisin kuin muissa elämäsimulaattoreissa, Deep Life Simulatorissa on aito talousmoottori. Ei satunnaista napin hakkaamista – rahallasi on oikeasti väliä. Ota lainaa. Maksa korkoa. Rakenna omaisuus tai katso, kun kaikki murenee. Jokainen talouspäätös muovaa koko elämääsi.
+Toisin kuin muissa elämäsimulaattoreissa, Deep Life Simulatorissa on aito talousmoottori. Ei satunnaista napin hakkaamista - rahallasi on oikeasti väliä. Ota lainaa. Maksa korkoa. Rakenna omaisuus tai katso, kun kaikki murenee. Jokainen talouspäätös muovaa koko elämääsi.
 
 ALOITA TYHJÄSTÄ. RAKENNA KAIKKI.
 
@@ -35,18 +35,18 @@ Aloitat 18-vuotiaana tyhjin taskuin, mutta rajattomin mahdollisuuksin. Valitse l
 
 20+ URAPOLKUA
 
-Julkkis, poliitikko, urheilija, lääkäri, insinööri, koodari, yrittäjä – tai sukella harmaaseen talouteen hakkerina, salakuljettajana tai varkaana. Jokaisella uralla on oma etenemispolkunsa, palkkahaitarinsa ja seurauksensa. Työsi määrää palkkasi, maineesi ja joskus senkin, oletko lain oikealla puolella.
+Julkkis, poliitikko, urheilija, lääkäri, insinööri, koodari, yrittäjä - tai sukella harmaaseen talouteen hakkerina, salakuljettajana tai varkaana. Jokaisella uralla on oma etenemispolkunsa, palkkahaitarinsa ja seurauksensa. Työsi määrää palkkasi, maineesi ja joskus senkin, oletko lain oikealla puolella.
 
 AITO TALOUSSIMULAATIO
 
 Tämä ei ole BitLife. Rakensimme oikean taloussimulaation:
 
-• Lainat ja velka – Lainaa rahaa korkoa vastaan. Maksamattomat erät romahduttavat luottotietosi. Korkoa korolle toimii sinua vastaan, ihan kuten oikeassa elämässä.
-• Osakkeet ja krypto – Treidaa viikoittain. Kurssit heiluvat. Voit rikastua tai menettää kaiken. Ajoituksella on väliä.
-• Kiinteistöt – Osta asuntoja, kerää vuokraa, kasvata salkkua. Asuntojen arvo nousee. Asuntolainoilla on ehdot.
-• Autot ja moottoripyörät – Huolto maksaa ja jälleenmyyntiarvo elää. Arvon aleneminen on todellista.
-• Konkurssi – Liian monta huonoa päätöstä, ja voit menettää kaiken. Nousu on mahdollista, mutta se tekee kipeää.
-• Korkoa korolle – Sijoita ajoissa ja katso rahasi kasvavan. Se on koko pelin idea. Se on voittoehto.
+• Lainat ja velka - Lainaa rahaa korkoa vastaan. Maksamattomat erät romahduttavat luottotietosi. Korkoa korolle toimii sinua vastaan, ihan kuten oikeassa elämässä.
+• Osakkeet ja krypto - Treidaa viikoittain. Kurssit heiluvat. Voit rikastua tai menettää kaiken. Ajoituksella on väliä.
+• Kiinteistöt - Osta asuntoja, kerää vuokraa, kasvata salkkua. Asuntojen arvo nousee. Asuntolainoilla on ehdot.
+• Autot ja moottoripyörät - Huolto maksaa ja jälleenmyyntiarvo elää. Arvon aleneminen on todellista.
+• Konkurssi - Liian monta huonoa päätöstä, ja voit menettää kaiken. Nousu on mahdollista, mutta se tekee kipeää.
+• Korkoa korolle - Sijoita ajoissa ja katso rahasi kasvavan. Se on koko pelin idea. Se on voittoehto.
 
 SINUN ELÄMÄSI, SINUN VALINTASI
 
@@ -54,7 +54,7 @@ Joka viikko tuo uusia mahdollisuuksia ja haasteita. Mene naimisiin. Hanki lapsia
 
 Ihmissuhteilla on väliä. Laiminlyö puolisoasi, ja edessä on avioero. Unohda lapsesi, ja he kantavat kaunaa omissa elämissään.
 
-Rikos kannattaa – mutta sillä on hintansa. Varasta, myy aineita, hakkeroi yrityksiä. Kehitä alamaailman taitoja. Tai jää kiinni, istu tuomiosi ja aloita alusta.
+Rikos kannattaa - mutta sillä on hintansa. Varasta, myy aineita, hakkeroi yrityksiä. Kehitä alamaailman taitoja. Tai jää kiinni, istu tuomiosi ja aloita alusta.
 
 ARVOSTUSJÄRJESTELMÄ JA SUKUPOLVIEN VARALLISUUS
 
@@ -69,7 +69,7 @@ Jokaisella elämällä on väliä. Jokainen sukupolvi rakentaa edellisen varaan.
 
 80+ ELÄMÄNTAPAHTUMAA
 
-Satunnaiset tapahtumat pitävät pelin tuoreena: ylennyksiä, perhekriisejä, lottovoittoja, onnettomuuksia, skandaaleja, romantiikkaa ja petoksia. Tapahtumilla on todellisia seurauksia – ja se, miten reagoit, määrää elämäsi suunnan.
+Satunnaiset tapahtumat pitävät pelin tuoreena: ylennyksiä, perhekriisejä, lottovoittoja, onnettomuuksia, skandaaleja, romantiikkaa ja petoksia. Tapahtumilla on todellisia seurauksia - ja se, miten reagoit, määrää elämäsi suunnan.
 
 PILVITALLENNUS JA USEITA TALLENNUSPAIKKOJA
 
@@ -85,27 +85,27 @@ Aloita tänään. Rakenna omaisuutesi. Tai aja kaikki komeasti päin seinää. K
 ## whats_new
 
 ```text
-v2.3.1 – Vakautta ja pelituntumaa
+v2.3.1 - Vakautta ja pelituntumaa
 
 Kuuntelimme palautettanne. Tämä päivitys keskittyy vakauteen:
 
-✅ 70+ bugikorjausta
-• Tallennusjärjestelmä vahvistettu – vanhojen tallennusten datakorruptio korjattu
-• Ostojärjestelmä uusittu – kaikki ostetut edut toimivat nyt oikein
-• Talouskorjauksia – osakkeiden kulut, vuokratasot ja autojen arvot nyt johdonmukaisia
+70+ bugikorjausta
+• Tallennusjärjestelmä vahvistettu - vanhojen tallennusten datakorruptio korjattu
+• Ostojärjestelmä uusittu - kaikki ostetut edut toimivat nyt oikein
+• Talouskorjauksia - osakkeiden kulut, vuokratasot ja autojen arvot nyt johdonmukaisia
 
-✅ Reilun pelin järjestelmä
+Reilun pelin järjestelmä
 • Takuut loputonta epäonnea vastaan: lapset, kosinnat, työhakemukset ja viikkotapahtumat onnistuvat nyt taatusti tietyn rajan jälkeen
 • Enintään yksi sairaus per 4 viikkoa (tätä toivoitte)
 
-✅ Ihmissuhteiden seuraukset
+Ihmissuhteiden seuraukset
 • Kumppani lähtee 8 viikon laiminlyönnin jälkeen, puoliso hakee avioeroa 12 viikon jälkeen
 • Realistiset ositukset
 
-✅ Suorituskyky
+Suorituskyky
 • 90 % nopeammat tulolaskennat, 80 % pienemmät tallennustiedostot ja sujuvampi peli 1000+ viikon jälkeen
 
-Kiitos, että pelaat! Liity Discord-yhteisöömme: discord.gg/deeplifesim
+Kiitos, että pelaat! Liity Discord-yhteisöömme: discord.gg/invite/rzktazdX8v
 
 Ei pakotettuja mainoksia. Ei pay-to-winiä. Vain reilu, strateginen elämäsimu.
 ```
@@ -125,29 +125,29 @@ Deep Life Simulator on strateginen elämäsimulaattori, jossa raha, ura ja sijoi
 
 ALOITA TYHJÄSTÄ.
 
-Olet 18-vuotias ja rahaton. Valitse polkusi: rikkaaseen perheeseen syntynyt, köyhyydestä nouseva tai pohjakosketuksen jälkeen uuden alun tekevä. Valitse yli 20 urasta: lääkäri, koodari, urheilija, yrittäjä, rikollinen – tai jotain siltä väliltä. Urasi määrää tulosi ja mahdollisuutesi.
+Olet 18-vuotias ja rahaton. Valitse polkusi: rikkaaseen perheeseen syntynyt, köyhyydestä nouseva tai pohjakosketuksen jälkeen uuden alun tekevä. Valitse yli 20 urasta: lääkäri, koodari, urheilija, yrittäjä, rikollinen - tai jotain siltä väliltä. Urasi määrää tulosi ja mahdollisuutesi.
 
 TIENAA. SIJOITA. KATSO, KUN RAHA KASVAA.
 
 Tässä Deep Life Simulator eroaa muista elämäsimulaattoreista. Rahallasi on oikeat säännöt:
 
-LAINAT JA VELKA – Lainaa, kun tarvitset. Maksa korot kuukausittain. Luottotiedoillasi on väliä. Maksamattomat erät ajavat sinut ahdinkoon.
+LAINAT JA VELKA - Lainaa, kun tarvitset. Maksa korot kuukausittain. Luottotiedoillasi on väliä. Maksamattomat erät ajavat sinut ahdinkoon.
 
-OSAKKEET JA KRYPTO – Treidaa joka viikko. Kurssit elävät markkinasimulaation mukaan. Rikastu nopeasti – tai menetä kaikki. Ajoitus ja strategia ratkaisevat.
+OSAKKEET JA KRYPTO - Treidaa joka viikko. Kurssit elävät markkinasimulaation mukaan. Rikastu nopeasti - tai menetä kaikki. Ajoitus ja strategia ratkaisevat.
 
-KIINTEISTÖT – Osta taloja ja asuntoja. Kerää vuokraa. Asuntojen arvo nousee. Myy voitolla tai istu omistuksilla pitkään.
+KIINTEISTÖT - Osta taloja ja asuntoja. Kerää vuokraa. Asuntojen arvo nousee. Myy voitolla tai istu omistuksilla pitkään.
 
-KORKOA KOROLLE – Sijoita ajoissa ja anna kasvaa. Raha tekee rahaa. Se on tämän pelin talousmoottorin ydin.
+KORKOA KOROLLE - Sijoita ajoissa ja anna kasvaa. Raha tekee rahaa. Se on tämän pelin talousmoottorin ydin.
 
-KONKURSSI ON TOTTA – Liian monta huonoa valintaa, ja menetät kaiken. Paluu on mahdollinen mutta raaka. Siksi voittaminen tuntuu ansaitulta.
+KONKURSSI ON TOTTA - Liian monta huonoa valintaa, ja menetät kaiken. Paluu on mahdollinen mutta raaka. Siksi voittaminen tuntuu ansaitulta.
 
 VALINNOILLASI ON SEURAUKSET
 
 Joka viikko tuo uusia elämäntapahtumia: ylennyksiä, perhekriisejä, romantiikkaa, terveyshuolia, skandaaleja ja paljon muuta. 80+ erilaista tapahtumaa pitää pelin arvaamattomana.
 
-IHMISSUHTEILLA ON VÄLIÄ – Mene naimisiin. Hanki lapsia. Laiminlyö heitä, ja he lähtevät. Sukupuusi elää sukupolvien läpi.
+IHMISSUHTEILLA ON VÄLIÄ - Mene naimisiin. Hanki lapsia. Laiminlyö heitä, ja he lähtevät. Sukupuusi elää sukupolvien läpi.
 
-RIKOS KANNATTAA (MUTTA HINNALLA) – Varasta, hakkeroi, myy aineita. Kehitä rikollisen taitoja. Tai jää kiinni ja päädy vankilaan. Valintasi määrittävät sinut.
+RIKOS KANNATTAA (MUTTA HINNALLA) - Varasta, hakkeroi, myy aineita. Kehitä rikollisen taitoja. Tai jää kiinni ja päädy vankilaan. Valintasi määrittävät sinut.
 
 SUKUPOLVIEN VARALLISUUS JA ARVOSTUS
 
@@ -198,9 +198,9 @@ OMINAISUUDET:
 ✓ Reilu talous, ei pay-to-winiä
 ✓ Saatavilla Androidille ja iOS:lle
 
-Lataa Deep Life Simulator tänään. Aloita tyhjästä. Katso, pystytkö rakentamaan sukupolvien varallisuuden – vai romahtaako kaikki. Tarinasi on ainutlaatuinen. Valinnoillasi on väliä.
+Lataa Deep Life Simulator tänään. Aloita tyhjästä. Katso, pystytkö rakentamaan sukupolvien varallisuuden - vai romahtaako kaikki. Tarinasi on ainutlaatuinen. Valinnoillasi on väliä.
 
-Liity Discord-yhteisöömme: discord.gg/deeplifesim
+Liity Discord-yhteisöömme: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
@@ -208,7 +208,7 @@ Liity Discord-yhteisöömme: discord.gg/deeplifesim
 ```text
 - Subtitle "Vihdoin aito elämäsimulaattori" ("Finally, a real life simulator", exactly 30 chars) carries the highest-volume native genre keyword "elämäsimulaattori" while reading as confident marketing copy that positions against random-chance life sims.
 - Finns search the genre both in English ("life simulator", "life sim") and Finnish; "life" and "simulator" are already indexed via the app name, so the keyword field spends nothing on them. "tycoon" is kept in English (Finns search it in English); the rest are native high-volume terms: raha, ura, rikastu, sijoittaminen, osakkeet, talous, bisnes, konkurssi, strategia, miljonääri, rikos.
-- "osakkeet" deliberately kept in plural despite the singular-forms rule — Finnish stock-related searches are overwhelmingly plural ("osakkeet", "osakkeisiin sijoittaminen"); singular "osake" would match less real search behavior.
+- "osakkeet" deliberately kept in plural despite the singular-forms rule - Finnish stock-related searches are overwhelmingly plural ("osakkeet", "osakkeisiin sijoittaminen"); singular "osake" would match less real search behavior.
 - "rikastu" (get rich, imperative) is a strong intent keyword in Finnish money/idle game searches; "miljonääri" has more volume than "miljardööri" in Finnish.
 - GP short description opens with "Elämäsimulaattori" and packs indexed terms lainat/osakkeet/konkurssi into 68 chars.
 - GP full description weaves elämäsimulaattori, raha, ura, sijoittaminen, osakkeet, konkurssi into the first 200 chars and throughout, naturally inflected (Finnish morphology means Google indexes stem variants like "elämäsimulaattoreista").

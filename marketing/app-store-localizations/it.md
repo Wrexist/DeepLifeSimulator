@@ -1,4 +1,4 @@
-# Deep Life Simulator — Italian (it) Store Listing
+# Deep Life Simulator - Italian (it) Store Listing
 
 ## app_name
 
@@ -35,18 +35,18 @@ Inizi a 18 anni con le tasche vuote e un potenziale illimitato. Scegli il tuo sc
 
 OLTRE 20 CARRIERE
 
-Celebrità, politico, atleta, medico, ingegnere, programmatore, imprenditore — oppure tuffati nell'economia sommersa come hacker, contrabbandiere o ladro. Ogni carriera ha la sua progressione, la sua fascia di reddito e le sue conseguenze. Il lavoro determina il tuo stipendio, la tua reputazione e, a volte, la tua fedina penale.
+Celebrità, politico, atleta, medico, ingegnere, programmatore, imprenditore - oppure tuffati nell'economia sommersa come hacker, contrabbandiere o ladro. Ogni carriera ha la sua progressione, la sua fascia di reddito e le sue conseguenze. Il lavoro determina il tuo stipendio, la tua reputazione e, a volte, la tua fedina penale.
 
 MECCANICHE ECONOMICHE REALI
 
 Questo non è BitLife. Abbiamo costruito una vera simulazione economica:
 
-• Prestiti e debiti — Prendi denaro in prestito con gli interessi. Salta le rate e il tuo credito crolla. L'interesse composto lavora contro di te, come nella vita vera.
-• Borsa e cripto — Fai trading ogni settimana. I prezzi oscillano: puoi diventare ricco o perdere tutto. Il tempismo conta.
-• Immobili — Compra case, incassa gli affitti, costruisci un portafoglio. Gli immobili si rivalutano. I mutui hanno le loro condizioni.
-• Auto e moto — Comprale, mantienile, rivendile. La svalutazione è reale.
-• Bancarotta — Troppe decisioni sbagliate e perdi tutto. Rialzarsi è possibile, ma fa male.
-• Interesse composto — Investi presto e guarda i tuoi soldi crescere. Questo è il gioco. Questa è la condizione di vittoria.
+• Prestiti e debiti - Prendi denaro in prestito con gli interessi. Salta le rate e il tuo credito crolla. L'interesse composto lavora contro di te, come nella vita vera.
+• Borsa e cripto - Fai trading ogni settimana. I prezzi oscillano: puoi diventare ricco o perdere tutto. Il tempismo conta.
+• Immobili - Compra case, incassa gli affitti, costruisci un portafoglio. Gli immobili si rivalutano. I mutui hanno le loro condizioni.
+• Auto e moto - Comprale, mantienile, rivendile. La svalutazione è reale.
+• Bancarotta - Troppe decisioni sbagliate e perdi tutto. Rialzarsi è possibile, ma fa male.
+• Interesse composto - Investi presto e guarda i tuoi soldi crescere. Questo è il gioco. Questa è la condizione di vittoria.
 
 LA TUA VITA, LE TUE SCELTE
 
@@ -54,7 +54,7 @@ Ogni settimana porta nuove opportunità e nuove sfide. Sposati. Fai figli. Ricev
 
 Le relazioni contano. Trascura il tuo partner e chiederà il divorzio. Ignora i tuoi figli e ti porteranno rancore per tutta la vita. Ogni rapporto ha una conseguenza.
 
-Il crimine paga — ma ha un prezzo. Ruba, spaccia, hackera le multinazionali. Sviluppa abilità criminali. Oppure fatti beccare, finisci in prigione e ricomincia da capo.
+Il crimine paga - ma ha un prezzo. Ruba, spaccia, hackera le multinazionali. Sviluppa abilità criminali. Oppure fatti beccare, finisci in prigione e ricomincia da capo.
 
 PRESTIGIO E RICCHEZZA GENERAZIONALE
 
@@ -89,30 +89,30 @@ Inizia oggi. Costruisci la tua fortuna o crolla in modo spettacolare. In ogni ca
 ## whats_new
 
 ```text
-v2.3.1 — Stabilità e qualità della vita
+v2.3.1 - Stabilità e qualità della vita
 
 Ti abbiamo ascoltato. Questo aggiornamento è tutto dedicato alla stabilità e a un gioco che si sente meglio:
 
-✅ Oltre 70 bug risolti
+Oltre 70 bug risolti
 • Sistema di salvataggio blindato: corretta la corruzione dei dati sui salvataggi più vecchi
 • Sistema di acquisti rifatto: ora tutti i vantaggi acquistati si applicano correttamente
 • Economia sistemata: commissioni di borsa, affitti e valori dei veicoli ora coerenti
 • Risolti i crash all'avvio e vari errori nei casi limite
 
-✅ Sistema anti-sfortuna
+Sistema anti-sfortuna
 • Figli: garantiti dopo 15 tentativi
 • Proposte di matrimonio: successo garantito oltre il 95% di relazione
 • Candidature di lavoro: garantite con qualifiche perfette
 • Eventi settimanali: garantiti dopo 6 settimane senza eventi
 • Malattie: massimo 1 ogni 4 settimane (ce l'avevate chiesto)
 
-✅ Relazioni con conseguenze reali
+Relazioni con conseguenze reali
 • Il partner ti lascia dopo 8 settimane di trascuratezza, il coniuge chiede il divorzio dopo 12. Gli accordi economici sono realistici.
 
-✅ Prestazioni
+Prestazioni
 • Calcoli del reddito il 90% più veloci, salvataggi l'80% più leggeri, gioco fluido anche dopo 1000+ settimane
 
-Questo aggiornamento nasce dalle vostre recensioni. Grazie per giocare! Vieni a dire la tua su Discord: discord.gg/deeplifesim
+Questo aggiornamento nasce dalle vostre recensioni. Grazie per giocare! Vieni a dire la tua su Discord: discord.gg/invite/rzktazdX8v
 
 Niente pubblicità forzate, niente pay-to-win. Solo un simulatore di vita strategico e onesto.
 ```
@@ -138,23 +138,23 @@ FAI SOLDI. INVESTILI. GUARDALI CRESCERE.
 
 È qui che Deep Life Simulator si distingue dagli altri simulatori di vita. I tuoi soldi hanno regole reali:
 
-PRESTITI E DEBITI — Prendi in prestito quando serve. Paga gli interessi ogni mese. Il tuo punteggio di credito conta: salta le rate e sei nei guai.
+PRESTITI E DEBITI - Prendi in prestito quando serve. Paga gli interessi ogni mese. Il tuo punteggio di credito conta: salta le rate e sei nei guai.
 
-BORSA E CRIPTO — Fai trading ogni settimana. I prezzi oscillano. Arricchisciti in fretta o perdi tutto: tempismo e strategia fanno la differenza.
+BORSA E CRIPTO - Fai trading ogni settimana. I prezzi oscillano. Arricchisciti in fretta o perdi tutto: tempismo e strategia fanno la differenza.
 
-IMMOBILI E PROPRIETÀ — Compra case e appartamenti, incassa gli affitti. Gli immobili si rivalutano: vendi con profitto o tieni per costruire ricchezza a lungo termine.
+IMMOBILI E PROPRIETÀ - Compra case e appartamenti, incassa gli affitti. Gli immobili si rivalutano: vendi con profitto o tieni per costruire ricchezza a lungo termine.
 
-INTERESSE COMPOSTO — Investi presto e lascia crescere. I ricchi diventano più ricchi: è il motore economico al cuore del gioco.
+INTERESSE COMPOSTO - Investi presto e lascia crescere. I ricchi diventano più ricchi: è il motore economico al cuore del gioco.
 
-LA BANCAROTTA È REALE — Troppe scelte sbagliate e perdi tutto. Rialzarsi è possibile, ma brutale.
+LA BANCAROTTA È REALE - Troppe scelte sbagliate e perdi tutto. Rialzarsi è possibile, ma brutale.
 
 LE TUE SCELTE HANNO CONSEGUENZE
 
 Ogni settimana nuovi eventi di vita: promozioni, emergenze familiari, amori, crisi di salute, scandali, eredità e altro. Oltre 80 eventi diversi rendono il gioco imprevedibile.
 
-LE RELAZIONI CONTANO — Sposati, fai figli. Trascurali e se ne andranno. Il tuo albero genealogico vive attraverso le generazioni.
+LE RELAZIONI CONTANO - Sposati, fai figli. Trascurali e se ne andranno. Il tuo albero genealogico vive attraverso le generazioni.
 
-IL CRIMINE PAGA (MA HA UN PREZZO) — Ruba, hackera, spaccia. Sviluppa abilità criminali. Oppure fatti beccare e finisci in prigione.
+IL CRIMINE PAGA (MA HA UN PREZZO) - Ruba, hackera, spaccia. Sviluppa abilità criminali. Oppure fatti beccare e finisci in prigione.
 
 RICCHEZZA GENERAZIONALE E PRESTIGIO
 
@@ -206,13 +206,13 @@ CARATTERISTICHE:
 
 Scarica Deep Life Simulator oggi. Parti da zero e scopri se riesci a costruire una ricchezza generazionale, o se guarderai tutto crollare. Le tue scelte contano.
 
-Unisciti alla community su Discord: discord.gg/deeplifesim
+Unisciti al nostro Discord: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-• Subtitle "Il vero simulatore di vita" (26/30) leads with "simulatore di vita", the highest-volume Italian genre query, while "vero" carries the real-economics differentiator — reads as native marketing copy, not a keyword string.
+• Subtitle "Il vero simulatore di vita" (26/30) leads with "simulatore di vita", the highest-volume Italian genre query, while "vero" carries the real-economics differentiator - reads as native marketing copy, not a keyword string.
 • English "life simulator" is already fully indexed via the untranslated app name; Italian "simulatore"/"vita" are indexed via the subtitle. Neither is repeated in the keyword field (Apple already indexes name + subtitle).
 • Keyword field (98/100) targets money/wealth intent, which drives this game's audience in Italy: soldi, carriera, ricco, magnate, borsa, investimenti, scelte, crimine, affari, miliardario, strategia, storia. "ricco" also captures "diventare ricco" long-tail combined with "scelte"/"strategia".
 • "investimenti" kept plural intentionally: Italians search the plural form; singular "investimento" has negligible volume.

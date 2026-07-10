@@ -1,4 +1,4 @@
-# hr — Croatian (Hrvatski)
+# hr - Croatian (Hrvatski)
 
 ## app_name
 
@@ -15,7 +15,7 @@ Simulacija života i bogatstva
 ## promotional_text
 
 ```text
-Kreni s 18 godina bez ičega. Krediti, dionice, nekretnine, kriminal, dinastije. Izgradi generacijsko bogatstvo — ili bankrotiraj pokušavajući. Svaka odluka je bitna.
+Kreni s 18 godina bez ičega. Krediti, dionice, nekretnine, kriminal, dinastije. Izgradi generacijsko bogatstvo - ili bankrotiraj pokušavajući. Svaka odluka je bitna.
 ```
 
 ## keywords
@@ -27,7 +27,7 @@ novac,karijera,posao,ulaganje,tajkun,tycoon,bankrot,odluke,zatvor,strategija,nek
 ## description
 
 ```text
-Za razliku od drugih simulatora života, Deep Life Simulator ima pravi ekonomski motor. Nema nasumičnog pritiskanja gumba. Tvoj novac stvarno znači nešto. Digni kredit. Plaćaj kamate. Izgradi bogatstvo — ili gledaj kako se ruši. Svaka financijska odluka oblikuje cijeli tvoj život.
+Za razliku od drugih simulatora života, Deep Life Simulator ima pravi ekonomski motor. Nema nasumičnog pritiskanja gumba. Tvoj novac stvarno znači nešto. Digni kredit. Plaćaj kamate. Izgradi bogatstvo - ili gledaj kako se ruši. Svaka financijska odluka oblikuje cijeli tvoj život.
 
 KRENI OD NULE. IZGRADI SVE.
 
@@ -35,18 +35,18 @@ Počinješ s 18 godina, praznih džepova i neograničenog potencijala. Odaberi p
 
 20+ KARIJERA
 
-Slavna osoba, političar, sportaš, liječnik, inženjer, programer, poduzetnik — ili zaroni u sivu ekonomiju kao haker, krijumčar ili lopov. Svaka karijera ima vlastiti put napredovanja, raspon prihoda i posljedice. Tvoj posao određuje plaću, ugled i — ponekad — dosje.
+Slavna osoba, političar, sportaš, liječnik, inženjer, programer, poduzetnik - ili zaroni u sivu ekonomiju kao haker, krijumčar ili lopov. Svaka karijera ima vlastiti put napredovanja, raspon prihoda i posljedice. Tvoj posao određuje plaću, ugled i - ponekad - dosje.
 
 PRAVE EKONOMSKE MEHANIKE
 
 Ovo nije BitLife. Izgradili smo pravu ekonomsku simulaciju:
 
-• Krediti i dugovi — Posudi novac uz kamatu. Preskočiš li rate, kreditni rejting ti tone. Složena kamata radi protiv tebe, baš kao u stvarnom životu.
-• Burza i kripto — Trguj svaki tjedan. Cijene osciliraju. Možeš se obogatiti ili izgubiti sve. Tajming je presudan.
-• Nekretnine — Kupuj stanove, ubiri najamninu, gradi portfelj. Vrijednost raste. Hipoteke imaju uvjete.
-• Vozila — Kupuj aute i motocikle. Troškovi održavanja. Preprodajna vrijednost. Amortizacija je stvarna.
-• Bankrot — Doneseš li previše loših odluka, možeš izgubiti sve. Oporavak je moguć, ali boli.
-• Složena kamata — Uloži rano i gledaj kako ti novac raste. To je igra. To je uvjet pobjede.
+• Krediti i dugovi - Posudi novac uz kamatu. Preskočiš li rate, kreditni rejting ti tone. Složena kamata radi protiv tebe, baš kao u stvarnom životu.
+• Burza i kripto - Trguj svaki tjedan. Cijene osciliraju. Možeš se obogatiti ili izgubiti sve. Tajming je presudan.
+• Nekretnine - Kupuj stanove, ubiri najamninu, gradi portfelj. Vrijednost raste. Hipoteke imaju uvjete.
+• Vozila - Kupuj aute i motocikle. Troškovi održavanja. Preprodajna vrijednost. Amortizacija je stvarna.
+• Bankrot - Doneseš li previše loših odluka, možeš izgubiti sve. Oporavak je moguć, ali boli.
+• Složena kamata - Uloži rano i gledaj kako ti novac raste. To je igra. To je uvjet pobjede.
 
 TVOJ ŽIVOT, TVOJE ODLUKE
 
@@ -54,7 +54,7 @@ Svaki tjedan donosi nove prilike i izazove. Vjenčaj se. Dobij djecu. Naslijedi 
 
 Odnosi su bitni. Zanemariš li supružnika, razvest će se od tebe. Ignoriraš li djecu, zamjerat će ti to u vlastitim životima. Svaki odnos ima posljedicu.
 
-Kriminal se isplati — ali ima cijenu. Kradi, prodaji drogu, hakiraj korporacije. Razvijaj vještine podzemlja. Ili budi uhvaćen, odleži u zatvoru i kreni ispočetka.
+Kriminal se isplati - ali ima cijenu. Kradi, prodaji drogu, hakiraj korporacije. Razvijaj vještine podzemlja. Ili budi uhvaćen, odleži u zatvoru i kreni ispočetka.
 
 SUSTAV PRESTIŽA I GENERACIJSKO BOGATSTVO
 
@@ -89,23 +89,23 @@ Kreni danas. Izgradi svoje bogatstvo. Ili se spektakularno sruši. Kako god bilo
 ## whats_new
 
 ```text
-v2.3.1 — Stabilnost i ispravci
+v2.3.1 - Stabilnost i ispravci
 
 Poslušali smo vaše povratne informacije. Ovo ažuriranje donosi stabilnost i pošteniju igru:
 
-✅ 70+ ispravljenih grešaka
+70+ ispravljenih grešaka
 Ojačan sustav spremanja, potpuno prerađen sustav kupnji (sve IAP pogodnosti sada se ispravno primjenjuju), ispravci u ekonomiji, riješena rušenja pri pokretanju.
 
-✅ Sustav poštenja
+Sustav poštenja
 Zajamčeno dijete nakon 15 pokušaja, zajamčena prosidba pri odnosu od 95%+, zajamčen tjedni događaj nakon 6 tjedana bez događaja, najviše 1 bolest svaka 4 tjedna (vi ste to tražili!).
 
-✅ Posljedice u odnosima
+Posljedice u odnosima
 Partneri odlaze nakon 8 tjedana zanemarivanja, supružnici traže razvod nakon 12. Realistične financijske nagodbe. Odnosi opet imaju smisla.
 
-✅ Performanse
+Performanse
 90% brži izračuni prihoda, 50% brži obiteljski troškovi, 80% manje datoteke spremanja, glatka igra i nakon 1000+ tjedana.
 
-Hvala što igraš! Reci nam svoje mišljenje na Discordu: discord.gg/deeplifesim
+Hvala što igraš! Reci nam svoje mišljenje na Discordu: discord.gg/invite/rzktazdX8v
 
 Bez prisilnih reklama. Bez pay-to-wina. Samo poštena, strateška simulacija života.
 ```
@@ -131,23 +131,23 @@ ZARADI NOVAC. ULOŽI GA. GLEDAJ KAKO RASTE.
 
 Tu se Deep Life Simulator razlikuje od ostalih simulatora života:
 
-KREDITI I DUGOVI — Posudi kad trebaš. Plaćaj kamatu svaki mjesec. Kreditni rejting je bitan. Preskočene rate = veliki problemi.
+KREDITI I DUGOVI - Posudi kad trebaš. Plaćaj kamatu svaki mjesec. Kreditni rejting je bitan. Preskočene rate = veliki problemi.
 
-BURZA I KRIPTO — Trguj svaki tjedan. Cijene se kreću prema tržišnoj simulaciji. Obogati se brzo ili izgubi sve. Tajming i strategija odlučuju.
+BURZA I KRIPTO - Trguj svaki tjedan. Cijene se kreću prema tržišnoj simulaciji. Obogati se brzo ili izgubi sve. Tajming i strategija odlučuju.
 
-NEKRETNINE — Kupuj kuće i stanove. Ubiri najamninu. Vrijednost raste. Prodaj s dobiti ili drži za dugoročno bogatstvo.
+NEKRETNINE - Kupuj kuće i stanove. Ubiri najamninu. Vrijednost raste. Prodaj s dobiti ili drži za dugoročno bogatstvo.
 
-SLOŽENA KAMATA — Uloži rano i pusti da raste. Bogati postaju bogatiji. To je ekonomski motor u srcu ove igre.
+SLOŽENA KAMATA - Uloži rano i pusti da raste. Bogati postaju bogatiji. To je ekonomski motor u srcu ove igre.
 
-BANKROT JE STVARAN — Previše loših odluka i gubiš sve. Oporavak je moguć, ali brutalan. Zato pobjeda ima okus zasluženog.
+BANKROT JE STVARAN - Previše loših odluka i gubiš sve. Oporavak je moguć, ali brutalan. Zato pobjeda ima okus zasluženog.
 
 TVOJE ODLUKE IMAJU POSLJEDICE
 
 Svaki tjedan donosi nove događaje: promaknuća, obiteljske krize, romanse, zdravstvene probleme, skandale i još toga. 80+ različitih događaja čini igru nepredvidivom.
 
-ODNOSI SU BITNI — Vjenčaj se. Dobij djecu. Zanemariš li ih, odlaze. Tvoje obiteljsko stablo živi kroz generacije.
+ODNOSI SU BITNI - Vjenčaj se. Dobij djecu. Zanemariš li ih, odlaze. Tvoje obiteljsko stablo živi kroz generacije.
 
-KRIMINAL SE ISPLATI (ALI IMA CIJENU) — Kradi, hakiraj, prodaji drogu. Razvijaj kriminalne vještine. Ili budi uhvaćen i završi u zatvoru. Odluke te definiraju.
+KRIMINAL SE ISPLATI (ALI IMA CIJENU) - Kradi, hakiraj, prodaji drogu. Razvijaj kriminalne vještine. Ili budi uhvaćen i završi u zatvoru. Odluke te definiraju.
 
 GENERACIJSKO BOGATSTVO I PRESTIŽ
 
@@ -197,19 +197,19 @@ ZNAČAJKE:
 ✓ Bez prisilnih reklama (dostupno trajno uklanjanje)
 ✓ Poštena ekonomija, bez pay-to-wina
 
-Preuzmi Deep Life Simulator danas. Kreni od nule. Provjeri možeš li izgraditi generacijsko bogatstvo — ili ćeš gledati kako se sve ruši. Tvoja priča je jedinstvena. Tvoje odluke su bitne.
+Preuzmi Deep Life Simulator danas. Kreni od nule. Provjeri možeš li izgraditi generacijsko bogatstvo - ili ćeš gledati kako se sve ruši. Tvoja priča je jedinstvena. Tvoje odluke su bitne.
 
-Pridruži se našoj Discord zajednici: discord.gg/deeplifesim
+Pridruži se našoj Discord zajednici: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle "Simulacija života i bogatstva" carries the top Croatian genre phrase "simulacija života" plus "bogatstvo" (wealth) — the money hook — while reading as a natural tagline.
+- Subtitle "Simulacija života i bogatstva" carries the top Croatian genre phrase "simulacija života" plus "bogatstvo" (wealth) - the money hook - while reading as a natural tagline.
 - English "life simulator" is already indexed via the app name, so keywords are spent on native terms: novac (money), karijera, ulaganje (investing), bankrot, zatvor (jail), nekretnine (real estate), milijarder.
-- Included both "tajkun" (fully nativized, high-volume) and English "tycoon" — Croatian players use both spellings when searching the genre.
+- Included both "tajkun" (fully nativized, high-volume) and English "tycoon" - Croatian players use both spellings when searching the genre.
 - "posao" (job/work) targets the career/work-sim intent that "karijera" alone misses.
 - Copy is in natural ti-form throughout; currency reference localized to euro ("ni eura u džepu") since Croatia uses EUR.
-- Croatian store traffic partially overlaps Serbian/Bosnian queries in Latin script — the chosen terms (novac, posao, zatvor) are shared across the region, widening reach at no cost.
+- Croatian store traffic partially overlaps Serbian/Bosnian queries in Latin script - the chosen terms (novac, posao, zatvor) are shared across the region, widening reach at no cost.
 - A/B test suggestion: subtitle vs. "Od nule do tajkuna" (zero-to-tycoon hook) once genre ranking stabilizes.
 ```

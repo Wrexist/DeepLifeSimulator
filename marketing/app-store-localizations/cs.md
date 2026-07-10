@@ -1,4 +1,4 @@
-# Deep Life Simulator — Czech (cs) Store Listing
+# Deep Life Simulator - Czech (cs) Store Listing
 
 ## app_name
 
@@ -15,7 +15,7 @@ Realistický simulátor života
 ## promotional_text
 
 ```text
-Začínáš v 18 letech s prázdnou kapsou. Půjčky, akcie, nemovitosti, zločin i rodinné dynastie – vybuduj generační bohatství, nebo sleduj, jak se všechno zhroutí.
+Začínáš v 18 letech s prázdnou kapsou. Půjčky, akcie, nemovitosti, zločin i rodinné dynastie - vybuduj generační bohatství, nebo sleduj, jak se všechno zhroutí.
 ```
 
 ## keywords
@@ -27,7 +27,7 @@ peníze,kariéra,byznys,investice,zbohatni,tycoon,miliardář,zločin,vězení,b
 ## description
 
 ```text
-Na rozdíl od jiných simulátorů života má Deep Life Simulator skutečný ekonomický engine. Žádné náhodné mačkání tlačítek. Tvoje peníze mají opravdovou váhu. Ber si půjčky. Plať úroky. Buduj majetek – nebo sleduj, jak se hroutí. Každé finanční rozhodnutí ovlivní celý tvůj život.
+Na rozdíl od jiných simulátorů života má Deep Life Simulator skutečný ekonomický engine. Žádné náhodné mačkání tlačítek. Tvoje peníze mají opravdovou váhu. Ber si půjčky. Plať úroky. Buduj majetek - nebo sleduj, jak se hroutí. Každé finanční rozhodnutí ovlivní celý tvůj život.
 
 ZAČNI S PRÁZDNOU KAPSOU. VYBUDUJ VŠECHNO.
 
@@ -35,18 +35,18 @@ Začínáš v 18 letech bez koruny, ale s neomezeným potenciálem. Vyber si sta
 
 20+ KARIÉRNÍCH CEST
 
-Celebrita, politik, sportovec, doktor, inženýr, programátor, podnikatel – nebo se ponoř do podsvětí jako hacker, pašerák či zloděj. Každá kariéra má vlastní postup, výdělky i následky. Tvoje práce určuje tvůj plat, reputaci a někdy i to, jestli skončíš za mřížemi.
+Celebrita, politik, sportovec, doktor, inženýr, programátor, podnikatel - nebo se ponoř do podsvětí jako hacker, pašerák či zloděj. Každá kariéra má vlastní postup, výdělky i následky. Tvoje práce určuje tvůj plat, reputaci a někdy i to, jestli skončíš za mřížemi.
 
 SKUTEČNÁ EKONOMIKA
 
 Tohle není BitLife. Postavili jsme opravdovou ekonomickou simulaci:
 
-• Půjčky a dluhy – Půjčuj si s úrokem. Zmeškej splátky a tvoje bonita letí dolů. Složený úrok pracuje proti tobě jako ve skutečném životě.
-• Akcie a krypto – Obchoduj každý týden. Ceny kolísají. Můžeš zbohatnout, nebo přijít o všechno. Načasování rozhoduje.
-• Nemovitosti – Kupuj byty a domy, vybírej nájem, buduj portfolio. Nemovitosti se zhodnocují. Hypotéky mají podmínky.
-• Auta a motorky – Kupuj vozidla. Údržba něco stojí. Cena při prodeji klesá. Amortizace je reálná.
-• Bankrot – Pár špatných rozhodnutí a můžeš přijít o všechno. Cesta zpátky existuje, ale bolí.
-• Složené úročení – Investuj brzy a sleduj, jak peníze rostou. To je celá hra. To je vítězství.
+• Půjčky a dluhy - Půjčuj si s úrokem. Zmeškej splátky a tvoje bonita letí dolů. Složený úrok pracuje proti tobě jako ve skutečném životě.
+• Akcie a krypto - Obchoduj každý týden. Ceny kolísají. Můžeš zbohatnout, nebo přijít o všechno. Načasování rozhoduje.
+• Nemovitosti - Kupuj byty a domy, vybírej nájem, buduj portfolio. Nemovitosti se zhodnocují. Hypotéky mají podmínky.
+• Auta a motorky - Kupuj vozidla. Údržba něco stojí. Cena při prodeji klesá. Amortizace je reálná.
+• Bankrot - Pár špatných rozhodnutí a můžeš přijít o všechno. Cesta zpátky existuje, ale bolí.
+• Složené úročení - Investuj brzy a sleduj, jak peníze rostou. To je celá hra. To je vítězství.
 
 TVŮJ ŽIVOT, TVOJE VOLBY
 
@@ -54,7 +54,7 @@ Každý týden přináší nové příležitosti i problémy. Ožeň se. Měj d�
 
 Na vztazích záleží. Zanedbávej partnera a rozvede se s tebou. Ignoruj děti a budou ti to mít za zlé celý život. Každý vztah má následky.
 
-Zločin se vyplácí – ale má svou cenu. Kraď, prodávej drogy, hackuj korporace. Zlepšuj dovednosti podsvětí. Nebo se nech chytit, jdi do vězení a začni znovu.
+Zločin se vyplácí - ale má svou cenu. Kraď, prodávej drogy, hackuj korporace. Zlepšuj dovednosti podsvětí. Nebo se nech chytit, jdi do vězení a začni znovu.
 
 PRESTIŽ A GENERAČNÍ BOHATSTVÍ
 
@@ -77,7 +77,7 @@ Hraj několik životů najednou. Přepínej mezi postavami. Tvoje uložené pozi
 
 ÚSPĚCHY A ŽEBŘÍČKY
 
-Poměř se s hráči z celého světa: dosáhni milníků čistého jmění, přežij kariérní výzvy, vybuduj rodinný odkaz, dožij se stovky – nebo zkrachuj ve velkém stylu.
+Poměř se s hráči z celého světa: dosáhni milníků čistého jmění, přežij kariérní výzvy, vybuduj rodinný odkaz, dožij se stovky - nebo zkrachuj ve velkém stylu.
 
 TVOJE HRA. TVOJE PRAVIDLA.
 
@@ -89,35 +89,35 @@ Začni ještě dnes. Vybuduj jmění. Nebo velkolepě zkrachuj. Příběh k vypr
 ## whats_new
 
 ```text
-v2.3.1 – Kvalita a stabilita
+v2.3.1 - Kvalita a stabilita
 
 Vyslyšeli jsme tvou zpětnou vazbu. Tahle aktualizace je celá o stabilitě a lepším pocitu ze hry:
 
-✅ 70+ opravených chyb
-• Odolnější systém ukládání – opraveno poškození starších uložených pozic
-• Přepracovaný systém nákupů – všechny zakoupené výhody se teď projeví správně
-• Opravy ekonomiky – poplatky za akcie, nájmy i ceny vozidel jsou konzistentní
+70+ opravených chyb
+• Odolnější systém ukládání - opraveno poškození starších uložených pozic
+• Přepracovaný systém nákupů - všechny zakoupené výhody se teď projeví správně
+• Opravy ekonomiky - poplatky za akcie, nájmy i ceny vozidel jsou konzistentní
 • Opravy pádů při startu i chyb v okrajových situacích
 
-✅ Systém férovosti
+Systém férovosti
 • Děti: zaručeno po 15 pokusech
 • Žádost o ruku: zaručený úspěch při vztahu 95 %+
 • Žádost o práci: zaručena při perfektní kvalifikaci
 • Týdenní události: zaručeny po 6 týdnech bez událostí
 • Nemoci: maximálně 1 za 4 týdny
 
-✅ Následky ve vztazích
+Následky ve vztazích
 • Partner odejde po 8 týdnech zanedbávání
 • Manžel či manželka podá žádost o rozvod po 12 týdnech
 • Realistická finanční vyrovnání
 
-✅ Výkon
+Výkon
 • O 90 % rychlejší výpočty příjmů
 • O 50 % rychlejší rodinné výdaje
 • O 80 % menší soubory s uloženými pozicemi
 • Plynulá hra i po 1000+ týdnech
 
-Díky, že hraješ. Přidej se na náš Discord a řekni nám svůj názor: discord.gg/deeplifesim
+Díky, že hraješ. Přidej se na náš Discord a řekni nám svůj názor: discord.gg/invite/rzktazdX8v
 
 Žádné vnucené reklamy. Žádné pay-to-win. Jen férový strategický simulátor.
 ```
@@ -125,7 +125,7 @@ Díky, že hraješ. Přidej se na náš Discord a řekni nám svůj názor: disc
 ## gp_short_description
 
 ```text
-Simulátor života s reálnou ekonomikou. Zbohatni – nebo přijdeš o všechno.
+Simulátor života s reálnou ekonomikou. Zbohatni - nebo přijdeš o všechno.
 ```
 
 ## gp_full_description
@@ -133,33 +133,33 @@ Simulátor života s reálnou ekonomikou. Zbohatni – nebo přijdeš o všechno
 ```text
 VYBUDUJ SI ŽIVOT. NES NÁSLEDKY.
 
-Deep Life Simulator je strategický simulátor života, ve kterém záleží na penězích. Kariéra, investice, byznys, půjčky, bankrot i generační bohatství – na rozdíl od běžných life simulátorů tady funguje skutečná ekonomika.
+Deep Life Simulator je strategický simulátor života, ve kterém záleží na penězích. Kariéra, investice, byznys, půjčky, bankrot i generační bohatství - na rozdíl od běžných life simulátorů tady funguje skutečná ekonomika.
 
 ZAČNI OD NULY.
 
-Je ti 18 a nemáš ani korunu. Vyber si cestu: narozen v bohatství, šplhání z chudoby, nebo nový start ode dna. Zvol jednu z 20+ kariér: doktor, programátor, sportovec, podnikatel, zločinec – nebo cokoli mezi tím. Kariéra určuje tvůj příjem i tvoje možnosti.
+Je ti 18 a nemáš ani korunu. Vyber si cestu: narozen v bohatství, šplhání z chudoby, nebo nový start ode dna. Zvol jednu z 20+ kariér: doktor, programátor, sportovec, podnikatel, zločinec - nebo cokoli mezi tím. Kariéra určuje tvůj příjem i tvoje možnosti.
 
 VYDĚLEJ PENÍZE. INVESTUJ. SLEDUJ, JAK ROSTOU.
 
 Přesně tady se Deep Life Simulator liší od ostatních simulátorů života. Tvoje peníze mají skutečná pravidla:
 
-PŮJČKY A DLUHY – Půjč si, když potřebuješ. Plať měsíční úroky. Na bonitě záleží. Zmeškané splátky znamenají průšvih.
+PŮJČKY A DLUHY - Půjč si, když potřebuješ. Plať měsíční úroky. Na bonitě záleží. Zmeškané splátky znamenají průšvih.
 
-AKCIE A KRYPTO – Obchoduj každý týden. Ceny se hýbou podle tržní simulace. Zbohatni rychle, nebo přijď o všechno. Rozhoduje načasování a strategie.
+AKCIE A KRYPTO - Obchoduj každý týden. Ceny se hýbou podle tržní simulace. Zbohatni rychle, nebo přijď o všechno. Rozhoduje načasování a strategie.
 
-NEMOVITOSTI – Kupuj domy a byty. Vybírej nájem. Nemovitosti se zhodnocují. Prodej se ziskem, nebo drž pro dlouhodobé bohatství.
+NEMOVITOSTI - Kupuj domy a byty. Vybírej nájem. Nemovitosti se zhodnocují. Prodej se ziskem, nebo drž pro dlouhodobé bohatství.
 
-SLOŽENÝ ÚROK – Investuj brzy a nech peníze růst. Bohatí bohatnou. To je ekonomický motor v srdci téhle hry.
+SLOŽENÝ ÚROK - Investuj brzy a nech peníze růst. Bohatí bohatnou. To je ekonomický motor v srdci téhle hry.
 
-BANKROT JE REÁLNÝ – Moc špatných rozhodnutí a přijdeš o všechno. Návrat je možný, ale brutální. Právě proto výhra chutná zaslouženě.
+BANKROT JE REÁLNÝ - Moc špatných rozhodnutí a přijdeš o všechno. Návrat je možný, ale brutální. Právě proto výhra chutná zaslouženě.
 
 TVOJE VOLBY MAJÍ NÁSLEDKY
 
 Každý týden přinese nové životní události: povýšení, rodinné krize, romance, zdravotní komplikace, skandály a další. 80+ různých událostí drží hru nepředvídatelnou.
 
-NA VZTAZÍCH ZÁLEŽÍ – Ožeň se. Měj děti. Zanedbávej je a odejdou. Tvůj rodokmen žije dál napříč generacemi.
+NA VZTAZÍCH ZÁLEŽÍ - Ožeň se. Měj děti. Zanedbávej je a odejdou. Tvůj rodokmen žije dál napříč generacemi.
 
-ZLOČIN SE VYPLÁCÍ (ALE MÁ SVOU CENU) – Kraď, hackuj, prodávej drogy. Rozvíjej kriminální dovednosti. Nebo se nech chytit a jdi do vězení. Tvoje volby tě definují.
+ZLOČIN SE VYPLÁCÍ (ALE MÁ SVOU CENU) - Kraď, hackuj, prodávej drogy. Rozvíjej kriminální dovednosti. Nebo se nech chytit a jdi do vězení. Tvoje volby tě definují.
 
 GENERAČNÍ BOHATSTVÍ A PRESTIŽ
 
@@ -213,9 +213,9 @@ FUNKCE:
 ✓ Žádné vnucené reklamy (trvalé odstranění k dispozici)
 ✓ Férová ekonomika bez pay-to-win
 
-Stáhni si Deep Life Simulator ještě dnes. Začni od nuly a zkus vybudovat generační bohatství – nebo sleduj, jak se všechno zhroutí. Tvůj příběh je jedinečný. Na tvých volbách záleží.
+Stáhni si Deep Life Simulator ještě dnes. Začni od nuly a zkus vybudovat generační bohatství - nebo sleduj, jak se všechno zhroutí. Tvůj příběh je jedinečný. Na tvých volbách záleží.
 
-Přidej se k naší komunitě na Discordu: discord.gg/deeplifesim
+Přidej se k naší komunitě na Discordu: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
@@ -223,9 +223,9 @@ Přidej se k naší komunitě na Discordu: discord.gg/deeplifesim
 ```text
 - Subtitle "Realistický simulátor života" (28/30) leads with the highest-volume Czech genre query "simulátor života" and sells the differentiator (realism/economics) as marketing copy, not a keyword string.
 - Keyword field (98/100) covers all guided CZ terms: peníze, kariéra, byznys, investice, zbohatni; plus high-intent genre terms miliardář, zločin, vězení, bankrot, akcie, příběh, volba. All lowercase, singular, no spaces after commas.
-- English "tycoon" kept in keywords — Czech players genuinely search it in English; "life simulator" is NOT repeated because the app name already indexes it (and subtitle indexes "simulátor života"), so no characters are wasted on duplicates.
+- English "tycoon" kept in keywords - Czech players genuinely search it in English; "life simulator" is NOT repeated because the app name already indexes it (and subtitle indexes "simulátor života"), so no characters are wasted on duplicates.
 - Descriptions use natural ty-form throughout, matching how Czech mobile game copy addresses players; "This isn't BitLife" kept in body copy only (never in metadata keywords/subtitle).
-- Currency localized to Czech crowns idiomatically ("bez koruny", "nemáš ani korunu") — no fabricated price figures.
+- Currency localized to Czech crowns idiomatically ("bez koruny", "nemáš ani korunu") - no fabricated price figures.
 - Google Play: front-loaded first 160 chars of gp_full_description with simulátor života, peníze, kariéra, investice, byznys, bankrot; gp_short_description opens with "Simulátor života" (indexed field).
-- A/B test suggestions: subtitle vs "Simulátor života a peněz"; GP short description vs a collapse-first hook ("Začni od nuly. Zbohatni, nebo zkrachuj."). Do not rotate keywords monthly — let indexing compound.
+- A/B test suggestions: subtitle vs "Simulátor života a peněz"; GP short description vs a collapse-first hook ("Začni od nuly. Zbohatni, nebo zkrachuj."). Do not rotate keywords monthly - let indexing compound.
 ```

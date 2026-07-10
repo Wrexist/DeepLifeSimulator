@@ -1,4 +1,4 @@
-# App Store & Google Play Localizations — Deep Life Simulator
+# App Store & Google Play Localizations - Deep Life Simulator
 
 ASO-optimized store listings for **all 39 App Store Connect locales**, ready to
 paste into App Store Connect and Google Play Console. English source of truth:
@@ -8,15 +8,15 @@ paste into App Store Connect and Google Play Console. English source of truth:
 
 Each `<locale>.md` contains every store field with its hard character limit:
 
-- `app_name` (30) — kept as `Deep Life Simulator` everywhere (brand)
-- `subtitle` (30) — native, keyword-optimized (indexed by Apple)
-- `promotional_text` (170) — conversion hook, editable without review
-- `keywords` (100) — comma-separated, no spaces, locale-tuned search terms
-- `description` (4000) — full App Store description
-- `whats_new` (4000) — v2.3.1 release notes
-- `gp_short_description` (80) — Google Play short description (indexed)
-- `gp_full_description` (4000) — Google Play long description (indexed)
-- `notes` — ASO rationale per market (not uploaded)
+- `app_name` (30) - kept as `Deep Life Simulator` everywhere (brand)
+- `subtitle` (30) - native, keyword-optimized (indexed by Apple)
+- `promotional_text` (170) - conversion hook, editable without review
+- `keywords` (100) - comma-separated, no spaces, locale-tuned search terms
+- `description` (4000) - full App Store description
+- `whats_new` (4000) - v2.3.1 release notes
+- `gp_short_description` (80) - Google Play short description (indexed)
+- `gp_full_description` (4000) - Google Play long description (indexed)
+- `notes` - ASO rationale per market (not uploaded)
 
 ## Validate before uploading
 
@@ -43,7 +43,7 @@ on any over-limit, empty, or malformed field.
 ## Cross-locale indexing tricks used
 
 - The **es-MX** and **zh-Hans** keyword fields are also indexed for the **US
-  storefront** — those two keyword strings are chosen to complement en-US.
+  storefront** - those two keyword strings are chosen to complement en-US.
 - English variants (en-GB/en-AU/en-CA) carry **different keyword strings** than
   en-US to widen total indexed coverage on storefronts that cross-index English.
 - No locale repeats words already in the app name or its own subtitle (Apple

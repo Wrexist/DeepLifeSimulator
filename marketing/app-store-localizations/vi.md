@@ -1,4 +1,4 @@
-# Deep Life Simulator — Vietnamese (vi) Store Listing
+# Deep Life Simulator - Vietnamese (vi) Store Listing
 
 ## app_name
 
@@ -15,7 +15,7 @@ Mô phỏng cuộc sống làm giàu
 ## promotional_text
 
 ```text
-Bắt đầu ở tuổi 18 với hai bàn tay trắng. Vay vốn, chơi chứng khoán, mua bất động sản hay dấn thân vào thế giới ngầm. Xây gia sản truyền đời — hoặc phá sản. Bạn chọn.
+Bắt đầu ở tuổi 18 với hai bàn tay trắng. Vay vốn, chơi chứng khoán, mua bất động sản hay dấn thân vào thế giới ngầm. Xây gia sản truyền đời - hoặc phá sản. Bạn chọn.
 ```
 
 ## keywords
@@ -27,7 +27,7 @@ kiếm tiền,tỷ phú,đầu tư,kinh doanh,nghề nghiệp,tài chính,nhà t
 ## description
 
 ```text
-Khác với những game mô phỏng cuộc sống thông thường, Deep Life Simulator sở hữu một cỗ máy kinh tế thực thụ. Không bấm nút cầu may — tiền của bạn thực sự có ý nghĩa. Vay vốn. Trả lãi. Gây dựng gia sản hoặc nhìn nó sụp đổ. Mỗi quyết định tài chính định hình cả cuộc đời bạn.
+Khác với những game mô phỏng cuộc sống thông thường, Deep Life Simulator sở hữu một cỗ máy kinh tế thực thụ. Không bấm nút cầu may - tiền của bạn thực sự có ý nghĩa. Vay vốn. Trả lãi. Gây dựng gia sản hoặc nhìn nó sụp đổ. Mỗi quyết định tài chính định hình cả cuộc đời bạn.
 
 BẮT ĐẦU TỪ CON SỐ 0. XÂY DỰNG TẤT CẢ.
 
@@ -35,18 +35,18 @@ Bạn khởi đầu ở tuổi 18 với túi rỗng và tiềm năng vô hạn. 
 
 HƠN 20 CON ĐƯỜNG SỰ NGHIỆP
 
-Ngôi sao, chính trị gia, vận động viên, bác sĩ, kỹ sư, lập trình viên, doanh nhân — hoặc dấn thân vào kinh tế ngầm với vai hacker, kẻ buôn lậu hay đạo chích. Mỗi nghề có lộ trình thăng tiến, mức thu nhập và hệ quả riêng. Công việc quyết định lương, danh tiếng — và đôi khi cả tình trạng pháp lý của bạn.
+Ngôi sao, chính trị gia, vận động viên, bác sĩ, kỹ sư, lập trình viên, doanh nhân - hoặc dấn thân vào kinh tế ngầm với vai hacker, kẻ buôn lậu hay đạo chích. Mỗi nghề có lộ trình thăng tiến, mức thu nhập và hệ quả riêng. Công việc quyết định lương, danh tiếng - và đôi khi cả tình trạng pháp lý của bạn.
 
 CƠ CHẾ KINH TẾ NHƯ THẬT
 
 Đây không phải BitLife. Chúng tôi xây dựng một hệ mô phỏng kinh tế thực sự:
 
-• Vay nợ — Vay tiền kèm lãi suất. Trễ hạn trả và điểm tín dụng lao dốc. Lãi kép chống lại bạn y như đời thật.
-• Chứng khoán & Crypto — Giao dịch mỗi tuần. Giá cả biến động. Làm giàu nhanh hay mất trắng — thời điểm là tất cả.
-• Bất động sản — Mua nhà, thu tiền thuê, xây danh mục đầu tư. Giá nhà tăng theo thời gian, còn khoản thế chấp có kỳ hạn hẳn hoi.
-• Xe cộ — Mua ô tô, xe máy. Chi phí bảo dưỡng, giá bán lại, khấu hao — tất cả đều thật.
-• Phá sản — Sai lầm quá nhiều và bạn có thể mất tất cả. Gượng dậy được, nhưng rất đau.
-• Lãi kép — Đầu tư sớm và nhìn tiền sinh sôi. Đó chính là trò chơi. Đó là điều kiện chiến thắng.
+• Vay nợ - Vay tiền kèm lãi suất. Trễ hạn trả và điểm tín dụng lao dốc. Lãi kép chống lại bạn y như đời thật.
+• Chứng khoán & Crypto - Giao dịch mỗi tuần. Giá cả biến động. Làm giàu nhanh hay mất trắng - thời điểm là tất cả.
+• Bất động sản - Mua nhà, thu tiền thuê, xây danh mục đầu tư. Giá nhà tăng theo thời gian, còn khoản thế chấp có kỳ hạn hẳn hoi.
+• Xe cộ - Mua ô tô, xe máy. Chi phí bảo dưỡng, giá bán lại, khấu hao - tất cả đều thật.
+• Phá sản - Sai lầm quá nhiều và bạn có thể mất tất cả. Gượng dậy được, nhưng rất đau.
+• Lãi kép - Đầu tư sớm và nhìn tiền sinh sôi. Đó chính là trò chơi. Đó là điều kiện chiến thắng.
 
 CUỘC ĐỜI CỦA BẠN, LỰA CHỌN CỦA BẠN
 
@@ -54,7 +54,7 @@ Mỗi tuần mang đến cơ hội và thử thách mới. Kết hôn. Sinh con.
 
 Các mối quan hệ đều quan trọng. Bỏ bê bạn đời và họ sẽ ly hôn. Phớt lờ con cái và chúng sẽ oán bạn trong chính cuộc đời chúng. Mọi mối quan hệ đều có hệ quả.
 
-Phạm tội kiếm được tiền — nhưng luôn có giá. Trộm cắp, buôn hàng cấm, hack tập đoàn. Rèn kỹ năng thế giới ngầm. Hoặc bị bắt, vào tù, và làm lại từ đầu.
+Phạm tội kiếm được tiền - nhưng luôn có giá. Trộm cắp, buôn hàng cấm, hack tập đoàn. Rèn kỹ năng thế giới ngầm. Hoặc bị bắt, vào tù, và làm lại từ đầu.
 
 HỆ THỐNG PRESTIGE & GIA SẢN TRUYỀN ĐỜI
 
@@ -73,7 +73,7 @@ Sự kiện ngẫu nhiên giữ cho game luôn mới mẻ: thăng chức, biến
 
 LƯU ĐÁM MÂY & NHIỀU Ô LƯU
 
-Chơi nhiều cuộc đời cùng lúc. Chuyển đổi giữa các nhân vật. Dữ liệu được sao lưu lên đám mây — không bao giờ mất tiến trình.
+Chơi nhiều cuộc đời cùng lúc. Chuyển đổi giữa các nhân vật. Dữ liệu được sao lưu lên đám mây - không bao giờ mất tiến trình.
 
 THÀNH TỰU & BẢNG XẾP HẠNG
 
@@ -89,25 +89,25 @@ GAME CỦA BẠN. LUẬT CỦA BẠN.
 
 Deep Life Simulator dành cho người chơi muốn chiến lược, hệ quả và chiều sâu từ một game mô phỏng. Không quảng cáo ép buộc (có tùy chọn gỡ vĩnh viễn). Không cơ chế pay-to-win phá game. Nền kinh tế được cân bằng để quyết định thông minh đáng giá hơn may mắn.
 
-Bắt đầu ngay hôm nay. Gây dựng cơ đồ — hoặc sụp đổ ngoạn mục. Đằng nào bạn cũng có một câu chuyện để kể.
+Bắt đầu ngay hôm nay. Gây dựng cơ đồ - hoặc sụp đổ ngoạn mục. Đằng nào bạn cũng có một câu chuyện để kể.
 ```
 
 ## whats_new
 
 ```text
-v2.3.1 — Bản cập nhật ổn định lớn nhất từ trước đến nay
+v2.3.1 - Bản cập nhật ổn định lớn nhất từ trước đến nay
 
 Chúng tôi đã lắng nghe phản hồi của bạn. Bản cập nhật này tập trung toàn lực vào độ ổn định và trải nghiệm:
 
-✅ Sửa hơn 70 lỗi — gia cố hệ thống lưu, khắc phục hỏng dữ liệu ở bản lưu cũ, sửa crash khi khởi động, chuẩn hóa phí chứng khoán, giá thuê và giá trị xe
-✅ Đại tu hệ thống mua hàng — mọi đặc quyền IAP giờ áp dụng chính xác
-✅ Hệ thống công bằng — chấm dứt chuỗi xui xẻo vô tận: sinh con, cầu hôn, xin việc và sự kiện hằng tuần đều có bảo đảm; tối đa 1 lần bệnh mỗi 4 tuần (điều bạn yêu cầu)
-✅ Hệ quả quan hệ — người yêu rời đi sau 8 tuần bị bỏ bê, bạn đời đệ đơn ly hôn sau 12 tuần; chia tài sản sát thực tế
-✅ Hiệu năng — tính thu nhập nhanh hơn 90%, file lưu nhỏ hơn 80%, mượt mà cả sau 1000+ tuần chơi
+Sửa hơn 70 lỗi - gia cố hệ thống lưu, khắc phục hỏng dữ liệu ở bản lưu cũ, sửa crash khi khởi động, chuẩn hóa phí chứng khoán, giá thuê và giá trị xe
+Đại tu hệ thống mua hàng - mọi đặc quyền IAP giờ áp dụng chính xác
+Hệ thống công bằng - chấm dứt chuỗi xui xẻo vô tận: sinh con, cầu hôn, xin việc và sự kiện hằng tuần đều có bảo đảm; tối đa 1 lần bệnh mỗi 4 tuần (điều bạn yêu cầu)
+Hệ quả quan hệ - người yêu rời đi sau 8 tuần bị bỏ bê, bạn đời đệ đơn ly hôn sau 12 tuần; chia tài sản sát thực tế
+Hiệu năng - tính thu nhập nhanh hơn 90%, file lưu nhỏ hơn 80%, mượt mà cả sau 1000+ tuần chơi
 
 Bản cập nhật này giải quyết trực tiếp các vấn đề được báo cáo nhiều nhất trong đánh giá. Cảm ơn bạn đã đồng hành!
 
-Tham gia Discord để góp ý: discord.gg/deeplifesim
+Tham gia Discord để góp ý: discord.gg/invite/rzktazdX8v
 
 Không quảng cáo ép buộc. Không pay-to-win. Chỉ một game mô phỏng cuộc sống chiến lược và công bằng.
 ```
@@ -131,25 +131,25 @@ Bạn 18 tuổi, không một xu dính túi. Chọn con đường: sinh ra giàu
 
 KIẾM TIỀN. ĐẦU TƯ. NHÌN TIỀN SINH SÔI.
 
-Đây là điểm khiến Deep Life Simulator khác mọi game cùng thể loại — tiền của bạn có luật chơi thật:
+Đây là điểm khiến Deep Life Simulator khác mọi game cùng thể loại - tiền của bạn có luật chơi thật:
 
-VAY NỢ — Vay khi cần. Trả lãi hằng tháng. Điểm tín dụng quan trọng. Trễ hạn là rắc rối ập đến.
+VAY NỢ - Vay khi cần. Trả lãi hằng tháng. Điểm tín dụng quan trọng. Trễ hạn là rắc rối ập đến.
 
-CHỨNG KHOÁN & CRYPTO — Giao dịch mỗi tuần. Giá biến động theo mô phỏng thị trường. Làm giàu nhanh hay mất trắng — thời điểm và chiến lược là tất cả.
+CHỨNG KHOÁN & CRYPTO - Giao dịch mỗi tuần. Giá biến động theo mô phỏng thị trường. Làm giàu nhanh hay mất trắng - thời điểm và chiến lược là tất cả.
 
-BẤT ĐỘNG SẢN — Mua nhà, mua căn hộ. Thu tiền thuê. Giá nhà tăng theo thời gian. Bán chốt lời hay giữ dài hạn để tích lũy tài sản.
+BẤT ĐỘNG SẢN - Mua nhà, mua căn hộ. Thu tiền thuê. Giá nhà tăng theo thời gian. Bán chốt lời hay giữ dài hạn để tích lũy tài sản.
 
-LÃI KÉP — Đầu tư sớm, để tiền tự lớn. Người giàu càng giàu thêm. Đó là cỗ máy kinh tế ở trái tim trò chơi này.
+LÃI KÉP - Đầu tư sớm, để tiền tự lớn. Người giàu càng giàu thêm. Đó là cỗ máy kinh tế ở trái tim trò chơi này.
 
-PHÁ SẢN LÀ CÓ THẬT — Sai lầm quá nhiều và mất tất cả. Gượng dậy được, nhưng tàn khốc. Chính điều đó khiến chiến thắng xứng đáng.
+PHÁ SẢN LÀ CÓ THẬT - Sai lầm quá nhiều và mất tất cả. Gượng dậy được, nhưng tàn khốc. Chính điều đó khiến chiến thắng xứng đáng.
 
 LỰA CHỌN NÀO CŨNG CÓ HỆ QUẢ
 
 Mỗi tuần một loạt sự kiện mới: thăng chức, biến cố gia đình, tình yêu, bệnh tật, bê bối... Hơn 80 sự kiện khác nhau khiến game không thể đoán trước.
 
-QUAN HỆ QUAN TRỌNG — Kết hôn. Sinh con. Bỏ bê họ và họ rời đi. Cây gia phả của bạn sống tiếp qua nhiều thế hệ.
+QUAN HỆ QUAN TRỌNG - Kết hôn. Sinh con. Bỏ bê họ và họ rời đi. Cây gia phả của bạn sống tiếp qua nhiều thế hệ.
 
-PHẠM TỘI KIẾM TIỀN (NHƯNG CÓ GIÁ) — Trộm cắp, hack, buôn hàng cấm. Rèn kỹ năng tội phạm. Hoặc bị bắt và ngồi tù. Lựa chọn định nghĩa con người bạn.
+PHẠM TỘI KIẾM TIỀN (NHƯNG CÓ GIÁ) - Trộm cắp, hack, buôn hàng cấm. Rèn kỹ năng tội phạm. Hoặc bị bắt và ngồi tù. Lựa chọn định nghĩa con người bạn.
 
 GIA SẢN TRUYỀN ĐỜI & PRESTIGE
 
@@ -204,17 +204,17 @@ TÍNH NĂNG:
 ✓ Kinh tế công bằng, không pay-to-win
 ✓ Có mặt trên Android và iOS
 
-Tải Deep Life Simulator ngay hôm nay. Bắt đầu từ con số 0. Xem bạn có xây nổi gia sản truyền đời — hay nhìn tất cả sụp đổ. Câu chuyện của bạn là duy nhất. Lựa chọn của bạn có ý nghĩa.
+Tải Deep Life Simulator ngay hôm nay. Bắt đầu từ con số 0. Xem bạn có xây nổi gia sản truyền đời - hay nhìn tất cả sụp đổ. Câu chuyện của bạn là duy nhất. Lựa chọn của bạn có ý nghĩa.
 
-Tham gia cộng đồng Discord: discord.gg/deeplifesim
+Tham gia cộng đồng Discord: discord.gg/invite/rzktazdX8v
 ```
 
 ## notes
 
 ```text
-- Subtitle "Mô phỏng cuộc sống làm giàu" stacks the two highest-volume Vietnamese queries in one natural phrase: "mô phỏng cuộc sống" (life simulation — also combines with browse queries "game mô phỏng" via the genre) and "làm giàu" (get rich).
+- Subtitle "Mô phỏng cuộc sống làm giàu" stacks the two highest-volume Vietnamese queries in one natural phrase: "mô phỏng cuộc sống" (life simulation - also combines with browse queries "game mô phỏng" via the genre) and "làm giàu" (get rich).
 - Keyword field targets the remaining top Vietnamese terms per market guidance: kiếm tiền (make money), tỷ phú (billionaire), đầu tư (invest), kinh doanh (business), nghề nghiệp (career), tài chính (finance), nhà tù (jail), chứng khoán (stocks), plus English terms Vietnamese users also type (sim, money, tycoon, rich). Total 97/100 chars.
-- "mô phỏng", "cuộc sống", "làm giàu", "life", "simulator" are deliberately absent from keywords — they are already indexed from the app name and subtitle; "sim" combines with the title for "life sim" searches.
+- "mô phỏng", "cuộc sống", "làm giàu", "life", "simulator" are deliberately absent from keywords - they are already indexed from the app name and subtitle; "sim" combines with the title for "life sim" searches.
 - All Vietnamese text is NFC-normalized (precomposed diacritics), which is what App Store Connect counts and what Vietnamese keyboards produce.
 - Google Play: the short description and the first 160 chars of the full description front-load game mô phỏng cuộc sống, kinh tế, vay, đầu tư, làm giàu, phá sản for Play indexing; "kiếm tiền", "tỷ phú", "kinh doanh", "chứng khoán" recur naturally through the body.
 - Tone follows successful VN sim/tycoon listings: short punchy sentences, second person, uppercase section headers kept (standard in VN store copy).
