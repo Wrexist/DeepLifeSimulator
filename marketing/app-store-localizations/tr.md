@@ -31,7 +31,7 @@ Diğer hayat simülasyonlarının aksine Deep Life Simulator gerçek bir ekonomi
 
 SIFIRDAN BAŞLA. HER ŞEYİ KUR.
 
-18 yaşındasın, cebinde beş kuruş yok ama önünde sınırsız bir potansiyel var. Başlangıç senaryonu seç: zengin bir ailede doğ, yoksulluktan tırman ya da ikisinin arasında bir yerden başla. İlk kararın hep aynı: Hangi kariyeri seçeceksin?
+18 yaşındasın, cebinde beş kuruş yok ama önünde sınırsız bir potansiyel var. Başlangıç senaryonu seç: zengin bir ailede doğ, yoksulluktan tırman ya da arada bir yerden başla. İlk kararın hep aynı: Hangi kariyeri seçeceksin?
 
 20+ KARİYER YOLU
 
@@ -50,7 +50,7 @@ Bu bir BitLife değil. Gerçek bir ekonomi simülasyonu kurduk:
 
 SENİN HAYATIN, SENİN SEÇİMLERİN
 
-Her hafta yeni fırsatlar ve zorluklar getirir. Evlen. Çocuk sahibi ol. Mirasa kon. Beklenmedik hastane faturalarıyla boğuş. İşini kaybet, terfi teklifleri al. Seçimlerin zamanla katlanarak birikir.
+Her hafta yeni fırsatlar ve zorluklar getirir. Evlen. Çocuk sahibi ol. Mirasa kon. İşini kaybet, terfi teklifleri al. Seçimlerin zamanla katlanarak birikir.
 
 İlişkiler önemli. Eşini ihmal edersen boşanır. Çocuklarını görmezden gelirsen kendi hayatlarında sana sırt çevirirler. Her ilişkinin bir bedeli var.
 
@@ -69,11 +69,11 @@ Her hayat önemlidir. Her nesil bir öncekinin üzerine koyar.
 
 80+ HAYAT OLAYI
 
-Rastgele olaylar oyunu hep taze tutar: terfiler, aile acil durumları, piyango, kazalar, skandallar, aşk, ihanet ve dahası. Olayların gerçek sonuçları var. O sağlık sorunu paraya ve zamana mal olabilir; o terfi ise her şeyi değiştirebilir. Nasıl karşılık verdiğin, hayatının gidişatını belirler.
+Rastgele olaylar oyunu hep taze tutar: terfiler, aile acil durumları, piyango, kazalar, skandallar, aşk, ihanet ve dahası. Olayların gerçek sonuçları var. O sağlık sorunu paraya ve zamana mal olabilir; o terfi ise her şeyi değiştirebilir.
 
 BULUT KAYDI VE ÇOKLU SLOT
 
-Aynı anda birden fazla hayat yaşa. Karakterler arasında geçiş yap. Kayıtların buluta yedeklenir. İlerlemen asla kaybolmaz.
+Aynı anda birden fazla hayat yaşa, karakterler arasında geçiş yap. Kayıtların buluta yedeklenir; ilerlemen asla kaybolmaz.
 
 BAŞARIMLAR VE LİDERLİK TABLOLARI
 
@@ -87,7 +87,7 @@ Dünyanın dört bir yanındaki oyuncularla yarış:
 
 SENİN OYUNUN. SENİN KURALLARIN.
 
-Deep Life Simulator; hayat simülasyonundan strateji, sonuç ve derinlik bekleyen oyuncular için tasarlandı. Yüzüne dayatılan reklam yok (kalıcı kaldırma seçeneği mevcut). Oyunu bozan pay-to-win mekanikleri yok. Ekonomi öyle dengelendi ki iyi kararlar şanstan daha çok kazandırır.
+Deep Life Simulator; strateji, sonuç ve derinlik isteyen oyuncular için tasarlandı. Dayatılan reklam yok (kalıcı kaldırma seçeneği mevcut). Oyunu bozan pay-to-win mekanikleri yok. Ekonomi öyle dengelendi ki iyi kararlar şanstan daha çok kazandırır.
 
 Bugün başla. Servetini kur. Ya da muhteşem bir çöküş yaşa. İki türlü de anlatacak bir hikâyen olacak.
 ```
