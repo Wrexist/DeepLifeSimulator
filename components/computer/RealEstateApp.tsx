@@ -28,12 +28,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors } from '@/lib/config/theme';
+import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import PropertyRow from '@/components/realEstate/PropertyRow';
 import BuyPropertyModal from '@/components/realEstate/BuyPropertyModal';
 import ManagePropertyModal from '@/components/realEstate/ManagePropertyModal';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 
 import {
   buyPropertyWithMortgage,
@@ -45,6 +47,16 @@ import {
   toggleLaunderingFront,
 } from '@/contexts/game/actions/RealEstateActions';
 import { RentMode } from '@/lib/realEstate/tenancy';
+
+const LinearGradient = LinearGradientFallback;
+
+// Real Estate identity accent — emerald (#10B981). Used ONLY as translucent
+// tints on large surfaces (hero wash/blob, Recipe C icon bubbles, value chip)
+// and as a solid on small CTAs/badges/active-tab state. Gains/losses stay
+// accent.success / accent.danger AS DATA (rendered inside PropertyRow), keeping
+// portfolio P/L semantics distinct from this identity usage.
+const IDENTITY = '#10B981';
+const IDENTITY_RGB = '16, 185, 129';
 
 interface RealEstateAppProps {
   onBack: () => void;
@@ -160,53 +172,78 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
   // --- Render helpers -----------------------------------------------------
   const renderPortfolio = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
+    <View style={{ gap: responsiveSpacing.lg }}>
       <EconomyEventBanner context="generic" />
 
-      <View style={[styles.heroCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-        <View style={[styles.heroIcon, { backgroundColor: accent.info }]}>
-          <Building size={scale(20)} color="white" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Portfolio equity</Text>
-          <Text style={[styles.heroValue, { color: theme.text }]}>{formatMoney(totalEquity)}</Text>
-          <Text style={[styles.heroSub, { color: theme.textMuted }]}>
-            {ownedProperties.length} {ownedProperties.length === 1 ? 'property' : 'properties'} · Value{' '}
-            {formatMoney(totalValue)} − Mortgage {formatMoney(totalMortgages)}
-          </Text>
+      {/* Recipe B hero — the portfolio equity headline (one per screen). */}
+      <View
+        style={[
+          getGlassCard(darkMode, 12),
+          styles.heroCard,
+          { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
+        ]}
+      >
+        <View style={styles.heroInner}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[`rgba(${IDENTITY_RGB}, 0.14)`, `rgba(${IDENTITY_RGB}, 0.03)`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={styles.heroBlob} />
+          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+
+          <View style={styles.heroRow}>
+            <View style={[getGlassIconContainer(darkMode, 44), styles.heroBubble]}>
+              <Building size={scale(22)} color={IDENTITY} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Portfolio equity</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1}>
+                {formatMoney(totalEquity)}
+              </Text>
+              <Text style={[styles.heroSub, { color: theme.textMuted }]}>
+                {ownedProperties.length} {ownedProperties.length === 1 ? 'property' : 'properties'} · Value{' '}
+                {formatMoney(totalValue)} − Mortgage {formatMoney(totalMortgages)}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
       <View style={styles.statGrid}>
-        <StatCard theme={theme} icon={TrendingUp} label="Weekly rent" value={formatMoney(weeklyRentEstimate)} />
-        <StatCard theme={theme} icon={Home} label="Owned" value={String(ownedProperties.length)} />
+        <StatCard theme={theme} darkMode={darkMode} icon={TrendingUp} label="Weekly rent" value={formatMoney(weeklyRentEstimate)} />
+        <StatCard theme={theme} darkMode={darkMode} icon={Home} label="Owned" value={String(ownedProperties.length)} />
       </View>
 
-      <SectionTitle theme={theme}>Your Properties</SectionTitle>
-      {ownedProperties.length === 0 ? (
-        <EmptyText theme={theme}>
-          You don&apos;t own any property yet. Browse the catalog to buy your first home.
-        </EmptyText>
-      ) : (
-        ownedProperties.map((p) => (
-          <PropertyRow
-            key={p.id}
-            property={p}
-            mortgageRemaining={p.mortgageId ? mortgageById.get(p.mortgageId) : undefined}
-            darkMode={darkMode}
-            detailed
-            onPress={() => setManageTarget(p)}
-          />
-        ))
-      )}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle theme={theme}>Your Properties</SectionTitle>
+        {ownedProperties.length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>
+            You don&apos;t own any property yet. Browse the catalog to buy your first home.
+          </EmptyText>
+        ) : (
+          ownedProperties.map((p) => (
+            <PropertyRow
+              key={p.id}
+              property={p}
+              mortgageRemaining={p.mortgageId ? mortgageById.get(p.mortgageId) : undefined}
+              darkMode={darkMode}
+              detailed
+              onPress={() => setManageTarget(p)}
+            />
+          ))
+        )}
+      </View>
     </View>
   );
 
   const renderBrowse = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
+    <View style={{ gap: responsiveSpacing.sm }}>
       <SectionTitle theme={theme}>Available Properties</SectionTitle>
       {browseList.length === 0 ? (
-        <EmptyText theme={theme}>You already own every property in the catalog!</EmptyText>
+        <EmptyText theme={theme} darkMode={darkMode}>You already own every property in the catalog!</EmptyText>
       ) : (
         browseList.map((p) => (
           <PropertyRow
@@ -221,17 +258,17 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
   );
 
   const renderActivity = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
+    <View style={{ gap: responsiveSpacing.sm }}>
       <SectionTitle theme={theme}>Recent Activity</SectionTitle>
       {activity.length === 0 ? (
-        <EmptyText theme={theme}>
+        <EmptyText theme={theme} darkMode={darkMode}>
           No recent real-estate events. Cycle shifts, tenant moves, and maintenance alerts will appear here.
         </EmptyText>
       ) : (
         activity.map((e: any, idx: number) => (
           <View
             key={`re-act-${idx}`}
-            style={[styles.activityRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+            style={[getGlassCard(darkMode, 6), styles.activityRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Text style={[styles.activityWeek, { color: theme.textMuted }]}>w{e.weeksLived ?? e.week ?? '?'}</Text>
             <Text style={[styles.activityText, { color: theme.textSecondary }]} numberOfLines={2}>
@@ -245,12 +282,18 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={8}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.appTitle, { color: theme.text }]}>Real Estate</Text>
-        <View style={[styles.cashChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={[styles.cashChip, styles.cashChipTint]}>
           <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
         </View>
       </View>
@@ -263,10 +306,10 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             <TouchableOpacity
               key={t.id}
               onPress={() => setActiveTab(t.id)}
-              style={[styles.tab, active && { borderBottomColor: accent.info }]}
+              style={[styles.tab, active && { borderBottomColor: IDENTITY }]}
             >
-              <Icon size={scale(16)} color={active ? accent.info : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? accent.info : theme.textMuted }]}>{t.label}</Text>
+              <Icon size={scale(16)} color={active ? IDENTITY : theme.textMuted} />
+              <Text style={[styles.tabText, { color: active ? IDENTITY : theme.textMuted }]}>{t.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -363,8 +406,20 @@ function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeCo
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
 }
 
-function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>;
+function EmptyText({
+  theme,
+  darkMode,
+  children,
+}: {
+  theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
+    </View>
+  );
 }
 
 function StatCard({
@@ -372,17 +427,23 @@ function StatCard({
   label,
   value,
   theme,
+  darkMode,
 }: {
   icon: React.ComponentType<{ size: number; color: string }>;
   label: string;
   value: string;
   theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
 }) {
   return (
-    <View style={[styles.statCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-      <Icon size={scale(14)} color={theme.textMuted} />
-      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
+    <View style={[getGlassCard(darkMode, 6), styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassIconContainer(darkMode, 34), styles.statBubble]}>
+        <Icon size={scale(16)} color={IDENTITY} />
+      </View>
+      <View style={styles.statTextGroup}>
+        <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
+        <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
+      </View>
     </View>
   );
 }
@@ -402,10 +463,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 1,
     gap: responsiveSpacing.sm,
   },
-  backBtn: { padding: responsiveSpacing.xs },
+  // >=40pt touch target for the always-visible back affordance.
+  backBtn: {
+    width: scale(40),
+    height: scale(40),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -responsiveSpacing.xs,
+  },
   appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
   cashChip: {
     paddingHorizontal: responsiveSpacing.sm,
@@ -413,7 +480,12 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  // Top-bar value chip — identity-tinted (fill 0.14 / rim 0.30), neutral text.
+  cashChipTint: {
+    backgroundColor: `rgba(${IDENTITY_RGB}, 0.14)`,
+    borderColor: `rgba(${IDENTITY_RGB}, 0.3)`,
+  },
+  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: {
     flex: 1,
@@ -429,52 +501,88 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: responsiveFontSize.md,
     fontWeight: '700',
+    letterSpacing: 0.2,
     marginTop: responsiveSpacing.xs,
+  },
+  // Empty-state card — Recipe A, low-emphasis muted copy.
+  emptyCard: {
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.xl,
+    paddingVertical: responsiveSpacing.lg,
+    paddingHorizontal: responsiveSpacing.md,
   },
   emptyText: {
     fontSize: responsiveFontSize.sm,
     textAlign: 'center',
-    paddingVertical: responsiveSpacing.md,
   },
+  // Recipe B hero — outer carries shadow + rim; heroInner clips the wash.
   heroCard: {
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius['2xl'],
+  },
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+  },
+  heroBlob: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: `rgba(${IDENTITY_RGB}, 0.1)`,
+  },
+  heroHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  heroRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+    gap: responsiveSpacing.md,
+  },
+  // Recipe C tinted icon bubble (identity emerald).
+  heroBubble: {
+    backgroundColor: `rgba(${IDENTITY_RGB}, 0.15)`,
     borderWidth: 1,
-    gap: responsiveSpacing.sm,
+    borderColor: `rgba(${IDENTITY_RGB}, 0.3)`,
   },
-  heroIcon: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  heroValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800' },
-  heroSub: { fontSize: responsiveFontSize.xs, marginTop: 2 },
+  heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
+  heroValue: { fontSize: responsiveFontSize['3xl'], fontWeight: '800', marginTop: 2, fontVariant: ['tabular-nums'] },
+  heroSub: { fontSize: responsiveFontSize.xs, marginTop: 4, fontVariant: ['tabular-nums'] },
   statGrid: {
     flexDirection: 'row',
     gap: responsiveSpacing.sm,
   },
   statCard: {
     flex: 1,
-    padding: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
-    gap: 2,
+    gap: responsiveSpacing.sm,
   },
+  statBubble: {
+    backgroundColor: `rgba(${IDENTITY_RGB}, 0.15)`,
+    borderWidth: 1,
+    borderColor: `rgba(${IDENTITY_RGB}, 0.3)`,
+  },
+  statTextGroup: { gap: 2 },
   statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
   activityRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: responsiveSpacing.sm,
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
   },
-  activityWeek: { fontSize: responsiveFontSize.xs, fontWeight: '700', minWidth: scale(28) },
+  activityWeek: { fontSize: responsiveFontSize.xs, fontWeight: '700', minWidth: scale(28), fontVariant: ['tabular-nums'] },
   activityText: { flex: 1, fontSize: responsiveFontSize.xs },
 });

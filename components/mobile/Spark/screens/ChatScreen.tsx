@@ -49,7 +49,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
   const timers = useTimerManager();
 
   const sp = gameState.sparkApp;
-  const match = sp?.matches.find((m: any) => m.id === matchId);
+  const match = sp?.matches?.find((m: any) => m.id === matchId);
   const profile = match ? DATING_PROFILES.find((p) => p.id === match.profileId) : undefined;
   const messages: SparkMessage[] = sp?.messages?.[matchId] ?? [];
   const isPromoted = match?.promoted;

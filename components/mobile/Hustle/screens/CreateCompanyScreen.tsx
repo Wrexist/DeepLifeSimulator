@@ -11,7 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { HUSTLE_GRADIENT, industryColor } from '../styles/hustleTheme';
@@ -41,7 +42,7 @@ interface CreateCompanyScreenProps {
 
 export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompanyScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<HustleIndustry | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +68,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+      <View style={styles.header}>
         <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
           <ArrowLeft size={fontScale(22)} color={theme.text} />
         </Pressable>
@@ -104,23 +105,19 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
               accessibilityState={{ selected: isSelected, disabled: !canAfford }}
               accessibilityLabel={`${ind.name}: $${ind.cost.toLocaleString()}`}
               style={[
+                getGlassCard(isDark, 6),
                 styles.industryCard,
                 {
                   backgroundColor: theme.surface,
                   borderColor: isSelected ? color : theme.border,
-                  borderWidth: isSelected ? 2 : StyleSheet.hairlineWidth,
+                  borderWidth: isSelected ? 2 : 1,
                   opacity: canAfford ? 1 : 0.55,
                 },
               ]}
             >
-              <LinearGradient
-                colors={[color, color + 'BB']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.industryIcon}
-              >
-                <Icon size={fontScale(22)} color="#FFFFFF" strokeWidth={2.2} />
-              </LinearGradient>
+              <View style={[styles.industryIcon, { backgroundColor: color + '26', borderColor: color + '4D' }]}>
+                <Icon size={fontScale(22)} color={color} strokeWidth={2.2} />
+              </View>
               <View style={styles.industryText}>
                 <Text style={[styles.industryName, { color: theme.text }]}>{ind.name}</Text>
                 <Text style={[styles.industryDesc, { color: theme.textSecondary }]} numberOfLines={2}>
@@ -154,6 +151,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
           accessibilityLabel="Found this company"
           style={({ pressed }) => [
             styles.cta,
+            selected && getPlatformShadows(5, 0.3, 2, 8),
             !selected && styles.ctaDisabled,
             pressed && { transform: [{ scale: 0.98 }] },
           ]}
@@ -183,7 +181,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerBtn: {
     width: touchTargets.minimum,
@@ -209,7 +206,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: responsiveSpacing.sm,
-    borderRadius: scale(14),
+    borderRadius: responsiveBorderRadius.xl,
     padding: responsiveSpacing.md,
     marginBottom: responsiveSpacing.sm,
   },
@@ -217,6 +214,7 @@ const styles = StyleSheet.create({
     width: scale(44),
     height: scale(44),
     borderRadius: scale(10),
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -234,6 +232,7 @@ const styles = StyleSheet.create({
   industryCost: {
     fontSize: fontScale(14),
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   errorText: {
     fontSize: fontScale(12),
@@ -245,13 +244,16 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   cta: {
-    borderRadius: scale(14),
-    overflow: 'hidden',
+    borderRadius: responsiveBorderRadius.full,
   },
   ctaDisabled: { opacity: 0.6 },
   ctaFill: {
+    borderRadius: responsiveBorderRadius.full,
+    overflow: 'hidden',
     paddingVertical: responsiveSpacing.md,
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   ctaText: {
     color: '#FFFFFF',

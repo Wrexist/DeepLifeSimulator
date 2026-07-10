@@ -9,6 +9,10 @@
  *
  * Surfaces what the old UI hid: which destinations save money under current
  * policy, how vehicles speed up trips, what events fired on return.
+ *
+ * Visual layer: Slate Glass. Identity accent = teal #14B8A6, solid only on
+ * small CTAs/badges/glyphs; elsewhere translucent tints (Recipe C bubbles,
+ * one Recipe B hero on the trip tab). Prices stay plain text.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -64,8 +68,25 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+import {
+  getGlassCard,
+  getGlassIconContainer,
+  getPlatformShadows,
+} from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+
+const LinearGradient = LinearGradientFallback;
+
+// Slate Glass identity accent for the Travel app: teal #14B8A6.
+// Solid only on small CTAs/badges/glyphs; elsewhere the translucent tints.
+const IDENTITY = '#14B8A6';
+const IDENTITY_PAIR = '#0D9488';
+const tint = (alpha: number) => `rgba(20, 184, 166, ${alpha})`;
+// 8-digit hex alpha for semantic (non-identity) Recipe C chips: ~15% fill / ~30% rim.
+const softFill = (hex: string) => `${hex}26`;
 
 type TabType = 'destinations' | 'trip' | 'business' | 'history';
 
@@ -90,6 +111,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
   };
   const currentTrip = travel.currentTrip;
   const week = gameState.weeksLived || 0;
+  const money = gameState.stats?.money ?? 0;
 
   const passportItem = gameState.items?.find((i) => i.id === 'passport');
   const ownsPassport = !!(travel.passportOwned || passportItem?.owned);
@@ -186,8 +208,11 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const pCommute = mods.breakdown.politicsCommuteReductionPct;
     if (vBonus === 0 && pCost === 0 && pCommute === 0) return null;
     return (
-      <View style={[styles.modsCard, { backgroundColor: theme.surfaceElevated, borderColor: accent.info }]}>
-        <Text style={[styles.modsTitle, { color: theme.text }]}>Your travel edge</Text>
+      <View style={[getGlassCard(darkMode, 6), styles.modsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={styles.modsTitleRow}>
+          <TrendingUp size={scale(14)} color={IDENTITY} />
+          <Text style={[styles.modsTitle, { color: theme.text }]}>Your travel edge</Text>
+        </View>
         {vBonus > 0 && activeVehicle ? (
           <View style={styles.modsRow}>
             <Car size={scale(14)} color={accent.success} />
@@ -223,15 +248,21 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       {!ownsPassport && (
         <TouchableOpacity
           onPress={handlePassport}
-          style={[styles.passportCard, { backgroundColor: accent.purple }]}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Purchase passport"
+          style={[getGlassCard(darkMode, 6), styles.passportCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
-          <Globe size={scale(24)} color="white" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.passportTitle}>Unlock world travel</Text>
-            <Text style={styles.passportSub}>$500 for a passport · international destinations</Text>
+          <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+            <Globe size={scale(22)} color={IDENTITY} />
           </View>
-          <Sparkles size={scale(18)} color="white" />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.passportTitle, { color: theme.text }]}>Unlock world travel</Text>
+            <Text style={[styles.passportSub, { color: theme.textSecondary }]}>$500 for a passport · international destinations</Text>
+          </View>
+          <View style={[styles.passportBadge, { backgroundColor: IDENTITY }]}>
+            <Sparkles size={scale(14)} color="white" />
+          </View>
         </TouchableOpacity>
       )}
       {DESTINATIONS.map((dest) => {
@@ -249,7 +280,10 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             disabled={!quote.ok}
             onPress={() => handleBook(dest)}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !quote.ok }}
             style={[
+              getGlassCard(darkMode, 6),
               styles.destCard,
               { backgroundColor: theme.surface, borderColor: theme.border },
               !quote.ok && { opacity: 0.55 },
@@ -260,9 +294,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                 <View style={styles.row}>
                   <Text style={[styles.destName, { color: theme.text }]}>{dest.name}</Text>
                   {visited && (
-                    <View style={[styles.pill, { backgroundColor: accent.success }]}>
-                      <CheckCircle size={scale(10)} color="white" />
-                      <Text style={styles.pillText}>Visited</Text>
+                    <View style={[styles.pill, { backgroundColor: softFill(accent.success) }]}>
+                      <CheckCircle size={scale(10)} color={accent.success} />
+                      <Text style={[styles.pillText, { color: accent.success }]}>Visited</Text>
                     </View>
                   )}
                 </View>
@@ -270,9 +304,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                   <MapPin size={scale(11)} color={theme.textSecondary} />
                   <Text style={[styles.destSub, { color: theme.textSecondary }]}>{dest.country}</Text>
                   {passportRequired && !ownsPassport ? (
-                    <View style={[styles.pill, { backgroundColor: accent.warning }]}>
-                      <Globe size={scale(10)} color="white" />
-                      <Text style={styles.pillText}>Passport</Text>
+                    <View style={[styles.pill, { backgroundColor: softFill(accent.warning) }]}>
+                      <Globe size={scale(10)} color={accent.warning} />
+                      <Text style={[styles.pillText, { color: accent.warning }]}>Passport</Text>
                     </View>
                   ) : null}
                 </View>
@@ -316,9 +350,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                   {quote.ok && quote.adjustedDuration < dest.duration ? ' (sped up)' : ''}
                 </Text>
               </View>
-              <View style={[styles.bookBtn, { backgroundColor: quote.ok ? accent.info : accent.muted }]}>
-                <Text style={styles.bookBtnText}>{currentTrip ? 'Already traveling' : 'Book'}</Text>
-                <Plane size={scale(12)} color="white" />
+              <View style={[styles.bookBtn, { backgroundColor: quote.ok ? tint(0.16) : theme.surfaceElevated }]}>
+                <Text style={[styles.bookBtnText, { color: quote.ok ? IDENTITY : theme.textMuted }]}>{currentTrip ? 'Already traveling' : 'Book'}</Text>
+                <Plane size={scale(12)} color={quote.ok ? IDENTITY : theme.textMuted} />
               </View>
             </View>
           </TouchableOpacity>
@@ -331,7 +365,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (!currentTrip) {
       return (
         <View style={styles.empty}>
-          <Plane size={scale(48)} color={theme.textSecondary} />
+          <View style={[getGlassIconContainer(darkMode, 64), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+            <Plane size={scale(28)} color={IDENTITY} />
+          </View>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No active trip</Text>
           <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
             Pick a destination to start your next adventure.
@@ -344,35 +380,57 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const returnWeek = currentTrip.returnWeek || 0;
     const effectiveReturn = returnWeek <= 8 && week > 8 ? week : returnWeek;
     const remaining = Math.max(0, effectiveReturn - week);
+    const canReturn = remaining <= 0;
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-        <View style={[styles.tripCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[styles.tripIcon, { backgroundColor: accent.info }]}>
-            <Plane size={scale(28)} color="white" />
-          </View>
-          <Text style={[styles.tripDest, { color: theme.text }]}>{dest.name}</Text>
-          <Text style={[styles.tripCountry, { color: theme.textSecondary }]}>{dest.country}</Text>
+        {/* Recipe B hero — the current-destination headline (one per screen). */}
+        <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
+          <View style={styles.heroInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={[tint(0.14), tint(0.03)]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.heroBlob} />
+            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
-          <View style={[styles.tripStat, { borderColor: theme.border }]}>
-            <Text style={[styles.tripStatLabel, { color: theme.textSecondary }]}>Returning in</Text>
-            <Text style={[styles.tripStatValue, { color: accent.info }]}>
-              {remaining} week{remaining === 1 ? '' : 's'}
-            </Text>
-          </View>
+            <View style={[getGlassIconContainer(darkMode, 48), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+              <Plane size={scale(26)} color={IDENTITY} />
+            </View>
+            <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>CURRENT TRIP</Text>
+            <Text style={[styles.tripDest, { color: theme.text }]}>{dest.name}</Text>
+            <Text style={[styles.tripCountry, { color: theme.textSecondary }]}>{dest.country}</Text>
 
-          <TouchableOpacity
-            onPress={handleReturn}
-            disabled={remaining > 0}
-            style={[
-              styles.returnBtn,
-              { backgroundColor: remaining > 0 ? accent.muted : accent.success },
-            ]}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.returnBtnText}>
-              {remaining > 0 ? 'Trip in progress…' : 'Return home'}
-            </Text>
-          </TouchableOpacity>
+            <View style={[styles.tripStat, { backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.06)' : theme.surfaceElevated }]}>
+              <Text style={[styles.tripStatLabel, { color: theme.textSecondary }]}>Returning in</Text>
+              <Text style={[styles.tripStatValue, { color: IDENTITY }]}>
+                {remaining} week{remaining === 1 ? '' : 's'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleReturn}
+              disabled={remaining > 0}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Return home"
+              accessibilityState={{ disabled: remaining > 0 }}
+              style={[styles.returnBtn, canReturn && getPlatformShadows(5, 0.3, 2, 8)]}
+            >
+              <LinearGradient
+                colors={canReturn ? [IDENTITY, IDENTITY_PAIR] : [theme.surfaceElevated, theme.surfaceElevated]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.returnBtnInner}
+              >
+                <Text style={[styles.returnBtnText, { color: canReturn ? 'white' : theme.textMuted }]}>
+                  {canReturn ? 'Return home' : 'Trip in progress…'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     );
@@ -383,7 +441,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (opps.length === 0) {
       return (
         <View style={styles.empty}>
-          <Briefcase size={scale(48)} color={theme.textSecondary} />
+          <View style={[getGlassIconContainer(darkMode, 64), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+            <Briefcase size={scale(28)} color={IDENTITY} />
+          </View>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No opportunities yet</Text>
           <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
             Visit a new destination to unlock a business deal there.
@@ -396,8 +456,11 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         {opps.map((opp) => (
           <View
             key={opp.id}
-            style={[styles.bizCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            style={[getGlassCard(darkMode, 6), styles.bizCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
+            <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+              <Briefcase size={scale(20)} color={IDENTITY} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.bizName, { color: theme.text }]}>{opp.name}</Text>
               <Text style={[styles.bizSub, { color: theme.textSecondary }]}>{opp.description}</Text>
@@ -413,12 +476,14 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             <TouchableOpacity
               onPress={() => handleInvest(opp.id)}
               disabled={!!opp.invested}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !!opp.invested }}
               style={[
                 styles.investBtn,
-                { backgroundColor: opp.invested ? accent.success : accent.info },
+                { backgroundColor: opp.invested ? softFill(accent.success) : tint(0.16) },
               ]}
             >
-              <Text style={styles.investBtnText}>{opp.invested ? 'Invested' : 'Invest'}</Text>
+              <Text style={[styles.investBtnText, { color: opp.invested ? accent.success : IDENTITY }]}>{opp.invested ? 'Invested' : 'Invest'}</Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -431,7 +496,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (history.length === 0) {
       return (
         <View style={styles.empty}>
-          <History size={scale(48)} color={theme.textSecondary} />
+          <View style={[getGlassIconContainer(darkMode, 64), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+            <History size={scale(28)} color={IDENTITY} />
+          </View>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No trips yet</Text>
         </View>
       );
@@ -444,9 +511,11 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           return (
             <View
               key={`${entry.destinationId}-${entry.week}-${idx}`}
-              style={[styles.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              style={[getGlassCard(darkMode, 6), styles.historyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
-              <MapPin size={scale(14)} color={accent.info} />
+              <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+                <MapPin size={scale(16)} color={IDENTITY} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.historyDest, { color: theme.text }]}>{dest.name}</Text>
                 <Text style={[styles.historyMeta, { color: theme.textSecondary }]}>
@@ -462,34 +531,47 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <ArrowLeft size={scale(18)} color={theme.text} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={styles.headerBtn}
+        >
+          <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Travel</Text>
-        <View style={styles.backBtn} />
+        <View style={[styles.cashChip, { backgroundColor: tint(0.14), borderColor: tint(0.3) }]}>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+        </View>
       </View>
 
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        {(['destinations', 'trip', 'business', 'history'] as TabType[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[
-              styles.tabBtn,
-              activeTab === tab && { borderBottomColor: accent.info, borderBottomWidth: 2 },
-            ]}
-          >
-            <Text
+      <View style={[styles.tabBar, { borderColor: theme.border }]}>
+        {(['destinations', 'trip', 'business', 'history'] as TabType[]).map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
               style={[
-                styles.tabText,
-                { color: activeTab === tab ? accent.info : theme.textSecondary },
+                styles.tabBtn,
+                active && { borderBottomColor: IDENTITY, borderBottomWidth: 2 },
               ]}
             >
-              {tab === 'destinations' ? 'Destinations' : tab === 'trip' ? 'My Trip' : tab === 'business' ? 'Business' : 'History'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: active ? IDENTITY : theme.textMuted },
+                ]}
+              >
+                {tab === 'destinations' ? 'Destinations' : tab === 'trip' ? 'My Trip' : tab === 'business' ? 'Business' : 'History'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {activeTab === 'destinations' && renderDestinations()}
@@ -501,6 +583,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         result={returnEvents}
         onClose={() => setReturnEvents(null)}
         theme={theme}
+        darkMode={darkMode}
       />
     </View>
   );
@@ -516,7 +599,7 @@ function BenefitChip({
   value: string;
 }) {
   return (
-    <View style={[styles.benefitChip, { backgroundColor: `${color}22`, borderColor: color }]}>
+    <View style={[styles.benefitChip, { backgroundColor: `${color}26`, borderColor: `${color}4D` }]}>
       <Icon size={scale(11)} color={color} />
       <Text style={[styles.benefitText, { color }]}>{value}</Text>
     </View>
@@ -542,18 +625,22 @@ function TripReturnModal({
   result,
   onClose,
   theme,
+  darkMode,
 }: {
   result: TripReturnResult | null;
   onClose: () => void;
   theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
 }) {
   if (!result) return null;
   const events = result.events || [];
   return (
     <Modal visible={!!result} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalScrim}>
-        <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Plane size={scale(28)} color={accent.info} />
+        <View style={[getGlassCard(darkMode, 12), styles.modalCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
+          <View style={[getGlassIconContainer(darkMode, 48), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+            <Plane size={scale(24)} color={IDENTITY} />
+          </View>
           <Text style={[styles.modalTitle, { color: theme.text }]}>
             Welcome back from {result.destinationName}!
           </Text>
@@ -571,10 +658,10 @@ function TripReturnModal({
                 return (
                   <View
                     key={e.id}
-                    style={[styles.eventRow, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+                    style={[styles.eventRow, { backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : theme.surfaceElevated }]}
                   >
-                    <View style={[styles.eventIcon, { backgroundColor: color }]}>
-                      <Icon size={scale(14)} color="white" />
+                    <View style={[styles.eventIcon, { backgroundColor: `${color}26`, borderColor: `${color}4D`, borderWidth: 1 }]}>
+                      <Icon size={scale(14)} color={color} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.eventHeadline, { color: theme.text }]}>{e.headline}</Text>
@@ -595,8 +682,21 @@ function TripReturnModal({
               })}
             </View>
           )}
-          <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { backgroundColor: accent.info }]}>
-            <Text style={styles.modalBtnText}>Done</Text>
+          <TouchableOpacity
+            onPress={onClose}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Done"
+            style={[styles.modalBtn, getPlatformShadows(5, 0.3, 2, 8)]}
+          >
+            <LinearGradient
+              colors={[IDENTITY, IDENTITY_PAIR]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modalBtnInner}
+            >
+              <Text style={styles.modalBtnText}>Done</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
@@ -608,26 +708,61 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
   scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
+  // Top bar: no bottom border (the tab strip below carries the divider); title
+  // left-aligned lg/700 with an identity-tinted cash chip on the right.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: sp.md,
     paddingVertical: sp.sm,
-    borderBottomWidth: 1,
+    gap: sp.sm,
   },
-  backBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: fs.xl, fontWeight: '800' },
+  headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { flex: 1, fontSize: fs.lg, fontWeight: '700' },
+  cashChip: {
+    paddingHorizontal: sp.sm,
+    paddingVertical: scale(4),
+    borderRadius: br.full,
+    borderWidth: 1,
+  },
+  cashChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center' },
   tabText: { fontSize: fs.sm, fontWeight: '700' },
-  modsCard: {
-    padding: sp.md,
-    borderRadius: br.lg,
-    borderWidth: 1,
-    gap: sp.xs,
+  // Recipe B hero: outer card carries elevation + border; heroInner clips the tint wash + glow blob.
+  heroCard: { borderRadius: br['2xl'], borderWidth: 1 },
+  heroInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg, gap: sp.sm, alignItems: 'center' },
+  heroBlob: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: 'rgba(20, 184, 166, 0.10)',
   },
-  modsTitle: { fontSize: fs.sm, fontWeight: '800', marginBottom: sp.xs },
+  heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+  heroEyebrow: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8 },
+  tripDest: { fontSize: fs['2xl'], fontWeight: '800', textAlign: 'center' },
+  tripCountry: { fontSize: fs.sm },
+  tripStat: { width: '100%', alignItems: 'center', padding: sp.md, borderRadius: br.lg },
+  tripStatLabel: { fontSize: fs.sm },
+  tripStatValue: { fontSize: fs['3xl'], fontWeight: '800', marginTop: sp.xs, fontVariant: ['tabular-nums'] },
+  // Recipe D CTA: outer wrap carries the shadow + solid identity fallback; inner gradient clips to the pill.
+  returnBtn: { width: '100%', borderRadius: br.full },
+  returnBtnInner: {
+    width: '100%',
+    minHeight: touchTargets.minimum,
+    borderRadius: br.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: sp.md,
+    overflow: 'hidden',
+  },
+  returnBtnText: { fontSize: fs.md, fontWeight: '800' },
+  modsCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.xs },
+  modsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, marginBottom: sp.xs },
+  modsTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
   modsRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   modsLine: { fontSize: fs.xs },
   passportCard: {
@@ -635,17 +770,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: sp.md,
     padding: sp.md,
-    borderRadius: br.lg,
+    borderRadius: br.xl,
+    borderWidth: 1,
   },
-  passportTitle: { color: 'white', fontWeight: '800', fontSize: fs.md },
-  passportSub: { color: 'rgba(255,255,255,0.85)', fontSize: fs.xs, marginTop: 2 },
-  destCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.sm },
+  passportTitle: { fontWeight: '800', fontSize: fs.md },
+  passportSub: { fontSize: fs.xs, marginTop: 2 },
+  passportBadge: { width: scale(32), height: scale(32), borderRadius: scale(16), alignItems: 'center', justifyContent: 'center' },
+  destCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
   destHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: sp.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   destName: { fontSize: fs.lg, fontWeight: '800' },
   destSub: { fontSize: fs.xs },
-  destPrice: { fontSize: fs.lg, fontWeight: '800' },
-  destPriceStrike: { fontSize: fs.xs, textDecorationLine: 'line-through' },
+  destPrice: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  destPriceStrike: { fontSize: fs.xs, textDecorationLine: 'line-through', fontVariant: ['tabular-nums'] },
   destDesc: { fontSize: fs.xs },
   benefitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   benefitChip: {
@@ -659,41 +796,40 @@ const styles = StyleSheet.create({
   },
   benefitText: { fontSize: fs.xs, fontWeight: '700' },
   destFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bookBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.md, paddingVertical: sp.xs, borderRadius: br.md },
-  bookBtnText: { color: 'white', fontSize: fs.sm, fontWeight: '700' },
+  bookBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.md, paddingVertical: sp.xs, borderRadius: br.full },
+  bookBtnText: { fontSize: fs.sm, fontWeight: '700' },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full },
-  pillText: { color: 'white', fontSize: fs.xs, fontWeight: '700' },
-  tripCard: { alignItems: 'center', padding: sp.lg, borderRadius: br.lg, borderWidth: 1, gap: sp.sm },
-  tripIcon: { width: scale(64), height: scale(64), borderRadius: scale(32), alignItems: 'center', justifyContent: 'center' },
-  tripDest: { fontSize: fs['2xl'], fontWeight: '800' },
-  tripCountry: { fontSize: fs.sm },
-  tripStat: { width: '100%', alignItems: 'center', padding: sp.md, borderRadius: br.md, borderWidth: 1, marginVertical: sp.sm },
-  tripStatLabel: { fontSize: fs.sm },
-  tripStatValue: { fontSize: fs['3xl'], fontWeight: '800', marginTop: sp.xs },
-  returnBtn: { width: '100%', padding: sp.md, borderRadius: br.md, alignItems: 'center' },
-  returnBtnText: { color: 'white', fontSize: fs.md, fontWeight: '800' },
+  pillText: { fontSize: fs.xs, fontWeight: '700' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
   emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
   emptySub: { fontSize: fs.sm, textAlign: 'center' },
-  bizCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
+  bizCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
   bizName: { fontSize: fs.md, fontWeight: '800' },
   bizSub: { fontSize: fs.xs },
-  bizMetricsRow: { flexDirection: 'row', gap: sp.md, marginTop: sp.xs },
-  bizMetric: { fontSize: fs.xs, fontWeight: '700' },
-  investBtn: { paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.md },
-  investBtnText: { color: 'white', fontSize: fs.sm, fontWeight: '700' },
-  historyCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
+  bizMetricsRow: { flexDirection: 'row', gap: sp.md, marginTop: sp.xs, flexWrap: 'wrap' },
+  bizMetric: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  investBtn: { paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.full },
+  investBtnText: { fontSize: fs.sm, fontWeight: '700' },
+  historyCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
   historyDest: { fontSize: fs.sm, fontWeight: '700' },
   historyMeta: { fontSize: fs.xs },
   modalScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: sp.md },
-  modalCard: { width: '100%', maxWidth: 480, padding: sp.lg, borderRadius: br.lg, borderWidth: 1, alignItems: 'center', gap: sp.sm },
+  modalCard: { width: '100%', maxWidth: 480, padding: sp.lg, borderRadius: br['2xl'], borderWidth: 1, alignItems: 'center', gap: sp.sm },
   modalTitle: { fontSize: fs.xl, fontWeight: '800', textAlign: 'center' },
   modalSub: { fontSize: fs.sm, textAlign: 'center', marginBottom: sp.sm },
-  eventRow: { flexDirection: 'row', gap: sp.sm, padding: sp.sm, borderRadius: br.md, borderWidth: 1, marginBottom: sp.xs },
-  eventIcon: { width: scale(28), height: scale(28), borderRadius: scale(14), alignItems: 'center', justifyContent: 'center' },
+  eventRow: { flexDirection: 'row', gap: sp.sm, padding: sp.sm, borderRadius: br.lg, marginBottom: sp.xs },
+  eventIcon: { width: scale(30), height: scale(30), borderRadius: scale(15), alignItems: 'center', justifyContent: 'center' },
   eventHeadline: { fontSize: fs.sm, fontWeight: '800' },
   eventDesc: { fontSize: fs.xs, marginTop: 2 },
   eventDeltas: { flexDirection: 'row', gap: sp.sm, marginTop: sp.xs, flexWrap: 'wrap' },
-  modalBtn: { marginTop: sp.md, paddingHorizontal: sp.lg, paddingVertical: sp.sm, borderRadius: br.md },
-  modalBtnText: { color: 'white', fontSize: fs.md, fontWeight: '700' },
+  modalBtn: { marginTop: sp.md, borderRadius: br.full },
+  modalBtnInner: {
+    minHeight: touchTargets.minimum,
+    paddingHorizontal: sp.xl,
+    borderRadius: br.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  modalBtnText: { color: 'white', fontSize: fs.md, fontWeight: '800' },
 });

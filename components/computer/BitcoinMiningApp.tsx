@@ -31,6 +31,8 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { Crypto, CryptoOrderSide, CryptoOrderType } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer } from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { initialGameState } from '@/contexts/game/initialState';
 import { MINER_PRICES } from '@/lib/economy/constants';
 
@@ -51,6 +53,22 @@ import {
   addCryptoDCA,
   removeCryptoDCA,
 } from '@/contexts/game/actions/CryptoTradingActions';
+
+const LinearGradient = LinearGradientFallback;
+
+// Identity accent for the Crypto app — amber #F59E0B (rgb 245,158,11).
+// Solid (accent.warning === #F59E0B) is reserved for small CTAs / badges /
+// glyphs; every larger surface gets a translucent amber tint (Slate Glass).
+const amber = {
+  solid: accent.warning,               // #F59E0B — small CTAs / badges / glyphs
+  wash: 'rgba(245,158,11,0.14)',       // hero tint wash (renders flat)
+  washFade: 'rgba(245,158,11,0.03)',   // trailing stop (future-proofing)
+  blob: 'rgba(245,158,11,0.10)',       // hero glow blob
+  bubble: 'rgba(245,158,11,0.15)',     // Recipe C icon-bubble fill
+  rim: 'rgba(245,158,11,0.30)',        // Recipe C rim / chip rim / cash-chip rim
+  chip: 'rgba(245,158,11,0.16)',       // active tab / selected chip / buy chip
+  chipSoft: 'rgba(245,158,11,0.14)',   // section add-chip / cash-chip fill
+} as const;
 
 interface BitcoinMiningAppProps {
   onBack: () => void;
@@ -189,7 +207,9 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
   // --- Render helpers ------------------------------------------------------
   const renderTrade = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
+    <View style={{ gap: responsiveSpacing.lg }}>
+      {/* Trade's mandated color moment is the EconomyEventBanner + RegimeBanner,
+          so this tab intentionally carries NO Recipe B hero (one focal accent). */}
       <EconomyEventBanner context="crypto" />
       {selectedCoinMarket && (
         <RegimeBanner
@@ -199,143 +219,185 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         />
       )}
 
-      <SectionTitle theme={theme}>Markets</SectionTitle>
-      {cryptos.map((coin) => (
-        <CoinRow
-          key={coin.id}
-          coin={coin}
-          market={market.coinMarkets[coin.id]}
-          darkMode={darkMode}
-          showHoldings
-          onPress={() => {
-            setSelectedCoinId(coin.id);
-            setOrderCoin(coin);
-          }}
-        />
-      ))}
-
-      <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Open Orders</Text>
-        <Text style={[styles.subText, { color: theme.textMuted }]}>
-          {market.openOrders.length} active
-        </Text>
-      </View>
-      {market.openOrders.length === 0 ? (
-        <EmptyText theme={theme}>
-          No open orders. Tap a coin above to place a market, limit, or stop order.
-        </EmptyText>
-      ) : (
-        market.openOrders.map((o) => (
-          <OrderRow
-            key={o.id}
-            order={o}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle theme={theme}>Markets</SectionTitle>
+        {cryptos.map((coin) => (
+          <CoinRow
+            key={coin.id}
+            coin={coin}
+            market={market.coinMarkets[coin.id]}
             darkMode={darkMode}
-            onCancel={() => {
-              cancelCryptoOrder(setGameState, o.id);
-              queueSave();
+            showHoldings
+            onPress={() => {
+              setSelectedCoinId(coin.id);
+              setOrderCoin(coin);
             }}
           />
-        ))
-      )}
+        ))}
+      </View>
 
-      <SectionTitle theme={theme}>Recent Fills</SectionTitle>
-      {market.orderHistory.length === 0 ? (
-        <EmptyText theme={theme}>No fills yet.</EmptyText>
-      ) : (
-        market.orderHistory.slice(0, 5).map((o) => (
-          <OrderRow key={o.id} order={o} darkMode={darkMode} />
-        ))
-      )}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <View style={styles.headerRow}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Open Orders</Text>
+          <Text style={[styles.subText, { color: theme.textMuted }]}>
+            {(market.openOrders ?? []).length} active
+          </Text>
+        </View>
+        {(market.openOrders ?? []).length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>
+            No open orders. Tap a coin above to place a market, limit, or stop order.
+          </EmptyText>
+        ) : (
+          (market.openOrders ?? []).map((o) => (
+            <OrderRow
+              key={o.id}
+              order={o}
+              darkMode={darkMode}
+              onCancel={() => {
+                cancelCryptoOrder(setGameState, o.id);
+                queueSave();
+              }}
+            />
+          ))
+        )}
+      </View>
+
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle theme={theme}>Recent Fills</SectionTitle>
+        {(market.orderHistory ?? []).length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>No fills yet.</EmptyText>
+        ) : (
+          (market.orderHistory ?? []).slice(0, 5).map((o) => (
+            <OrderRow key={o.id} order={o} darkMode={darkMode} />
+          ))
+        )}
+      </View>
     </View>
   );
 
   const renderMine = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
-      <View style={[styles.heroCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-        <View style={[styles.heroIcon, { backgroundColor: accent.warning }]}>
-          <Cpu size={scale(20)} color="white" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Estimated weekly mining yield</Text>
-          <Text style={[styles.heroValue, { color: theme.text }]}>{formatMoney(estimatedWeeklyMiningEarnings)}</Text>
-          <Text style={[styles.subText, { color: theme.textMuted }]}>
-            {totalMiners} miner{totalMiners === 1 ? '' : 's'} active · {(gameState.warehouse?.selectedCrypto ?? 'btc').toUpperCase()}
-          </Text>
+    <View style={{ gap: responsiveSpacing.lg }}>
+      {/* Recipe B hero — the mining-rig headline (ONE focal amber surface). */}
+      <View
+        style={[
+          getGlassCard(darkMode, 12),
+          {
+            backgroundColor: theme.surface,
+            borderColor: darkMode ? theme.glassBorder : theme.border,
+            borderWidth: 1,
+            borderRadius: responsiveBorderRadius['2xl'],
+          },
+        ]}
+      >
+        <View style={styles.heroInner}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[amber.wash, amber.washFade]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={styles.heroBlob} />
+          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+          <View style={styles.heroContent}>
+            <View
+              style={[
+                getGlassIconContainer(darkMode, 44),
+                { backgroundColor: amber.bubble, borderWidth: 1, borderColor: amber.rim },
+              ]}
+            >
+              <Cpu size={scale(22)} color={amber.solid} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>WEEKLY MINING YIELD</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>{formatMoney(estimatedWeeklyMiningEarnings)}</Text>
+              <Text style={[styles.heroSub, { color: theme.textMuted }]}>
+                {totalMiners} miner{totalMiners === 1 ? '' : 's'} active · {(gameState.warehouse?.selectedCrypto ?? 'btc').toUpperCase()}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
-      <SectionTitle theme={theme}>Buy Miners</SectionTitle>
-      {MINER_TIERS.map((tier) => {
-        const owned = ownedMiners[tier.id] ?? 0;
-        const price = MINER_PRICES[tier.id];
-        const canAfford = cash >= price;
-        return (
-          <View
-            key={tier.id}
-            style={[styles.minerRow, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
-          >
-            <View style={[styles.minerIcon, { backgroundColor: theme.surface }]}>
-              <Bitcoin size={scale(16)} color={theme.text} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.minerName, { color: theme.text }]}>{tier.label}</Text>
-              <Text style={[styles.subText, { color: theme.textMuted }]}>
-                {formatMoney(tier.weeklyEarnings)}/wk · You own {owned}
-              </Text>
-            </View>
-            <TouchableOpacity
-              disabled={!canAfford}
-              onPress={() => handleBuyMiner(tier.id)}
-              style={[
-                styles.buyBtn,
-                { backgroundColor: canAfford ? accent.warning : theme.border },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`Buy ${tier.label} miner for ${formatMoney(price)}`}
-              accessibilityState={{ disabled: !canAfford }}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle theme={theme}>Buy Miners</SectionTitle>
+        {MINER_TIERS.map((tier) => {
+          const owned = ownedMiners[tier.id] ?? 0;
+          const price = MINER_PRICES[tier.id];
+          const canAfford = cash >= price;
+          return (
+            <View
+              key={tier.id}
+              style={[getGlassCard(darkMode, 6), styles.minerRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
-              <Text style={styles.buyBtnText}>{formatMoney(price)}</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      })}
+              <View
+                style={[
+                  getGlassIconContainer(darkMode, 36),
+                  { backgroundColor: amber.bubble, borderWidth: 1, borderColor: amber.rim },
+                ]}
+              >
+                <Bitcoin size={scale(18)} color={amber.solid} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.minerName, { color: theme.text }]}>{tier.label}</Text>
+                <Text style={[styles.subText, { color: theme.textMuted }]}>
+                  {formatMoney(tier.weeklyEarnings)}/wk · You own {owned}
+                </Text>
+              </View>
+              <TouchableOpacity
+                disabled={!canAfford}
+                onPress={() => handleBuyMiner(tier.id)}
+                style={[
+                  styles.buyBtn,
+                  { backgroundColor: canAfford ? amber.chip : theme.surfaceElevated },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Buy ${tier.label} miner for ${formatMoney(price)}`}
+                accessibilityState={{ disabled: !canAfford }}
+              >
+                <Text style={[styles.buyBtnText, { color: canAfford ? amber.solid : theme.textMuted }]}>
+                  {formatMoney(price)}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </View>
 
-      <SectionTitle theme={theme}>Selected Coin</SectionTitle>
-      <View style={styles.chipRow}>
-        {cryptos.map((c) => (
-          <TouchableOpacity
-            key={c.id}
-            onPress={() => {
-              setGameState((prev) => ({
-                ...prev,
-                warehouse: prev.warehouse
-                  ? { ...prev.warehouse, selectedCrypto: c.id }
-                  : { level: 1, miners: {}, selectedCrypto: c.id },
-              }));
-              queueSave();
-            }}
-            accessibilityRole="radio"
-            accessibilityLabel={`Mine ${c.name ?? c.symbol ?? c.id}`}
-            accessibilityState={{ selected: gameState.warehouse?.selectedCrypto === c.id }}
-            style={[
-              styles.chip,
-              {
-                borderColor: gameState.warehouse?.selectedCrypto === c.id ? accent.warning : theme.border,
-                backgroundColor:
-                  gameState.warehouse?.selectedCrypto === c.id ? accent.warning : theme.surfaceElevated,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                { color: gameState.warehouse?.selectedCrypto === c.id ? 'white' : theme.text },
-              ]}
-            >
-              {c.symbol}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle theme={theme}>Selected Coin</SectionTitle>
+        <View style={styles.chipRow}>
+          {cryptos.map((c) => {
+            const selected = gameState.warehouse?.selectedCrypto === c.id;
+            return (
+              <TouchableOpacity
+                key={c.id}
+                onPress={() => {
+                  setGameState((prev) => ({
+                    ...prev,
+                    warehouse: prev.warehouse
+                      ? { ...prev.warehouse, selectedCrypto: c.id }
+                      : { level: 1, miners: {}, selectedCrypto: c.id },
+                  }));
+                  queueSave();
+                }}
+                accessibilityRole="radio"
+                accessibilityLabel={`Mine ${c.name ?? c.symbol ?? c.id}`}
+                accessibilityState={{ selected }}
+                style={[
+                  styles.chip,
+                  selected
+                    ? { backgroundColor: amber.chip, borderColor: amber.rim }
+                    : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                ]}
+              >
+                <Text style={[styles.chipText, { color: selected ? amber.solid : theme.textSecondary }]}>
+                  {c.symbol}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -354,112 +416,155 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     const dirtyBtcUSD = dirtyBtc * (btcCoin?.price ?? 0);
 
     return (
-    <View style={{ gap: responsiveSpacing.md }}>
-      <View style={[styles.heroCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-        <View style={[styles.heroIcon, { backgroundColor: accent.info }]}>
-          <Briefcase size={scale(20)} color="white" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Portfolio value</Text>
-          <Text style={[styles.heroValue, { color: theme.text }]}>{formatMoney(portfolioTotalValue)}</Text>
-          <Text style={[styles.subText, { color: portfolioUnrealizedPL >= 0 ? accent.success : accent.danger }]}>
-            {portfolioUnrealizedPL >= 0 ? '+' : ''}
-            {formatMoney(portfolioUnrealizedPL)} unrealized
-          </Text>
+    <View style={{ gap: responsiveSpacing.lg }}>
+      {/* Recipe B hero — the BTC / portfolio balance headline (ONE focal amber). */}
+      <View
+        style={[
+          getGlassCard(darkMode, 12),
+          {
+            backgroundColor: theme.surface,
+            borderColor: darkMode ? theme.glassBorder : theme.border,
+            borderWidth: 1,
+            borderRadius: responsiveBorderRadius['2xl'],
+          },
+        ]}
+      >
+        <View style={styles.heroInner}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[amber.wash, amber.washFade]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={styles.heroBlob} />
+          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+          <View style={styles.heroContent}>
+            <View
+              style={[
+                getGlassIconContainer(darkMode, 44),
+                { backgroundColor: amber.bubble, borderWidth: 1, borderColor: amber.rim },
+              ]}
+            >
+              <Briefcase size={scale(22)} color={amber.solid} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>PORTFOLIO VALUE</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>{formatMoney(portfolioTotalValue)}</Text>
+              <Text style={[styles.heroSub, { color: portfolioUnrealizedPL >= 0 ? accent.success : accent.danger }]}>
+                {portfolioUnrealizedPL >= 0 ? '+' : ''}
+                {formatMoney(portfolioUnrealizedPL)} unrealized
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
       {dirtyBtc > 0 && (
-        <View style={[styles.dirtyCard, { backgroundColor: theme.surfaceElevated, borderColor: accent.warning }]}>
-          <Text style={[styles.dirtyTitle, { color: accent.warning }]}>
-            ⚠️ {dirtyBtc.toFixed(4)} ₿ tainted ({formatMoney(dirtyBtcUSD)})
-          </Text>
-          <Text style={[styles.subText, { color: theme.textMuted }]}>
-            Exchanges refuse dirty BTC. Launder it in the Onion app before it can be sold here.
-          </Text>
+        <View style={[getGlassCard(darkMode, 6), styles.noticeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.noticeInner}>
+            {/* thin amber caution stripe (≤4px accent — never a loud fill) */}
+            <View pointerEvents="none" style={[styles.noticeStripe, { backgroundColor: amber.solid }]} />
+            <View style={styles.noticeBody}>
+              <Text style={[styles.dirtyTitle, { color: amber.solid }]}>
+                ⚠️ {dirtyBtc.toFixed(4)} ₿ tainted ({formatMoney(dirtyBtcUSD)})
+              </Text>
+              <Text style={[styles.subText, { color: theme.textMuted }]}>
+                Exchanges refuse dirty BTC. Launder it in the Onion app before it can be sold here.
+              </Text>
+            </View>
+          </View>
         </View>
       )}
 
-      <View style={[styles.dirtyCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-        <Text style={[styles.dirtyTitle, { color: theme.text }]}>
-          ⛏️ Next halving in {weeksToHalving} {weeksToHalving === 1 ? 'week' : 'weeks'}
-        </Text>
-        <Text style={[styles.subText, { color: theme.textMuted }]}>
-          BTC supply halves every ~4 years. Historically a bull-regime catalyst.
-        </Text>
+      <View style={[getGlassCard(darkMode, 6), styles.noticeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={styles.noticeBody}>
+          <Text style={[styles.dirtyTitle, { color: theme.text }]}>
+            ⛏️ Next halving in {weeksToHalving} {weeksToHalving === 1 ? 'week' : 'weeks'}
+          </Text>
+          <Text style={[styles.subText, { color: theme.textMuted }]}>
+            BTC supply halves every ~4 years. Historically a bull-regime catalyst.
+          </Text>
+        </View>
       </View>
 
       <View style={styles.statGrid}>
-        <StatCard theme={theme} label="Cost basis" value={formatMoney(portfolioCostBasis)} />
+        <StatCard theme={theme} darkMode={darkMode} label="Cost basis" value={formatMoney(portfolioCostBasis)} />
         <StatCard
           theme={theme}
+          darkMode={darkMode}
           label="Realized YTD"
           value={formatMoney(market.realizedGainsThisYear)}
           negative={market.realizedGainsThisYear < 0}
         />
         <StatCard
           theme={theme}
+          darkMode={darkMode}
           label="Lifetime realized"
           value={formatMoney(market.totalRealizedGains)}
           negative={market.totalRealizedGains < 0}
         />
       </View>
 
-      <SectionTitle theme={theme}>Holdings</SectionTitle>
-      {cryptos.filter((c) => c.owned > 0).length === 0 ? (
-        <EmptyText theme={theme}>You don&apos;t hold any crypto yet.</EmptyText>
-      ) : (
-        gameState.cryptos
-          .filter((c) => c.owned > 0)
-          .map((coin) => (
-            <CoinRow
-              key={coin.id}
-              coin={coin}
-              market={market.coinMarkets[coin.id]}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle theme={theme}>Holdings</SectionTitle>
+        {cryptos.filter((c) => c.owned > 0).length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>You don&apos;t hold any crypto yet.</EmptyText>
+        ) : (
+          cryptos
+            .filter((c) => c.owned > 0)
+            .map((coin) => (
+              <CoinRow
+                key={coin.id}
+                coin={coin}
+                market={market.coinMarkets[coin.id]}
+                darkMode={darkMode}
+                showHoldings
+                onPress={() => setOrderCoin(coin)}
+              />
+            ))
+        )}
+      </View>
+
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <View style={styles.headerRow}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>DCA Schedules</Text>
+          <TouchableOpacity
+            onPress={() => setShowDCA(true)}
+            style={styles.addChip}
+            accessibilityRole="button"
+            accessibilityLabel="Schedule a new DCA crypto purchase"
+          >
+            <Plus size={scale(12)} color={amber.solid} />
+            <Text style={styles.addChipText}>Schedule</Text>
+          </TouchableOpacity>
+        </View>
+        {(market.dcaRules ?? []).length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>
+            Schedule recurring buys from a bank account to dollar-cost average into a coin.
+          </EmptyText>
+        ) : (
+          (market.dcaRules ?? []).map((rule) => (
+            <DCARuleRow
+              key={rule.id}
+              rule={rule}
+              currentWeek={gameState.weeksLived}
               darkMode={darkMode}
-              showHoldings
-              onPress={() => setOrderCoin(coin)}
+              onDelete={() => {
+                removeCryptoDCA(setGameState, rule.id);
+                queueSave();
+              }}
             />
           ))
-      )}
-
-      <View style={styles.headerRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>DCA Schedules</Text>
-        <TouchableOpacity
-          onPress={() => setShowDCA(true)}
-          style={[styles.addBtn, { backgroundColor: accent.info }]}
-          accessibilityRole="button"
-          accessibilityLabel="Schedule a new DCA crypto purchase"
-        >
-          <Plus size={scale(14)} color="white" />
-          <Text style={styles.addBtnText}>Schedule</Text>
-        </TouchableOpacity>
+        )}
       </View>
-      {market.dcaRules.length === 0 ? (
-        <EmptyText theme={theme}>
-          Schedule recurring buys from a bank account to dollar-cost average into a coin.
-        </EmptyText>
-      ) : (
-        market.dcaRules.map((rule) => (
-          <DCARuleRow
-            key={rule.id}
-            rule={rule}
-            currentWeek={gameState.weeksLived}
-            darkMode={darkMode}
-            onDelete={() => {
-              removeCryptoDCA(setGameState, rule.id);
-              queueSave();
-            }}
-          />
-        ))
-      )}
     </View>
     );
   };
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
+      <View style={styles.topBar}>
         <TouchableOpacity
           onPress={onBack}
           hitSlop={10}
@@ -470,12 +575,12 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.appTitle, { color: theme.text }]}>Crypto</Text>
-        <View style={[styles.cashChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={[styles.cashChip, { backgroundColor: amber.chipSoft, borderColor: amber.rim }]}>
           <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
         </View>
       </View>
 
-      <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
+      <View style={[styles.tabBar, getGlassCategoryTabsContainer(darkMode)]}>
         {TABS.map((t) => {
           const active = activeTab === t.id;
           const Icon = t.icon;
@@ -483,13 +588,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             <TouchableOpacity
               key={t.id}
               onPress={() => setActiveTab(t.id)}
-              style={[styles.tab, active && { borderBottomColor: accent.warning }]}
+              style={[styles.tab, active && { backgroundColor: amber.chip }]}
               accessibilityRole="tab"
               accessibilityLabel={t.label}
               accessibilityState={{ selected: active }}
             >
-              <Icon size={scale(16)} color={active ? accent.warning : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? accent.warning : theme.textMuted }]}>{t.label}</Text>
+              <Icon size={scale(16)} color={active ? amber.solid : theme.textMuted} />
+              <Text style={[styles.tabText, { color: active ? amber.solid : theme.textMuted }]}>{t.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -533,23 +638,31 @@ function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeCo
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
 }
 
-function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>;
+function EmptyText({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
+  // Give empty sections a card so they share the same rhythm as populated rows
+  // instead of floating as bare text between elevated cards.
+  return (
+    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{children}</Text>
+    </View>
+  );
 }
 
 function StatCard({
   label,
   value,
   theme,
+  darkMode,
   negative,
 }: {
   label: string;
   value: string;
   theme: ReturnType<typeof getThemeColors>;
+  darkMode: boolean;
   negative?: boolean;
 }) {
   return (
-    <View style={[styles.statCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+    <View style={[getGlassCard(darkMode, 6), styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
       <Text
         style={[styles.statValue, { color: negative ? accent.danger : theme.text }]}
@@ -573,12 +686,13 @@ export default function BitcoinMiningApp(props: BitcoinMiningAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  // Top bar drops its bottom border — the glass tab strip below anchors the
+  // screen (Slate Glass §6).
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 1,
     gap: responsiveSpacing.sm,
   },
   backBtn: { padding: responsiveSpacing.xs },
@@ -589,10 +703,15 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  // Segmented control (getGlassCategoryTabsContainer applied inline) sits
+  // directly under the top bar and anchors the screen.
   tabBar: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
+    gap: scale(4),
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: responsiveSpacing.sm,
+    marginBottom: responsiveSpacing.sm,
   },
   tab: {
     flex: 1,
@@ -601,14 +720,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderRadius: responsiveBorderRadius.lg,
   },
   tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   sectionTitle: {
     fontSize: responsiveFontSize.md,
     fontWeight: '700',
-    marginTop: responsiveSpacing.xs,
+    letterSpacing: 0.2,
   },
   subText: {
     fontSize: responsiveFontSize.xs,
@@ -618,44 +736,64 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: responsiveSpacing.xs,
   },
   emptyText: {
     fontSize: responsiveFontSize.sm,
     textAlign: 'center',
-    paddingVertical: responsiveSpacing.md,
+    opacity: 0.6,
   },
-  heroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+  emptyCard: {
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
-    gap: responsiveSpacing.sm,
-  },
-  heroIcon: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: responsiveSpacing.md,
+    paddingHorizontal: responsiveSpacing.md,
   },
-  heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  heroValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800' },
+  // Recipe B hero anatomy: outer View carries shadow + radius + solid fill +
+  // border (no clip); heroInner clips the tint wash / glow blob to the radius.
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+  },
+  heroBlob: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: amber.blob,
+  },
+  heroHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  heroContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.md,
+  },
+  heroEyebrow: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  heroValue: { fontSize: responsiveFontSize['3xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  heroSub: { fontSize: responsiveFontSize.xs, marginTop: 2, fontVariant: ['tabular-nums'] },
   minerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     gap: responsiveSpacing.sm,
-  },
-  minerIcon: {
-    width: scale(32),
-    height: scale(32),
-    borderRadius: scale(16),
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   minerName: { fontSize: responsiveFontSize.md, fontWeight: '700' },
   buyBtn: {
@@ -663,7 +801,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,
   },
-  buyBtnText: { color: 'white', fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  buyBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -687,27 +825,42 @@ const styles = StyleSheet.create({
     flexBasis: '46%',
     flexGrow: 1,
     minWidth: '46%',
-    padding: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
+    padding: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     gap: 2,
   },
   statLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800' },
-  addBtn: {
+  statValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  // Quiet tinted section add-chip (amber fill, amber label, no border) so the
+  // screen keeps at most one loud CTA (Slate Glass §6).
+  addChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: responsiveSpacing.sm,
     paddingVertical: responsiveSpacing.xs,
     borderRadius: responsiveBorderRadius.full,
+    backgroundColor: amber.chipSoft,
   },
-  addBtnText: { color: 'white', fontSize: responsiveFontSize.xs, fontWeight: '700' },
-  dirtyCard: {
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+  addChipText: { color: amber.solid, fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  // Notice cards (tainted BTC / halving) — Recipe A. Outer carries shadow +
+  // radius + fill + border; noticeInner clips the caution stripe to the radius.
+  noticeCard: {
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
+  },
+  noticeInner: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderRadius: responsiveBorderRadius.xl,
+    overflow: 'hidden',
+  },
+  noticeStripe: { width: scale(4) },
+  noticeBody: {
+    flex: 1,
+    padding: responsiveSpacing.md,
     gap: 4,
   },
-  dirtyTitle: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  dirtyTitle: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

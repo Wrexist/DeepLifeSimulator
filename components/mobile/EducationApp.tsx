@@ -25,6 +25,8 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { Education } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
+import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer } from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import EducationRow from '@/components/education/EducationRow';
 import EnrollModal, { EnrollTemplate } from '@/components/education/EnrollModal';
@@ -36,6 +38,12 @@ import {
   withdrawFromProgram,
 } from '@/contexts/game/actions/EducationActions';
 import { highestGpa, gpaLetter, jobOfferMultiplier } from '@/lib/education/gpa';
+
+const LinearGradient = LinearGradientFallback;
+
+// Education identity accent — cyan. Solid only on small CTAs/badges (≤44pt);
+// everywhere else it appears as translucent tints per the Slate Glass system.
+const CYAN = '#06B6D4';
 
 interface EducationAppProps {
   onBack: () => void;
@@ -100,116 +108,179 @@ function EducationAppInner({ onBack }: EducationAppProps) {
 
   // --- Render helpers ----------------------------------------------------
   const renderAvailable = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
+    <View style={{ gap: responsiveSpacing.lg }}>
+      {/* This tab's mandatory colorful element (the event banner) is its color
+          moment, so it carries NO Recipe B hero. */}
       <EconomyEventBanner context="generic" />
-      <SectionTitle theme={theme}>Catalog</SectionTitle>
-      {availableForCatalog.length === 0 ? (
-        <EmptyText theme={theme}>You&apos;ve enrolled in every program in the catalog.</EmptyText>
-      ) : (
-        availableForCatalog.map((t) => {
-          const placeholderEd: Education = {
-            id: t.id,
-            name: t.name,
-            description: t.description,
-            cost: t.cost,
-            duration: t.duration,
-            completed: false,
-            weeksRemaining: t.duration,
-          };
-          return (
-            <EducationRow
-              key={t.id}
-              education={placeholderEd}
-              darkMode={darkMode}
-              onPress={() => setEnrollTarget(t)}
-            />
-          );
-        })
-      )}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle theme={theme}>Catalog</SectionTitle>
+        {availableForCatalog.length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>You&apos;ve enrolled in every program in the catalog.</EmptyText>
+        ) : (
+          availableForCatalog.map((t) => {
+            const placeholderEd: Education = {
+              id: t.id,
+              name: t.name,
+              description: t.description,
+              cost: t.cost,
+              duration: t.duration,
+              completed: false,
+              weeksRemaining: t.duration,
+            };
+            return (
+              <EducationRow
+                key={t.id}
+                education={placeholderEd}
+                darkMode={darkMode}
+                onPress={() => setEnrollTarget(t)}
+              />
+            );
+          })
+        )}
+      </View>
     </View>
   );
 
   const renderEnrolled = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
+    <View style={{ gap: responsiveSpacing.lg }}>
       {bestGpa > 0 && (
-        <View style={[styles.heroCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-          <View style={[styles.heroIcon, { backgroundColor: accent.info }]}>
-            <Briefcase size={scale(20)} color="white" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Best GPA</Text>
-            <Text style={[styles.heroValue, { color: theme.text }]}>
-              {bestGpa.toFixed(2)} ({gpaLetter(bestGpa)})
-            </Text>
-            <Text style={[styles.heroSub, { color: theme.textMuted }]}>
-              Hiring boost: ×{hiringMult.toFixed(2)} on job offers
-            </Text>
+        // Recipe B hero — the ONE focal gradient surface of this tab (cyan identity).
+        <View
+          style={[
+            getGlassCard(darkMode, 12),
+            {
+              backgroundColor: theme.surface,
+              borderColor: darkMode ? theme.glassBorder : theme.border,
+              borderWidth: 1,
+              borderRadius: responsiveBorderRadius['2xl'],
+            },
+          ]}
+        >
+          <View style={styles.heroInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(6, 182, 212, 0.14)', 'rgba(6, 182, 212, 0.03)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: -scale(48),
+                right: -scale(36),
+                width: scale(150),
+                height: scale(150),
+                borderRadius: scale(75),
+                backgroundColor: 'rgba(6, 182, 212, 0.10)',
+              }}
+            />
+            {darkMode && (
+              <View
+                pointerEvents="none"
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' }}
+              />
+            )}
+            <View style={styles.heroContent}>
+              <View
+                style={[
+                  getGlassIconContainer(darkMode, 44),
+                  { backgroundColor: 'rgba(6, 182, 212, 0.15)', borderWidth: 1, borderColor: 'rgba(6, 182, 212, 0.30)' },
+                ]}
+              >
+                <Briefcase size={scale(22)} color={CYAN} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Best GPA</Text>
+                <Text style={[styles.heroValue, { color: theme.text }]}>
+                  {bestGpa.toFixed(2)} ({gpaLetter(bestGpa)})
+                </Text>
+                <Text style={[styles.heroSub, { color: theme.textMuted }]}>
+                  Hiring boost: ×{hiringMult.toFixed(2)} on job offers
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
       )}
 
-      {enrolled.length === 0 ? (
-        <EmptyText theme={theme}>
-          Not enrolled in anything. Pick a program from the Catalog tab.
-        </EmptyText>
-      ) : (
-        enrolled.map((e) => (
-          <View key={e.id} style={{ gap: responsiveSpacing.xs }}>
-            <EducationRow
-              education={e}
-              darkMode={darkMode}
-              onTogglePause={() => {
-                togglePauseProgram(setGameState, e.id);
-                queueSave();
-              }}
-            />
-            <View style={styles.actionRow}>
-              {(() => {
-                // Mirror studyExtra's real gates so the button can't silently
-                // no-op: it rejects (with only a logger.warn) below 15 energy
-                // or past 3 sessions/week.
-                const sessionsThisWeek = gameState.weeklyStudySessions?.[e.id] ?? 0;
-                const capReached = sessionsThisWeek >= 3;
-                const lowEnergy = (gameState.stats?.energy ?? 0) < 15;
-                const studyDisabled = e.paused || capReached || lowEnergy;
-                const label = capReached
-                  ? 'Studied 3/3 this week'
-                  : lowEnergy
-                    ? 'Too tired (−15 energy)'
-                    : `Study ${sessionsThisWeek}/3 (−15 energy)`;
-                return (
-                  <TouchableOpacity
-                    disabled={studyDisabled}
-                    onPress={() => {
-                      studyExtra(setGameState, e.id);
-                      queueSave();
-                    }}
-                    style={[styles.actionBtn, { backgroundColor: studyDisabled ? theme.border : accent.info }]}
-                  >
-                    <Text style={styles.actionBtnText}>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })()}
-              <TouchableOpacity
-                onPress={() => {
-                  withdrawFromProgram(setGameState, e.id);
+      <View style={{ gap: responsiveSpacing.sm }}>
+        {enrolled.length === 0 ? (
+          <EmptyText theme={theme} darkMode={darkMode}>
+            Not enrolled in anything. Pick a program from the Catalog tab.
+          </EmptyText>
+        ) : (
+          enrolled.map((e) => (
+            <View key={e.id} style={{ gap: responsiveSpacing.xs }}>
+              <EducationRow
+                education={e}
+                darkMode={darkMode}
+                onTogglePause={() => {
+                  togglePauseProgram(setGameState, e.id);
                   queueSave();
                 }}
-                style={[styles.actionBtn, { backgroundColor: 'transparent', borderColor: accent.danger, borderWidth: 1 }]}
-              >
-                <Text style={[styles.actionBtnText, { color: accent.danger }]}>Withdraw</Text>
-              </TouchableOpacity>
+              />
+              <View style={styles.actionRow}>
+                {(() => {
+                  // Mirror studyExtra's real gates so the button can't silently
+                  // no-op: it rejects (with only a logger.warn) below 15 energy
+                  // or past 3 sessions/week.
+                  const sessionsThisWeek = gameState.weeklyStudySessions?.[e.id] ?? 0;
+                  const capReached = sessionsThisWeek >= 3;
+                  const lowEnergy = (gameState.stats?.energy ?? 0) < 15;
+                  const studyDisabled = e.paused || capReached || lowEnergy;
+                  const label = capReached
+                    ? 'Studied 3/3 this week'
+                    : lowEnergy
+                      ? 'Too tired (−15 energy)'
+                      : `Study ${sessionsThisWeek}/3 (−15 energy)`;
+                  return (
+                    <TouchableOpacity
+                      disabled={studyDisabled}
+                      onPress={() => {
+                        studyExtra(setGameState, e.id);
+                        queueSave();
+                      }}
+                      style={[
+                        styles.actionBtn,
+                        studyDisabled
+                          ? { backgroundColor: theme.surfaceElevated }
+                          : { backgroundColor: 'rgba(6, 182, 212, 0.16)' },
+                      ]}
+                    >
+                      <Text style={[styles.actionBtnText, { color: studyDisabled ? theme.textMuted : CYAN }]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })()}
+                <TouchableOpacity
+                  onPress={() => {
+                    withdrawFromProgram(setGameState, e.id);
+                    queueSave();
+                  }}
+                  style={[
+                    styles.actionBtn,
+                    {
+                      backgroundColor: darkMode ? 'rgba(239, 68, 68, 0.10)' : 'rgba(239, 68, 68, 0.08)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(239, 68, 68, 0.30)',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.actionBtnText, { color: accent.danger }]}>Withdraw</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ))
-      )}
+          ))
+        )}
+      </View>
     </View>
   );
 
   const renderCompleted = () => (
-    <View style={{ gap: responsiveSpacing.md }}>
+    <View style={{ gap: responsiveSpacing.sm }}>
       {completed.length === 0 ? (
-        <EmptyText theme={theme}>No completed programs yet.</EmptyText>
+        <EmptyText theme={theme} darkMode={darkMode}>No completed programs yet.</EmptyText>
       ) : (
         completed.map((e) => (
           <EducationRow key={e.id} education={e} darkMode={darkMode} />
@@ -220,17 +291,23 @@ function EducationAppInner({ onBack }: EducationAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} hitSlop={10} style={styles.backBtn}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={10}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.appTitle, { color: theme.text }]}>Education</Text>
-        <View style={[styles.cashChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <View style={[styles.cashChip, { backgroundColor: 'rgba(6, 182, 212, 0.14)', borderColor: 'rgba(6, 182, 212, 0.30)' }]}>
           <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
         </View>
       </View>
 
-      <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
+      <View style={[styles.tabBar, getGlassCategoryTabsContainer(darkMode)]}>
         {TABS.map((t) => {
           const active = activeTab === t.id;
           const Icon = t.icon;
@@ -238,10 +315,10 @@ function EducationAppInner({ onBack }: EducationAppProps) {
             <TouchableOpacity
               key={t.id}
               onPress={() => setActiveTab(t.id)}
-              style={[styles.tab, active && { borderBottomColor: accent.info }]}
+              style={[styles.tab, active && { backgroundColor: 'rgba(6, 182, 212, 0.16)' }]}
             >
-              <Icon size={scale(16)} color={active ? accent.info : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? accent.info : theme.textMuted }]}>{t.label}</Text>
+              <Icon size={scale(16)} color={active ? CYAN : theme.textMuted} />
+              <Text style={[styles.tabText, { color: active ? CYAN : theme.textMuted }]}>{t.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -289,8 +366,14 @@ function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeCo
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
 }
 
-function EmptyText({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>;
+function EmptyText({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
+  // Give empty sections a card so they share the same rhythm as populated ones
+  // instead of floating as bare text between elevated rows (Recipe A, muted).
+  return (
+    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
+    </View>
+  );
 }
 
 export default function EducationApp(props: EducationAppProps) {
@@ -308,10 +391,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 1,
     gap: responsiveSpacing.sm,
   },
-  backBtn: { padding: responsiveSpacing.xs },
+  backBtn: {
+    minWidth: scale(40),
+    minHeight: scale(40),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
   cashChip: {
     paddingHorizontal: responsiveSpacing.sm,
@@ -319,8 +406,16 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
+  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  // Segmented control in its own glass container directly under the top bar,
+  // which anchors the screen — so the top bar drops its bottom border.
+  tabBar: {
+    flexDirection: 'row',
+    gap: scale(4),
+    marginHorizontal: responsiveSpacing.md,
+    marginTop: responsiveSpacing.sm,
+    marginBottom: responsiveSpacing.sm,
+  },
   tab: {
     flex: 1,
     flexDirection: 'row',
@@ -328,38 +423,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderRadius: responsiveBorderRadius.lg,
   },
   tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   sectionTitle: {
     fontSize: responsiveFontSize.md,
     fontWeight: '700',
-    marginTop: responsiveSpacing.xs,
+    letterSpacing: 0.2,
   },
   emptyText: {
     fontSize: responsiveFontSize.sm,
     textAlign: 'center',
-    paddingVertical: responsiveSpacing.md,
+    opacity: 0.6,
   },
-  heroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.lg,
+  emptyCard: {
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
-    gap: responsiveSpacing.sm,
-  },
-  heroIcon: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: responsiveSpacing.lg,
   },
-  heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  heroValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800' },
-  heroSub: { fontSize: responsiveFontSize.xs, marginTop: 2 },
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+  },
+  heroContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.md,
+  },
+  heroLabel: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  heroValue: { fontSize: responsiveFontSize['3xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  heroSub: { fontSize: responsiveFontSize.xs, marginTop: 2, fontVariant: ['tabular-nums'] },
   actionRow: {
     flexDirection: 'row',
     gap: responsiveSpacing.xs,
@@ -369,6 +470,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.lg,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  actionBtnText: { color: 'white', fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  actionBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

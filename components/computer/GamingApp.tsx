@@ -48,9 +48,23 @@ import {
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+import {
+  getGlassCard,
+  getGlassIconContainer,
+  getPlatformShadows,
+} from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { GamingStreamingState } from '@/contexts/game/types';
+
+const LinearGradient = LinearGradientFallback;
+
+// Slate Glass identity accent for the Gaming app: violet #8B5CF6.
+const IDENTITY = '#8B5CF6';
+const IDENTITY_PAIR = '#7C3AED';
+const tint = (alpha: number) => `rgba(139, 92, 246, ${alpha})`;
 
 type TabType = 'channel' | 'record' | 'videos' | 'studio';
 
@@ -161,35 +175,53 @@ export default function GamingApp({ onBack }: Props) {
 
   const renderChannel = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <View style={styles.heroRow}>
-          <View>
-            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Subscribers</Text>
-            <Text style={[styles.heroValue, { color: theme.text }]}>
-              {(channel?.subscribers ?? 0).toLocaleString()}
-            </Text>
-          </View>
-          <View>
-            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Total views</Text>
-            <Text style={[styles.heroValue, { color: theme.text }]}>
-              {(channel?.totalViews ?? 0).toLocaleString()}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.qualityBar, { backgroundColor: theme.surfaceElevated }]}>
-          <View
-            style={[
-              styles.qualityFill,
-              { width: `${quality.total}%`, backgroundColor: qualityColor(quality.tier) },
-            ]}
+      <View
+        style={[
+          getGlassCard(darkMode, 12),
+          styles.heroCard,
+          { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
+        ]}
+      >
+        <View style={styles.heroInner}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[tint(0.14), tint(0.03)]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
           />
+          <View pointerEvents="none" style={styles.heroBlob} />
+          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
+          <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>CHANNEL</Text>
+          <View style={styles.heroRow}>
+            <View style={styles.heroStat}>
+              <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Subscribers</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>
+                {(channel?.subscribers ?? 0).toLocaleString()}
+              </Text>
+            </View>
+            <View style={styles.heroStat}>
+              <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Total views</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>
+                {(channel?.totalViews ?? 0).toLocaleString()}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.qualityBar, { backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : theme.surfaceElevated }]}>
+            <View
+              style={[
+                styles.qualityFill,
+                { width: `${quality.total}%`, backgroundColor: qualityColor(quality.tier) },
+              ]}
+            />
+          </View>
+          <Text style={[styles.qualityLabel, { color: qualityColor(quality.tier) }]}>
+            Gear: {quality.total}/100 · {quality.tier.toUpperCase()}
+          </Text>
         </View>
-        <Text style={[styles.qualityLabel, { color: qualityColor(quality.tier) }]}>
-          Gear: {quality.total}/100 · {quality.tier.toUpperCase()}
-        </Text>
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Monetization</Text>
         <View style={styles.statsRow}>
           <MoneyStat label="RPM" value={`$${monetization.rpm}`} color={accent.success} theme={theme} />
@@ -198,16 +230,18 @@ export default function GamingApp({ onBack }: Props) {
         </View>
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent videos</Text>
         {videos.length === 0 ? (
-          <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
+          <Text style={[styles.emptySub, { color: theme.textMuted }]}>
             No videos yet — record one in the Record tab.
           </Text>
         ) : (
           videos.slice(0, 5).map((v) => (
             <View key={v.id} style={styles.videoRow}>
-              <VideoIcon size={scale(14)} color={accent.info} />
+              <View style={[getGlassIconContainer(darkMode, 36), { backgroundColor: tint(0.15), borderColor: tint(0.30), borderWidth: 1 }]}>
+                <VideoIcon size={scale(16)} color={IDENTITY} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.videoTitle, { color: theme.text }]} numberOfLines={1}>
                   {v.title}
@@ -223,67 +257,89 @@ export default function GamingApp({ onBack }: Props) {
     </ScrollView>
   );
 
-  const renderRecord = () => (
+  const renderRecord = () => {
+    const publishDisabled = !title.trim() || energy < 15;
+    return (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>New video</Text>
         <TextInput
           value={title}
           onChangeText={setTitle}
           placeholder="Video title…"
-          placeholderTextColor={theme.textSecondary}
-          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+          placeholderTextColor={theme.textMuted}
+          style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
         />
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Topic</Text>
+        <Text style={[styles.label, { color: theme.textMuted }]}>Topic</Text>
         <View style={styles.chipsRow}>
-          {GAME_OPTIONS.map((g) => (
-            <TouchableOpacity
-              key={g}
-              onPress={() => setSelectedGame(g)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: selectedGame === g ? accent.info : 'transparent',
-                  borderColor: selectedGame === g ? accent.info : theme.border,
-                },
-              ]}
-            >
-              <Text
+          {GAME_OPTIONS.map((g) => {
+            const active = selectedGame === g;
+            return (
+              <TouchableOpacity
+                key={g}
+                onPress={() => setSelectedGame(g)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
                 style={[
-                  styles.chipText,
-                  { color: selectedGame === g ? 'white' : theme.textSecondary },
+                  styles.chip,
+                  {
+                    backgroundColor: active ? tint(0.16) : 'transparent',
+                    borderColor: active ? tint(0.30) : theme.border,
+                  },
                 ]}
               >
-                {g}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: active ? IDENTITY : theme.textSecondary },
+                  ]}
+                >
+                  {g}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-        <Text style={[styles.recordHint, { color: theme.textSecondary }]}>
+        <Text style={[styles.recordHint, { color: theme.textMuted }]}>
           Recording uses 15 energy. Expected views and revenue scale with gear tier ({quality.tier.toUpperCase()}).
         </Text>
         <TouchableOpacity
           onPress={handlePublish}
-          disabled={!title.trim() || energy < 15}
+          disabled={publishDisabled}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Record and upload"
+          accessibilityState={{ disabled: publishDisabled }}
           style={[
             styles.publishBtn,
-            { backgroundColor: !title.trim() || energy < 15 ? accent.muted : accent.success },
+            { backgroundColor: publishDisabled ? theme.surfaceElevated : IDENTITY },
+            !publishDisabled && getPlatformShadows(5, 0.3, 2, 8),
           ]}
         >
-          <Sparkles size={scale(14)} color="white" />
-          <Text style={styles.publishBtnText}>Record &amp; upload</Text>
+          <LinearGradient
+            colors={publishDisabled ? [theme.surfaceElevated, theme.surfaceElevated] : [IDENTITY, IDENTITY_PAIR]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.publishBtnInner}
+          >
+            <Sparkles size={scale(16)} color={publishDisabled ? theme.textMuted : 'white'} />
+            <Text style={[styles.publishBtnText, { color: publishDisabled ? theme.textMuted : 'white' }]}>Record &amp; upload</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </ScrollView>
-  );
+    );
+  };
 
   const renderVideos = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {videos.length === 0 ? (
         <View style={styles.empty}>
-          <VideoIcon size={scale(48)} color={theme.textSecondary} />
+          <View style={[getGlassIconContainer(darkMode, 64), { backgroundColor: tint(0.15), borderColor: tint(0.30), borderWidth: 1 }]}>
+            <VideoIcon size={scale(28)} color={IDENTITY} />
+          </View>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>Catalog empty</Text>
-          <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
+          <Text style={[styles.emptySub, { color: theme.textMuted }]}>
             Upload your first video to start building income.
           </Text>
         </View>
@@ -291,9 +347,9 @@ export default function GamingApp({ onBack }: Props) {
         videos.map((v) => (
           <View
             key={v.id}
-            style={[styles.bigVideoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            style={[getGlassCard(darkMode, 6), styles.bigVideoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
-            <Text style={[styles.bigVideoTitle, { color: theme.text }]}>{v.title}</Text>
+            <Text style={[styles.bigVideoTitle, { color: theme.text }]} numberOfLines={2}>{v.title}</Text>
             <Text style={[styles.videoMeta, { color: theme.textSecondary }]}>
               {v.game ?? 'General'} · quality {v.quality ?? '?'}/100
             </Text>
@@ -310,7 +366,7 @@ export default function GamingApp({ onBack }: Props) {
 
   const renderStudio = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Accessories</Text>
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
           const owned = !!channel?.equipment?.[k];
@@ -323,19 +379,21 @@ export default function GamingApp({ onBack }: Props) {
               <TouchableOpacity
                 onPress={() => handleAccessory(k)}
                 disabled={owned}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: owned }}
                 style={[
                   styles.smallBtn,
-                  { backgroundColor: owned ? accent.success : accent.info },
+                  { backgroundColor: owned ? 'rgba(16, 185, 129, 0.14)' : tint(0.16) },
                 ]}
               >
-                <Text style={styles.smallBtnText}>{owned ? 'Owned' : 'Buy'}</Text>
+                <Text style={[styles.smallBtnText, { color: owned ? accent.success : IDENTITY }]}>{owned ? 'Owned' : 'Buy'}</Text>
               </TouchableOpacity>
             </View>
           );
         })}
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>PC components</Text>
         {(Object.keys(PC_LABELS) as (keyof GamingStreamingState['pcUpgradeLevels'])[]).map((k) => {
           const tier = channel?.pcUpgradeLevels?.[k] ?? 0;
@@ -344,16 +402,17 @@ export default function GamingApp({ onBack }: Props) {
             <View key={k} style={styles.gearRow}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.gearName, { color: theme.text }]}>{PC_LABELS[k]}</Text>
-                <Text style={[styles.gearMeta, { color: theme.textSecondary }]}>Tier {tier}</Text>
+                <Text style={[styles.gearMeta, { color: theme.textMuted }]}>Tier {tier}</Text>
               </View>
               <Text style={[styles.gearPrice, { color: theme.textSecondary }]}>
                 ${cost.toLocaleString()}
               </Text>
               <TouchableOpacity
                 onPress={() => handlePCUpgrade(k)}
-                style={[styles.smallBtn, { backgroundColor: accent.purple }]}
+                accessibilityRole="button"
+                style={[styles.smallBtn, { backgroundColor: tint(0.16) }]}
               >
-                <Text style={styles.smallBtnText}>Upgrade</Text>
+                <Text style={[styles.smallBtnText, { color: IDENTITY }]}>Upgrade</Text>
               </TouchableOpacity>
             </View>
           );
@@ -364,40 +423,53 @@ export default function GamingApp({ onBack }: Props) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
-          <ArrowLeft size={scale(18)} color={theme.text} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={styles.headerBtn}
+        >
+          <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>YouVideo</Text>
-        <Text style={[styles.headerCash, { color: accent.success }]}>${money.toLocaleString()}</Text>
+        <View style={[styles.cashChip, { backgroundColor: tint(0.14), borderColor: tint(0.30) }]}>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+        </View>
       </View>
 
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[styles.tabBar, { borderColor: theme.border }]}>
         {[
           { id: 'channel' as TabType, label: 'Channel', Icon: Activity },
           { id: 'record' as TabType, label: 'Record', Icon: VideoIcon },
           { id: 'videos' as TabType, label: 'Videos', Icon: Star },
           { id: 'studio' as TabType, label: 'Studio', Icon: Cpu },
-        ].map(({ id, label, Icon }) => (
-          <TouchableOpacity
-            key={id}
-            onPress={() => setActiveTab(id)}
-            style={[
-              styles.tabBtn,
-              activeTab === id && { borderBottomColor: accent.info, borderBottomWidth: 2 },
-            ]}
-          >
-            <Icon size={scale(14)} color={activeTab === id ? accent.info : theme.textSecondary} />
-            <Text
+        ].map(({ id, label, Icon }) => {
+          const active = activeTab === id;
+          return (
+            <TouchableOpacity
+              key={id}
+              onPress={() => setActiveTab(id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
               style={[
-                styles.tabText,
-                { color: activeTab === id ? accent.info : theme.textSecondary },
+                styles.tabBtn,
+                active && { borderBottomColor: IDENTITY, borderBottomWidth: 2 },
               ]}
             >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Icon size={scale(14)} color={active ? IDENTITY : theme.textMuted} />
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: active ? IDENTITY : theme.textMuted },
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {activeTab === 'channel' && renderChannel()}
@@ -406,8 +478,8 @@ export default function GamingApp({ onBack }: Props) {
       {activeTab === 'studio' && renderStudio()}
 
       {feedback ? (
-        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info, bottom: getAppScreenBottomPadding(insets.bottom) }]}>
-          <Text style={{ color: theme.text }}>{feedback}</Text>
+        <View style={[styles.toast, getPlatformShadows(8, 0.2, 0, 16), { backgroundColor: theme.surface, borderColor: tint(0.30), bottom: getAppScreenBottomPadding(insets.bottom) }]}>
+          <Text style={[styles.toastText, { color: theme.text }]}>{feedback}</Text>
         </View>
       ) : null}
     </View>
@@ -475,63 +547,94 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: sp.md,
     paddingVertical: sp.sm,
-    borderBottomWidth: 1,
+    gap: sp.sm,
   },
   headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: fs.xl, fontWeight: '800' },
-  headerCash: { fontSize: fs.md, fontWeight: '700' },
+  headerTitle: { flex: 1, fontSize: fs.lg, fontWeight: '700' },
+  cashChip: {
+    paddingHorizontal: sp.sm,
+    paddingVertical: scale(4),
+    borderRadius: br.full,
+    borderWidth: 1,
+  },
+  cashChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: sp.xs },
   tabText: { fontSize: fs.sm, fontWeight: '700' },
-  heroCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.sm },
-  heroRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  // Recipe B hero: outer card carries elevation + border; heroInner clips the tint wash + glow blob.
+  heroCard: { borderRadius: br['2xl'], borderWidth: 1 },
+  heroInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg, gap: sp.sm },
+  heroBlob: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: 'rgba(139, 92, 246, 0.10)',
+  },
+  heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+  heroEyebrow: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8 },
+  heroRow: { flexDirection: 'row', justifyContent: 'space-between', gap: sp.md },
+  heroStat: { gap: scale(2) },
   heroLabel: { fontSize: fs.xs },
-  heroValue: { fontSize: fs['2xl'], fontWeight: '800' },
+  heroValue: { fontSize: fs['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
   qualityBar: { height: scale(8), borderRadius: br.full, overflow: 'hidden' },
   qualityFill: { height: '100%', borderRadius: br.full },
   qualityLabel: { fontSize: fs.xs, fontWeight: '700' },
-  statsCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.sm },
-  sectionTitle: { fontSize: fs.sm, fontWeight: '800', textTransform: 'uppercase' },
+  statsCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
+  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
   // Wrap so 3-up rows of money values drop cleanly to 2-per-row when needed.
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
   moneyStat: { alignItems: 'center', flexBasis: '30%', flexGrow: 1, minWidth: scale(96) },
-  moneyValue: { fontSize: fs.lg, fontWeight: '800' },
+  moneyValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
   moneyLabel: { fontSize: fs.xs, marginTop: 2 },
   videoRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
   videoTitle: { fontSize: fs.sm, fontWeight: '700' },
   videoMeta: { fontSize: fs.xs },
-  bigVideoCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.xs },
+  bigVideoCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.xs },
   bigVideoTitle: { fontSize: fs.md, fontWeight: '800' },
   videoStatRow: { flexDirection: 'row', gap: sp.md, marginTop: sp.sm },
   videoStat: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  videoStatText: { fontSize: fs.xs, fontWeight: '700' },
+  videoStatText: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
   emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
   emptySub: { fontSize: fs.sm, textAlign: 'center' },
-  input: { borderWidth: 1, borderRadius: br.md, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
+  input: { borderWidth: 1, borderRadius: br.lg, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
   label: { fontSize: fs.xs, fontWeight: '700', textTransform: 'uppercase' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   chip: { paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.full, borderWidth: 1 },
   chipText: { fontSize: fs.xs, fontWeight: '700' },
   recordHint: { fontSize: fs.xs, fontStyle: 'italic' },
-  publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, padding: sp.md, borderRadius: br.md, justifyContent: 'center' },
-  publishBtnText: { color: 'white', fontSize: fs.md, fontWeight: '800' },
+  // Recipe D CTA: outer wrap carries the shadow + solid identity fallback; inner gradient clips to the pill.
+  publishBtn: { borderRadius: br.full },
+  publishBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: sp.sm,
+    minHeight: touchTargets.minimum,
+    paddingHorizontal: sp.md,
+    borderRadius: br.full,
+    overflow: 'hidden',
+  },
+  publishBtnText: { fontSize: fs.md, fontWeight: '800' },
   gearRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.xs },
   gearName: { fontSize: fs.sm, fontWeight: '700' },
   gearMeta: { fontSize: fs.xs },
-  gearPrice: { fontSize: fs.xs },
-  smallBtn: { paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.md },
-  smallBtnText: { color: 'white', fontSize: fs.xs, fontWeight: '700' },
+  gearPrice: { fontSize: fs.xs, fontVariant: ['tabular-nums'] },
+  smallBtn: { paddingHorizontal: sp.md, paddingVertical: sp.xs, borderRadius: br.full },
+  smallBtnText: { fontSize: fs.xs, fontWeight: '700' },
   toast: {
     position: 'absolute',
     bottom: sp.lg,
     left: sp.md,
     right: sp.md,
     padding: sp.md,
-    borderRadius: br.lg,
+    borderRadius: br.xl,
     borderWidth: 1,
   },
+  toastText: { fontSize: fs.sm, fontWeight: '600' },
 });

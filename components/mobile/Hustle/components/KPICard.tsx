@@ -9,7 +9,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { HUSTLE_COLORS, HUSTLE_GRADIENT_SOFT } from '../styles/hustleTheme';
 
 const LinearGradient = LinearGradientFallback;
@@ -25,7 +26,7 @@ interface KPICardProps {
 }
 
 export default function KPICard({ icon: Icon, label, value, trend, trendValue, heroBackdrop }: KPICardProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
   const trendColor =
     trend === 'up' ? HUSTLE_COLORS.trendUp : trend === 'down' ? HUSTLE_COLORS.trendDown : HUSTLE_COLORS.trendFlat;
@@ -33,15 +34,17 @@ export default function KPICard({ icon: Icon, label, value, trend, trendValue, h
   const inner = (
     <View
       style={[
+        !heroBackdrop && getGlassCard(isDark, 6),
         styles.card,
         {
           backgroundColor: heroBackdrop ? 'transparent' : theme.surface,
           borderColor: heroBackdrop ? 'rgba(255,255,255,0.18)' : theme.border,
+          borderWidth: heroBackdrop ? StyleSheet.hairlineWidth : 1,
         },
       ]}
     >
       <View style={styles.iconRow}>
-        <Icon size={fontScale(14)} color={theme.textSecondary} />
+        <Icon size={fontScale(14)} color={HUSTLE_COLORS.accent} />
         <Text style={[styles.label, { color: theme.textSecondary }]}>{label}</Text>
       </View>
       <Text
@@ -90,8 +93,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minHeight: scale(78),
     padding: responsiveSpacing.md,
-    borderRadius: scale(14),
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: responsiveBorderRadius.xl,
     gap: 4,
   },
   iconRow: {
@@ -110,6 +112,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     // Let large currency values shrink rather than truncate to "$..."
     flexShrink: 1,
+    fontVariant: ['tabular-nums'],
   },
   trendRow: {
     flexDirection: 'row',

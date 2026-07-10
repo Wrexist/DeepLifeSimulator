@@ -7,13 +7,11 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, Briefcase, Building2, DollarSign, Factory, Utensils, Landmark } from 'lucide-react-native';
-import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { industryColor, HUSTLE_COLORS } from '../styles/hustleTheme';
 import type { Company, HustleCompanyOverlay } from '@/contexts/game/types';
-
-const LinearGradient = LinearGradientFallback;
 
 const INDUSTRY_ICON: Record<string, any> = {
   factory: Factory,
@@ -30,7 +28,7 @@ interface CompanyTileProps {
 }
 
 export default function CompanyTile({ company, overlay, onPress }: CompanyTileProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const Icon = INDUSTRY_ICON[company.type] ?? Building2;
   const color = industryColor(company.type);
   const brand = overlay?.brand?.score ?? 50;
@@ -43,19 +41,15 @@ export default function CompanyTile({ company, overlay, onPress }: CompanyTilePr
       accessibilityRole="button"
       accessibilityLabel={`Open ${company.name}`}
       style={({ pressed }) => [
+        getGlassCard(isDark, 6),
         styles.card,
-        { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
+        { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, opacity: pressed ? 0.85 : 1 },
       ]}
     >
       <View style={styles.headerRow}>
-        <LinearGradient
-          colors={[color, color + 'BB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.iconSquare}
-        >
-          <Icon size={fontScale(22)} color="#FFFFFF" strokeWidth={2.2} />
-        </LinearGradient>
+        <View style={[styles.iconSquare, { backgroundColor: color + '26', borderColor: color + '4D' }]}>
+          <Icon size={fontScale(22)} color={color} strokeWidth={2.2} />
+        </View>
         <View style={styles.headerText}>
           <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
             {company.name}
@@ -65,7 +59,7 @@ export default function CompanyTile({ company, overlay, onPress }: CompanyTilePr
           </Text>
         </View>
         {isPublic ? (
-          <View style={[styles.pubChip, { borderColor: HUSTLE_COLORS.accent }]}>
+          <View style={[styles.pubChip, { backgroundColor: HUSTLE_COLORS.accent + '26', borderColor: HUSTLE_COLORS.accent + '4D' }]}>
             <Text style={[styles.pubChipText, { color: HUSTLE_COLORS.accent }]}>PUBLIC</Text>
           </View>
         ) : null}
@@ -82,7 +76,7 @@ export default function CompanyTile({ company, overlay, onPress }: CompanyTilePr
           <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Brand</Text>
           <View style={styles.brandRow}>
             <Text style={[styles.metricValue, { color: theme.text }]}>{brand}</Text>
-            <View style={[styles.brandBar, { backgroundColor: theme.border }]}>
+            <View style={[styles.brandBar, { backgroundColor: theme.surfaceElevated }]}>
               <View style={[styles.brandFill, { width: `${brand}%`, backgroundColor: HUSTLE_COLORS.accent }]} />
             </View>
           </View>
@@ -109,8 +103,7 @@ export default function CompanyTile({ company, overlay, onPress }: CompanyTilePr
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: scale(14),
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: responsiveBorderRadius.xl,
     padding: responsiveSpacing.md,
     marginBottom: responsiveSpacing.md,
   },
@@ -124,6 +117,7 @@ const styles = StyleSheet.create({
     width: scale(44),
     height: scale(44),
     borderRadius: scale(10),
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -140,7 +134,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 999,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   pubChipText: {
     fontSize: fontScale(9),
@@ -163,6 +157,7 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: fontScale(14),
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   brandRow: {
     gap: 2,

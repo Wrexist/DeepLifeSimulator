@@ -67,9 +67,10 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   const queue: DatingProfile[] = useMemo(() => {
     const sp = gameState.sparkApp;
     if (!sp) return DATING_PROFILES;
-    const swipedIds = new Set(sp.swipes.map((s: any) => s.profileId));
-    const matchedIds = new Set(sp.matches.map((m: any) => m.profileId));
-    const reportedIds = new Set(sp.reportedIds);
+    // Legacy saves can have sparkApp without these arrays — guard each one.
+    const swipedIds = new Set((sp.swipes ?? []).map((s: any) => s.profileId));
+    const matchedIds = new Set((sp.matches ?? []).map((m: any) => m.profileId));
+    const reportedIds = new Set(sp.reportedIds ?? []);
     return DATING_PROFILES.filter(
       (p) => !swipedIds.has(p.id) && !matchedIds.has(p.id) && !reportedIds.has(p.id),
     );

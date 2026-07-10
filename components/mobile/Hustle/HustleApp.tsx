@@ -17,7 +17,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { HUSTLE_GRADIENT } from './styles/hustleTheme';
 import DashboardScreen from './screens/DashboardScreen';
 import CompanyDetailScreen from './screens/CompanyDetailScreen';
@@ -55,9 +55,9 @@ export default function HustleApp({ onBack }: HustleAppProps) {
   const backToDashboard = useCallback(() => setRoute({ kind: 'dashboard' }), []);
 
   const renderHeader = (title: string, onHeaderBack: () => void) => (
-    <View style={[styles.header, { borderBottomColor: theme.border }]}>
+    <View style={styles.header}>
       <Pressable onPress={onHeaderBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-        <ArrowLeft size={responsiveIconSize.md} color={theme.text} />
+        <ArrowLeft size={scale(22)} color={theme.text} />
       </Pressable>
 
       <View style={styles.headerCenter}>
@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerBtn: {
     width: touchTargets.minimum,

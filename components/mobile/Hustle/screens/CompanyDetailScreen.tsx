@@ -18,7 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getGlassCard, getGlassButton, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import KPICard from '../components/KPICard';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
@@ -45,7 +46,7 @@ export default function CompanyDetailScreen({
   companyId, onBack, onOpenHire, onOpenCampaign, onOpenScandal, onOpenIPO, onOpenAcquisitions,
 }: CompanyDetailScreenProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   const company = useMemo(
@@ -126,37 +127,53 @@ export default function CompanyDetailScreen({
           }}
           accessibilityRole="alert"
           accessibilityLabel={`Active scandal: ${scandal.headline}, severity ${scandal.severity}, tap to respond`}
-          style={[styles.scandalBanner, { backgroundColor: HUSTLE_COLORS.danger }]}
+          style={[styles.scandalBanner, { backgroundColor: HUSTLE_COLORS.danger + '26', borderLeftColor: HUSTLE_COLORS.danger }]}
         >
-          <AlertTriangle size={fontScale(16)} color="#FFFFFF" />
+          <AlertTriangle size={fontScale(16)} color={HUSTLE_COLORS.danger} />
           <View style={styles.scandalText}>
-            <Text style={styles.scandalTitle}>Active scandal · severity {scandal.severity}</Text>
-            <Text style={styles.scandalHead} numberOfLines={1}>{scandal.headline}</Text>
+            <Text style={[styles.scandalTitle, { color: HUSTLE_COLORS.danger }]}>Active scandal · severity {scandal.severity}</Text>
+            <Text style={[styles.scandalHead, { color: theme.text }]} numberOfLines={1}>{scandal.headline}</Text>
           </View>
-          <ChevronRight size={fontScale(16)} color="#FFFFFF" />
+          <ChevronRight size={fontScale(16)} color={theme.textMuted} />
         </Pressable>
       ) : null}
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
-        {/* Hero */}
-        <LinearGradient
-          colors={[accent + 'BB', accent + '66']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
+        {/* Hero — Recipe B (industry-tinted, translucent) */}
+        <View
+          style={[
+            getGlassCard(isDark, 12),
+            styles.hero,
+            {
+              backgroundColor: theme.surface,
+              borderColor: isDark ? theme.glassBorder : theme.border,
+              borderWidth: 1,
+            },
+          ]}
         >
-          <Text style={styles.heroIndustry}>
-            {company.type.toUpperCase()} {isPublic ? '· PUBLIC' : ''}
-          </Text>
-          <Text style={styles.heroRevenue}>
-            ${(company.weeklyIncome ?? 0).toLocaleString()}
-            <Text style={styles.heroRevenueSuffix}> / week</Text>
-          </Text>
-          <Text style={styles.heroEmployees}>
-            {/* employees already INCLUDES named hires — do not sum them */}
-            {company.employees} employees{namedHires.length > 0 ? ` (incl. ${namedHires.length} key ${namedHires.length === 1 ? 'hire' : 'hires'})` : ''}
-          </Text>
-        </LinearGradient>
+          <View style={styles.heroInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={[accent + '24', accent + '08']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={[styles.heroGlow, { backgroundColor: accent + '17' }]} />
+            {isDark && <View pointerEvents="none" style={styles.heroHairline} />}
+            <Text style={[styles.heroIndustry, { color: theme.textMuted }]}>
+              {company.type.toUpperCase()} {isPublic ? '· PUBLIC' : ''}
+            </Text>
+            <Text style={[styles.heroRevenue, { color: theme.text }]}>
+              ${(company.weeklyIncome ?? 0).toLocaleString()}
+              <Text style={[styles.heroRevenueSuffix, { color: theme.textSecondary }]}> / week</Text>
+            </Text>
+            <Text style={[styles.heroEmployees, { color: theme.textSecondary }]}>
+              {/* employees already INCLUDES named hires — do not sum them */}
+              {company.employees} employees{namedHires.length > 0 ? ` (incl. ${namedHires.length} key ${namedHires.length === 1 ? 'hire' : 'hires'})` : ''}
+            </Text>
+          </View>
+        </View>
 
         {/* KPI grid */}
         <View style={styles.kpiGrid}>
@@ -171,8 +188,8 @@ export default function CompanyDetailScreen({
         </View>
 
         {/* Staff — generic employees via canonical addWorker/removeWorker */}
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Staff</Text>
-        <View style={[styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.sectionLabel, { color: theme.text }]}>Staff</Text>
+        <View style={[getGlassCard(isDark, 6), styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <Text style={[styles.staffCount, { color: theme.text }]}>
             {company.employees} / {STAFF_CAP} employees
           </Text>
@@ -187,7 +204,7 @@ export default function CompanyDetailScreen({
               accessibilityRole="button"
               accessibilityLabel={`Hire employee for $${company.workerSalary.toLocaleString()}`}
               accessibilityState={{ disabled: !canHireWorker }}
-              style={[styles.staffBtn, { backgroundColor: HUSTLE_COLORS.accent, opacity: canHireWorker ? 1 : 0.5 }]}
+              style={[styles.staffBtn, canHireWorker && getPlatformShadows(5, 0.3, 2, 8), { backgroundColor: HUSTLE_COLORS.accent, opacity: canHireWorker ? 1 : 0.5 }]}
             >
               <UserPlus size={fontScale(16)} color="#FFFFFF" strokeWidth={2.2} />
               <Text style={styles.staffBtnText}>Hire · ${company.workerSalary.toLocaleString()}</Text>
@@ -198,7 +215,7 @@ export default function CompanyDetailScreen({
               accessibilityRole="button"
               accessibilityLabel="Remove employee"
               accessibilityState={{ disabled: !canRemoveWorker }}
-              style={[styles.staffBtnOutline, { borderColor: HUSTLE_COLORS.danger, opacity: canRemoveWorker ? 1 : 0.5 }]}
+              style={[getGlassButton(isDark), styles.staffBtnOutline, { opacity: canRemoveWorker ? 1 : 0.5 }]}
             >
               <UserMinus size={fontScale(16)} color={HUSTLE_COLORS.danger} strokeWidth={2.2} />
               <Text style={[styles.staffBtnOutlineText, { color: HUSTLE_COLORS.danger }]}>Remove</Text>
@@ -207,7 +224,7 @@ export default function CompanyDetailScreen({
         </View>
 
         {/* Action cards */}
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Actions</Text>
+        <Text style={[styles.sectionLabel, { color: theme.text }]}>Actions</Text>
 
         <ActionRow
           icon={Users}
@@ -258,7 +275,7 @@ export default function CompanyDetailScreen({
         {/* Upgrades — canonical buyCompanyUpgrade catalog */}
         {upgradeDefs.length > 0 ? (
           <>
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Upgrades</Text>
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>Upgrades</Text>
             {upgradeDefs.map((def) => {
               const owned = (company.upgrades ?? []).find((u) => u.id === def.id);
               const level = owned?.level ?? 0;
@@ -269,8 +286,8 @@ export default function CompanyDetailScreen({
               const cost = Math.round(getInflatedPrice(nextLevelCost, priceIndex) * (1 - upgradeDiscount));
               const affordable = money >= cost;
               return (
-                <View key={def.id} style={[styles.upgradeRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  <View style={[styles.actionIconSquare, { backgroundColor: HUSTLE_COLORS.warning + '22' }]}>
+                <View key={def.id} style={[getGlassCard(isDark, 6), styles.upgradeRow, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                  <View style={[styles.actionIconSquare, { backgroundColor: HUSTLE_COLORS.warning + '26', borderColor: HUSTLE_COLORS.warning + '4D' }]}>
                     <Zap size={fontScale(18)} color={HUSTLE_COLORS.warning} strokeWidth={2.2} />
                   </View>
                   <View style={styles.actionText}>
@@ -290,12 +307,12 @@ export default function CompanyDetailScreen({
                     style={[
                       styles.upgradeBuyBtn,
                       {
-                        backgroundColor: maxed ? theme.border : HUSTLE_COLORS.accent,
+                        backgroundColor: maxed ? theme.surfaceElevated : HUSTLE_COLORS.accent + '24',
                         opacity: maxed || !affordable ? 0.55 : 1,
                       },
                     ]}
                   >
-                    <Text style={styles.upgradeBuyText}>{maxed ? 'MAX' : `$${cost.toLocaleString()}`}</Text>
+                    <Text style={[styles.upgradeBuyText, { color: maxed ? theme.textMuted : HUSTLE_COLORS.accent }]}>{maxed ? 'MAX' : `$${cost.toLocaleString()}`}</Text>
                   </Pressable>
                 </View>
               );
@@ -306,18 +323,20 @@ export default function CompanyDetailScreen({
         {/* Notifications list */}
         {overlay && overlay.notifications.length > 0 ? (
           <>
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Recent alerts</Text>
-            {overlay.notifications.slice(0, 5).map((n) => (
-              <View
-                key={n.id}
-                style={[styles.notifRow, { borderBottomColor: theme.border }]}
-              >
-                {!n.read ? <View style={[styles.unreadDot, { backgroundColor: HUSTLE_COLORS.accent }]} /> : <View style={styles.unreadSpacer} />}
-                <Text style={[styles.notifText, { color: theme.text }]} numberOfLines={2}>
-                  {n.text}
-                </Text>
-              </View>
-            ))}
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>Recent alerts</Text>
+            <View style={[getGlassCard(isDark, 6), styles.notifCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+              {overlay.notifications.slice(0, 5).map((n, i) => (
+                <View
+                  key={n.id}
+                  style={[styles.notifRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}
+                >
+                  {!n.read ? <View style={[styles.unreadDot, { backgroundColor: HUSTLE_COLORS.accent }]} /> : <View style={styles.unreadSpacer} />}
+                  <Text style={[styles.notifText, { color: theme.text }]} numberOfLines={2}>
+                    {n.text}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -337,6 +356,7 @@ function ActionRow({
   disabled?: boolean;
   badge?: number;
 }) {
+  const { isDark } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -346,11 +366,12 @@ function ActionRow({
       accessibilityHint={subtitle}
       accessibilityState={{ disabled }}
       style={({ pressed }) => [
+        getGlassCard(isDark, 6),
         styles.actionRow,
-        { backgroundColor: theme.surface, borderColor: theme.border, opacity: disabled ? 0.55 : pressed ? 0.85 : 1 },
+        { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, opacity: disabled ? 0.55 : pressed ? 0.85 : 1 },
       ]}
     >
-      <View style={[styles.actionIconSquare, { backgroundColor: color + '22' }]}>
+      <View style={[styles.actionIconSquare, { backgroundColor: color + '26', borderColor: color + '4D' }]}>
         <Icon size={fontScale(20)} color={color} strokeWidth={2.2} />
       </View>
       <View style={styles.actionText}>
@@ -364,14 +385,14 @@ function ActionRow({
           <Text style={styles.badgeText}>{badge}</Text>
         </View>
       ) : null}
-      <ChevronRight size={fontScale(18)} color={theme.textSecondary} />
+      <ChevronRight size={fontScale(18)} color={theme.textMuted} />
     </Pressable>
   );
 }
 
 function Header({ theme, title, onBack }: { theme: any; title: string; onBack: () => void }) {
   return (
-    <View style={[styles.header, { borderBottomColor: theme.border }]}>
+    <View style={styles.header}>
       <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
         <ArrowLeft size={fontScale(22)} color={theme.text} />
       </Pressable>
@@ -388,7 +409,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerBtn: {
     width: touchTargets.minimum,
@@ -418,16 +438,15 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
+    borderLeftWidth: 3,
   },
   scandalText: { flex: 1 },
   scandalTitle: {
-    color: '#FFFFFF',
     fontSize: fontScale(11),
     fontWeight: '700',
     letterSpacing: 0.4,
   },
   scandalHead: {
-    color: '#FFFFFF',
     fontSize: fontScale(13),
     marginTop: 2,
   },
@@ -437,29 +456,46 @@ const styles = StyleSheet.create({
     paddingBottom: scale(40),
   },
   hero: {
-    borderRadius: scale(16),
-    padding: responsiveSpacing.lg,
+    borderRadius: responsiveBorderRadius['2xl'],
     marginBottom: responsiveSpacing.md,
   },
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+  },
+  heroHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
   heroIndustry: {
-    color: 'rgba(255,255,255,0.85)',
     fontSize: fontScale(11),
     fontWeight: '700',
     letterSpacing: 0.6,
   },
   heroRevenue: {
-    color: '#FFFFFF',
     fontSize: fontScale(32),
     fontWeight: '800',
     marginTop: 4,
+    fontVariant: ['tabular-nums'],
   },
   heroRevenueSuffix: {
-    color: 'rgba(255,255,255,0.85)',
     fontSize: fontScale(16),
     fontWeight: '500',
   },
   heroEmployees: {
-    color: 'rgba(255,255,255,0.92)',
     fontSize: fontScale(12),
     marginTop: 2,
   },
@@ -470,10 +506,9 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.md,
   },
   sectionLabel: {
-    fontSize: fontScale(11),
+    fontSize: fontScale(15),
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
     marginBottom: responsiveSpacing.sm,
     marginTop: responsiveSpacing.sm,
   },
@@ -482,14 +517,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: responsiveSpacing.sm,
     padding: responsiveSpacing.md,
-    borderRadius: scale(12),
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: responsiveBorderRadius.xl,
     marginBottom: responsiveSpacing.sm,
   },
   actionIconSquare: {
     width: scale(38),
     height: scale(38),
     borderRadius: scale(8),
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -514,10 +549,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: fontScale(10),
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   staffCard: {
-    borderRadius: scale(12),
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: responsiveBorderRadius.xl,
     padding: responsiveSpacing.md,
     marginBottom: responsiveSpacing.sm,
     gap: responsiveSpacing.sm,
@@ -525,6 +560,7 @@ const styles = StyleSheet.create({
   staffCount: {
     fontSize: fontScale(14),
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   staffHint: {
     fontSize: fontScale(11),
@@ -540,7 +576,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: scale(10),
+    borderRadius: responsiveBorderRadius.full,
     paddingVertical: responsiveSpacing.sm,
     minHeight: touchTargets.minimum,
   },
@@ -555,8 +591,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: scale(10),
-    borderWidth: 1.5,
+    borderRadius: responsiveBorderRadius.full,
     paddingVertical: responsiveSpacing.sm,
     minHeight: touchTargets.minimum,
   },
@@ -569,29 +604,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: responsiveSpacing.sm,
     padding: responsiveSpacing.md,
-    borderRadius: scale(12),
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: responsiveBorderRadius.xl,
     marginBottom: responsiveSpacing.sm,
   },
   upgradeBuyBtn: {
-    borderRadius: scale(8),
-    paddingHorizontal: responsiveSpacing.sm,
+    borderRadius: responsiveBorderRadius.full,
+    paddingHorizontal: responsiveSpacing.md,
     paddingVertical: 8,
     minWidth: scale(72),
     alignItems: 'center',
     justifyContent: 'center',
   },
   upgradeBuyText: {
-    color: '#FFFFFF',
     fontSize: fontScale(11),
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  notifCard: {
+    borderRadius: responsiveBorderRadius.xl,
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.sm,
   },
   notifRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   unreadDot: {
     width: 6,

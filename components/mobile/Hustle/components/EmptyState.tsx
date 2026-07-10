@@ -7,7 +7,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Rect, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { HUSTLE_GRADIENT } from '../styles/hustleTheme';
 
 interface EmptyStateProps {
@@ -20,7 +20,9 @@ export default function EmptyState({ observation, nudge, children }: EmptyStateP
   const { theme } = useTheme();
   return (
     <View style={styles.container}>
-      <Svg width={scale(140)} height={scale(90)} viewBox="0 0 140 90">
+      <View style={styles.illustration}>
+        <View pointerEvents="none" style={[styles.illustrationGlow, { backgroundColor: 'rgba(99, 102, 241, 0.10)' }]} />
+        <Svg width={scale(140)} height={scale(90)} viewBox="0 0 140 90">
         <Defs>
           <SvgLinearGradient id="hustleBarGrad" x1="0" y1="0" x2="1" y2="0">
             <Stop offset="0" stopColor={HUSTLE_GRADIENT[0]} stopOpacity="0.9" />
@@ -36,7 +38,8 @@ export default function EmptyState({ observation, nudge, children }: EmptyStateP
         ].map((b, i) => (
           <Rect key={i} x={b.x} y={80 - b.h} width={18} height={b.h} rx={3} fill="url(#hustleBarGrad)" />
         ))}
-      </Svg>
+        </Svg>
+      </View>
       <Text style={[styles.observation, { color: theme.text }]}>{observation}</Text>
       {nudge ? <Text style={[styles.nudge, { color: theme.textSecondary }]}>{nudge}</Text> : null}
       {children ? <View style={styles.ctaWrap}>{children}</View> : null}
@@ -50,6 +53,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: responsiveSpacing.lg,
     paddingVertical: responsiveSpacing.xl,
+  },
+  illustration: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: responsiveSpacing.xl,
+    paddingVertical: responsiveSpacing.lg,
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+  },
+  illustrationGlow: {
+    ...StyleSheet.absoluteFillObject,
   },
   observation: {
     fontSize: fontScale(16),

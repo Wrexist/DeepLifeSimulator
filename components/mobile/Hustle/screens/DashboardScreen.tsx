@@ -11,12 +11,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import KPICard from '../components/KPICard';
 import CompanyTile from '../components/CompanyTile';
 import EmptyState from '../components/EmptyState';
-import { HUSTLE_GRADIENT, HUSTLE_GRADIENT_SOFT } from '../styles/hustleTheme';
+import { HUSTLE_GRADIENT } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 
 const LinearGradient = LinearGradientFallback;
@@ -28,7 +29,7 @@ interface DashboardScreenProps {
 
 export default function DashboardScreen({ onOpenCompany, onCreateCompany }: DashboardScreenProps) {
   const { gameState } = useGame();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   const companies = gameState.companies ?? [];
@@ -94,21 +95,37 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
-        {/* Hero strip */}
-        <LinearGradient
-          colors={HUSTLE_GRADIENT_SOFT as unknown as string[]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.hero, { borderColor: theme.border }]}
+        {/* Hero strip — Recipe B (identity indigo) */}
+        <View
+          style={[
+            getGlassCard(isDark, 12),
+            styles.hero,
+            {
+              backgroundColor: theme.surface,
+              borderColor: isDark ? theme.glassBorder : theme.border,
+              borderWidth: 1,
+            },
+          ]}
         >
-          <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Empire snapshot</Text>
-          <Text style={[styles.heroValue, { color: theme.text }]}>
-            ${totals.weekly.toLocaleString()}<Text style={[styles.heroSuffix, { color: theme.textSecondary }]}> / wk</Text>
-          </Text>
-          <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
-            {companies.length} {companies.length === 1 ? 'company' : 'companies'} · {totals.employees} employees
-          </Text>
-        </LinearGradient>
+          <View style={styles.heroInner}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(99, 102, 241, 0.14)', 'rgba(99, 102, 241, 0.03)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.heroGlow} />
+            {isDark && <View pointerEvents="none" style={styles.heroHairline} />}
+            <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Empire snapshot</Text>
+            <Text style={[styles.heroValue, { color: theme.text }]}>
+              ${totals.weekly.toLocaleString()}<Text style={[styles.heroSuffix, { color: theme.textSecondary }]}> / wk</Text>
+            </Text>
+            <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
+              {companies.length} {companies.length === 1 ? 'company' : 'companies'} · {totals.employees} employees
+            </Text>
+          </View>
+        </View>
 
         {/* KPI grid */}
         <View style={styles.kpiGrid}>
@@ -119,7 +136,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
         </View>
 
         {/* Company list */}
-        <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Your companies</Text>
+        <Text style={[styles.sectionLabel, { color: theme.text }]}>Your companies</Text>
         {companies.map((c) => (
           <CompanyTile key={c.id} company={c} overlay={overlays[c.id]} onPress={() => handleTilePress(c.id)} />
         ))}
@@ -167,21 +184,42 @@ const styles = StyleSheet.create({
     paddingBottom: scale(120),
   },
   hero: {
-    borderRadius: scale(16),
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: responsiveSpacing.lg,
+    borderRadius: responsiveBorderRadius['2xl'],
     marginBottom: responsiveSpacing.md,
+  },
+  heroInner: {
+    borderRadius: responsiveBorderRadius['2xl'],
+    overflow: 'hidden',
+    padding: responsiveSpacing.lg,
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -scale(48),
+    right: -scale(36),
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    backgroundColor: 'rgba(99, 102, 241, 0.10)',
+  },
+  heroHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   heroLabel: {
     fontSize: fontScale(11),
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
   },
   heroValue: {
     fontSize: fontScale(36),
     fontWeight: '800',
     marginTop: 4,
+    fontVariant: ['tabular-nums'],
   },
   heroSuffix: {
     fontSize: fontScale(18),
@@ -198,10 +236,9 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.md,
   },
   sectionLabel: {
-    fontSize: fontScale(11),
+    fontSize: fontScale(15),
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
     marginBottom: responsiveSpacing.sm,
     marginTop: responsiveSpacing.sm,
   },
@@ -212,12 +249,8 @@ const styles = StyleSheet.create({
     width: touchTargets.large,
     height: touchTargets.large,
     borderRadius: touchTargets.large / 2,
-    shadowColor: HUSTLE_GRADIENT[0],
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
     zIndex: Z_INDEX.DROPDOWN,
+    ...getPlatformShadows(5, 0.3, 2, 8),
   },
   fab: {
     flex: 1,

@@ -43,6 +43,13 @@ import {
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
+  getGlassCard,
+  getGlassIconContainer,
+  getGlassCategoryTabsContainer,
+  getPlatformShadows,
+} from '@/utils/glassmorphismStyles';
+import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
+import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
@@ -50,6 +57,17 @@ import {
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { GamingStreamingState } from '@/contexts/game/types';
+
+const LinearGradient = LinearGradientFallback;
+
+// Identity accent — fuchsia. Solid (FUCHSIA / FUCHSIA_PAIR) only on small
+// CTAs, badges and glyphs; everywhere else the translucent tints below.
+const FUCHSIA = '#D946EF';
+const FUCHSIA_PAIR = '#C026D3';
+const FUCHSIA_FILL = 'rgba(217, 70, 239, 0.15)'; // Recipe C icon-bubble fill
+const FUCHSIA_TINT = 'rgba(217, 70, 239, 0.14)'; // chips + selected rows
+const FUCHSIA_TAB = 'rgba(217, 70, 239, 0.16)'; // active tab pill
+const FUCHSIA_RIM = 'rgba(217, 70, 239, 0.30)'; // tinted rims
 
 type TabType = 'dashboard' | 'live' | 'history' | 'shop';
 
@@ -164,54 +182,100 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
   const renderDashboard = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <View style={styles.heroRow}>
-          <View>
-            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Followers</Text>
-            <Text style={[styles.heroValue, { color: theme.text }]}>
-              {(channel?.followers ?? 0).toLocaleString()}
-            </Text>
-          </View>
-          <View>
-            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Subs</Text>
-            <Text style={[styles.heroValue, { color: theme.text }]}>
-              {(channel?.subscribers ?? 0).toLocaleString()}
-            </Text>
-          </View>
-          <View>
-            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>Hours</Text>
-            <Text style={[styles.heroValue, { color: theme.text }]}>
-              {Math.round(channel?.streamHours ?? 0)}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.qualityBar, { backgroundColor: theme.surfaceElevated }]}>
-          <View
-            style={[
-              styles.qualityFill,
-              { width: `${quality.total}%`, backgroundColor: qualityColor(quality.tier) },
-            ]}
+      {/* Recipe B hero — the channel / viewers headline (ONE per screen) */}
+      <View
+        style={[
+          getGlassCard(darkMode, 12),
+          {
+            backgroundColor: theme.surface,
+            borderColor: darkMode ? theme.glassBorder : theme.border,
+            borderWidth: 1,
+            borderRadius: br['2xl'],
+          },
+        ]}
+      >
+        <View style={styles.heroInner}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(217, 70, 239, 0.14)', 'rgba(217, 70, 239, 0.03)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
           />
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: -scale(48),
+              right: -scale(36),
+              width: scale(150),
+              height: scale(150),
+              borderRadius: scale(75),
+              backgroundColor: 'rgba(217, 70, 239, 0.10)',
+            }}
+          />
+          {darkMode && (
+            <View
+              pointerEvents="none"
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' }}
+            />
+          )}
+          <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>CHANNEL</Text>
+          <View style={styles.heroRow}>
+            <View style={styles.heroStat}>
+              <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Followers</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>
+                {(channel?.followers ?? 0).toLocaleString()}
+              </Text>
+            </View>
+            <View style={styles.heroStat}>
+              <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Subs</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>
+                {(channel?.subscribers ?? 0).toLocaleString()}
+              </Text>
+            </View>
+            <View style={styles.heroStat}>
+              <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Hours</Text>
+              <Text style={[styles.heroValue, { color: theme.text }]}>
+                {Math.round(channel?.streamHours ?? 0)}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.qualityBar, { backgroundColor: theme.surfaceElevated }]}>
+            <View
+              style={[
+                styles.qualityFill,
+                { width: `${quality.total}%`, backgroundColor: qualityColor(quality.tier) },
+              ]}
+            />
+          </View>
+          <Text style={[styles.qualityLabel, { color: qualityColor(quality.tier) }]}>
+            Setup: {quality.total}/100 · {quality.tier.toUpperCase()}
+          </Text>
         </View>
-        <Text style={[styles.qualityLabel, { color: qualityColor(quality.tier) }]}>
-          Setup: {quality.total}/100 · {quality.tier.toUpperCase()}
-        </Text>
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Monetization</Text>
         <View style={styles.statsRow}>
-          <MoneyStat label="$/viewer" value={`$${monetization.viewerPay.toFixed(3)}`} color={accent.success} theme={theme} />
-          <MoneyStat label="Donations" value={`$${(channel?.totalDonations ?? 0).toLocaleString()}`} color={accent.purple} theme={theme} />
-          <MoneyStat label="Total $" value={`$${(channel?.totalEarnings ?? 0).toLocaleString()}`} color={accent.info} theme={theme} />
+          <MoneyStat label="$/viewer" value={`$${monetization.viewerPay.toFixed(3)}`} color={theme.text} theme={theme} />
+          <MoneyStat label="Donations" value={`$${(channel?.totalDonations ?? 0).toLocaleString()}`} color={accent.success} theme={theme} />
+          <MoneyStat label="Total $" value={`$${(channel?.totalEarnings ?? 0).toLocaleString()}`} color={accent.success} theme={theme} />
         </View>
       </View>
 
       {channel?.bestStream ? (
-        <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Best stream</Text>
           <View style={styles.bestRow}>
-            <Trophy size={scale(18)} color={accent.gold} />
+            <View
+              style={[
+                getGlassIconContainer(darkMode, 40),
+                { backgroundColor: 'rgba(250, 204, 21, 0.15)', borderWidth: 1, borderColor: 'rgba(250, 204, 21, 0.30)' },
+              ]}
+            >
+              <Trophy size={scale(18)} color={accent.gold} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.bestTitle, { color: theme.text }]}>{channel.bestStream.game}</Text>
               <Text style={[styles.bestSub, { color: theme.textSecondary }]}>
@@ -226,63 +290,77 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
   const renderLive = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Pick a stream</Text>
-        {GAME_OPTIONS.map((g) => (
-          <TouchableOpacity
-            key={g.id}
-            onPress={() => setSelectedGame(g)}
-            style={[
-              styles.gameRow,
-              {
-                borderColor: selectedGame.id === g.id ? accent.info : theme.border,
-                backgroundColor: selectedGame.id === g.id ? `${accent.info}22` : 'transparent',
-              },
-            ]}
-          >
-            <Radio size={scale(14)} color={accent.info} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.gameName, { color: theme.text }]}>{g.name}</Text>
-              <Text style={[styles.gameHint, { color: theme.textSecondary }]}>{g.viewersHint}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {GAME_OPTIONS.map((g) => {
+          const selected = selectedGame.id === g.id;
+          return (
+            <TouchableOpacity
+              key={g.id}
+              onPress={() => setSelectedGame(g)}
+              activeOpacity={0.85}
+              style={[
+                styles.gameRow,
+                {
+                  borderColor: selected ? FUCHSIA_RIM : theme.border,
+                  backgroundColor: selected ? FUCHSIA_TINT : 'transparent',
+                },
+              ]}
+            >
+              <Radio size={scale(14)} color={selected ? FUCHSIA : theme.textMuted} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.gameName, { color: theme.text }]}>{g.name}</Text>
+                <Text style={[styles.gameHint, { color: theme.textSecondary }]}>{g.viewersHint}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Session length</Text>
-        {DURATIONS.map((d) => (
-          <TouchableOpacity
-            key={d.label}
-            onPress={() => setSelectedDuration(d)}
-            style={[
-              styles.durationRow,
-              {
-                borderColor: selectedDuration.label === d.label ? accent.info : theme.border,
-                backgroundColor: selectedDuration.label === d.label ? `${accent.info}22` : 'transparent',
-              },
-            ]}
-          >
-            <Text style={[styles.durationLabel, { color: theme.text }]}>{d.label}</Text>
-            <View style={styles.durationMeta}>
-              <Zap size={scale(11)} color={accent.warning} />
-              <Text style={[styles.gameHint, { color: theme.textSecondary }]}>{d.energy} energy</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-        <Text style={[styles.recordHint, { color: theme.textSecondary }]}>
+        {DURATIONS.map((d) => {
+          const selected = selectedDuration.label === d.label;
+          return (
+            <TouchableOpacity
+              key={d.label}
+              onPress={() => setSelectedDuration(d)}
+              activeOpacity={0.85}
+              style={[
+                styles.durationRow,
+                {
+                  borderColor: selected ? FUCHSIA_RIM : theme.border,
+                  backgroundColor: selected ? FUCHSIA_TINT : 'transparent',
+                },
+              ]}
+            >
+              <Text style={[styles.durationLabel, { color: theme.text }]}>{d.label}</Text>
+              <View style={styles.durationMeta}>
+                <Zap size={scale(11)} color={accent.warning} />
+                <Text style={[styles.gameHint, { color: theme.textSecondary }]}>{d.energy} energy</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+        <Text style={[styles.recordHint, { color: theme.textMuted }]}>
           Longer streams get diminishing returns past 90 minutes. Hype-train chance ~8%.
         </Text>
         <TouchableOpacity
           onPress={handleStream}
           disabled={energy < selectedDuration.energy}
-          style={[
-            styles.publishBtn,
-            { backgroundColor: energy < selectedDuration.energy ? accent.muted : accent.purple },
-          ]}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          style={[styles.publishBtnWrap, energy >= selectedDuration.energy && getPlatformShadows(5, 0.3, 2, 8)]}
         >
-          <Sparkles size={scale(14)} color="white" />
-          <Text style={styles.publishBtnText}>Go live</Text>
+          <LinearGradient
+            colors={energy < selectedDuration.energy ? [theme.surfaceElevated, theme.surfaceElevated] : [FUCHSIA, FUCHSIA_PAIR]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.publishBtn}
+          >
+            <Sparkles size={scale(14)} color={energy < selectedDuration.energy ? theme.textMuted : 'white'} />
+            <Text style={[styles.publishBtnText, { color: energy < selectedDuration.energy ? theme.textMuted : 'white' }]}>Go live</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -291,8 +369,15 @@ export default function GamingStreamingApp({ onBack }: Props) {
   const renderHistory = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {streamHistory.length === 0 ? (
-        <View style={styles.empty}>
-          <History size={scale(48)} color={theme.textSecondary} />
+        <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View
+            style={[
+              getGlassIconContainer(darkMode, 56),
+              { backgroundColor: FUCHSIA_FILL, borderWidth: 1, borderColor: FUCHSIA_RIM },
+            ]}
+          >
+            <History size={scale(26)} color={FUCHSIA} />
+          </View>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No streams yet</Text>
           <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
             Go live to start your history.
@@ -302,20 +387,21 @@ export default function GamingStreamingApp({ onBack }: Props) {
         streamHistory.slice(0, 50).map((s) => (
           <View
             key={s.id}
-            style={[styles.streamRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            style={[getGlassCard(darkMode, 6), styles.streamRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
+            {/* Live indicator keeps danger red as data */}
             <Radio size={scale(14)} color={accent.danger} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.streamGame, { color: theme.text }]}>{s.game}</Text>
               <View style={styles.streamMetricsRow}>
                 <View style={styles.metric}>
-                  <Users size={scale(11)} color={accent.info} />
+                  <Users size={scale(11)} color={theme.textMuted} />
                   <Text style={[styles.metricText, { color: theme.textSecondary }]}>
                     {s.viewers.toLocaleString()}
                   </Text>
                 </View>
                 <View style={styles.metric}>
-                  <Heart size={scale(11)} color={accent.purple} />
+                  <Heart size={scale(11)} color={theme.textMuted} />
                   <Text style={[styles.metricText, { color: theme.textSecondary }]}>
                     +{s.subscribers}
                   </Text>
@@ -335,32 +421,35 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
   const renderShop = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Accessories</Text>
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
           const owned = !!channel?.equipment?.[k];
           return (
             <View key={k} style={styles.gearRow}>
               <Text style={[styles.gearName, { color: theme.text, flex: 1 }]}>{ACCESSORY_LABELS[k]}</Text>
-              <Text style={[styles.gearPrice, { color: theme.textSecondary }]}>
+              <Text style={[styles.gearPrice, { color: theme.textMuted }]}>
                 ${(ACCESSORY_PRICES[k] ?? 0).toLocaleString()}
               </Text>
               <TouchableOpacity
                 onPress={() => handleAccessory(k)}
                 disabled={owned}
+                activeOpacity={0.85}
                 style={[
                   styles.smallBtn,
-                  { backgroundColor: owned ? accent.success : accent.info },
+                  owned ? { backgroundColor: theme.surfaceElevated } : { backgroundColor: FUCHSIA_TINT },
                 ]}
               >
-                <Text style={styles.smallBtnText}>{owned ? 'Owned' : 'Buy'}</Text>
+                <Text style={[styles.smallBtnText, { color: owned ? theme.textMuted : FUCHSIA }]}>
+                  {owned ? 'Owned' : 'Buy'}
+                </Text>
               </TouchableOpacity>
             </View>
           );
         })}
       </View>
 
-      <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>PC components</Text>
         {(Object.keys(PC_LABELS) as (keyof GamingStreamingState['pcUpgradeLevels'])[]).map((k) => {
           const tier = channel?.pcUpgradeLevels?.[k] ?? 0;
@@ -369,16 +458,17 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View key={k} style={styles.gearRow}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.gearName, { color: theme.text }]}>{PC_LABELS[k]}</Text>
-                <Text style={[styles.gearMeta, { color: theme.textSecondary }]}>Tier {tier}</Text>
+                <Text style={[styles.gearMeta, { color: theme.textMuted }]}>Tier {tier}</Text>
               </View>
-              <Text style={[styles.gearPrice, { color: theme.textSecondary }]}>
+              <Text style={[styles.gearPrice, { color: theme.textMuted }]}>
                 ${cost.toLocaleString()}
               </Text>
               <TouchableOpacity
                 onPress={() => handlePCUpgrade(k)}
-                style={[styles.smallBtn, { backgroundColor: accent.purple }]}
+                activeOpacity={0.85}
+                style={[styles.smallBtn, { backgroundColor: FUCHSIA_TINT }]}
               >
-                <Text style={styles.smallBtnText}>Upgrade</Text>
+                <Text style={[styles.smallBtnText, { color: FUCHSIA }]}>Upgrade</Text>
               </TouchableOpacity>
             </View>
           );
@@ -389,40 +479,48 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
-          <ArrowLeft size={scale(18)} color={theme.text} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={styles.headerBtn}
+        >
+          <ArrowLeft size={scale(22)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Streaming</Text>
-        <Text style={[styles.headerCash, { color: accent.success }]}>${money.toLocaleString()}</Text>
+        <View style={[styles.cashChip, { backgroundColor: FUCHSIA_TINT, borderColor: FUCHSIA_RIM }]}>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>${money.toLocaleString()}</Text>
+        </View>
       </View>
 
-      <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[styles.tabBar, getGlassCategoryTabsContainer(darkMode)]}>
         {[
           { id: 'dashboard' as TabType, label: 'Dashboard', Icon: Activity },
           { id: 'live' as TabType, label: 'Go Live', Icon: Radio },
           { id: 'history' as TabType, label: 'History', Icon: History },
           { id: 'shop' as TabType, label: 'Shop', Icon: ShoppingBag },
-        ].map(({ id, label, Icon }) => (
-          <TouchableOpacity
-            key={id}
-            onPress={() => setActiveTab(id)}
-            style={[
-              styles.tabBtn,
-              activeTab === id && { borderBottomColor: accent.info, borderBottomWidth: 2 },
-            ]}
-          >
-            <Icon size={scale(14)} color={activeTab === id ? accent.info : theme.textSecondary} />
-            <Text
-              style={[
-                styles.tabText,
-                { color: activeTab === id ? accent.info : theme.textSecondary },
-              ]}
+        ].map(({ id, label, Icon }) => {
+          const active = activeTab === id;
+          return (
+            <TouchableOpacity
+              key={id}
+              onPress={() => setActiveTab(id)}
+              style={[styles.tabBtn, active && { backgroundColor: FUCHSIA_TAB }]}
             >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Icon size={scale(14)} color={active ? FUCHSIA : theme.textMuted} />
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: active ? FUCHSIA : theme.textMuted },
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {activeTab === 'dashboard' && renderDashboard()}
@@ -431,7 +529,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
       {activeTab === 'shop' && renderShop()}
 
       {feedback ? (
-        <View style={[styles.toast, { backgroundColor: theme.surface, borderColor: accent.info, bottom: getAppScreenBottomPadding(insets.bottom) }]}>
+        <View style={[getGlassCard(darkMode, 12), styles.toast, { backgroundColor: theme.surface, borderColor: FUCHSIA_RIM, bottom: getAppScreenBottomPadding(insets.bottom) }]}>
           <Text style={{ color: theme.text }}>{feedback}</Text>
         </View>
       ) : null}
@@ -477,45 +575,79 @@ function qualityColor(tier: string): string {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
-  scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
+  scrollPad: { padding: sp.md, gap: sp.lg, paddingBottom: sp['3xl'] },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: sp.md,
     paddingVertical: sp.sm,
-    borderBottomWidth: 1,
+    gap: sp.sm,
   },
   headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: fs.xl, fontWeight: '800' },
-  headerCash: { fontSize: fs.md, fontWeight: '700' },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
-  tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: sp.xs },
-  tabText: { fontSize: fs.sm, fontWeight: '700' },
-  heroCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.sm },
+  headerTitle: { flex: 1, fontSize: fs.lg, fontWeight: '700' },
+  cashChip: {
+    paddingHorizontal: sp.sm,
+    paddingVertical: 4,
+    borderRadius: br.full,
+    borderWidth: 1,
+  },
+  cashChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  // Segmented control directly under the top bar; it has its own container
+  // (glass tabs), so the top bar drops its bottom border.
+  tabBar: {
+    flexDirection: 'row',
+    gap: scale(4),
+    marginHorizontal: sp.md,
+    marginTop: sp.sm,
+    marginBottom: sp.sm,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(4),
+    paddingVertical: sp.sm,
+    borderRadius: br.lg,
+  },
+  tabText: { fontSize: fs.sm, fontWeight: '600' },
+  heroInner: {
+    borderRadius: br['2xl'],
+    overflow: 'hidden',
+    padding: sp.lg,
+    gap: sp.sm,
+  },
+  heroEyebrow: {
+    fontSize: fs.xs,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
   heroRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  heroLabel: { fontSize: fs.xs },
-  heroValue: { fontSize: fs['2xl'], fontWeight: '800' },
+  heroStat: { gap: scale(2) },
+  heroLabel: { fontSize: fs.xs, fontWeight: '600' },
+  heroValue: { fontSize: fs['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
   qualityBar: { height: scale(8), borderRadius: br.full, overflow: 'hidden' },
   qualityFill: { height: '100%', borderRadius: br.full },
   qualityLabel: { fontSize: fs.xs, fontWeight: '700' },
-  statsCard: { padding: sp.md, borderRadius: br.lg, borderWidth: 1, gap: sp.sm },
-  sectionTitle: { fontSize: fs.sm, fontWeight: '800', textTransform: 'uppercase' },
+  statsCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
+  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
   // Wrap so 3-up rows of money values drop cleanly to 2-per-row when needed.
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
   moneyStat: { alignItems: 'center', flexBasis: '30%', flexGrow: 1, minWidth: scale(96) },
-  moneyValue: { fontSize: fs.lg, fontWeight: '800' },
+  moneyValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
   moneyLabel: { fontSize: fs.xs, marginTop: 2 },
-  gameRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.md, borderWidth: 1 },
+  gameRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.lg, borderWidth: 1 },
   gameName: { fontSize: fs.sm, fontWeight: '700' },
   gameHint: { fontSize: fs.xs },
-  durationRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.md, borderWidth: 1, justifyContent: 'space-between' },
+  durationRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.lg, borderWidth: 1, justifyContent: 'space-between' },
   durationLabel: { fontSize: fs.sm, fontWeight: '700' },
   durationMeta: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   recordHint: { fontSize: fs.xs, fontStyle: 'italic' },
-  publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, padding: sp.md, borderRadius: br.md, justifyContent: 'center' },
-  publishBtnText: { color: 'white', fontSize: fs.md, fontWeight: '800' },
-  streamRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.md, borderRadius: br.lg, borderWidth: 1 },
+  publishBtnWrap: { borderRadius: br.full },
+  publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingVertical: sp.md, borderRadius: br.full, justifyContent: 'center', minHeight: scale(48) },
+  publishBtnText: { fontSize: fs.md, fontWeight: '800' },
+  streamRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
   streamGame: { fontSize: fs.sm, fontWeight: '800' },
   streamMetricsRow: { flexDirection: 'row', gap: sp.md, marginTop: sp.xs },
   metric: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
@@ -523,15 +655,22 @@ const styles = StyleSheet.create({
   bestRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
   bestTitle: { fontSize: fs.sm, fontWeight: '800' },
   bestSub: { fontSize: fs.xs },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
+  emptyCard: {
+    borderRadius: br.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: sp.lg,
+    gap: sp.sm,
+  },
   emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
   emptySub: { fontSize: fs.sm, textAlign: 'center' },
   gearRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.xs },
   gearName: { fontSize: fs.sm, fontWeight: '700' },
   gearMeta: { fontSize: fs.xs },
   gearPrice: { fontSize: fs.xs },
-  smallBtn: { paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.md },
-  smallBtnText: { color: 'white', fontSize: fs.xs, fontWeight: '700' },
+  smallBtn: { paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.full },
+  smallBtnText: { fontSize: fs.xs, fontWeight: '700' },
   toast: {
     position: 'absolute',
     bottom: sp.lg,
