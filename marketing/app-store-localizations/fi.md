@@ -87,13 +87,12 @@ Aloita tänään. Rakenna omaisuutesi. Tai aja kaikki komeasti päin seinää. K
 ```text
 v2.3.1 – Vakautta ja pelituntumaa
 
-Kuuntelimme palautettanne. Tämä päivitys keskittyy vakauteen ja pelin sujuvuuteen:
+Kuuntelimme palautettanne. Tämä päivitys keskittyy vakauteen:
 
 ✅ 70+ bugikorjausta
 • Tallennusjärjestelmä vahvistettu – vanhojen tallennusten datakorruptio korjattu
 • Ostojärjestelmä uusittu – kaikki ostetut edut toimivat nyt oikein
 • Talouskorjauksia – osakkeiden kulut, vuokratasot ja autojen arvot nyt johdonmukaisia
-• Kaatumiskorjauksia käynnistykseen ja harvinaisiin tilanteisiin
 
 ✅ Reilun pelin järjestelmä
 • Takuut loputonta epäonnea vastaan: lapset, kosinnat, työhakemukset ja viikkotapahtumat onnistuvat nyt taatusti tietyn rajan jälkeen
@@ -101,12 +100,12 @@ Kuuntelimme palautettanne. Tämä päivitys keskittyy vakauteen ja pelin sujuvuu
 
 ✅ Ihmissuhteiden seuraukset
 • Kumppani lähtee 8 viikon laiminlyönnin jälkeen, puoliso hakee avioeroa 12 viikon jälkeen
-• Realistiset ositukset – ihmissuhteet tuntuvat taas merkityksellisiltä
+• Realistiset ositukset
 
 ✅ Suorituskyky
 • 90 % nopeammat tulolaskennat, 80 % pienemmät tallennustiedostot ja sujuvampi peli 1000+ viikon jälkeen
 
-Kiitos, että pelaat! Liity Discord-yhteisöömme ja kerro mielipiteesi: discord.gg/deeplifesim
+Kiitos, että pelaat! Liity Discord-yhteisöömme: discord.gg/deeplifesim
 
 Ei pakotettuja mainoksia. Ei pay-to-winiä. Vain reilu, strateginen elämäsimu.
 ```

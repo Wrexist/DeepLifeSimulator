@@ -103,20 +103,19 @@ Vi hørte på tilbakemeldingene deres. Denne oppdateringen handler om stabilitet
 • Lagringssystemet forsterket – datakorrupsjon på eldre lagringer er fikset
 • Kjøpssystemet totalrenovert – alle kjøpte fordeler fungerer nå korrekt
 • Økonomifikser – aksjegebyrer, leiepriser og bilverdier er nå konsistente
-• Krasjfikser ved oppstart og i sjeldne situasjoner
 
 ✅ Rettferdighetssystem
-• Garantier mot uendelig uflaks: barn, frierier, jobbsøknader og ukentlige hendelser gir nå garantert uttelling etter en viss grense
+• Garantier mot uendelig uflaks: barn, frierier, jobbsøknader og ukentlige hendelser gir nå garantert uttelling etter en grense
 • Maks én sykdom per 4 uker (dere ba om dette)
 
 ✅ Konsekvenser i relasjoner
 • Partnere forlater deg etter 8 uker med forsømmelse, ektefeller søker skilsmisse etter 12
-• Realistiske økonomiske oppgjør – relasjoner betyr noe igjen
+• Realistiske økonomiske oppgjør
 
 ✅ Ytelse
 • 90 % raskere inntektsberegninger, 80 % mindre lagringsfiler og jevnere spillflyt etter 1000+ uker
 
-Takk for at du spiller! Bli med i Discord-fellesskapet vårt og si din mening: discord.gg/deeplifesim
+Takk for at du spiller! Bli med i Discord-fellesskapet vårt: discord.gg/deeplifesim
 
 Ingen påtvungne annonser. Ingen pay-to-win. Bare en rettferdig, strategisk livssim.
 ```
