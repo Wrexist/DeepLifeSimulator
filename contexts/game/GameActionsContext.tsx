@@ -1467,8 +1467,11 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
       // Politics tick: scandal exposure (driven by dark-web heat + dirty PAC
  // money + karma), severity decay, approval drift. Cross-wires with
  // dark-web so corrupt careers stay risky.
- const politicsTick = runPoliticsWeeklyTick({
- politics: prevState.politics ?? {
+ // RESILIENCE: this tick gained election-resolution surface this week, so like
+ // its banking/stocks siblings it is wrapped in try/catch — a throw here must
+ // NOT abort the whole `nextWeek` updater (which would soft-lock "Next Week").
+ // On failure, politics carries over unchanged for the week.
+ let nextPolitics = prevState.politics ?? {
  careerLevel: 0,
  approvalRating: 50,
  policyInfluence: 0,
@@ -1477,7 +1480,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  lobbyists: [],
  alliances: [],
  campaignFunds: 0,
- },
+ };
+ try {
+ const politicsTick = runPoliticsWeeklyTick({
+ politics: nextPolitics,
  darkWebHeat: darkWebTick.darkWeb.heat,
  karma: prevState.karma?.score ?? 0,
  contentiousPolicies: (prevState.politics?.policiesEnacted ?? []).length,
@@ -1492,13 +1498,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // (lib/economy/passiveIncome.ts), so zeroing it here stops the paycheck. The
  // re-election-loss path in the tick already sets careerLevel:0; this also covers
  // the scandal-resignation flag.
- let nextPolitics = politicsTick.politics;
+ nextPolitics = politicsTick.politics;
  if (politicsTick.forcedResignation || politicsTick.lostOffice) {
  nextPolitics = {
 ...nextPolitics,
  careerLevel: 0,
  nextElectionWeek: undefined,
  };
+ }
+ } catch (polErr) {
+ logger.error('[POLITICS TICK] failed:', polErr);
  }
  for (const note of darkWebTick.notifications) {
  pendingNotifications.push({ id: note.id, title: note.title, message: note.message });
