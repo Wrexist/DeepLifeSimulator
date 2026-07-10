@@ -89,7 +89,7 @@ Começa hoje. Constrói a tua fortuna. Ou arruína-te em grande estilo. Seja com
 ## whats_new
 
 ```text
-v2.3.1 - Qualidade de Vida e Correções
+v1.4.0 - Qualidade de Vida e Correções
 
 Ouvimos o teu feedback. Esta é a nossa maior atualização de estabilidade até à data:
 

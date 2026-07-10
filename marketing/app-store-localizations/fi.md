@@ -85,7 +85,7 @@ Aloita tänään. Rakenna omaisuutesi. Tai aja kaikki komeasti päin seinää. K
 ## whats_new
 
 ```text
-v2.3.1 - Vakautta ja pelituntumaa
+v1.4.0 - Vakautta ja pelituntumaa
 
 Kuuntelimme palautettanne. Tämä päivitys keskittyy vakauteen:
 

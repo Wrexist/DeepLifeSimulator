@@ -24,7 +24,7 @@ exactly these keys, in this order:
 | `## promotional_text` | App Store promotional text | 170 |
 | `## keywords` | App Store keyword field | 100 |
 | `## description` | App Store description | 4000 |
-| `## whats_new` | App Store "What's New" (v2.3.1) | 4000 |
+| `## whats_new` | App Store "What's New" (v1.4.0) | 4000 |
 | `## gp_short_description` | Google Play short description | 80 |
 | `## gp_full_description` | Google Play full description | 4000 |
 | `## notes` | ASO rationale (not uploaded) | - |
@@ -75,7 +75,7 @@ headers and `•` bullets like the source. Localize currency examples naturally.
 The claim "This isn't BitLife" may be kept in body copy (never in keywords/subtitle).
 
 ### whats_new (condense to ~600-1000 chars)
-Condense the v2.3.1 notes (source section 6): 70+ bug fixes, purchase system
+Condense the v1.4.0 notes (source section 6): 70+ bug fixes, purchase system
 overhaul, fairness/pity systems, relationship consequences, performance gains,
 "we listened to your feedback" framing, Discord link `discord.gg/invite/rzktazdX8v`.
 

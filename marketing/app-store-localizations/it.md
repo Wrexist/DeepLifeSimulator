@@ -89,7 +89,7 @@ Inizia oggi. Costruisci la tua fortuna o crolla in modo spettacolare. In ogni ca
 ## whats_new
 
 ```text
-v2.3.1 - Stabilità e qualità della vita
+v1.4.0 - Stabilità e qualità della vita
 
 Ti abbiamo ascoltato. Questo aggiornamento è tutto dedicato alla stabilità e a un gioco che si sente meglio:
 

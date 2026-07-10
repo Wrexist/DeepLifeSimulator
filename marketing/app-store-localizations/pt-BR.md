@@ -89,7 +89,7 @@ Baixe agora. Construa sua fortuna. Ou quebre espetacularmente. De um jeito ou de
 ## whats_new
 
 ```text
-v2.3.1 - Qualidade de Vida e Correções
+v1.4.0 - Qualidade de Vida e Correções
 
 Nós ouvimos vocês! Esta é a nossa maior atualização de estabilidade até agora:
 

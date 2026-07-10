@@ -89,7 +89,7 @@ Deep Life Simulator e făcut pentru jucătorii care vor strategie, consecințe �
 ## whats_new
 
 ```text
-v2.3.1 - Stabilitate și remedieri
+v1.4.0 - Stabilitate și remedieri
 
 V-am ascultat feedbackul. Acest update e despre stabilitate și un joc mai corect:
 

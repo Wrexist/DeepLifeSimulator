@@ -89,7 +89,7 @@ Comença avui. Construeix la teva fortuna. O esfondra't espectacularment. Sigui 
 ## whats_new
 
 ```text
-v2.3.1 - Estabilitat i correccions
+v1.4.0 - Estabilitat i correccions
 
 Us hem escoltat. Aquesta actualització va d'estabilitat i de fer el joc més just:
 

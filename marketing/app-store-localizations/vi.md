@@ -95,7 +95,7 @@ Bắt đầu ngay hôm nay. Gây dựng cơ đồ - hoặc sụp đổ ngoạn m
 ## whats_new
 
 ```text
-v2.3.1 - Bản cập nhật ổn định lớn nhất từ trước đến nay
+v1.4.0 - Bản cập nhật ổn định lớn nhất từ trước đến nay
 
 Chúng tôi đã lắng nghe phản hồi của bạn. Bản cập nhật này tập trung toàn lực vào độ ổn định và trải nghiệm:
 

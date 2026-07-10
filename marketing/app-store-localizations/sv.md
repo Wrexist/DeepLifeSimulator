@@ -89,7 +89,7 @@ Börja i dag. Bygg din förmögenhet. Eller krascha spektakulärt. Oavsett vilke
 ## whats_new
 
 ```text
-v2.3.1 - Stabilitet och förbättringar
+v1.4.0 - Stabilitet och förbättringar
 
 Vi har lyssnat på er feedback. Den här uppdateringen handlar om stabilitet och spelkänsla:
 

@@ -89,7 +89,7 @@ Začni ešte dnes. Vybuduj majetok. Alebo veľkolepo skrachuj. Príbeh na rozpr�
 ## whats_new
 
 ```text
-v2.3.1 - Kvalita a stabilita
+v1.4.0 - Kvalita a stabilita
 
 Vypočuli sme tvoju spätnú väzbu. Táto aktualizácia je celá o stabilite a lepšom pocite z hry:
 
