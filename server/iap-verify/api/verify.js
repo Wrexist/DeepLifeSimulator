@@ -27,10 +27,22 @@ const APPLE_BUNDLE_ID = process.env.APPLE_BUNDLE_ID || '';           // e.g. com
 const APPLE_APP_APPLE_ID = process.env.APPLE_APP_APPLE_ID || '';     // numeric App Store id (optional)
 const GOOGLE_PACKAGE_NAME = process.env.GOOGLE_PACKAGE_NAME || '';   // e.g. com.you.deeplife
 const SHARED_SECRET = process.env.IAP_SHARED_SECRET || '';           // must equal EXPO_PUBLIC_IAP_VERIFY_TOKEN
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+// SECURITY: a StoreKit *sandbox* transaction is free to obtain on a production
+// build (sign a Sandbox Apple ID into device Settings) and its JWS verifies
+// cleanly under Environment.SANDBOX. Accepting it in production is a free-premium
+// hole. So the production endpoint accepts PRODUCTION receipts only. TestFlight /
+// App Review run in sandbox, so point THOSE builds at a staging deploy that sets
+// IAP_ALLOW_SANDBOX=true. Never set this on the production deployment.
+const IAP_ALLOW_SANDBOX = process.env.IAP_ALLOW_SANDBOX === 'true';
 // Soft-launch stopgap: when true AND a platform's real credentials are missing,
 // accept a well-formed receipt after a basic sanity check. Turn OFF for full
-// security once your Apple/Google credentials are configured.
+// security once your Apple/Google credentials are configured. FAIL-CLOSED in
+// production: it will not grant on a production deployment unless the operator
+// ALSO sets ALLOW_SOFT_LAUNCH_IN_PROD=true (a deliberate, auditable second flag),
+// so a stray ALLOW_SOFT_LAUNCH can't silently hand out paid content live.
 const ALLOW_SOFT_LAUNCH = process.env.ALLOW_SOFT_LAUNCH === 'true';
+const ALLOW_SOFT_LAUNCH_IN_PROD = process.env.ALLOW_SOFT_LAUNCH_IN_PROD === 'true';
 
 // The exact product ids the app sells — reject anything else outright.
 const KNOWN_PRODUCT_IDS = new Set([
@@ -63,8 +75,13 @@ async function verifyApple(signedTransaction, expectedProductId) {
   const { SignedDataVerifier, Environment } = require('@apple/app-store-server-library');
   const { loadAppleRootCerts } = require('../lib/appleRoots');
   const roots = loadAppleRootCerts(); // Buffer[] of Apple's root .cer files
-  // Try Production first, then Sandbox (TestFlight / review use Sandbox).
-  for (const env of [Environment.PRODUCTION, Environment.SANDBOX]) {
+  // SECURITY (F1): only accept SANDBOX when this deploy explicitly opts in
+  // (staging / TestFlight endpoint). Production accepts PRODUCTION receipts only,
+  // so a free sandbox transaction can't unlock paid content for a real user.
+  const environments = IAP_ALLOW_SANDBOX
+    ? [Environment.PRODUCTION, Environment.SANDBOX]
+    : [Environment.PRODUCTION];
+  for (const env of environments) {
     try {
       const verifier = new SignedDataVerifier(
         roots, /* enableOnlineChecks */ true, env, APPLE_BUNDLE_ID,
@@ -132,7 +149,13 @@ async function verifyHandler(req, res) {
     }
 
     // 3) Soft-launch stopgap (only if you explicitly opted in AND creds absent).
+    // Fail-closed in production unless a second explicit flag confirms it — this
+    // stops a stray ALLOW_SOFT_LAUNCH from becoming a total free-content bypass
+    // on the live deployment (F2).
     if (ALLOW_SOFT_LAUNCH && typeof receipt === 'string' && receipt.length > 20) {
+      if (IS_PRODUCTION && !ALLOW_SOFT_LAUNCH_IN_PROD) {
+        return deny(res, 'soft-launch-disabled-in-production');
+      }
       console.warn('[iap-verify] SOFT-LAUNCH grant (configure real credentials!)', { productId });
       return grant(res);
     }

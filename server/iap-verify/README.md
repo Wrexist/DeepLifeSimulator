@@ -63,6 +63,25 @@ It grants the purchase only if the reply is `200 { "verified": true }`.
 
 7. **Test** with a Sandbox tester (iOS) / license tester (Android): buy premium,
    confirm it unlocks. Check the endpoint logs — a real receipt logs a grant.
+   Note iOS TestFlight / App Review purchases are **sandbox** transactions — the
+   production endpoint rejects those by default (see "Sandbox receipts" below), so
+   test them against a staging deploy with `IAP_ALLOW_SANDBOX=true`.
+
+---
+
+## Sandbox receipts (iOS) — production rejects them by default
+
+A StoreKit **sandbox** transaction is free to obtain on a production build (sign a
+Sandbox Apple ID into device Settings) and its signed JWS verifies cleanly under
+the sandbox environment. Accepting it in production would be a free-premium hole.
+So the endpoint verifies against the **production** Apple environment only, unless
+you explicitly set `IAP_ALLOW_SANDBOX=true`.
+
+- **Production deploy:** leave `IAP_ALLOW_SANDBOX` unset. Real App Store purchases
+  are production receipts and verify normally.
+- **Staging / TestFlight / App Review deploy:** set `IAP_ALLOW_SANDBOX=true` and
+  point those builds at that staging URL, so sandbox purchases verify there.
+  **Never set this on the production deployment.**
 
 ---
 
@@ -72,3 +91,8 @@ If you want to ship before wiring Apple/Google credentials, set
 `ALLOW_SOFT_LAUNCH=true`. The endpoint then accepts any well-formed receipt for a
 known product id after a basic sanity check. **Turn this off** and configure the
 real credentials as soon as you can — it does not stop forged receipts.
+
+**Fail-closed in production:** if `NODE_ENV=production`, soft-launch will **not**
+grant unless you ALSO set `ALLOW_SOFT_LAUNCH_IN_PROD=true` — a deliberate second
+flag so a stray `ALLOW_SOFT_LAUNCH` left in the environment can't silently hand
+out paid content on the live endpoint.

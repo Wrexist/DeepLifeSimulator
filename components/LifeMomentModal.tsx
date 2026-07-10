@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import LinearGradientFallback from '@/components/fallbacks/LinearGradientFallback';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
@@ -17,12 +17,23 @@ export default function LifeMomentModal() {
   // on a save that's mid-migration.
   const settings = safeSettings(gameState);
 
+  // Anti-double-tap latch. `handleChoice`/`handleDismiss` read `pendingMoment`
+  // from the stale render closure and apply money/stats/karma via separate
+  // dispatches BEFORE React clears the moment, so two same-frame taps would each
+  // pass the `if (!pending)` gate and double-grant (e.g. "Bank the windfall" pays
+  // +$5,000 twice → +$10,000; karma choices double their delta). Latching on the
+  // unique moment id makes the effects apply exactly once per moment. Moment ids
+  // are unique per generation, so a fresh moment always clears the latch.
+  const resolvedMomentRef = useRef<string | null>(null);
+
   const handleChoice = useCallback(
     (choiceId: string) => {
       const pending = gameState.lifeMoments?.pendingMoment;
       if (!pending) return;
+      if (resolvedMomentRef.current === pending.id) return; // already resolving this moment
       const choice = pending.choices.find(c => c.id === choiceId);
       if (!choice) return;
+      resolvedMomentRef.current = pending.id;
 
       choice.quickEffect.forEach(effect => {
         if (effect.stat === 'money') {
@@ -87,7 +98,10 @@ export default function LifeMomentModal() {
   // choice handler does so an empty/malformed moment can't soft-lock the UI
   // and Android back works.
   const handleDismiss = useCallback(() => {
-    if (!gameState.lifeMoments?.pendingMoment) return;
+    const pending = gameState.lifeMoments?.pendingMoment;
+    if (!pending) return;
+    if (resolvedMomentRef.current === pending.id) return; // a choice already resolved this moment
+    resolvedMomentRef.current = pending.id;
     setGameState(prev => ({
       ...prev,
       lifeMoments: {
