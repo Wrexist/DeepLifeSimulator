@@ -89,7 +89,7 @@ Start i dag. Byg din formue. Eller gå spektakulært ned. Uanset hvad får du en
 ## whats_new
 
 ```text
-v2.3.1 - Stabilitet og forbedringer
+v1.4.0 - Stabilitet og forbedringer
 
 Vi har lyttet til jeres feedback. Denne opdatering handler om stabilitet og spilfølelse:
 

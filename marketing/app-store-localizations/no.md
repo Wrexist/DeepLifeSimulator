@@ -95,7 +95,7 @@ Start i dag. Bygg formuen din. Eller gå konkurs med stil. Uansett får du en hi
 ## whats_new
 
 ```text
-v2.3.1 - Stabilitet og spillopplevelse
+v1.4.0 - Stabilitet og spillopplevelse
 
 Vi hørte på tilbakemeldingene deres. Denne oppdateringen handler om stabilitet:
 

@@ -95,7 +95,7 @@ Bugün başla. Servetini kur. Ya da muhteşem bir çöküş yaşa. İki türlü 
 ## whats_new
 
 ```text
-v2.3.1 - Kalite ve Çökme Düzeltmeleri
+v1.4.0 - Kalite ve Çökme Düzeltmeleri
 
 Geri bildirimlerinizi dinledik. Bu güncelleme tamamen stabilite ve daha akıcı bir oyun deneyimi için:
 

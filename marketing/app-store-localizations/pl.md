@@ -89,7 +89,7 @@ Zacznij już dziś. Zbuduj fortunę. Albo spektakularnie ją strać. Tak czy ina
 ## whats_new
 
 ```text
-v2.3.1 - Stabilność i jakość rozgrywki
+v1.4.0 - Stabilność i jakość rozgrywki
 
 Słuchaliśmy Waszych opinii. Ta aktualizacja to przede wszystkim stabilność i lepsze odczucia z gry:
 

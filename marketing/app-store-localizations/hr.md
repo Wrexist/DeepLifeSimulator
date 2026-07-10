@@ -89,7 +89,7 @@ Kreni danas. Izgradi svoje bogatstvo. Ili se spektakularno sruši. Kako god bilo
 ## whats_new
 
 ```text
-v2.3.1 - Stabilnost i ispravci
+v1.4.0 - Stabilnost i ispravci
 
 Poslušali smo vaše povratne informacije. Ovo ažuriranje donosi stabilnost i pošteniju igru:
 

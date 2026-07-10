@@ -89,7 +89,7 @@ Embarque aujourd'hui. Bâtis ta fortune. Ou plante-toi solide. Dans les deux cas
 ## whats_new
 
 ```text
-v2.3.1 - Qualité de vie et correctifs de plantages
+v1.4.0 - Qualité de vie et correctifs de plantages
 
 On t'a écouté. Cette mise à jour, c'est de la stabilité d'un bord à l'autre :
 

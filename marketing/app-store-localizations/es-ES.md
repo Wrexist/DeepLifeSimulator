@@ -85,7 +85,7 @@ Descárgalo hoy. Hazte millonario o arruínate por el camino: en cualquier caso,
 ## whats_new
 
 ```text
-v2.3.1 - Estabilidad y calidad de vida
+v1.4.0 - Estabilidad y calidad de vida
 
 Os hemos escuchado. Esta actualización se centra en que el juego funcione como debe:
 

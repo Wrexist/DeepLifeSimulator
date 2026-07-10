@@ -99,7 +99,7 @@ Ready to play? Download now and see if you can build generational wealth-or if y
 ## whats_new
 
 ```text
-v2.3.1 - Quality of Life & Crash Fixes
+v1.4.0 - Quality of Life & Crash Fixes
 
 We listened to your feedback. This update is all about stability:
 

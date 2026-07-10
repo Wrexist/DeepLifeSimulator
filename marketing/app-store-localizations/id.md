@@ -85,7 +85,7 @@ Mulai hari ini. Kumpulkan harta sampai miliaran rupiah. Atau bangkrut spektakule
 ## whats_new
 
 ```text
-v2.3.1 - Kualitas & Perbaikan Crash
+v1.4.0 - Kualitas & Perbaikan Crash
 
 Kami dengar masukan kalian. Update ini fokus penuh ke stabilitas:
 

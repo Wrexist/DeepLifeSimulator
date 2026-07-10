@@ -89,7 +89,7 @@ Lance-toi aujourd'hui. Bâtis ta fortune. Ou plante-toi avec panache. Dans tous 
 ## whats_new
 
 ```text
-v2.3.1 - Confort de jeu et corrections de crashs
+v1.4.0 - Confort de jeu et corrections de crashs
 
 On t'a écouté. Cette mise à jour mise tout sur la stabilité :
 

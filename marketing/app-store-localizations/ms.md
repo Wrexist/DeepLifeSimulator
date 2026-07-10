@@ -85,7 +85,7 @@ Mula hari ini. Kumpul harta sampai jutaan ringgit. Atau bankrap dengan bergaya. 
 ## whats_new
 
 ```text
-v2.3.1 - Kualiti & Pembetulan Crash
+v1.4.0 - Kualiti & Pembetulan Crash
 
 Kami dengar maklum balas kamu. Kemas kini ini fokus penuh pada kestabilan:
 

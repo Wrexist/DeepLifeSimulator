@@ -89,7 +89,7 @@ Začni ještě dnes. Vybuduj jmění. Nebo velkolepě zkrachuj. Příběh k vypr
 ## whats_new
 
 ```text
-v2.3.1 - Kvalita a stabilita
+v1.4.0 - Kvalita a stabilita
 
 Vyslyšeli jsme tvou zpětnou vazbu. Tahle aktualizace je celá o stabilitě a lepším pocitu ze hry:
 

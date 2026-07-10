@@ -85,7 +85,7 @@ Starte jetzt. Baue dein Vermögen auf - oder crashe spektakulär. Eine Geschicht
 ## whats_new
 
 ```text
-v2.3.1 - Stabilität & Komfort
+v1.4.0 - Stabilität & Komfort
 
 Wir haben euer Feedback gelesen - und geliefert. Das ist unser bisher größtes Stabilitäts-Update:
 

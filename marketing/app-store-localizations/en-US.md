@@ -99,7 +99,7 @@ Ready to play? Download now and see if you can build generational wealth-or if y
 ## whats_new
 
 ```text
-v2.3.1 - Quality of Life & Crash Fixes
+v1.4.0 - Quality of Life & Crash Fixes
 
 We listened to your feedback. This update is all about stability:
 
@@ -216,7 +216,7 @@ Join our Discord community: discord.gg/invite/rzktazdX8v
 • Keyword string targets the highest-volume US terms: "life simulator" (primary genre query), career, investing, tycoon, business, bankruptcy, strategy, money, simulation.
 • promotional_text is new conversion copy (not indexed): 18-with-nothing hook, loans/market/property/crime arc, dynasty-or-bankruptcy stakes.
 • Description keeps the approved structure verbatim; duplicate "80+ LIFE EVENTS" header from the source was merged into a single section and markdown artifacts (---, bold) removed since App Store fields render plain text.
-• whats_new condensed from the full v2.3.1 notes to ~950 chars, leading with "We listened" and ending with the Discord link per the conversion checklist.
+• whats_new condensed from the full v1.4.0 notes to ~950 chars, leading with "We listened" and ending with the Discord link per the conversion checklist.
 • Google Play full description trimmed under the 4000-char limit by removing the redundant standalone "80+ LIFE EVENTS" section (the source copy exceeded 4000 code points); the 80+ events claim is retained twice elsewhere.
 • A/B test subtitle option 2 ("Build Your Fortune Or Collapse") after 4 weeks; do not rotate keywords or title.
 ```

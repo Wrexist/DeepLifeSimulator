@@ -95,7 +95,7 @@ Begin vandaag. Bouw je fortuin op. Of crash spectaculair. Hoe dan ook: je hebt s
 ## whats_new
 
 ```text
-v2.3.1 - Stabiliteit & kwaliteit
+v1.4.0 - Stabiliteit & kwaliteit
 
 We hebben naar jullie feedback geluisterd. Deze update draait om stabiliteit en een soepeler spel:
 

@@ -89,7 +89,7 @@ Kezdd el még ma. Építsd fel a vagyonod. Vagy bukj el látványosan. Így is, 
 ## whats_new
 
 ```text
-v2.3.1 - Stabilitás és hibajavítások
+v1.4.0 - Stabilitás és hibajavítások
 
 Meghallgattunk titeket. Ez a frissítés a stabilitásról és a tisztességes játékélményről szól:
 
